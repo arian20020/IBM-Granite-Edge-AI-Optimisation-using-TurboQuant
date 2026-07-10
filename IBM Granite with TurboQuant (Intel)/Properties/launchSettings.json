@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "IBM Granite with TurboQuant (Intel) (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "IBM Granite with TurboQuant (Intel) (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
