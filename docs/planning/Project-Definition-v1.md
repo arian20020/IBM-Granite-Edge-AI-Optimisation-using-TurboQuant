@@ -28,7 +28,7 @@ The practical problem addressed by this project is therefore the gap between the
 
 ## 2. Project Aim
 
-Insert one measurable overall aim.
+The aim of this project is to design, build and evaluate a WinUI 3 desktop application for Windows 11 Intel PCs, aimed at workers in education and healthcare. The application will allow users to import or download supported IBM Granite models, check whether they are compatible with the available hardware and likely to fit in memory, select a verified configuration, and run the models locally through a simple user interface. The project will also investigate whether TurboQuant is a practical KV-cache quantisation method for reducing memory use while maintaining acceptable output quality, performance and runtime stability.
 
 ## 3. Research Questions
 
