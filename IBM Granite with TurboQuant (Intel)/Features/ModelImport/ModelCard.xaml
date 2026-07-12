@@ -307,6 +307,7 @@
                         StepFrequency="0.1"
                         TickPlacement="None"
                         UseSystemFocusVisuals="True"
+                        ValueChanged="ModelScaleSlider_ValueChanged"
                         Value="50">
 
                         <!--
@@ -427,6 +428,94 @@
                     </Grid>
 
                 </StackPanel>
+
+                <!--
+                    TODO(DOWNLOAD WORKFLOW):
+                    This button is currently visual only.
+                    
+                    It will later bind to a download command supplied by
+                    ModelImportViewModel. The command will pass the selected
+                    ModelProfile to ModelDownloadService.
+                -->
+                <Button
+                    x:Name="DownloadModelButton"
+                    Height="48"
+                    Margin="0,8,0,0"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    AutomationProperties.Name="Download the selected model"
+                    Background="#2563EB"
+                    BorderBrush="#2563EB"
+                    BorderThickness="1"
+                    Content="Download selected model"
+                    CornerRadius="12"
+                    FontWeight="SemiBold"
+                    Foreground="White"
+                    UseSystemFocusVisuals="True">
+
+                    <!--
+                        TODO(THEMING):
+                        Move these repeated button colours into shared resources
+                        so BrowseModelButton and DownloadModelButton use one style.
+                    -->
+                    <Button.Resources>
+
+                        <!--  Normal state.  -->
+                        <SolidColorBrush
+                            x:Key="ButtonBackground"
+                            Color="#2563EB" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonForeground"
+                            Color="#FFFFFF" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrush"
+                            Color="#2563EB" />
+
+                        <!--  Mouse-hover state.  -->
+                        <SolidColorBrush
+                            x:Key="ButtonBackgroundPointerOver"
+                            Color="#1D4ED8" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonForegroundPointerOver"
+                            Color="#FFFFFF" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrushPointerOver"
+                            Color="#1D4ED8" />
+
+                        <!--  Pressed state.  -->
+                        <SolidColorBrush
+                            x:Key="ButtonBackgroundPressed"
+                            Color="#1E40AF" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonForegroundPressed"
+                            Color="#FFFFFF" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrushPressed"
+                            Color="#1E40AF" />
+
+                        <!--  Disabled state.  -->
+                        <SolidColorBrush
+                            x:Key="ButtonBackgroundDisabled"
+                            Color="#E5E7EB" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonForegroundDisabled"
+                            Color="#9CA3AF" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrushDisabled"
+                            Color="#D1D5DB" />
+
+                    </Button.Resources>
+
+                </Button>
 
             </StackPanel>
 

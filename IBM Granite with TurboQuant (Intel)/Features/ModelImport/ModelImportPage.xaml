@@ -150,9 +150,11 @@
                                     <SolidColorBrush
                                         x:Key="ButtonBackground"
                                         Color="#2563EB" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonForeground"
                                         Color="#FFFFFF" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonBorderBrush"
                                         Color="#2563EB" />
@@ -161,9 +163,11 @@
                                     <SolidColorBrush
                                         x:Key="ButtonBackgroundPointerOver"
                                         Color="#1D4ED8" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonForegroundPointerOver"
                                         Color="#FFFFFF" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonBorderBrushPointerOver"
                                         Color="#1D4ED8" />
@@ -172,9 +176,11 @@
                                     <SolidColorBrush
                                         x:Key="ButtonBackgroundPressed"
                                         Color="#1E40AF" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonForegroundPressed"
                                         Color="#FFFFFF" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonBorderBrushPressed"
                                         Color="#1E40AF" />
@@ -183,9 +189,11 @@
                                     <SolidColorBrush
                                         x:Key="ButtonBackgroundDisabled"
                                         Color="#E5E7EB" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonForegroundDisabled"
                                         Color="#9CA3AF" />
+
                                     <SolidColorBrush
                                         x:Key="ButtonBorderBrushDisabled"
                                         Color="#D1D5DB" />
@@ -197,19 +205,199 @@
                         </StackPanel>
 
                     </Grid>
-                    <!--  Separates importing a local model from downloading one.  -->
-                    <TextBlock
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Center"
-                        FontSize="14"
-                        Foreground="#9CA3AF"
-                        Text="or download a recommended model"
-                        TextAlignment="Center" />
-                    <!--  Creates the recommended-model profile card.  -->
 
-                    <!--  Displays the separate recommended-model component.  -->
+                    <!--
+                        Opens or closes the recommended-model section.
+                        
+                        This is a Button because the text performs an action.
+                        Its transparent styling makes it appear like simple grey text.
+                    -->
+                    <Button
+                        x:Name="RecommendedModelToggleButton"
+                        Margin="0,4,0,0"
+                        Padding="8,4"
+                        HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        AutomationProperties.HelpText="Shows or hides the recommended model options"
+                        AutomationProperties.Name="Show recommended model options"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        Click="RecommendedModelToggleButton_Click"
+                        Foreground="#9CA3AF"
+                        UseSystemFocusVisuals="True">
+
+                        <!--  Prevents the Button from displaying a white box.  -->
+                        <Button.Resources>
+
+                            <!--  Normal state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#9CA3AF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="Transparent" />
+
+                            <!--  Mouse-hover state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#6B7280" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="Transparent" />
+
+                            <!--  Pressed state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#4B5563" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="Transparent" />
+
+                        </Button.Resources>
+
+                        <!--  Places the instruction and arrow beside each other.  -->
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="6">
+
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="Or download a recommended model" />
+
+                            <!--
+                                The arrow changes direction when the recommended-model
+                                section is opened or closed.
+                            -->
+                            <TextBlock
+                                x:Name="RecommendedModelToggleArrow"
+                                VerticalAlignment="Center"
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Text="↓" />
+
+                        </StackPanel>
+
+                    </Button>
+
+                    <!--
+                        Starts completely hidden.
+                        
+                        Collapsed means the card is invisible and takes up no layout space.
+                        Its download button is hidden because it is inside ModelCard.
+                    -->
                     <local:ModelCard
-                        Margin="0,4,0,0" />
+                        x:Name="RecommendedModelCard"
+                        Margin="0,8,0,0"
+                        Visibility="Collapsed" />
+
+                    <!--
+                        TODO(MODEL READINESS):
+                        
+                        This button must remain disabled until either:
+                        
+                        1. A local model has been successfully imported and validated.
+                        2. A recommended model has finished downloading and validating.
+                        
+                        ModelImportViewModel.IsModelReady will eventually control
+                        this button's IsEnabled property.
+                    -->
+                    <Button
+                        x:Name="ContinueToModelInspectionButton"
+                        Height="48"
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.HelpText="Available after a model has been imported or downloaded"
+                        AutomationProperties.Name="Continue to model inspection"
+                        Background="#2563EB"
+                        BorderBrush="#2563EB"
+                        BorderThickness="1"
+                        Content="Continue to model inspection"
+                        CornerRadius="12"
+                        FontWeight="SemiBold"
+                        Foreground="White"
+                        IsEnabled="False"
+                        UseSystemFocusVisuals="True">
+
+                        <!--
+                            The normal colours will appear after the button is enabled.
+                            The disabled colours make it visibly grey initially.
+                        -->
+                        <Button.Resources>
+
+                            <!--  Normal enabled state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="#2563EB" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#FFFFFF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="#2563EB" />
+
+                            <!--  Mouse-hover state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="#1D4ED8" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#FFFFFF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="#1D4ED8" />
+
+                            <!--  Pressed state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="#1E40AF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#FFFFFF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="#1E40AF" />
+
+                            <!--  Initial disabled state.  -->
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundDisabled"
+                                Color="#E5E7EB" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundDisabled"
+                                Color="#9CA3AF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushDisabled"
+                                Color="#D1D5DB" />
+
+                        </Button.Resources>
+
+                    </Button>
 
                 </StackPanel>
 

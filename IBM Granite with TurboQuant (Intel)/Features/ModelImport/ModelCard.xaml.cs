@@ -1,27 +1,71 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
-
-namespace GraniteEdgeAI.Features.ModelImport;
-
-public sealed partial class ModelCard : UserControl
+namespace GraniteEdgeAI.Features.ModelImport
 {
-    public ModelCard()
+    /// <summary>
+    /// Displays the currently selected recommended-model profile.
+    /// </summary>
+    public sealed partial class ModelCard : UserControl
     {
-        InitializeComponent();
+        public ModelCard()
+        {
+            // Loads and connects the controls declared in ModelCard.xaml.
+            InitializeComponent();
+
+            // Ensures the initial label matches the slider's starting value.
+            UpdateModelScaleLabel(ModelScaleSlider.Value);
+        }
+
+        /*
+            Runs every time the slider value changes.
+
+            This is currently view-only behaviour because it changes visible text.
+            The final model-selection logic will later move into
+            ModelImportViewModel.
+        */
+        private void ModelScaleSlider_ValueChanged(
+            object sender,
+            RangeBaseValueChangedEventArgs e)
+        {
+            UpdateModelScaleLabel(e.NewValue);
+        }
+
+        // Updates the visible preference label above the slider.
+        private void UpdateModelScaleLabel(double sliderValue)
+        {
+            /*
+                The event can potentially run while XAML is still being loaded.
+
+                This check prevents us from accessing the TextBlock before
+                WinUI has created it.
+            */
+            if (ModelScaleValueText is null)
+            {
+                return;
+            }
+
+            ModelScaleValueText.Text =
+                GetModelScaleLabel(sliderValue);
+        }
+
+        /*
+            Converts the continuous 0–100 slider value into five
+            user-friendly preference descriptions.
+
+            The slider itself remains continuous—it does not snap
+            to these five categories.
+        */
+        private static string GetModelScaleLabel(double sliderValue)
+        {
+            return sliderValue switch
+            {
+                < 20 => "Maximum efficiency",
+                < 40 => "Efficient",
+                < 60 => "Balanced",
+                < 80 => "High capability",
+                _ => "Maximum capability"
+            };
+        }
     }
 }

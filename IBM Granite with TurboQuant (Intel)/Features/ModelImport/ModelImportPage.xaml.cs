@@ -1,8 +1,5 @@
-// Provides the WinUI Page class inherited by ModelImportPage.
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace GraniteEdgeAI.Features.ModelImport
 {
@@ -15,6 +12,31 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             // Loads and connects the controls declared in ModelImportPage.xaml.
             InitializeComponent();
+        }
+
+        /*
+            Opens or closes the recommended-model section.
+
+            This is view-only behaviour because it only controls whether
+            part of the interface is visible.
+        */
+        private void RecommendedModelToggleButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            // Checks whether the recommended-model card is currently hidden.
+            bool shouldOpen =
+                RecommendedModelCard.Visibility == Visibility.Collapsed;
+
+            // Shows the card when closed, or hides it when already open.
+            RecommendedModelCard.Visibility = shouldOpen
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+            // Changes the arrow to show what clicking the button will do next.
+            RecommendedModelToggleArrow.Text = shouldOpen
+                ? "↑"
+                : "↓";
         }
     }
 }
