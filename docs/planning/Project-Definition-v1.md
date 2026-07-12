@@ -12,100 +12,83 @@
 
 ## 1. Problem Statement
 
-[Insert the approved problem statement here.]
-
----
+Insert the agreed problem statement.
 
 ## 2. Project Aim
 
-[Insert the final single project aim here.]
-
----
+Insert one measurable overall aim.
 
 ## 3. Research Questions
 
 ### RQ1 — Runtime and Hardware Feasibility
 
-[Insert RQ1 and its planned evidence here.]
+**Question:** Insert the frozen wording.  
+**Evidence required:** List the tests and measurements.
 
 ### RQ2 — TurboQuant Effectiveness
 
-[Insert RQ2 and its planned evidence here.]
+**Question:** Insert the frozen wording.  
+**Evidence required:** List activation, memory, speed, quality and stability evidence.
 
 ### RQ3 — Memory-Fit Prediction and Configuration Selection
 
-[Insert RQ3 and its planned evidence here.]
+**Question:** Insert the frozen wording.  
+**Evidence required:** List predicted-versus-measured evidence.
 
 ### RQ4 — End-to-End Desktop Application
 
-[Insert RQ4 and its planned evidence here.]
-
----
+**Question:** Insert the frozen wording.  
+**Evidence required:** List application, failure-handling and UX evidence.
 
 ## 4. Project Objectives
 
-[Insert the approved objectives here.]
-
----
+1. Insert measurable objectives.
+2. Link every objective to at least one requirement or RQ.
 
 ## 5. First-Release Scope
 
 ### 5.1 Must Have
 
-[Insert committed first-release functionality here.]
+- Insert committed first-release work.
 
 ### 5.2 Should Have
 
-[Insert functionality attempted after the core system is stable.]
+- Insert work attempted after the Must Haves are stable.
 
 ### 5.3 Experimental
 
-[Insert features that require a technical evidence gate.]
+- Insert work that requires a technical evidence gate.
 
 ### 5.4 Deferred
 
-[Insert features deliberately excluded from the first release.]
-
----
+- Insert work deliberately excluded from the first release.
 
 ## 6. Claims Not Made by This Project
 
-[Insert the boundaries on compatibility, compression, quality and hardware claims.]
-
----
+- No universal Granite or Intel compatibility claim.
+- No guaranteed TurboQuant or OpenVINO success claim.
+- TurboQuant does not create a smaller GGUF weight file.
+- Measured results, estimates and paper claims remain separate.
 
 ## 7. Definition of a Satisfactory Project Outcome
 
-[Insert the measurable completion conditions here.]
-
----
+Insert measurable completion conditions.
 
 ## 8. Constraints and Assumptions
 
 ### 8.1 Constraints
 
-[Insert the project constraints here.]
+Insert time, hardware, runtime, licensing and access constraints.
 
 ### 8.2 Assumptions
 
-[Insert the project assumptions here.]
-
----
+Insert assumptions and explain how each will be checked.
 
 ## 9. Scope Change Rule
 
-Version 1.0 becomes the working project scope baseline on 14 July 2026.
+Version 1.0 becomes the working scope baseline on 14 July 2026.
 
-Any proposed addition, removal or significant modification must record:
-
-- the date;
-- the requested change;
-- the reason for the change;
-- the supporting evidence;
-- the effect on the schedule;
-- the effect on project risks;
-- any existing work that must be removed to create capacity;
-- the final decision;
-- relevant supervisor feedback.
+Any major change must record the date, reason, evidence, schedule effect, risk effect,
+work removed to create capacity, final decision and significant supervisor feedback.
 
 No new major feature will be added after 10 August 2026.

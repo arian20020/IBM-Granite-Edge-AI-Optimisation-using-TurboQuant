@@ -1,3 +1,4 @@
+using GraniteEdgeAI.Features.ModelImport;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -25,7 +26,11 @@ namespace GraniteEdgeAI
     {
         public MainWindow()
         {
+            // Loads MainWindow.xaml and creates its named controls, including rootFrame.
             InitializeComponent();
+
+            // Loads ModelImportPage inside rootFrame when the window is created.
+            rootFrame.Navigate(typeof(ModelImportPage));
         }
     }
 }

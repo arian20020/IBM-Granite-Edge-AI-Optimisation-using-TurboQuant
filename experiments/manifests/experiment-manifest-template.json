@@ -1,0 +1,47 @@
+﻿{
+  "experiment_id": "EXP-YYYY-MM-DD-001",
+  "research_question": "RQ1",
+  "purpose": "Describe the experiment purpose.",
+  "timestamp_utc": "YYYY-MM-DDTHH:MM:SSZ",
+  "hardware": {
+    "cpu": "",
+    "gpu": "",
+    "npu": "",
+    "installed_ram_bytes": 0,
+    "available_ram_before_bytes": 0,
+    "operating_system": "",
+    "power_mode": ""
+  },
+  "model": {
+    "name": "",
+    "source": "",
+    "revision": "",
+    "filename": "",
+    "sha256": "",
+    "format": "",
+    "weight_quantisation": "",
+    "licence": ""
+  },
+  "runtime": {
+    "repository": "",
+    "commit": "",
+    "executable_sha256": "",
+    "compiler": "",
+    "build_options": [],
+    "requested_backend": "",
+    "actual_backend": "",
+    "requested_device": "",
+    "actual_device": ""
+  },
+  "configuration": {
+    "context_length": 0,
+    "kv_cache_type": "",
+    "threads": 0,
+    "gpu_layers": 0,
+    "seed": 0,
+    "sampling_settings": {}
+  },
+  "command": "",
+  "raw_result_directory": "",
+  "notes": ""
+}
