@@ -1,4 +1,4 @@
-﻿# Project Definition and Scope Baseline
+# Project Definition and Scope Baseline
 
 **Version:** 1.0  
 **Status:** Baseline for supervisor review  
