@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "run_id": "",
+  "created_at_utc": "",
+  "algorithm": "SHA-256",
+  "files": [{
+    "path": "",
+    "size_bytes": 0,
+    "sha256": ""
+  }],
+  "notes": ""
+}

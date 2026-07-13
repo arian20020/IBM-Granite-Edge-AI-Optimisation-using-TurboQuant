@@ -1,0 +1,49 @@
+{
+  "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+  "version": "1.0",
+  "status": "controlling",
+  "created_date": "2026-07-13",
+  "dimensions": [
+    {
+      "name": "correctness_and_grounding",
+      "weight": 0.3,
+      "critical_cap": "Material contradiction, fabricated required fact or wrong exact answer caps the task at 4/10."
+    },
+    {
+      "name": "instruction_and_format_adherence",
+      "weight": 0.25,
+      "critical_cap": "Failed required format/schema caps the task at 4/10; empty or unnecessary refusal scores 0/10."
+    },
+    {
+      "name": "completeness_and_fact_retention",
+      "weight": 0.2,
+      "critical_cap": "Missing a critical required fact caps the task at 4/10."
+    },
+    {
+      "name": "relevance_clarity_and_coherence",
+      "weight": 0.15,
+      "critical_cap": "Severe incoherence or off-topic output caps the task at 2/10."
+    },
+    {
+      "name": "stability_and_output_integrity",
+      "weight": 0.1,
+      "critical_cap": "Corruption, repeated loops, truncation that prevents completion, or wrong remembered value caps the task at 2/10."
+    }
+  ],
+  "anchors": {
+    "10": "Fully correct, complete, relevant and exactly compliant; no material weakness.",
+    "8": "Correct and usable with only a minor, non-material weakness.",
+    "6": "Mostly correct, but one meaningful omission, ambiguity or quality weakness remains.",
+    "4": "Partially correct or useful, but a critical instruction, fact or format requirement failed.",
+    "2": "Minimal usable content; major errors, instability or severe incompleteness.",
+    "0": "No usable answer, empty output, unnecessary refusal, or wholly incorrect/corrupted output."
+  },
+  "procedure": [
+    "Run deterministic gates first.",
+    "Score baseline and optimised outputs independently with configuration labels hidden.",
+    "For subjective pairwise comparison, evaluate both presentation orders.",
+    "Manually adjudicate every critical-gate failure, judge disagreement greater than one point, or ranking reversal.",
+    "An automated or model judge must never override an objective deterministic failure.",
+    "Report per-prompt results as well as averages; equal averages must not hide different failures."
+  ]
+}

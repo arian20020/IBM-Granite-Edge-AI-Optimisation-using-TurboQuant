@@ -1,0 +1,37 @@
+# Keep controlled evidence logs even though the root Visual Studio ignore file ignores *.log.
+!logs/
+!logs/**/
+!logs/**/*.log
+
+# Keep the other formal evidence categories.
+!manifests/
+!manifests/**
+!configurations/
+!configurations/**
+!scripts/
+!scripts/**
+!outputs/
+!outputs/**
+!metrics/
+!metrics/**
+!results/
+!results/**
+!notes/
+!notes/**
+!prompts/
+!prompts/**
+!rubrics/
+!rubrics/**
+
+# Never store model weights, runtime binaries or sensitive local configuration here.
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.exe
+*.dll
+.env
+.env.*
+secrets.json

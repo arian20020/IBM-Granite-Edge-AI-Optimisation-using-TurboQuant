@@ -1,0 +1,120 @@
+Test_ID,Route,Category,Test_Title,Research_Question,Workbook_ID,Workbook_Section
+OV-B08,official-openvino,Build/Setup,Verify the official merged TurboQuant source/API boundary,RQ1,WB-04,OV-B08
+OV-B09,official-openvino,Build/Setup,Verify official TBQ3/TBQ4 precision and independent K/V controls,RQ1,WB-04,OV-B09
+OV-B10,official-openvino,Build/Setup,Run official TurboQuant unit/functional diagnostics,RQ1,WB-04,OV-B10
+OV-B11,official-openvino,Build/Setup,Verify QJL and PolarQuant are not exposed by the official merged route,RQ1,WB-04,OV-B11
+OV-B12,official-openvino,Build/Setup,Verify official CPU SDPA preconditions and limitations,RQ1,WB-04,OV-B12
+OV-TQS-01,official-openvino,Codec Capability Sweep,Official TBQ4/TBQ4 U4/U4,RQ1;RQ2,WB-04,OV-TQS-01
+OV-TQS-02,official-openvino,Codec Capability Sweep,Official TBQ3/TBQ3 U3/U3,RQ1;RQ2,WB-04,OV-TQS-02
+OV-TQS-03,official-openvino,Codec Capability Sweep,Official TBQ4/TBQ3 U4/U3,RQ1;RQ2,WB-04,OV-TQS-03
+OV-TQS-04,official-openvino,Codec Capability Sweep,Official TBQ3/TBQ4 U3/U4,RQ1;RQ2,WB-04,OV-TQS-04
+OV-TQS-05,official-openvino,Codec Capability Sweep,Official TBQ4/SCALAR U4/U8,RQ1;RQ2,WB-04,OV-TQS-05
+OV-TQS-06,official-openvino,Codec Capability Sweep,Official SCALAR/TBQ4 U8/U4,RQ1;RQ2,WB-04,OV-TQS-06
+OV-TQS-07,official-openvino,Codec Capability Sweep,Official TBQ3/SCALAR U3/U8,RQ1;RQ2,WB-04,OV-TQS-07
+OV-TQS-08,official-openvino,Codec Capability Sweep,Official SCALAR/TBQ3 U8/U3,RQ1;RQ2,WB-04,OV-TQS-08
+OV-TQS-09,official-openvino,Codec Capability Sweep,Official TBQ4/SCALAR U4/U4,RQ1;RQ2,WB-04,OV-TQS-09
+OV-TQS-10,official-openvino,Codec Capability Sweep,Official SCALAR/TBQ4 U4/U4,RQ1;RQ2,WB-04,OV-TQS-10
+OV-TQS-11,official-openvino,Codec Capability Sweep,Official TBQ3/SCALAR U3/U4,RQ1;RQ2,WB-04,OV-TQS-11
+OV-TQS-12,official-openvino,Codec Capability Sweep,Official SCALAR/TBQ3 U4/U3,RQ1;RQ2,WB-04,OV-TQS-12
+OV-TQ-01,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — Standard U8/U8 control baseline,RQ1;RQ2;RQ3,WB-04,OV-TQ-01
+OV-TQ-02,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — Standard U4/U4 control baseline,RQ1;RQ2;RQ3,WB-04,OV-TQ-02
+OV-TQ-03,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — Official symmetric TurboQuant 4-bit,RQ1;RQ2;RQ3,WB-04,OV-TQ-03
+OV-TQ-04,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — Official symmetric TurboQuant 3-bit,RQ1;RQ2;RQ3,WB-04,OV-TQ-04
+OV-TQ-05,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — Official asymmetric TBQ4 key / TBQ3 value,RQ1;RQ2;RQ3,WB-04,OV-TQ-05
+OV-TQ-06,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — Official asymmetric TBQ3 key / TBQ4 value,RQ1;RQ2;RQ3,WB-04,OV-TQ-06
+OV-TQ-07,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TurboQuant key-only 4-bit,RQ1;RQ2;RQ3,WB-04,OV-TQ-07
+OV-TQ-08,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TurboQuant value-only 4-bit,RQ1;RQ2;RQ3,WB-04,OV-TQ-08
+OV-TQ-09,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TurboQuant key-only 3-bit,RQ1;RQ2;RQ3,WB-04,OV-TQ-09
+OV-TQ-10,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TurboQuant value-only 3-bit,RQ1;RQ2;RQ3,WB-04,OV-TQ-10
+OV-TQ-11,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TBQ4 norm-correction OFF/ON ablation,RQ1;RQ2;RQ3,WB-04,OV-TQ-11
+OV-TQ-12,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TBQ3 norm-correction OFF/ON ablation,RQ1;RQ2;RQ3,WB-04,OV-TQ-12
+OV-TQ-13,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TBQ4 context-scaling series,RQ1;RQ2;RQ3,WB-04,OV-TQ-13
+OV-TQ-14,official-openvino,TurboQuant Inference/Benchmark,Granite 3B — TBQ3 context-scaling series,RQ1;RQ2;RQ3,WB-04,OV-TQ-14
+OV-TQ-15,official-openvino,TurboQuant Inference/Benchmark,"Granite 3B — Repeatability and stability: pilot, warm-up, three measured runs",RQ1;RQ2;RQ3,WB-04,OV-TQ-15
+OV-TQ-16,official-openvino,TurboQuant Inference/Benchmark,Granite 8B — 8B TBQ4 feasibility and memory-safety gate,RQ1;RQ2;RQ3,WB-04,OV-TQ-16
+OV-TQ-17,official-openvino,TurboQuant Inference/Benchmark,Granite 8B — 8B TBQ3 feasibility and memory-safety gate,RQ1;RQ2;RQ3,WB-04,OV-TQ-17
+OV-TQ-18,official-openvino,TurboQuant Inference/Benchmark,Selected model — GPU request negative/fallback gate; no GPU claim without proof,RQ1;RQ2;RQ3,WB-04,OV-TQ-18
+OV-TQ-19,official-openvino,TurboQuant Inference/Benchmark,Diagnostic IR — Negative capability test: official merged route must not be labelled QJL-capable unless exposed and executed,RQ1;RQ2;RQ3,WB-04,OV-TQ-19
+OV-TQ-20,official-openvino,TurboQuant Inference/Benchmark,Diagnostic IR — Negative capability test: official merged route must not be labelled PolarQuant-capable unless exposed and executed,RQ1;RQ2;RQ3,WB-04,OV-TQ-20
+OVT-B09,custom-openvino-turboquant,Build/Setup,Pin and inspect the experimental OpenVINO codec branch/PR,RQ1,WB-05,OVT-B09
+OVT-B10,custom-openvino-turboquant,Build/Setup,Verify all six experimental codec values and independent K/V properties,RQ1,WB-05,OVT-B10
+OVT-B11,custom-openvino-turboquant,Build/Setup,Build and run codec unit/functional tests,RQ1,WB-05,OVT-B11
+OVT-B12,custom-openvino-turboquant,Build/Setup,Resolve QJL implementation-status contradictions,RQ1,WB-05,OVT-B12
+OVT-B13,custom-openvino-turboquant,Build/Setup,Verify PolarQuant implementation and codebook generation,RQ1,WB-05,OVT-B13
+OVT-B14,custom-openvino-turboquant,Build/Setup,Validate perplexity/quality scripts and reference procedure,RQ1,WB-05,OVT-B14
+OVT-B15,custom-openvino-turboquant,Build/Setup,Record experimental integration and claim boundary,RQ1,WB-05,OVT-B15
+OVT-A01,custom-openvino-turboquant,Codec Unit/Conformance,"TBQ4 round-trip, packing, norm and record-size conformance",RQ1;RQ2,WB-05,OVT-A01
+OVT-A02,custom-openvino-turboquant,Codec Unit/Conformance,"TBQ3 round-trip, packing, norm and record-size conformance",RQ1;RQ2,WB-05,OVT-A02
+OVT-A03,custom-openvino-turboquant,Codec Unit/Conformance,"TBQ4+QJL residual projection, sign correction and record-size conformance",RQ1;RQ2,WB-05,OVT-A03
+OVT-A04,custom-openvino-turboquant,Codec Unit/Conformance,"TBQ3+QJL residual projection, sign correction and record-size conformance",RQ1;RQ2,WB-05,OVT-A04
+OVT-A05,custom-openvino-turboquant,Codec Unit/Conformance,"Polar4 tree/angle encode-decode, norm and record-size conformance",RQ1;RQ2,WB-05,OVT-A05
+OVT-A06,custom-openvino-turboquant,Codec Unit/Conformance,"Polar3 tree/angle encode-decode, norm and record-size conformance",RQ1;RQ2,WB-05,OVT-A06
+OVT-A07,custom-openvino-turboquant,Codec Unit/Conformance,"Zero, near-zero, large-value, NaN/Inf rejection and numerical-stability cases across every codec",RQ1;RQ2,WB-05,OVT-A07
+OVT-A08,custom-openvino-turboquant,Codec Unit/Conformance,"Deterministic rotation, projection, codebook and seed reproducibility",RQ1;RQ2,WB-05,OVT-A08
+OVT-A09,custom-openvino-turboquant,Codec Unit/Conformance,Independent K/V codec dispatch and rotation-domain correctness,RQ1;RQ2,WB-05,OVT-A09
+OVT-A10,custom-openvino-turboquant,Codec Unit/Conformance,Activation proof and dead-code/silent-fallback detection for every codec,RQ1;RQ2,WB-05,OVT-A10
+OVT-A11,custom-openvino-turboquant,Codec Unit/Conformance,Expected versus measured packed record bytes and KV-cache allocation formula,RQ1;RQ2,WB-05,OVT-A11
+OVT-A12,custom-openvino-turboquant,Codec Unit/Conformance,Repository codec tests plus bounded perplexity/quality script smoke test,RQ1;RQ2,WB-05,OVT-A12
+OVT-S01,custom-openvino-turboquant,Codec Capability Sweep,TBQ4 key / TBQ4 value,RQ1;RQ2,WB-05,OVT-S01
+OVT-S02,custom-openvino-turboquant,Codec Capability Sweep,TBQ4 key / TBQ3 value,RQ1;RQ2,WB-05,OVT-S02
+OVT-S03,custom-openvino-turboquant,Codec Capability Sweep,TBQ4 key / TBQ4_QJL value,RQ1;RQ2,WB-05,OVT-S03
+OVT-S04,custom-openvino-turboquant,Codec Capability Sweep,TBQ4 key / TBQ3_QJL value,RQ1;RQ2,WB-05,OVT-S04
+OVT-S05,custom-openvino-turboquant,Codec Capability Sweep,TBQ4 key / POLAR4 value,RQ1;RQ2,WB-05,OVT-S05
+OVT-S06,custom-openvino-turboquant,Codec Capability Sweep,TBQ4 key / POLAR3 value,RQ1;RQ2,WB-05,OVT-S06
+OVT-S07,custom-openvino-turboquant,Codec Capability Sweep,TBQ3 key / TBQ4 value,RQ1;RQ2,WB-05,OVT-S07
+OVT-S08,custom-openvino-turboquant,Codec Capability Sweep,TBQ3 key / TBQ3 value,RQ1;RQ2,WB-05,OVT-S08
+OVT-S09,custom-openvino-turboquant,Codec Capability Sweep,TBQ3 key / TBQ4_QJL value,RQ1;RQ2,WB-05,OVT-S09
+OVT-S10,custom-openvino-turboquant,Codec Capability Sweep,TBQ3 key / TBQ3_QJL value,RQ1;RQ2,WB-05,OVT-S10
+OVT-S11,custom-openvino-turboquant,Codec Capability Sweep,TBQ3 key / POLAR4 value,RQ1;RQ2,WB-05,OVT-S11
+OVT-S12,custom-openvino-turboquant,Codec Capability Sweep,TBQ3 key / POLAR3 value,RQ1;RQ2,WB-05,OVT-S12
+OVT-S13,custom-openvino-turboquant,Codec Capability Sweep,TBQ4_QJL key / TBQ4 value,RQ1;RQ2,WB-05,OVT-S13
+OVT-S14,custom-openvino-turboquant,Codec Capability Sweep,TBQ4_QJL key / TBQ3 value,RQ1;RQ2,WB-05,OVT-S14
+OVT-S15,custom-openvino-turboquant,Codec Capability Sweep,TBQ4_QJL key / TBQ4_QJL value,RQ1;RQ2,WB-05,OVT-S15
+OVT-S16,custom-openvino-turboquant,Codec Capability Sweep,TBQ4_QJL key / TBQ3_QJL value,RQ1;RQ2,WB-05,OVT-S16
+OVT-S17,custom-openvino-turboquant,Codec Capability Sweep,TBQ4_QJL key / POLAR4 value,RQ1;RQ2,WB-05,OVT-S17
+OVT-S18,custom-openvino-turboquant,Codec Capability Sweep,TBQ4_QJL key / POLAR3 value,RQ1;RQ2,WB-05,OVT-S18
+OVT-S19,custom-openvino-turboquant,Codec Capability Sweep,TBQ3_QJL key / TBQ4 value,RQ1;RQ2,WB-05,OVT-S19
+OVT-S20,custom-openvino-turboquant,Codec Capability Sweep,TBQ3_QJL key / TBQ3 value,RQ1;RQ2,WB-05,OVT-S20
+OVT-S21,custom-openvino-turboquant,Codec Capability Sweep,TBQ3_QJL key / TBQ4_QJL value,RQ1;RQ2,WB-05,OVT-S21
+OVT-S22,custom-openvino-turboquant,Codec Capability Sweep,TBQ3_QJL key / TBQ3_QJL value,RQ1;RQ2,WB-05,OVT-S22
+OVT-S23,custom-openvino-turboquant,Codec Capability Sweep,TBQ3_QJL key / POLAR4 value,RQ1;RQ2,WB-05,OVT-S23
+OVT-S24,custom-openvino-turboquant,Codec Capability Sweep,TBQ3_QJL key / POLAR3 value,RQ1;RQ2,WB-05,OVT-S24
+OVT-S25,custom-openvino-turboquant,Codec Capability Sweep,POLAR4 key / TBQ4 value,RQ1;RQ2,WB-05,OVT-S25
+OVT-S26,custom-openvino-turboquant,Codec Capability Sweep,POLAR4 key / TBQ3 value,RQ1;RQ2,WB-05,OVT-S26
+OVT-S27,custom-openvino-turboquant,Codec Capability Sweep,POLAR4 key / TBQ4_QJL value,RQ1;RQ2,WB-05,OVT-S27
+OVT-S28,custom-openvino-turboquant,Codec Capability Sweep,POLAR4 key / TBQ3_QJL value,RQ1;RQ2,WB-05,OVT-S28
+OVT-S29,custom-openvino-turboquant,Codec Capability Sweep,POLAR4 key / POLAR4 value,RQ1;RQ2,WB-05,OVT-S29
+OVT-S30,custom-openvino-turboquant,Codec Capability Sweep,POLAR4 key / POLAR3 value,RQ1;RQ2,WB-05,OVT-S30
+OVT-S31,custom-openvino-turboquant,Codec Capability Sweep,POLAR3 key / TBQ4 value,RQ1;RQ2,WB-05,OVT-S31
+OVT-S32,custom-openvino-turboquant,Codec Capability Sweep,POLAR3 key / TBQ3 value,RQ1;RQ2,WB-05,OVT-S32
+OVT-S33,custom-openvino-turboquant,Codec Capability Sweep,POLAR3 key / TBQ4_QJL value,RQ1;RQ2,WB-05,OVT-S33
+OVT-S34,custom-openvino-turboquant,Codec Capability Sweep,POLAR3 key / TBQ3_QJL value,RQ1;RQ2,WB-05,OVT-S34
+OVT-S35,custom-openvino-turboquant,Codec Capability Sweep,POLAR3 key / POLAR4 value,RQ1;RQ2,WB-05,OVT-S35
+OVT-S36,custom-openvino-turboquant,Codec Capability Sweep,POLAR3 key / POLAR3 value,RQ1;RQ2,WB-05,OVT-S36
+OVT-10,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Symmetric TBQ4+QJL full evaluation,RQ1;RQ2;RQ3,WB-05,OVT-10
+OVT-11,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Symmetric TBQ3+QJL full evaluation,RQ1;RQ2;RQ3,WB-05,OVT-11
+OVT-12,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Symmetric Polar4 full evaluation,RQ1;RQ2;RQ3,WB-05,OVT-12
+OVT-13,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Symmetric Polar3 full evaluation,RQ1;RQ2;RQ3,WB-05,OVT-13
+OVT-14,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — QJL key-only 4-bit family,RQ1;RQ2;RQ3,WB-05,OVT-14
+OVT-15,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — QJL value-only 4-bit family,RQ1;RQ2;RQ3,WB-05,OVT-15
+OVT-16,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — QJL key-only 3-bit family,RQ1;RQ2;RQ3,WB-05,OVT-16
+OVT-17,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — QJL value-only 3-bit family,RQ1;RQ2;RQ3,WB-05,OVT-17
+OVT-18,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Polar4 key-only,RQ1;RQ2;RQ3,WB-05,OVT-18
+OVT-19,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Polar4 value-only,RQ1;RQ2;RQ3,WB-05,OVT-19
+OVT-20,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Polar3 key-only,RQ1;RQ2;RQ3,WB-05,OVT-20
+OVT-21,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Polar3 value-only,RQ1;RQ2;RQ3,WB-05,OVT-21
+OVT-22,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Cross-family TBQ4 key / Polar4 value,RQ1;RQ2;RQ3,WB-05,OVT-22
+OVT-23,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Cross-family Polar4 key / TBQ4 value,RQ1;RQ2;RQ3,WB-05,OVT-23
+OVT-24,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Cross-family QJL key / Polar4 value,RQ1;RQ2;RQ3,WB-05,OVT-24
+OVT-25,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Cross-family Polar4 key / QJL value,RQ1;RQ2;RQ3,WB-05,OVT-25
+OVT-26,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — TBQ4 norm-correction OFF/ON ablation,RQ1;RQ2;RQ3,WB-05,OVT-26
+OVT-27,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — TBQ3 norm-correction OFF/ON ablation,RQ1;RQ2;RQ3,WB-05,OVT-27
+OVT-28,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Fused-quantize OFF/ON ablation for every codec,RQ1;RQ2;RQ3,WB-05,OVT-28
+OVT-29,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Matched perplexity and P1-P6 quality comparison,RQ1;RQ2;RQ3,WB-05,OVT-29
+OVT-30,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Context-scaling comparison for every codec,RQ1;RQ2;RQ3,WB-05,OVT-30
+OVT-31,custom-openvino-turboquant,Codec Inference/Benchmark,"Granite 3B — Repeatability, stability and corruption check for every codec",RQ1;RQ2;RQ3,WB-05,OVT-31
+OVT-32,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 8B — 8B best-QJL feasibility gate,RQ1;RQ2;RQ3,WB-05,OVT-32
+OVT-33,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 8B — 8B best-Polar feasibility gate,RQ1;RQ2;RQ3,WB-05,OVT-33
+OVT-34,custom-openvino-turboquant,Codec Inference/Benchmark,Selected model — GPU codec request negative/fallback gate,RQ1;RQ2;RQ3,WB-05,OVT-34
+OVT-35,custom-openvino-turboquant,Codec Inference/Benchmark,Granite 3B — Regression suite after codec or runtime changes,RQ1;RQ2;RQ3,WB-05,OVT-35
+OVT-36,custom-openvino-turboquant,Codec Inference/Benchmark,"Diagnostic IR — Unsupported-path and limitation checks: PagedAttention, prefill compression, non-SDPA and unsupported head dimensions",RQ1;RQ2;RQ3,WB-05,OVT-36

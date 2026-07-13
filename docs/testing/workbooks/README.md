@@ -1,16 +1,40 @@
-# Testing Workbooks
+# Controlled Testing Workbooks
 
-This folder will contain the controlled copies of the six existing testing workbooks:
+The six workbooks follow the exact route order, test IDs, planned configurations and result sections found in the supplied testing folder.
 
-1. `01_Upstream_llama.cpp_Test_Workbook.docx`
-2. `02_AtomicBot_TurboQuant_Test_Workbook.docx`
-3. `03_animehacker_TQ3_0_Test_Workbook.docx`
-4. `04_Official_OpenVINO_Test_Workbook.docx`
-5. `05_Custom_OpenVINO_TurboQuant_Test_Workbook.docx`
-6. `06_Cross_Route_Comparison_Workbook.docx`
+## Canonical source-controlled templates
 
-The original workbook structure and existing test IDs must be preserved unless a change is recorded in `Decision-Log.md`.
+The reviewable versions live under `text-templates/`:
 
-A workbook section is complete only when its source run ID, evidence path and evidence commit are recorded in `Workbook-Completion-Register.csv`.
+1. `01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1.md`
+2. `02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.md`
+3. `03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md`
+4. `04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md`
+5. `05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1.md`
+6. `06_Cross_Route_Controlled_Comparison_Workbook_v1.md`
 
-The actual workbook files will be added after the existing documents have been audited and renamed without creating empty or misleading placeholder DOCX files.
+These Markdown files are canonical because Git can display and compare every field. The DOCX files are generated working artefacts rather than the only copy of the testing data.
+
+## OpenVINO workbook revisions
+
+- WB-04 revision 1.1 covers the official merged TurboQuant 3-bit and 4-bit formats, independent key/value settings, asymmetric and scalar/Turbo combinations, ablations, quality, performance, context and fallback. QJL and PolarQuant are negative official-capability checks unless a later pinned official revision exposes them.
+- WB-05 revision 1.1 covers TBQ3, TBQ4, TBQ3+QJL, TBQ4+QJL, Polar3 and Polar4, all 36 ordered key/value codec pairs, algorithm-conformance tests, ablations and full model evaluation.
+- WB-06 revision 1.1 compares official and experimental OpenVINO codecs, including QJL incremental value and PolarQuant trade-offs.
+
+## Generate the Word workbooks
+
+```powershell
+python .\scripts\testing\Generate-Controlled-Workbooks.py
+```
+
+The command writes the six `.docx` files to `docs/testing/workbooks/generated/`. Install the pinned dependency first when required:
+
+```powershell
+python -m pip install -r .\scripts\testing\requirements.txt
+```
+
+## Completion rule
+
+A workbook section is complete only when its source run ID, processed-result path, evidence path and Git commit are recorded in `../Workbook-Completion-Register.csv`.
+
+Do not type an important measured value only into Word. Enter it in the appropriate CSV register first so it remains machine-readable and traceable, then copy or generate it into the reporting workbook.
