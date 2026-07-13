@@ -15,6 +15,12 @@ The reviewable versions live under `text-templates/`:
 
 These Markdown files are canonical because Git can display and compare every field. The DOCX files are generated working artefacts rather than the only copy of the testing data.
 
+## OpenVINO workbook revisions
+
+- WB-04 revision 1.1 covers the official merged TurboQuant 3-bit and 4-bit formats, independent key/value settings, asymmetric and scalar/Turbo combinations, ablations, quality, performance, context and fallback. QJL and PolarQuant are negative official-capability checks unless a later pinned official revision exposes them.
+- WB-05 revision 1.1 covers TBQ3, TBQ4, TBQ3+QJL, TBQ4+QJL, Polar3 and Polar4, all 36 ordered key/value codec pairs, algorithm-conformance tests, ablations and full model evaluation.
+- WB-06 revision 1.1 compares official and experimental OpenVINO codecs, including QJL incremental value and PolarQuant trade-offs.
+
 ## Generate the Word workbooks
 
 ```powershell
