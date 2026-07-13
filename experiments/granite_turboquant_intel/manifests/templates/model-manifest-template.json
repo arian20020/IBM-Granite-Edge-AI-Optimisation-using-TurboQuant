@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "model_id": "MODEL-001",
+  "name": "",
+  "family": "IBM Granite",
+  "release": "",
+  "variant": "",
+  "source_url": "",
+  "source_revision": "",
+  "architecture": "",
+  "parameter_count": 0,
+  "advertised_context_tokens": 0,
+  "source_format": "",
+  "runtime_format": "",
+  "weight_precision": "",
+  "licence": "",
+  "chat_template": "",
+  "tokenizer": {
+    "source": "",
+    "revision": "",
+    "sha256": ""
+  },
+  "files": [{
+    "path": "",
+    "size_bytes": 0,
+    "sha256": "",
+    "purpose": ""
+  }],
+  "conversion": {
+    "required": false,
+    "tool": "",
+    "tool_version": "",
+    "command_path": "",
+    "source_manifest": "",
+    "output_hash_manifest": "",
+    "validation_result": ""
+  },
+  "intended_test_use": "",
+  "notes": ""
+}
