@@ -1881,11 +1881,208 @@ was researched or described in documentation.
 
 ### 8.1 Constraints
 
-Insert time, hardware, runtime, licensing and access constraints.
+#### Time and Project Resources
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-01 | The main development deadline is 15 August 2026. | Must Have work, testing and evidence take priority over additional features. |
+| CON-02 | The project is mainly completed by one developer. | Development, research, testing, documentation and release work must remain achievable by one person. |
+| CON-03 | The available development period is limited. | Experimental routes must use technical gates and may not be allowed to destabilise the dependable core route. |
+| CON-04 | The report has a limited length. | Raw logs, full datasets and detailed requirements remain in the repository; the report selects and analyses the most important evidence. |
+| CON-05 | Supervisor and stakeholder availability may be limited. | Decisions requiring feedback must be raised early and recorded when feedback is unavailable. |
+
+#### Platform and Hardware
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-06 | The first release targets Windows 11 x64. | Full macOS and cross-platform delivery are excluded. |
+| CON-07 | Intel hardware is the primary target. | Recommendations are based on tested Intel routes rather than every hardware vendor. |
+| CON-08 | The main test system has an Intel Core i5-12450H, 16 GB RAM and Intel UHD integrated graphics. | Results mainly describe this hardware and must not be generalised to all Intel computers. |
+| CON-09 | The integrated GPU uses shared system memory. | GPU use can reduce the RAM available to Windows, the application and the model. |
+| CON-10 | Suitable Intel NPU hardware is unavailable. | No verified NPU result can be produced. |
+| CON-11 | Physical 4 GB and 8 GB test computers may not be available. | Lower-memory evaluation may require controlled limits, calculations or estimates that are clearly labelled. |
+| CON-12 | Device drivers, thermal conditions and power settings affect performance. | Driver versions and power conditions must be recorded for formal runs. |
+| CON-13 | The target laptop has limited RAM compared with large-model requirements. | Granite 3B is the main application target; larger models are tested only where safe. |
+
+#### Model, Storage and Network
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-14 | Model files can require several gigabytes of storage and download time. | Disk-space checks, progress reporting and safe partial-download handling are required. |
+| CON-15 | Large model files cannot be stored in the Git repository. | Model source, revision, licence and SHA-256 must be recorded instead. |
+| CON-16 | Some model licences may restrict redistribution. | The application may provide a verified download route or installation instructions rather than bundling a model. |
+| CON-17 | Internet access may be unavailable in target environments. | Core inspection, inference and chat must work offline after required assets are installed. |
+| CON-18 | Internet access may still be required for initial models, packages and dependencies. | Offline operation applies to the core workflow rather than every installation step. |
+| CON-19 | Available disk and memory change while the application is running. | The application must refresh resource information before large operations. |
+
+#### Runtime and Third-Party Dependencies
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-20 | llama.cpp, OpenVINO, TurboQuant forks and TurboVec are third-party dependencies. | Their versions, licences and interfaces must be recorded. |
+| CON-21 | Experimental repositories may change, become unavailable or contain incomplete documentation. | Exact commits must be pinned and integrations isolated behind adapters. |
+| CON-22 | Different runtime versions may use different arguments and output formats. | Version-specific contract and output-parser tests are required. |
+| CON-23 | A runtime may accept an option but silently fall back. | Requested and actual execution information must be recorded separately. |
+| CON-24 | Experimental GPU routes depend on compiler, runtime and driver support. | CPU remains the dependable fallback. |
+| CON-25 | OpenVINO conversion, inference and TurboQuant support may require different package versions. | Official, nightly and custom environments must remain separate. |
+| CON-26 | Some binaries may not be legally or practically redistributable. | The release may provide build or installation instructions instead of bundling every binary. |
+| CON-27 | Command-line runtimes are separate processes. | Safe argument construction, output capture, cancellation and cleanup are required. |
+| CON-28 | The core route should avoid local web servers and network ports. | Direct child-process communication or another local non-network method should be preferred. |
+
+#### Privacy, Security and Data
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-29 | The project must not use real patient information. | Healthcare tests use synthetic, public or properly authorised material. |
+| CON-30 | The project must not use identifiable pupil information. | Education tests use synthetic, public or properly authorised material. |
+| CON-31 | Model and document imports must be treated as untrusted input. | Validation, path safety, file-size limits and failure handling are required. |
+| CON-32 | The repository must not contain secrets or private data. | Secret scanning and repository review are part of release acceptance. |
+| CON-33 | Local output may still contain sensitive information. | Logging must be limited, controlled and documented. |
+| CON-34 | Education and healthcare use has higher consequences than casual chat. | The application must display limitations and require human review. |
+| CON-35 | The prototype is not a certified clinical or educational product. | No operational deployment or approval claim may be made. |
+
+#### Evaluation and Evidence
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-36 | Most hardware testing is performed on one laptop. | External validity is limited and must be discussed. |
+| CON-37 | Model generation can vary between runs. | Sampling settings must be controlled and repetitions used where practical. |
+| CON-38 | Memory tools report different types of memory. | Each metric must be defined before comparison. |
+| CON-39 | Benchmarking time is limited. | A small, controlled and versioned test matrix is preferable to many poorly controlled tests. |
+| CON-40 | Existing experiment evidence is spread across workbooks, logs and archives. | Raw evidence must be recovered, indexed and checked before final claims are made. |
+| CON-41 | User-research access may be limited. | Proto-personas and sector needs must remain labelled as assumptions until validated. |
+| CON-42 | Only a small usability study may be practical. | Participant count and limits must be reported honestly. |
+| CON-43 | Published benchmarks may not represent education, healthcare or the project hardware. | Project-specific task and system evaluation are required. |
+
+#### Licensing and Academic Integrity
+
+| ID | Constraint | Effect on the project |
+|---|---|---|
+| CON-44 | Models, runtimes, libraries, documents and datasets have separate licences. | A licence register is required before use or redistribution. |
+| CON-45 | Copyrighted textbooks and papers cannot be placed in the public repository. | The repository records citations rather than redistributing protected material. |
+| CON-46 | Third-party and AI-assisted code must be reviewed and acknowledged where required. | The developer remains responsible for understanding, adapting and testing all submitted code. |
+| CON-47 | External claims must be cited and distinguished from project findings. | Paper and repository claims cannot replace project evidence. |
 
 ### 8.2 Assumptions
 
-Insert assumptions and explain how each will be checked.
+Each assumption must have one of these statuses:
+
+- Unchecked;
+- Partly confirmed;
+- Confirmed;
+- Rejected;
+- Superseded.
+
+A rejected assumption must lead to a risk response, architecture decision,
+requirement change or scope-change record.
+
+#### Models and Model Inspection
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-01 | At least one selected Granite GGUF model is compatible with upstream llama.cpp. | Repeat the clean end-to-end test using the pinned model and runtime. | Pin a compatible runtime/model pair or record the blocker. |
+| ASM-02 | Supported Granite GGUF files contain enough metadata for inspection. | Test valid, incomplete, corrupt and unsupported files. | Add controlled fallback rules and show missing information. |
+| ASM-03 | The chosen model contains a usable tokenizer and chat template or one can be supplied safely. | Compare runtime behaviour with model metadata and documented templates. | Mark the route unsupported until a verified template is available. |
+| ASM-04 | At least one approved Granite model can be legally downloaded and used. | Verify source, licence, revision, expected size and hash. | Disable the download route until a replacement is approved. |
+| ASM-05 | The approved model URL and revision will remain available. | Recheck before release and preserve source metadata. | Update the approved-model record through change control. |
+
+#### Intel and Hardware Information
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-06 | Required hardware information can be collected under normal Windows permissions. | Compare application output with trusted Windows system tools. | Mark unavailable information and avoid dependent recommendations. |
+| ASM-07 | Intel CPU inference remains a dependable minimum route. | Run repeated upstream llama.cpp CPU tests. | Reassess the selected model/runtime pair. |
+| ASM-08 | At least one Intel GPU backend can be tested on the target laptop. | Test Vulkan, SYCL or OpenVINO and prove actual GPU use. | Retain CPU as the only verified device route. |
+| ASM-09 | Shared GPU memory can be considered accurately enough for safe recommendations. | Compare predicted and observed available memory during GPU tests. | Use a larger reserve or disable automatic GPU recommendations. |
+
+#### Memory Estimation
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-10 | Model metadata and configuration information are sufficient for a useful memory estimate. | Compare predictions with measured runs. | Limit the estimator to configurations with enough evidence. |
+| ASM-11 | A calibrated safety margin can prevent false-safe recommendations. | Test boundary configurations and record false-safe outcomes. | Increase the margin and lower confidence. |
+| ASM-12 | Measured data from the target laptop can help assess 4 GB, 8 GB and 16 GB budgets. | Use a documented combination of measurements, controlled limits and calculations. | Report only budgets supported by adequate evidence. |
+| ASM-13 | Runtime overhead is stable enough to model within a useful range. | Repeat matched tests and report variation. | Use an overhead range rather than a single value. |
+
+#### Runtime and Process Integration
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-14 | Upstream llama.cpp can be launched and controlled from WinUI. | Complete a process-adapter integration test. | Pin a compatible CLI or use a documented local API/library adapter. |
+| ASM-15 | Runtime output can be parsed reliably for the pinned version. | Create success, progress, warning and failure contract tests. | Add a version-specific parser or change the integration contract. |
+| ASM-16 | Local runtimes support safe cancellation and process termination. | Cancel during loading and generation and inspect child processes. | Add stronger process-tree cleanup and document limits. |
+| ASM-17 | The core route can avoid a local web server and network port. | Run the complete workflow using redirected streams or another local IPC method. | Document the technical reason and security effect of any port requirement. |
+| ASM-18 | Normal user permissions are enough for the core workflow. | Test without administrator privileges. | Remove unnecessary privileged operations or document the exact requirement. |
+
+#### TurboQuant
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-19 | At least one selected TurboQuant-enabled runtime builds or runs on the target Intel system. | Use the pinned feasibility and integration procedure. | Test the next verified candidate and record the failed route. |
+| ASM-20 | At least one TurboQuant route can be launched from the WinUI application. | Complete the app-integrated loading and chat test. | Record the blocker and raise a scope decision; do not claim integration. |
+| ASM-21 | TurboQuant activation can be proved directly. | Inspect runtime output, logs, cache type and matched memory behaviour. | Do not display the option as active. |
+| ASM-22 | The selected TurboQuant configuration produces usable output. | Apply the frozen prompt set and scoring guide. | Restrict or remove the configuration from user recommendations. |
+| ASM-23 | A dependable upstream fallback remains available when TurboQuant fails. | Force a TurboQuant failure and test recovery. | Fix fallback behaviour before release. |
+| ASM-24 | The implementation tested is sufficiently understood to describe what part of TurboQuant it contains. | Inspect source, documentation and build configuration. | Describe it only as a repository-specific low-bit cache implementation. |
+
+#### OpenVINO
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-25 | At least one official OpenVINO GenAI Granite baseline can be reproduced. | Run the frozen official baseline protocol. | Preserve a complete reproducible blocker. |
+| ASM-26 | Requested OpenVINO devices can be distinguished from actual devices. | Use logs, profiling and utilisation evidence. | Do not make device-specific claims. |
+| ASM-27 | A supported model-preparation route can be identified. | Test the pinned conversion tools and model revision. | Use a clearly labelled pre-converted model or report conversion as incomplete. |
+| ASM-28 | OpenVINO TurboQuant requires a separate version-controlled environment. | Reproduce the tested package combination. | Keep the route research-only until compatibility is restored. |
+
+#### Model-Weight Quantisation
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-29 | A supported source model can be processed by the chosen GGUF quantisation tool. | Run a pilot using a copy of the source model. | Select a valid source model or remove the unsupported operation. |
+| ASM-30 | The resulting GGUF can be validated and loaded by the main runtime. | Reinspect it and complete a local generation test. | Mark the output invalid and retain the original. |
+| ASM-31 | The application can report processing progress or at least a clear state. | Test the selected tool’s output contract. | Show an indeterminate state with cancellation and clear limits. |
+
+#### TurboVec and Knowledge Retrieval
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-32 | An exact TurboVec repository or implementation can be identified. | Record its authoritative source, version, licence and documentation. | Stop implementation and raise a formal scope clarification. |
+| ASM-33 | The selected implementation is buildable or usable on Windows Intel hardware. | Complete a minimal technical spike. | Use a supported environment only with approval, or record the blocker. |
+| ASM-34 | TurboVec operates on embeddings or vectors suitable for the planned workflow. | Verify the accepted input and produced output. | Correct the planned use rather than claiming file compression. |
+| ASM-35 | A local embedding model can generate compatible vectors. | Generate and validate embeddings for a fixed test document. | Select a compatible embedding model or revise the feature. |
+| ASM-36 | Compressed vectors can be searched locally. | Complete fixed-query retrieval tests. | Keep the uncompressed baseline and report the negative result. |
+| ASM-37 | Compression provides a useful storage or memory benefit. | Compare vector size and memory with the baseline. | Report that the method provides no useful benefit in this environment. |
+| ASM-38 | Retrieval quality remains acceptable after compression. | Score fixed queries against known relevant sections. | Restrict the compression level or remove it from normal use. |
+| ASM-39 | Retrieved sections improve or support the Granite answer. | Compare answers with and without retrieved context. | Report the retrieval limitation and avoid unsupported claims. |
+
+#### Quality and Performance Evaluation
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-40 | The fixed prompt set covers the most important expected behaviours. | Review it against the research questions and target tasks. | Version and expand it before final experiments. |
+| ASM-41 | The scoring guide is clear enough for consistent use. | Rescore a sample and review disagreements. | Clarify the rubric before freezing it. |
+| ASM-42 | Repeated runs are stable enough for useful comparison. | Report variation across repeated tests. | Increase repetitions or weaken comparative claims. |
+| ASM-43 | Speed and memory tools can collect comparable measurements. | Validate measurement definitions using a pilot run. | Use separate metric groups and avoid invalid comparisons. |
+
+#### Users and Operational Environment
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-44 | Education and healthcare workers may benefit from local, guided inference. | Compare published guidance with supervisor and usability feedback. | Narrow the stated target-user claim. |
+| ASM-45 | Non-specialist users can understand the guided workflow. | Conduct task-based usability testing. | Simplify wording, navigation and technical options. |
+| ASM-46 | Users can understand the meaning of Experimental. | Include this in the usability tasks. | Add stronger warnings and explanations. |
+| ASM-47 | Representative participants will be available for a small UX study. | Recruit participants before the evaluation period. | Use a smaller representative sample and report the limitation. |
+| ASM-48 | The core workflow can work without internet access after installation. | Disconnect the network and repeat the workflow. | Find and remove the hidden dependency or report the failure. |
+
+#### Licensing, Packaging and Reproducibility
+
+| ID | Assumption | How it will be checked | Response if false |
+|---|---|---|---|
+| ASM-49 | Third-party licences allow the intended research use. | Maintain and review the licence register. | Replace or exclude the affected asset. |
+| ASM-50 | Required dependencies can be bundled or installed through documented steps. | Test a clean installation. | Provide separate installation instructions and disclose the limitation. |
+| ASM-51 | A basic Windows x64 release can be produced from a clean checkout. | Run the clean build and packaging procedure. | Record the blocker and provide the best reproducible developer build. |
+| ASM-52 | Existing raw experiment evidence can be recovered and linked to completed workbooks. | Complete the evidence-manifest audit. | Repeat only the critical experiments whose evidence cannot be recovered. |
+| ASM-53 | Another developer can reproduce the main result from the documentation. | Conduct a clean reproduction test. | Correct the instructions, dependencies or version pins. |
 
 ## 9. Scope Change Rule
 
