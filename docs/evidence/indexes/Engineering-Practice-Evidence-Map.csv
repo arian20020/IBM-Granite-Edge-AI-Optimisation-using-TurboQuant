@@ -1,0 +1,42 @@
+﻿Practice ID,Phase,Engineering Practice,Priority,Work Package(s),Status,Current Finding / Next Step,Recommended Evidence Location
+EP-001,Pre-development,Freeze problem/aim/RQs/contribution/scope,Essential,PD-01,In Progress,Project definition text drafted; version-controlled freeze and contribution statement remain.,docs/planning/
+EP-002,Pre-development,Validate stakeholder/sector assumptions,Recommended,FR-02,Not Started,Healthcare/education relevance currently relies mainly on planning assumptions.,docs/ux/personas/
+EP-003,Pre-development,Version and correct controlling workflows,Essential,PD-02,Not Started,Workflows are detailed but contain duplicates/naming/technical contradictions.,docs/workflows/
+EP-004,Pre-development,Maintain stable MoSCoW catalogue,Essential,PD-04,In Progress,v1.1 exists; v1.2 must incorporate agreed scope changes.,docs/requirements/
+EP-005,Pre-development,Build bidirectional RTM,Essential,PD-04,In Progress,This workbook/Markdown deliverable.,docs/evidence/
+EP-006,Pre-development,Maintain derived-requirement and change log,Essential,PD-04,Not Started,Changes currently exist in conversation/summary but not a controlled log.,docs/requirements/
+EP-007,Pre-development,Consolidate risk/assumption/constraint/licence register,Essential,PD-05,In Progress,Content drafted; live owner/status/evidence register remains.,docs/risks/
+EP-008,Pre-development,Create overall activity/user-journey diagram,Essential,PD-06,Not Started,Textual journey exists; formal visual needed.,docs/workflows/
+EP-009,Pre-development,Create decision tables for inspection/configuration,Essential,PD-07,Not Started,Rules are spread across workflows.,docs/architecture/
+EP-010,Pre-development,Define canonical application state machine,Recommended,PD-07,Not Started,States are implied but not formally controlled.,docs/architecture/
+EP-011,Pre-development,Create import/chat/processing sequence diagrams,Essential,PD-06,Not Started,Textual sequences exist; formal diagrams needed.,docs/architecture/
+EP-012,Pre-development,Create data-flow/privacy boundary diagram,Recommended,PD-06,Not Started,"Needed for models, documents, metrics and offline/privacy claims.",docs/architecture/
+EP-013,Pre-development,Rank architecture characteristics/drivers,Essential,PD-06,Not Started,"Memory, privacy, reliability, performance and usability are listed but not ranked.",docs/architecture/
+EP-014,Pre-development,Compare architecture alternatives,Essential,PD-06,Not Started,"CLI child process, native API, pipes and local HTTP need criteria-based ADR.",docs/architecture/
+EP-015,Pre-development,Define modular components/responsibilities/interfaces,Essential,PD-06; PD-07,Not Started,"Importer, inspector, estimator, selector and adapters need formal boundaries.",docs/evidence/
+EP-016,Pre-development,Create context/component/process/deployment views and ADRs,Essential,PD-06,Not Started,Narrative architecture exists; controlled views/decisions do not.,docs/architecture/
+EP-017,Pre-development,Define diagnostic/error codes and backend contracts,Essential,PD-07,Not Started,Needed for stable UI/service development and failure tests.,docs/architecture/
+EP-018,Pre-development,"Prepare test projects, fixtures, manifests and CI",Essential,PD-08,In Progress,Repository structure exists; real test projects/CI remain.,tests/; docs/testing/
+EP-019,Pre-development,Freeze app-specific evaluation addendum,Essential,PD-09,In Progress,"RQs/metrics drafted; experiment IDs, prompts/rubric and stopping rules need freeze.",tests/; docs/testing/
+EP-020,Pre-development,Recover and back up raw feasibility evidence,Essential,PD-03,In Progress,Workbooks exist; raw external-path evidence needs manifest/checksum/backup.,docs/evidence/recovery/; experiments/raw-results/
+EP-021,Development,Use small vertical slices linked to requirement IDs,Essential,All implementation WPs,Not Started,Issues/PRs should list requirement and evidence IDs.,docs/requirements/
+EP-022,Development,Apply branch/PR/CI controls,Essential,PD-08; FR-01,Not Started,No final branch protection/status-check evidence yet.,tests/; docs/testing/
+EP-023,Development,Implement unit tests for pure logic,Essential,IM-04; HE-03; HE-05; HE-06,Not Started,"Parser, estimator, registry and selectors should be isolated from UI.",tests/UnitTests/; docs/testing/test-reports/
+EP-024,Development,Implement contract/integration tests for runtimes,Essential,RT-01; QX-03; OV-02; TV-03,Not Started,"Exact versions, stdout/stderr, exit codes and fallback must be tested.",tests/ContractTests/; tests/IntegrationTests/; docs/testing/test-reports/
+EP-025,Development,Implement E2E happy/failure/cancellation paths,Essential,HE-08; RT-05; FR-01,Not Started,Core user journeys must be executable and traceable.,tests/E2ETests/; docs/testing/test-reports/
+EP-026,Development,Run security/path/offline/privacy tests,Essential,FR-02,Not Started,CLI/file boundaries and network behaviour are safety critical.,docs/testing/test-reports/; docs/architecture/diagrams/data-flow/
+EP-027,Development,Evaluate usability/accessibility with tasks,Essential,FR-02,Not Started,"Keyboard, 200% scaling, experimental-label understanding and recovery tasks.",docs/ux/; docs/testing/ux-evaluation/
+EP-028,Development,Use experiment manifests and preserve failed runs,Essential,PD-09; FR-03,Partially Verified,Existing campaigns use workbooks/manifests; final app experiment schema must be enforced.,experiments/manifests/; experiments/raw-results/failures/
+EP-029,Development,Evaluate AI output quality with frozen prompts/rubric,Essential,PD-09; FR-03,Partially Verified,Existing quality evidence exists; final app-integrated set needs freeze.,experiments/prompts/; experiments/rubrics/; experiments/processed-results/final-metrics/
+EP-030,Development,Calibrate estimator and quantify uncertainty,Essential,HE-04; FR-03,Not Started,"Report error, false-safe and false-unsafe results.",experiments/processed-results/EST-VALID-001/
+EP-031,Development,Record actual backend/device/optimisation state,Essential,All runtime WPs,Partially Verified,Existing experiments do this; app adapters must carry it through.,experiments/manifests/
+EP-032,Development,Maintain engineering journal and decision evidence,Recommended,All WPs,In Progress,Journal template exists; disciplined updates required.,tests/; docs/testing/
+EP-033,After implementation,Run full regression and requirements acceptance,Essential,FR-01,Not Started,Every active Must needs final status and evidence.,docs/requirements/
+EP-034,After implementation,Run clean build/install/reproduction,Essential,FR-04,Not Started,Independent clean environment required.,release-evidence/clean-build/; release-evidence/reproduction/
+EP-035,After implementation,Complete cross-route and memory/quality analysis,Essential,FR-03,Not Started,Populate final comparison from recovered/new evidence.,experiments/processed-results/cross-route/; experiments/processed-results/final-metrics/
+EP-036,After implementation,Discuss threats to validity and claim boundaries,Essential,FR-03; FR-05,Not Started,"One laptop, model provenance, measurement definitions and small UX sample.",report/chapters/; docs/manuals/Known-Limitations.md
+EP-037,After implementation,Complete manuals/known limitations/feature status,Essential,FR-04,Not Started,User/developer/build/limitations docs.,docs/manuals/
+EP-038,After implementation,Final traceability and evidence audit,Essential,FR-05,Not Started,No Must counted complete without evidence.,docs/requirements/
+EP-039,After implementation,"Tag release, checksum and independent backup",Essential,FR-05,Not Started,Controlled handover baseline.,release-evidence/; release-evidence/checksums/
+EP-040,After implementation,Answer every RQ from project evidence,Essential,FR-05,Not Started,Positive and negative findings must be explicit.,docs/planning/Research-Question-Evidence-Map.md; report/chapters/
+

@@ -480,3 +480,42 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# === IBM Granite evidence structure ignores ===
+
+# Visual Studio and build output
+.vs/
+**/bin/
+**/obj/
+TestResults/
+*.user
+*.suo
+
+# Secrets and machine-local configuration
+.env
+.env.*
+secrets.json
+appsettings.Local.json
+*.pfx
+*.snk
+
+# Large local models and downloads
+models/*
+!models/README.md
+downloads/
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.ckpt
+
+# Third-party local binaries and build caches
+third-party/bin/
+third-party/build/
+third-party/cache/
+
+# Temporary machine-local files
+temp/
+cache/
+*.tmp
