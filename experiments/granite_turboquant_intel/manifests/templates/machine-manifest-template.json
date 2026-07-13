@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "environment_id": "ENV-YYYYMMDD-001",
+  "captured_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+  "captured_at_local": "",
+  "timezone": "",
+  "machine": {
+    "name": "",
+    "role": "target-windows-intel-laptop",
+    "windows_edition": "",
+    "windows_version": "",
+    "windows_build": "",
+    "architecture": "x64"
+  },
+  "cpu": {
+    "model": "",
+    "physical_cores": 0,
+    "logical_processors": 0,
+    "instruction_sets": []
+  },
+  "gpu": {
+    "model": "",
+    "driver": "",
+    "dedicated_memory_bytes": 0,
+    "shared_memory_bytes": 0
+  },
+  "npu": {
+    "model": "",
+    "driver": "",
+    "present": false
+  },
+  "memory": {
+    "installed_ram_bytes": 0,
+    "available_ram_at_capture_bytes": 0
+  },
+  "storage": {
+    "volume": "",
+    "free_bytes": 0
+  },
+  "operating_conditions": {
+    "power_mode": "",
+    "power_source": "",
+    "thermal_state": "",
+    "background_load_notes": ""
+  },
+  "toolchain": {
+    "visual_studio": "",
+    "msvc": "",
+    "cmake": "",
+    "ninja": "",
+    "git": "",
+    "python": "",
+    "powershell": "",
+    "windows_app_sdk": "",
+    "oneapi": "",
+    "sycl_level_zero": "",
+    "vulkan_sdk": "",
+    "vulkan_driver": "",
+    "openvino_runtime": "",
+    "openvino_genai": "",
+    "openvino_tokenizers": ""
+  },
+  "capture_files": [],
+  "notes": ""
+}
