@@ -72,8 +72,209 @@ provide enough value to justify integration into the application?
 
 ## 4. Project Objectives
 
-1. Insert measurable objectives.
-2. Link every objective to at least one requirement or RQ.
+To achieve the project aim and answer the research questions, the project
+will complete the following objectives.
+
+### O1 — Build the WinUI 3 Desktop Application
+
+Design and develop a packaged WinUI 3 desktop application for Windows 11
+Intel computers. The application will provide a clear guided workflow for
+model import, inspection, hardware analysis, configuration selection,
+model processing and local interaction.
+
+The interface will be designed for users who do not have specialist
+knowledge of AI runtimes, model formats or command-line tools.
+
+### O2 — Implement Model Import, Download and Inspection
+
+Allow the user to select a supported IBM Granite model stored on the
+computer or download an approved recommended model from a trusted source.
+
+The application will validate the selected model, inspect its important
+metadata and classify it as ready, ready with warnings, conversion required,
+unsupported, or invalid.
+
+The application will show clear reasons and next steps when the model
+cannot be used.
+
+### O3 — Analyse Intel Hardware and Estimate Memory Use
+
+Collect the Intel CPU, GPU and system-memory information needed to assess
+local inference compatibility.
+
+Estimate the peak memory required by a complete model configuration,
+including model weights, KV cache, runtime overhead and a safety reserve.
+
+The application will explain whether the configuration is likely to fit,
+may require optimisation, or has no safe supported option.
+
+### O4 — Generate and Explain Supported Configurations
+
+Create a compatibility and configuration-selection component that produces
+only complete and verified combinations of model format, weight precision,
+KV-cache format, context length, runtime, backend and execution device.
+
+Provide understandable Quality, Balanced, Efficiency and Automatic modes
+where valid choices exist, and explain why the selected configuration was
+recommended.
+
+### O5 — Integrate Local Command-Line Inference Backends
+
+Develop a secure backend adapter that allows the WinUI application to start
+and control supported command-line inference tools such as llama.cpp,
+OpenVINO utilities and verified experimental runtime forks.
+
+The adapter will:
+
+- build process arguments safely;
+- start the backend without opening a terminal window;
+- pass the selected model and configuration;
+- capture standard output and error output;
+- stream generated output back to the application;
+- detect runtime failures and fallback;
+- support cancellation;
+- stop child processes safely;
+- clean up temporary files;
+- avoid requiring the user to type terminal commands;
+- avoid a local web server or network port where technically possible.
+
+### O6 — Provide a Local Chat Experience
+
+Create a local chat interface that allows the user to interact with at
+least one supported IBM Granite model through the application.
+
+The chat workflow will:
+
+- show the active model and configuration;
+- accept a user prompt;
+- display generated text as it is produced;
+- support at least two turns within one session;
+- allow generation to be stopped;
+- remain responsive while the model is running;
+- show loading and generation progress;
+- report the actual runtime and device used;
+- show understandable errors;
+- allow useful output to be copied or saved.
+
+The user will not need to run llama.cpp or another runtime manually.
+
+### O7 — Implement Model Optimisation and Export
+
+Implement at least one verified model-processing workflow that produces a
+new optimised model artefact.
+
+The primary model-file optimisation route will use a supported GGUF
+weight-quantisation process, such as a controlled llama-quantize workflow,
+to produce a smaller validated GGUF file.
+
+The application will:
+
+- preserve the original model;
+- show processing progress;
+- support safe cancellation;
+- validate the new model;
+- inspect the new model again;
+- compare the original and processed file sizes;
+- record the exact tool, settings and hashes;
+- allow the processed model to be used in chat or saved for another
+  compatible application.
+
+TurboQuant will remain separate because it changes the runtime KV cache
+and does not by itself produce a smaller GGUF model file.
+
+### O8 — Verify llama.cpp, OpenVINO and TurboQuant on Intel Hardware
+
+Verify which selected IBM Granite models can run through upstream
+llama.cpp on the target Intel CPU and integrated GPU.
+
+Establish at least one official OpenVINO GenAI baseline on Intel hardware.
+
+Build and test selected TurboQuant-enabled llama.cpp forks and the
+OpenVINO GenAI TurboQuant route where technically possible.
+
+For every route, record:
+
+- the exact model and runtime version;
+- build settings;
+- requested device;
+- actual device;
+- backend activation;
+- fallback behaviour;
+- memory use;
+- model-loading time;
+- time to first token;
+- prompt-processing speed;
+- generation speed;
+- output quality;
+- context length;
+- runtime stability.
+
+Experimental options will only appear in the application when their real
+activation and supported conditions have been proved.
+
+### O9 — Implement a TurboVec-Assisted Knowledge-File Workflow
+
+Develop a small local knowledge-file import and retrieval workflow using
+a confirmed TurboVec implementation.
+
+The workflow will allow the user to import selected text-based documents
+for use with a supported IBM Granite model.
+
+The application will:
+
+- validate the imported document;
+- extract and divide its text into suitable sections;
+- generate embeddings for those sections;
+- use TurboVec to compress or optimise the stored embedding vectors;
+- create a local retrieval index;
+- retrieve the most relevant sections for a user question;
+- provide the retrieved information to the Granite chat workflow;
+- keep the original imported document unchanged.
+
+The project will compare the TurboVec route with an uncompressed vector
+baseline using storage size, memory use, processing time, retrieval
+quality and final answer usefulness.
+
+### O10 — Evaluate Lower-Memory Feasibility and System Quality
+
+Evaluate which complete Granite configurations are practical within
+4 GB, 8 GB and 16 GB total system-memory budgets.
+
+Compare baseline and optimised configurations using:
+
+- model file size;
+- KV-cache size;
+- peak process and system memory;
+- model-loading time;
+- time to first token;
+- prompt-processing speed;
+- generation speed;
+- maximum stable context;
+- output quality;
+- retrieval quality where TurboVec is used;
+- application responsiveness;
+- failures and runtime stability.
+
+Clearly distinguish results measured on real hardware from estimates or
+simulated memory budgets.
+
+### O11 — Test, Package and Document the Completed System
+
+Test the application using unit, integration, contract, end-to-end,
+failure, security, compatibility, usability and regression testing.
+
+Preserve successful and unsuccessful experiments, exact configurations,
+logs, outputs and measurements.
+
+Provide:
+
+- a reproducible build procedure;
+- a packaged Windows installation route;
+- a user manual;
+- a developer manual;
+- known limitations;
+- exact dependency and runtime versions;
+- final requirement and research-question traceability.
 
 ## 5. First-Release Scope
 
