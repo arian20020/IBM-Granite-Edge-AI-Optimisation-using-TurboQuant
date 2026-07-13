@@ -1,30 +1,35 @@
-﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
-# Work-Package Evidence Map
+<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
+# Work-Package Evidence
 
 ## Purpose
 
-A map from work packages to the evidence they produce; avoid duplicating the same artefact across many folders.
+Each work-package folder is an evidence pack that explains what was completed, how the Definition of Done was checked, and where the authoritative proof is stored. The README should link to existing planning, implementation, test, experiment or release artefacts rather than duplicate them.
 
-## What belongs here
+## Common template
 
-- Work-package ID, Definition of Done and expected output.
-- Links to requirement folders, tests, experiments or release evidence.
-- Status and completion note.
+Use the [Evidence Record Template](../templates/Evidence-Record-Template.md) for every work-package README.
 
-## Related IDs
+Required sections:
 
-None assigned
+- metadata and status;
+- statement being evidenced;
+- Definition of Done;
+- evidence summary;
+- authoritative evidence links;
+- validation checklist and result;
+- traceability;
+- limitations and change control.
+
+## Current evidence packs
+
+- [PD-01 — Freeze first-release definition and research questions](PD-01/README.md)
 
 ## Evidence rules
 
 - Folder creation is only preparation; it is not proof of completion.
-- Use stable requirement, work-package, test/evidence and research-question IDs.
+- Keep one authoritative source and cross-reference it from related evidence records.
+- Use stable requirement, work-package, engineering-practice, test/evidence and research-question IDs.
 - Preserve raw evidence; derive processed results with version-controlled scripts.
 - Record dates, versions, hashes, units, actual device/backend state and failures where relevant.
 - Do not commit secrets, API keys, private personal data, large model weights or unlicensed material.
 - Prefer relative repository links so evidence remains usable after cloning.
-
-## Source
-
-Repository evidence structure
-
