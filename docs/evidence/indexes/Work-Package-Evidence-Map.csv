@@ -1,5 +1,5 @@
-﻿WP ID,Phase,Priority,Work Package,Definition of Done,Evidence Output,Status,Progress %,Report Use
-PD-01,P0,P0,Freeze first-release definition/RQs,"One aim, measurable RQs, contribution and scope tiers are versioned.",Definition v1,In Progress,0.25,Ch. 1
+WP ID,Phase,Priority,Work Package,Definition of Done,Evidence Output,Status,Progress %,Report Use
+PD-01,P0,P0,Freeze first-release definition/RQs,"One aim, measurable RQs, contribution and scope tiers are versioned.",docs/evidence/work-packages/PD-01/README.md,Verified,1,Ch. 1
 PD-02,P0,P0,Correct/version controlling workflows,Workflow distinguishes runtime KV-cache modes from exported weight files and separates runtime routes.,Workflow change log,Not Started,0,Ch. 3/5
 PD-03,P0,P0,Recover/archive raw evidence and current UI code,"MoSCoW, ModelImportPage and raw campaign evidence are backed up and referenced.",Evidence manifest/checksums,In Progress,0.25,Ch. 4/8 appendices
 PD-04,P0,P0,Must-Have RTM and acceptance criteria,"All Must Haves map to workflows, components, tests and evidence.",RTM,In Progress,0.25,Ch. 3
@@ -15,7 +15,7 @@ IM-03,P1,P0,"Drag/drop, validation, progress/cancel",Input edge cases and cancel
 IM-04,P1,P0,Format detector and GGUF header validation,Valid/corrupt GGUF recognition is deterministic.,Fixtures/tests,Not Started,0,Ch. 6/7
 IM-05,P1,P0,Real GGUF metadata inspector,Real Granite metadata populates ModelDescriptor.,Metadata JSON/model hash,Not Started,0,Ch. 6
 IM-06,P1,P0,Other-format recognition and classification,OpenVINO/HF and canonical result states are safe and explicit.,Classification matrix,Not Started,0,Ch. 6/7
-IM-07,P1,P0,"Result screens, diagnostics and inspection demo",Import/inspection slice passes tests and demo.,Demo/test report,Not Started,0,Ch. 5â€“7
+IM-07,P1,P0,"Result screens, diagnostics and inspection demo",Import/inspection slice passes tests and demo.,Demo/test report,Not Started,0,Ch. 5–7
 HE-01,P2,P0,Hardware snapshot service,RAM/CPU/OS/disk snapshot is serialisable and testable.,Hardware manifest,Not Started,0,Ch. 6
 HE-02,P2,P0,Backend/device capability registry,Installed/supported/experimental routes are distinct.,Capability matrix,Not Started,0,Ch. 5/6
 HE-03,P2,P0,Memory estimator core,Transparent component estimate with uncertainty and safety reserve.,Formula/tests,Not Started,0,Ch. 4/6
@@ -34,7 +34,7 @@ QX-02,P4,P1,"Reinspection, manifest and export",Output is registered/exported an
 QX-03,P4,P1,AtomicBot Experimental adapter,App proves real turbo3 activation and actual backend for a bounded configuration.,Activation/metrics evidence,Not Started,0,Ch. 6/8
 QX-04,P4,P0,TurboQuant product gate/fallback,Experimental option is included only if evidence passes; upstream fallback works.,Gate ADR,Not Started,0,Ch. 8/9
 OV-01,P5,P1,Official OpenVINO baseline,One official Granite IR CPU run passes or blocker is reproducible.,OpenVINO workbook/logs,Partially Verified,0.8,Ch. 4/8
-OV-02,P5,P1,Official OpenVINO app adapter,One IR follows common app states with actual device evidence.,Contract/E2E evidence,Not Started,0,Ch. 5â€“8
+OV-02,P5,P1,Official OpenVINO app adapter,One IR follows common app states with actual device evidence.,Contract/E2E evidence,Not Started,0,Ch. 5–8
 OV-03,P5,P1,OpenVINO/custom-TQ decision gate,Final UI scope matches verified OpenVINO capability; custom TQ is honestly kept/deferred.,Gate ADR/workbook,Not Started,0,Ch. 8/9
 FR-01,P6,P0,Full regression and requirements acceptance,Must Haves have pass evidence or explicit incomplete status.,Test reports/RTM,Not Started,0,Ch. 7
 FR-02,P6,P0,Security/offline/UX/accessibility,No critical unresolved issue; residual issues are recorded.,Checklists/issues,Not Started,0,Ch. 7/9
@@ -48,4 +48,3 @@ TV-01,P0,P0,Identify and pin exact TurboVec implementation and contract,Reposito
 TV-02,P4,P0,"Knowledge-file import, text extraction, chunking and embedding baseline","One supported file is preserved, extracted, chunked and embedded into a versioned uncompressed baseline.",Baseline artefacts/tests,Not Started,0,Ch. 6/8
 TV-03,P4,P0,TurboVec vector compression/index/retrieval integration,"Compressed/optimised vectors are produced, indexed and queried with exact versions and evidence.",TurboVec adapter/results,Not Started,0,Ch. 6/8
 TV-04,P4,P0,Granite retrieval-chat integration and matched TurboVec evaluation,Retrieved sections feed Granite chat and compressed/uncompressed routes are compared on fixed queries.,EXP-TV-COMP-001,Not Started,0,Ch. 8/9
-
