@@ -1,12 +1,6 @@
 name: Bootstrap traceability catalogue
 
 on:
-  push:
-    branches:
-      - docs/traceability-catalogue-v1.3
-    paths:
-      - ".traceability-bootstrap/**"
-      - ".github/workflows/bootstrap-traceability.yml"
   pull_request:
     branches:
       - main
@@ -15,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: bootstrap-traceability-${{ github.event.pull_request.head.ref || github.ref }}
+  group: bootstrap-traceability-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +21,7 @@ jobs:
           ref: docs/traceability-catalogue-v1.3
           fetch-depth: 0
 
-      - name: Reconstruct and extract implementation
+      - name: Reconstruct, generate and validate implementation
         shell: bash
         run: |
           set -euo pipefail
@@ -36,18 +30,20 @@ jobs:
           tar -xzf /tmp/traceability.tar.gz -C .
           python scripts/traceability/generate_traceability_documents.py --repository-root .
           python scripts/traceability/validate_task_catalogue.py --repository-root .
-          rm -rf .traceability-bootstrap
-          rm -f .github/workflows/bootstrap-traceability.yml
 
-      - name: Commit generated traceability catalogue
+          # The GitHub connector will add the permanent validation workflow
+          # and remove this one-time bootstrap package in a later controlled commit.
+          rm -f .github/workflows/traceability-validation.yml
+
+      - name: Commit repository traceability files
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --all
+          git add -- README.md docs scripts .github/ISSUE_TEMPLATE .github/pull_request_template.md
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No traceability changes to commit."
             exit 0
           fi
           git commit -m "docs: add repository-wide RTM v1.3 traceability catalogue"
