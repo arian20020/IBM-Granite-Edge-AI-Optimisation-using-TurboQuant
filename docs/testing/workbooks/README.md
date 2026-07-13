@@ -1,40 +1,35 @@
 # Controlled Testing Workbooks
 
-The six workbooks follow the exact route order, test IDs, planned configurations and result sections found in the supplied testing folder.
+The six workbooks preserve the route order, controlled test IDs, planned configurations and result sections defined by the supplied testing material.
 
-## Canonical source-controlled templates
+## Canonical sources
 
-The reviewable versions live under `text-templates/`:
+The Git-reviewable workbook content is stored under `text-templates/`. The append-only document history is stored in `../Workbook-Revision-Register.csv`. Generated DOCX files are working/reporting artefacts and are not the only authoritative record.
 
-1. `01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1.md`
-2. `02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.md`
-3. `03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md`
-4. `04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md`
-5. `05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1.md`
-6. `06_Cross_Route_Controlled_Comparison_Workbook_v1.md`
+## Current versions
 
-These Markdown files are canonical because Git can display and compare every field. The DOCX files are generated working artefacts rather than the only copy of the testing data.
+| Workbook | Version | Technical scope |
+|---|---:|---|
+| WB-01 Upstream llama.cpp | 1.1 | Original controlled baseline plus formal revision history |
+| WB-02 AtomicBot TurboQuant | 1.1 | Original controlled route plus formal revision history |
+| WB-03 animehacker TQ3_0 | 1.1 | Original controlled comparator plus formal revision history |
+| WB-04 Official OpenVINO | 1.2 | PR #5 TBQ3/TBQ4 coverage plus formal revision history |
+| WB-05 Custom OpenVINO | 1.2 | PR #5 TBQ/QJL/Polar/all-pairs coverage plus formal revision history |
+| WB-06 Cross-route comparison | 1.2 | PR #5 expanded comparisons plus formal revision history |
 
-## OpenVINO workbook revisions
+The v1.1 changes for WB-01–WB-03 and v1.2 changes for WB-04–WB-06 are administrative change-control revisions. They do not add tests or imply test success.
 
-- WB-04 revision 1.1 covers the official merged TurboQuant 3-bit and 4-bit formats, independent key/value settings, asymmetric and scalar/Turbo combinations, ablations, quality, performance, context and fallback. QJL and PolarQuant are negative official-capability checks unless a later pinned official revision exposes them.
-- WB-05 revision 1.1 covers TBQ3, TBQ4, TBQ3+QJL, TBQ4+QJL, Polar3 and Polar4, all 36 ordered key/value codec pairs, algorithm-conformance tests, ablations and full model evaluation.
-- WB-06 revision 1.1 compares official and experimental OpenVINO codecs, including QJL incremental value and PolarQuant trade-offs.
-
-## Generate the Word workbooks
-
-```powershell
-python .\scripts\testing\Generate-Controlled-Workbooks.py
-```
-
-The command writes the six `.docx` files to `docs/testing/workbooks/generated/`. Install the pinned dependency first when required:
+## Generate and validate
 
 ```powershell
 python -m pip install -r .\scripts\testing\requirements.txt
+python .\scripts\testing\Generate-Controlled-Workbooks.py
+python .\scripts\testing\Apply-Workbook-Revision-History.py
+python .\scripts\testing\Validate-Workbook-Revision-Control.py
 ```
+
+The first command generates the content, the second inserts the synchronized revision table and current version, and the third checks the register, hashes and generated documents.
 
 ## Completion rule
 
-A workbook section is complete only when its source run ID, processed-result path, evidence path and Git commit are recorded in `../Workbook-Completion-Register.csv`.
-
-Do not type an important measured value only into Word. Enter it in the appropriate CSV register first so it remains machine-readable and traceable, then copy or generate it into the reporting workbook.
+A workbook result section is complete only when its run ID, processed-result path, raw-evidence path and evidence commit are recorded in `../Workbook-Completion-Register.csv`. Important measured values must first be stored in the relevant machine-readable register rather than only typed into Word.

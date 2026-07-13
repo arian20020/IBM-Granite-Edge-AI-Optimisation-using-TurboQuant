@@ -5,35 +5,42 @@
 
 ## Purpose
 
-This control ensures that every change to a testing workbook is visible, reviewable and traceable to its reason, affected test IDs, evidence, branch, pull request, commit and validation result. The register is append-only: an older revision is never deleted or overwritten.
+This control makes every workbook change visible, reviewable and traceable to its reason, affected test IDs, source evidence, branch, pull request, commit, hashes and validation status. The register is append-only: an older revision row is never deleted or silently rewritten.
 
 ## Current controlled revisions
 
-| Workbook | Current version | Main change in the current version | Change reference |
+| Workbook | Current version | Current change | Technical scope source |
 |---|---:|---|---|
-| WB-01 Upstream llama.cpp | 1.1 | Added formal embedded revision history; no test scope change | Revision-control PR |
-| WB-02 AtomicBot TurboQuant | 1.1 | Added formal embedded revision history; no test scope change | Revision-control PR |
-| WB-03 animehacker TQ3_0 | 1.1 | Added formal embedded revision history; no test scope change | Revision-control PR |
-| WB-04 Official OpenVINO | 1.2 | Added formal embedded revision history; technical TBQ3/TBQ4 scope remains from v1.1 | PR #5 + revision-control PR |
-| WB-05 Custom OpenVINO | 1.2 | Added formal embedded revision history; QJL/Polar/all-pairs scope remains from v1.1 | PR #5 + revision-control PR |
-| WB-06 Cross-route comparison | 1.2 | Added formal embedded revision history; expanded codec comparison remains from v1.1 | PR #5 + revision-control PR |
+| WB-01 Upstream llama.cpp | 1.1 | Embedded formal revision history; no test-scope change | v1.0 / PR #4 |
+| WB-02 AtomicBot TurboQuant | 1.1 | Embedded formal revision history; no test-scope change | v1.0 / PR #4 |
+| WB-03 animehacker TQ3_0 | 1.1 | Embedded formal revision history; no test-scope change | v1.0 / PR #4 |
+| WB-04 Official OpenVINO | 1.2 | Embedded formal revision history; no new test-scope change | v1.1 / PR #5 |
+| WB-05 Custom OpenVINO | 1.2 | Embedded formal revision history; no new test-scope change | v1.1 / PR #5 |
+| WB-06 Cross-route comparison | 1.2 | Embedded formal revision history; no new test-scope change | v1.1 / PR #5 |
 
 ## Mandatory rules
 
-1. Add a new row to `Workbook-Revision-Register.csv` before changing a canonical workbook template.
-2. Never edit or delete an older revision row; mark it `Superseded` when a successor becomes current.
-3. Increment the workbook version for any technical, structural or administrative change that affects the generated document.
-4. Record the reason, affected test IDs, source evidence, branch and pull request.
-5. After merge, replace `Pending merge` with the final merge commit SHA and mark the revision `Current`.
-6. Generate the DOCX files from the canonical Markdown templates and the revision register.
-7. Record generated DOCX SHA-256 values centrally after generation; do not embed a workbook's own hash inside itself.
-8. Render and inspect every changed DOCX before approval.
-9. A workbook revision does not prove that any model, backend or codec test passed.
+1. Append a new register row before changing a controlled workbook.
+2. Keep every older row and mark it `Superseded` when a successor becomes current.
+3. Increment the visible workbook version for technical, structural or administrative changes.
+4. Record the reason, affected IDs, source evidence, branch, pull request and commit.
+5. Generate DOCX working copies from the canonical Markdown templates, then apply the register with `Apply-Workbook-Revision-History.py`.
+6. Keep canonical template filenames stable. The current visible version is controlled by the register, not by renaming the file.
+7. Record canonical-template and generated-DOCX SHA-256 values in `workbooks/Controlled-Workbook-Manifest.csv`; a workbook must not embed its own hash because that creates a circular value.
+8. Generate twice and confirm byte-identical output, then render and inspect every changed page.
+9. After merge, replace `Pending merge` with the final merge commit and change the current status to `Current`.
+10. A document revision never proves that a model, device, backend or codec test passed.
 
-## Generation rule
+## Controlled generation
 
-`scripts/testing/Generate-Controlled-Workbooks.py` reads the register and inserts the complete revision history for the matching workbook near the beginning of each generated Word document. This keeps the visible Word table and the Git-reviewable CSV synchronized.
+```powershell
+python .\scripts\testing\Generate-Controlled-Workbooks.py
+python .\scripts\testing\Apply-Workbook-Revision-History.py
+python .\scripts\testing\Validate-Workbook-Revision-Control.py
+```
+
+The first command generates the six workbooks from their Git-reviewable Markdown templates. The second inserts each workbook's complete revision history and current visible version from the central CSV. The third verifies the register, manifest, hashes and embedded tables.
 
 ## Approval workflow
 
-`propose change -> append revision row -> edit canonical template -> generate DOCX -> validate and render -> review pull request -> merge -> record merge commit`
+`propose -> append revision row -> change controlled source -> generate twice -> validate -> render every page -> review PR -> merge -> record merge commit`
