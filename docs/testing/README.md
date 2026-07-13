@@ -1,31 +1,39 @@
-﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
-# Testing and Verification
+# Controlled Testing Workspace
 
-## Purpose
+**Campaign:** Granite-TurboQuant Controlled Retest Campaign v1  
+**Started:** 13 July 2026  
+**Status:** Authoritative testing campaign  
+**Previous campaign:** Legacy / superseded for final conclusions
 
-Application-specific test strategy, plans, reports, failure register, UX evaluation and acceptance evidence.
+This directory is the control centre for all application, runtime, optimisation and model-evaluation testing.
 
-## What belongs here
+## Rules
 
-- Link every test/report to requirement or risk IDs.
-- Separate planned method, raw evidence and conclusion.
-- Record environment, versions and actual result.
-- Keep failed and cancelled runs where they are informative.
+1. Every planned test must exist in `Test-ID-Catalogue.md` before it is run.
+2. Every execution receives a unique run ID.
+3. The exact environment, repository commit, model hash and command must be recorded.
+4. Raw evidence is never edited after capture.
+5. Failed, blocked and inconclusive runs remain in the evidence record.
+6. A workbook entry is not complete until it links to the matching run evidence.
+7. A test is not authoritative until its evidence has been committed and pushed.
+8. Requested backends, devices or optimisations must be checked against the actual runtime state.
 
-## Related IDs
+## Main control files
 
-None assigned
+- `Test-Strategy.md` — governing testing principles and evidence rules.
+- `Master-Test-Plan.md` — campaign sequence, gates and completion criteria.
+- `Test-ID-Catalogue.md` — controlled list of tests and existing workbook IDs.
+- `Test-Traceability-Matrix.csv` — requirements and research questions mapped to tests and evidence.
+- `Test-Run-Register.csv` — one row per execution.
+- `Environment-Register.csv` — controlled hardware, software and model environments.
+- `Failure-Register.csv` — preserved failures, diagnoses, fixes and retests.
+- `Workbook-Completion-Register.csv` — tracks completion of every workbook section.
+- `Decision-Log.md` — test-scope and interpretation decisions.
 
-## Evidence rules
+## Status vocabulary
 
-- Folder creation is only preparation; it is not proof of completion.
-- Use stable requirement, work-package, test/evidence and research-question IDs.
-- Preserve raw evidence; derive processed results with version-controlled scripts.
-- Record dates, versions, hashes, units, actual device/backend state and failures where relevant.
-- Do not commit secrets, API keys, private personal data, large model weights or unlicensed material.
-- Prefer relative repository links so evidence remains usable after cloning.
+`Planned`, `Ready`, `Running`, `Passed`, `Failed`, `Blocked`, `Inconclusive`, `Superseded`.
 
-## Source
+## Evidence flow
 
-Repository evidence structure
-
+`plan -> test ID -> run ID -> manifest -> raw evidence -> processed result -> workbook -> conclusion`

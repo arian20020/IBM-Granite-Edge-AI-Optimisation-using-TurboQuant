@@ -29,3 +29,6 @@ SRC-08
 
 Repository evidence structure
 
+# AtomicBot TurboQuant Raw Results
+
+Store immutable evidence under `test-id/run-id/`. Never edit captured logs in place.

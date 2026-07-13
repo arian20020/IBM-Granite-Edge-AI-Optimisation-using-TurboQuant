@@ -29,3 +29,6 @@ SRC-09
 
 Repository evidence structure
 
+# animehacker TQ3_0 Raw Results
+
+Store immutable evidence under `test-id/run-id/`. Never edit captured logs in place.
