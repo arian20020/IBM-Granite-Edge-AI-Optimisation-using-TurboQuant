@@ -32,25 +32,43 @@ The aim of this project is to design, build and evaluate a WinUI 3 desktop appli
 
 ## 3. Research Questions
 
-### RQ1 — Runtime and Hardware Feasibility
+### RQ1 — Intel Hardware and Runtime Compatibility
 
-**Question:** Insert the frozen wording.  
-**Evidence required:** List the tests and measurements.
+Which selected IBM Granite models and local inference routes—upstream
+llama.cpp, TurboQuant-enabled llama.cpp forks, official OpenVINO GenAI,
+and OpenVINO GenAI with TurboQuant—can run reliably on the target
+Windows Intel CPU and integrated GPU, and what compatibility, build,
+driver, device-offloading and fallback limitations apply?
 
-### RQ2 — TurboQuant Effectiveness
+### RQ2 — TurboQuant Memory, Quality and Performance Trade-off
 
-**Question:** Insert the frozen wording.  
-**Evidence required:** List activation, memory, speed, quality and stability evidence.
+Compared with matched standard KV-cache baselines, how much can verified
+TurboQuant implementations—including TurboQuant-enabled llama.cpp forks
+and the OpenVINO GenAI TurboQuant path—reduce KV-cache and total memory
+use for selected IBM Granite models, and what effects do they have on
+output quality, usable context length, inference speed and runtime stability?
 
-### RQ3 — Memory-Fit Prediction and Configuration Selection
+### RQ3 — Feasibility Within Lower-Memory Systems
 
-**Question:** Insert the frozen wording.  
-**Evidence required:** List predicted-versus-measured evidence.
+Which complete IBM Granite configurations are practical within total
+system-memory budgets of 4 GB, 8 GB and 16 GB, and how do model size,
+weight quantisation, KV-cache format, context length, runtime and execution
+device affect memory use, output quality and inference speed?
 
-### RQ4 — End-to-End Desktop Application
+### RQ4 — End-to-End Application Usefulness and Reliability
 
-**Question:** Insert the frozen wording.  
-**Evidence required:** List application, failure-handling and UX evidence.
+How reliably and clearly can a WinUI 3 desktop application enable education
+and healthcare workers to import or download a supported IBM Granite model,
+inspect model and Intel hardware compatibility, estimate memory requirements,
+recommend a verified configuration and run the model locally without
+requiring command-line knowledge?
+
+### Exploratory Question — TurboVec Feasibility
+
+Can a clearly identified and reproducible TurboVec implementation run on
+the target Windows Intel system and produce a vector-search or retrieval
+artefact that can be used with selected IBM Granite models, and would this
+provide enough value to justify integration into the application?
 
 ## 4. Project Objectives
 
