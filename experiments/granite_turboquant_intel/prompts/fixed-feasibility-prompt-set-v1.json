@@ -1,0 +1,106 @@
+{
+  "prompt_set_id": "GTQ-PROMPTS-v1",
+  "version": "1.0",
+  "status": "frozen-for-controlled-retest",
+  "created_date": "2026-07-13",
+  "purpose": "Bounded P1-P6 regression and context screen shared across comparable Granite routes.",
+  "claim_boundary": "This is a project-specific regression screen, not a general language-model benchmark.",
+  "generation_defaults": {
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "seed": 42,
+    "max_output_tokens": 256
+  },
+  "prompts": [
+    {
+      "prompt_id": "P1",
+      "task": "Sanity explanation",
+      "turns": [{
+        "role": "user",
+        "content": "Explain why KV-cache quantisation can help a local language model run offline on a memory-limited laptop. Use exactly five bullet points and fewer than 90 words in total. Include the exact terms ‘KV cache’, ‘offline’, and ‘memory’. Give two benefits, two limitations, and one check the user should perform."
+      }],
+      "deterministic_checks": {
+        "exact_bullet_count": 5,
+        "maximum_words": 89,
+        "required_substrings": ["KV cache", "offline", "memory"],
+        "required_semantic_slots": ["two benefits", "two limitations", "one check"]
+      }
+    },
+    {
+      "prompt_id": "P2",
+      "task": "Instruction following",
+      "turns": [{
+        "role": "user",
+        "content": "Describe one benefit, one limitation, and one verification check for TurboQuant KV-cache compression. Return exactly three non-empty lines in this order and use these exact labels: BENEFIT:, LIMITATION:, CHECK:. Do not add a title or any other text."
+      }],
+      "deterministic_checks": {
+        "exact_nonempty_lines": 3,
+        "line_prefixes": ["BENEFIT:", "LIMITATION:", "CHECK:"],
+        "prohibit_extra_text": true
+      }
+    },
+    {
+      "prompt_id": "P3",
+      "task": "Exact JSON structure",
+      "turns": [{
+        "role": "user",
+        "content": "Return only valid JSON about a local LLM KV-cache test. Use exactly these top-level keys: optimisation, memory_effect, quality_risk, verification. Set optimisation to TurboQuant. Each other value must be a single short string. Do not use Markdown or add extra keys."
+      }],
+      "deterministic_checks": {
+        "valid_json": true,
+        "exact_top_level_keys": ["optimisation", "memory_effect", "quality_risk", "verification"],
+        "exact_values": {"optimisation": "TurboQuant"},
+        "all_other_values_type": "string",
+        "prohibit_markdown_fence": true
+      }
+    },
+    {
+      "prompt_id": "P4",
+      "task": "Summarisation and fact retention",
+      "context_facts": [
+        "The model is IBM Granite 4.1 3B.",
+        "The runtime is upstream llama.cpp.",
+        "The model weights use Q4_K_M.",
+        "The K and V caches use Q8_0.",
+        "The context length is 4096 tokens.",
+        "The test ran locally on a Windows Intel laptop.",
+        "This configuration is a baseline and does not activate TurboQuant."
+      ],
+      "turns": [{
+        "role": "user",
+        "content": "Summarise the supplied test facts in exactly two sentences. The summary must state the model, runtime, weight precision, both cache types, context length, local Windows Intel execution, and that TurboQuant was not active. Do not add facts that were not supplied."
+      }],
+      "deterministic_checks": {
+        "exact_sentences": 2,
+        "required_facts": ["IBM Granite 4.1 3B", "upstream llama.cpp", "Q4_K_M", "Q8_0 K cache", "Q8_0 V cache", "4096", "local Windows Intel", "TurboQuant not active"],
+        "unsupported_fact_count_expected": 0
+      }
+    },
+    {
+      "prompt_id": "P5",
+      "task": "Long-context exact retrieval",
+      "fixture_path": "fixtures/P5-long-context-v1.txt",
+      "turns": [{
+        "role": "user",
+        "content": "Read the supplied long context. Return exactly one line in the form MARKER:<value>, using the unique marker stated in the final evidence paragraph. Do not explain your answer."
+      }],
+      "deterministic_checks": {
+        "exact_output": "MARKER:IXN-TQ-7319",
+        "exact_nonempty_lines": 1
+      }
+    },
+    {
+      "prompt_id": "P6",
+      "task": "Multi-turn stability",
+      "turns": [
+        {"role": "user", "content": "Remember this project code for the next turn: amber:4821. Reply only with SAVED."},
+        {"role": "assistant_expected", "content": "SAVED"},
+        {"role": "user", "content": "What project code did I ask you to remember? Reply with the code only."}
+      ],
+      "deterministic_checks": {
+        "turn_1_exact_output": "SAVED",
+        "turn_2_exact_output": "amber:4821"
+      }
+    }
+  ]
+}

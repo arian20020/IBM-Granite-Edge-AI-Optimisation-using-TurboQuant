@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "repository_id": "REPO-ROUTE-001",
+  "route": "",
+  "repository_url": "",
+  "branch_or_tag": "",
+  "commit_sha": "",
+  "upstream_base_commit": "",
+  "detached_head": false,
+  "working_tree_clean": false,
+  "git_status_path": "",
+  "remote_configuration_path": "",
+  "licence": "",
+  "licence_evidence_path": "",
+  "source_hash_manifest_path": "",
+  "known_limitations": [],
+  "notes": ""
+}

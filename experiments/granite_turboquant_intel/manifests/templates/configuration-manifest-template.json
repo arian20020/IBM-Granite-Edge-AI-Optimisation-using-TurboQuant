@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "configuration_id": "CFG-ROUTE-MODEL-001",
+  "route": "",
+  "model_id": "",
+  "build_id": "",
+  "weight_precision": "",
+  "k_cache_type": "",
+  "v_cache_type": "",
+  "context_target_tokens": 0,
+  "max_output_tokens": 0,
+  "sampling": {
+    "seed": 42,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "top_k": 0,
+    "repeat_penalty": 1.0
+  },
+  "requested_backend": "",
+  "requested_device": "",
+  "requested_gpu_layers": "",
+  "flash_attention": "",
+  "threads": 0,
+  "optimisation": {
+    "name": "",
+    "requested": false,
+    "expected_activation_proof": []
+  },
+  "command_template": "",
+  "environment_variables": [],
+  "safety_gates": {
+    "minimum_available_ram_bytes": 0,
+    "timeout_seconds": 0,
+    "maximum_retries": 0
+  },
+  "comparison_group": "",
+  "notes": ""
+}
