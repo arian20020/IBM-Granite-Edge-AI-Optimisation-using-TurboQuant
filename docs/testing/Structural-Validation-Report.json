@@ -1,0 +1,28 @@
+{
+  "timestamp_utc": "2026-07-13T19:14:41.857651+00:00",
+  "checks": [
+    {"name": "required_control_files", "passed": true, "detail": "20/20 present"},
+    {"name": "source_document_manifest_and_extractions", "passed": true, "detail": "records=19, extracted_hash_links_ok=True"},
+    {"name": "canonical_workbook_templates", "passed": true, "detail": "records=6"},
+    {"name": "generated_docx_integrity", "passed": true, "detail": "count=6, packages_ok=True"},
+    {"name": "generated_workbooks_rendered", "passed": true, "detail": "{'01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1': 5, '02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1': 9, '03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1': 5, '04_Official_OpenVINO_Controlled_Retest_Workbook_v1': 4, '05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1': 4, '06_Cross_Route_Controlled_Comparison_Workbook_v1': 5}"},
+    {"name": "catalogue_exact_test_count", "passed": true, "detail": "count=105"},
+    {"name": "Test-Traceability-Matrix.csv_row_count", "passed": true, "detail": "105/105"},
+    {"name": "Workbook-Completion-Register.csv_row_count", "passed": true, "detail": "154/154"},
+    {"name": "Build-Register.csv_row_count", "passed": true, "detail": "38/38"},
+    {"name": "Configuration-Register.csv_row_count", "passed": true, "detail": "61/61"},
+    {"name": "Device-Verification-Register.csv_row_count", "passed": true, "detail": "61/61"},
+    {"name": "Quality-Evaluation-Register.csv_row_count", "passed": true, "detail": "60/60"},
+    {"name": "csv_rectangularity", "passed": true, "detail": "all controlled CSV files rectangular"},
+    {"name": "all_json_valid", "passed": true, "detail": "10 JSON files parsed"},
+    {"name": "prompt_set_frozen_six_prompts", "passed": true, "detail": "['P1', 'P2', 'P3', 'P4', 'P5', 'P6']"},
+    {"name": "rubric_weights_sum_one", "passed": true, "detail": "1.0"},
+    {"name": "testing_standard_hierarchy_present", "passed": true, "detail": "44 README control files"},
+    {"name": "no_forbidden_model_or_binary_artifacts", "passed": true, "detail": "[]"},
+    {"name": "common_scripts_present", "passed": true, "detail": "5/5"},
+    {"name": "canonical_test_id_typography", "passed": true, "detail": "[]"}
+  ],
+  "errors": [],
+  "passed": true,
+  "boundary": "This report validates structure, schemas, workbook generation and source mapping. It does not prove that any Windows/Intel hardware test has passed."
+}
