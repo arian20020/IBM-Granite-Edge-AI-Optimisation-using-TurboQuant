@@ -1,0 +1,1 @@
+Environment_ID,Capture_Date_UTC,Machine_Name,Machine_Role,Operating_System,OS_Build,CPU,GPU,NPU,Installed_RAM_Bytes,Available_RAM_Before_Bytes,Storage_Free_Bytes,Power_Mode,Driver_Versions,Compiler,CMake,Python,OpenVINO,Windows_App_SDK,Other_Tool_Versions,System_Capture_Path,Evidence_Commit,Notes

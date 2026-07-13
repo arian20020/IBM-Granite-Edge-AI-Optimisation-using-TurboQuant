@@ -1,0 +1,1 @@
+Failure_ID,Date_UTC,Run_ID,Test_ID,Route,Failure_Category,Observed_Symptom,Error_Message_or_Code,Immediate_Effect,Suspected_Cause,Diagnostic_Actions,Root_Cause,Fix_or_Workaround,Retest_Run_ID,Final_Status,Evidence_Path,Evidence_Commit,Notes
