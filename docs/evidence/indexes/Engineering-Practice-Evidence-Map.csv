@@ -1,10 +1,10 @@
-﻿Practice ID,Phase,Engineering Practice,Priority,Work Package(s),Status,Current Finding / Next Step,Recommended Evidence Location
-EP-001,Pre-development,Freeze problem/aim/RQs/contribution/scope,Essential,PD-01,In Progress,Project definition text drafted; version-controlled freeze and contribution statement remain.,docs/planning/
+Practice ID,Phase,Engineering Practice,Priority,Work Package(s),Status,Current Finding / Next Step,Recommended Evidence Location
+EP-001,Pre-development,Freeze problem/aim/RQs/contribution/scope,Essential,PD-01,Verified,Frozen Project Definition is version-controlled and validated against G-M01 and PD-01.,docs/evidence/engineering-practices/EP-001/
 EP-002,Pre-development,Validate stakeholder/sector assumptions,Recommended,FR-02,Not Started,Healthcare/education relevance currently relies mainly on planning assumptions.,docs/ux/personas/
 EP-003,Pre-development,Version and correct controlling workflows,Essential,PD-02,Not Started,Workflows are detailed but contain duplicates/naming/technical contradictions.,docs/workflows/
 EP-004,Pre-development,Maintain stable MoSCoW catalogue,Essential,PD-04,In Progress,v1.1 exists; v1.2 must incorporate agreed scope changes.,docs/requirements/
 EP-005,Pre-development,Build bidirectional RTM,Essential,PD-04,In Progress,This workbook/Markdown deliverable.,docs/evidence/
-EP-006,Pre-development,Maintain derived-requirement and change log,Essential,PD-04,Not Started,Changes currently exist in conversation/summary but not a controlled log.,docs/requirements/
+EP-006,Pre-development,Maintain derived-requirement and change log,Essential,PD-04,Not Started,Changes currently exist in conversation/summary but not in a controlled log.,docs/requirements/
 EP-007,Pre-development,Consolidate risk/assumption/constraint/licence register,Essential,PD-05,In Progress,Content drafted; live owner/status/evidence register remains.,docs/risks/
 EP-008,Pre-development,Create overall activity/user-journey diagram,Essential,PD-06,Not Started,Textual journey exists; formal visual needed.,docs/workflows/
 EP-009,Pre-development,Create decision tables for inspection/configuration,Essential,PD-07,Not Started,Rules are spread across workflows.,docs/architecture/
@@ -39,4 +39,3 @@ EP-037,After implementation,Complete manuals/known limitations/feature status,Es
 EP-038,After implementation,Final traceability and evidence audit,Essential,FR-05,Not Started,No Must counted complete without evidence.,docs/requirements/
 EP-039,After implementation,"Tag release, checksum and independent backup",Essential,FR-05,Not Started,Controlled handover baseline.,release-evidence/; release-evidence/checksums/
 EP-040,After implementation,Answer every RQ from project evidence,Essential,FR-05,Not Started,Positive and negative findings must be explicit.,docs/planning/Research-Question-Evidence-Map.md; report/chapters/
-
