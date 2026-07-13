@@ -3,7 +3,7 @@
 **Source:** exact IDs audited from the workbooks in `Testing (1)(1).zip`  
 **Controlled unique ID count:** 105
 
-No source workbook test ID may be renamed or reused. A physical execution adds a run suffix, for example `UL-04-R001`; a retest becomes `UL-04-R002` and does not overwrite the earlier run.
+No source workbook test ID may be renamed or reused. A physical execution adds an `R` run suffix followed by a three-digit number; a retest increments that number and never overwrites the earlier run.
 
 ## WB-01 — Upstream llama.cpp
 
