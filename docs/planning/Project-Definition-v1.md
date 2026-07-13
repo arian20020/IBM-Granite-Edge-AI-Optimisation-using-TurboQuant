@@ -278,21 +278,845 @@ Provide:
 
 ## 5. First-Release Scope
 
-### 5.1 Must Have
+This section defines what will and will not be included in the first project
+release.
 
-- Insert committed first-release work.
+The detailed requirement IDs, priorities, acceptance criteria, implementation
+links and verification evidence will be maintained separately in the MoSCoW
+Requirements Baseline v1.2.
 
-### 5.2 Should Have
+The first release will be a Windows research prototype aimed at helping
+education and healthcare workers use selected IBM Granite models locally
+without needing specialist knowledge of command-line tools, model formats or
+AI runtimes.
 
-- Insert work attempted after the Must Haves are stable.
+The application is not intended to be a complete commercial model manager,
+a clinical system or a replacement for professional judgement.
 
-### 5.3 Experimental
+### 5.1 Main Release Boundaries
 
-- Insert work that requires a technical evidence gate.
+The first release will follow these main boundaries:
 
-### 5.4 Deferred
+- The application will target Windows 11 x64 computers using Intel hardware.
+- The application will be developed using WinUI 3 and the Windows App SDK.
+- Selected IBM Granite language and code models will be supported.
+- Granite 3B-class models will be the main working target.
+- Selected Granite 8B configurations will be tested where available memory
+  and runtime support make this practical.
+- Verified GGUF models will be the main supported model format.
+- Upstream llama.cpp will be the main dependable inference runtime.
+- Intel CPU inference will be the minimum dependable execution route.
+- Intel integrated-GPU routes will be used only where real GPU use has been
+  proved.
+- Official OpenVINO GenAI will be investigated as a second Intel inference
+  route.
+- At least one TurboQuant route must run through the WinUI application.
+- TurboQuant will be treated as a runtime KV-cache optimisation and not as a
+  method for creating a smaller GGUF model file.
+- GGUF weight quantisation will be treated as a separate model-processing
+  operation.
+- TurboVec will be used in a bounded knowledge-file workflow to compress or
+  optimise vectors created from imported documents.
+- The original model and knowledge files will remain unchanged unless the
+  user deliberately starts a separate processing operation.
+- No Intel NPU result will be claimed without access to suitable NPU hardware.
+- The core inference process will operate locally and will not depend on a
+  cloud AI service.
+- Internet access may be used for an approved model download or for installing
+  required dependencies.
 
-- Insert work deliberately excluded from the first release.
+---
+
+### 5.2 Must Have Scope
+
+The following capabilities are required for the first release to be considered
+complete.
+
+#### 5.2.1 WinUI 3 Desktop Application
+
+The project must provide a working WinUI 3 desktop application that:
+
+- opens on the target Windows 11 Intel computer;
+- provides a clear guided workflow;
+- is understandable to users without command-line or AI-engineering
+  experience;
+- provides navigation between model import, inspection, hardware analysis,
+  configuration selection, optimisation, knowledge-file processing and chat;
+- remains responsive during long-running operations;
+- shows loading, progress, completion, warning and failure states;
+- provides plain-English explanations;
+- gives the user a clear next step after an error;
+- clearly separates dependable and experimental functionality;
+- supports basic keyboard navigation;
+- works with normal Windows text scaling.
+
+The interface will be designed with education and healthcare workers in mind,
+but it will not be described as approved for real classroom or clinical
+deployment.
+
+#### 5.2.2 Model Import
+
+The application must allow the user to select a supported local IBM Granite
+GGUF model using the Windows file picker.
+
+The application must:
+
+- accept model paths containing spaces and normal Windows characters;
+- check that the selected path exists;
+- check that the selected item is a file;
+- reject empty or incomplete files;
+- inspect the file contents rather than trusting only its filename;
+- preserve the original model file;
+- prevent an invalid model from continuing into inference.
+
+#### 5.2.3 Controlled Model Download
+
+The application must allow the user to download at least one approved
+recommended IBM Granite model from a fixed and trusted source.
+
+Before the download begins, the application must show:
+
+- model name;
+- model size;
+- model format;
+- weight quantisation;
+- source;
+- licence information;
+- expected storage location;
+- expected download size.
+
+During and after the download, the application must:
+
+- show progress;
+- show the current download state;
+- allow safe cancellation;
+- handle interrupted or failed downloads;
+- check available disk space;
+- prevent partial files from being treated as complete;
+- verify the final file using its expected size and cryptographic hash;
+- pass the verified model into the normal inspection workflow.
+
+The first release does not need to provide an unrestricted model marketplace
+or allow downloading from arbitrary sources.
+
+#### 5.2.4 Model Inspection and Validation
+
+The application must inspect the information needed for later compatibility,
+memory and configuration decisions.
+
+Where available, it must show:
+
+- model name;
+- model architecture;
+- model format;
+- parameter-size information;
+- file size;
+- weight quantisation;
+- supported or declared context information;
+- tokenizer information;
+- chat-template information;
+- important missing metadata.
+
+The model must be placed into one of these states:
+
+- Ready;
+- Ready with warnings;
+- Conversion required;
+- Unsupported;
+- Invalid or incomplete.
+
+Each state must include:
+
+- a plain-English explanation;
+- the reason for the decision;
+- a clear next step.
+
+#### 5.2.5 Intel Hardware Inspection
+
+The application must collect the hardware and system information needed for
+local-inference analysis.
+
+This must include:
+
+- Windows version;
+- system architecture;
+- Intel CPU name;
+- installed physical RAM;
+- currently available RAM;
+- available Intel GPU information;
+- available disk space;
+- available runtime information;
+- relevant execution-device limitations.
+
+The application must distinguish between a route that is:
+
+- generally supported by a runtime;
+- installed on the current computer;
+- verified by this project;
+- experimental;
+- unavailable.
+
+A device must not be reported as active only because the user requested it.
+
+#### 5.2.6 Transparent Memory Estimation
+
+The application must estimate the memory required by a complete inference
+configuration.
+
+The estimate must consider, where relevant:
+
+- model-weight memory;
+- KV-cache memory;
+- runtime buffers;
+- temporary working memory;
+- application overhead;
+- Windows and background-process allowance;
+- shared CPU and GPU memory;
+- a safety reserve.
+
+The estimator must not assume that model file size is equal to total runtime
+memory.
+
+The application must show:
+
+- the main parts of the estimate;
+- the estimated total;
+- currently available memory;
+- safety reserve;
+- assumptions;
+- missing information;
+- confidence or uncertainty.
+
+The result must use clear outcomes such as:
+
+- Likely to fit;
+- Fits with limited headroom;
+- Optimisation recommended;
+- Unlikely to fit;
+- No verified safe option.
+
+The result must be described as an estimate and not as a guarantee.
+
+#### 5.2.7 Configuration Generation
+
+The application must generate only complete configurations that are valid for
+the selected model, runtime and hardware.
+
+A complete configuration may include:
+
+- model format;
+- weight quantisation;
+- KV-cache format;
+- requested context length;
+- runtime;
+- backend;
+- CPU or GPU device;
+- CPU thread settings;
+- GPU offloading settings;
+- other required runtime options.
+
+The application must not combine individually valid settings into a complete
+configuration unless that full combination is supported.
+
+#### 5.2.8 Optimisation Modes
+
+The application must provide the following user-facing modes when valid
+configurations are available:
+
+- Automatic;
+- Quality;
+- Balanced;
+- Efficiency.
+
+The modes must represent different goals rather than fixed bit-width labels.
+
+- Quality should favour output quality and reliability.
+- Balanced should consider quality, memory use and speed together.
+- Efficiency should favour reduced memory use while remaining within tested
+  quality and stability limits.
+- Automatic should choose the highest-ranked verified configuration for the
+  current model and hardware.
+
+A mode must be hidden or disabled when no valid configuration exists.
+
+Before inference begins, the application must show:
+
+- selected model;
+- selected runtime;
+- selected backend;
+- selected device;
+- weight format;
+- KV-cache format;
+- context length;
+- estimated memory;
+- whether the route is dependable or experimental;
+- why the configuration was selected.
+
+#### 5.2.9 Secure Command-Line Runtime Integration
+
+The application must start and control supported command-line inference tools
+internally.
+
+The user must not need to open PowerShell, Command Prompt or another terminal.
+
+The runtime adapter must:
+
+- use structured and safely escaped arguments;
+- handle paths containing spaces;
+- avoid unsafe command-string concatenation;
+- launch the runtime without requiring a visible terminal window;
+- capture standard output;
+- capture standard error;
+- stream useful output into the WinUI application;
+- detect startup and loading failures;
+- support user cancellation;
+- apply suitable timeouts;
+- stop child processes safely;
+- clean temporary resources after success, cancellation or failure;
+- convert technical failures into understandable application errors.
+
+The main inference route should not require a local web server or an open
+network port.
+
+#### 5.2.10 Upstream llama.cpp Route
+
+Upstream llama.cpp will be the main dependable inference route.
+
+The first release must demonstrate this complete workflow:
+
+1. select or download a supported Granite GGUF model;
+2. validate and inspect the model;
+3. inspect the Intel hardware;
+4. estimate memory requirements;
+5. generate a valid configuration;
+6. allow the user to confirm the configuration;
+7. launch llama.cpp from the WinUI application;
+8. load the model successfully;
+9. generate valid text locally;
+10. record the actual runtime, backend and device used.
+
+Intel CPU inference is the required minimum route.
+
+Intel integrated-GPU inference may also be included where the real device use,
+offloading and stability are proved.
+
+#### 5.2.11 App-Integrated TurboQuant Route
+
+The first release must include at least one end-to-end TurboQuant route inside
+the WinUI application.
+
+The preferred first route will use a verified TurboQuant-enabled llama.cpp
+fork with a selected IBM Granite GGUF model on the target Intel CPU.
+
+The application must allow the user to:
+
+- select a supported TurboQuant configuration;
+- see that the route is labelled Experimental;
+- see which model, runtime, device and cache setting are supported;
+- view the expected memory effect;
+- start the TurboQuant runtime without entering a command;
+- view loading and generation progress;
+- use the normal local chat interface;
+- stop generation safely;
+- see the actual runtime, backend, device and KV-cache setting;
+- return to the standard llama.cpp route if TurboQuant is unavailable or
+  fails.
+
+At least one TurboQuant configuration must complete this application workflow:
+
+1. import or select a supported Granite model;
+2. inspect the model;
+3. inspect the Intel hardware;
+4. select a verified TurboQuant configuration;
+5. display the estimated memory and experimental warning;
+6. launch the TurboQuant-enabled runtime from WinUI;
+7. load the model;
+8. generate valid local text;
+9. record the actual backend, device and cache setting;
+10. save the run measurements.
+
+TurboQuant must not be shown as active unless its use is proved through
+runtime output, logs, measurements or other direct evidence.
+
+Upstream llama.cpp with a standard supported KV cache must remain available as
+the dependable fallback.
+
+#### 5.2.12 Local Chat
+
+The application must provide a local chat interface for at least one supported
+IBM Granite model.
+
+The chat must:
+
+- show the active model;
+- show the active runtime;
+- show the actual execution device;
+- show whether the selected route is dependable or experimental;
+- accept a user prompt;
+- show generated text while it is produced;
+- support at least two turns in one session;
+- keep the window responsive;
+- allow the user to stop generation;
+- show loading and generation states;
+- show understandable failures;
+- allow generated output to be copied;
+- preserve the conversation state during the session.
+
+The application must record basic runtime information where available,
+including:
+
+- model-loading time;
+- time to first token;
+- prompt-processing speed;
+- generation speed;
+- generated-token count;
+- context used;
+- requested backend and device;
+- actual backend and device.
+
+Prompts and responses must not be uploaded to a cloud AI service by the core
+workflow.
+
+#### 5.2.13 Model-Weight Optimisation and Export
+
+The first release must include at least one verified model-file optimisation
+workflow.
+
+The main route will use a supported GGUF weight-quantisation tool to create a
+new GGUF file.
+
+The application must:
+
+- preserve the original model;
+- check that the source model is suitable for processing;
+- avoid automatically re-quantising an already quantised model through an
+  unsafe route;
+- check available disk space;
+- show processing progress where available;
+- support safe cancellation;
+- record the processing tool and version;
+- record the selected quantisation settings;
+- record the source-model hash;
+- record the output-model hash;
+- validate the new model;
+- inspect the new model again;
+- compare the source and output file sizes;
+- allow the new model to return to the normal inspection, configuration and
+  chat workflow;
+- allow the output file to be saved for another compatible local
+  application.
+
+TurboQuant must remain separate from this workflow because TurboQuant changes
+the runtime KV cache and does not create a new GGUF weight file.
+
+#### 5.2.14 Official OpenVINO Baseline
+
+The project must complete at least one official OpenVINO GenAI baseline test
+using a selected IBM Granite model on Intel hardware.
+
+The test must either:
+
+- load the model and produce valid output; or
+- produce a repeatable and fully documented blocker.
+
+The test must record:
+
+- model and model revision;
+- model format;
+- OpenVINO Runtime version;
+- OpenVINO GenAI version;
+- requested device;
+- actual device;
+- loading result;
+- generation result;
+- memory use;
+- speed;
+- output quality;
+- failures and fallback.
+
+The official baseline must remain separate from custom, nightly or
+TurboQuant-enabled OpenVINO builds.
+
+A complete official OpenVINO route inside the application will be added only
+after its integration gate passes.
+
+#### 5.2.15 TurboQuant Evaluation
+
+The project must compare at least one verified TurboQuant configuration with a
+matched standard KV-cache baseline.
+
+The comparison must keep the following equal as far as reasonably possible:
+
+- Granite model;
+- model revision;
+- weight format;
+- prompt;
+- chat template;
+- context length;
+- generation settings;
+- hardware;
+- runtime environment;
+- measurement method.
+
+The comparison must measure:
+
+- reported KV-cache memory;
+- measured peak process memory;
+- total system-memory effect;
+- model-loading time;
+- time to first token;
+- prompt-processing speed;
+- generation speed;
+- maximum stable context;
+- output quality;
+- instruction following;
+- output formatting;
+- runtime stability;
+- crashes;
+- out-of-memory failures;
+- backend fallback.
+
+The final report must distinguish between:
+
+- the published TurboQuant algorithm;
+- the exact repository implementation tested;
+- theoretical compression;
+- runtime-reported cache allocation;
+- measured total-memory reduction.
+
+#### 5.2.16 Lower-Memory Evaluation
+
+The project must assess selected Granite configurations against total
+system-memory budgets of:
+
+- 4 GB;
+- 8 GB;
+- 16 GB.
+
+For each result, the report must say whether it was:
+
+- measured on a real computer;
+- measured under a controlled memory limit;
+- calculated from measured components;
+- predicted by the application.
+
+The evaluation must consider:
+
+- Windows memory use;
+- background processes;
+- WinUI application memory;
+- model-weight memory;
+- KV-cache memory;
+- runtime buffers;
+- shared GPU memory;
+- context length;
+- output quality;
+- speed;
+- stability.
+
+The project will identify complete configurations that appear practical
+within each budget.
+
+It will not claim that every Granite model will run on every 4 GB, 8 GB or
+16 GB computer.
+
+#### 5.2.17 TurboVec Knowledge-File Workflow
+
+The first release must include one bounded TurboVec-assisted knowledge-file
+workflow inside the application.
+
+The workflow will allow the user to import selected text-based knowledge
+files for use with the Granite chat system.
+
+The application must:
+
+- validate the selected knowledge file;
+- preserve the original file;
+- extract usable text;
+- divide the text into smaller searchable sections;
+- generate embeddings for those sections;
+- create an uncompressed-vector baseline;
+- use the selected TurboVec implementation to compress or optimise the
+  vectors;
+- create or use a local retrieval index;
+- retrieve relevant sections for a user question;
+- provide the retrieved sections to the Granite chat workflow;
+- clearly show when document-based context is being used.
+
+The project must record:
+
+- exact TurboVec repository or implementation;
+- exact version or commit;
+- licence;
+- supported operating system;
+- input format;
+- output format;
+- vector or embedding format;
+- retrieval method;
+- known limitations.
+
+The TurboVec route must be compared with an uncompressed-vector baseline
+using:
+
+- vector-storage size;
+- memory use;
+- processing or indexing time;
+- query time;
+- retrieval relevance;
+- final answer usefulness;
+- failures and stability.
+
+TurboVec must not be described as compressing the original PDF, Word or text
+file. It operates on the vectors or embeddings created from the file.
+
+Because TurboVec support may depend on an early or specialised
+implementation, the user-facing route must be labelled Experimental until its
+exact input, output and retrieval behaviour have been proved.
+
+#### 5.2.18 Testing and Evidence
+
+The first release must include testing appropriate to the completed system,
+including:
+
+- unit tests;
+- model-parser tests;
+- validation tests;
+- memory-estimator tests;
+- configuration-registry tests;
+- path and process-argument security tests;
+- integration tests;
+- end-to-end tests;
+- cancellation tests;
+- child-process cleanup tests;
+- failure and fallback tests;
+- runtime compatibility tests;
+- offline-operation tests;
+- basic usability testing;
+- basic accessibility checking;
+- formal inference experiments;
+- regression tests for important defects.
+
+Every final experiment must retain:
+
+- unique experiment ID;
+- exact hardware information;
+- model name and hash;
+- runtime version and hash;
+- build settings;
+- requested configuration;
+- actual configuration;
+- raw standard output;
+- raw standard error;
+- raw memory measurements;
+- raw speed measurements;
+- model responses;
+- failed runs;
+- processed results;
+- analysis notes.
+
+Every result must be labelled as:
+
+- measured;
+- estimated;
+- reproduced from another source;
+- inferred from evidence;
+- not yet verified.
+
+#### 5.2.19 Privacy, Security and Responsible Use
+
+The first release must:
+
+- keep the core inference workflow local;
+- avoid uploading models, prompts, knowledge files or answers to a cloud AI
+  service;
+- avoid committing API keys, passwords or secrets;
+- avoid real patient information;
+- avoid identifiable pupil information;
+- use synthetic, public or properly authorised test material;
+- verify the source and integrity of downloaded models;
+- handle file paths and child processes safely;
+- record third-party model and runtime licences;
+- clearly label experimental features;
+- explain that generated content can be incorrect;
+- state that education and healthcare outputs require human review;
+- state that the application does not provide medical diagnosis or treatment
+  advice;
+- avoid presenting model recommendations as guaranteed.
+
+#### 5.2.20 Build, Release and Documentation
+
+The project must provide:
+
+- source code in the Git repository;
+- a reproducible Windows x64 build process;
+- recorded dependency and runtime versions;
+- a clean-checkout build test;
+- documented automated-test commands;
+- a basic distributable release build;
+- project README;
+- user manual;
+- developer manual;
+- build and installation instructions;
+- known-limitations document;
+- runtime, model and dependency register;
+- final requirements traceability;
+- final feature-status table;
+- release checksums;
+- version tag;
+- independent project backup.
+
+---
+
+### 5.3 Should Have Scope
+
+The following features are valuable but may be reduced or deferred if the
+Must Have work is not stable.
+
+#### Model Support
+
+- Drag-and-drop model import.
+- Recognition of supported OpenVINO IR model folders.
+- Recognition of selected Hugging Face or Safetensors model folders.
+- Support for additional verified Granite variants.
+- More than one approved recommended-model download.
+- Resuming an interrupted model download.
+
+#### Knowledge Files
+
+- Support for PDF files through safe local text extraction.
+- Support for Word documents through safe local text extraction.
+- Support for more than one imported knowledge file.
+- A visible list of indexed document sections.
+- Saving and reopening a local TurboVec index.
+
+#### Chat and User Interface
+
+- Saving chat responses to a local file.
+- Saving inspection reports.
+- A local history of benchmark runs.
+- Charts showing memory, speed and context trade-offs.
+- More detailed explanations of technical terms.
+- Expanded screen-reader testing.
+- More advanced accessibility evaluation.
+
+#### Runtime and Optimisation
+
+- A fully integrated official OpenVINO GenAI route inside the WinUI
+  application.
+- An app-integrated OpenVINO GenAI TurboQuant route.
+- A verified source-to-OpenVINO model-preparation route.
+- A verified Intel integrated-GPU route inside the application.
+- Comparison of llama.cpp and OpenVINO using the same model and device.
+- Additional GGUF weight-quantisation outputs.
+- Export of benchmark results as CSV or JSON.
+- A processing manifest saved beside each generated model file.
+
+#### Packaging
+
+- A packaged MSIX installer.
+- Automatic checking for required runtime dependencies.
+- Clear uninstall and local-data-cleanup instructions.
+
+---
+
+### 5.4 App-Integrated Experimental Capabilities
+
+Some first-release features are required to run inside the application but
+must still be labelled Experimental.
+
+This is because their support is limited to exact tested models, runtime
+versions, devices and configurations.
+
+The following are app-integrated experimental capabilities:
+
+- the selected TurboQuant-enabled llama.cpp route;
+- OpenVINO GenAI TurboQuant if its application gate passes;
+- the TurboVec knowledge-file workflow;
+- Intel GPU routes that depend on exact Vulkan, SYCL, OpenVINO or driver
+  versions;
+- very-low-bit KV-cache configurations;
+- combined weight and KV-cache optimisation configurations.
+
+An experimental capability may be shown as usable only when:
+
+1. the exact model and runtime version are known;
+2. the supported configuration is recorded;
+3. the requested setting is accepted;
+4. the requested optimisation is proved to be active;
+5. the actual backend and device are recorded;
+6. successful output has been produced;
+7. memory, speed, quality and stability have been measured;
+8. fallback and failure behaviour are understood;
+9. the interface labels it Experimental;
+10. a dependable fallback remains available.
+
+A failed experimental route is still a valid research result and does not
+make the dependable core application unsuccessful.
+
+---
+
+### 5.5 Research-Only Comparison Routes
+
+The following routes may be used as research evidence without becoming
+separate user-facing application backends:
+
+- additional TurboQuant forks;
+- animehacker TQ3_0 where used only as a comparison implementation;
+- very aggressive TurboQuant U3 or lower-bit settings that fail the quality
+  threshold;
+- unsupported GPU TurboQuant combinations;
+- unsuccessful OpenVINO or model-conversion attempts;
+- TurboVec variants that cannot be integrated reliably.
+
+Their successful and failed results must still be retained and reported.
+
+---
+
+### 5.6 Deferred and Out-of-Scope Work
+
+The following work is deliberately excluded from the first release:
+
+- training an IBM Granite model from scratch;
+- fine-tuning a large Granite model;
+- support for every IBM Granite model;
+- support for every GGUF, OpenVINO or Hugging Face model;
+- support for arbitrary or untrusted model formats;
+- support for every Intel CPU or GPU;
+- Intel NPU claims without suitable test hardware;
+- guaranteed support for a 32-billion-parameter model;
+- guaranteed operation on every 4 GB, 8 GB or 16 GB computer;
+- claims of six-times compression without project evidence;
+- claims of near-zero quality loss without project evidence;
+- claims of sub-second latency without project evidence;
+- automatically re-quantising an already quantised GGUF through an unsafe
+  route;
+- presenting TurboQuant as a new exported model file;
+- presenting TurboVec as directly compressing the original imported
+  document;
+- unrestricted downloading from unknown or untrusted model sources;
+- automatic runtime or model updates;
+- a full commercial model marketplace;
+- a full enterprise RAG platform;
+- a large external vector-database server;
+- support for every document format;
+- cloud inference as part of the core workflow;
+- real patient information;
+- clinical diagnosis or treatment recommendations;
+- unsupervised pupil-facing deployment;
+- replacement of teachers, healthcare workers or other professionals;
+- a full replacement for llama.cpp, OpenVINO, LM Studio or Ollama;
+- support for non-Granite models in the first release;
+- multiple simultaneous model sessions;
+- multi-user or network-server operation;
+- DirectML integration;
+- macOS or Metal delivery;
+- full cross-platform delivery;
+- a cross-platform CMake product backend;
+- Microsoft Store publication;
+- enterprise accounts, identity and role management;
+- automatic collection of user prompts or documents for analytics;
+- production approval for a school, university, hospital or NHS
+  organisation.
 
 ## 6. Claims Not Made by This Project
 
