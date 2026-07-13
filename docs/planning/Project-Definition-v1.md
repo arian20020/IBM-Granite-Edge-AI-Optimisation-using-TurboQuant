@@ -12,68 +12,33 @@
 
 ## 1. Problem Statement
 
-Large language models can help with tasks such as answering questions, summarising documents, creating written content, generating code and working with large amounts of information. These tools may be useful for education staff who prepare learning materials or complete administrative work. They may also help healthcare staff with documentation, reviewing non-clinical information and supporting everyday work processes.
+Large language models can help with tasks such as answering questions, summarising documents, creating written content, generating code and working with large amounts of information. These tools may be useful in education and healthcare, where staff often need to review documents, prepare materials, complete administrative work and find information quickly.
 
-However, many current AI services depend on cloud servers and a continuous internet connection. This may cause problems in schools, hospitals and other workplaces where internet access is unavailable, unreliable or restricted. It may also be unsafe or inappropriate to upload confidential documents, student information, patient-related information or other sensitive data to an external cloud service without approval from the organisation.
+However, many current AI services depend on cloud servers and a continuous internet connection. This can be a problem in schools, hospitals and other workplaces where internet access may be unavailable, unreliable or restricted. It can also create privacy and security concerns because prompts, documents and generated content may be sent to external servers. This is especially important when the information includes student records, patient-related information or other sensitive data.
 
-The intended users of this project therefore include education staff and non-clinical healthcare staff who may need an AI tool that runs directly on an approved Windows computer. Prompts and documents would be processed locally instead of being sent to a remote AI service. This could allow the application to continue working without an internet connection and reduce the amount of information sent outside the device. It could also give the organisation more control over the model, software and storage location.
+Local AI inference can reduce this dependence on cloud services by running the model directly on the user’s own computer. This can allow the system to work without a continuous internet connection and can reduce the need to send information outside the device. However, local execution does not automatically make a system secure, private or legally compliant. The computer, model files, temporary files, logs and generated outputs can still contain sensitive information and may still need protection.
 
-However, running an AI model locally does not automatically make the system private, secure or legally compliant. The computer, model files, generated answers, temporary files, logs and user permissions must still be protected. Any real deployment would also need to follow the organisation’s rules for data protection, safeguarding, security and software approval.
+Education and healthcare organisations may also use managed computers with strict software and security controls. Staff may not have permission to install software, change system settings, use unapproved network connections or open local network ports. These restrictions can make it difficult to run local AI systems that depend on browser-based interfaces, local servers or complex technical setup.
 
-Education and healthcare computers may have extra restrictions. For example, users may not be allowed to install unauthorised software, change security settings or use unapproved network connections. This does not mean that every NHS or school computer blocks local network ports. However, it means that the project should investigate a method that does not depend on a local web server or an open network port.
+Running a capable language model locally is also difficult because ordinary laptops have limited memory and processing power. The computer needs memory for more than just the downloaded model file. It also needs memory for the model weights, the key–value cache, temporary runtime data, the application itself and the operating system.
 
-For this reason, the application should not require a browser or a local HTTP server just to send prompts to the model. Instead, the Windows application could start an approved local inference program in the background. The graphical application could send prompts to this program and receive the generated response through standard input and output, local files or another method that does not use the network.
+The key–value cache stores information from earlier tokens so that the model can continue generating text efficiently. This cache becomes larger as the context length increases. As a result, a model may load correctly with a short prompt but become slower, run out of memory or fail when a longer document or conversation is used. The model-file size alone is therefore not enough to show whether the full setup will run reliably.
 
-The user would still interact with a normal graphical interface. They would not need to open a terminal or type command-line instructions. This design would allow runtimes such as llama.cpp or OpenVINO to run the model locally without depending on a continuously open TCP port.
+Quantisation can reduce memory use by storing model weights, activations or KV-cache values with fewer bits. However, these methods affect different parts of the system and do not always give the same results. More aggressive quantisation may reduce memory use, but it may also affect factual accuracy, instruction following, formatting, long-context recall, speed or runtime stability.
 
-Running a model locally also creates technical problems. Capable language models may need more memory and processing power than an ordinary laptop can provide. The computer does not only need space for the downloaded model file. It also needs memory for the model weights, the key–value cache, temporary data, the runtime software, the desktop application and the operating system.
+A lower-bit format is also not always faster. Performance depends on the inference runtime, the available low-precision support, memory bandwidth and whether the model runs on the CPU, GPU or NPU. This means that memory use, speed, output quality and stability must be considered together.
 
-The key–value cache stores information from earlier tokens so that the model does not need to process the whole conversation again each time it generates a new token. This cache becomes larger as the context length increases. A model may therefore load correctly with a short prompt but become slow, run out of memory or fail when the user enters a longer document or conversation. The model-file size alone is not enough to decide whether a complete setup will run reliably.
+TurboQuant is a promising method for reducing KV-cache memory use. Its published results report strong compression with limited quality loss under the models, benchmarks, software and hardware used in the original research. However, these results cannot automatically be expected when using IBM Granite models with llama.cpp or OpenVINO on Windows Intel computers.
 
-Quantisation can reduce memory use by storing model weights, activations or KV-cache values with fewer bits. However, these methods reduce different parts of the system and should not be treated as the same thing.
+Different TurboQuant implementations may support different cache formats, model types or hardware backends. A runtime may accept an option without proving that TurboQuant was actually active. A requested device may also fail and cause the runtime to use another device instead. This creates uncertainty about whether the expected optimisation is really being used and whether it improves memory use, speed, quality and stability in the project environment.
 
-Weight quantisation reduces the memory needed to store and run the model weights. KV-cache quantisation reduces the memory used to store information from previous tokens during longer conversations. More aggressive quantisation may save more memory, but it may also reduce factual accuracy, instruction following, formatting, long-context recall, speed or runtime stability.
+The problem is not only technical. Non-specialist users may need to understand model formats, weight precision, KV-cache formats, context length, available RAM, runtime versions, processor support and command-line settings before they can decide whether a model will work on their computer.
 
-A lower-bit format is also not always faster. Performance depends on the inference runtime, the available low-precision support, memory bandwidth and whether the model is running on the CPU, GPU or NPU. The project must therefore evaluate output quality, memory use, speed and stability together instead of assuming that the lowest-bit option is always the best one. This matches AI-engineering guidance, which treats model quality, latency and resource use as connected evaluation areas.
+Education and healthcare staff should not be expected to understand all of these technical details or discover unsupported settings through repeated failures. They may also find it difficult to know whether a model is compatible, whether it will fit in memory, which device is actually being used and what quality or performance trade-offs are being made.
 
-TurboQuant is a promising method for reducing KV-cache memory use. The original research reports strong compression with limited quality loss under the models, benchmarks, software and hardware used by the researchers. However, those results cannot automatically be expected when using IBM Granite models with llama.cpp or OpenVINO on Windows Intel computers.
+The main problem addressed by this project is therefore the gap between the possible benefits of local language models and the ability of non-specialist education and healthcare users to run them efficiently, reliably and clearly on ordinary Windows Intel computers.
 
-Different TurboQuant repositories may support different parts of the method, cache formats or hardware backends. A runtime may accept a command-line option without proving that TurboQuant was actually active. A requested device may also fail and cause the runtime to use another device instead.
-
-TurboQuant must therefore be treated as an experimental optimisation. The project must directly test whether it is active and measure its effect on memory, latency, throughput, output quality and stability. It must also remain separate from model-weight quantisation. Reducing the KV cache does not automatically create a smaller GGUF model file.
-
-The problem is not only technical performance. Non-specialist users may currently need to understand model formats, weight precision, KV-cache formats, context length, available RAM, runtime versions, processor support and command-line settings before they can decide whether a model will work on their computer.
-
-Education and healthcare staff should not be expected to understand all of these technical details or discover unsupported settings through repeated failures. Previous IXN work has also identified privacy, accessibility and technical complexity as barriers that can prevent non-technical users from benefiting from local AI models. Healthcare-focused IXN work has also used fully local open-source models to give users greater control over how sensitive data is processed.
-
-This creates both a usability problem and a reliability problem. Users need clear guidance about whether an imported model is compatible, whether the full setup is likely to fit in memory, what trade-offs an optimisation introduces and which device or backend was actually used.
-
-The application should clearly separate:
-
-- measured results from estimates;
-- published research claims from this project’s findings;
-- tested configurations from experimental or unsupported configurations.
-
-The application should inspect the imported model and available hardware, use clear configuration names, provide evidence-based recommendations and record the runtime, device, model format, cache type and optimisation state used during testing.
-
-The project must also have clear safety limits. It is a research prototype for running, optimising and evaluating local language models. It is not a medical device, diagnostic system, medical-advice tool or clinical decision-making system. It is also not a replacement for teachers, healthcare workers or other qualified professionals.
-
-Generated answers may be incorrect, incomplete, biased or out of date. Users must review the output before using it for important work. Human judgement must remain part of the process, especially in education and healthcare.
-
-The main problem addressed by this project is therefore the gap between the possible benefits of local language models and the ability of non-specialist education and healthcare users to run them efficiently, reliably and clearly on Windows Intel computers.
-
-The project will investigate an offline-capable graphical application that can:
-
-- import and inspect selected IBM Granite models;
-- inspect the computer’s hardware;
-- estimate whether the full inference setup is likely to fit in memory;
-- explain the trade-offs between quality and efficiency;
-- recommend only tested configurations or clearly labelled experimental settings;
-- run the model locally without requiring terminal commands;
-- avoid depending on a local web server;
-- record the actual runtime, hardware device and optimisation used.
-
-The project will also test whether TurboQuant provides a measurable improvement over supported standard KV-cache configurations. It will not assume that the results reported in the original research will automatically apply to IBM Granite, llama.cpp, OpenVINO or Windows Intel computers.
+The project also addresses the lack of evidence about whether TurboQuant provides a real benefit for IBM Granite models in this environment. Published results alone are not enough to confirm that the same memory savings, speed and quality will be achieved when using different models, runtimes and hardware.
 
 ## 2. Project Aim
 
