@@ -1317,7 +1317,565 @@ will not be presented as if they are the same type of evidence.
 
 ## 7. Definition of a Satisfactory Project Outcome
 
-Insert measurable completion conditions.
+The project will be considered satisfactory when all mandatory core release
+gates have passed, the required experimental capability has been demonstrated,
+and every research question has been answered using traceable evidence.
+
+A requirement is not complete merely because code exists. It must also have
+the required verification evidence.
+
+### 7.1 Project-Control Gate
+
+The following project-control conditions must be met:
+
+- the project problem, aim, research questions, objectives and first-release
+  scope are version controlled;
+- the approved MoSCoW requirements have stable requirement IDs;
+- each Must Have requirement has acceptance criteria;
+- a requirements traceability matrix links requirements to implementation,
+  tests and evidence;
+- architecture decisions affecting runtimes, process communication,
+  optimisation and fallbacks are recorded;
+- constraints, assumptions, risks and licences are maintained in a dated
+  register;
+- scope changes are recorded rather than silently added or removed;
+- each research question is linked to a planned evidence source.
+
+### 7.2 Build and Repository Gate
+
+The following build conditions must pass:
+
+- a clean checkout of the repository builds successfully for Windows x64;
+- the WinUI 3 application opens on the target Windows Intel computer;
+- all mandatory automated tests pass;
+- generated build folders and large model files are not committed;
+- the repository contains no known passwords, access tokens, API keys or
+  personal test data;
+- exact dependency and runtime versions are recorded;
+- a basic distributable release build is produced;
+- the release is connected to a Git commit and version tag;
+- a separate backup of the final repository and evidence exists.
+
+### 7.3 Model Import and Download Gate
+
+The application must demonstrate that:
+
+- at least one supported Granite GGUF model can be selected through the
+  Windows file picker;
+- at least one approved recommended Granite model can be downloaded through
+  the application;
+- the download shows progress and failure state;
+- an incomplete download is not treated as valid;
+- the completed download is checked using its expected size and SHA-256
+  value or an equivalent cryptographic hash;
+- the downloaded model enters the normal inspection workflow;
+- the original imported or downloaded model remains unchanged.
+
+### 7.4 Model-Inspection Gate
+
+The final validation test set must include examples that produce:
+
+- Ready;
+- Ready with warnings;
+- Conversion required;
+- Unsupported;
+- Invalid or incomplete.
+
+For each case:
+
+- the correct state must be shown;
+- the reason must be understandable;
+- the application must show a valid next action;
+- unsupported or invalid inputs must not reach the inference runtime.
+
+At least one real supported Granite model must have its useful metadata
+displayed correctly.
+
+### 7.5 Hardware-Inspection Gate
+
+The application must correctly record and display:
+
+- Windows and system architecture;
+- Intel CPU information;
+- installed physical RAM;
+- currently available RAM;
+- available Intel GPU information;
+- relevant runtime/device information;
+- available disk space.
+
+The application output must be cross-checked against trusted Windows system
+information.
+
+A requested device must be kept separate from the device that actually ran
+the model.
+
+### 7.6 Memory-Estimator Gate
+
+The estimator must:
+
+- show model-weight memory;
+- show KV-cache memory where relevant;
+- include runtime and application overhead;
+- include a Windows and background-process allowance;
+- account for shared GPU memory where relevant;
+- include a safety reserve;
+- show the estimated total;
+- show important assumptions and missing information;
+- display a clear fit result.
+
+Predicted and measured memory must be compared for matched configurations.
+
+For the final estimator test set:
+
+- absolute error must be reported;
+- percentage error must be reported;
+- no configuration known to exceed the safe memory budget may be shown as a
+  normal safe recommendation;
+- false-safe and false-unsafe results must be reported;
+- confidence must be reduced when evidence is limited.
+
+A useful target is for the final supported configuration set to remain within
+20% of measured peak memory. When this target is not reached, the application
+must use a larger safety margin and present the result as advisory rather than
+certain.
+
+### 7.7 Configuration-Selection Gate
+
+The application must demonstrate that:
+
+- only complete supported configurations are generated;
+- invalid model, weight, cache, runtime, backend and device combinations are
+  rejected;
+- Automatic, Quality, Balanced and Efficiency modes use full configurations;
+- unavailable modes are hidden or disabled;
+- the recommendation includes an understandable reason;
+- the full selected configuration is shown before inference;
+- experimental configurations are clearly labelled;
+- a standard dependable fallback remains available.
+
+All final configuration-registry acceptance tests must pass.
+
+### 7.8 Secure Runtime-Adapter Gate
+
+The runtime adapter must demonstrate that it can:
+
+- start a supported local executable without asking the user to enter a
+  terminal command;
+- handle model paths containing spaces and supported special characters;
+- build process arguments safely;
+- capture standard output and standard error;
+- stream useful output to the WinUI application;
+- detect loading and generation failures;
+- support cancellation;
+- stop child processes safely;
+- clean temporary resources;
+- prevent a stopped runtime from continuing in the background;
+- convert technical failures into structured application errors.
+
+Mandatory path, argument, cancellation and cleanup tests must pass.
+
+### 7.9 Dependable llama.cpp Gate
+
+At least one real selected Granite GGUF model must complete this workflow
+through the application:
+
+1. model import or approved download;
+2. model validation;
+3. model inspection;
+4. hardware inspection;
+5. memory estimation;
+6. verified configuration selection;
+7. launch of upstream llama.cpp;
+8. successful model loading;
+9. valid local generation;
+10. recording of the actual backend and device;
+11. safe completion or cancellation.
+
+Intel CPU is the required minimum dependable route.
+
+The user must not need to open or operate a terminal.
+
+### 7.10 App-Integrated TurboQuant Gate
+
+At least one selected IBM Granite configuration must run through a verified
+TurboQuant-enabled runtime launched by the WinUI application.
+
+The working route must:
+
+- be selected inside the application;
+- be labelled Experimental;
+- use a pinned runtime version or commit;
+- use a documented model and cache configuration;
+- prove that the TurboQuant cache option was active;
+- load the model successfully;
+- generate valid local text;
+- operate through the normal chat interface;
+- support safe cancellation;
+- record actual backend, device and cache information;
+- preserve upstream llama.cpp as the standard fallback;
+- produce a complete experiment manifest.
+
+Accepting a command-line option is not enough to pass this gate.
+
+The TurboQuant route must produce direct evidence that the intended
+optimisation was active.
+
+### 7.11 Local-Chat Gate
+
+The local chat feature must:
+
+- display the active model;
+- display the active runtime;
+- display the actual device;
+- display the active configuration;
+- accept a user prompt;
+- show text while it is being generated;
+- complete at least two user turns in one session;
+- keep the application responsive;
+- allow generation to be stopped;
+- preserve the required conversation state;
+- display understandable failures;
+- allow generated text to be copied.
+
+A complete chat test must be performed using both:
+
+- the dependable standard llama.cpp route; and
+- the verified app-integrated TurboQuant route.
+
+### 7.12 Model-Weight Optimisation Gate
+
+At least one supported model-weight quantisation workflow must run through the
+application and create a new GGUF artefact.
+
+The workflow must:
+
+- preserve the original model;
+- verify that the source is suitable;
+- check available disk space;
+- record the tool and version;
+- record the selected quantisation;
+- record the source hash;
+- record the output hash;
+- validate the output;
+- inspect the output again;
+- compare source and output size;
+- return the validated output to the normal model-selection and chat
+  workflow.
+
+The new file must not be described as a TurboQuant export.
+
+### 7.13 Official OpenVINO Research Gate
+
+At least one official OpenVINO GenAI Granite baseline must be completed on
+Intel hardware.
+
+The result must record:
+
+- exact model and revision;
+- model format and precision;
+- OpenVINO Runtime version;
+- OpenVINO GenAI version;
+- requested device;
+- actual device;
+- model-loading result;
+- generation result;
+- memory;
+- loading time;
+- time to first token;
+- generation speed;
+- quality result;
+- failures and fallback.
+
+This research gate may be satisfied by either:
+
+- a valid repeatable OpenVINO inference result; or
+- a repeatable blocker supported by complete diagnostic evidence.
+
+A blocker can answer the OpenVINO research question, but it must not be
+presented as a working application feature.
+
+### 7.14 TurboQuant Comparison Gate
+
+At least one app-integrated TurboQuant run must be compared with a matched
+standard KV-cache baseline.
+
+The comparison must keep the following equal as far as practical:
+
+- Granite model and revision;
+- weight format;
+- prompt;
+- chat template;
+- context length;
+- generation settings;
+- hardware;
+- device;
+- measurement method.
+
+The final comparison must include:
+
+- runtime-reported KV-cache allocation;
+- measured peak process memory;
+- available system memory;
+- model-loading time;
+- time to first token;
+- prompt-processing speed;
+- generation speed;
+- maximum stable context;
+- fixed-prompt quality scores;
+- instruction following;
+- required output formatting;
+- crashes, failures and fallback behaviour.
+
+The project may conclude that TurboQuant is beneficial, neutral, unsuitable or
+insufficiently verified. Any of these can be a valid research result when the
+experiment is fair and reproducible.
+
+The original TurboQuant paper reports results under its own tested models and
+conditions; those published findings are external evidence and do not replace
+the project comparison. :contentReference[oaicite:1]{index=1}
+
+### 7.15 Lower-Memory Evaluation Gate
+
+Selected complete configurations must be assessed against:
+
+- 4 GB;
+- 8 GB;
+- 16 GB total system-memory budgets.
+
+Every result must state whether it was:
+
+- measured on a physical computer;
+- measured under a controlled restriction;
+- calculated from measured components;
+- predicted by the estimator.
+
+The evaluation must include:
+
+- Windows memory allowance;
+- application memory;
+- model-weight memory;
+- KV-cache memory;
+- runtime overhead;
+- shared GPU memory;
+- safety reserve;
+- output quality;
+- speed;
+- stable context;
+- failure behaviour.
+
+The project does not need to prove that every model runs within every budget.
+It must identify which tested configurations are likely to be practical and
+show the strength of the supporting evidence.
+
+### 7.16 TurboVec Knowledge-Retrieval Gate
+
+Before implementation, the project must identify:
+
+- the exact TurboVec implementation;
+- repository and commit or version;
+- licence;
+- supported platform;
+- accepted input;
+- produced output;
+- embedding representation;
+- retrieval method.
+
+At least one selected knowledge file must then complete this bounded workflow:
+
+1. file validation;
+2. local text extraction;
+3. division into searchable sections;
+4. local embedding generation;
+5. creation of an uncompressed-vector baseline;
+6. TurboVec compression or optimisation of the vectors;
+7. creation or use of a local index;
+8. retrieval using a fixed question set;
+9. use of retrieved evidence in the Granite chat workflow.
+
+The compressed and uncompressed routes must be compared using:
+
+- vector storage size;
+- memory use;
+- index creation time;
+- query time;
+- retrieval relevance;
+- answer usefulness;
+- failures and stability.
+
+The original knowledge file must remain unchanged.
+
+Because TurboVec is part of the agreed first-release scope, failure to identify
+or integrate the exact implementation must trigger a recorded scope decision
+and supervisor review. It must not be silently removed or falsely reported as
+complete.
+
+### 7.17 Quality and Performance Evaluation Gate
+
+Every final selected configuration must report, where applicable:
+
+- model file size;
+- model precision;
+- KV-cache format;
+- tested context;
+- peak memory;
+- cold loading time;
+- warm loading time;
+- time to first token;
+- prompt-processing speed;
+- generation speed;
+- total response time;
+- run-to-run variation;
+- output quality;
+- instruction following;
+- output formatting;
+- stability.
+
+The quality evaluation must use:
+
+- a fixed version-controlled prompt set;
+- a fixed scoring guide;
+- retained raw answers;
+- clearly defined pass, warning and fail conditions.
+
+The prompt set and scoring guide must be frozen before the final comparison.
+
+### 7.18 Reliability, Privacy and Security Gate
+
+The final system must demonstrate that:
+
+- the core inference workflow functions without cloud inference;
+- models, prompts and generated answers are not sent to a cloud AI service;
+- downloaded models come from an approved source and pass integrity checks;
+- unsafe process-argument construction is not used;
+- path and file-validation tests pass;
+- temporary files and child processes are cleaned up;
+- no real patient or identifiable pupil data are used;
+- secrets are absent from the repository;
+- sensitive prompt logging is disabled or clearly controlled;
+- experimental options are clearly labelled;
+- the application explains that generated content requires human review.
+
+### 7.19 UX and Accessibility Gate
+
+A documented usability evaluation must be completed with at least three
+representative non-specialist participants where access permits.
+
+The evaluation must include tasks covering:
+
+- importing or downloading a model;
+- understanding an inspection result;
+- understanding a memory-fit result;
+- selecting a configuration;
+- starting local chat;
+- recognising an Experimental TurboQuant option;
+- recovering from at least one failure.
+
+The project must record:
+
+- task completion;
+- errors;
+- assistance required;
+- confusing terms;
+- participant feedback;
+- changes made after evaluation;
+- unresolved UX limitations.
+
+The main workflow must also be checked using:
+
+- keyboard-only operation;
+- Windows text scaling up to at least 200%;
+- visible focus;
+- readable progress and error messages.
+
+When direct access to education or healthcare workers is unavailable,
+representative non-specialist participants may be used, but this limitation
+must be stated.
+
+### 7.20 Reproducibility and Documentation Gate
+
+The repository must contain:
+
+- project README;
+- user manual;
+- developer manual;
+- build and installation instructions;
+- known limitations;
+- dependency and licence register;
+- architecture diagrams;
+- architecture decision records;
+- test strategy and results;
+- experiment protocols;
+- raw and processed evidence;
+- final requirements traceability;
+- final feature-status table.
+
+Each formal experiment must contain:
+
+- unique experiment ID;
+- date and operator;
+- hardware information;
+- model name and hash;
+- runtime version and hash;
+- exact configuration;
+- requested backend and device;
+- actual backend and device;
+- raw output;
+- raw errors;
+- raw measurements;
+- failed-run evidence;
+- analysis result.
+
+Another developer must be able to follow the written instructions and
+reproduce:
+
+- the clean x64 build;
+- the main upstream llama.cpp route;
+- at least one formal comparison.
+
+### 7.21 Report and Research-Question Gate
+
+The final report must:
+
+- explain the problem and motivation;
+- state the aim, research questions, objectives and scope;
+- distinguish original project work from third-party work;
+- explain requirements and architecture;
+- explain implementation;
+- explain software verification;
+- present the formal experiments;
+- report both positive and negative findings;
+- discuss threats to validity;
+- answer every research question;
+- explain limitations;
+- compare the final result with the satisfactory-outcome conditions.
+
+Each Must Have requirement must end with one of these statuses:
+
+- Verified;
+- Partially verified;
+- Incomplete;
+- Deferred through approved change;
+- Removed through approved change.
+
+Every status must link to evidence or an explanation.
+
+### 7.22 Overall Pass Rule
+
+The overall project is satisfactory when:
+
+- all core product gates pass;
+- upstream llama.cpp works end to end through the application;
+- at least one TurboQuant route works end to end through the application;
+- the TurboQuant route is compared fairly with a standard baseline;
+- all research questions have evidence-based answers;
+- unresolved work and negative results are reported honestly;
+- the repository and report provide sufficient evidence for another
+  developer to understand and reproduce the core result.
+
+Not every experimental route has to succeed.
+
+However, a planned feature cannot be counted as complete merely because it
+was researched or described in documentation.
 
 ## 8. Constraints and Assumptions
 
