@@ -1,0 +1,53 @@
+name: Defect
+description: Report a reproducible application, test, build or documentation defect.
+title: "[BUG] "
+body:
+  - type: input
+    id: related_ids
+    attributes:
+      label: Related traceability IDs
+      description: List requirement, work-package and engineering-practice IDs where known.
+      placeholder: REQ:F-M03; WP:IM-04; EP:EP-023
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start from...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and exact versions
+      description: Include branch/commit, Windows version, hardware, model hash, runtime and backend where relevant.
+    validations:
+      required: true
+
+  - type: input
+    id: evidence_path
+    attributes:
+      label: Failure-evidence path
+      placeholder: docs/testing/failure-evidence/...
+    validations:
+      required: false

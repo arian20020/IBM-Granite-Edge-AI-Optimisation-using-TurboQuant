@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ixn/task-catalogue.schema.json",
+  "title": "IXN IBM Granite Traceability Catalogue",
+  "type": "object",
+  "required": [
+    "metadata",
+    "objectives",
+    "research_questions",
+    "tasks",
+    "requirements_baseline"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": [
+        "catalogue_version",
+        "schema_version",
+        "generated_on",
+        "generated_from",
+        "source_sha256",
+        "counts"
+      ],
+      "properties": {
+        "catalogue_version": { "type": "string" },
+        "schema_version": { "type": "string" },
+        "generated_on": { "type": "string", "format": "date" },
+        "generated_from": { "type": "string", "minLength": 1 },
+        "source_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "source_sheets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "counts": {
+          "type": "object",
+          "required": [
+            "active_tasks",
+            "requirements_all_lifecycles",
+            "requirements_active",
+            "work_packages",
+            "engineering_practices",
+            "objectives",
+            "research_questions"
+          ],
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "objectives": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/namedStatement" }
+    },
+    "research_questions": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/namedStatement" }
+    },
+    "tasks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/task" }
+    },
+    "requirements_baseline": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/requirement" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "namedStatement": {
+      "type": "object",
+      "required": ["title", "statement"],
+      "properties": {
+        "title": { "type": "string" },
+        "statement": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "relationships": {
+      "type": "object",
+      "required": [
+        "requirements",
+        "work_packages",
+        "engineering_practices",
+        "objectives",
+        "research_questions"
+      ],
+      "properties": {
+        "requirements": { "$ref": "#/$defs/stringArray" },
+        "work_packages": { "$ref": "#/$defs/stringArray" },
+        "engineering_practices": { "$ref": "#/$defs/stringArray" },
+        "objectives": { "$ref": "#/$defs/stringArray" },
+        "research_questions": { "$ref": "#/$defs/stringArray" }
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "type": "object",
+      "required": [
+        "task_number",
+        "master_key",
+        "source_id",
+        "source_tab",
+        "task_type",
+        "title",
+        "priority",
+        "working_status",
+        "validation",
+        "effective_status",
+        "evidence_path",
+        "definition_of_done",
+        "relationships",
+        "source_details"
+      ],
+      "properties": {
+        "task_number": { "type": "integer", "minimum": 1 },
+        "master_key": { "type": "string", "pattern": "^(REQ|WP|EP):" },
+        "anchor": { "type": "string" },
+        "source_id": { "type": "string", "minLength": 1 },
+        "source_tab": { "type": ["string", "null"] },
+        "task_type": {
+          "enum": ["requirement", "work-package", "engineering-practice"]
+        },
+        "task_type_label": { "type": "string" },
+        "title": { "type": ["string", "null"] },
+        "priority": { "type": ["string", "null"] },
+        "release_role_or_phase": { "type": ["string", "null"] },
+        "work_packages": { "$ref": "#/$defs/stringArray" },
+        "work_package_groups": { "$ref": "#/$defs/stringArray" },
+        "deadline": { "type": ["string", "null"], "format": "date" },
+        "days_remaining_at_generation": { "type": ["integer", "null"] },
+        "deadline_state": { "type": ["string", "null"] },
+        "working_status": { "type": ["string", "null"] },
+        "validation": { "type": ["string", "null"] },
+        "effective_status": { "type": ["string", "null"] },
+        "evidence_path": { "type": ["string", "null"] },
+        "validation_date": { "type": ["string", "null"], "format": "date" },
+        "definition_of_done": { "type": ["string", "null"] },
+        "relationships": { "$ref": "#/$defs/relationships" },
+        "source_details": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "requirement": {
+      "type": "object",
+      "required": [
+        "requirement_id",
+        "category",
+        "priority",
+        "release_role",
+        "lifecycle",
+        "requirement",
+        "acceptance_criteria",
+        "verification_method",
+        "planned_evidence_path"
+      ],
+      "properties": {
+        "requirement_id": { "type": "string" },
+        "anchor": { "type": "string" },
+        "category": { "type": ["string", "null"] },
+        "priority": { "type": ["string", "null"] },
+        "release_role": { "type": ["string", "null"] },
+        "lifecycle": {
+          "enum": ["Active", "Deferred", "Superseded", "Excluded"]
+        },
+        "baseline_version": { "type": ["string", "null"] },
+        "requirement": { "type": ["string", "null"] },
+        "rationale": { "type": ["string", "null"] },
+        "source": { "type": ["string", "null"] },
+        "objectives": { "$ref": "#/$defs/stringArray" },
+        "research_questions": { "$ref": "#/$defs/stringArray" },
+        "workflows": { "$ref": "#/$defs/stringArray" },
+        "work_packages": { "$ref": "#/$defs/stringArray" },
+        "planned_components": { "$ref": "#/$defs/stringArray" },
+        "dependencies": { "$ref": "#/$defs/stringArray" },
+        "acceptance_criteria": { "type": ["string", "null"] },
+        "verification_method": { "type": ["string", "null"] },
+        "test_evidence_id": { "type": ["string", "null"] },
+        "existing_evidence": { "type": ["string", "null"] },
+        "planned_evidence_path": { "type": ["string", "null"] },
+        "target_date": { "type": ["string", "null"], "format": "date" },
+        "owner": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "progress": { "type": ["number", "null"] },
+        "confidence": { "type": ["string", "null"] },
+        "github_issue": {},
+        "pr_or_commit": {},
+        "report_section": { "type": ["string", "null"] },
+        "previous_or_replacement_id": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "last_updated": { "type": ["string", "null"], "format": "date" },
+        "traceability_complete": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

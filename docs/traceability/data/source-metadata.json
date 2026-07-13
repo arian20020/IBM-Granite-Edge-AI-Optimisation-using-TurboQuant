@@ -1,0 +1,23 @@
+{
+  "catalogue_version": "1.3",
+  "schema_version": "1.0",
+  "generated_on": "2026-07-14",
+  "generated_from": "IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3 (1)(1).xlsx",
+  "source_sha256": "ce3d4ecc056c802c87b4daa8d509f22f6feb537226c6d95bb29361dd89d9f9e8",
+  "source_sheets": [
+    "Task Checklist",
+    "Requirements",
+    "Work Packages",
+    "Engineering Practices",
+    "Objectives & RQs"
+  ],
+  "counts": {
+    "active_tasks": 165,
+    "requirements_all_lifecycles": 111,
+    "requirements_active": 76,
+    "work_packages": 49,
+    "engineering_practices": 40,
+    "objectives": 11,
+    "research_questions": 5
+  }
+}

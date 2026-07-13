@@ -1,0 +1,58 @@
+name: Research experiment
+description: Plan a reproducible model, runtime, quality or performance experiment.
+title: "[EXP-ID] "
+body:
+  - type: input
+    id: experiment_id
+    attributes:
+      label: Experiment ID
+      placeholder: EXP-TQ-COMP-001
+    validations:
+      required: true
+
+  - type: input
+    id: related_ids
+    attributes:
+      label: Related RQs, requirements and work packages
+      placeholder: RQ2; REQ:R-M01; WP:QX-04
+    validations:
+      required: true
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Question or hypothesis
+    validations:
+      required: true
+
+  - type: textarea
+    id: controlled_configuration
+    attributes:
+      label: Controlled configuration
+      description: Include model/revision/hash, weights, prompts, context, runtime/commit, device, backend and settings.
+    validations:
+      required: true
+
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements and acceptance rules
+      description: State units, repetitions, stopping rules and quality rubric.
+    validations:
+      required: true
+
+  - type: input
+    id: evidence_path
+    attributes:
+      label: Raw evidence path
+      placeholder: experiments/raw-results/...
+    validations:
+      required: true
+
+  - type: textarea
+    id: failure_policy
+    attributes:
+      label: Failure and negative-result policy
+      description: Explain how failed runs, fallbacks and unsupported routes will be retained.
+    validations:
+      required: true

@@ -1,0 +1,47 @@
+name: Evidence gap
+description: Track missing, incomplete or inconsistent proof for an RTM claim.
+title: "[EVIDENCE] "
+body:
+  - type: input
+    id: master_key
+    attributes:
+      label: Master Key
+      placeholder: REQ:G-M07
+    validations:
+      required: true
+
+  - type: input
+    id: evidence_path
+    attributes:
+      label: Planned evidence path
+      placeholder: docs/evidence/Evidence-Recovery-Index.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: gap
+    attributes:
+      label: Missing or inconsistent evidence
+      description: State exactly what cannot currently be proved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: recovery
+    attributes:
+      label: Recovery or validation action
+      description: State what file, test, rerun, checksum, review or backup is needed.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effect
+    attributes:
+      label: Effect on current claim
+      options:
+        - Blocks validation
+        - Allows partial verification only
+        - Documentation gap only
+        - Requires requirement change control
+    validations:
+      required: true
