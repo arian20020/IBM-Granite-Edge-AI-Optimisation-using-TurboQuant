@@ -12,9 +12,9 @@ The first testing-structure change was a useful foundation, but it was not suffi
 
 The main gaps were:
 
-1. the exact testing standard, feasibility-plan content and workbook structures were not represented in Git-reviewable form;
+1. the exact testing standard, feasibility-plan content and workbook structures were not represented in a controlled form;
 2. the test catalogue was empty;
-3. the source package contained seven workbook files and nineteen DOCX files, which differed from the assumed six-file inventory;
+3. the source package contained seven workbook files and nineteen DOCX files, not the assumed six-file inventory;
 4. the testing standard required a broader `/tests` hierarchy;
 5. the operational procedure required the formal `experiments/granite_turboquant_intel/` evidence root;
 6. the run register did not contain every value required by the workbooks;
@@ -22,12 +22,14 @@ The main gaps were:
 8. no controlled blank retest versions existed for routes whose source workbook already contained historical results;
 9. no frozen prompt set, rubric, source hash manifest or repeatable workspace validator existed.
 
-The corrected workspace closes these structural gaps and was checked against the current repository after the later WinUI and requirement-evidence changes. The testing controls extend the existing evidence structure rather than replacing it.
+The corrected workspace closes these structural gaps and extends the existing evidence structure rather than replacing it.
 
 ## 2. Source-package validation
 
+The complete validated delivery package contains the source-preservation and generated-binary artefacts; the Git branch contains the canonical text controls, source hashes, workbook specifications and deterministic generators.
+
 - All nineteen DOCX files opened successfully.
-- All paragraph and table content was extracted into nineteen Git-reviewable Markdown records.
+- All paragraph and table content was extracted into nineteen Markdown audit records in the complete delivery package.
 - Every source entry records the original archive path, size and SHA-256.
 - Seven source workbook files rendered successfully during review.
 - Six blank controlled-retest workbooks were derived from the appropriate source workbooks.
@@ -35,7 +37,7 @@ The corrected workspace closes these structural gaps and was checked against the
 - Static test IDs, configuration rows, rubrics and source citations were retained.
 - Active quality scoring was standardized to a 0-10 scale while the original source content remains unchanged.
 - All six controlled Word workbooks were rendered and visually checked.
-- Canonical Markdown workbook templates and a deterministic DOCX generator were prepared so the workbooks are not opaque binary-only records.
+- Six canonical Markdown workbook templates and a deterministic DOCX generator are source-controlled so Word files are not opaque binary-only records.
 
 ## 3. Exact workbook inventory
 
@@ -52,7 +54,7 @@ The additional completed OpenVINO-with-TurboQuant workbook is preserved as histo
 
 ## 4. Test-ID validation
 
-The controlled catalogue contains 105 unique exact IDs, including:
+The controlled catalogue contains 105 unique exact IDs:
 
 - `UL-B01` to `UL-B07` and `UL-01` to `UL-13`;
 - `AB-B01` to `AB-B08` plus all AtomicBot formal and matched-baseline IDs;
@@ -60,7 +62,7 @@ The controlled catalogue contains 105 unique exact IDs, including:
 - `OV-B01` to `OV-B07`, `OV-C01` to `OV-C06`, and `OV-01` to `OV-10`;
 - `OVT-B01` to `OVT-B08` and `OVT-01` to `OVT-09`.
 
-Each exact ID has a traceability row. Retests add a run suffix, such as `UL-04-R002`, without changing the original workbook test ID.
+Retests add a run suffix without changing the original workbook test ID.
 
 ## 5. Workbook-completion coverage
 
@@ -84,15 +86,15 @@ The source operational rule is preserved: pilot first, one excluded warm-up, the
 
 ## 6. Structural validation result
 
-The prepared structural validation records a passing audit of:
+The complete validated delivery package passed checks for:
 
 - required control files and scripts;
-- nineteen source records and original hashes;
+- nineteen source records, original hashes and text extractions;
 - six canonical workbook templates;
 - six generated DOCX files and visual rendering;
-- 105 unique test IDs and 105 traceability rows;
-- 154 workbook-completion rows;
-- 38 build/setup rows;
+- 105 unique test IDs and 105 seeded traceability rows;
+- 154 seeded workbook-completion rows;
+- 38 seeded build/setup rows;
 - 61 planned inference configurations;
 - 61 device-verification rows;
 - 60 route/prompt/role quality-evaluation rows;
@@ -103,11 +105,13 @@ The prepared structural validation records a passing audit of:
 - campaign log files remaining committable;
 - absence of model weights and compiled runtime binaries.
 
-A final typographical audit also corrected the malformed `UL –01` display to the exact controlled ID `UL-01`.
+The Git branch contains the same controlling schemas, exact test catalogue, six canonical workbook templates, generators and validation scripts. Seeded CSV copies and generated DOCX files are included in the complete delivery package and can be copied into the clone without altering the canonical definitions.
+
+A final typographical audit corrected the malformed `UL –01` display to the exact controlled ID `UL-01`.
 
 ## 7. Honest readiness boundary
 
-The repository is structurally ready to **start** the controlled campaign. It is not test-complete.
+The workspace is structurally ready to **start** the controlled campaign. It is not test-complete.
 
 The following can only be supplied through execution on the target Windows Intel machine:
 
