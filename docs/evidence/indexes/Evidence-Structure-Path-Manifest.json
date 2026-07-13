@@ -1,0 +1,977 @@
+﻿{
+  "_generatedBy": "IXN IBM Granite Evidence Structure Kit",
+  "version": "1.0",
+  "sourceWorkbook": "IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.2_Draft(1).xlsx",
+  "generatedDate": "2026-07-13",
+  "directories": [
+    {
+      "path": "docs",
+      "readme": "docs/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/planning",
+      "readme": "docs/planning/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/requirements",
+      "readme": "docs/requirements/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/workflows",
+      "readme": "docs/workflows/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture",
+      "readme": "docs/architecture/README.md",
+      "relatedIds": [
+        "G-M04"
+      ]
+    },
+    {
+      "path": "docs/architecture/diagrams",
+      "readme": "docs/architecture/diagrams/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/diagrams/context",
+      "readme": "docs/architecture/diagrams/context/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/diagrams/component",
+      "readme": "docs/architecture/diagrams/component/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/diagrams/process",
+      "readme": "docs/architecture/diagrams/process/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/diagrams/deployment",
+      "readme": "docs/architecture/diagrams/deployment/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/diagrams/data-flow",
+      "readme": "docs/architecture/diagrams/data-flow/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/diagrams/state-machine",
+      "readme": "docs/architecture/diagrams/state-machine/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/decisions",
+      "readme": "docs/architecture/decisions/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/contracts",
+      "readme": "docs/architecture/contracts/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/research",
+      "readme": "docs/research/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/testing",
+      "readme": "docs/testing/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/testing/strategies",
+      "readme": "docs/testing/strategies/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/testing/plans",
+      "readme": "docs/testing/plans/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/testing/test-reports",
+      "readme": "docs/testing/test-reports/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/testing/failure-evidence",
+      "readme": "docs/testing/failure-evidence/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/testing/ux-evaluation",
+      "readme": "docs/testing/ux-evaluation/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/ux",
+      "readme": "docs/ux/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/ux/personas",
+      "readme": "docs/ux/personas/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/ux/journeys",
+      "readme": "docs/ux/journeys/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/ux/wireframes",
+      "readme": "docs/ux/wireframes/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/ux/screenshots",
+      "readme": "docs/ux/screenshots/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/ux/accessibility",
+      "readme": "docs/ux/accessibility/README.md",
+      "relatedIds": [
+        "N-M13"
+      ]
+    },
+    {
+      "path": "docs/ux/usability",
+      "readme": "docs/ux/usability/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/risks",
+      "readme": "docs/risks/README.md",
+      "relatedIds": [
+        "G-M05"
+      ]
+    },
+    {
+      "path": "docs/manuals",
+      "readme": "docs/manuals/README.md",
+      "relatedIds": [
+        "G-M08"
+      ]
+    },
+    {
+      "path": "docs/journal",
+      "readme": "docs/journal/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/evidence",
+      "readme": "docs/evidence/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/evidence/requirements",
+      "readme": "docs/evidence/requirements/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/evidence/work-packages",
+      "readme": "docs/evidence/work-packages/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/evidence/recovery",
+      "readme": "docs/evidence/recovery/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/evidence/indexes",
+      "readme": "docs/evidence/indexes/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "tests",
+      "readme": "tests/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "tests/UnitTests",
+      "readme": "tests/UnitTests/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "tests/IntegrationTests",
+      "readme": "tests/IntegrationTests/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "tests/ContractTests",
+      "readme": "tests/ContractTests/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "tests/E2ETests",
+      "readme": "tests/E2ETests/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "tests/TestFixtures",
+      "readme": "tests/TestFixtures/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments",
+      "readme": "experiments/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/manifests",
+      "readme": "experiments/manifests/README.md",
+      "relatedIds": [
+        "R-M08",
+        "N-M07"
+      ]
+    },
+    {
+      "path": "experiments/protocols",
+      "readme": "experiments/protocols/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/prompts",
+      "readme": "experiments/prompts/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/rubrics",
+      "readme": "experiments/rubrics/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/scripts",
+      "readme": "experiments/scripts/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/raw-results",
+      "readme": "experiments/raw-results/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/raw-results/failures",
+      "readme": "experiments/raw-results/failures/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/processed-results",
+      "readme": "experiments/processed-results/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "experiments/figures",
+      "readme": "experiments/figures/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "report",
+      "readme": "report/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "report/chapters",
+      "readme": "report/chapters/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "report/figures",
+      "readme": "report/figures/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "report/tables",
+      "readme": "report/tables/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "report/appendices",
+      "readme": "report/appendices/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "scripts",
+      "readme": "scripts/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "release-evidence",
+      "readme": "release-evidence/README.md",
+      "relatedIds": [
+        "N-M14",
+        "G-M09"
+      ]
+    },
+    {
+      "path": "release-evidence/clean-build",
+      "readme": "release-evidence/clean-build/README.md",
+      "relatedIds": [
+        "N-M08"
+      ]
+    },
+    {
+      "path": "release-evidence/installer",
+      "readme": "release-evidence/installer/README.md",
+      "relatedIds": [
+        "N-S02"
+      ]
+    },
+    {
+      "path": "release-evidence/repository-scan",
+      "readme": "release-evidence/repository-scan/README.md",
+      "relatedIds": [
+        "N-M09"
+      ]
+    },
+    {
+      "path": "release-evidence/reproduction",
+      "readme": "release-evidence/reproduction/README.md",
+      "relatedIds": [
+        "R-M10"
+      ]
+    },
+    {
+      "path": "release-evidence/checksums",
+      "readme": "release-evidence/checksums/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "release-evidence/demo",
+      "readme": "release-evidence/demo/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "models",
+      "readme": "models/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "third-party",
+      "readme": "third-party/README.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/evidence/requirements/F-M01",
+      "readme": "docs/evidence/requirements/F-M01/README.md",
+      "relatedIds": [
+        "F-M01"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M02",
+      "readme": "docs/evidence/requirements/F-M02/README.md",
+      "relatedIds": [
+        "F-M02"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M03",
+      "readme": "docs/evidence/requirements/F-M03/README.md",
+      "relatedIds": [
+        "F-M03"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M04",
+      "readme": "docs/evidence/requirements/F-M04/README.md",
+      "relatedIds": [
+        "F-M04"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M05",
+      "readme": "docs/evidence/requirements/F-M05/README.md",
+      "relatedIds": [
+        "F-M05"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M06",
+      "readme": "docs/evidence/requirements/F-M06/README.md",
+      "relatedIds": [
+        "F-M06"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M07",
+      "readme": "docs/evidence/requirements/F-M07/README.md",
+      "relatedIds": [
+        "F-M07"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M08",
+      "readme": "docs/evidence/requirements/F-M08/README.md",
+      "relatedIds": [
+        "F-M08"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M09",
+      "readme": "docs/evidence/requirements/F-M09/README.md",
+      "relatedIds": [
+        "F-M09"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M10",
+      "readme": "docs/evidence/requirements/F-M10/README.md",
+      "relatedIds": [
+        "F-M10"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M11",
+      "readme": "docs/evidence/requirements/F-M11/README.md",
+      "relatedIds": [
+        "F-M11"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M12",
+      "readme": "docs/evidence/requirements/F-M12/README.md",
+      "relatedIds": [
+        "F-M12"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M13",
+      "readme": "docs/evidence/requirements/F-M13/README.md",
+      "relatedIds": [
+        "F-M13"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M14",
+      "readme": "docs/evidence/requirements/F-M14/README.md",
+      "relatedIds": [
+        "F-M14"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M15",
+      "readme": "docs/evidence/requirements/F-M15/README.md",
+      "relatedIds": [
+        "F-M15"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M16",
+      "readme": "docs/evidence/requirements/F-M16/README.md",
+      "relatedIds": [
+        "F-M16"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M17",
+      "readme": "docs/evidence/requirements/F-M17/README.md",
+      "relatedIds": [
+        "F-M17"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M18",
+      "readme": "docs/evidence/requirements/F-M18/README.md",
+      "relatedIds": [
+        "F-M18"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M19",
+      "readme": "docs/evidence/requirements/F-M19/README.md",
+      "relatedIds": [
+        "F-M19"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M20",
+      "readme": "docs/evidence/requirements/F-M20/README.md",
+      "relatedIds": [
+        "F-M20"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M21",
+      "readme": "docs/evidence/requirements/F-M21/README.md",
+      "relatedIds": [
+        "F-M21"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M22",
+      "readme": "docs/evidence/requirements/F-M22/README.md",
+      "relatedIds": [
+        "F-M22"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M23",
+      "readme": "docs/evidence/requirements/F-M23/README.md",
+      "relatedIds": [
+        "F-M23"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M24",
+      "readme": "docs/evidence/requirements/F-M24/README.md",
+      "relatedIds": [
+        "F-M24"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M25",
+      "readme": "docs/evidence/requirements/F-M25/README.md",
+      "relatedIds": [
+        "F-M25"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M26",
+      "readme": "docs/evidence/requirements/F-M26/README.md",
+      "relatedIds": [
+        "F-M26"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M27",
+      "readme": "docs/evidence/requirements/F-M27/README.md",
+      "relatedIds": [
+        "F-M27"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-M28",
+      "readme": "docs/evidence/requirements/F-M28/README.md",
+      "relatedIds": [
+        "F-M28"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/EXP-TQ-COMP-001",
+      "readme": "experiments/processed-results/EXP-TQ-COMP-001/README.md",
+      "relatedIds": [
+        "R-M01"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/EXP-OV-OFFICIAL-001",
+      "readme": "experiments/raw-results/EXP-OV-OFFICIAL-001/README.md",
+      "relatedIds": [
+        "R-M03"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/final-metrics",
+      "readme": "experiments/processed-results/final-metrics/README.md",
+      "relatedIds": [
+        "R-M04",
+        "R-M05"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/quality",
+      "readme": "experiments/raw-results/quality/README.md",
+      "relatedIds": [
+        "R-M06"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/context",
+      "readme": "experiments/processed-results/context/README.md",
+      "relatedIds": [
+        "R-M07"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/cross-route",
+      "readme": "experiments/processed-results/cross-route/README.md",
+      "relatedIds": [
+        "R-M11"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/memory-budgets",
+      "readme": "experiments/processed-results/memory-budgets/README.md",
+      "relatedIds": [
+        "R-M12"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/EXP-TV-COMP-001",
+      "readme": "experiments/processed-results/EXP-TV-COMP-001/README.md",
+      "relatedIds": [
+        "R-M13"
+      ]
+    },
+    {
+      "path": "experiments/processed-results/EST-VALID-001",
+      "readme": "experiments/processed-results/EST-VALID-001/README.md",
+      "relatedIds": [
+        "R-M14"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M01",
+      "readme": "docs/evidence/requirements/N-M01/README.md",
+      "relatedIds": [
+        "N-M01"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M02",
+      "readme": "docs/evidence/requirements/N-M02/README.md",
+      "relatedIds": [
+        "N-M02"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M03",
+      "readme": "docs/evidence/requirements/N-M03/README.md",
+      "relatedIds": [
+        "N-M03"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M04",
+      "readme": "docs/evidence/requirements/N-M04/README.md",
+      "relatedIds": [
+        "N-M04"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M05",
+      "readme": "docs/evidence/requirements/N-M05/README.md",
+      "relatedIds": [
+        "N-M05"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M06",
+      "readme": "docs/evidence/requirements/N-M06/README.md",
+      "relatedIds": [
+        "N-M06"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M10",
+      "readme": "docs/evidence/requirements/N-M10/README.md",
+      "relatedIds": [
+        "N-M10"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M11",
+      "readme": "docs/evidence/requirements/N-M11/README.md",
+      "relatedIds": [
+        "N-M11"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/N-M12",
+      "readme": "docs/evidence/requirements/N-M12/README.md",
+      "relatedIds": [
+        "N-M12"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S01",
+      "readme": "docs/evidence/requirements/F-S01/README.md",
+      "relatedIds": [
+        "F-S01"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S02",
+      "readme": "docs/evidence/requirements/F-S02/README.md",
+      "relatedIds": [
+        "F-S02"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S03",
+      "readme": "docs/evidence/requirements/F-S03/README.md",
+      "relatedIds": [
+        "F-S03"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S04",
+      "readme": "docs/evidence/requirements/F-S04/README.md",
+      "relatedIds": [
+        "F-S04"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S08",
+      "readme": "docs/evidence/requirements/F-S08/README.md",
+      "relatedIds": [
+        "F-S08"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S11",
+      "readme": "docs/evidence/requirements/F-S11/README.md",
+      "relatedIds": [
+        "F-S11"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/F-S12",
+      "readme": "docs/evidence/requirements/F-S12/README.md",
+      "relatedIds": [
+        "F-S12"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/openvino-conversion",
+      "readme": "experiments/raw-results/openvino-conversion/README.md",
+      "relatedIds": [
+        "F-S15"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/C-02",
+      "readme": "docs/evidence/requirements/C-02/README.md",
+      "relatedIds": [
+        "C-02"
+      ]
+    },
+    {
+      "path": "docs/evidence/requirements/C-03",
+      "readme": "docs/evidence/requirements/C-03/README.md",
+      "relatedIds": [
+        "C-03"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/upstream-llama-cpp",
+      "readme": "experiments/raw-results/upstream-llama-cpp/README.md",
+      "relatedIds": [
+        "SRC-07"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/atomicbot-turboquant",
+      "readme": "experiments/raw-results/atomicbot-turboquant/README.md",
+      "relatedIds": [
+        "SRC-08"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/animehacker-tq3-0",
+      "readme": "experiments/raw-results/animehacker-tq3-0/README.md",
+      "relatedIds": [
+        "SRC-09"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/openvino-community",
+      "readme": "experiments/raw-results/openvino-community/README.md",
+      "relatedIds": [
+        "SRC-10"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/openvino-official",
+      "readme": "experiments/raw-results/openvino-official/README.md",
+      "relatedIds": [
+        "SRC-11"
+      ]
+    },
+    {
+      "path": "experiments/raw-results/turbovec",
+      "readme": "experiments/raw-results/turbovec/README.md",
+      "relatedIds": [
+        "R-M02",
+        "R-M13"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/planning/Change-Log.md",
+      "relatedIds": [
+        "G-M06"
+      ]
+    },
+    {
+      "path": "docs/planning/Project-Definition-v1.md",
+      "relatedIds": [
+        "G-M01"
+      ]
+    },
+    {
+      "path": "docs/planning/Research-Question-Evidence-Map.md",
+      "relatedIds": [
+        "RQ1",
+        "RQ2",
+        "RQ3",
+        "RQ4",
+        "RQ-TV"
+      ]
+    },
+    {
+      "path": "docs/requirements/MoSCoW-Requirements-v1.2.md",
+      "relatedIds": [
+        "G-M02"
+      ]
+    },
+    {
+      "path": "docs/requirements/Requirements-Traceability-Matrix.md",
+      "relatedIds": [
+        "G-M03"
+      ]
+    },
+    {
+      "path": "docs/architecture/decisions/ADR-Template.md",
+      "relatedIds": []
+    },
+    {
+      "path": "docs/architecture/decisions/ADR-TurboVec.md",
+      "relatedIds": [
+        "R-M02"
+      ]
+    },
+    {
+      "path": "docs/architecture/contracts/Diagnostic-Catalogue.md",
+      "relatedIds": [
+        "PD-07",
+        "F-M06"
+      ]
+    },
+    {
+      "path": "docs/risks/Risk-Register.md",
+      "relatedIds": [
+        "G-M05",
+        "PD-05"
+      ]
+    },
+    {
+      "path": "docs/testing/Test-Strategy.md",
+      "relatedIds": [
+        "PD-09",
+        "FR-01"
+      ]
+    },
+    {
+      "path": "docs/testing/Failure-Register.md",
+      "relatedIds": [
+        "R-M09"
+      ]
+    },
+    {
+      "path": "docs/journal/Journal-Template.md",
+      "relatedIds": [
+        "EP-032"
+      ]
+    },
+    {
+      "path": "docs/evidence/Evidence-Recovery-Index.md",
+      "relatedIds": [
+        "G-M07",
+        "PD-03"
+      ]
+    },
+    {
+      "path": "docs/manuals/Known-Limitations.md",
+      "relatedIds": [
+        "G-M08",
+        "FR-04"
+      ]
+    },
+    {
+      "path": "release-evidence/Release-Checklist.md",
+      "relatedIds": [
+        "G-M09",
+        "FR-05"
+      ]
+    },
+    {
+      "path": "experiments/manifests/experiment-manifest-template.json",
+      "relatedIds": [
+        "R-M08",
+        "N-M07"
+      ]
+    },
+    {
+      "path": "docs/evidence/indexes/Requirement-Evidence-Path-Map.csv",
+      "relatedIds": [
+        "G-M03"
+      ]
+    },
+    {
+      "path": "docs/evidence/indexes/Work-Package-Evidence-Map.csv",
+      "relatedIds": [
+        "PD-08"
+      ]
+    },
+    {
+      "path": "docs/evidence/indexes/Engineering-Practice-Evidence-Map.csv",
+      "relatedIds": [
+        "EP-001",
+        "EP-002",
+        "EP-003",
+        "EP-004",
+        "EP-005",
+        "EP-006",
+        "EP-007",
+        "EP-008",
+        "EP-009",
+        "EP-010",
+        "EP-011",
+        "EP-012",
+        "EP-013",
+        "EP-014",
+        "EP-015",
+        "EP-016",
+        "EP-017",
+        "EP-018",
+        "EP-019",
+        "EP-020",
+        "EP-021",
+        "EP-022",
+        "EP-023",
+        "EP-024",
+        "EP-025",
+        "EP-026",
+        "EP-027",
+        "EP-028",
+        "EP-029",
+        "EP-030",
+        "EP-031",
+        "EP-032",
+        "EP-033",
+        "EP-034",
+        "EP-035",
+        "EP-036",
+        "EP-037",
+        "EP-038",
+        "EP-039",
+        "EP-040"
+      ]
+    },
+    {
+      "path": "docs/evidence/work-packages/Work-Package-Evidence-Map.md",
+      "relatedIds": [
+        "PD-08"
+      ]
+    },
+    {
+      "path": "docs/evidence/indexes/Evidence-Structure-Path-Manifest.json",
+      "relatedIds": [
+        "PD-08"
+      ]
+    }
+  ]
+}
