@@ -1120,10 +1120,200 @@ The following work is deliberately excluded from the first release:
 
 ## 6. Claims Not Made by This Project
 
-- No universal Granite or Intel compatibility claim.
-- No guaranteed TurboQuant or OpenVINO success claim.
-- TurboQuant does not create a smaller GGUF weight file.
-- Measured results, estimates and paper claims remain separate.
+This project will make only claims supported by its own evidence or by
+clearly identified external sources. The following claims are not made.
+
+### 6.1 Model, Format and Runtime Compatibility
+
+- The project does not claim support for every IBM Granite model.
+- The project does not claim support for every Granite model size,
+  architecture or release.
+- The project does not claim support for every GGUF, OpenVINO IR,
+  Hugging Face or Safetensors model.
+- The project does not claim that a model is compatible because its filename
+  or file extension appears correct.
+- The project does not claim that every llama.cpp version supports every
+  selected Granite model.
+- The project does not claim that every TurboQuant-enabled fork implements
+  the complete method described in the TurboQuant research paper.
+- The project does not claim that every OpenVINO Runtime or OpenVINO GenAI
+  version supports every selected Granite model, precision or cache type.
+- The project does not claim that TurboVec is compatible until the exact
+  implementation, input, output and retrieval workflow have been verified.
+- The first release is not intended to support arbitrary model or document
+  formats.
+
+### 6.2 Intel Hardware Compatibility
+
+- The project does not claim compatibility with every Intel processor,
+  integrated GPU, discrete GPU, NPU or Intel AI PC.
+- A successful result on the main test laptop does not prove that the same
+  result will occur on every Intel computer.
+- The project does not claim that an Intel GPU or NPU was used merely because
+  that device was requested in a configuration.
+- Intel GPU use will be claimed only when runtime evidence shows that the
+  model or relevant operations actually used the GPU.
+- No tested NPU claim will be made without suitable NPU hardware.
+- Differences in drivers, operating-system versions, power settings,
+  available memory and thermal limits may change results on another computer.
+
+### 6.3 Low-Memory Compatibility
+
+- The project does not guarantee that every selected model will run on a
+  computer with 4 GB, 8 GB or 16 GB of RAM.
+- A process-memory measurement below 4 GB does not by itself prove that the
+  configuration is suitable for a 4 GB Windows computer.
+- Windows, background applications, the WinUI application, runtime buffers
+  and shared GPU memory must also be considered.
+- A memory estimate does not guarantee that a model will load, generate
+  successfully or remain stable.
+- The project does not guarantee that a 32-billion-parameter model will run
+  on the target computer.
+- Results based on a controlled memory limit, calculation or estimate will
+  not be described as physical-device results.
+
+### 6.4 Quantisation and Optimisation Claims
+
+- The project does not claim a specific compression ratio unless that ratio
+  is measured for the exact tested configuration.
+- The project does not claim six-times compression, near-zero quality loss,
+  sub-second latency or another headline result without direct project
+  evidence.
+- The project does not claim that using fewer bits always improves speed.
+- The project does not claim that a smaller model file produces an equal
+  percentage reduction in total runtime memory.
+- The project does not claim that a configuration is useful solely because
+  it produces text.
+- Memory reduction must be considered together with output quality,
+  inference speed, usable context and runtime stability.
+- The project does not claim that quantisation preserves every model
+  capability, task, language, formatting rule or safety behaviour.
+- A result obtained from one prompt set will not be presented as proof of
+  performance on every possible task.
+
+### 6.5 TurboQuant Claims
+
+- TurboQuant will be treated as a runtime vector and KV-cache quantisation
+  method.
+- TurboQuant does not by itself create a smaller GGUF model-weight file.
+- A smaller GGUF file can be created only through a separate model conversion
+  or weight-quantisation process.
+- The project does not claim that every TurboQuant route works with every
+  Granite model, backend, cache type or device.
+- The project does not claim that a TurboQuant option is active merely
+  because the runtime accepts its command-line argument.
+- TurboQuant activation must be supported by runtime output, logs, cache
+  information, measurements or other direct evidence.
+- Results from the published TurboQuant paper will be treated as external
+  research results rather than results produced by this project.
+- Results from AtomicBot, animehacker, OpenVINO or another implementation
+  will be labelled using the exact implementation that was tested.
+- A quality result for one TurboQuant precision will not be applied to
+  another precision without testing.
+- The app-integrated TurboQuant feature will be labelled Experimental because
+  its support is limited to exact verified combinations.
+- Experimental does not mean that TurboQuant is excluded from the
+  application. At least one verified TurboQuant route is required to run
+  through the WinUI application.
+
+### 6.6 TurboVec and Knowledge-File Claims
+
+- The project does not claim that TurboVec directly compresses the original
+  PDF, Word document or text file.
+- TurboVec will be evaluated as a method that operates on vectors or
+  embeddings created from imported knowledge files.
+- The original imported knowledge file will remain unchanged.
+- The project does not claim that compressed vectors preserve retrieval
+  quality until they are compared with an uncompressed baseline.
+- The project does not claim that the TurboVec workflow is a complete
+  enterprise retrieval-augmented generation system.
+- The project does not claim support for arbitrary file formats, external
+  vector databases or large multi-user indexes.
+- The exact TurboVec repository, version, licence and technical contract must
+  be recorded before the feature is presented as working.
+
+### 6.7 OpenVINO Claims
+
+- The project does not guarantee that every official or experimental
+  OpenVINO route will succeed.
+- An official OpenVINO result will be kept separate from a nightly, custom or
+  TurboQuant-enabled OpenVINO result.
+- A community-converted OpenVINO model will not be described as an official
+  IBM conversion.
+- A CPU result will not be presented as a GPU result.
+- A requested GPU route will not be treated as successful when the model
+  silently falls back to CPU.
+- OpenVINO support on the target laptop does not prove support on every
+  Intel device.
+
+### 6.8 Performance and Evaluation Claims
+
+- A faster single run will not be treated as proof that one configuration is
+  generally faster.
+- Performance comparisons will use repeated runs where practical.
+- Prompt-processing speed will be kept separate from generation speed.
+- Cold model-loading time will be kept separate from warm loading time.
+- Time to first token will use the same start and end points across matched
+  tests.
+- Memory values from different tools will not be compared without explaining
+  what each value represents.
+- Failed runs, crashes, out-of-memory events, fallbacks and invalid outputs
+  will not be removed from the evidence.
+- A negative result will not be changed into a positive claim because another
+  paper or repository reports success.
+
+### 6.9 Privacy, Security and Responsible-Use Claims
+
+- Local inference does not automatically make an application private,
+  secure, accurate, fair or legally compliant.
+- Offline operation does not remove the need for access control, safe file
+  handling, secure logs and responsible data retention.
+- The application is not a medical device.
+- The application will not provide medical diagnosis, treatment advice or
+  clinical decisions.
+- The application is not approved for operational NHS deployment.
+- The application is not approved for unsupervised pupil-facing use.
+- The application is not intended to replace teachers, healthcare workers or
+  other qualified professionals.
+- Generated outputs are not guaranteed to be correct, complete, current,
+  unbiased or safe.
+- Education and healthcare outputs require human review.
+- The project will not use real patient information or identifiable pupil
+  information.
+- The project does not claim compliance with every education, healthcare,
+  privacy or security regulation merely because inference is performed
+  locally.
+
+### 6.10 Product Boundaries
+
+- The first release is not a full replacement for llama.cpp, OpenVINO,
+  LM Studio, Ollama or another model-management product.
+- The first release is not a complete model marketplace.
+- The first release is not a full document-management or enterprise RAG
+  platform.
+- The project will not train or fine-tune a large IBM Granite model.
+- The project does not provide full macOS, Metal, DirectML or cross-platform
+  delivery.
+- The project does not provide guaranteed Microsoft Store deployment.
+- The project does not provide enterprise identity, user-account or
+  multi-user server features.
+- The core workflow will not depend on cloud inference, although internet
+  access may be required to download approved models and dependencies.
+
+### 6.11 Evidence Classification
+
+Every important result will be labelled using one of these evidence types:
+
+- **Measured:** recorded directly during a project experiment.
+- **Estimated:** produced by the application or another calculation model.
+- **Calculated from measurements:** derived from directly measured values.
+- **Reproduced:** repeated from a documented external procedure.
+- **Externally reported:** taken from a paper, model card or repository.
+- **Inferred:** concluded from supporting evidence but not measured directly.
+- **Not yet verified:** planned or claimed but not yet proved.
+
+Measured results, estimates, calculations, external claims and assumptions
+will not be presented as if they are the same type of evidence.
 
 ## 7. Definition of a Satisfactory Project Outcome
 
