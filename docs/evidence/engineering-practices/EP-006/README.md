@@ -12,7 +12,7 @@
 | Owner | Arian B. |
 | Evidence date | 2026-07-14 |
 | Validation date | 2026-07-14 |
-| Validator | Project developer; repository review through PR #10 |
+| Validator | Arian B; repository review through PR #10 |
 | Validation method | Document review, cross-link inspection and Git history review |
 
 ## 2. Statement being evidenced
