@@ -1,0 +1,48 @@
+---
+title: "Claim-to-Source Matrix"
+status: "audit-register"
+version: "2.0"
+last_updated: "2026-07-14"
+---
+
+# Claim-to-source matrix
+
+This matrix connects the most important technical statements to the sources that support them. It does not convert a paper or repository result into a project result. Project results still need reproducible local evidence.
+
+| Claim ID | Condensed claim | Research file | Source IDs | Evidence | Status |
+|---|---|---|---|---|---|
+| `CLM-IBM-001` | Granite is a family containing language and other specialised model groups. | [`02-ibm-granite/01-granite-family.md`](../02-ibm-granite/01-granite-family.md) | SRC-IBM-GRANITE-OVERVIEW-2026; SRC-IBM-GRANITE-41-BLOG-2026 | Official documentation | verified |
+| `CLM-IBM-002` | Granite 4.1 language models include 3B, 8B and 30B dense sizes. | [`02-ibm-granite/02-model-selection.md`](../02-ibm-granite/02-model-selection.md) | SRC-IBM-GRANITE-41-DOCS-2026; SRC-IBM-HF-GRANITE-41-8B-2026 | Official documentation/model card | verified |
+| `CLM-IBM-003` | Granite 4.1 3B is a decoder-only dense transformer with GQA, RoPE, SwiGLU and RMSNorm. | [`02-ibm-granite/03-granite-4-1-3b.md`](../02-ibm-granite/03-granite-4-1-3b.md) | SRC-IBM-HF-GRANITE-41-3B-2026 | Official model card | verified |
+| `CLM-IBM-004` | The 3B architecture uses 40 layers, 40 attention heads, 8 KV heads and a 131072-token listed sequence length. | [`02-ibm-granite/03-granite-4-1-3b.md`](../02-ibm-granite/03-granite-4-1-3b.md) | SRC-IBM-HF-GRANITE-41-3B-2026 | Official model card | verified |
+| `CLM-TR-001` | Self-attention uses query, key and value representations. | [`02-ibm-granite/04-transformers-and-inference.md`](../02-ibm-granite/04-transformers-and-inference.md) | SRC-PAPER-TRANSFORMER-2017 | Primary research paper | verified |
+| `CLM-KV-001` | Autoregressive generation can cache previous keys and values to avoid recomputing them for each new token. | [`03-kv-cache-and-turboquant/01-kv-cache-basics.md`](../03-kv-cache-and-turboquant/01-kv-cache-basics.md) | SRC-HF-TRANSFORMERS-CACHE; SRC-PAPER-TRANSFORMER-2017 | Official documentation/primary paper | verified |
+| `CLM-KV-002` | KV-cache memory grows with sequence length and the number/shape of cached tensors. | [`03-kv-cache-and-turboquant/01-kv-cache-basics.md`](../03-kv-cache-and-turboquant/01-kv-cache-basics.md) | SRC-HF-TRANSFORMERS-CACHE | Official documentation | verified |
+| `CLM-KIVI-001` | KIVI motivates asymmetric handling of keys and values and uses different quantisation axes. | [`03-kv-cache-and-turboquant/02-kv-cache-quantisation.md`](../03-kv-cache-and-turboquant/02-kv-cache-quantisation.md) | SRC-PAPER-KIVI-2024 | Primary research paper | verified |
+| `CLM-PQ-001` | PolarQuant uses random preconditioning and a polar-coordinate quantisation design for KV caches. | [`03-kv-cache-and-turboquant/03-polarquant.md`](../03-kv-cache-and-turboquant/03-polarquant.md) | SRC-PAPER-POLARQUANT-2025 | Primary research paper | verified |
+| `CLM-TQ-001` | The formal TurboQuant method and its distortion analysis are defined in arXiv:2504.19874. | [`03-kv-cache-and-turboquant/04-turboquant-and-qjl.md`](../03-kv-cache-and-turboquant/04-turboquant-and-qjl.md) | SRC-PAPER-TURBOQUANT-2025 | Primary research paper | verified |
+| `CLM-QJL-001` | QJL stores sign-like projected information and vector norms to estimate query-key inner products. | [`03-kv-cache-and-turboquant/04-turboquant-and-qjl.md`](../03-kv-cache-and-turboquant/04-turboquant-and-qjl.md) | SRC-PAPER-QJL-2024 | Primary research paper | verified |
+| `CLM-TQ-002` | Practical TurboQuant repositories implement different subsets or variants of the formal method. | [`03-kv-cache-and-turboquant/06-implementation-landscape.md`](../03-kv-cache-and-turboquant/06-implementation-landscape.md) | SRC-PAPER-TURBOQUANT-2025; SRC-REPO-AMESIANX; SRC-REPO-ATOMICBOT; SRC-REPO-ANIMEHACKER; SRC-REPO-ATOMICMILKSHAKE; SRC-REPO-BEELLAMA; SRC-REPO-SPIRITBUUN; SRC-REPO-THEPRADIP; SRC-REPO-THETOM; SRC-REPO-TIREDOFEVERYTHING; SRC-REPO-UNIXSYSDEV | Paper plus source-code repositories | verified with limitations |
+| `CLM-EVAL-001` | Evaluation should separate quality, latency, throughput, memory and stability instead of using one score. | [`03-kv-cache-and-turboquant/05-evaluation-plan.md`](../03-kv-cache-and-turboquant/05-evaluation-plan.md) | SRC-BOOK-AI-ENGINEERING-2025; SRC-BOOK-SYSTEMS-ENGINEERING-2020 | Engineering methodology | verified |
+| `CLM-OV-001` | OpenVINO IR normally consists of an XML graph description and a BIN weights file. | [`04-openvino/02-runtime-ir-and-compilation.md`](../04-openvino/02-runtime-ir-and-compilation.md) | SRC-OV-IR-2026 | Official documentation | verified |
+| `CLM-OV-002` | OpenVINO Core discovers available devices and compiles models through device plugins. | [`04-openvino/03-device-plugins-and-selection.md`](../04-openvino/03-device-plugins-and-selection.md) | SRC-OV-CORE-2026 | Official API documentation | verified |
+| `CLM-OV-003` | OpenVINO supports CPU, GPU and NPU devices subject to hardware, drivers and operation support. | [`04-openvino/05-cpu-gpu-npu.md`](../04-openvino/05-cpu-gpu-npu.md) | SRC-OV-DEVICES-2026 | Official documentation | verified |
+| `CLM-OV-004` | HETERO mode can assign unsupported operations to fallback devices. | [`04-openvino/04-hetero-mode.md`](../04-openvino/04-hetero-mode.md) | SRC-OV-HETERO-2026 | Official documentation | verified |
+| `CLM-OV-005` | OpenVINO GenAI provides LLM-oriented pipelines on top of OpenVINO Runtime. | [`04-openvino/01-overview.md`](../04-openvino/01-overview.md) | SRC-OV-GENAI-2026; SRC-OV-GENAI-GITHUB | Official documentation/source repository | verified |
+| `CLM-TOOL-001` | llama.cpp is the canonical C/C++ GGUF inference baseline used by the practical forks. | [`05-local-inference-tools/01-llama-cpp.md`](../05-local-inference-tools/01-llama-cpp.md) | SRC-LLAMACPP-GITHUB | Canonical source repository | verified |
+| `CLM-TOOL-002` | LM Studio can run local models, expose local APIs and operate offline after required model assets are available. | [`05-local-inference-tools/02-lm-studio.md`](../05-local-inference-tools/02-lm-studio.md) | SRC-LMSTUDIO-DOCS; SRC-LMSTUDIO-SERVER; SRC-LMSTUDIO-OFFLINE | Official documentation | verified |
+| `CLM-TOOL-003` | Ollama exposes a local API and returns generation timing/count fields that can support throughput calculations. | [`05-local-inference-tools/03-ollama.md`](../05-local-inference-tools/03-ollama.md) | SRC-OLLAMA-API; SRC-OLLAMA-USAGE | Official API documentation | verified |
+| `CLM-REPO-001` | The AmesianX repository exists at the recorded public URL. | [`06-repository-reviews/amesianx-turboquant.md`](../06-repository-reviews/amesianx-turboquant.md) | SRC-REPO-AMESIANX | GitHub repository | verified |
+| `CLM-REPO-002` | The AtomicBot repository exists at the recorded public URL. | [`06-repository-reviews/atomicbot-ai.md`](../06-repository-reviews/atomicbot-ai.md) | SRC-REPO-ATOMICBOT | GitHub repository | verified |
+| `CLM-REPO-003` | The animehacker repository exists at the recorded public URL. | [`06-repository-reviews/animehacker.md`](../06-repository-reviews/animehacker.md) | SRC-REPO-ANIMEHACKER | GitHub repository | verified |
+| `CLM-REPO-004` | The atomicmilkshake repository exists at the recorded public URL. | [`06-repository-reviews/atomicmilkshake.md`](../06-repository-reviews/atomicmilkshake.md) | SRC-REPO-ATOMICMILKSHAKE | GitHub repository | verified |
+| `CLM-REPO-005` | The BeeLlama implementation is publicly available at Anbeeld/beellama.cpp. | [`06-repository-reviews/beellama.md`](../06-repository-reviews/beellama.md) | SRC-REPO-BEELLAMA | GitHub repository | verified |
+| `CLM-REPO-006` | The spiritbuun repository exists at its canonical/redirected public URL. | [`06-repository-reviews/spiritbuun.md`](../06-repository-reviews/spiritbuun.md) | SRC-REPO-SPIRITBUUN | GitHub repository | verified |
+| `CLM-REPO-007` | The thepradip repository exists at the recorded public URL. | [`06-repository-reviews/thepradip.md`](../06-repository-reviews/thepradip.md) | SRC-REPO-THEPRADIP | GitHub repository | verified |
+| `CLM-REPO-008` | The TheTom repository exists at the recorded public URL. | [`06-repository-reviews/thetom.md`](../06-repository-reviews/thetom.md) | SRC-REPO-THETOM | GitHub repository | verified |
+| `CLM-REPO-009` | The TiredOfEverything repository exists at the recorded public URL. | [`06-repository-reviews/tiredofeverything.md`](../06-repository-reviews/tiredofeverything.md) | SRC-REPO-TIREDOFEVERYTHING | GitHub repository | verified |
+| `CLM-REPO-010` | The unixsysdev repository exists at the recorded public URL. | [`06-repository-reviews/unixsysdev.md`](../06-repository-reviews/unixsysdev.md) | SRC-REPO-UNIXSYSDEV | GitHub repository | verified |
+| `CLM-WIN-001` | WinUI 3 is Microsoft’s modern native XAML UI framework delivered through the Windows App SDK. | [`07-evaluation-and-decisions/03-backend-decision-record.md`](../07-evaluation-and-decisions/03-backend-decision-record.md) | SRC-MS-WINUI3-2026; SRC-MS-WINDOWS-APP-SDK-2026 | Official Microsoft documentation | verified |
+| `CLM-DEC-001` | The project keeps GGUF/llama.cpp testing and OpenVINO testing as separate evidence routes. | [`07-evaluation-and-decisions/03-backend-decision-record.md`](../07-evaluation-and-decisions/03-backend-decision-record.md) | SRC-BOOK-SOFTWARE-ARCHITECTURE-2025; SRC-LLAMACPP-GITHUB; SRC-OV-GENAI-2026 | Project architecture decision | project decision |
+
+The CSV version contains the longer validation notes: [`claim-source-matrix.csv`](claim-source-matrix.csv).

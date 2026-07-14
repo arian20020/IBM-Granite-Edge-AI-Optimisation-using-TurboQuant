@@ -1,0 +1,1079 @@
+{
+  "package_version": "2.0",
+  "generated_on": "2026-07-14",
+  "manifest_scope": "Full controlled provenance ZIP, excluding package-manifest.json itself; this is not a manifest of the smaller Git research tree.",
+  "file_count": 214,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 68,
+      "sha256": "253dbb5847337ebd3261f4fd0218de3a6301731844bba1a309973f1360ab08f5"
+    },
+    {
+      "path": "00-governance/README.md",
+      "bytes": 1482,
+      "sha256": "99a8f4639e0d74c9a16df48f31d567a29ae74addfea920c51a1f69f4348c0e92"
+    },
+    {
+      "path": "00-governance/citation-rules.md",
+      "bytes": 2734,
+      "sha256": "f4009e27a8f1932bcd6a1a84d6e492ff75e0bf0cf3228b8c50435e20432b9b72"
+    },
+    {
+      "path": "00-governance/claim-source-matrix.csv",
+      "bytes": 8725,
+      "sha256": "7cb3ce8773f2004688666be27800a9d3708c19dbde23805b0720f6c3d2c23047"
+    },
+    {
+      "path": "00-governance/claim-source-matrix.md",
+      "bytes": 9603,
+      "sha256": "321c73a90ece783cdb96d07703eb073c75b111f1c29e3e282c1df4525aee79f2"
+    },
+    {
+      "path": "00-governance/completeness-report.md",
+      "bytes": 1261,
+      "sha256": "4f5e2d20f855c5ddd70d498cc84f3738e3a9725c2d499bf5aa4ac0b12586b4d5"
+    },
+    {
+      "path": "00-governance/github-import.ps1",
+      "bytes": 998,
+      "sha256": "7b5876221a7363f6a1d9238182664cfe5a3d58187acec424e2e912573ee03925"
+    },
+    {
+      "path": "00-governance/link-check-report.md",
+      "bytes": 8445,
+      "sha256": "2b645614e083def37280de0d79b948f1eded0327aba99ae3dfedc69feb0ae29f"
+    },
+    {
+      "path": "00-governance/provenance-validation-report.md",
+      "bytes": 1311,
+      "sha256": "61e61e88d71df553f3f76b306dc4483ef57dd8d9e9dbfb9b8d5ea1ae758e58ff"
+    },
+    {
+      "path": "00-governance/research-rules.md",
+      "bytes": 2894,
+      "sha256": "0f22ffdcbc8bbddb87d270ddc7fa6dff14c50eb4db06f9a717ed7f0b2330d58b"
+    },
+    {
+      "path": "00-governance/source-audit-report.md",
+      "bytes": 3501,
+      "sha256": "b2d02418f3faf1a6ef1ed2ea58987c0e3a8ffff69327535fedb72fa812712aae"
+    },
+    {
+      "path": "00-governance/source-register.csv",
+      "bytes": 17748,
+      "sha256": "68622081eccaaa1d63f84098709fe66df4ead840fb91424507eebbb86251a9e4"
+    },
+    {
+      "path": "00-governance/source-register.md",
+      "bytes": 15410,
+      "sha256": "cbd38292f72295b0fa716f933d307ee58033ab0d8c241287399b190e9f96b9ac"
+    },
+    {
+      "path": "00-sources/README.md",
+      "bytes": 2236,
+      "sha256": "086d06c6cbeb8c790eec5cdd420c170cd93f9ff49d713ae18c7e232ac6d78b3c"
+    },
+    {
+      "path": "00-sources/books-and-project-guidance.md",
+      "bytes": 3772,
+      "sha256": "da930a60b3cb3f352a2d9cee1109f18868f3cefc5621bd0040241b507ad5db24"
+    },
+    {
+      "path": "00-sources/github-repositories.md",
+      "bytes": 5592,
+      "sha256": "c3411c8c12892eb90f29f62751c6c99045ed8d68f62f3282525f30f0f7e20460"
+    },
+    {
+      "path": "00-sources/model-cards.md",
+      "bytes": 1209,
+      "sha256": "bbf3d736468a772a007562bd5a874bc207e34d0227dbdbe59e4340f5b03356ff"
+    },
+    {
+      "path": "00-sources/official-documentation.md",
+      "bytes": 10191,
+      "sha256": "d947c85d5759af6653afba7c7ff681848ec58c86be356ad575b5f42aae0cb32b"
+    },
+    {
+      "path": "00-sources/primary-research-papers.md",
+      "bytes": 3700,
+      "sha256": "005aa70f7de9de1a74cbe081494b940ef3c089a7b5ed2377726866098c87a60c"
+    },
+    {
+      "path": "00-sources/references.bib",
+      "bytes": 2523,
+      "sha256": "03e2db07bb86c601874a21329aebf7d0b57fe11007d6cc8187b0e66c75c4e2be"
+    },
+    {
+      "path": "00-sources/secondary-sources.md",
+      "bytes": 1703,
+      "sha256": "b5500c67dc9d4e2b1f67d9fc7adff8efdab38d3f1bdb33250d4e46d1d43abcf9"
+    },
+    {
+      "path": "00-sources/source-catalog.csv",
+      "bytes": 17863,
+      "sha256": "c75af87fb3c83a5062c61651f8a3fb9cb053f555edf9cf4586a164203f3dca4b"
+    },
+    {
+      "path": "01-project-scope/README.md",
+      "bytes": 1693,
+      "sha256": "dde4346778e272aed4dbf80e868aa9d2ff5b36aa38361aec1e8f52d3222ca32e"
+    },
+    {
+      "path": "01-project-scope/source-links.md",
+      "bytes": 5384,
+      "sha256": "af8e289b39622cea8fe501435344e47404312a7a7196d6b9d7ea8752e3bd538b"
+    },
+    {
+      "path": "02-ibm-granite/01-granite-family.md",
+      "bytes": 2474,
+      "sha256": "c92b7073dd2694e088a6b5966e00e076bd5dde3950bdc21ed5c6b79732dde5e0"
+    },
+    {
+      "path": "02-ibm-granite/02-model-selection.md",
+      "bytes": 2647,
+      "sha256": "e0ea69cb8d36e3a3b24b2f18ca8308cc8905eff4fa259d19d4025d0199807b72"
+    },
+    {
+      "path": "02-ibm-granite/03-granite-4-1-3b.md",
+      "bytes": 2971,
+      "sha256": "c8bc4cc730ec3a5bad4c140997a2eb0f4c2943d80bd50ad232d50d238f06e7fd"
+    },
+    {
+      "path": "02-ibm-granite/04-transformers-and-inference.md",
+      "bytes": 3402,
+      "sha256": "6fa2cf4cb6135dc5ac66c6fc943af85226530c74c9b142897df82bb2119facfb"
+    },
+    {
+      "path": "02-ibm-granite/README.md",
+      "bytes": 896,
+      "sha256": "147b798d36d03e2109d98b11621fdf6d859f4fe60615193cf5bcee2a87261b6f"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/01-kv-cache-basics.md",
+      "bytes": 2612,
+      "sha256": "e80565c770c8f199e85caa17063c561e4566a19b853ee0c1e3b0b834e43520e8"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/02-kv-cache-quantisation.md",
+      "bytes": 3363,
+      "sha256": "60d5cd899abb79c6cf054f3911e47ab8c60e0badfbf4e8f71eb72b10eb03831f"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/03-polarquant.md",
+      "bytes": 3205,
+      "sha256": "68d01081a6261323a913bff181a95d0e184d5c88ff305b73ffaa9d5a2df71c50"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/04-turboquant-and-qjl.md",
+      "bytes": 3916,
+      "sha256": "746efc52f07f4ede85d35462e74546bfa16b356bae88b105d7e43c040ebe5bd8"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/05-evaluation-plan.md",
+      "bytes": 3705,
+      "sha256": "2129a4b2db4a03f157df41441b52050b3e5f816744e7d6acd2a3b3693de6002d"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/06-implementation-landscape.md",
+      "bytes": 4145,
+      "sha256": "5f11e0cbfaeace2d4c1f238d75bc8e4172b8d3c77fed2c4df3a2cc5985d3ae8a"
+    },
+    {
+      "path": "03-kv-cache-and-turboquant/README.md",
+      "bytes": 1202,
+      "sha256": "439dbdc4776bd7faf3780cdc983795320b9484c9a3fe0c13400a5dcc4fb55365"
+    },
+    {
+      "path": "04-openvino/01-overview.md",
+      "bytes": 1921,
+      "sha256": "9eaf2f7b4f03e30624a36cd05ffe1ec8f57a6d71dcfcb213f6e6663eb6809825"
+    },
+    {
+      "path": "04-openvino/02-runtime-ir-and-compilation.md",
+      "bytes": 2042,
+      "sha256": "0fe303c9df7dad166c8c8270af70d88495195a3e794f9def6f996551206f0afd"
+    },
+    {
+      "path": "04-openvino/03-device-plugins-and-selection.md",
+      "bytes": 1872,
+      "sha256": "49ecedcf4d286551b8c9cc306472f6ba4010c831e4d543ece0733d01b9d14ba8"
+    },
+    {
+      "path": "04-openvino/04-hetero-mode.md",
+      "bytes": 1853,
+      "sha256": "05f9f6cb5d39104eda8562a1177bb19fba7842f1d59d1693cd4154c2c0a11317"
+    },
+    {
+      "path": "04-openvino/05-cpu-gpu-npu.md",
+      "bytes": 1937,
+      "sha256": "8dc50a68dfc5eb85d92fe05bab520b1d988f562ebea6897a0dfe0217d2bcd8e4"
+    },
+    {
+      "path": "04-openvino/06-end-to-end-llm-flow.md",
+      "bytes": 2567,
+      "sha256": "ff769bd253a54c36792660c09e47e08a8974ab3f628c39cf38295281c7f878f5"
+    },
+    {
+      "path": "04-openvino/README.md",
+      "bytes": 1022,
+      "sha256": "0780cab183afaec1b1bf0dd210f8c7b84697c5405d3c8cd7d69d356d6734b8f3"
+    },
+    {
+      "path": "05-local-inference-tools/01-llama-cpp.md",
+      "bytes": 1903,
+      "sha256": "18f6587be0c8813af6995fa383f67bec9241cd29a7f1bf95ae8b82e17c74cfef"
+    },
+    {
+      "path": "05-local-inference-tools/02-lm-studio.md",
+      "bytes": 2460,
+      "sha256": "51179592a3ce9d91969e8fa3df4e972ea18c96ccdbcc524b7ca75e1658102468"
+    },
+    {
+      "path": "05-local-inference-tools/03-ollama.md",
+      "bytes": 2560,
+      "sha256": "dea7545f6d6ffc4e33c49d3a57ef050ea178c2516eb49473c142fa220643f9b2"
+    },
+    {
+      "path": "05-local-inference-tools/README.md",
+      "bytes": 602,
+      "sha256": "bc9e4cba2d71736831a61b408aeb425bd970f552473f24121cc7ac987664bafa"
+    },
+    {
+      "path": "06-repository-reviews/README.md",
+      "bytes": 1229,
+      "sha256": "3307ea500dea68afe5e5e18cbbe962705fd3991716ae474526f14ca5843ef508"
+    },
+    {
+      "path": "06-repository-reviews/amesianx-turboquant.md",
+      "bytes": 2913,
+      "sha256": "a56605af5592e1fcedb29ef6ae3d5927baff189fdefe7e2a51877c70c3c3b532"
+    },
+    {
+      "path": "06-repository-reviews/animehacker.md",
+      "bytes": 3111,
+      "sha256": "aa881a44f711343a1ed437ab3e346479933d1b2b62e3c009ded9eee401d80dc6"
+    },
+    {
+      "path": "06-repository-reviews/atomicbot-ai.md",
+      "bytes": 3091,
+      "sha256": "9d3c321e43de9757311da34da1965e3e947a4ba6d01909a6d0c4bcb46da6de5e"
+    },
+    {
+      "path": "06-repository-reviews/atomicmilkshake.md",
+      "bytes": 3037,
+      "sha256": "a7c6d46d79f798649bb0576e10e195371ad50b77db7bb38d62509b6928a70577"
+    },
+    {
+      "path": "06-repository-reviews/beellama.md",
+      "bytes": 3067,
+      "sha256": "aef6b9ec66064c8c1924eeae6539bbcf2d7f77d943e73129650278a244fa9811"
+    },
+    {
+      "path": "06-repository-reviews/comparison-matrix.md",
+      "bytes": 6193,
+      "sha256": "942cc32c7a650f37c5da704add59a7546ec9f96124b2bd8783ae515000634af6"
+    },
+    {
+      "path": "06-repository-reviews/review-template.md",
+      "bytes": 2297,
+      "sha256": "8ee45f2b339416478031db6337dedbc8c0e05b4804730f5e243daeadf383c0e1"
+    },
+    {
+      "path": "06-repository-reviews/spiritbuun.md",
+      "bytes": 2868,
+      "sha256": "542ee0ee0be95bbdcd5cb4d3ce70a4b8cb985efcc17f9c5b57b9914e70c20fa6"
+    },
+    {
+      "path": "06-repository-reviews/thepradip.md",
+      "bytes": 2914,
+      "sha256": "489f5ae97dbb9b090210bfa6bedc4ef370767114101e23d7d0e1b881cbbbf2f4"
+    },
+    {
+      "path": "06-repository-reviews/thetom.md",
+      "bytes": 3134,
+      "sha256": "64d74734452ee1b77d44b9d107811a4926581bdc38bee696e33da3c86b01dd81"
+    },
+    {
+      "path": "06-repository-reviews/tiredofeverything.md",
+      "bytes": 3047,
+      "sha256": "2c1871e4f0796745e13667571d30c384459313518f79446b00e513c78b9deec5"
+    },
+    {
+      "path": "06-repository-reviews/unixsysdev.md",
+      "bytes": 2987,
+      "sha256": "5a2d284d631e6d62d293eb13ea2081e4055a7c01496847270b1a8df9f10059d1"
+    },
+    {
+      "path": "07-evaluation-and-decisions/01-common-test-sequence.md",
+      "bytes": 2659,
+      "sha256": "590e1e3e1e37037f879b7b97f56e26131733fce8d4166ad1c3c7fed07e258fa7"
+    },
+    {
+      "path": "07-evaluation-and-decisions/02-metrics-and-quality-gates.md",
+      "bytes": 2956,
+      "sha256": "6bef5b3d117f763b11a6074510586893b133e307aa2b7da3b3d23b6470a0975b"
+    },
+    {
+      "path": "07-evaluation-and-decisions/03-backend-decision-record.md",
+      "bytes": 3335,
+      "sha256": "fa7ef99c6fe887807d75adc2ba71a5bb448127c9a2efde76b4081035b64efaa3"
+    },
+    {
+      "path": "07-evaluation-and-decisions/04-research-to-development-handoff.md",
+      "bytes": 3070,
+      "sha256": "9c3308e06ffc48ee8859f721147d5c8083c0e14948a19f2c7cb16e28469d6e9a"
+    },
+    {
+      "path": "07-evaluation-and-decisions/README.md",
+      "bytes": 743,
+      "sha256": "c5b1c6c9203cbdf4c5fd6a6d5cb90b6630b1ca6acf5811779bff195c3cc77332"
+    },
+    {
+      "path": "98-source-extracts/PROVENANCE-NOTES.md",
+      "bytes": 1477,
+      "sha256": "79596aaa0dd7136af86ea288e45a377e2e8f98079435fb3c4e54c2e2cd20fdc9"
+    },
+    {
+      "path": "98-source-extracts/README.md",
+      "bytes": 799,
+      "sha256": "30ca4b1cf87a8dd62596eb260b46a2368a0a523cd046017b894c76fd61802898"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/ibm-granite/README.md",
+      "bytes": 1280,
+      "sha256": "77da3d2d9db51885a8e198abb482cc983b14ff5a95ac69e3546481fdf88c48ac"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/ibm-granite-language-models/full-granite-inference-guide/README.md",
+      "bytes": 5760,
+      "sha256": "fb495a3bd55e127ccfa7987b18049a9615aea4ce0606e50ecedd5b583101c4b6"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/ibm-granite-language-models/full-granite-inference-guide/assets/cd46c2bee2687db88e6c5de670f38b65bc0f6579.png",
+      "bytes": 1777924,
+      "sha256": "95a1f318f311b4f1eae4d1317f7d3294f4c3faecf1b5e68b49b4e5378a5405b8"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/ibm-granite-language-models/ibm-granite-4-1-3b/granite-4-1-3b/README.md",
+      "bytes": 5927,
+      "sha256": "b8693fb09479e175fc6ee54878685c152ef224a51c34fd1493f739e74afab396"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/ibm-granite-language-models/ibm-granite-4-1-3b/granite-4-1-3b/assets/43d29fe779364ff4e5e066eec794ffba650565d3.png",
+      "bytes": 65748,
+      "sha256": "26b4b8016fb848e66caff48170ca482087079360c1fd70344032db43f6320db5"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/ibm-granite-language-models/ibm-granite-4-1-models/README.md",
+      "bytes": 2172,
+      "sha256": "60ee955e812cca6d4be5a2b70192a32a68a6d6e46e4c3dd9a1f747ad7d068e23"
+    },
+    {
+      "path": "98-source-extracts/ibm-granite/transformers/README.md",
+      "bytes": 1845,
+      "sha256": "3784ea41f52e9eb31f3f9fd76ba2deb286de737f0ef33d32df0941a489be09f4"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/1-understanding-kv-cache/README.md",
+      "bytes": 6354,
+      "sha256": "7858a0e995ceaed07cef055b5195217138bb25b3eee46d04b77b8f9ccf1e9b71"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/1-understanding-kv-cache/assets/20a8266e6e7736ea0a6b6395eba12b7a18170ebd.png",
+      "bytes": 8878,
+      "sha256": "584b84a634a6616df18ceff5e19df4970c373b7bc51c25a8ced89f5dd939294e"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/1-understanding-kv-cache/assets/74e138cff7bc6f1ffdcfdc838b63e009d978181b.png",
+      "bytes": 19472,
+      "sha256": "00b4c6118817e7384ca064a3b0a5a99137dc349daf85c73b671e63a98b745cf4"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/1-understanding-kv-cache/assets/9f3e41b9358c8925a09763cdc9a7fe32207725d2.png",
+      "bytes": 26732,
+      "sha256": "7e30c988fd1190163243f83b7994412d27fdff53c894d1e6d82c217f3c42d583"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/1-understanding-kv-cache/assets/ce95b9425c1dfdd836ed4c9e1f5f321735bb0b90.png",
+      "bytes": 7495,
+      "sha256": "964d3da71fac3a6004ca0249d05f522ed51f2d636ca198ed4ad114569b4e9613"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/1-understanding-kv-cache/assets/fdbf63730542f7ecb80f12f177535e2baa77aa5d.png",
+      "bytes": 68194,
+      "sha256": "bc537f3331f092f1746bd7350b00db6a6544710d69f4c8bc606c405baf4cbe34"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/2-kv-cache-quantization/README.md",
+      "bytes": 29335,
+      "sha256": "9cbddab05a9f5718203f1ba3503dec116ecc26f97d6f180965a7b8326c54fed0"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/3-kv-cache-compression-evaluation-idea/README.md",
+      "bytes": 7722,
+      "sha256": "ce88da7aa8a99263bc1be9bc162acfac12cf86d0e6811d0bcacfae458610d926"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/README.md",
+      "bytes": 21845,
+      "sha256": "ddb782fce67462efe778bfc17a48b20b4fe9ec767e484ac1d324c7e435e2c0ac"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/0007ac38a1c3af23b4b328dda3810e5813e0c8c8.png",
+      "bytes": 123241,
+      "sha256": "f1aa7eebed1370d92c9d275bee918588f2cd6b190d3e5c0eac21a01af6c075cf"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/03d89f09bb264f391635311278157f2f3fc5ae02.png",
+      "bytes": 165413,
+      "sha256": "dae3ef0ce46c66a1fbc1e8996d3c8f276f28e32600eb2e2a55d25e95705c3208"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/17b79e4d3599bf99b0b38de9b5c4a7360e276791.png",
+      "bytes": 124536,
+      "sha256": "a0f6c193b7be92325370140f415bb20ff27930a0ef757b74c1d8755436b7863c"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/2c921fc38ad7f928557f3a5d6337d87f59b49b3f.png",
+      "bytes": 114741,
+      "sha256": "b2bd76d6eb1dc292ab0d1c20894354eec2068ac47ec794a5e1b0a8d71b713917"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/2e68dd5ce1e78ff48142687b0fc3b8395078a9d6.png",
+      "bytes": 35456,
+      "sha256": "2769fbc1cb6f0a096e9e0e7b1acdeeaf10a005fb48ac51f0e2d8257bc19e7613"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/347ce3813f210524012411828b469e3dbbcedc65.png",
+      "bytes": 207999,
+      "sha256": "c23cd2aa1a0aaefcad587f5197bd65d94e3f482328975548b5cd69a35fa06f79"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/35abcfac6d114f118833d9a554368b265baed080.png",
+      "bytes": 6597,
+      "sha256": "003aaf5441f5f59a129cb51e383b890444a8801bcb3d9e738de9c7b91fa649e9"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/378ea807f6159f401eb64fcaa8c21373440e057d.png",
+      "bytes": 13247,
+      "sha256": "4f08691a24eeee10ec1a3a979dbbc3b4e62255737b8f445ee237a454ad1223fa"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/4787612463f0cce394abfd15287f643d3ced9012.png",
+      "bytes": 58977,
+      "sha256": "aa0146b212507efc9f720b95955fe68ee8c69214690b4501e9d4e4d72545d2fc"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/4e78dd37e5a93d37820c2ff5aa615a52ed1be77a.png",
+      "bytes": 62479,
+      "sha256": "a2cac16749257d16a970388cd5a89108212a68cd8152a1039fc34a704b6e93f4"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/5cac7d5066c26142eb8c6ebd704b56bbb0c98caa.png",
+      "bytes": 156090,
+      "sha256": "8abe71b57446a9a24348de8f6223674768140deb14bc17284654f8ebc161c581"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/5e0980820615d08ddd3820b8e092099b63653363.png",
+      "bytes": 11865,
+      "sha256": "a847a19a6fc29f162742acf43af47b4ad2533a8e46de29e6d18fc54582c839e4"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/79c75b25b9e8d65b6e6831fd70cdc6400a6f3b04.png",
+      "bytes": 140268,
+      "sha256": "5c4b343ad2ca870f71566c4b6a99f22f55ea00afee7594af3f907d38dc6026a3"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/7f5d51f13bafa7d639dcd99009f116695d706a48.png",
+      "bytes": 12713,
+      "sha256": "a7e4e5f955aafe009ced8423cde89c36f9b12becff740eecb5b75a343c4a7e3f"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/822da8c0560081a67d19ce59689fd5c75ddbc49a.png",
+      "bytes": 182186,
+      "sha256": "3f846e8fbb37605c6c82a997cbd05d52fbe8cb8966914397d5742ffa35806c26"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/82ca99f3df33865757065d323a5c9b97f6fc15af.png",
+      "bytes": 211514,
+      "sha256": "9faacbeab2603fe6faa7a66bf12775d36ea54c98e35d6da770b75cdfa235be0c"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/83be48b62646838976abc46876a632e09703f96d.png",
+      "bytes": 43915,
+      "sha256": "3c9098b52ebfaaa8272b4d255cbfb963af7d8a8d5360bd95d82f7832a1c15fe6"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/89f26a4be3c45c42c800f36fc27a808feafb1953.png",
+      "bytes": 94897,
+      "sha256": "f48292478a618369e6cdc6cd7c186439a2b6b9f5a394ed71ea0b0b1c61f70b1c"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/9381b76465eda92e03540c6f5c23140dfb44e9bf.png",
+      "bytes": 6054,
+      "sha256": "7536e5fb26c0c73d2ef02b459d3397338b3607c58bebcd0c678470175d4439e2"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/941387c46a04962c4f3691419debcfa80477de9b.png",
+      "bytes": 214803,
+      "sha256": "ce66225661de0da7f8f90d46e7158c70748a1482b0f8277c3df6b488c4a2b9f3"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/977709f90c95a8937c79327426ec3581a861400e.png",
+      "bytes": 15047,
+      "sha256": "63f350455c4accad3c9d9f87c85112ad796a565a1f6aab320fbe684f8a5c4ec7"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/9f9057cf90bde4c1fc62b210b07c087714733f78.png",
+      "bytes": 184402,
+      "sha256": "1121b55192f46cb6cb5b9698a3e947efbbaf194f2ad2e28008187b1a0519852b"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/a580273cde34c697247a6a058c2e4fea8cc481c8.png",
+      "bytes": 126221,
+      "sha256": "24cbd4676285cf3e525218bc60d3c06a699ce10ce5f2b0fb298e74e9101c9752"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/a903721455acd2330cf70f3b2c245e28672b7e38.png",
+      "bytes": 38993,
+      "sha256": "cea10ef8007b2531bc7d10e904efa6281f7ce54587ae87cdf1658ffcd0bd10f6"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/ab5a92110606d9301470d4d5ef88fac47ff842a2.png",
+      "bytes": 176416,
+      "sha256": "ba9edb416150d87c27a38f03ef88f1bc5d3a262f96520a4a979de7d46067dd4a"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/bbeb898452f54b13af5f24462794fd9791e5528c.png",
+      "bytes": 159757,
+      "sha256": "aba0e7e81ae7208805c834e441ed2b1e8d81582f82c51acf61ca715fa1f56088"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/bd4150b538c2c0e6a8261d0e75b7165267e6a60e.png",
+      "bytes": 95488,
+      "sha256": "9ae5d276e0279751d720a9dd59812f55f0153ac3c77b0cc91258f0d436891606"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/c8e0b2afe09bac03ba24c2da6398ba1c15868ee9.png",
+      "bytes": 14323,
+      "sha256": "10935914b6cba7acb43720a716bc4231f01664890bf2b2f6f635083c2d70a6f7"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/de151b71b266ed4177453a0a78befd5b4b3b0954.png",
+      "bytes": 70051,
+      "sha256": "75af4efebe7a2054ec1f74d907dd8c55759967db68b26826e70bb37e013c0d10"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/df8416c421589e3853a62872e7c390871609eb7c.png",
+      "bytes": 66506,
+      "sha256": "51c041e0c7530d20a1d46f86604f8a550d200a2ad32cc2cd241388e8e4181475"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/dfad6f5135a4e20ab131880e92b411629a91cbfd.png",
+      "bytes": 60815,
+      "sha256": "19f255ac26e333840d840123aed57df3a01e60f347106575dfcfbf4c78929cd8"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/e267e7c0eacd4020ebd7c4324c2060d36e51bb5b.png",
+      "bytes": 35516,
+      "sha256": "70e9b063a4f62d9da8ce8df7c2fd8ac563060a76d3752f9607b6f137736c5cde"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/e95c3512983ed0cccb62f25d4eef5610ba8f2623.png",
+      "bytes": 145556,
+      "sha256": "b1f0b7a2d9881f1f7bd4dc337f5225095049a56a1817b47835fbbda5642a4943"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/ea345ed2be0b19fd0a324f0582d1b62a28556789.png",
+      "bytes": 128518,
+      "sha256": "aad45a4fda4df7c7e1083f0ac51bb5067e1e22c019fccf10e7271aaeebd2b258"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/eb639d7550382e27d01da17980f19da2929ae212.png",
+      "bytes": 64227,
+      "sha256": "e101a1eb33d971a479efb4c8e5c54e47ecd512ec12f72ac0c2b76964f6438e5b"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/4-polarquant/assets/ffe4d8d97d26faa35fb241cc83bfa595265a42b9.png",
+      "bytes": 9978,
+      "sha256": "28df2017b5a82a76085b78745ee007207f84b098487981397f5a0bc42bb06e91"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/README.md",
+      "bytes": 34928,
+      "sha256": "95faa172846244ef83d78d6cc7ebc2597297c8dc2ddbead77750e1167d34759c"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/0b6508ba98c980cb9d4b2f5be50b6a436dda4e20.png",
+      "bytes": 30587,
+      "sha256": "0dce4c38463d381290ec0764092946ae1b6f309c6c7a25be353b0fed4756b875"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/0e36f2a6ec50981ac53f9bfe5aa36c6abfb009db.png",
+      "bytes": 26779,
+      "sha256": "1510007521dfb8c327f0593d37c7a299a62587679fc92abd1329e5e83be23d32"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/22702d2e29be5245498fa3bef10bf9f6b20c43d6.png",
+      "bytes": 13566,
+      "sha256": "6795a31b3b36fcb67c08f01b54bedbd7a1b52f42f3e44af1177a7709b3c1f993"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/560599546f34797074990ef30c136ddce6df8022.png",
+      "bytes": 11065,
+      "sha256": "6420dc3ff699f198cad05c4597c9755a6fc071792af553e7ee54e09eb32125ee"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/73ac89a331b600c8ae3ce28153e3e2c5e00f74a1.png",
+      "bytes": 11530,
+      "sha256": "718576a2170a5b61e18ed8989246586b5055f36be0d7e4b61be92a571b9a38bb"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/956c3b48237de8ace1b6af462138b6de83941b93.png",
+      "bytes": 42579,
+      "sha256": "e87fec33295cc1bf41b621a80266463228a3dd9af05b46171d7da54437edc85c"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/9bcf2fa7a8de2618060da8ad49e06546d7395a9b.png",
+      "bytes": 17724,
+      "sha256": "03aa6fe18011912572ee1dff05e821be5e52ab3fc66501458b27e2412d3bd50b"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/d58fb226db8f0c958b49157e1702895a83a0347c.png",
+      "bytes": 8533,
+      "sha256": "c45121570e158f038a5eb36db0a7c171026704ebaf061e4c7acbcbf2cb444500"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/d5e3f9b5fc7e1ab5dd642c1408d03307dccd624c.png",
+      "bytes": 9406,
+      "sha256": "78f2413810fa759463b7649e9f5f6f4e66efa303dc006238d3b17da076a280ce"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/ddd9d8a7c5d198cd65440aeb338f5fd0981ba734.png",
+      "bytes": 33709,
+      "sha256": "201ef11dc2980197e6dcbfeeb633f4dd4502c6da3738a83e63d735b603572e2f"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/e7271d51f31631440f88a7337d39f2bec2f7b468.png",
+      "bytes": 2474,
+      "sha256": "4a1b37db5b926833a0df528e07427b61c0271b9bb14b5a77168ef3a12253603f"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/5-turboquant/assets/edf4a88a05681820238b785d699a82636aecb26d.png",
+      "bytes": 26675,
+      "sha256": "d228f7f8e469b64c14e2a50ee0448f5ff79a4f43a77a5a9e5a37dbde5917679c"
+    },
+    {
+      "path": "98-source-extracts/kv-cache-compression/6-turboquant-implementations/README.md",
+      "bytes": 595,
+      "sha256": "78fbe6e3c999e3ca3a7cf1a5f1cf901d599779d254d25d5388992aba32b0f76a"
+    },
+    {
+      "path": "98-source-extracts/local-chat-apps/llama-cpp/README.md",
+      "bytes": 451,
+      "sha256": "b05c1ad80b19a018a254486246898a469ac4905d5a2ad69f05aad8643471d38b"
+    },
+    {
+      "path": "98-source-extracts/local-chat-apps/lm-studio/README.md",
+      "bytes": 13162,
+      "sha256": "5a7fb71e0bbfe224bc68d87ad3ff8e0a62c62307bd0f4b73f26695eee442d379"
+    },
+    {
+      "path": "98-source-extracts/local-chat-apps/ollama/README.md",
+      "bytes": 3102,
+      "sha256": "5c380dd3aaa52e11c2b7cc10cf1fed2433d41eabb9fd2a4d4370a2b7086f3f12"
+    },
+    {
+      "path": "98-source-extracts/openvino/1-simplest-overall-explanation/1-openvino-overall-summary/README.md",
+      "bytes": 1398,
+      "sha256": "c48d9988fe23779f6ab9e267044496fd5fa5cb7dc252c198d0f115b7d5e68ff2"
+    },
+    {
+      "path": "98-source-extracts/openvino/2-what-openvino-actually-does/2-what-openvino-does/README.md",
+      "bytes": 1844,
+      "sha256": "8933bb4c212a3a29ac48fa6e73aa6cf84c179c90f2a580cdc709aa23f90c8a95"
+    },
+    {
+      "path": "98-source-extracts/openvino/3-openvino-runtime/README.md",
+      "bytes": 2127,
+      "sha256": "c669f1277b636cece431cd0158e3532aa2e5f03d32ace2123f8f9703202cc670"
+    },
+    {
+      "path": "98-source-extracts/openvino/4-device-plugins/README.md",
+      "bytes": 1939,
+      "sha256": "02fb8c936e69514c6cc7c4010dd293578a4775ceea2fb79a3fea2a628d897dc6"
+    },
+    {
+      "path": "98-source-extracts/openvino/5-hetero-device-mode/README.md",
+      "bytes": 2171,
+      "sha256": "eb783dafbd57f7f852bc7942454967a58606edb3716fc0feb83f6d00bea74752"
+    },
+    {
+      "path": "98-source-extracts/openvino/6-cpu-gpu-and-npu/README.md",
+      "bytes": 3301,
+      "sha256": "ce919b0462fed66ee18d22fb1aec360707b1aaa3dd0db1c8b88b88b2fd9ef576"
+    },
+    {
+      "path": "98-source-extracts/openvino/7-openvino-ir/README.md",
+      "bytes": 3798,
+      "sha256": "27d3ff24161f38e5e08b502719c9b364e25cc8ae92f4cc6c93dcd6fd3c494399"
+    },
+    {
+      "path": "98-source-extracts/openvino/complete-openvino-layout/README.md",
+      "bytes": 21382,
+      "sha256": "7488ead2f3b6780502a696ec649b40ef81d75abfdfc706bd0319819839d071b7"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/amesianx-turboquant/final-analysis-of-amesianx-turboquant-repo/README.md",
+      "bytes": 5347,
+      "sha256": "90c2d98fbe310e4fc2fae5a39d8f053d85445dc2b92647fc1f1bf4d52c3d295a"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/animehacker-repo/animehacker-repo-final-analysis/README.md",
+      "bytes": 7356,
+      "sha256": "ce3100837668f57f810c852e4598de6229f1b690d0891629b1795a65a98797da"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/animehacker-repo/animehacker-repo-review/README.md",
+      "bytes": 14759,
+      "sha256": "8e241a916b8a19638a9ff7dd80b199026942821e23b369177a422a9570aebb15"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/animehacker-repo/post-animehacker-review-implemntation-thoughts/README.md",
+      "bytes": 591,
+      "sha256": "2ff0cae1658a1228e7fdb4d16ea210ebca81f6c98f010a8353abdaade1fba6c5"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/atomicbot-ai/atomicbot-ai-final-analysis/README.md",
+      "bytes": 6346,
+      "sha256": "e89e52ed01db54bad36e36c4a9c0524b17b11560c3f1b284a258d86846b181f6"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/atomicbot-ai/atomicbot-repository-implementation-and-testing-plan/README.md",
+      "bytes": 9975,
+      "sha256": "3068532f242ce2d77e1b2bb5ff391e4467775c8d9f5880bdbcbbef5c2d25fef4"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/atomicmilkshake-lla-cpp-turboquant/atomicmilkshake-llama-cpp-turboquant/README.md",
+      "bytes": 18713,
+      "sha256": "858f3cf10f52189c8ace809c84c3f9b93a18e062a07104a6121b8f97dc94be44"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/atomicmilkshake-lla-cpp-turboquant/atomicmilkshake-repo-final-analysis/README.md",
+      "bytes": 12377,
+      "sha256": "e77f5b942bca5506e75d6fc8c913bee4d36a7ab2b1cc862a111675831f319d0f"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/beellama-repo/beellama-repo-summary/README.md",
+      "bytes": 11230,
+      "sha256": "d81c1dd132e5456ab72c329292cddd652f1938a8b5c0cff7586f7d2a70a0678b"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/spiritbuun-buun-llama-cpp/spiritbuun-buun-llama-cpp-overview/README.md",
+      "bytes": 10408,
+      "sha256": "2fe5e2e0ef7de9cb4ecf1a049f2936e804b97ab93c33b61cbc7f82e9a7e625d2"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/spiritbuun-buun-llama-cpp/spiritbuun-final-info/README.md",
+      "bytes": 4099,
+      "sha256": "8a72195a7b15876643f17cf11499eac37fa5f706b655ece27cdbf6d76ddd24aa"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/thepradip-turboquant-llama-cpp/final-analysis-of-thepradip-repo/README.md",
+      "bytes": 6722,
+      "sha256": "26442f74900541cdf77e02e85c38eef698d5833cdc1cfa112b3defd243b9d8e9"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/thepradip-turboquant-llama-cpp/summary-of-thepradip-turboquant-llamacpp/README.md",
+      "bytes": 593,
+      "sha256": "8f47d9e051ad0effbd79f6b977107394e2d74b387107323f641e2a857447e4ae"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/thetom-llama-cpp-turboquant/thetom-llama-cpp-turboquant/README.md",
+      "bytes": 11810,
+      "sha256": "c4eec5820793f09dc2d6fda29861c762cb6ace0a38278899c98bb974eac0732e"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/thetom-llama-cpp-turboquant/thetoms-information-we-need/README.md",
+      "bytes": 84703,
+      "sha256": "abccb8758ceb9081b49f337fa764f1aa8bf4d06bb4026bad36f9e67750da397f"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/thetom-llama-cpp-turboquant/thetoms-information-we-need/assets/21fac5df90ef3b7b3fdb48765f76fe8c42744938.png",
+      "bytes": 3942,
+      "sha256": "ad3ff81d8d9a1947f5e2f9dbcea158b8f2f01c48c2fb1ebc7ef9387126decbf3"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/tiredofeverything-llama-cpp-turboquant-repo/tiredofeverything-repo-final-analysis/README.md",
+      "bytes": 14758,
+      "sha256": "104adb266af73779e8f49283d7aa37458978540899fd1d4aedccb7c7b098ffc9"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/tiredofeverything-llama-cpp-turboquant-repo/tiredofeverything-repo-summary/README.md",
+      "bytes": 15189,
+      "sha256": "f88f74c56ec201b71233d733bb18f72ad5390686f53ac02fa817dffe5eee3efa"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/unixsysdev-llama-turboquant/unixsysdev-llama-turboquant-summary/README.md",
+      "bytes": 13553,
+      "sha256": "2ea03ecd0b6e0141d487b13c30a76c67403606ab78d0f914ea814a0b003ad419"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/github-repos/unixsysdev-llama-turboquant/unixsysdev-llama-turboquant-summary1/README.md",
+      "bytes": 10025,
+      "sha256": "b94e2efc369d47ae04f7333bc8ffc794b89c36497129eb1d88c93e13e4ad8f86"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/information-to-gather/README.md",
+      "bytes": 1146,
+      "sha256": "1853e1af00c20970e8e23aa409f317354e3aaaa75de5348c0d99819e8b2d07ff"
+    },
+    {
+      "path": "98-source-extracts/quantisation-implementations/llama-cpp-quantisation/tests-to-run/README.md",
+      "bytes": 860,
+      "sha256": "1a7b9b5dd1fa7e5a7cf559c0bf0a867e23b8a08cb0d7a4bc00440837aeefa8fa"
+    },
+    {
+      "path": "98-source-extracts/sitesto-help-with-research/README.md",
+      "bytes": 1246,
+      "sha256": "ac5c3a6167419de29301ccefbb4f7582b17b0627a9812fffa1eb1ad358c4b201"
+    },
+    {
+      "path": "99-original-docx/IBM Granite/IBM Granite Language Models/Full Granite Inference Guide.docx",
+      "bytes": 1676854,
+      "sha256": "92dff30bd3ef66fedc85dd5c50065be481e4ad50f428ac54fbae82eaa0fc6bcd"
+    },
+    {
+      "path": "99-original-docx/IBM Granite/IBM Granite Language Models/IBM Granite 4.1 3B/Granite 4.1 3B.docx",
+      "bytes": 80812,
+      "sha256": "94726c95131a7be709d09bb33da8cb27447b9ac373686433f4fe32875cae52eb"
+    },
+    {
+      "path": "99-original-docx/IBM Granite/IBM Granite Language Models/IBM Granite 4.1 Models.docx",
+      "bytes": 13426,
+      "sha256": "572ff539f4d3464a85a0c547c87092a79cb6009c00f80027dfea1b7341aa53cb"
+    },
+    {
+      "path": "99-original-docx/IBM Granite/IBM Granite.docx",
+      "bytes": 12843,
+      "sha256": "38fedac2df708b1e2ab5dd4f947007b0bc99ad0ba4bedf38978426d4706cef35"
+    },
+    {
+      "path": "99-original-docx/IBM Granite/Transformers.docx",
+      "bytes": 13383,
+      "sha256": "f96447761710de7d77db63b3292c3e9e24375935d29c90826928b7f7b64bf80a"
+    },
+    {
+      "path": "99-original-docx/KV-Cache Compression/1. Understanding KV Cache.docx",
+      "bytes": 146187,
+      "sha256": "9742f9a39ad2f86da09ead24d87d1fb1621ec73135ad1bd2675bc1ee8e57d407"
+    },
+    {
+      "path": "99-original-docx/KV-Cache Compression/2. KV Cache Quantization.docx",
+      "bytes": 31903,
+      "sha256": "51b3e1b9f03b7e41078331c2192dbef9c199f06001ab52bdc56ad145f7d5d0f2"
+    },
+    {
+      "path": "99-original-docx/KV-Cache Compression/3. KV Cache compression Evaluation Idea.docx",
+      "bytes": 21211,
+      "sha256": "938389896dbedf8bf4712de1d755c9fce6e1b64edc4c7b2f948a30ab1e101c24"
+    },
+    {
+      "path": "99-original-docx/KV-Cache Compression/4. PolarQuant.docx",
+      "bytes": 3287453,
+      "sha256": "dfa43c855de8a8c8f0b398ff95089b146e21d25568139937b5f169ff2e6f6902"
+    },
+    {
+      "path": "99-original-docx/KV-Cache Compression/5. TurboQuant.docx",
+      "bytes": 262365,
+      "sha256": "095176db74ee89ffe6b126110824b0dc16a783559a8e5d0ce4a412301c0769c6"
+    },
+    {
+      "path": "99-original-docx/KV-Cache Compression/6. TurboQuant Implementations.docx",
+      "bytes": 11830,
+      "sha256": "a4bdf62cbd0510fba350c01fc28c788a7e908cc25722f90fe604cfcc0698d89d"
+    },
+    {
+      "path": "99-original-docx/Local Chat apps/LM Studio.docx",
+      "bytes": 24252,
+      "sha256": "7770d6cbd07af83c10e5c5f640a490380361f62d42096b96188dca5528a2834b"
+    },
+    {
+      "path": "99-original-docx/Local Chat apps/Llama.cpp.docx",
+      "bytes": 11335,
+      "sha256": "371a77f3471d15be2b45f8f26520ab54e24511b9e366330f651294075f784013"
+    },
+    {
+      "path": "99-original-docx/Local Chat apps/Ollama.docx",
+      "bytes": 16954,
+      "sha256": "e948404482b9453d924a64b6553353917c227d13f9bb59e7eb9a141177cecbb4"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/1. Simplest overall explanation/1.OpenVINO Overall Summary.docx",
+      "bytes": 12593,
+      "sha256": "552078f006ff4f73c58e198641dd7eac312cb293ab87701a5c644fb39bf069d5"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/2. What OpenVINO Actually Does/2. What OpenVINO Does.docx",
+      "bytes": 13991,
+      "sha256": "21e8d58e8bd5ab787221acc47739c348f2190830fe1da3130e96535e10d28290"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/3. OpenVINO Runtime.docx",
+      "bytes": 14274,
+      "sha256": "2323a0cea61ed4c29dc386136c87d221edf78e554571a211300b7f6d430888f6"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/4. Device plugins.docx",
+      "bytes": 14019,
+      "sha256": "579d7dfdfb720104044f16acfbc4abbdf24b0e74d3ee99f69725aca1d04c07bb"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/5. HETERO DEVICE mode.docx",
+      "bytes": 13144,
+      "sha256": "822d6c79f161cbf6050d87c9bd9e3a486b7308bf3df75d9cb1d4eee601d3887f"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/6. CPU, GPU AND NPU.docx",
+      "bytes": 14366,
+      "sha256": "501df8d2f3ebc6e1e5f6ae63e7f31084696c6b949c14eff2379e313d0699d436"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/7. OpenVINO IR.docx",
+      "bytes": 15561,
+      "sha256": "743a53c02b7d9380a9f3abce813ac30d0a669058bb2b05141707aa4f9f94c62e"
+    },
+    {
+      "path": "99-original-docx/OpenVINO/Complete OpenVINO layout.docx",
+      "bytes": 29062,
+      "sha256": "2e5612260a57949ad047161195e58837387951dd6dc89859367d80639c6cb315"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/AmesianX TurboQuant/Final analysis of AmesianX TurboQuant Repo.docx",
+      "bytes": 15378,
+      "sha256": "94e85d0c90afbea1a9e7f937ba026d9b0f96ee0ed93ec52389d2c54f69c3cb0d"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/AtomicBot AI/AtomicBot AI final analysis.docx",
+      "bytes": 15484,
+      "sha256": "fa5207f90a389169d64ee33931aa8d250bdc55f6dec605d7251e12dd1bba9aff"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/AtomicBot AI/AtomicBot Repository Implementation and Testing Plan.docx",
+      "bytes": 22004,
+      "sha256": "b55115487d3ddd1908261d31e7abf922af4a6a6d8f2247f2c8493d9b966d8cb6"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/BeeLlama repo/BeeLlama repo summary.docx",
+      "bytes": 23019,
+      "sha256": "8275937b815bd398c6b6d06090344145c442db71445a1517e09312745cce2e44"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/TheTom llama-cpp-turboquant/TheTom llama-cpp-turboquant.docx",
+      "bytes": 23480,
+      "sha256": "ceddaf5a426428261c970eb40825d3e99ce1cf440d17427a59432f1636305025"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/TheTom llama-cpp-turboquant/TheToms information we need.docx",
+      "bytes": 81827,
+      "sha256": "bdc840bc4a6f148f745b851a9a22229d78f92e9a815c50606965fa91c682a94b"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/TiredOfEverything llama-cpp-turboquant repo/TiredOfEverything repo final analysis.docx",
+      "bytes": 21917,
+      "sha256": "9a2898958bf70a3440524c40b400c88a4fda311c575161ff9c7b648618186827"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/TiredOfEverything llama-cpp-turboquant repo/TiredOfEverything repo summary.docx",
+      "bytes": 25934,
+      "sha256": "0e90a2d3718e8f9ba1497d6d1a239dfa31cec5ba7a68e8c7ecd2b75f6868cbf2"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/animehacker repo/Animehacker repo final analysis.docx",
+      "bytes": 16153,
+      "sha256": "c10acde4dcd9fdc01952ffdefc4bfba211096204d9a588a5522abe9426f9b5d4"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/animehacker repo/animehacker repo review.docx",
+      "bytes": 26906,
+      "sha256": "5e13356e8d216f63e1edfd5f9f4ba595e46510c582824a250db6521e4ba8e40b"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/animehacker repo/post animehacker review implemntation thoughts.docx",
+      "bytes": 11359,
+      "sha256": "379b57ec9ca5650eb55cf64c7b31f215eef1c039c1790c4654184c0ee4c45549"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/atomicmilkshake lla-cpp-turboquant/atomicmilkshake llama-cpp-turboquant.docx",
+      "bytes": 28788,
+      "sha256": "e9ff9f506882a7ed2c8cfa108b078e710bc28ddfea1ce51613b258654fc5fb3d"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/atomicmilkshake lla-cpp-turboquant/atomicmilkshake repo final analysis.docx",
+      "bytes": 19926,
+      "sha256": "9fad64814caafb1570ccfd97816f6e8e5345d1a4c318589c288d688261f5db3b"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/spiritbuun buun-llama-cpp/spiritbuun buun-llama-cpp overview.docx",
+      "bytes": 21906,
+      "sha256": "e4d0186a0be508a0cb76a1255947136808810cca691634e86218408dbfe08120"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/spiritbuun buun-llama-cpp/spiritbuun final info.docx",
+      "bytes": 14369,
+      "sha256": "52f81300322bc025c240f9eff6a50555c88ae67c164fddeddffaf5037c399590"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/thepradip turboquant-llama.cpp/Final Analysis of thepradip repo.docx",
+      "bytes": 15747,
+      "sha256": "9738d473a6c027b9d1b03b773b6cc70dd9c728f994cbd832818cec9393dd9400"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/thepradip turboquant-llama.cpp/Summary of thepradip turboquant-llamacpp.docx",
+      "bytes": 11335,
+      "sha256": "d24ec2c7b9920033ed24fecbd53f91d4a382509cf2aa1dc1f7df90eefeaeac55"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/unixsysdev llama-turboquant/unixsysdev llama-turboquant Summary.docx",
+      "bytes": 26061,
+      "sha256": "fcca8bab51761ea975573a8cd747e9c49857b7a7be48501cdcc47f09b24d07cf"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/GitHub repos/unixsysdev llama-turboquant/unixsysdev llama-turboquant Summary1.docx",
+      "bytes": 18784,
+      "sha256": "6b334cb12dd210c07a65363e089151e488a19d3c97070b24851d8f97efdcc5fb"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/Information to gather.docx",
+      "bytes": 12758,
+      "sha256": "bd83bf8efbac1105fdfb41f7f6d4f4b85e52f220c3d56166eb4ece993220b7cf"
+    },
+    {
+      "path": "99-original-docx/Quantisation implementations/llama.cpp quantisation/Tests to run.docx",
+      "bytes": 12257,
+      "sha256": "bbeec2c4d96497c9de83e4c76c17edb4603adc1a420259ff0e6026a0d60c094b"
+    },
+    {
+      "path": "99-original-docx/README.md",
+      "bytes": 642,
+      "sha256": "810f9bb2b42519cdfdb8828d253dae997d4c9d7a2bd0340156e783b38b323593"
+    },
+    {
+      "path": "99-original-docx/Sitesto help with research.docx",
+      "bytes": 12879,
+      "sha256": "b12632c7c05b8dd3adad725e7d33c01b393f834645852463cb7180fb635d374d"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 1264,
+      "sha256": "e00b478fa8c37cde7af78cfbc9204b259acf8e75a85f31f27a1049e5f7fb0348"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5046,
+      "sha256": "2d90a41a80cb735d190107ee8303cd51dfef05a307aa53c399e9d397daaee21b"
+    }
+  ],
+  "repository_note": "Git stores curated notes, written Markdown extracts, provenance records, and an archive notice. Exact DOCX and PNG binaries remain in the controlled ZIP."
+}
