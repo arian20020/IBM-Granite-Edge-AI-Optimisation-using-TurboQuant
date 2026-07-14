@@ -9,19 +9,27 @@ Use one folder per active requirement only when the RTM points to a requirement-
 
 Requirement evidence READMEs must follow the [Evidence Record Template](../templates/Evidence-Record-Template.md).
 
-Each record should contain:
+Each record must contain:
 
 - the exact requirement statement;
 - acceptance criteria and verification method;
-- implementation and test links;
+- authoritative implementation, document, test or experiment links;
 - pass, fail, blocked or partially verified status;
-- commit or pull-request reference;
+- commit or pull-request references;
 - validator and validation date;
-- known gaps or limitations.
+- traceability, limitations and change-control instructions.
 
-## Direct-file example
+## Current evidence packs
 
-`G-M01` uses `docs/planning/Project-Definition-v1.md` as its direct authoritative evidence. Related work-package and engineering-practice evidence packs cross-reference that document instead of copying it.
+- [G-M02 — Versioned MoSCoW requirements baseline](G-M02/README.md)
+  - [MoSCoW v1.2 review checklist](G-M02/MoSCoW-v1.2-Review-Checklist.md)
+
+## Direct-file examples
+
+- `G-M01` uses [`docs/planning/Project-Definition-v1.md`](../../planning/Project-Definition-v1.md) as its direct authoritative evidence.
+- Some research requirements point directly to controlled experiment or processed-result locations rather than to a requirement folder.
+
+Related work-package and engineering-practice evidence packs must cross-reference the authoritative source instead of copying it.
 
 ## Evidence rules
 
