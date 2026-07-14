@@ -1,6 +1,6 @@
 # Evidence Template Guidance
 
-**Current template:** [Evidence Record Template v1.1](Evidence-Record-Template.md)  
+**Current template:** [Evidence Record Template v1.1.1](Evidence-Record-Template.md)  
 **Effective from:** 2026-07-14  
 **Revision history:** [Evidence Template Revision History](Evidence-Template-Revision-History.md)
 
@@ -16,29 +16,31 @@ Use the common template for requirement, work-package, engineering-practice and 
 6. Link to the authoritative document, code, test, experiment, log, screenshot, manifest, checksum, commit or pull request.
 7. Do not copy the same authoritative artefact into several evidence folders.
 8. State precisely what the evidence proves and what it does not prove.
-9. Complete each validation check before setting the validation state to `Validated`.
+9. Complete each validation check before setting the controlled RTM Validation field to `Validated`.
 10. Record unresolved gaps honestly as limitations, blockers or follow-up work.
 11. Record revalidation triggers so later changes cannot silently invalidate the claim.
 12. Increase the evidence-record version whenever the claim, evidence set, validation conclusion or controlled statement changes materially.
 
-## Controlled status rules
+## Controlled status source of truth
 
-The three status fields describe different things:
+The controlled RTM remains authoritative for status and validation. Evidence records must mirror it rather than define a second status system.
 
-- **Working status** describes whether the deliverable exists or work is blocked.
-- **Validation state** describes how completely the evidence has been reviewed against the criteria.
-- **Effective status** is the combined project status and must follow the table below.
-
-| Working status | Validation state | Effective status |
+| Field | Allowed values | Rule |
 |---|---|---|
-| Not Started | Not Validated | Not Started |
-| In Progress | Not Validated | In Progress |
-| Implemented | Not Validated | Implemented |
-| Implemented | Partially Validated | Partially Verified |
-| Implemented | Validated | Verified |
-| Blocked | Any | Blocked |
+| Working status | Not Started / In Progress / Implemented / Partially Verified / Verified / Blocked | Copy the current controlled RTM value. Do not promote it locally in the evidence README. |
+| Validation state | Not Validated / Validated | Copy the current controlled RTM value. Use `Validated` only after the controlled criteria and evidence have been reviewed. |
+| Effective status | Not Started / In Progress / Implemented / Partially Verified / Verified / Blocked | Copy the RTM-calculated or RTM-controlled value. Resolve any discrepancy in the RTM and then update the evidence record. |
 
-Do not use `Verified` merely because a document, folder, code change or test output exists. Verification requires an implemented deliverable and completed validation against the controlled criteria.
+A validation review may conclude `Partially Validated` in narrative form, but this is not a third controlled RTM Validation value. Until the required criteria are complete, the RTM Validation field remains `Not Validated` unless a later approved RTM version explicitly changes the vocabulary.
+
+A task is Verified only when:
+
+1. the required implementation or deliverable exists;
+2. the planned evidence exists;
+3. the Definition of Done or acceptance criteria have been checked;
+4. the controlled RTM Validation field is `Validated`.
+
+Do not use `Verified` merely because a document, folder, code change or test output exists.
 
 ## Criterion-to-evidence mapping
 
@@ -50,7 +52,7 @@ Every required criterion must show:
 - the evidence ID or IDs supporting that result;
 - a reviewer note when interpretation is needed.
 
-A criterion marked Pass without linked evidence is incomplete. A required criterion marked Pending or Fail prevents full validation unless the controlled acceptance rule explicitly permits partial validation.
+A criterion marked Pass without linked evidence is incomplete. A required criterion marked Pending or Fail prevents full validation unless the controlled acceptance rule explicitly permits a different outcome.
 
 ## Claim boundaries
 
@@ -103,17 +105,18 @@ Revalidate a record when a change could affect the evidence claim, including cha
 
 Revalidation can confirm the existing conclusion, downgrade it, replace it with a superseding record or identify a new gap.
 
-## Migration from template v1.0
+## Migration from earlier template versions
 
-Existing evidence records created and validated under template v1.0 are not automatically invalidated.
+Existing evidence records created and validated under template v1.0 or v1.1 are not automatically invalidated.
 
 Apply these rules:
 
-1. All new evidence records must use v1.1.
-2. An existing record must migrate to v1.1 when it is materially changed, revalidated or superseded.
-3. All active Verified records should be checked for v1.1 compliance during the final release audit.
+1. All new evidence records must use v1.1.1.
+2. An existing record must migrate to the current template when it is materially changed, revalidated or superseded.
+3. All active Verified records should be checked for current-template compliance during the final release audit.
 4. High-risk or release-critical records may be migrated earlier.
 5. Do not rewrite historical conclusions merely to make the layout look newer.
-6. Preserve the Git history and state the previous record or template version in the metadata.
+6. Preserve Git history and state the previous record or template version in the metadata.
+7. Template v1.1 records should correct their status fields to the RTM vocabulary when next reviewed.
 
 A folder containing only an empty or generic README is preparation, not completion evidence.
