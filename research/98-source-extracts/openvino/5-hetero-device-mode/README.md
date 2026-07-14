@@ -1,13 +1,3 @@
----
-title: "5. HETERO DEVICE mode"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "OpenVINO/5. HETERO DEVICE mode.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 ## **HETERO Device Mode**
 
 OpenVINO’s HETERO device mode allows one AI model to be divided across multiple supported hardware devices. Different parts of the model are assigned to the devices that can execute them most effectively.

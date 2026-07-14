@@ -1,13 +1,3 @@
----
-title: "atomicmilkshake repo final analysis"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/atomicmilkshake lla-cpp-turboquant/atomicmilkshake repo final analysis.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 Repository: llama-cpp-turboquant
 
 URL: <https://github.com/atomicmilkshake/llama-cpp-turboquant>
@@ -125,11 +115,11 @@ Build command:
 git clone <https://github.com/atomicmilkshake/llama-cpp-turboquant.git>  
 cd llama-cpp-turboquant  
 git checkout feature/triattention  
-  
+
 cmake -S . -B build \`  
 -DGGML_CUDA=ON \`  
 -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89"  
-  
+
 cmake --build build --config Release --target llama-server -j
 
 Run command:

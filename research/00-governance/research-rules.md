@@ -1,11 +1,3 @@
----
-title: "Research Evidence Rules"
-status: "curated"
-version: "2.0"
-last_updated: "2026-07-14"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
----
-
 # Research evidence rules
 
 ## 1. Separate claims from evidence

@@ -1,13 +1,3 @@
----
-title: "spiritbuun final info"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/spiritbuun buun-llama-cpp/spiritbuun final info.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 **Repository:** buun-llama-cpp  
 **URL:** <https://github.com/spiritbuun/buun-llama-cpp>  
 **Owner:** spiritbuun  

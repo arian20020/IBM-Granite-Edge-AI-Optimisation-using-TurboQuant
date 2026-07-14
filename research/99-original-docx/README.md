@@ -1,17 +1,7 @@
----
-title: "Original DOCX Archive Pointer"
-status: "preservation-guide"
-version: "1.1"
-last_updated: "2026-07-14"
-source_documents:
-  - "All supplied research DOCX files"
-verification_note: "Exact DOCX and extracted PNG files are retained in the controlled provenance ZIP; Git contains the archive record and checksums."
----
-
 # Original DOCX archive pointer
 
-This Git folder does **not** contain the 44 DOCX binaries. The exact, unchanged source documents and their extracted PNG assets are retained in `IBM-Granite-TurboQuant-Research-GitHub-Ready-v2-Provenance.zip`.
+The Git repository does not duplicate the 44 DOCX binaries. The exact original Word files and 56 extracted PNG diagrams are retained in:
 
-Use [`BINARY-ARCHIVE-NOTICE.md`](BINARY-ARCHIVE-NOTICE.md) for the archive policy and retrieval record. SHA-256 checksums and original relative paths are recorded in `../00-governance/source-register.csv` and `../00-governance/package-manifest.json`.
+`IBM-Granite-TurboQuant-Research-GitHub-Ready-v3-Detailed.zip`
 
-Do not replace the controlled archive with edited copies. Add new findings to the curated Markdown folders and update the provenance records when a source changes.
+The full written content is available in [`../98-source-extracts`](../98-source-extracts/README.md), and the main detailed reading documents are in folders `01` to `07`. Original paths and SHA-256 checksums are recorded in [`../00-governance/source-register.csv`](../00-governance/source-register.csv).

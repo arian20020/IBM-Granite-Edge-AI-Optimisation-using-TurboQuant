@@ -1,10 +1,3 @@
----
-title: "External Link Check Report"
-status: "completed-audit"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # External link check report
 
 Public source links in the new catalogue were checked during the provenance rebuild on **2026-07-14**. “Verified” means the page or repository resolved during the review; it does not guarantee that its content will remain unchanged.

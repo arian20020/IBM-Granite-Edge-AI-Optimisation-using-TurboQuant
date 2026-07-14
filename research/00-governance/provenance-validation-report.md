@@ -1,10 +1,3 @@
----
-title: "Provenance Validation Report"
-status: "passed"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Provenance validation report
 
 ## Automated checks

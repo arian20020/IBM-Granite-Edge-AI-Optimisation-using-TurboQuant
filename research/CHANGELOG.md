@@ -1,10 +1,3 @@
----
-title: "Research Package Change Log"
-status: "maintained"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Research package change log
 
 ## Version 2.0 — 14 July 2026

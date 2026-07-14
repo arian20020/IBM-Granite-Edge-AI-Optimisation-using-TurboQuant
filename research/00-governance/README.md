@@ -1,10 +1,3 @@
----
-title: "Research Governance"
-status: "curated"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Research governance
 
 This directory controls completeness, evidence language, provenance and GitHub import.
@@ -19,7 +12,9 @@ This directory controls completeness, evidence language, provenance and GitHub i
 - [`link-check-report.md`](link-check-report.md): source availability status on the access date.
 - [`provenance-validation-report.md`](provenance-validation-report.md): automated checks.
 - [`completeness-report.md`](completeness-report.md): preservation summary.
-- [`package-manifest.json`](package-manifest.json): SHA-256 checksums for the whole research package.
+- [`v3-git-tree-manifest.json`](v3-git-tree-manifest.json): SHA-256 checksums for the detailed version-3 Git research tree.
+- [`v3-validation.json`](v3-validation.json): automated version-3 validation results.
+- [`v3-revision-report.md`](v3-revision-report.md): problems corrected in this rebuild.
 - [`github-import.ps1`](github-import.ps1): Windows PowerShell import helper.
 
 ## Control principle

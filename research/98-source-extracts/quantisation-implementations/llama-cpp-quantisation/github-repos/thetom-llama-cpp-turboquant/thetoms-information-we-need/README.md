@@ -1,13 +1,3 @@
----
-title: "TheToms information we need"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/TheTom llama-cpp-turboquant/TheToms information we need.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 **Repository:** llama-cpp-turboquant  
 **URL:** [https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant?utm_source=chatgpt.com)  
 **Owner:** TheTom  
@@ -105,17 +95,13 @@ PDF
 okay so im reading the polar quant article and did a quick, skim. So from my surface level understanding. We transform coordinates of the kv vectors into polar coordinates with an angle. We then twist the vector using the angle and compress the angle. Is this correct?
 
 
-
 > **Archived image:** `21fac5df90ef3b7b3fdb48765f76fe8c42744938.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
-
 
 
 random precntioning is mentioned many times in the report, and i will show you everything mentioned and i want you to disect everything so i am able to understand it, as well as visualisation images that im going to send:RandomPreconditioning. We apply a random rotation to the vectors before quantization, which preserves inner products while randomizing the distribution of each vector. This preconditioning causes the angles in polar coordinates to concentrate, allowing us to quantize them with high precision using small bit-widths. We derive the analytical distribution of angles after preconditioning and leverage this insight to construct an optimized quantization codebook, minimizing quantization error. RandomPreconditioning Acritical stepinthePolarQuantalgorithmisrandompreconditioningof theKVvectorspriorto quantization.This involvesapplyingarandomprojectionmatrixtotheembeddingvectorsbefore quantizingthem. Toanalyzethealgorithmeffectively,werelyonspecific factsandpropertiesof multivariatenormalrandomvariables,whichareoutlinedbelow. Fact 1. Foranypositive integerd, ifx∈Rd is a zeromeanunit variance isotropicGaussian randomvariableindimensiond, i.e.,x∼N(0,Id), thenits2-norm,denotedbyr:=∥x∥2, follows ageneralizedgammadistributionwiththefollowingprobabilitydensityforanyr≥0: fR(r)= 2 2d/2·Γ(d/2) rd−1exp−r2/2 TheproofofFact1isprovidedinAppendixA.Wealsousethefollowingfactsaboutthemoments oftheunivariatenormaldistribution. Fact2(MomentsofNormalRandomVariable). Ifxisanormal randomvariablewithzeromean andunitvariancex∼N(0,1), thenforanyintegerℓ,Ex∼N(0,1) \|x\|ℓ =2ℓ/2Γ((ℓ+1)/2)/√π. PolarQuantalgorithmappliesarandompreconditioningpriortoquantization.Thispreconditioning involvesmultiplyingeachembeddingvectorbyasharedrandomsketchmatrixSwithi.i.d. normal entries. BytheJohnson-Lindenstrauss(JL) lemma\[10\], thispreconditioningpreservesthenorms and inner products of the embeddingvectorswithminimal distortion. Akeypropertyof this preconditioning,whichwewill leverage inour lateranalysis, is that theembeddingvectorsafter preconditioningfollowamultivariatenormaldistribution.Thisisformalizedinthefollowingfact. Fact 3. For any vectorx∈Rd if S∈Rm×d is a randommatrixwith i.i.d. normal entries Si,j∼N(0,1), thenthevectorS·xhasmultivariatenormaldistributionS·x∼N(0,∥x∥2 ·Im). Thefollowinglemmaestablishesthedistributionof thepolarangleofapoint(x,y) indimension 2,wherethexandycoordinatesareindependentsamplesfromtheEuclideannormofmultivariate normalrandomvariables. 4 Lemma 1. For any positive integer d, if x,y ≥ 0 are two i.i.d. random variables with generalized gamma distribution with probability density function fZ(z) = 2 2d/2·Γ(d/2) zd−1 exp−z2/2 , then the angle variable θ := tan−1(y/x) follows the probability density function: fΘ(θ) = Γ(d) 2d−2 · Γ(d/2)2 · sind−1(2θ). Additionally, E\[Θ\] = π/4 and Var(Θ) = O(1/√d). See Appendix B for a proof 3.2 Distribution of Polar Angles Under Random Preconditioning One of our primary objectives is to eliminate the need for explicit normalization (e.g., mini mum/maximum values) of the KV cache data prior to quantization, thereby reducing quantization overhead. To achieve this, our algorithm applies random preconditioning to the embedding vectors. This preconditioning involves multiplying each embedding vector by a shared random sketch matrix S with i.i.d. normal entries. By the Johnson-Lindenstrauss (JL) lemma \[10\], this preconditioning preserves the norms and inner products\* of the embedding vectors with minimal distortion. A key property of this preconditioning, which we will leverage in our later analysis, is that the embedding vectors after preconditioning follow a multivariate normal distribution. This has been formalized in Fact 3. During the preconditioning stage, the sketch is applied to all embedding vectors in the KV cache, allowing the analysis of PolarQuant to effectively treat the vectors being quantized as samples from a multivariate normal distribution. So for the analysis and design of PolarQuant we can assume without loss of generality that our goal is to quantize a random vector with multivariate Gaussian distribution. A critical insight is that the distribution of angles after random preconditioning be comes predictable and can be analytically derived, which enables the design of optimal quantization schemes. The polar distribution of a Gaussian vector is derived in the following lemma. Lemma 2 (Distribution of a Gaussian Vector Under Polar Transformation). For an integer power of two d, suppose that x ∼ N(0,Id) is a random zero mean isotropic Gaussian random variable in dimension d. Let ψd(x) := ψ(1),ψ(2),...ψ(log2d) denote the set of polar angles obtained by applying the polar transformation defined in Definition 1 on x. Denote the radius of x by r = ∥x∥2. The joint probability density function for r,ψ(1),ψ(2),...ψ(log2d) is the following: log2 d fR,Ψd (r,ψd(x)) = fR(r) · ℓ=1 fΨ(ℓ) ψ(ℓ) , (1) where fR(r) is the p.d.f. defined in Fact 1, fΨ(1) is p.d.f. of the uniform distribution over \[0,2π)d/2: fΨ(1) : \[0,2π)d/2 → (2π)−d/2, \*For our implementation, we use random rotation matrices (square matrices P satisfying P⊤P = I), which preserve the norms and inner products exactly while removing the independence across projected coordinates which we use for our theoretical results. 6 and for every ℓ ∈ {2,3,...log2 d} the p.d.f. fΨ(ℓ) is the following: fΨ(ℓ) : \[0,π/2\]d/2ℓ → R+ d/2ℓ fΨ(ℓ)(ψ) = i=1 Γ(2ℓ−1) 22ℓ−1−2 · Γ(2ℓ−2)2 sin(2ℓ−1−1)(2ψi). Proof. The proof is by induction on d. First for the base of induction we prove the result in dimension d = 2. So we prove that for a 2-dimensional random Gaussian vector y = (y1,y2) ∈ R2 if (r, θ) is the polar representation of this vector then following holds: fR,Θ(r,θ) = 1 2π ·rexp−r2/2 , To prove this, let fY (y) be the probability density function of the vector random variable y. We know y has a normal distribution so we have: fR,Θ(r,θ) = r · fY (y) = r · 1 2πe−y2 1+y2 2 2 = 1 2π ·re−r2 2 , where the first equality above follows from the change of variable from (y1,y2) to r = θ = tan−1(y2/y1). This proves the base of induction for d = 2. y2 1 + y2 2 and Now we prove the inductive step. Suppose that the lemma holds for dimension d/2 and we want to prove it for dimension d. Denote θ := ψ(log2d), ϕ1 := ψ(l) 1:d/2l+1 log2 d−1 ℓ=1 log2 d−1 , ϕ2 := ψ(l) d/2ℓ+1+1:d/2ℓ ℓ=1 r1 := x1:d/2 , and r2 := xd/2+1:d . Essentially we sliced all the angle vectors ψ(ℓ) in half and named the collection of first half vectors ϕ1 and the collection of second halves ϕ2. Using the definition of ψ(ℓ)’s in Definition 1, ϕ1 is exactly the polar transformation of x1:d/2, and ϕ2 is the polar transformation of xd/2+1:d, so by the definition of ψd(x) in the lemma statement we have ϕ1 =ψd/2(x1:d/2) and ϕ2 = ψd/2(xd/2+1:d). Thus, we can write: fR,Ψd (r,ψd(x)) = fR,Θ,Φ1,Φ2 (r,θ,ϕ1,ϕ2) =r·fR1,R2,Φ1,Φ2 (r cosθ,r sinθ,ϕ1,ϕ2) =r·fR1,Φ1 (rcosθ,ϕ1) · fR2,Φ2 (rsinθ,ϕ2) =r·fR,Ψd/2 (r1,ϕ1) · fR,Ψd/2 (r2,ϕ2), (2) where the third line above follows from the change of variable from (r1,r2) = (rcosθ,rsinθ) to r = r2 1+r2 2 and θ = tan−1(r2/r1). In the fourth line above we used the definition of θ = ψ(log2 d) = tan−1 ∥xd/2+1:d ∥2 ∥x1:d/2 ∥2 from Definition 1. Now if we let fΨd/2 (ϕ1) := log2d−1 ℓ=1 fΨ(ℓ) ψ(ℓ) 1:d/2ℓ+1 and fΨd/2 (ϕ2) := log2d−1 ℓ=1 fΨ(ℓ) ψ(ℓ) , d/2ℓ+1+1:d/2ℓ , by the inductive hypothesis we have fR,Ψd/2 (r1,ϕ1) = 2 2d/4·Γ(d/4) rd/2−1 1 exp−r2 1/2 · fΨd/2 (ϕ1) and 7 fR,Ψd/2 (r2,ϕ2)= 2 2d/4·Γ(d/4) rd/2−1 2 exp−r2 2/2 ·fΨd/2 (ϕ2).PluggingthesevaluesintoEq. (2)gives: fR,Ψd (r,ψd(x))=4·(r1r2)d−1 2d/2Γ(d/4)2 exp−r2/2 ·fΨd/2 (ϕ1)·fΨd/2 (ϕ2) =2rd−1·sind/2−1(2θ) 23d/2−2·Γ(d/4)2 e−r2/2·fΨd/2 (ϕ1)·fΨd/2 (ϕ2) =fR(r)· Γ(d/2)·sind/2−1(2θ) 2d/2−2·Γ(d/4)2 fΨd/2 (ϕ1)·fΨd/2 (ϕ2) =fR(r)·fΨd (ψd(x)), (3) whichcompletestheinductiveproofofthislemma. Lemma2demonstratesthattheanglesofGaussianvectors inpolarcoordinateshaveindependent distributions,astheprobabilitydensityfunctionisseparable.Moreover,allangleswithinthesame level share identicaldistributions. Specifically, at level ℓall angles followthedistributionψ(ℓ) i ∼ d/2ℓ i=1 Γ(2ℓ−1) 22ℓ−1−2·Γ(2ℓ−2)2 sin2ℓ−1−1 2ψ(ℓ) i .Thisdensitybecomesincreasinglyconcentratedaroundπ/4, particularlyathigherlevelsℓ.Thispropertyishighlybeneficial forreducingquantizationerrorfor theanglesathigherlevels. PolarQuant startsbyfirst applying randompreconditioning, thentransforming thevectors into polar coordinates, andfinallyquantizingeachangle. SinceLemma2 shows that theangles in polar coordinatesare independent randomvariables, eachanglecanbequantized independently tominimizethetotalmeansquarederror. Jointlyquantizingmultipleanglecoordinatesoffersno additionalbenefitduetotheir independence,makingourapproachbothcomputationallyefficient andeffective. Therefore,we can focus ononeangleat level l anddesignoptimal quantization schemeforitsoastominimizethemeansquarederror. Consideranangleψ(ℓ) i atsomelevelℓ.AccordingtoLemma2,itsvaluesliewithintherange\[0,π/2\] forℓ≥2andforℓ=1ittakesvaluesintherange\[0,2π)withaprobabilitydensityfunctiongiven byfℓ(ψ(ℓ) i ):= Γ(2ℓ−1) 22ℓ−1−2·Γ(2ℓ−2)2 sin2ℓ−1−1 2ψ(ℓ) i .Thegoalofquantizationtob-bitsistopartitionthe range \[0,π/2\] (or \[0,2π) incaseof ℓ=1) into2b intervalsI(ℓ) 1 ,I(ℓ) 2 ,···I(ℓ) 2b andfindcorresponding centroidsθ(ℓ) 1 ,θ(ℓ) 2 ,...θ(ℓ) 2b suchthatthefollowingismeansquarederrorisminimized: E ψ(ℓ) i ∼fℓ(ψ(ℓ) i )    j∈\[2b\]:ψ(ℓ) i ∈I(ℓ) j ψ(ℓ) i −θ(ℓ) j 2   . (4) Thisproblemisacontinuousanalogof thek-meansclusteringproblemindimension1. Sincewe haveanexplicit formulafor thep.d.f. ofangleψ(ℓ) i ∼fℓ(ψ(ℓ) i )= Γ(2ℓ−1) 22ℓ−1−2·Γ(2ℓ−2)2 sin2ℓ−1−1 2ψ(ℓ) i theoptimalintervalpartitionsandcentroidsforEq.(4)canbeefficientlycomputedusingnumerical 8 Algorithm1PolarQuant 1: input: embeddingX∈Rn×d,preconditionmatrixS∈Rd×d,bitwidthb //CartesiantoPolartransform 2:Ri,Ψ(1) i ,...,Ψ(log2d) i ←Polar(Xi ·S)fori∈\[n\] //CodebookConstruction 3: Findpartitionintervalsandcentroids(I(ℓ) k ,θ(ℓ) k )k∈\[2b\] ofΨ(ℓ)∈Rn×(d/2ℓ) thatminimizethecost inEq. (4)forℓ∈\[log2d\] (SeeSection4.1fordetails) //AnglesQuantization 4: J(ℓ) i ←Quant Ψ(ℓ) i ,(I(ℓ) k ,θ(ℓ) k )k∈\[2b\] fori∈\[n\]andℓ∈\[log2d\] 5: output:R∈Rn×1,J(1)∈\[2b\]n×d/2,...,J(log2d)∈\[2b\]n×1,(I(ℓ) k ,θ(ℓ) k )k∈\[2b\] 6:ProcedurePolar(y) 7: r(0)←y∈Rd 8: forℓ=1,...,log2ddo 9: forj=1,...,d/2ℓdo 10: ψ(ℓ) j ←tan−1 r(ℓ−1) 2j /r(ℓ−1) 2j−1 11: r(ℓ) j ← r(ℓ−1) 2j−1:2j 2 12: endfor 13: endfor 14: output: r(log2d),ψ(1),...,ψ(log2d) 15:ProcedureQuant ψ,(Ik,θk)k∈\[2b\] 16: ji←argmink∈\[2b\] \|θk−ψi\| fori∈\[d′\]s.t.ψ∈Rd′ 17: output: j 18:ProcedureDeQuant(r,(j(ℓ))ℓ∈\[log2d\],(θ(ℓ) k )k∈\[2b\],S) 19: forℓ=log2d,...,1do 20: forj=1,...,d/2ℓdo 21: i←j(ℓ) j 22: r(ℓ−1) 2j−1←r(ℓ) j ·cosθ(ℓ) i 23: r(ℓ−1) 2j ←r(ℓ) j ·sinθ(ℓ) i 24: endfor 25: endfor 26: output: r(0) ·S⊤ methods. Forexample,onecanrunk-meansclusteringonthegatheredanglevalueswhichcanbe consideredsamples fromthedistribution. Thisapproachensuresminimal quantizationerror for eachangleindependentlyandtheoverallreconstructionerroraswell. WeprovideapseudocodeofPolarQuant inAlgorithm1. Ourmainresultanderrorboundare provedinthefollowing
 
 
-
 > **Archived image:** `21fac5df90ef3b7b3fdb48765f76fe8c42744938.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
-
 
 
 okay lets disect this further. So explain figure 1, but in each stepin figure 1 explain it in a more focused deeper way so i understand exactly what is going on, and exactly hw polar quant implements it using their notations and formulas.
@@ -131,9 +117,7 @@ PDF
 okay lets move into the actual turboquant article, so weve done polar quant and qjl. From my understanding polarquant is not used in the originl turboquant paper, its a different approach for step 1 right, this is what ive gone through so ffar regarding turboquant:
 
 
-
 > **Archived image:** `21fac5df90ef3b7b3fdb48765f76fe8c42744938.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
-
 
 
 i feel like with this one, we should at least try to compress something whilst keeping quality at a maximum whilst also keeping right below the ram requirements
@@ -184,7 +168,7 @@ Read requested context length and selected profile
 \|  
 v  
 Estimate total memory  
-  
+
 model weights  
 +  
 KV cache  
@@ -382,7 +366,7 @@ Q5/Q4/Q8 GGUF
 llama.cpp  
 +  
 conservative TurboQuant KV cache  
-  
+
 Option B:  
 OpenVINO INT8  
 +  
@@ -439,9 +423,9 @@ Q5/Q4 GGUF
 llama.cpp  
 +  
 TurboQuant  
-  
+
 or  
-  
+
 OpenVINO INT8/INT4  
 +  
 normal KV cache  
@@ -604,71 +588,71 @@ profile-compatible configuration
 
 GGUF  
 ------------------------------------------------------------  
-  
+
 Fits:  
 Quality -\> Existing weights + standard llama.cpp  
 + F16/Q8 KV cache  
-  
+
 Balanced -\> Existing weights + llama.cpp  
 + conservative TurboQuant  
-  
+
 Efficiency -\> Validated OpenVINO GGUF route where available  
 + optional OpenVINO TurboQuant  
 otherwise lower-memory llama.cpp TurboQuant  
-  
+
 Does not fit:  
 Quality -\> Reduce context or compress KV cache first  
 then use highest-quality GGUF variant that fits  
-  
+
 Balanced -\> Q5/Q4 GGUF + llama.cpp + TurboQuant  
-  
+
 Efficiency -\> Low-bit GGUF + aggressive validated TurboQuant  
 or request HF/OpenVINO source for INT4 OpenVINO
 
 HUGGING FACE  
 ------------------------------------------------------------  
-  
+
 Fits:  
 Quality -\> Create high-precision GGUF or OpenVINO IR  
-  
+
 Balanced -\> Q5/Q4/Q8 GGUF + llama.cpp + TurboQuant  
 or OpenVINO INT8  
-  
+
 Efficiency -\> OpenVINO INT4/INT8  
 + best Intel device  
 + optional TurboQuant  
-  
+
 Does not fit:  
 Quality -\> Q8/INT8 first  
 + conservative TurboQuant if necessary  
-  
+
 Balanced -\> Q5/Q4 GGUF + TurboQuant  
 or OpenVINO INT8/INT4  
-  
+
 Efficiency -\> OpenVINO INT4 + optional TurboQuant  
 fallback Q4 GGUF + TurboQuant
 
 OPENVINO IR  
 ------------------------------------------------------------  
-  
+
 Fits:  
 Quality -\> Run imported IR as-is  
 + normal OpenVINO KV cache  
-  
+
 Balanced -\> Existing IR + OpenVINO CPU/GPU  
 + optional moderate TurboQuant  
-  
+
 Efficiency -\> Best Intel device  
 + further INT4 compression if supported  
 + optional TurboQuant  
-  
+
 Does not fit:  
 Quality -\> Preserve precision  
 + reduce context or conservatively compress KV cache  
-  
+
 Balanced -\> Moderate INT8/INT4 compression  
 + optional TurboQuant  
-  
+
 Efficiency -\> INT4 + best Intel device  
 + TurboQuant only if measured to help
 
@@ -723,7 +707,7 @@ Backend:
 llama.cpp CPU  
 llama.cpp SYCL  
 OpenVINO backend where supported  
-  
+
 KV cache:  
 F16  
 Q8_0  
@@ -736,11 +720,11 @@ Backend:
 OpenVINO CPU  
 OpenVINO GPU  
 OpenVINO NPU  
-  
+
 Weight precision:  
 existing precision  
 INT8/INT4 conversion where supported  
-  
+
 KV cache:  
 OpenVINO standard  
 experimental TurboQuant where supported
@@ -839,7 +823,7 @@ So the simplified rule is:
 
 Lenovo:  
 Main development and initial GGUF/TurboQuant testing  
-  
+
 Intel laptop:  
 OpenVINO testing and final Intel validation
 
@@ -903,13 +887,13 @@ You cannot use Lenovo results to claim Intel performance.
 
 Lenovo RTX 4060  
 -\> CUDA  
-  
+
 Intel integrated GPU  
 -\> SYCL or OpenVINO  
-  
+
 Lenovo Ryzen CPU  
 -\> AMD CPU kernels  
-  
+
 Intel CPU  
 -\> Intel CPU kernels
 
@@ -939,7 +923,7 @@ For example:
 
 Lenovo:  
 System RAM + separate NVIDIA VRAM  
-  
+
 Intel AI PC:  
 System RAM shared with integrated GPU
 
@@ -1092,7 +1076,7 @@ TQ4_1S GGUF model
 The commands are:
 
 llama-quantize model.f16.gguf model.tq4_1s.gguf TQ4_1S  
-  
+
 llama-quantize model.f16.gguf model.tq3_1s.gguf TQ3_1S
 
 These formats are additions made by this fork and are not standard portable GGUF formats that every normal llama.cpp build will necessarily understand.
@@ -1344,7 +1328,7 @@ That means:
 
 CUDA TurboQuant  
 → available for your Lenovo testing  
-  
+
 Intel SYCL TurboQuant  
 → currently incomplete and experimental
 
@@ -1359,7 +1343,7 @@ Therefore, the safest project architecture is currently:
 GGUF + llama.cpp + TurboQuant+  
 → test through CPU/CUDA first  
 → investigate SYCL separately on Intel  
-  
+
 OpenVINO IR INT8/INT4  
 → use the normal OpenVINO/Optimum Intel route  
 → treat TurboQuant integration as a separate experiment
@@ -1613,7 +1597,7 @@ turboquant_plus
 → Why the method works  
 → Experimental evidence  
 → Quality and compression recommendations  
-  
+
 llama-cpp-turboquant  
 → C/C++ implementation  
 → GGUF model execution  
@@ -1626,25 +1610,25 @@ I recommend going through the repository in this order:
 
 1\. README.md  
 Understand what the fork claims to provide  
-  
+
 2. Companion configuration recommendations  
 Understand which cache combinations should be tested  
-  
+
 3. tests/test-turbo-quant.c  
 See the simplest correctness tests  
-  
+
 4. ggml/src/ggml-turbo-quant.c  
 Understand the codec itself  
-  
+
 5. src/llama-kv-cache.cpp  
 See how it is used by the model  
-  
+
 6. ggml/src/ggml-cuda/  
 See how it runs on your RTX 4060  
-  
+
 7. Issue \#120 and PR \#144  
 Understand the current Intel SYCL gap  
-  
+
 8. Companion benchmarks  
 Plan your own evaluation matrix
 
@@ -1656,10 +1640,10 @@ This repository could support three different project investigations:
 
 A. TurboQuant KV-cache compression  
 turbo4, turbo3 and turbo2  
-  
+
 B. TurboQuant+ GGUF weight compression  
 TQ4_1S and TQ3_1S  
-  
+
 C. Intel compatibility investigation  
 whether the successful CPU/CUDA implementation  
 can be completed or adapted for SYCL
@@ -1670,7 +1654,7 @@ Same Granite GGUF model
 Same prompt  
 Same context  
 Same generation settings  
-  
+
 Compare:  
 F16/F16  
 F16/Turbo4  
@@ -1843,7 +1827,7 @@ Supported custom offline weight formats:
 They are created using llama-quantize:
 
 llama-quantize.exe model-f16.gguf model-tq3.gguf TQ3_1S  
-  
+
 llama-quantize.exe model-f16.gguf model-tq4.gguf TQ4_1S
 
 The README describes these as approximately 3.5-bit and 4.5-bit formats. However, the current packed source structures occupy:
@@ -2058,7 +2042,7 @@ Therefore:
 
 Normal SYCL llama.cpp  
 → available  
-  
+
 TurboQuant+ SYCL  
 → incomplete and experimental
 
@@ -2144,13 +2128,13 @@ For the OpenVINO build on Intel, you would additionally need:
 **Build command:**
 
 git clone --branch feature/turboquant-kv-cache <https://github.com/TheTom/llama-cpp-turboquant.git>  
-  
+
 cd llama-cpp-turboquant  
-  
+
 git checkout 4595fff0bbd15ee01663699b788eea70e7e1cd69  
-  
+
 cmake -S . -B build -DGGML_CUDA=ON  
-  
+
 cmake --build build --config Release -j
 
 The README provides the normal CUDA option -DGGML_CUDA=ON. The additional checkout step pins your experiments to a reproducible version.
@@ -2203,10 +2187,10 @@ Therefore, the correct status is:
 
 Standard Granite GGUF + llama.cpp:  
 Likely supported  
-  
+
 Granite GGUF + TurboQuant+:  
 Must be experimentally verified  
-  
+
 Granite + TurboQuant+ + Intel SYCL:  
 Not currently established
 
@@ -2627,10 +2611,10 @@ The safest project decision is:
 
 Use this repository  
 → GGUF + llama.cpp + TurboQuant prototype  
-  
+
 Use official OpenVINO tools/backend  
 → Intel/OpenVINO optimisation prototype  
-  
+
 Compare the two routes  
 → then investigate whether TurboQuant can be extended to Intel
 

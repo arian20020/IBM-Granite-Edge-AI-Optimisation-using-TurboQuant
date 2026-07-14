@@ -1,17 +1,7 @@
----
-title: "Full Source Extracts"
-status: "preservation-guide"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "All supplied research DOCX files"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
----
-
 # Full source extracts
 
-This folder contains one written Markdown extraction for every supplied DOCX. Where a source document contained an image, its original position is marked with an **Archived image** notice. The corresponding PNG is preserved in the controlled provenance ZIP and is not duplicated in Git.
+This folder contains a direct written Markdown extraction for every supplied DOCX file. It is the recovery layer used when a reader needs the exact detail behind a curated note.
 
-These files are included for traceability and detailed reading. They may contain repetition, earlier drafts, raw commands or formatting inherited from Word. Use the curated folders for the normal reading path.
+The Git repository does not duplicate the 56 extracted PNG files. Each original diagram position is represented by a visible **Diagram preserved in controlled v3 ZIP** marker. The PNG files and exact Word formatting remain in `IBM-Granite-TurboQuant-Research-GitHub-Ready-v3-Detailed.zip`.
 
-DOCX conversion can alter equation and layout presentation. Check the matching original in the controlled provenance ZIP whenever exact formatting matters; `../99-original-docx/BINARY-ARCHIVE-NOTICE.md` records where that archive is held.
+The main reading files are in folders `01` to `07`. Those files now retain substantially more of the original research rather than acting as brief summaries.

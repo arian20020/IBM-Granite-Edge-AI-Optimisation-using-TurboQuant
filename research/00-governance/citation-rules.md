@@ -1,10 +1,3 @@
----
-title: "Citation and Provenance Rules"
-status: "governance"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Citation and provenance rules
 
 ## 1. Use source IDs in research notes

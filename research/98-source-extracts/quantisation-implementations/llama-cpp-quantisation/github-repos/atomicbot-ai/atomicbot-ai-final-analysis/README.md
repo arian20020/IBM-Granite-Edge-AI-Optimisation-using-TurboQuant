@@ -1,13 +1,3 @@
----
-title: "AtomicBot AI final analysis"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/AtomicBot AI/AtomicBot AI final analysis.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 Repository: atomic-llama-cpp-turboquant  
 URL: <https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant>  
 Owner: AtomicBot-ai  

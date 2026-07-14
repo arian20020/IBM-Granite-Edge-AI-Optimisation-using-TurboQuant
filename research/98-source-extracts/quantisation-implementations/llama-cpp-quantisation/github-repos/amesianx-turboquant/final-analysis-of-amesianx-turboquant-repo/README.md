@@ -1,13 +1,3 @@
----
-title: "Final analysis of AmesianX TurboQuant Repo"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/AmesianX TurboQuant/Final analysis of AmesianX TurboQuant Repo.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 **Repository:** TurboQuant  
 **URL:** <https://github.com/AmesianX/TurboQuant>  
 **Owner:** AmesianX  
@@ -56,25 +46,25 @@ verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting 
 
 Normal GGUF + llama.cpp CPU  
 → Supported  
-  
+
 Normal GGUF + NVIDIA CUDA  
 → Supported  
-  
+
 TBQ/TBQP TurboQuant + NVIDIA CUDA  
 → Supported; main route  
-  
+
 TBQ/TBQP TurboQuant entirely on CPU  
 → Incomplete and not well validated  
-  
+
 TBQ/TBQP + AMD ROCm  
 → Not clearly validated  
-  
+
 TBQ/TBQP + Intel SYCL  
 → Not supported  
-  
+
 TBQ/TBQP + OpenVINO  
 → Not supported  
-  
+
 TBQ/TBQP + Intel NPU  
 → Not supported
 

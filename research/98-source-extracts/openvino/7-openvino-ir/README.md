@@ -1,13 +1,3 @@
----
-title: "7. OpenVINO IR"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "OpenVINO/7. OpenVINO IR.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 ## **OpenVINO IR as an Intermediate Representation**
 
 OpenVINO IR stands for **Intermediate Representation**. It is OpenVINO’s native, hardware-independent model format and is used as the middle stage between the original trained model and the final device-specific compiled model.
@@ -89,10 +79,10 @@ The XML file normally does not store all of these numerical values directly. Ins
 model.xml  
 Describes the model’s structure  
 and explains how the data should be used  
-  
+
 │  
 ▼  
-  
+
 model.bin  
 Stores the model’s weights  
 and other numerical constants
@@ -100,7 +90,7 @@ and other numerical constants
 A simple comparison is:
 
 XML file = model blueprint and instructions  
-  
+
 BIN file = numerical data and model weights
 
 Both files are required and must correspond to each other. If the BIN file is removed, renamed or separated from its matching XML file, OpenVINO will normally be unable to load the model correctly.

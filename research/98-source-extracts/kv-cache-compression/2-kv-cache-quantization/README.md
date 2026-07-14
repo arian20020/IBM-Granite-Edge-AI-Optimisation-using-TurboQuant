@@ -1,13 +1,3 @@
----
-title: "2. KV Cache Quantization"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "KV-Cache Compression/2. KV Cache Quantization.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 1.  Introduction to the KV-Cache Problem
 
 2.  What KV-Cache Quantisation Means
@@ -262,7 +252,7 @@ temporarily stored in full precision
 Conceptually:
 
 KV cache  
-  
+
 \[quantized older tokens\] \[recent full-precision tokens\]
 
 ## Per-Token Quantisation of the Value Cache
@@ -282,14 +272,14 @@ Older value vectors Most recent value vectors
 Suppose the residual capacity is four vectors. When a new vector, V8, is produced, the residual cache would become too large:
 
 Before V8 arrives:  
-  
+
 Quantized cache: Q(V1), Q(V2), Q(V3)  
 Full-precision cache: V4, V5, V6, V7
 
 V4 is therefore the oldest vector in the residual cache. It is quantized and moved into the compressed cache, while V8 enters the full-precision section:
 
 After V8 arrives:  
-  
+
 Quantized cache: Q(V1), Q(V2), Q(V3), Q(V4)  
 Full-precision cache: V5, V6, V7, V8
 
@@ -433,7 +423,7 @@ KIVI instead processes the quantised cache in small blocks. Each block is dequan
 
 Quantised cache:  
 \[Block 1\] \[Block 2\] \[Block 3\] \[Block 4\]  
-  
+
 Block 1 → dequantise → calculate → add result  
 Block 2 → dequantise → calculate → add result  
 Block 3 → dequantise → calculate → add result  

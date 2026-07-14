@@ -1,10 +1,3 @@
----
-title: "Research Provenance Repair Audit"
-status: "completed-audit"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Research provenance repair audit
 
 The earlier package preserved the research well, but it mainly showed **which DOCX produced which Markdown file**. This revision adds **where the information originally came from**.

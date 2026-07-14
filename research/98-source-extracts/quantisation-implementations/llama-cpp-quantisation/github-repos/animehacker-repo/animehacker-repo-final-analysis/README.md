@@ -1,13 +1,3 @@
----
-title: "Animehacker repo final analysis"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/animehacker repo/Animehacker repo final analysis.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 Repository: llama-turboquant  
 URL: <https://github.com/animehacker/llama-turboquant>  
 Owner: animehacker  
@@ -92,9 +82,9 @@ Build command:
 
 git clone <https://github.com/animehacker/llama-turboquant.git>  
 cd llama-turboquant  
-  
+
 call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 --force  
-  
+
 cmake -B build -G Ninja \`  
 -DLLAMA_OPENSSL=OFF \`  
 -DGGML_SYCL=ON \`  
@@ -102,7 +92,7 @@ cmake -B build -G Ninja \`
 -DCMAKE_CXX_COMPILER=icx \`  
 -DBUILD_SHARED_LIBS=ON \`  
 -DCMAKE_BUILD_TYPE=Release  
-  
+
 cmake --build build -j
 
 The repository’s Windows script uses the same oneAPI setup and SYCL build route.
@@ -110,7 +100,7 @@ The repository’s Windows script uses the same oneAPI setup and SYCL build rout
 Run command:
 
 set UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1  
-  
+
 build\bin\llama-server.exe \`  
 -m granite.gguf \`  
 -ngl 99 \`  

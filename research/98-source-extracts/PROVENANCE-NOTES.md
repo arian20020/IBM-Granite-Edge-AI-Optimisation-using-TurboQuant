@@ -1,10 +1,3 @@
----
-title: "Provenance Notes for Preserved Extracts"
-status: "audit-note"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Provenance notes for preserved extracts
 
 The files below this directory are lossless transformations of the supplied DOCX research. They may contain:

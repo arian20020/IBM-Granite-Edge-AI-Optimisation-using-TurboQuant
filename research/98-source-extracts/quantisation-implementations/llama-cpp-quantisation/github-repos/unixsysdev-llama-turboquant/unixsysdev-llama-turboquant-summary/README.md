@@ -1,13 +1,3 @@
----
-title: "unixsysdev llama-turboquant Summary"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/unixsysdev llama-turboquant/unixsysdev llama-turboquant Summary.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # **Repository analysis: unixsysdev/llama-turboquant**
 
 **Repository:** llama-turboquant  
@@ -120,7 +110,7 @@ Useful information:
 2-bit centroid indices  
 +  
 FP16 scale  
-  
+
 Stored but currently unused:  
 1-bit residual signs
 
@@ -186,13 +176,13 @@ Therefore:
 
 Random/WHT preconditioning  
 → Implemented in simplified 32-value blocks  
-  
+
 Scalar Gaussian codebook quantisation  
 → Implemented  
-  
+
 Full head-dimensional PolarQuant transformation  
 → Not implemented exactly  
-  
+
 QJL residual correction  
 → Not functionally implemented
 
@@ -260,10 +250,10 @@ If keys and values occupy approximately equal memory, compressing only keys by 4
 
 Total original size:  
 1 K + 1 V = 2 units  
-  
+
 Compressed:  
 0.219 K + 1 V = 1.219 units  
-  
+
 Overall reduction:  
 2 ÷ 1.219 ≈ 1.64×
 
@@ -323,31 +313,31 @@ The supported route summary is:
 
 Normal llama.cpp CPU  
 → Supported  
-  
+
 TQ3_0 + CPU  
 → Functional fallback  
-  
+
 Normal NVIDIA CUDA  
 → Supported  
-  
+
 TQ3_0 + CUDA  
 → Supported for K-cache benchmarking and inference  
-  
+
 Normal AMD HIP/ROCm  
 → Supported  
-  
+
 TQ3_0 + HIP/ROCm  
 → Implemented and benchmarked  
-  
+
 TQ3_0 + Vulkan  
 → Not implemented  
-  
+
 TQ3_0 + Intel SYCL  
 → Not implemented  
-  
+
 TQ3_0 + OpenVINO  
 → Not implemented  
-  
+
 TQ3_0 + Intel NPU  
 → Not implemented
 
@@ -388,13 +378,13 @@ However:
 
 Normal Granite GGUF  
 → Likely supported through inherited llama.cpp  
-  
+
 Granite + TQ3_0 K cache  
 → Not documented or tested  
-  
+
 Granite + TQ3_0 + Intel GPU  
 → Not supported  
-  
+
 Granite + TQ3_0 K + quantised V  
 → Blocked by the Flash Attention limitation
 
@@ -428,7 +418,7 @@ unixsysdev
 → Older original implementation  
 → Misleading QJL claim  
 → CPU/CUDA/HIP only  
-  
+
 animehacker  
 → Newer corrected format  
 → Honest PolarQuant-only description  
@@ -476,16 +466,16 @@ It is not a strong implementation candidate because:
 
 Main Intel backend  
 → No  
-  
+
 Vulkan candidate  
 → No  
-  
+
 SYCL candidate  
 → No; animehacker supersedes it  
-  
+
 CUDA/HIP research reference  
 → Moderate value  
-  
+
 Separate implementation test  
 → Not necessary
 

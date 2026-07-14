@@ -1,13 +1,3 @@
----
-title: "TiredOfEverything repo summary"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/TiredOfEverything llama-cpp-turboquant repo/TiredOfEverything repo summary.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # **Overall summary: TiredOfEverything/llama-cpp-turboquant**
 
 ## **Repository overview**
@@ -80,7 +70,7 @@ Turbo3 uses eight Lloyd–Max centroids. Each three-bit index is split into:
 
 Lower two bits  
 → qs array  
-  
+
 Upper one bit  
 → signs array
 
@@ -146,19 +136,19 @@ It implements a substantial version of the **first stage**, but not the complete
 
 PolarQuant-style random preconditioning  
 → Implemented  
-  
+
 128-value FWHT rotation  
 → Implemented  
-  
+
 Low-bit Lloyd–Max quantisation  
 → Implemented  
-  
+
 Physical KV-cache packing  
 → Implemented  
-  
+
 Norm correction  
 → Added as a practical enhancement  
-  
+
 Formal QJL residual correction  
 → Not used by the current active formats
 
@@ -217,7 +207,7 @@ The reported result for Turbo3 was:
 
 Old vector-kernel prefill  
 → approximately 631 tokens/s  
-  
+
 Dequantise + tensor-core MMA  
 → approximately 1,121 tokens/s
 
@@ -236,7 +226,7 @@ Examples include:
 Mode 1  
 First four and last four layers → q8_0  
 Middle layers → TurboQuant  
-  
+
 Mode 5  
 First two and last two layers → q8_0  
 Remaining layers → TurboQuant
@@ -248,7 +238,7 @@ This allows a balance between memory and quality:
 More q8_0 layers  
 → greater quality protection  
 → less compression  
-  
+
 More TurboQuant layers  
 → greater compression  
 → potentially greater quality risk
@@ -279,25 +269,25 @@ The fork inherited substantial Apple Metal TurboQuant work from TheTom’s imple
 
 Custom TurboQuant + NVIDIA CUDA  
 → Supported; main route  
-  
+
 Custom TurboQuant + Apple Metal  
 → Inherited implementation  
-  
+
 Custom TurboQuant + CPU  
 → Incomplete  
-  
+
 Custom TurboQuant + AMD ROCm  
 → Not clearly validated in this fork  
-  
+
 Custom TurboQuant + Vulkan  
 → No custom route found  
-  
+
 Custom TurboQuant + Intel SYCL  
 → No custom route found  
-  
+
 Custom TurboQuant + OpenVINO  
 → Not supported  
-  
+
 Custom TurboQuant + Intel NPU  
 → Not supported
 
@@ -315,20 +305,20 @@ A suitable NVIDIA CUDA build is:
 
 git clone <https://github.com/TiredOfEverything/llama-cpp-turboquant.git>  
 cd llama-cpp-turboquant  
-  
+
 cmake -B build \`  
 -DGGML_CUDA=ON \`  
 -DGGML_NATIVE=ON \`  
 -DGGML_CUDA_FA=ON \`  
 -DGGML_CUDA_FA_ALL_QUANTS=ON \`  
 -DCMAKE_BUILD_TYPE=Release  
-  
+
 cmake --build build --config Release -j
 
 The documented run command is:
 
 \$env:TURBO_LAYER_ADAPTIVE="1"  
-  
+
 .\build\bin\Release\llama-server.exe \`  
 -m granite.gguf \`  
 -ngl 99 \`  
@@ -385,7 +375,7 @@ Another major risk is documentation inconsistency:
 
 README and old benchmark documents  
 → describe QJL-based Turbo4  
-  
+
 Current active source  
 → pure four-bit Turbo4 without QJL
 
@@ -421,13 +411,13 @@ For Granite Hybrid, TurboQuant would compress the attention KV cache but would n
 
 Main Intel backend  
 → No  
-  
+
 Vulkan backend candidate  
 → No  
-  
+
 Intel SYCL candidate  
 → No  
-  
+
 OpenVINO or NPU candidate  
 → No
 
@@ -435,19 +425,19 @@ OpenVINO or NPU candidate
 
 RTX 4060 CUDA benchmark  
 → High  
-  
+
 Reference for proper 128-value PolarQuant rotation  
 → High  
-  
+
 Reference for norm correction  
 → High  
-  
+
 Reference for custom Flash Attention  
 → High  
-  
+
 Reference for layer-adaptive compression  
 → High  
-  
+
 Reference for future Intel port  
 → Potentially useful
 
@@ -471,31 +461,31 @@ However, it is not a replacement for the animehacker SYCL repository because it 
 
 Formal PolarQuant fidelity  
 → Relatively high  
-  
+
 Formal QJL implementation  
 → No in the current active formats  
-  
+
 Available formats  
 → Turbo2, Turbo3 and Turbo4  
-  
+
 Primary hardware  
 → NVIDIA CUDA  
-  
+
 Windows relevance  
 → Good for NVIDIA systems  
-  
+
 Intel relevance  
 → Low for direct implementation  
-  
+
 Granite validation  
 → None documented  
-  
+
 Research value  
 → High  
-  
+
 Production readiness  
 → Low to medium  
-  
+
 Maintenance risk  
 → High
 
