@@ -53,3 +53,18 @@ loaded. No CPU, GPU, memory, performance, quality or inference test was executed
 6. obtain a detailed workbook revision-control PASS;
 7. rerun the complete workspace validator;
 8. reclassify the run only after both validators pass.
+
+## Current-branch workbook cleanup
+
+| Field | Value |
+|---|---|
+| Cleanup UTC | 2026-07-14T02:07:12.1280722Z |
+| Cleanup local | 2026-07-14T03:07:12.1351067+01:00 |
+| Preserved evidence commit | d30f6450158ee40e9db6dff8b904ea159d4e1dc1 |
+
+The six generated DOCX files that failed detailed hash and revision-control
+validation were removed from the current branch state. Their original bytes,
+generation logs and validation results remain preserved in Git commit
+d30f6450158ee40e9db6dff8b904ea159d4e1dc1.
+
+This cleanup does not resolve FAIL-CTRL-001. The run remains Blocked.
