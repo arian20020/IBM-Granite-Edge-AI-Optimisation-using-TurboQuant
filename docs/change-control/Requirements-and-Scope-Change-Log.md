@@ -1,7 +1,7 @@
 # Requirements and Scope Change Log
 
 **Document ID:** LOG-REQ-CHG-001  
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -20,8 +20,9 @@
 | 2026-07-14 | CHG-010 | Improved workflow text clarity and page fit. | Keep documentation legible without redesigning screens. | DR-WF-018 | Implemented | Arian B | Workflow package v1.1 |
 | 2026-07-14 | CHG-011 | Established EP-006 derived-requirement and change-control records. | Create stable, reviewable change records. | EP-006; PD-04 | Implemented and validated | Arian B | PR #10; EP-006 evidence |
 | 2026-07-14 | CHG-012 | Froze the app-specific evaluation addendum. | Control remaining evaluation IDs, schemas, gates and claims. | PD-09; EP-019; APP-EVAL-01–12 | Implemented and validated | Arian B | PR #11/#12 |
-| 2026-07-14 | CHG-013 | Resolved CHG-002, CHG-003 and CHG-004 and froze the MoSCoW v1.2 working baseline. | Protect the essential first-release route, retain one bounded TurboQuant contribution and defer unproven TurboVec integration. | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Developer-approved working baseline; supervisor review pending | Arian B | Project Definition v1.1; MoSCoW v1.2; RTM v1.3; CR-013 |
-| 2026-07-14 | CHG-014 | Split the requirements catalogue into separate Functional, Non-Functional, Research, Governance and Exclusion views. | Improve readability and reviewability without changing controlled requirement content. | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Implemented — presentation only; no scope change | Arian B | Categorised workbook; repository category catalogues; CR-014 |
+| 2026-07-14 | CHG-013 | Resolved CHG-002, CHG-003 and CHG-004 and froze the MoSCoW v1.2 working baseline. | Protect the essential first-release route, retain one bounded TurboQuant contribution and defer unproven TurboVec integration. | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Developer-approved working baseline; supervisor review pending | Arian B | Project Definition v1.1; MoSCoW v1.2; RTM v1.3; CR-013; PR #14 |
+| 2026-07-14 | CHG-014 | Split the requirements catalogue into separate Functional, Non-Functional, Research, Governance and Exclusion views. | Improve readability and reviewability without changing controlled requirement content. | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Implemented — presentation only; no scope change | Arian B | Categorised workbook; repository category catalogues; CR-014; PR #15 |
+| 2026-07-14 | CHG-015 | Conformed the G-M02, PD-04, EP-004, EP-005 and EP-006 evidence records to the common template, repaired evidence indexes and replaced broken workbook links with a controlled artifact record. | Ensure every verified planning task has a complete, auditable evidence record and no repository link falsely claims that a missing binary exists. | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001; evidence indexes | Implemented — evidence/control correction; no scope change | Arian B | CR-015; template-compliant evidence packs; MoSCoW and RTM Evidence Index; RTM Workbook Artifact Record; PR #17 |
 
 ## CHG-013 priority results
 
@@ -40,4 +41,8 @@
 
 CHG-014 changes presentation only. It does not alter any requirement ID, priority, release role, lifecycle state, acceptance criterion, verification method or traceability relationship.
 
-Future material changes must append a new row. Do not overwrite CHG-013 or CHG-014.
+## CHG-015 control statement
+
+CHG-015 corrects evidence structure and links only. It does not change any requirement, work-package or engineering-practice completion decision. The exact workbook remains independently controlled by filename, size, package and SHA-256 until direct binary Git placement is completed.
+
+Future material changes must append a new row. Do not overwrite CHG-013, CHG-014 or CHG-015.

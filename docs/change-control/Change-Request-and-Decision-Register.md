@@ -1,7 +1,7 @@
 # Change Request and Decision Register
 
 **Document ID:** LOG-CRD-001  
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -24,6 +24,7 @@
 | CR-012 | 2026-07-14 | Arian B | Freeze the app-specific evaluation addendum and evidence records. | Evaluation control | PD-09; EP-019 | Approved and implemented | Closed |
 | CR-013 | 2026-07-14 | Arian B | Resolve the draft first-release priority boundary and freeze MoSCoW v1.2. | Requirements and scope | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Approved as developer working baseline; supervisor review pending | Closed |
 | CR-014 | 2026-07-14 | Arian B | Separate Functional, Non-Functional, Research, Governance and Exclusion requirements into readable catalogues. | Documentation structure | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Approved and implemented as a presentation-only revision | Closed |
+| CR-015 | 2026-07-14 | Arian B | Bring the completed MoSCoW/RTM evidence packs into full template compliance, repair their indexes and replace the missing-workbook link with a controlled artifact record. | Evidence and configuration control | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001 | Approved and implemented through PR #17; no scope or completion-status change | Closed |
 
 ## CR-013 decision record
 
@@ -59,8 +60,9 @@ The original draft bundled multiple independent features into Must scope. The re
 - `docs/planning/Project-Definition-v1.1.md`
 - `docs/requirements/MoSCoW-Requirements-v1.2.md`
 - `docs/requirements/Requirements-Traceability-Matrix-v1.3.md`
-- controlled RTM workbook and SHA-256
+- controlled RTM workbook artifact record and SHA-256
 - G-M02, PD-04, EP-004 and EP-005 evidence packs
+- PR #14
 
 ## CR-014 decision record
 
@@ -81,7 +83,45 @@ The combined table was technically correct but difficult to read. Separating req
 
 ### Evidence
 
-- categorised RTM workbook and checksum
+- controlled RTM workbook artifact record and checksum
 - `docs/requirements/MoSCoW-Requirements-v1.2.md`
 - `docs/requirements/catalogue/`
+- `docs/evidence/requirements/G-M02/Categorised-Catalogue-Audit.md`
 - CHG-014
+- PR #15
+
+## CR-015 decision record
+
+**Decision owner:** Arian B  
+**Decision date:** 2026-07-14  
+**Approval state:** Approved and implemented through PR #17  
+
+### Problem found
+
+The original G-M02, PD-04, EP-004 and EP-005 READMEs recorded valid conclusions but did not contain every section required by the repository Evidence Record Template. The evidence indexes did not list all five completed tasks. Several records also linked directly to an `.xlsx` path that was not present in Git.
+
+### Decision
+
+1. Rewrite G-M02, PD-04, EP-004 and EP-005 as full nine-section evidence records.
+2. Refresh EP-006 to include the later MoSCoW and catalogue decisions.
+3. Add the MoSCoW and RTM Evidence Index and update all evidence collection indexes.
+4. Add `ART-RTM-XLSX-001` to control the exact workbook by filename, size, package and SHA-256.
+5. Replace broken direct `.xlsx` links with the artifact record until direct binary Git placement is completed.
+6. Preserve the existing Implemented / Validated / Verified decisions because the underlying deliverables and audits remain valid.
+7. State the binary-placement gap explicitly rather than falsely claiming the workbook is already stored in Git.
+
+### Impact
+
+- No requirement, priority, lifecycle, acceptance criterion or verification method changed.
+- No completed task was newly validated by this correction.
+- Repository evidence navigation and auditability improved.
+- The direct binary Git-placement gap remains open and visible.
+
+### Evidence
+
+- `docs/evidence/templates/Evidence-Record-Template.md`
+- `docs/evidence/indexes/MoSCoW-and-RTM-Evidence-Index.md`
+- `docs/requirements/RTM-Workbook-Artifact-Record.md`
+- G-M02, PD-04, EP-004, EP-005 and EP-006 evidence READMEs
+- CHG-015
+- PR #17
