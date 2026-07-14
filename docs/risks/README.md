@@ -1,12 +1,12 @@
 # Risk, Assumption, Constraint and Licence Control
 
 **Document ID:** IDX-RACL-001  
-**Version:** 0.2  
+**Version:** 0.3  
 **Status:** Populated working control area — formal review and baseline pending  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
 **Last reviewed:** 2026-07-14  
-**Next review:** Formal content and consistency review  
+**Next review:** Formal scope, risk, assumption, constraint and licence gate review  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
@@ -141,7 +141,18 @@ The related tasks may move to **Implemented** only when the controlled Definitio
 - the controlled RTM is updated and validated;
 - the first baseline is frozen without hiding unresolved gaps.
 
-## 9. Change control
+## 9. Current open governance gates
+
+The folder deliberately records these unresolved gates rather than hiding them:
+
+1. the intended OpenVINO and TurboVec release scope must be aligned with the controlled Project Definition, requirements, RTM and ADRs;
+2. the 252 candidate risks must be consolidated into a smaller operational set;
+3. the assumptions must be tested and given evidence-backed outcomes;
+4. constraint sources and effects must receive formal approval;
+5. exact model, package, fork and asset licences must be completed before bundling;
+6. evidence records and the first baseline remain pending.
+
+## 10. Change control
 
 A later change affecting the register structure, mandatory fields, status vocabulary, review rule, scoring method or baseline method must update:
 
