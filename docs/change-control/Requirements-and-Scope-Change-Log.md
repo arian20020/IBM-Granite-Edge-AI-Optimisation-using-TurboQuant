@@ -1,7 +1,7 @@
 # Requirements and Scope Change Log
 
 **Document ID:** LOG-REQ-CHG-001  
-**Version:** 1.4  
+**Version:** 1.5  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -23,7 +23,8 @@
 | 2026-07-14 | CHG-013 | Resolved CHG-002, CHG-003 and CHG-004 and froze the MoSCoW v1.2 working baseline. | Protect the essential first-release route, retain one bounded TurboQuant contribution and defer unproven TurboVec integration. | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Developer-approved working baseline; supervisor review pending | Arian B | Project Definition v1.1; MoSCoW v1.2; RTM v1.3; CR-013; PR #14 |
 | 2026-07-14 | CHG-014 | Split the requirements catalogue into separate Functional, Non-Functional, Research, Governance and Exclusion views. | Improve readability and reviewability without changing controlled requirement content. | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Implemented — presentation only; no scope change | Arian B | Categorised workbook; repository category catalogues; CR-014; PR #15 |
 | 2026-07-14 | CHG-015 | Conformed the G-M02, PD-04, EP-004, EP-005 and EP-006 evidence records to the common template, repaired evidence indexes and replaced broken workbook links with a controlled artifact record. | Ensure every verified planning task has a complete, auditable evidence record and no repository link falsely claims that a missing binary exists. | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001; evidence indexes | Implemented — evidence/control correction; no scope change | Arian B | CR-015; template-compliant evidence packs; MoSCoW and RTM Evidence Index; RTM Workbook Artifact Record; PR #17 |
-| 2026-07-14 | CHG-016 | Released Evidence Record Template v1.1 with criterion-to-evidence mapping, claim boundaries, stronger integrity metadata, controlled status rules and revalidation triggers. | Strengthen future evidence quality without invalidating sound existing records or creating unnecessary retrospective rework. | Evidence Record Template; all future REQ/WP/EP/EXP evidence records; final release evidence audit | Implemented — evidence-governance revision; no requirements or first-release scope change | Arian B | CR-016; template v1.1; guidance; revision history; evidence-template pull request |
+| 2026-07-14 | CHG-016 | Released Evidence Record Template v1.1 with criterion-to-evidence mapping, claim boundaries, stronger integrity metadata, controlled status guidance and revalidation triggers. | Strengthen future evidence quality without invalidating sound existing records or creating unnecessary retrospective rework. | Evidence Record Template; all future REQ/WP/EP/EXP evidence records; final release evidence audit | Implemented — evidence-governance revision; no requirements or first-release scope change | Arian B | CR-016; template v1.1; guidance; revision history; PR #19 |
+| 2026-07-14 | CHG-017 | Released template v1.1.1 to restore compatibility with the controlled RTM status vocabulary and clarify that evidence records mirror rather than redefine project status. | Prevent a competing local validation/status model from diverging from the authoritative RTM. | Evidence Record Template v1.1; guidance; all future evidence records | Implemented — corrective compatibility patch; no requirement, scope or task-status change | Arian B | CR-017; template v1.1.1; guidance; revision history; status-compatibility pull request |
 
 ## CHG-013 priority results
 
@@ -50,4 +51,8 @@ CHG-015 corrects evidence structure and links only. It does not change any requi
 
 CHG-016 changes mandatory evidence-governance rules for future and materially revised records. It does not alter project scope, requirement meaning, acceptance criteria, work-package outcomes or existing completion decisions. Existing validated template-v1.0 records remain valid when their evidence remains sound; migration is required on material change, revalidation or supersession and is checked again during the final release audit.
 
-Future material changes must append a new row. Do not overwrite CHG-013, CHG-014, CHG-015 or CHG-016.
+## CHG-017 control statement
+
+CHG-017 corrects template status compatibility only. The controlled RTM remains authoritative for Working status, Validation and Effective status. No status value in the RTM or any existing evidence record is changed by this correction.
+
+Future material changes must append a new row. Do not overwrite CHG-013, CHG-014, CHG-015, CHG-016 or CHG-017.
