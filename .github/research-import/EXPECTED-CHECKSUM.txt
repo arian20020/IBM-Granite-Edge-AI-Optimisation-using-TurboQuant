@@ -1,4 +1,0 @@
-Archive: research_text_only.tar.xz
-SHA-256: 25c36e32bf01c4a2a08d6d9797458a0104d15b0e365f3b2b9869359a6ee99299
-Expected Markdown files after extraction: 109
-Expected total files after extraction: 116
