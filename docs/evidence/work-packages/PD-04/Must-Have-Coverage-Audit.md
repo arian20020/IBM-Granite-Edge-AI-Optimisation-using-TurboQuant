@@ -4,6 +4,7 @@
 **Auditor:** Arian B  
 **Date:** 2026-07-14  
 **Result:** Pass  
+**Evidence record:** [PD-04 README](README.md)  
 
 | Coverage field | Complete | Total | Missing |
 |---|---:|---:|---:|
@@ -20,3 +21,11 @@
 | Owner | 56 | 56 | 0 |
 
 The audit checks completeness of the plan, not implementation success.
+
+## Controlled sources
+
+- [Requirements Traceability Matrix v1.3](../../../requirements/Requirements-Traceability-Matrix-v1.3.md)
+- [Traceability Reverse Indexes v1.3](../../../requirements/Traceability-Reverse-Indexes-v1.3.md)
+- [Controlled workbook artifact record](../../../requirements/RTM-Workbook-Artifact-Record.md)
+- [G-M02 evidence record](../../requirements/G-M02/README.md)
+- [EP-005 evidence record](../../engineering-practices/EP-005/README.md)
