@@ -1,19 +1,20 @@
 # Risk, Assumption, Constraint and Licence Control and Validation Plan
 
 **Document ID:** PLAN-RACL-001  
-**Version:** 1.0  
+**Version:** 1.1  
 **Status:** Active working plan  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
+**Last reviewed:** 2026-07-14  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`
 
 ## 1. Purpose
 
-This plan defines how the four live registers will move from populated drafts to a reviewed and frozen developer working baseline.
+This plan defines how the four live registers move from populated drafts to a reviewed and frozen developer working baseline.
 
-The plan prevents three common errors:
+It prevents three common errors:
 
 - treating a listed risk as though it has already been controlled;
 - treating a reasonable assumption as though it has been proven;
@@ -26,9 +27,9 @@ The plan prevents three common errors:
 | Risk Register | `R-001` and `R-002` are full draft records; `R-003`–`R-254` form a candidate backlog | Consolidate duplicates, confirm record type, assess importance and complete controls for accepted risks |
 | Assumption Register | `A-001`–`A-017` populated | Execute validation methods, link exact evidence and set evidence-backed outcomes |
 | Constraint Register | `C-001`–`C-015` populated | Confirm authoritative sources, check scope consistency and approve the active wording |
-| Licence Register | `L-001`–`L-013` populated | Pin exact versions, inspect package/model terms and approve or restrict the final packaging decisions |
-| Review Log | Structural review recorded | Record content, gate, baseline and final-release reviews |
-| Baselines | Structure prepared | Freeze `v1.0` only after the criteria in this plan are met |
+| Licence Register | `L-001`–`L-013` populated | Pin exact versions, inspect package/model terms and approve or restrict final packaging decisions |
+| Review Log | Structural, content-population and internal-consistency reviews recorded | Record substantive gate, baseline and final-release reviews |
+| Baselines | Structure and record template prepared | Freeze `v1.0` only after the criteria in this plan are met |
 
 ## 3. Review order
 
@@ -42,7 +43,7 @@ Required output:
 
 - an approved or explicitly pending scope-change decision;
 - synchronised Project Definition, requirements, RTM and ADR wording where approved;
-- updated risk and constraint relationships.
+- updated risk, assumption and constraint relationships.
 
 The registers may remain populated while this is pending, but the first baseline must state the unresolved scope gap clearly.
 
@@ -81,15 +82,20 @@ For each candidate:
 | Probability | Impact | Exposure |
 |---|---|---|
 | High | High | Critical |
-| High | Medium, or Medium | High | High |
-| Medium | Medium, High | Low | Medium |
-| Low | Medium or Low | Low |
+| High | Medium | High |
+| Medium | High | High |
+| Medium | Medium | Medium |
+| High | Low | Medium |
+| Low | High | Medium |
+| Medium | Low | Low |
+| Low | Medium | Low |
+| Low | Low | Low |
 
 Critical and High risks require an owner, trigger, validation method, mitigation, contingency, residual-risk assessment and review date before the baseline can pass. Medium and Low risks may use proportionate controls but cannot have blank mandatory fields.
 
 ### Stage 3 — Validate assumptions
 
-Validate the assumptions in dependency order:
+Validate assumptions in dependency order:
 
 1. evidence recovery and backup — `A-001`, `A-015`;
 2. legitimate model source and exact identities — `A-002`, `A-003`;
@@ -117,7 +123,7 @@ For every constraint:
 1. confirm the authoritative source;
 2. confirm that it is a real boundary rather than a preference or risk;
 3. check that the Project Definition, requirements, architecture, tests and report obey it;
-4. record any change through change control;
+4. record any material change through change control;
 5. retain removed or replaced constraints with their history.
 
 The review must pay special attention to:
