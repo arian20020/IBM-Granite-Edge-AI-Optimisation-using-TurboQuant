@@ -158,3 +158,18 @@ by the controlled manifest.
 The technical repair is complete and internally consistent. FAIL-CTRL-001
 remains open only because the corrected baseline has not yet completed its
 version-control lifecycle. No runtime or model test result is claimed.
+
+## Stage 4E pull-request number synchronization
+
+| Field | Value |
+|---|---|
+| Recorded UTC | 2026-07-14T17:28:12.927494+00:00 |
+| Pull request | #21 |
+| Pull-request state | Draft and open |
+| Repair commit | `c8ef758be14d863e5fb49fd8e24d61821ace66ca` |
+| Revision rows updated | 6 |
+| Current classification | Blocked pending merge and post-merge lifecycle finalization |
+
+The six current revision rows now identify the assigned pull-request number.
+`Pending merge` remains intentionally unchanged until GitHub creates the final
+merge commit.

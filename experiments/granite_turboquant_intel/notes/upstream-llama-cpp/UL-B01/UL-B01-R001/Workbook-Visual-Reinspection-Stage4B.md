@@ -51,3 +51,9 @@ The Stage 4B visual-reinspection gate passes.
 FAIL-CTRL-001 remains open until the controlled commit, push, pull request and merge lifecycle are complete.
 
 No llama.cpp build, IBM Granite inference, hardware benchmark, performance measurement or model-quality evaluation was performed.
+
+## Pull-request lifecycle note
+
+The previously inspected workbook content passed. Stage 4E changes only the
+revision-history reference from `Pending PR` to `#21`; fresh inspection of the
+six revision-history pages is required after regeneration.

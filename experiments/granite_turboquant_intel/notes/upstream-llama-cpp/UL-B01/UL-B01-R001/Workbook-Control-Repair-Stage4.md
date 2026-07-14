@@ -31,3 +31,9 @@ The final visual and semantic reviews pass. Create and push the controlled repai
 ## Interpretation boundary
 
 This repairs workbook control only. It does not prove any llama.cpp, IBM Granite, TurboQuant, Intel hardware, performance, quality or inference result.
+
+## Stage 4E pull-request assignment
+
+Draft PR #21 now contains the controlled repair branch. The current revision
+history records are being regenerated with `#21` while retaining
+`Pending merge`.

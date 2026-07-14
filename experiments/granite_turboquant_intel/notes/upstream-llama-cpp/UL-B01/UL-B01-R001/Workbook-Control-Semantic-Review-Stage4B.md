@@ -91,3 +91,10 @@ The final review confirmed that the source hashes, canonical metadata,
 generated-DOCX hashes, revision histories, validator behaviour and visual
 outputs are internally consistent. No further workbook content correction was
 identified before commit.
+
+## Pull-request lifecycle update
+
+Draft PR #21 was created from
+`testing/workbook-control-baseline-repair` at commit
+`c8ef758be14d863e5fb49fd8e24d61821ace66ca`. No new semantic defect was
+identified during this lifecycle update.

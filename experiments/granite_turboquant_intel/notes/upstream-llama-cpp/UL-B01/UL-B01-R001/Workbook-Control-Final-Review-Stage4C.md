@@ -29,3 +29,13 @@ lifecycle are complete.
 This review establishes only the testing-document control baseline. It does not
 prove a llama.cpp build, IBM Granite model load, TurboQuant activation, Intel
 device execution, performance result, memory result or model-quality result.
+
+## Pull request assigned
+
+| Field | Value |
+|---|---|
+| Recorded UTC | 2026-07-14T17:28:12.927494+00:00 |
+| Pull request | #21 |
+| State | Draft and open |
+| Merge state | Not merged |
+| Next gate | Review, merge and post-merge lifecycle finalization |
