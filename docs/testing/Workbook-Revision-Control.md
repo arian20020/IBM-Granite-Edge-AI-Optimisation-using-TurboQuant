@@ -5,18 +5,18 @@
 
 ## Purpose
 
-This control makes every workbook change visible, reviewable and traceable to its reason, affected test IDs, source evidence, branch, pull request, commit, hashes and validation status. The register is append-only: an older revision row is never deleted or silently rewritten.
+This control makes every workbook change visible, reviewable and traceable to its reason, affected test IDs, source evidence, branch, pull request, commit, hashes and validation status. The register is append-only: an older revision row is never deleted or silently rewritten. The newest unmerged row may have only its lifecycle fields (`Change_Reference` and `Status`) finalized when a PR number and merge commit become available.
 
 ## Current controlled revisions
 
 | Workbook | Current version | Current change | Technical scope source |
 |---|---:|---|---|
-| WB-01 Upstream llama.cpp | 1.1 | Embedded formal revision history; no test-scope change | v1.0 / PR #4 |
-| WB-02 AtomicBot TurboQuant | 1.1 | Embedded formal revision history; no test-scope change | v1.0 / PR #4 |
-| WB-03 animehacker TQ3_0 | 1.1 | Embedded formal revision history; no test-scope change | v1.0 / PR #4 |
-| WB-04 Official OpenVINO | 1.2 | Embedded formal revision history; no new test-scope change | v1.1 / PR #5 |
-| WB-05 Custom OpenVINO | 1.2 | Embedded formal revision history; no new test-scope change | v1.1 / PR #5 |
-| WB-06 Cross-route comparison | 1.2 | Embedded formal revision history; no new test-scope change | v1.1 / PR #5 |
+| WB-01 Upstream llama.cpp | 1.2 | Workbook-control baseline repair; no test-scope change | v1.0 / PR #4 |
+| WB-02 AtomicBot TurboQuant | 1.2 | Workbook-control baseline repair; no test-scope change | v1.0 / PR #4 |
+| WB-03 animehacker TQ3_0 | 1.2 | Workbook-control baseline repair; no test-scope change | v1.0 / PR #4 |
+| WB-04 Official OpenVINO | 1.3 | Workbook-control baseline repair; no test-scope change | v1.1 / PR #5 |
+| WB-05 Custom OpenVINO | 1.3 | Workbook-control baseline repair; no test-scope change | v1.1 / PR #5 |
+| WB-06 Cross-route comparison | 1.3 | Workbook-control baseline repair; no test-scope change | v1.1 / PR #5 |
 
 ## Mandatory rules
 
@@ -28,7 +28,7 @@ This control makes every workbook change visible, reviewable and traceable to it
 6. Keep canonical template filenames stable. The current visible version is controlled by the register, not by renaming the file.
 7. Record canonical-template and generated-DOCX SHA-256 values in `workbooks/Controlled-Workbook-Manifest.csv`; a workbook must not embed its own hash because that creates a circular value.
 8. Generate twice and confirm byte-identical output, then render and inspect every changed page.
-9. After merge, replace `Pending merge` with the final merge commit and change the current status to `Current`.
+9. Before merge, use `Current - pending merge` and record either `Pending PR` or the assigned PR number together with `Pending merge`. After PR creation, replace `Pending PR` with the PR number. After merge, replace `Pending merge` with the final merge commit and set the status to `Current`.
 10. A document revision never proves that a model, device, backend or codec test passed.
 
 ## Controlled generation

@@ -1,11 +1,13 @@
 # 01 Upstream llama.cpp Controlled Retest Workbook v1
 
-**Source file:** `01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1.docx`  
-**SHA-256:** `59d3a9245f79a649e9ea1b2f9d646343496391d593788f9efa36e80f2058b03a`
+**Controlled filename:** `01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1.docx`
+**Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`
+**Original source:** `01_Upstream_llama.cpp_Editable_Test_Workbook.docx`
+**Original source SHA-256:** `0f25e62db330140b14a4e10eeb8da0be1e9623bbbd55ff6dc1268da3a3964f02`
 
 ## Upstream llama.cpp Controlled Retest Workbook
 
-Controlled retest template v1. Source: 01_Upstream_llama.cpp_Editable_Test_Workbook.docx. Source SHA-256: 0f25e62db330140b14a4e10eeb8da0be1e9623bbbd55ff6dc1268da3a3964f02. Historical results were removed from this working copy; the original source document is preserved under docs/testing/source-material/original-workbooks/.
+Controlled retest template v1. Historical results were removed from this working copy; the original source document is preserved under docs/testing/source-material/original-workbooks/.
 
 Purpose: establish the dependable GGUF baseline before either TurboQuant fork is introduced.
 

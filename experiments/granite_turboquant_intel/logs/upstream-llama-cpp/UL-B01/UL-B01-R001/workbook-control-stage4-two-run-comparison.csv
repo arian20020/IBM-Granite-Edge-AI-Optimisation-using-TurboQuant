@@ -1,0 +1,7 @@
+"Workbook_ID","Controlled_File","Generation_A_SHA256","Generation_B_SHA256","SHA256_Match","Generation_A_Bytes","Generation_B_Bytes","Size_Match"
+"WB-01","01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1.docx","52bb188687ca5dc73962a4ad33a95de8ea81ff66a4fe62aed97f6e29bc8372c9","52bb188687ca5dc73962a4ad33a95de8ea81ff66a4fe62aed97f6e29bc8372c9","True","43837","43837","True"
+"WB-02","02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.docx","2ca8e1b831cc5b34ca0d1c6833533cd39422bbbb9f6c7213281f76c1670158a2","2ca8e1b831cc5b34ca0d1c6833533cd39422bbbb9f6c7213281f76c1670158a2","True","46304","46304","True"
+"WB-03","03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.docx","5efa4c166493dad9f88ca5a3120c34d4767828a7bd115b310081b3d97f6173a0","5efa4c166493dad9f88ca5a3120c34d4767828a7bd115b310081b3d97f6173a0","True","43210","43210","True"
+"WB-04","04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx","7cd48a70d1b4519d37997a1e6dc4f18a7109306ccff0588bc9507556a711a120","7cd48a70d1b4519d37997a1e6dc4f18a7109306ccff0588bc9507556a711a120","True","46632","46632","True"
+"WB-05","05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1.docx","fc0b99016be099b9e4b7adfc7e892a1004c45f71f3cde628c8321b3440bd80e3","fc0b99016be099b9e4b7adfc7e892a1004c45f71f3cde628c8321b3440bd80e3","True","49208","49208","True"
+"WB-06","06_Cross_Route_Controlled_Comparison_Workbook_v1.docx","5c80bb0a1ae1065d8aaaf94490d2e6fc41a7c61b085a80b2b514ec1519bc6c89","5c80bb0a1ae1065d8aaaf94490d2e6fc41a7c61b085a80b2b514ec1519bc6c89","True","44605","44605","True"

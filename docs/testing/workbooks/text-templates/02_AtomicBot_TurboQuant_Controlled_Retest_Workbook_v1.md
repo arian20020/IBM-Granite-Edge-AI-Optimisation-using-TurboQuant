@@ -1,11 +1,13 @@
 # 02 AtomicBot TurboQuant Controlled Retest Workbook v1
 
-**Source file:** `02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.docx`  
-**SHA-256:** `eca6b4d3afc333c0493daeb94f66b5d1e23841ec38467b2b6cd8a0f362374022`
+**Controlled filename:** `02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.docx`
+**Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`
+**Original source:** `AtomicBot_TurboQuant_Workbook_Quality_Verifier_v3.docx`
+**Original source SHA-256:** `2c399f960b9a1e15e62a24fcb2208e8757db96d077dfdf4aa6ffab1e79df7570`
 
 ## AtomicBot TurboQuant Controlled Retest Workbook
 
-Controlled retest template v1. Source: AtomicBot_TurboQuant_Workbook_Quality_Verifier_v3.docx. Source SHA-256: 2c399f960b9a1e15e62a24fcb2208e8757db96d077dfdf4aa6ffab1e79df7570. Historical results were removed from this working copy; the original source document is preserved under docs/testing/source-material/original-workbooks/.
+Controlled retest template v1. Historical results were removed from this working copy; the original source document is preserved under docs/testing/source-material/original-workbooks/.
 
 Purpose: evaluate the AtomicBot llama.cpp TurboQuant fork from a clean, pinned checkout using matched non-TurboQuant baselines, turbo4/turbo3/turbo2 CPU tests, and guarded Intel GPU tests where supported.
 
