@@ -44,7 +44,7 @@ The audit found zero active requirements missing traceability and zero active Mu
 |---|---|---|---|
 | Requirements Traceability Matrix v1.3 | [Requirements-Traceability-Matrix-v1.3.md](../../../requirements/Requirements-Traceability-Matrix-v1.3.md) | Provides the forward requirement-to-objective/RQ/WP/component/acceptance/evidence mappings. | Available |
 | Traceability reverse indexes | [Traceability-Reverse-Indexes-v1.3.md](../../../requirements/Traceability-Reverse-Indexes-v1.3.md) | Provides reverse mappings from objectives, RQs, WPs, components, test/evidence IDs and evidence paths. | Available |
-| Controlled RTM workbook | [IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx](../../../requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx) | Provides the authoritative editable RTM, formulas, Task Checklist and Dashboard. | Available |
+| Controlled workbook artifact record | [RTM-Workbook-Artifact-Record.md](../../../requirements/RTM-Workbook-Artifact-Record.md) | Controls the exact binary filename, size, SHA-256, package and recovery/placement procedure. | Available |
 | Workbook integrity record | [RTM-Working-Baseline-SHA256.txt](../../../requirements/RTM-Working-Baseline-SHA256.txt) | Identifies the reviewed workbook by SHA-256. | Available |
 | Bidirectional traceability audit | [Bidirectional-Traceability-Audit.md](Bidirectional-Traceability-Audit.md) | Records the forward and reverse audit results and index counts. | Available |
 | Must-Have coverage audit | [Must-Have-Coverage-Audit.md](../../work-packages/PD-04/Must-Have-Coverage-Audit.md) | Confirms all 56 active Must Haves contain the required planning fields. | Available |
@@ -58,7 +58,7 @@ The audit found zero active requirements missing traceability and zero active Mu
 
 | Check | Result | Evidence or note |
 |---|---|---|
-| Required deliverable exists | Pass | RTM v1.3, reverse indexes, workbook and audit are present. |
+| Required deliverable exists | Pass | RTM v1.3, reverse indexes, the workbook artifact record, checksum and audit are present in Git; the exact binary is independently controlled. |
 | Definition of Done checked | Pass | Every criterion in section 3 was checked against the controlled RTM. |
 | Active requirements with forward traceability | Pass | 72 of 72. |
 | Active Must Haves with required mapping | Pass | 56 of 56. |
@@ -69,8 +69,8 @@ The audit found zero active requirements missing traceability and zero active Mu
 | Planned-component reverse-index keys | Pass | 113. |
 | Test/evidence reverse-index keys | Pass | 71. |
 | Evidence-path reverse-index keys | Pass | 69. |
-| Evidence is version-controlled or independently backed up | Pass | Documents and workbook are in Git; the workbook has a matching SHA-256 record. |
-| No unresolved contradiction affects the claim | Pass with boundary | Final implementation and executed-test links remain ongoing under G-M03; that does not invalidate the completed planning RTM. |
+| Evidence is version-controlled or independently backed up | Pass | Documents and checksums are in Git; the exact binary is retained in the controlled completion package and identified by filename, size and SHA-256. |
+| No unresolved contradiction affects the claim | Pass with boundary | Final implementation and executed-test links remain ongoing under G-M03; direct binary Git placement is also explicitly pending. |
 
 **Validation result:** Validated
 
@@ -86,11 +86,12 @@ EP-005 is verified because the project has a complete forward RTM and reviewable
 | Engineering practice(s) | `EP-005`, related `EP-004`, `EP-006` |
 | Objective(s) | `O1`–`O11` |
 | Research question(s) | `RQ1`, `RQ2`, `RQ3`, `RQ4`, `RQ-TV` |
-| Test / experiment / evidence IDs | Requirement-specific acceptance and evidence IDs; bidirectional-traceability audit |
+| Test / experiment / evidence IDs | `ART-RTM-XLSX-001`; requirement-specific acceptance and evidence IDs; bidirectional-traceability audit |
 
 ## 8. Limitations, gaps and follow-up
 
 - G-M03 remains open until the final release audit links actual implementation files, GitHub issues, commits, executed tests and final evidence to every active Must Have.
+- Direct placement of the exact `.xlsx` binary in Git remains pending; the repository artifact record and checksum prevent a broken reference.
 - Reverse-index counts must be regenerated after any approved requirement, work-package, component, test/evidence or evidence-path change.
 - A category presentation change does not alter traceability, but a material scope change requires a repeat audit.
 - Supervisor review of the working baseline remains pending and is not claimed.
@@ -99,7 +100,7 @@ EP-005 is verified because the project has a complete forward RTM and reviewable
 
 Any later change that affects this evidence claim must update:
 
-1. the controlled RTM workbook;
+1. the controlled RTM workbook artifact and checksum;
 2. the generated RTM and reverse indexes;
 3. `Bidirectional-Traceability-Audit.md`;
 4. this EP-005 evidence record;
