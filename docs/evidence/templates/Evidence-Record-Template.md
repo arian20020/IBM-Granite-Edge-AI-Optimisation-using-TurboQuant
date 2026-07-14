@@ -1,19 +1,19 @@
 # [ID] — [Evidence Record Title]
 
-> **Template version:** 1.1  
+> **Template version:** 1.1.1  
 > Use this template for new requirement, work-package, engineering-practice and experiment evidence records. Follow the migration rules in [Evidence Template Guidance](README.md) for records created with an earlier template version.
 
 ## 1. Evidence metadata
 
 | Field | Value |
 |---|---|
-| Template version | `1.1` |
+| Template version | `1.1.1` |
 | Evidence record version | `1.0` |
 | Record ID | `[REQ/WP/EP/EXP-ID]` |
 | Record type | Requirement / Work Package / Engineering Practice / Experiment |
 | Source baseline / version | `[requirement, RTM, plan, workflow or experiment version]` |
-| Working status | Not Started / In Progress / Implemented / Blocked |
-| Validation state | Not Validated / Partially Validated / Validated |
+| Working status | Not Started / In Progress / Implemented / Partially Verified / Verified / Blocked |
+| Validation state | Not Validated / Validated |
 | Effective status | Not Started / In Progress / Implemented / Partially Verified / Verified / Blocked |
 | Owner | `[name or role]` |
 | Evidence date | `YYYY-MM-DD` |
@@ -26,13 +26,15 @@
 | Supersedes | None / `[record ID and version]` |
 | Superseded by | None / `[record ID and version]` |
 
+The three status fields must mirror the controlled RTM. Do not invent or independently calculate a different status inside the evidence record.
+
 ## 2. Statement being evidenced
 
 > Copy the exact requirement, work-package outcome, engineering-practice statement or experiment claim here. Preserve the wording and stable ID from the controlled source.
 
 ## 3. Definition of Done or acceptance-criterion mapping
 
-Every criterion must have a stable local identifier and must point to the evidence that supports its result. Do not mark the record as Validated while required criteria remain Pending or lack evidence.
+Every criterion must have a stable local identifier and must point to the evidence that supports its result. Do not set the controlled RTM Validation field to `Validated` while required criteria remain Pending or lack evidence.
 
 | Criterion ID | Definition of Done or acceptance criterion | Result | Evidence item ID(s) | Reviewer note |
 |---|---|---|---|---|
@@ -77,15 +79,18 @@ Use one authoritative source and cross-reference it rather than copying the same
 | Evidence version, run or integrity identifiers are sufficient | Pass / Fail / Pending | `[note]` |
 | Claim boundary is explicit and proportionate | Pass / Fail / Pending | `[note]` |
 | Validation independence and approval scope are stated accurately | Pass / Fail / Pending | `[note]` |
+| RTM status fields match this evidence record | Pass / Fail / Pending | `[RTM reference or discrepancy]` |
 | No unresolved contradiction affects the claim | Pass / Fail / Pending | `[note]` |
 
-**Validation result:** `[Validated / Partially Validated / Not Validated]`
+**Validation review result:** `[Validated / Partially Validated / Not Validated]`
+
+> `Partially Validated` is a review conclusion only. Until all controlled criteria pass, the RTM Validation field remains `Not Validated` unless the RTM baseline explicitly defines another value.
 
 **Validation conclusion:**  
-`[State clearly what is proven, which criteria passed, what remains, and why the chosen validation result is justified.]`
+`[State clearly what is proven, which criteria passed, what remains, and why the chosen validation review result is justified.]`
 
-**Effective-status rule:**  
-`[Apply the controlled status rules in templates/README.md. Do not manually promote a record to Verified unless the deliverable is Implemented and the validation state is Validated.]`
+**Status source-of-truth rule:**  
+`[Copy Working status, Validation state and Effective status from the controlled RTM. A record may be called Verified only when the implementation/deliverable exists, the planned evidence exists, the criteria are checked and RTM Validation is Validated.]`
 
 ## 7. Traceability
 
@@ -129,7 +134,7 @@ Any later change that affects this evidence claim must update, where applicable:
 1. the authoritative source or controlled successor;
 2. this evidence record and its record version;
 3. the criterion-to-evidence mapping;
-4. the RTM or Task Checklist working, validation and effective status;
+4. the controlled RTM Working status, Validation state and Effective status;
 5. related requirement, work-package and engineering-practice evidence records;
 6. affected tests, experiment registers, evidence indexes and report sections;
 7. the project change log when the controlled baseline changes;
