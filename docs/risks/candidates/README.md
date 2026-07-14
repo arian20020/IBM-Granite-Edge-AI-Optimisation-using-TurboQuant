@@ -1,8 +1,9 @@
 # Candidate Risk Backlog
 
-**Status:** Draft candidate inventory — not yet assessed or baselined  
+**Status:** Draft candidate inventory — not yet consolidated, assessed or baselined  
 **Owner:** Arian B  
-**Parent register:** [`../Risk-Register.md`](../Risk-Register.md)
+**Parent register:** [`../Risk-Register.md`](../Risk-Register.md)  
+**Assessment method:** [`../Control-and-Validation-Plan.md`](../Control-and-Validation-Plan.md)
 
 This directory contains the project-wide candidate risks identified before the formal risk review. The files together cover `R-003` to `R-254`. Existing full records `R-001` and `R-002` remain in the parent Risk Register.
 
@@ -22,8 +23,8 @@ A candidate row records a possible uncertain event. It is not yet a fully contro
 1. merge duplicates and closely related rows;
 2. confirm that the row is a risk rather than an issue, assumption or constraint;
 3. define cause, trigger, validation, mitigation and contingency;
-4. assess probability, impact and exposure;
-5. add evidence, traceability, review dates and residual risk;
-6. record the decision in the review log.
+4. assess probability, impact, exposure and residual risk using the controlled method;
+5. add evidence, traceability, owner and review dates;
+6. record the promotion, merge, rejection or supersession decision in the Review Log.
 
-No candidate in this directory is automatically High risk, validated, accepted or baselined merely because it has been listed.
+No candidate in this directory is automatically Critical, High, validated, accepted or baselined merely because it has been listed. The candidate tables preserve discovery coverage; the operational Risk Register will contain the smaller set of accepted and fully controlled risks.
