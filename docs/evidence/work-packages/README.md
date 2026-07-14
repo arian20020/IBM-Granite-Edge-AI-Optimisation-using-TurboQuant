@@ -23,6 +23,7 @@ Required sections:
 ## Current evidence packs
 
 - [PD-01 — Freeze first-release definition and research questions](PD-01/README.md)
+- [PD-09 — App-specific evaluation addendum](PD-09/README.md)
 
 ## Evidence rules
 
