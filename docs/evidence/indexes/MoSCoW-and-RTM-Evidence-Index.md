@@ -36,6 +36,7 @@ This index connects the completed requirements-governance tasks to their templat
 - [PR #10 — EP-006 change-control implementation](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/pull/10)
 - [PR #14 — MoSCoW v1.2 and RTM v1.3 completion](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/pull/14)
 - [PR #15 — Categorised requirement catalogues](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/pull/15)
+- [PR #17 — Evidence-template and repository-link correction](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/pull/17)
 
 ## Validation boundary
 
