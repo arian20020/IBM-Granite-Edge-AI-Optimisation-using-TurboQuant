@@ -1,0 +1,20 @@
+Stage: Workbook control diagnostic Stage 3A
+Run ID: UL-B01-R001
+Failure ID: FAIL-CTRL-001
+Branch: testing/upstream-llama-cpp-controlled-retest
+Commit: 664f00a26e24c44b063e1d5074bb31edc2564024
+Timestamp UTC: 2026-07-14T02:44:05.2254659Z
+Timestamp local: 2026-07-14T03:44:05.2254659+01:00
+External workspace: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage3a-20260714-034343
+Generation A directory: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage3a-20260714-034343\generation-a
+Generation B directory: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage3a-20260714-034343\generation-b
+Generate-Controlled-Workbooks.py SHA-256: a75b923a092fed04922a6a8d3be8506d838d8058a35bf3871ee1cb34e5ff41ef
+Apply-Workbook-Revision-History.py SHA-256: 344a7c404ae9240086b89b831a4b0bcd03e39223f83adf7aa0a5dd538e4dc885
+Controlled-Workbook-Manifest.csv SHA-256: 62efeb8a5ee8e6c3cd430fa58209dd4f3886d3aa6cb3a1eb20cbffd2bb55b201
+Workbook-Revision-Register.csv SHA-256: 08736e036d442dd09b6cb9a9735efbd9762a81414e3f721e7992d396f4e61bb7
+
+Python version:
+Python 3.13.14
+
+Installed packages:
+lxml==6.1.1 python-docx==1.2.0 typing_extensions==4.16.0
