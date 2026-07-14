@@ -12,6 +12,7 @@ Use the [Evidence Record Template](../templates/Evidence-Record-Template.md) for
 
 - [EP-001 — Freeze problem, aim, research questions, contribution and scope](EP-001/README.md)
 - [EP-006 — Maintain derived-requirement and change log](EP-006/README.md)
+- [EP-019 — Freeze app-specific evaluation addendum](EP-019/README.md)
 
 ## Evidence rules
 

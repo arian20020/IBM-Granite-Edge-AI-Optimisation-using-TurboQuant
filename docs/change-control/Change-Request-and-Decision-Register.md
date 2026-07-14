@@ -21,6 +21,7 @@
 | CR-009 | 2026-07-13 | Workflow audit | Separate runtime smoke testing from model-quality evaluation. | Evaluation control | DR-WF-014 | Approved and implemented | Closed |
 | CR-010 | 2026-07-14 | Project developer | Increase text clarity while keeping editable text and original workflow design. | Documentation quality | DR-WF-018 | Approved and implemented | Closed |
 | CR-011 | 2026-07-14 | Project developer | Create the derived-requirement, requirements-change and decision records needed for EP-006. | Engineering practice | EP-006; PD-04 | Approved and implemented | Closed |
+| CR-012 | 2026-07-14 | Project developer | Freeze the app-specific evaluation addendum and create evidence records for PD-09 and EP-019. | Evaluation control | PD-09; EP-019; APP-EVAL-01-APP-EVAL-12 | Approved and implemented; RTM synchronisation follows review and merge | Closed |
 
 ## Impact, decision and approval record
 
@@ -37,3 +38,4 @@
 | CR-009 | Mode and evaluation wording | Clarifies evidence claims. | Use smoke test only for load/stability; use controlled evaluation for quality. | Project developer | Approved | DR-WF-014 |
 | CR-010 | All DOCX workflow/control documents | Formatting-only revision. | Increase font clarity and fit wide trees in landscape while preserving behaviour. | Project developer | Approved | DR-WF-018; CHG-WF-013 |
 | CR-011 | 00. Workflow Control | Adds controlled records but no product behaviour. | Create EP-006 logs and link them through the Workflow Register. | Project developer | Approved | CHG-011; EP-006 validation record |
+| CR-012 | App-specific evaluation addendum; PD-09 and EP-019 evidence folders; testing indexes and decision log | High traceability benefit; no claim that hardware, runtime, model or application tests passed. | Preserve 224 route IDs, add separate app-evaluation IDs, freeze inputs/schemas/gates and validate the planning deliverables. | Project developer | Approved | EVAL-ADDENDUM-v1; PD-09 evidence; EP-019 evidence; TD-012; CHG-012 |
