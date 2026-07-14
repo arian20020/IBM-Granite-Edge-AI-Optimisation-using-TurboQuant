@@ -1,11 +1,6 @@
 name: Materialise curated research library
 
 on:
-  push:
-    branches:
-      - research/provenance-library-v2
-    paths:
-      - .github/workflows/materialise-research.yml
   pull_request:
     branches:
       - main
@@ -25,7 +20,7 @@ jobs:
           ref: research/provenance-library-v2
           fetch-depth: 0
 
-      - name: Reconstruct and verify the research archive
+      - name: Diagnose the staged archive
         shell: bash
         run: |
           set -euo pipefail
@@ -37,15 +32,34 @@ jobs:
             exit 1
           fi
 
-          printf 'Archive parts found: %s\n' "${#parts[@]}"
-          printf '%s\n' "${parts[@]}"
-
           cat "${parts[@]}" | tr -d '\r\n' | base64 --decode > research-import.tar.xz
 
           actual_sha256="$(sha256sum research-import.tar.xz | awk '{print $1}')"
           expected_sha256="25c36e32bf01c4a2a08d6d9797458a0104d15b0e365f3b2b9869359a6ee99299"
+          archive_size="$(stat -c '%s' research-import.tar.xz)"
+          encoded_size="$(cat "${parts[@]}" | tr -d '\r\n' | wc -c | tr -d ' ')"
 
-          echo "Archive SHA-256: ${actual_sha256}"
+          {
+            echo '# Research import diagnostic'
+            echo
+            echo "- Part count: ${#parts[@]}"
+            echo "- Encoded character count: ${encoded_size}"
+            echo "- Decoded archive byte count: ${archive_size}"
+            echo "- Actual SHA-256: ${actual_sha256}"
+            echo "- Expected SHA-256: ${expected_sha256}"
+            echo
+            echo '## Parts in reconstruction order'
+            echo
+            for part in "${parts[@]}"; do
+              printf -- '- `%s` — %s bytes\n' "$(basename "${part}")" "$(stat -c '%s' "${part}")"
+            done
+          } > .github/research-import/DIAGNOSTIC.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/research-import/DIAGNOSTIC.md
+          git commit -m "chore(research-import): record archive reconstruction diagnostic"
+          git push origin HEAD:research/provenance-library-v2
 
           if [ "${actual_sha256}" != "${expected_sha256}" ]; then
             echo "The reconstructed archive checksum does not match the controlled package." >&2
@@ -74,16 +88,13 @@ jobs:
           markdown_count="$(find research -type f -name '*.md' | wc -l | tr -d ' ')"
           total_file_count="$(find research -type f | wc -l | tr -d ' ')"
 
-          echo "Markdown files materialised: ${markdown_count}"
-          echo "Total files materialised: ${total_file_count}"
-
           if [ "${markdown_count}" -ne 109 ]; then
-            echo "Unexpected Markdown file count." >&2
+            echo "Unexpected Markdown file count: ${markdown_count}." >&2
             exit 1
           fi
 
           if [ "${total_file_count}" -ne 116 ]; then
-            echo "Unexpected total file count." >&2
+            echo "Unexpected total file count: ${total_file_count}." >&2
             exit 1
           fi
 
@@ -91,9 +102,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add --all
           git commit \
