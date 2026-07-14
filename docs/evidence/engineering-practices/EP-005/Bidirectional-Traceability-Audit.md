@@ -3,6 +3,7 @@
 **Auditor:** Arian B  
 **Date:** 2026-07-14  
 **Result:** Pass  
+**Evidence record:** [EP-005 README](README.md)  
 
 ## Forward direction
 
@@ -34,6 +35,14 @@ The RTM contains reverse indexes for:
 | Component reverse-index keys | 113 |
 | Test/evidence reverse-index keys | 71 |
 | Evidence-path reverse-index keys | 69 |
+
+## Controlled sources
+
+- [Requirements Traceability Matrix v1.3](../../../requirements/Requirements-Traceability-Matrix-v1.3.md)
+- [Traceability Reverse Indexes v1.3](../../../requirements/Traceability-Reverse-Indexes-v1.3.md)
+- [Controlled workbook artifact record](../../../requirements/RTM-Workbook-Artifact-Record.md)
+- [PD-04 evidence record](../../work-packages/PD-04/README.md)
+- [G-M02 evidence record](../../requirements/G-M02/README.md)
 
 ## Ongoing boundary
 
