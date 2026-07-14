@@ -1,0 +1,81 @@
+name: Work package
+description: Track executable work that is defined by a WP ID in the RTM.
+title: "[WP-ID] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use one issue per work package. Requirements and engineering practices remain linked traceability records rather than separate duplicate issues.
+
+  - type: input
+    id: work_package_id
+    attributes:
+      label: Work-package ID
+      description: Enter the stable ID, for example PD-02, IM-02 or RT-03.
+      placeholder: IM-02
+    validations:
+      required: true
+
+  - type: textarea
+    id: task
+    attributes:
+      label: Task statement
+      description: Copy the controlled task statement from the generated work-package catalogue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+      description: Copy the controlled Definition of Done and break it into checkboxes where useful.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Related requirements
+      description: List Master Keys such as REQ:F-M02.
+      placeholder: |
+        - REQ:F-M02
+    validations:
+      required: true
+
+  - type: textarea
+    id: engineering_practices
+    attributes:
+      label: Related engineering practices
+      description: List Master Keys such as EP:EP-023.
+      placeholder: |
+        - EP:EP-023
+    validations:
+      required: true
+
+  - type: input
+    id: evidence_path
+    attributes:
+      label: Evidence path
+      description: Enter the repository path from the RTM.
+      placeholder: docs/evidence/work-packages/IM-02/
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation_notes
+    attributes:
+      label: Implementation notes and risks
+      description: Record dependencies, assumptions, known risks and expected tests.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Completion boundary
+      options:
+        - label: I understand that closing this issue does not make a requirement Verified until the RTM evidence is validated.
+          required: true

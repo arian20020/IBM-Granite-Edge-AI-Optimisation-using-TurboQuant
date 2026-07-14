@@ -1,0 +1,36 @@
+name: Traceability validation
+
+on:
+  pull_request:
+    paths:
+      - "docs/traceability/**"
+      - "scripts/traceability/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
+      - ".github/workflows/traceability-validation.yml"
+  push:
+    paths:
+      - "docs/traceability/**"
+      - "scripts/traceability/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile traceability scripts
+        run: python -m compileall -q scripts/traceability
+
+      - name: Validate committed traceability snapshot
+        run: python scripts/traceability/validate_task_catalogue.py --repository-root .
