@@ -1,8 +1,8 @@
-﻿# ADR-XXX: Decision Title
+# ADR-XXX: Decision Title
 
 **Status:** Proposed  
 **Date:** YYYY-MM-DD  
-**Decision owner:** Project developer  
+**Decision owner:** Arian B  
 
 ## Context
 Explain the engineering problem and constraints.
