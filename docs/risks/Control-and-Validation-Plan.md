@@ -1,7 +1,7 @@
 # Risk, Assumption, Constraint and Licence Control and Validation Plan
 
 **Document ID:** PLAN-RACL-001  
-**Version:** 1.1  
+**Version:** 1.2  
 **Status:** Active working plan  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
@@ -12,32 +12,32 @@
 
 ## 1. Purpose
 
-This plan defines how the four live registers move from populated drafts to a reviewed and frozen developer working baseline.
+This plan defines how the four live registers move from populated working records to a reviewed and frozen developer baseline.
 
 It prevents three common errors:
 
-- treating a listed risk as though it has already been controlled;
-- treating a reasonable assumption as though it has been proven;
+- treating a listed risk as though its controls have already been proven;
+- treating a reasonable assumption as though it has been confirmed;
 - treating public source code or a model page as automatic permission to bundle or redistribute it.
 
 ## 2. Current state
 
 | Register | Current content state | What remains |
 |---|---|---|
-| Risk Register | `R-001` and `R-002` are full draft records; `R-003`–`R-254` form a candidate backlog | Consolidate duplicates, confirm record type, assess importance and complete controls for accepted risks |
+| Risk Register | The 254-item identification inventory has been consolidated into 37 operational risks with ratings and planned treatment | Review treatment evidence, reassess residual risk at gates and obtain baseline approval |
 | Assumption Register | `A-001`–`A-017` populated | Execute validation methods, link exact evidence and set evidence-backed outcomes |
 | Constraint Register | `C-001`–`C-015` populated | Confirm authoritative sources, check scope consistency and approve the active wording |
 | Licence Register | `L-001`–`L-013` populated | Pin exact versions, inspect package/model terms and approve or restrict final packaging decisions |
-| Review Log | Structural, content-population and internal-consistency reviews recorded | Record substantive gate, baseline and final-release reviews |
+| Review Log | Structural, content-population, consistency and risk-consolidation reviews recorded | Record assumption, constraint, licence, baseline and final-release reviews |
 | Baselines | Structure and record template prepared | Freeze `v1.0` only after the criteria in this plan are met |
 
 ## 3. Review order
 
-The review must follow this order because later decisions depend on earlier ones.
+The review follows this order because later decisions depend on earlier ones.
 
 ### Stage 1 — Confirm the controlled release scope
 
-Before the first baseline review, resolve the current difference between the intended Windows/Intel/OpenVINO/TurboQuant/TurboVec scope and any controlled requirements or ADRs that still classify OpenVINO or full TurboVec work differently.
+Before the first baseline review, resolve the difference between the intended Windows/Intel/OpenVINO/TurboQuant/TurboVec scope and any controlled requirements or ADRs that still classify OpenVINO or full TurboVec work differently.
 
 Required output:
 
@@ -45,21 +45,33 @@ Required output:
 - synchronised Project Definition, requirements, RTM and ADR wording where approved;
 - updated risk, assumption and constraint relationships.
 
-The registers may remain populated while this is pending, but the first baseline must state the unresolved scope gap clearly.
+The registers may remain operational while this is pending, but the first baseline must state the unresolved scope gap clearly.
 
 ### Stage 2 — Consolidate and assess risks
 
-The candidate backlog is an identification list, not the final operational register.
+**Consolidation status:** Completed on 2026-07-14 for the developer working register.
 
-For each candidate:
+The original candidate inventory remains preserved as historical identification evidence. The operational result is controlled by:
 
-1. confirm that it describes an uncertain future event or condition;
-2. move existing failures to the Failure Register rather than duplicating them as risks;
-3. move beliefs requiring proof to the Assumption Register;
-4. move fixed boundaries to the Constraint Register;
-5. merge duplicate or closely related candidates;
-6. promote accepted risks into the full risk table;
-7. retain merged or rejected IDs as `Superseded` with a replacement or reason.
+- `Risk-Register.md` — 37 retained operational risks;
+- `Risk-Consolidation-Map.md` — mapping from merged candidates to retained risks;
+- `candidates/` — read-only discovery history.
+
+The consolidation review:
+
+1. separated risks from assumptions, constraints, licences and existing failures;
+2. merged duplicate and overly narrow candidates;
+3. retained only risks with materially different treatment needs;
+4. assigned probability, impact and exposure;
+5. populated trigger, validation, mitigation, contingency, owner, status and planned evidence;
+6. preserved all original IDs through the consolidation map.
+
+The remaining risk work is not more risk-list expansion. It is evidence review and treatment monitoring:
+
+- confirm that planned controls are implemented where required;
+- link exact evidence at each dependent gate;
+- reassess residual risk;
+- change status to Monitoring, Triggered, Accepted or Closed only with a recorded reason.
 
 #### Probability scale
 
@@ -91,7 +103,7 @@ For each candidate:
 | Low | Medium | Low |
 | Low | Low | Low |
 
-Critical and High risks require an owner, trigger, validation method, mitigation, contingency, residual-risk assessment and review date before the baseline can pass. Medium and Low risks may use proportionate controls but cannot have blank mandatory fields.
+Critical and High risks require an owner, trigger, validation method, mitigation, contingency, residual-risk assessment and review date. Their planned controls must also be checked against evidence before the relevant gate can pass.
 
 ### Stage 3 — Validate assumptions
 
@@ -155,7 +167,7 @@ No `Pending` component may be bundled into the release.
 Check that:
 
 - the same fact does not appear as conflicting risk, assumption and constraint entries;
-- risk IDs and related IDs resolve to real records;
+- retained risk IDs and consolidation mappings resolve correctly;
 - owners and review dates are current;
 - the exact first-release scope is consistent across planning, requirements, architecture and these registers;
 - licence restrictions are reflected in packaging and model-download requirements;
@@ -191,14 +203,14 @@ The baseline record must identify the reviewed commit, review ID, approval scope
 The `docs/risks/` control area is operationally complete when:
 
 - all four live registers contain the important project entries;
-- the candidate-risk backlog has been consolidated into a manageable operational set;
-- every Critical or High risk has complete and reviewable treatment fields;
+- the risk identification backlog has been consolidated into a manageable operational set;
+- every Critical or High risk has complete treatment fields and its dependent gate reviews the planned evidence;
 - critical assumptions have evidence-backed outcomes or explicit assigned pending actions;
 - all active constraints have approved sources, effects and project responses;
 - every release-relevant third-party component has a clear licence and packaging decision;
-- the Review Log records the substantive review;
+- the Review Log records the substantive reviews;
 - PD-05, EP-007 and G-M05 evidence records are complete;
 - the RTM matches the evidence and validation state;
 - the first controlled baseline is frozen without hiding open gaps.
 
-Until these conditions are met, the folder may be described as **populated and operational**, but not fully validated or baselined.
+The risk-consolidation criterion is now complete. The whole folder remains **populated and operational**, not fully validated or baselined, until the remaining assumption, constraint, licence, evidence and baseline gates pass.
