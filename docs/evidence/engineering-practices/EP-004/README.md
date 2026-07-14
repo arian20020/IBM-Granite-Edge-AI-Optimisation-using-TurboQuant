@@ -25,7 +25,7 @@
 - [x] Requirement IDs remain stable when only priority or release role changes.
 - [x] Active, Deferred, Superseded and Excluded lifecycle records are preserved.
 - [x] No requirement ID appears more than once.
-- [x] Baseline counts agree across the workbook, Markdown catalogue and audits.
+- [x] Baseline counts agree across the workbook record, Markdown catalogue and audits.
 - [x] Material scope and priority changes are dated, owned and linked to decisions.
 - [x] Presentation-only changes are distinguished from scope changes.
 - [x] Supervisor-review state is shown honestly.
@@ -42,7 +42,7 @@ The stable-catalogue audit records 111 lifecycle records, 72 active requirements
 | Evidence item | Repository path or external controlled location | What it proves | Status |
 |---|---|---|---|
 | MoSCoW Requirements Baseline v1.2 | [MoSCoW-Requirements-v1.2.md](../../../requirements/MoSCoW-Requirements-v1.2.md) | Identifies the current baseline, priority boundary and separate category catalogues. | Available |
-| Controlled RTM workbook | [IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx](../../../requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx) | Preserves all lifecycle records, formulas, status and category views in one authoritative workbook. | Available |
+| Controlled workbook artifact record | [RTM-Workbook-Artifact-Record.md](../../../requirements/RTM-Workbook-Artifact-Record.md) | Controls the exact binary filename, size, SHA-256, package and recovery/placement procedure. | Available |
 | Workbook integrity record | [RTM-Working-Baseline-SHA256.txt](../../../requirements/RTM-Working-Baseline-SHA256.txt) | Identifies the reviewed workbook by SHA-256. | Available |
 | Stable catalogue audit | [Stable-Catalogue-Audit.md](Stable-Catalogue-Audit.md) | Records the version, counts, lifecycle and duplicate-ID checks. | Available |
 | Categorised catalogue audit | [Categorised-Requirements-Catalogue-Audit.md](../../../requirements/Categorised-Requirements-Catalogue-Audit.md) | Confirms all 111 records appear in one and only one readable category view. | Available |
@@ -60,8 +60,8 @@ The stable-catalogue audit records 111 lifecycle records, 72 active requirements
 
 | Check | Result | Evidence or note |
 |---|---|---|
-| Required deliverable exists | Pass | MoSCoW v1.2, the controlled workbook and category catalogues are present. |
-| Definition of Done checked | Pass | Every criterion in section 3 was checked against the workbook and audits. |
+| Required deliverable exists | Pass | MoSCoW v1.2, the category catalogues, workbook artifact record and checksum are present in Git; the exact binary is independently controlled. |
+| Definition of Done checked | Pass | Every criterion in section 3 was checked against the controlled RTM exports and audits. |
 | One current baseline | Pass | MoSCoW v1.2 / RTM v1.3. |
 | Duplicate requirement IDs | Pass | 0. |
 | Active requirement count | Pass | 72. |
@@ -70,8 +70,8 @@ The stable-catalogue audit records 111 lifecycle records, 72 active requirements
 | Stable IDs retained across priority changes | Pass | Priority-only changes did not rename IDs. |
 | Category coverage | Pass | 111 of 111 lifecycle records appear in exactly one category view. |
 | Change decisions dated and owned | Pass | CHG-013/CR-013 and CHG-014/CR-014 are dated and owned by Arian B. |
-| Evidence is version-controlled or independently backed up | Pass | Documents and workbook are in Git; the workbook has a matching SHA-256 record. |
-| No unresolved contradiction affects the claim | Pass with limitation | Supervisor review remains pending, but the working-baseline status is explicit. |
+| Evidence is version-controlled or independently backed up | Pass | Documents and checksums are in Git; the exact binary is retained in the controlled completion package and identified by filename, size and SHA-256. |
+| No unresolved contradiction affects the claim | Pass with limitation | Supervisor review and direct binary Git placement remain pending, and both states are explicit. |
 
 **Validation result:** Validated
 
@@ -87,11 +87,12 @@ EP-004 is verified because one stable, versioned and internally consistent MoSCo
 | Engineering practice(s) | `EP-004`, related `EP-005`, `EP-006` |
 | Objective(s) | `O11` |
 | Research question(s) | All controlled RQs through requirement mappings |
-| Test / experiment / evidence IDs | Stable-catalogue audit; categorised-catalogue audit; MoSCoW review checklist |
+| Test / experiment / evidence IDs | `ART-RTM-XLSX-001`; stable-catalogue audit; categorised-catalogue audit; MoSCoW review checklist |
 
 ## 8. Limitations, gaps and follow-up
 
 - Supervisor review remains pending and is not claimed.
+- Direct placement of the exact `.xlsx` binary in Git remains pending; the artifact record and checksum prevent a broken or false repository link.
 - The category files are generated/readable views; controlled requirement edits must start in the authoritative workbook.
 - Any material scope, priority or lifecycle change requires a new change record and repeat catalogue audit.
 - Final implementation status remains governed by individual requirement evidence and the release-level G-M03 audit.
@@ -100,7 +101,7 @@ EP-004 is verified because one stable, versioned and internally consistent MoSCo
 
 Any later change that affects this evidence claim must update:
 
-1. the controlled RTM workbook;
+1. the controlled RTM workbook artifact and checksum;
 2. the MoSCoW baseline and affected category catalogue;
 3. `Stable-Catalogue-Audit.md` and the categorised-catalogue audit;
 4. this EP-004 evidence record;
