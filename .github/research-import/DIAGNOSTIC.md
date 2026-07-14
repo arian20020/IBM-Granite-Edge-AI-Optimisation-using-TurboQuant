@@ -1,9 +1,9 @@
 # Research import diagnostic
 
-- Part count: 23
-- Encoded character count: 200000
-- Decoded archive byte count: 150000
-- Actual SHA-256: 2f898aaf354038e5b75275a0e2978b8b077cd5b355c6b03007419877f454b853
+- Part count: 24
+- Encoded character count: 205128
+- Decoded archive byte count: 153844
+- Actual SHA-256: 7ee0322ada078f1964962b64f7a4799861c42d39b13132add889a766adff5dd0
 - Expected SHA-256: 25c36e32bf01c4a2a08d6d9797458a0104d15b0e365f3b2b9869359a6ee99299
 
 ## Parts in reconstruction order
@@ -31,3 +31,4 @@
 - `part-007-008.b64` — 8000 bytes
 - `part-007-009.b64` — 8000 bytes
 - `part-007-010.b64` — 8000 bytes
+- `part-007-011.b64` — 5128 bytes
