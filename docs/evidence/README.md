@@ -15,13 +15,15 @@ Folder creation alone is not evidence of completion.
 
 All new requirement, work-package, engineering-practice and experiment evidence READMEs must follow the current common template:
 
-- [Evidence Record Template v1.1](templates/Evidence-Record-Template.md)
+- [Evidence Record Template v1.1.1](templates/Evidence-Record-Template.md)
 - [Template usage and migration guidance](templates/README.md)
 - [Evidence template revision history](templates/Evidence-Template-Revision-History.md)
 
 The required nine sections are metadata, statement being evidenced, Definition-of-Done or acceptance-criterion mapping, evidence summary and claim boundary, authoritative evidence, validation record, traceability, limitations/revalidation and change control.
 
-Template v1.1 is mandatory for new records. Existing validated v1.0 records remain valid when their evidence and conclusions remain sound, but they must migrate when materially changed, revalidated or superseded and must be reviewed during the final release audit.
+Template v1.1.1 is mandatory for new records. Existing validated v1.0 or v1.1 records remain valid when their evidence and conclusions remain sound, but they must migrate when materially changed, revalidated or superseded and must be reviewed during the final release audit.
+
+The controlled RTM remains authoritative for Working status, Validation state and Effective status. Evidence records must mirror those values and must not create a second status calculation.
 
 ## Evidence collections
 
@@ -47,6 +49,7 @@ The current MoSCoW/RTM planning completion is evidenced by:
 - Keep one authoritative source and cross-reference it instead of copying it into several folders.
 - Use stable requirement, work-package, engineering-practice, experiment and research-question IDs.
 - Record template version, evidence-record version, source baseline, status, validation state, owner, date, validator, independence and approval scope.
+- Copy Working status, Validation state and Effective status from the controlled RTM.
 - Map every required acceptance criterion or Definition-of-Done item to identified evidence.
 - State both what the evidence proves and what it does not prove.
 - Link implementation, tests, logs, screenshots, manifests, hashes, commits or pull requests where relevant.

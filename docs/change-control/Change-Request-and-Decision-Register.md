@@ -1,7 +1,7 @@
 # Change Request and Decision Register
 
 **Document ID:** LOG-CRD-001  
-**Version:** 1.4  
+**Version:** 1.5  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -26,6 +26,7 @@
 | CR-014 | 2026-07-14 | Arian B | Separate Functional, Non-Functional, Research, Governance and Exclusion requirements into readable catalogues. | Documentation structure | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Approved and implemented as a presentation-only revision | Closed |
 | CR-015 | 2026-07-14 | Arian B | Bring the completed MoSCoW/RTM evidence packs into full template compliance, repair their indexes and replace the missing-workbook link with a controlled artifact record. | Evidence and configuration control | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001 | Approved and implemented through PR #17; no scope or completion-status change | Closed |
 | CR-016 | 2026-07-14 | Arian B | Strengthen the common evidence-record template while preserving existing validated evidence and avoiding unnecessary mass migration. | Evidence governance | Evidence Record Template; all future REQ/WP/EP/EXP evidence records; final release evidence audit | Approved and implemented as template v1.1; no requirement, scope or completion-status change | Closed |
+| CR-017 | 2026-07-14 | Evidence-template compatibility review | Align the v1.1 status fields and guidance with the controlled RTM instead of introducing a competing validation vocabulary. | Corrective evidence governance | Evidence Record Template v1.1; template guidance; all future evidence records | Approved and implemented as v1.1.1 compatibility patch; no task status changed | Closed |
 
 ## CR-013 decision record
 
@@ -135,7 +136,7 @@ The original G-M02, PD-04, EP-004 and EP-005 READMEs recorded valid conclusions 
 
 ### Problem found
 
-Template v1.0 provided a sound nine-section evidence structure, but it did not require an explicit mapping from each acceptance criterion to evidence. It also lacked template/record versioning, a mandatory claim boundary, validation-independence fields, controlled effective-status calculation and clear revalidation triggers. These gaps could lead to inconsistent future records or claims that are broader than the evidence supports.
+Template v1.0 provided a sound nine-section evidence structure, but it did not require an explicit mapping from each acceptance criterion to evidence. It also lacked template/record versioning, a mandatory claim boundary, validation-independence fields, controlled effective-status guidance and clear revalidation triggers. These gaps could lead to inconsistent future records or claims that are broader than the evidence supports.
 
 ### Decision
 
@@ -170,4 +171,45 @@ The revision improves auditability and makes overclaiming harder while avoiding 
 - `docs/evidence/templates/Evidence-Template-Revision-History.md`
 - `docs/evidence/README.md`
 - CHG-016
-- evidence-template v1.1 pull request
+- PR #19
+
+## CR-017 decision record
+
+**Decision owner:** Arian B  
+**Decision date:** 2026-07-14  
+**Approval state:** Approved corrective patch  
+
+### Problem found
+
+The first v1.1 template draft changed the controlled status vocabulary by removing `Partially Verified` and `Verified` from Working status and adding `Partially Validated` as a metadata Validation state. The controlled RTM is the authoritative source for status and currently uses the established Working status, Validation and Effective status fields. A template must mirror that source rather than create a second status model.
+
+### Decision
+
+1. Release Evidence Record Template v1.1.1 as a compatibility correction.
+2. Restore the existing RTM Working-status and Effective-status vocabulary.
+3. Keep the controlled Validation field binary: `Not Validated` or `Validated`.
+4. Permit `Partially Validated` only as a narrative validation-review conclusion, not as a third RTM Validation value.
+5. Require evidence records to copy all three status fields from the controlled RTM.
+6. Require discrepancies to be corrected in the RTM first and then reflected in the evidence record.
+7. Preserve all v1.1 evidence-governance improvements, including criterion mapping, claim boundaries, integrity identifiers and revalidation triggers.
+8. Do not alter any existing task status through this corrective patch.
+
+### Rationale
+
+A single authoritative status model prevents the RTM, generated catalogues and evidence READMEs from disagreeing. The patch keeps the stronger evidence controls while restoring compatibility with the project’s existing traceability system.
+
+### Impact
+
+- No requirement, priority, lifecycle, acceptance criterion or task completion status changed.
+- The RTM remains the status source of truth.
+- New evidence records use v1.1.1.
+- Existing v1.0/v1.1 records migrate on material change, revalidation, supersession or final release audit.
+
+### Evidence
+
+- `docs/evidence/templates/Evidence-Record-Template.md`
+- `docs/evidence/templates/README.md`
+- `docs/evidence/templates/Evidence-Template-Revision-History.md`
+- `docs/evidence/README.md`
+- CHG-017
+- status-compatibility pull request
