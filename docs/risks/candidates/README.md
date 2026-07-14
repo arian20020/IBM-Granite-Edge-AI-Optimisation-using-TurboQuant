@@ -1,11 +1,14 @@
 # Candidate Risk Backlog
 
-**Status:** Draft candidate inventory — not yet consolidated, assessed or baselined  
+**Status:** Historical identification inventory — consolidation completed  
 **Owner:** Arian B  
 **Parent register:** [`../Risk-Register.md`](../Risk-Register.md)  
+**Consolidation decision:** [`../Risk-Consolidation-Map.md`](../Risk-Consolidation-Map.md)  
 **Assessment method:** [`../Control-and-Validation-Plan.md`](../Control-and-Validation-Plan.md)
 
-This directory contains the project-wide candidate risks identified before the formal risk review. The files together cover `R-003` to `R-254`. Existing full records `R-001` and `R-002` remain in the parent Risk Register.
+This directory preserves the broad risk-storming inventory created before formal consolidation. The files cover `R-003` to `R-254`; `R-001` and `R-002` originated as earlier full records.
+
+The inventory has now been consolidated into **37 operational risks** in the parent Risk Register. Candidate entries that were not retained separately are treated as causes, examples or narrower forms of the operational risk identified in the Risk Consolidation Map.
 
 | File | IDs | Main areas |
 |---|---|---|
@@ -16,15 +19,14 @@ This directory contains the project-wide candidate risks identified before the f
 | [05-testing-evidence.md](05-testing-evidence.md) | `R-200`–`R-224` | Testing, evidence and reproducibility |
 | [06-licence-release.md](06-licence-release.md) | `R-225`–`R-254` | Licensing, third-party supply chain, release and reporting |
 
-## Important boundary
+## Control boundary
 
-A candidate row records a possible uncertain event. It is not yet a fully controlled risk. Before promotion into the full register, the review must:
+These files are historical discovery evidence, not the live operational register.
 
-1. merge duplicates and closely related rows;
-2. confirm that the row is a risk rather than an issue, assumption or constraint;
-3. define cause, trigger, validation, mitigation and contingency;
-4. assess probability, impact, exposure and residual risk using the controlled method;
-5. add evidence, traceability, owner and review dates;
-6. record the promotion, merge, rejection or supersession decision in the Review Log.
+- Do not assess or update a candidate row independently after consolidation.
+- Update the retained operational risk when new evidence concerns the same uncertainty.
+- Add a new stable risk ID only when the cause, treatment or contingency is materially different.
+- Do not delete or reuse candidate IDs; the consolidation map preserves their decision history.
+- Existing failures belong in the Failure Register or issue tracker, even where a linked recurrence risk remains operational.
 
-No candidate in this directory is automatically Critical, High, validated, accepted or baselined merely because it has been listed. The candidate tables preserve discovery coverage; the operational Risk Register will contain the smaller set of accepted and fully controlled risks.
+The operational Risk Register controls current probability, impact, exposure, trigger, treatment, owner, status, evidence and review dates.
