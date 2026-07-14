@@ -5,13 +5,14 @@
 **Owner:** Project team  
 **Last reviewed:** 2026-07-14
 
-This page identifies the authoritative logs and registers used to control experiments, test executions and workbook changes.
+This page identifies the authoritative logs and registers used to control experiments, application evaluations, test executions and workbook changes.
 
 ## Decisions and scope changes
 
 - [Testing Decision Log](Decision-Log.md) — append-only decisions about campaign scope, evidence rules, quality scale and route coverage.
 - [Master Test Plan](Master-Test-Plan.md) — route order, stage gates, stop conditions and execution boundaries.
-- [Test ID Catalogue](Test-ID-Catalogue.md) — stable test identifiers that must exist before execution.
+- [App-Specific Evaluation Addendum](App-Specific-Evaluation-Addendum-v1.md) — stable app-evaluation IDs, RQ mappings, frozen prompts/rubric, evidence schemas, measures, gates, stopping rules and claim boundaries.
+- [Test ID Catalogue](Test-ID-Catalogue.md) — stable route-workbook test identifiers that must exist before execution.
 - [Source-to-Control Mapping](Source-to-Control-Mapping.md) — mapping from supplied testing material into the controlled campaign.
 
 ## Experiment and run records
@@ -38,8 +39,8 @@ This page identifies the authoritative logs and registers used to control experi
 
 ## Evidence flow
 
-`requirement/RQ -> test ID -> run ID -> environment/repository/build/model/configuration -> immutable raw evidence -> processed result -> machine-readable register -> workbook -> conclusion`
+`requirement/RQ -> evaluation/test ID -> run ID -> environment/repository/build/model/configuration -> immutable raw evidence -> processed result -> machine-readable register -> workbook/test report -> conclusion`
 
 ## Change rule
 
-A later correction creates a new run ID, processed result, workbook revision or decision-log entry. Raw evidence and historical revision rows are retained.
+A later correction creates a new run ID, processed result, workbook revision, addendum revision or decision-log entry. Raw evidence and historical revision rows are retained.
