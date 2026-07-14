@@ -1,0 +1,26 @@
+PASS  docs/testing/README.md
+PASS  docs/testing/Test-Strategy.md
+PASS  docs/testing/Master-Test-Plan.md
+PASS  docs/testing/Test-ID-Catalogue.md
+PASS  docs/testing/Workbook-Data-Requirements.md
+PASS  docs/testing/Execution-Checklist.md
+PASS  docs/testing/Metric-Definitions.md
+PASS  docs/testing/Test-Run-Register.csv
+PASS  docs/testing/Environment-Register.csv
+PASS  docs/testing/Failure-Register.csv
+PASS  docs/testing/Test-Traceability-Matrix.csv
+PASS  docs/testing/Workbook-Completion-Register.csv
+PASS  docs/testing/source-material/Source-Document-Manifest.csv
+PASS  docs/testing/workbooks/Controlled-Workbook-Manifest.csv
+PASS  experiments/granite_turboquant_intel/README.md
+PASS  experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json
+PASS  experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json
+PASS  experiments/granite_turboquant_intel/manifests/templates/run-manifest-template.json
+PASS  scripts/testing/New-Controlled-TestRun.ps1
+PASS  scripts/testing/New-EvidenceHashManifest.ps1
+PASS  scripts/testing/Generate-Controlled-Workbooks.py
+PASS  scripts/testing/requirements.txt
+PASS  Campaign log files can be committed.
+
+CONTROLLED TESTING WORKSPACE: PASS
+The repository is structurally ready. This does not prove that any hardware test has passed.

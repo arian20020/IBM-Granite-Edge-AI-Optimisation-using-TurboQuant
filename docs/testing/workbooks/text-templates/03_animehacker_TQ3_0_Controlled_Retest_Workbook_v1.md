@@ -1,11 +1,13 @@
-# 03 animehacker TQ3 0 Controlled Retest Workbook v1
+# 03 animehacker TQ3_0 Controlled Retest Workbook v1
 
-**Source file:** `03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.docx`  
-**SHA-256:** `c7db954b5a08031d5b8c7a8c04149492648febcb95d9b8312f4d56f8202cf0c8`
+**Controlled filename:** `03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.docx`
+**Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`
+**Original source:** `03_animehacker_TQ3_0_Completed_Test_Workbook_Quality10_Checked (1).docx`
+**Original source SHA-256:** `1fa3528d7aa871d3570cdb93ad91d57851fcd7e7ed946ce48a98adab295d31b2`
 
 ## animehacker TQ3_0 Controlled Retest Workbook
 
-Controlled retest template v1. Source: 03_animehacker_TQ3_0_Completed_Test_Workbook_Quality10_Checked (1).docx. Source SHA-256: 1fa3528d7aa871d3570cdb93ad91d57851fcd7e7ed946ce48a98adab295d31b2. Historical results were removed from this working copy; the original source document is preserved under docs/testing/source-material/original-workbooks/.
+Controlled retest template v1. Historical results were removed from this working copy; the original source document is preserved under docs/testing/source-material/original-workbooks/.
 
 Purpose: evaluate the alternative llama.cpp TurboQuant-style implementation as an integration candidate or research comparator.
 

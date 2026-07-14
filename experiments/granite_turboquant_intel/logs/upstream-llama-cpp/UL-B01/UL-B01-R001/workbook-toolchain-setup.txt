@@ -1,0 +1,26 @@
+Collecting python-docx==1.2.0 (from -r .\scripts\testing\requirements.txt (line 1))
+  Downloading python_docx-1.2.0-py3-none-any.whl.metadata (2.0 kB)
+Collecting lxml>=3.1.0 (from python-docx==1.2.0->-r .\scripts\testing\requirements.txt (line 1))
+  Downloading lxml-6.1.1-cp313-cp313-win_amd64.whl.metadata (3.6 kB)
+Collecting typing_extensions>=4.9.0 (from python-docx==1.2.0->-r .\scripts\testing\requirements.txt (line 1))
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Downloading python_docx-1.2.0-py3-none-any.whl (252 kB)
+Downloading lxml-6.1.1-cp313-cp313-win_amd64.whl (4.0 MB)
+   ---------------------------------------- 4.0/4.0 MB 30.2 MB/s  0:00:00
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Installing collected packages: typing_extensions, lxml, python-docx
+
+Successfully installed lxml-6.1.1 python-docx-1.2.0 typing_extensions-4.16.0
+
+--- Controlled tool versions ---
+Python 3.13.14
+pip 26.1.2 from C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-venv\Lib\site-packages\pip (python 3.13)
+
+
+--- Installed packages ---
+lxml==6.1.1
+python-docx==1.2.0
+typing_extensions==4.16.0
+
+--- requirements.txt SHA-256 ---
+4c08e5babd8a01c514ba2d3ecdc4c38f96733cd52331f558efbebdab987c3942
