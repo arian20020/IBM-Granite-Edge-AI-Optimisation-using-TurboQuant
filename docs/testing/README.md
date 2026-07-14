@@ -13,8 +13,9 @@ This directory controls application testing, model/runtime feasibility, AI-quali
 2. Read `Test-Strategy.md` and `Master-Test-Plan.md`.
 3. Check `Test-ID-Catalogue.md` before running anything.
 4. Read `Workbook-Data-Requirements.md` so every workbook field can be completed from captured evidence.
-5. Create the run ID and evidence directory before execution.
-6. Update the registers and workbook before starting the next test.
+5. Read `Experiment-and-Test-Change-Control-Index.md` before changing a test, run record or workbook.
+6. Create the run ID and evidence directory before execution.
+7. Update the registers and workbook before starting the next test.
 
 ## Exact source control
 
@@ -37,6 +38,7 @@ The additional completed OpenVINO-with-TurboQuant workbook is a legacy evidence/
 - `Master-Test-Plan.md` — route order, stage gates and stop conditions.
 - `Test-ID-Catalogue.md` — exact workbook IDs.
 - `Workbook-Data-Requirements.md` — complete data needed for all workbook fields.
+- `Experiment-and-Test-Change-Control-Index.md` — entry point for experiment, run and workbook change control.
 - `Test-Traceability-Matrix.csv` — research questions and requirements mapped to tests.
 - `Test-Run-Register.csv` — one row per execution.
 - `Environment-Register.csv` — target machine and software state.
@@ -46,6 +48,7 @@ The additional completed OpenVINO-with-TurboQuant workbook is a legacy evidence/
 - `Quality-Evaluation-Register.csv` — P1-P6 deterministic checks and weighted scoring.
 - `Failure-Register.csv` — failure, diagnosis, fix and retest evidence.
 - `Evidence-Index.csv` — file-level provenance and hashes.
+- `Workbook-Revision-Control.md` and `Workbook-Revision-Register.csv` — append-only workbook revision procedure and history.
 - `Workbook-Completion-Register.csv` — section-by-section completion control.
 - `Cross-Route-Comparison-Register.csv` — matched, partially matched and non-comparable results.
 - `Decision-Log.md` — testing and interpretation decisions.
