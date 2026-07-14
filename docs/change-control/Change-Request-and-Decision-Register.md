@@ -1,7 +1,7 @@
 # Change Request and Decision Register
 
 **Document ID:** LOG-CRD-001  
-**Version:** 1.5  
+**Version:** 1.6  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -27,6 +27,7 @@
 | CR-015 | 2026-07-14 | Arian B | Bring the completed MoSCoW/RTM evidence packs into full template compliance, repair their indexes and replace the missing-workbook link with a controlled artifact record. | Evidence and configuration control | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001 | Approved and implemented through PR #17; no scope or completion-status change | Closed |
 | CR-016 | 2026-07-14 | Arian B | Strengthen the common evidence-record template while preserving existing validated evidence and avoiding unnecessary mass migration. | Evidence governance | Evidence Record Template; all future REQ/WP/EP/EXP evidence records; final release evidence audit | Approved and implemented as template v1.1; no requirement, scope or completion-status change | Closed |
 | CR-017 | 2026-07-14 | Evidence-template compatibility review | Align the v1.1 status fields and guidance with the controlled RTM instead of introducing a competing validation vocabulary. | Corrective evidence governance | Evidence Record Template v1.1; template guidance; all future evidence records | Approved and implemented as v1.1.1 compatibility patch; no task status changed | Closed |
+| CR-018 | 2026-07-14 | Arian B | Create a controlled `docs/risks/` structure with separate Risk, Assumption, Constraint and Licence registers, a review log and baseline-freeze controls before populating the full content. | Risk and governance control | G-M05; PD-05; EP-007; `docs/risks/` | Approved and implemented as structure only; substantive population, validation and task-status changes remain pending | Closed |
 
 ## CR-013 decision record
 
@@ -212,4 +213,49 @@ A single authoritative status model prevents the RTM, generated catalogues and e
 - `docs/evidence/templates/Evidence-Template-Revision-History.md`
 - `docs/evidence/README.md`
 - CHG-017
-- status-compatibility pull request
+- PR #20
+
+## CR-018 decision record
+
+**Decision owner:** Arian B  
+**Decision date:** 2026-07-14  
+**Approval state:** Approved structural initialisation; substantive review pending  
+
+### Problem found
+
+The project had one small mixed table containing two risks and one assumption. It did not provide separate controlled spaces for assumptions, constraints and licences, did not define review and baseline rules, and could not yet support a complete audit of `G-M05`, `PD-05` or `EP-007`.
+
+### Decision
+
+1. Use `docs/risks/` as the single controlled directory for risk, assumption, constraint and licence management.
+2. Keep the four record types in separate authoritative files with stable prefixes `R-`, `A-`, `C-` and `L-`.
+3. Retain existing risk IDs `R-001` and `R-002` without claiming their new fields are fully reviewed.
+4. Move existing assumption `A-001` into the dedicated Assumption Register without changing its meaning.
+5. Create a Review Log for formal reviews, decisions and actions.
+6. Create baseline controls but do not claim a `v1.0` baseline until substantive entries have been populated and reviewed.
+7. Add document metadata, status vocabularies, review dates, evidence fields and entry rules to each register.
+8. Keep `G-M05`, `PD-05` and `EP-007` In Progress and Not Validated until content population, evidence review and RTM validation are complete.
+
+### Rationale
+
+Separate registers make the four concepts easier to review while the controlling directory keeps them consolidated as one governance system. The approach preserves existing information, avoids premature completion claims and creates a clear path to a frozen working baseline after the substantive discussion.
+
+### Impact
+
+- Six controlled files and one baseline-control directory are established under `docs/risks/`.
+- Existing draft risk and assumption information is retained.
+- No constraint or licence decision is invented.
+- No `v1.0` baseline is frozen.
+- No requirement, scope, priority, acceptance criterion or RTM task status changes.
+
+### Evidence
+
+- `docs/risks/README.md`
+- `docs/risks/Risk-Register.md`
+- `docs/risks/Assumption-Register.md`
+- `docs/risks/Constraint-Register.md`
+- `docs/risks/Licence-Register.md`
+- `docs/risks/Review-Log.md`
+- `docs/risks/baselines/README.md`
+- CHG-018
+- risk-register initialisation pull request
