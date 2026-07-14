@@ -1,7 +1,7 @@
 # Requirements and Scope Change Log
 
 **Document ID:** LOG-REQ-CHG-001  
-**Version:** 1.1  
+**Version:** 1.2  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -21,6 +21,7 @@
 | 2026-07-14 | CHG-011 | Established EP-006 derived-requirement and change-control records. | Create stable, reviewable change records. | EP-006; PD-04 | Implemented and validated | Arian B | PR #10; EP-006 evidence |
 | 2026-07-14 | CHG-012 | Froze the app-specific evaluation addendum. | Control remaining evaluation IDs, schemas, gates and claims. | PD-09; EP-019; APP-EVAL-01–12 | Implemented and validated | Arian B | PR #11/#12 |
 | 2026-07-14 | CHG-013 | Resolved CHG-002, CHG-003 and CHG-004 and froze the MoSCoW v1.2 working baseline. | Protect the essential first-release route, retain one bounded TurboQuant contribution and defer unproven TurboVec integration. | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Developer-approved working baseline; supervisor review pending | Arian B | Project Definition v1.1; MoSCoW v1.2; RTM v1.3; CR-013 |
+| 2026-07-14 | CHG-014 | Split the requirements catalogue into separate Functional, Non-Functional, Research, Governance and Exclusion views. | Improve readability and reviewability without changing controlled requirement content. | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Implemented — presentation only; no scope change | Arian B | Categorised workbook; repository category catalogues; CR-014 |
 
 ## CHG-013 priority results
 
@@ -35,4 +36,8 @@
 | R-M02 | Remains Must as the TurboVec decision gate |
 | F-M25; F-M26; F-M27; R-M13 | Deferred from first release |
 
-Future material changes must append a new row. Do not overwrite CHG-013.
+## CHG-014 control statement
+
+CHG-014 changes presentation only. It does not alter any requirement ID, priority, release role, lifecycle state, acceptance criterion, verification method or traceability relationship.
+
+Future material changes must append a new row. Do not overwrite CHG-013 or CHG-014.
