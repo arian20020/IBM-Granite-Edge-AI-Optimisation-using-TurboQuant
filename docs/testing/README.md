@@ -14,8 +14,9 @@ This directory controls application testing, model/runtime feasibility, AI-quali
 3. Read `App-Specific-Evaluation-Addendum-v1.md` for the frozen mapping from remaining evaluations to RQs, stable IDs, schemas, prompts/rubric, gates and stopping rules.
 4. Check `Test-ID-Catalogue.md` before running anything.
 5. Read `Workbook-Data-Requirements.md` so every workbook field can be completed from captured evidence.
-6. Create the run ID and evidence directory before execution.
-7. Update the registers and workbook before starting the next test.
+6. Read `Experiment-and-Test-Change-Control-Index.md` before changing a test, run record or workbook.
+7. Create the run ID and evidence directory before execution.
+8. Update the registers and workbook before starting the next test.
 
 ## Exact source control
 
@@ -39,6 +40,7 @@ The additional completed OpenVINO-with-TurboQuant workbook is a legacy evidence/
 - `App-Specific-Evaluation-Addendum-v1.md` — remaining evaluation IDs, RQ mapping, frozen inputs, schemas, measures, gates, stopping rules and claim boundary.
 - `Test-ID-Catalogue.md` — exact workbook IDs.
 - `Workbook-Data-Requirements.md` — complete data needed for all workbook fields.
+- `Experiment-and-Test-Change-Control-Index.md` — entry point for experiment, run and workbook change control.
 - `Test-Traceability-Matrix.csv` — research questions and requirements mapped to tests.
 - `Test-Run-Register.csv` — one row per execution.
 - `Environment-Register.csv` — target machine and software state.
@@ -48,6 +50,7 @@ The additional completed OpenVINO-with-TurboQuant workbook is a legacy evidence/
 - `Quality-Evaluation-Register.csv` — P1-P6 deterministic checks and weighted scoring.
 - `Failure-Register.csv` — failure, diagnosis, fix and retest evidence.
 - `Evidence-Index.csv` — file-level provenance and hashes.
+- `Workbook-Revision-Control.md` and `Workbook-Revision-Register.csv` — append-only workbook revision procedure and history.
 - `Workbook-Completion-Register.csv` — section-by-section completion control.
 - `Cross-Route-Comparison-Register.csv` — matched, partially matched and non-comparable results.
 - `Decision-Log.md` — testing and interpretation decisions.
@@ -74,6 +77,7 @@ notes/
 ## Non-negotiable rules
 
 1. Every test exists in the catalogue or frozen app-specific addendum before execution.
+1. Every execution ID exists in the route catalogue or frozen app-specific addendum before execution.
 2. Every execution receives a unique run ID.
 3. Environment, repository commit, build, model hash, configuration, prompt and command are recorded exactly.
 4. Raw evidence is immutable.

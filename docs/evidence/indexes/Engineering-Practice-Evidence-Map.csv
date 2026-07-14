@@ -4,7 +4,7 @@ EP-002,Pre-development,Validate stakeholder/sector assumptions,Recommended,FR-02
 EP-003,Pre-development,Version and correct controlling workflows,Essential,PD-02,Not Started,Workflows are detailed but contain duplicates/naming/technical contradictions.,docs/workflows/
 EP-004,Pre-development,Maintain stable MoSCoW catalogue,Essential,PD-04,In Progress,v1.1 exists; v1.2 must incorporate agreed scope changes.,docs/requirements/
 EP-005,Pre-development,Build bidirectional RTM,Essential,PD-04,In Progress,This workbook/Markdown deliverable.,docs/evidence/
-EP-006,Pre-development,Maintain derived-requirement and change log,Essential,PD-04,Not Started,Changes currently exist in conversation/summary but not in a controlled log.,docs/requirements/
+EP-006,Pre-development,Maintain derived-requirement and change log,Essential,PD-04,Verified,"Derived requirements, requirements/scope changes, change requests, workflow changes and existing experiment/workbook revision controls are linked through a version-controlled change-control index and EP-006 evidence pack.",docs/evidence/engineering-practices/EP-006/
 EP-007,Pre-development,Consolidate risk/assumption/constraint/licence register,Essential,PD-05,In Progress,Content drafted; live owner/status/evidence register remains.,docs/risks/
 EP-008,Pre-development,Create overall activity/user-journey diagram,Essential,PD-06,Not Started,Textual journey exists; formal visual needed.,docs/workflows/
 EP-009,Pre-development,Create decision tables for inspection/configuration,Essential,PD-07,Not Started,Rules are spread across workflows.,docs/architecture/
