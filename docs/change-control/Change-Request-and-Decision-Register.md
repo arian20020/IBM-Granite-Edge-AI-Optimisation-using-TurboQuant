@@ -1,7 +1,7 @@
 # Change Request and Decision Register
 
 **Document ID:** LOG-CRD-001  
-**Version:** 1.1  
+**Version:** 1.2  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -23,6 +23,7 @@
 | CR-011 | 2026-07-14 | Arian B | Create the derived-requirement, scope-change and decision records for EP-006. | Engineering practice | EP-006; PD-04 | Approved and implemented | Closed |
 | CR-012 | 2026-07-14 | Arian B | Freeze the app-specific evaluation addendum and evidence records. | Evaluation control | PD-09; EP-019 | Approved and implemented | Closed |
 | CR-013 | 2026-07-14 | Arian B | Resolve the draft first-release priority boundary and freeze MoSCoW v1.2. | Requirements and scope | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Approved as developer working baseline; supervisor review pending | Closed |
+| CR-014 | 2026-07-14 | Arian B | Separate Functional, Non-Functional, Research, Governance and Exclusion requirements into readable catalogues. | Documentation structure | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Approved and implemented as a presentation-only revision | Closed |
 
 ## CR-013 decision record
 
@@ -60,3 +61,27 @@ The original draft bundled multiple independent features into Must scope. The re
 - `docs/requirements/Requirements-Traceability-Matrix-v1.3.md`
 - controlled RTM workbook and SHA-256
 - G-M02, PD-04, EP-004 and EP-005 evidence packs
+
+## CR-014 decision record
+
+**Decision owner:** Arian B  
+**Decision date:** 2026-07-14  
+**Approval state:** Approved and implemented  
+
+### Decision
+
+1. Retain the original `Requirements` worksheet as the authoritative full RTM table used by formulas and traceability.
+2. Add separate workbook views for Functional, Non-Functional, Research, Governance and Exclusion requirements.
+3. Replace the mixed MoSCoW table with an index that links to separate repository catalogues for each requirement type.
+4. Preserve every existing requirement ID, priority, release role, lifecycle state, acceptance criterion, verification method and traceability relationship.
+
+### Rationale
+
+The combined table was technically correct but difficult to read. Separating requirement types improves reviewability without changing the approved first-release scope.
+
+### Evidence
+
+- categorised RTM workbook and checksum
+- `docs/requirements/MoSCoW-Requirements-v1.2.md`
+- `docs/requirements/catalogue/`
+- CHG-014
