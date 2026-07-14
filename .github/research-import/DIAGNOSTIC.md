@@ -8,27 +8,27 @@
 
 ## Parts in reconstruction order
 
-- `part-000.b64` — 8000 bytes
-- `part-001.b64` — 12000 bytes
-- `part-002.b64` — 12000 bytes
-- `part-003.b64` — 12000 bytes
-- `part-004.b64` — 12000 bytes
-- `part-005.b64` — 12000 bytes
-- `part-006-000.b64` — 4000 bytes
-- `part-006-001.b64` — 8000 bytes
-- `part-006-002.b64` — 8000 bytes
-- `part-006-003.b64` — 8000 bytes
-- `part-006-004.b64` — 8000 bytes
-- `part-006-005.b64` — 8000 bytes
-- `part-007-000.b64` — 8000 bytes
-- `part-007-001.b64` — 8000 bytes
-- `part-007-002.b64` — 8000 bytes
-- `part-007-003.b64` — 8000 bytes
-- `part-007-004.b64` — 8000 bytes
-- `part-007-005.b64` — 8000 bytes
-- `part-007-006.b64` — 8000 bytes
-- `part-007-007.b64` — 8000 bytes
-- `part-007-008.b64` — 8000 bytes
-- `part-007-009.b64` — 8000 bytes
-- `part-007-010.b64` — 8000 bytes
-- `part-007-011.b64` — 5128 bytes
+- `part-000.b64` — 8000 bytes — SHA-256 `4ce2f6d504a19dab048f03d4a5f85758418495acb54f28f785668ff2b02396bd`
+- `part-001.b64` — 12000 bytes — SHA-256 `ba4f42d843af870459ba9025bb5f0bbaf8b03209a67e9450b427dae856833bdf`
+- `part-002.b64` — 12000 bytes — SHA-256 `dcd5b2a2178bb9137532da2670891a16591d825c168f4b660ed60f6a4ccde468`
+- `part-003.b64` — 12000 bytes — SHA-256 `6fe49f8cf9fd0ce98ce00f761ab0883162fbf72d128b2848ce6d190079ef37f2`
+- `part-004.b64` — 12000 bytes — SHA-256 `80389dbfcc777edc258e1912b0f6c1274c45fb4aba26d710123ec4b336806232`
+- `part-005.b64` — 12000 bytes — SHA-256 `494853587a9b4c1932a3fe84b25c0a8738c0a6730f40bcf97068d1992847d2d6`
+- `part-006-000.b64` — 4000 bytes — SHA-256 `d3d40781b0e5feb897f0a64b986625f21d389de032845d0c99d4010556c0039e`
+- `part-006-001.b64` — 8000 bytes — SHA-256 `221290d782737e41aed92914367f295b5a4acb532a4935c72d0900f6e414bd05`
+- `part-006-002.b64` — 8000 bytes — SHA-256 `4467686497a755f1d56b0b4491dbfe175988bc94fa1de038f9e73be385be0808`
+- `part-006-003.b64` — 8000 bytes — SHA-256 `a97c61bc4d2758afc17eca186f9d9ce58b75c3e724f960b859eeb35c670edc36`
+- `part-006-004.b64` — 8000 bytes — SHA-256 `83522a1d5264fa7d0d9aafa3c8de7c2c8bdd4484acba8cccb1cb3dfb579a1afc`
+- `part-006-005.b64` — 8000 bytes — SHA-256 `82a74e1774863d46edbcf0bf1afb36c67e9e13e8ced70f46e83ef1a08c518d03`
+- `part-007-000.b64` — 8000 bytes — SHA-256 `bcfca5b5b51da7fe6803cb93b6fdf4695a387181c68fd5082323a2c266a6d2b6`
+- `part-007-001.b64` — 8000 bytes — SHA-256 `386c1516e09f0525de08fd102dd14803b1de24d56fb6bf18513d41b59365a4e6`
+- `part-007-002.b64` — 8000 bytes — SHA-256 `0a4d9e4432494f53e24b2aae2aacec546a81894cbc994ec8f0427ba4d3860de3`
+- `part-007-003.b64` — 8000 bytes — SHA-256 `87d8abd8e678eb19c4cf39f71d3e3e7488f458e8ce7ea586a3c467600e3e8000`
+- `part-007-004.b64` — 8000 bytes — SHA-256 `53a214f207ba1a0ddb9fbd218b1059a09ce51f5a9313aa8b98f2169a401228d4`
+- `part-007-005.b64` — 8000 bytes — SHA-256 `cb60577b9ccaab4fe55b48c49c69b4ff503803b5fbec512badecc60b7940fc13`
+- `part-007-006.b64` — 8000 bytes — SHA-256 `e85d11ebcf8a8dc3df160a1f58e3a9d73a0a01107d9d2dd35425dc66fbee125f`
+- `part-007-007.b64` — 8000 bytes — SHA-256 `5bd095bb41361aa32a200aaa0b8dda65e3ef510d9d60f82f897c2c457fa8b493`
+- `part-007-008.b64` — 8000 bytes — SHA-256 `f36f8226c2e08bd8da0acc00d0d957b30e2e20502641d75c28c24da5c91bf4b9`
+- `part-007-009.b64` — 8000 bytes — SHA-256 `cc8d88cb19f1de2461d0eaec57038bde885a1cc00a1e9ecd1552c08aa13e1ba7`
+- `part-007-010.b64` — 8000 bytes — SHA-256 `5a2c07f4461e43b9f6f6583c91393cc104f4f2c3108ea89cdc0e057ca4cb1a11`
+- `part-007-011.b64` — 5128 bytes — SHA-256 `7148e9f02e3ad6e543bdd2fdc7ac7c7ef31e51c6a62c5335d34f77abd5275756`
