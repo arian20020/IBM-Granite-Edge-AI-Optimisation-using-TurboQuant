@@ -1,34 +1,28 @@
 # Risk, Assumption, Constraint and Licence Control
 
 **Document ID:** IDX-RACL-001  
-**Version:** 0.5  
-**Status:** Populated, risk-consolidated and scope-aligned — formal validation and baseline pending  
+**Version:** 0.7  
+**Status:** Register system implemented and substantively validated — controlled RTM synchronisation pending  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
 **Last reviewed:** 2026-07-14  
-**Next review:** Assumption, constraint and licence gate reviews  
+**Next review:** Controlled RTM synchronisation, event-driven register reviews and final release-package review  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
 **Related change:** `CR-018` / `CHG-018`  
-**Related reviews:** `RV-004`; `RV-005`
+**Related reviews:** `RV-004`; `RV-005`; `RV-006`; `RV-007`; `RV-008`
 
-## 1. Purpose
+## Purpose
 
-This directory is the single controlled home for the project’s risk, assumption, constraint and licence records.
+This directory is the controlled home for project risks, assumptions, constraints and licence decisions.
 
-The records are kept separately because they answer different questions:
+- A **risk** is an uncertain event that may affect the project.
+- An **assumption** is accepted for planning but requires evidence before confirmation.
+- A **constraint** is an approved boundary the project must work within.
+- A **licence record** controls how external material may be used, changed and distributed.
 
-- a **risk** is something uncertain that may affect the project;
-- an **assumption** is something currently believed but still needing evidence;
-- a **constraint** is a boundary the project must work within;
-- a **licence record** states how third-party material may be used, changed, packaged or redistributed.
-
-The folder supports `G-M05`, `PD-05` and `EP-007`. The files now exist, are populated and use one controlled process. That does not yet mean every assumption, licence decision or risk control has passed validation.
-
-## 2. Current release-role alignment
-
-The current project documents are aligned around these roles:
+## Current release roles
 
 | Area | Current role |
 |---|---|
@@ -38,142 +32,87 @@ The current project documents are aligned around these roles:
 | Upstream llama.cpp | Core dependable route and fallback |
 | TurboQuant | Core Experimental route; one exact configuration must be proved |
 | OpenVINO | Active Should Have |
-| TurboVec | Later feasibility investigation; full application integration remains deferred |
+| TurboVec | Later feasibility investigation; full integration remains deferred |
 
-Review `RV-005` confirmed that no scope-change request is needed for the current wording. A later decision to promote OpenVINO or reactivate full TurboVec integration must use change control.
+## Authoritative files
 
-## 3. Authoritative files
+| Record | File | Current state |
+|---|---|---|
+| Risks | [Risk Register](Risk-Register.md) | 254 identified items consolidated into 37 operational risks |
+| Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017` approved as the controlled planning set; evidence outcomes remain pending |
+| Constraints | [Constraint Register](Constraint-Register.md) | `C-001`–`C-015` approved as Active boundaries |
+| Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-015` reviewed at source level; final package approval remains pending |
 
-| Record type | ID prefix | Authoritative file | Current state |
-|---|---|---|---|
-| Risk | `R-` | [Risk Register](Risk-Register.md) | 254 identified items consolidated into 37 operational risks |
-| Assumption | `A-` | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017` populated; evidence review pending |
-| Constraint | `C-` | [Constraint Register](Constraint-Register.md) | `C-001`–`C-015` populated; source and compliance review pending |
-| Licence | `L-` | [Licence Register](Licence-Register.md) | `L-001`–`L-013` populated; exact-version and packaging review pending |
+Supporting files:
 
-Supporting controls:
+- [Control and Validation Plan](Control-and-Validation-Plan.md)
+- [Review Log](Review-Log.md)
+- [Cross-Register Validation Audit](Cross-Register-Validation-Audit.md)
+- [Licence Review Notes](Licence-Review-Notes.md)
+- [Risk Consolidation Map](Risk-Consolidation-Map.md)
+- [Candidate Risk Backlog](candidates/README.md)
+- [Baseline controls](baselines/README.md)
 
-- [Control and Validation Plan](Control-and-Validation-Plan.md) — review order, risk scoring, gates and Definition of Done;
-- [Review Log](Review-Log.md) — formal reviews, decisions and open actions;
-- [Risk Consolidation Map](Risk-Consolidation-Map.md) — mapping from the original inventory to the 37 retained risks;
-- [Candidate Risk Backlog](candidates/README.md) — historical identification evidence;
-- [Baseline controls](baselines/README.md) — rules for reviewed frozen snapshots;
-- [Baseline Record Template](baselines/Baseline-Record-Template.md) — required baseline metadata and checks.
+Task-level evidence:
 
-## 4. Directory structure
+- [G-M05 evidence](../evidence/requirements/G-M05/README.md)
+- [PD-05 evidence](../evidence/work-packages/PD-05/README.md)
+- [EP-007 evidence](../evidence/engineering-practices/EP-007/README.md)
 
-```text
-docs/risks/
-├── README.md
-├── Control-and-Validation-Plan.md
-├── Risk-Register.md
-├── Risk-Consolidation-Map.md
-├── Assumption-Register.md
-├── Constraint-Register.md
-├── Licence-Register.md
-├── Review-Log.md
-├── candidates/
-│   ├── README.md
-│   ├── 01-project-scope-windows.md
-│   ├── 02-openvino-turboquant.md
-│   ├── 03-turbovec-hardware-performance.md
-│   ├── 04-security-ux-ai-quality.md
-│   ├── 05-testing-evidence.md
-│   └── 06-licence-release.md
-└── baselines/
-    ├── README.md
-    └── Baseline-Record-Template.md
-```
+## Common rules
 
-## 5. Common rules
+1. Use stable IDs and preserve decision history.
+2. Keep one authoritative record and cross-reference it.
+3. Do not mark an assumption Confirmed without its stated evidence.
+4. Do not treat a risk as controlled until its treatment evidence passes.
+5. Do not bundle a Pending licence item or use a Restricted item outside its recorded conditions.
+6. Record owners, status, evidence and review dates.
+7. Keep requested settings, actual behaviour, published claims, estimates and measurements separate.
+8. Use change control for material scope or governance changes.
 
-1. Use stable IDs and never reuse an ID for a different item.
-2. Keep one authoritative record and cross-reference it instead of copying it into several files.
-3. Preserve merged, closed, rejected, removed and superseded history.
-4. Link records to requirements, work packages, tests, experiments, ADRs, issues, pull requests or other controlled evidence.
-5. Record an owner, status, last review and next review.
-6. Do not confirm an assumption or approve a licence without evidence.
-7. Do not treat a risk as controlled until its planned treatment is checked at the relevant gate.
-8. Add a new risk only when its treatment needs are materially different from an existing risk.
-9. Do not delete failures, blockers or restrictions.
-10. Do not commit secrets, personal data, restricted model weights or unlicensed material.
-11. Keep requested settings, actual behaviour, published claims, estimates and measured results separate.
-12. Use change control for material scope, requirement or governance changes.
+## Review cycle
 
-## 6. Where each statement belongs
+Review records weekly, before dependent technical and packaging gates, when a dependency or licence changes, and before a baseline or release is approved. Every formal review is recorded in [Review-Log.md](Review-Log.md).
 
-| Statement | Correct location |
-|---|---|
-| Something may happen and affect the project | Risk Register |
-| Something is believed and needs proof | Assumption Register |
-| Something is a fixed boundary | Constraint Register |
-| Something concerns permission to use or distribute external material | Licence Register |
-| Something has already failed | Failure Register, issue or incident record |
-| Something states what the system must do | Requirements and RTM |
+## Validation result for G-M05, PD-05 and EP-007
 
-## 7. Review cycle
+Review `RV-008` and `AUD-RACL-001` found that the register-system deliverable is substantively complete:
 
-Review the live records:
+- the four authoritative registers exist and are governed as one control area;
+- risk duplication has been reduced without losing history;
+- High and Critical risks contain the required treatment fields;
+- assumptions, constraints and licences use clear owners, outcomes, restrictions and evidence gates;
+- no material cross-register contradiction prevents use;
+- the three common-template evidence records exist.
 
-- weekly during active development;
-- before an implementation, experiment or packaging gate that depends on them;
-- when contradictory evidence appears;
-- when a model, runtime, package, dataset or licence changes;
-- before a release candidate is packaged;
-- before a developer, supervisor-reviewed or final baseline is frozen.
+The current controlled status remains `Implemented / Not Validated / Implemented` only because the authoritative RTM workbook is maintained outside the current Git checkout and has not yet been synchronised. After that update and regeneration, the evidence records may move to `Implemented / Validated / Verified`.
 
-Every formal review must be recorded in [Review-Log.md](Review-Log.md).
+## Completion boundary
 
-## 8. Baseline rule
+Completed:
 
-A baseline is a reviewed snapshot. It does not stop later controlled updates.
+- risk consolidation;
+- current scope alignment;
+- approval of the controlled planning-assumption set;
+- approval of the 15 Active constraints;
+- initial source-based licence review;
+- cross-register consistency and task-validation audit;
+- evidence records for `G-M05`, `PD-05` and `EP-007`.
 
-```text
-Update the live registers
-        ↓
-Follow the Control and Validation Plan
-        ↓
-Record the required reviews
-        ↓
-Freeze the approved snapshot
-        ↓
-Continue maintaining the live registers
-```
+Immediate status-control action:
 
-No `v1.0` baseline is claimed until the checks in [baselines/README.md](baselines/README.md) pass.
+1. update the three rows in the controlled RTM workbook;
+2. regenerate traceability catalogues and evidence maps;
+3. update the evidence metadata to `Validated / Verified`.
 
-## 9. Completion boundary
+Continuing project controls that do not invalidate this register deliverable:
 
-The folder is now **populated, risk-consolidated, scope-aligned and operational**.
+- validate individual assumptions at their dependent gates;
+- review constraint compliance during implementation and release work;
+- check Critical and High risk treatment evidence at the relevant gates;
+- complete exact release-file and third-party-notice inventories;
+- perform the final licence review of the produced package;
+- decide the project’s root source-code licence;
+- freeze a later baseline only when its separate baseline criteria pass.
 
-The risk-identification and consolidation part is complete for the developer working register. Full validation still requires:
-
-- evidence review for Critical and High risk treatments at their dependent gates;
-- evidence-backed assumption outcomes or explicitly accepted pending actions;
-- source and compliance review for active constraints;
-- exact-version licence and packaging decisions;
-- a passing cross-register consistency audit;
-- completed evidence records for `PD-05`, `EP-007` and `G-M05`;
-- an RTM update that matches the reviewed evidence;
-- a recorded baseline review and frozen `v1.0` snapshot.
-
-## 10. Current open governance gates
-
-1. Validate the assumptions in dependency order.
-2. Review constraint sources, wording and project compliance.
-3. Pin exact model, package, fork and asset versions and complete licence decisions.
-4. Check Critical and High risk treatment evidence at the relevant implementation and test gates.
-5. Run the final cross-register consistency audit.
-6. Complete the evidence records and controlled RTM validation.
-7. Freeze the first approved baseline.
-
-## 11. Change control
-
-A material change to the register structure, required fields, status vocabulary, scoring, consolidation method, review process or baseline method must update:
-
-1. the affected register or this index;
-2. the Control and Validation Plan;
-3. the Review Log;
-4. related evidence records;
-5. the controlled RTM where status changes;
-6. the project change register where the governance baseline changes.
+The governance system itself is implemented and has passed substantive developer validation. Final effective Verified status is blocked only by controlled RTM synchronisation.

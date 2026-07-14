@@ -3,7 +3,7 @@ PD-01,P0,P0,Freeze first-release definition/RQs,"One aim, measurable RQs, contri
 PD-02,P0,P0,Correct/version controlling workflows,Workflow distinguishes runtime KV-cache modes from exported weight files and separates runtime routes.,Workflow change log,Not Started,0,Ch. 3/5
 PD-03,P0,P0,Recover/archive raw evidence and current UI code,"MoSCoW, ModelImportPage and raw campaign evidence are backed up and referenced.",Evidence manifest/checksums,In Progress,0.25,Ch. 4/8 appendices
 PD-04,P0,P0,Must-Have RTM and acceptance criteria,"All Must Haves map to workflows, components, tests and evidence.",RTM,In Progress,0.25,Ch. 3
-PD-05,P0,P0,Risk/assumption/constraint/licence register,"High risks have validation, mitigation, contingency, owner and status.",Register,In Progress,0.25,Ch. 3/9
+PD-05,P0,P0,Risk/assumption/constraint/licence register,"High risks have validation, mitigation, contingency, owner and status.",docs/evidence/work-packages/PD-05/README.md,Implemented,0.6,Ch. 3/9
 PD-06,P0,P0,Architecture views and ADRs,Context/component/process/deployment views and key decisions agree.,Diagrams + ADRs,Not Started,0,Ch. 5
 PD-07,P0,P0,Application contracts/states/diagnostics,Stable data/state/error contracts support independent UI and service work.,Schemas/contracts,Not Started,0,Ch. 5/6
 PD-08,P0,P0,Repository/test/evidence preparation,Clean build/test and evidence structure exist.,Build log/repo tree,In Progress,0.25,Ch. 3/6/7
