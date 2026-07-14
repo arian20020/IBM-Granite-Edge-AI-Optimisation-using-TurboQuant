@@ -1,77 +1,60 @@
----
-title: "TurboQuant Implementation Landscape"
-status: "curated"
-version: "2.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "KV-Cache Compression/6. TurboQuant Implementations.docx"
-  - "All repository-analysis DOCX files"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
-  - "SRC-REPO-UNIXSYSDEV"
-source_ids:
-  - "SRC-PAPER-TURBOQUANT-2025"
-  - "SRC-REPO-AMESIANX"
-  - "SRC-REPO-ATOMICBOT"
-  - "SRC-REPO-ANIMEHACKER"
-  - "SRC-REPO-ATOMICMILKSHAKE"
-  - "SRC-REPO-BEELLAMA"
-  - "SRC-REPO-SPIRITBUUN"
-  - "SRC-REPO-THEPRADIP"
-  - "SRC-REPO-THETOM"
-  - "SRC-REPO-TIREDOFEVERYTHING"
-  - "SRC-REPO-UNIXSYSDEV"
----
-
 # TurboQuant implementation landscape
 
-> **Evidence basis:** The main factual claims in this note are traced to [SRC-PAPER-TURBOQUANT-2025](../00-sources/primary-research-papers.md#src-paper-turboquant-2025), [SRC-REPO-AMESIANX](../00-sources/github-repositories.md#src-repo-amesianx), [SRC-REPO-ATOMICBOT](../00-sources/github-repositories.md#src-repo-atomicbot), [SRC-REPO-ANIMEHACKER](../00-sources/github-repositories.md#src-repo-animehacker), [SRC-REPO-ATOMICMILKSHAKE](../00-sources/github-repositories.md#src-repo-atomicmilkshake), [SRC-REPO-BEELLAMA](../00-sources/github-repositories.md#src-repo-beellama), plus 5 repository/source entries listed below. Recommendations, rankings and proposed test steps are project decisions, not claims made by those sources.
+> **Document status:** Detailed curated research
+> **Version:** 3.0
+> **Last updated:** 14 July 2026
 
+## Overview
 
+The TurboQuant paper explains an algorithm, but a paper is not automatically a production-ready llama.cpp or OpenVINO implementation. The project therefore reviewed a group of public repositories to find out what had actually been implemented, which parts were demonstrations, which routes were CUDA-focused, and which ideas could be reused for a Windows and Intel implementation.
 
-The supplied research found that the practical repositories form several groups. [SRC-PAPER-TURBOQUANT-2025]
+## What must be checked in every repository
 
-## 1. General TurboQuant-style GGUF prototypes
+1. **Upstream base:** Which llama.cpp revision or other framework was forked?
+2. **Algorithm coverage:** Does the repository implement the MSE stage, the QJL residual stage, both stages, or only use the TurboQuant name?
+3. **Compression target:** Are weights, keys, values or all of them compressed?
+4. **Bit widths:** Which low-bit formats are implemented?
+5. **Execution device:** Is the code tied to CUDA, or is there a CPU path that can be ported?
+6. **Model support:** Which architectures were actually run?
+7. **Build evidence:** Are there reproducible instructions, pinned dependencies and tests?
+8. **Quality evidence:** Are perplexity, task scores or prompt outputs compared with a baseline?
+9. **Performance evidence:** Are memory, latency and throughput measured correctly?
+10. **Licence and maintainability:** Can code legally and safely be adapted?
 
-- TheTom
-- AtomicBot
-- atomicmilkshake
-- TiredOfEverything
-- AmesianX
+## Reviewed repositories
 
-These contain real packed cache formats and practical llama.cpp integration, but their active methods and hardware support differ.
+The detailed reviews are stored in [`../06-repository-reviews`](../06-repository-reviews/README.md):
 
-## 2. Intel-specific candidate
+- [AmesianX/TurboQuant](../06-repository-reviews/amesianx-turboquant.md)
+- [animehacker](../06-repository-reviews/animehacker.md)
+- [AtomicBot AI](../06-repository-reviews/atomicbot-ai.md)
+- [atomicmilkshake](../06-repository-reviews/atomicmilkshake.md)
+- [BeeLlama](../06-repository-reviews/beellama.md)
+- [spiritbuun](../06-repository-reviews/spiritbuun.md)
+- [thepradip](../06-repository-reviews/thepradip.md)
+- [TheTom](../06-repository-reviews/thetom.md)
+- [TiredOfEverything](../06-repository-reviews/tiredofeverything.md)
+- [unixsysdev](../06-repository-reviews/unixsysdev.md)
 
-- animehacker adds a custom TQ3_0 route to the Intel SYCL backend.
+## How to use the reviews
 
-This is highly relevant, but the recorded evidence did not include Granite on the target integrated Intel GPU.
+The reviews are not a ranking based only on README claims. They are an engineering screening layer. A repository should move into testing only when its code path, build requirements and claimed algorithm can be identified. The common test sequence in [`../07-evaluation-and-decisions/01-common-test-sequence.md`](../07-evaluation-and-decisions/01-common-test-sequence.md) must then be applied.
 
-## 3. Extreme or alternative compression
+## Main conclusion
 
-- spiritbuun adds trellis-coded quantisation.
-- BeeLlama combines TCQ with speculative decoding and other server features.
-
-These are useful research references but are strongly CUDA-focused.
-
-## 4. Narrow or superseded experiments
-
-- thepradip uses a simpler 4-bit Lloyd-Max format rather than the full formal method.
-- unixsysdev is the base of the later animehacker fork and records residual bits that are not functionally used in the inspected attention path.
-
-See [`../06-repository-reviews/comparison-matrix.md`](../06-repository-reviews/comparison-matrix.md) for the standardised comparison.
+No repository should be merged directly into the application. First reproduce it in an isolated experiment folder, compare it with a pinned upstream baseline, identify every changed file, and test the exact model/hardware route. The useful result may be an algorithm, kernel, test harness or code pattern rather than the whole fork.
 
 ## Sources used
 
-- [SRC-PAPER-TURBOQUANT-2025](../00-sources/primary-research-papers.md#src-paper-turboquant-2025) — TurboQuant: Online Vector Quantization with Near-optimal Distortion Rate.
-- [SRC-REPO-AMESIANX](../00-sources/github-repositories.md#src-repo-amesianx) — AmesianX/TurboQuant.
-- [SRC-REPO-ATOMICBOT](../00-sources/github-repositories.md#src-repo-atomicbot) — AtomicBot-ai/atomic-llama-cpp-turboquant.
-- [SRC-REPO-ANIMEHACKER](../00-sources/github-repositories.md#src-repo-animehacker) — animehacker/llama-turboquant.
-- [SRC-REPO-ATOMICMILKSHAKE](../00-sources/github-repositories.md#src-repo-atomicmilkshake) — atomicmilkshake/llama-cpp-turboquant.
-- [SRC-REPO-BEELLAMA](../00-sources/github-repositories.md#src-repo-beellama) — Anbeeld/beellama.cpp.
-- [SRC-REPO-SPIRITBUUN](../00-sources/github-repositories.md#src-repo-spiritbuun) — spiritbuun/buun-llama-cpp.
-- [SRC-REPO-THEPRADIP](../00-sources/github-repositories.md#src-repo-thepradip) — thepradip/turboquant-llamacpp.
-- [SRC-REPO-THETOM](../00-sources/github-repositories.md#src-repo-thetom) — TheTom/llama-cpp-turboquant.
-- [SRC-REPO-TIREDOFEVERYTHING](../00-sources/github-repositories.md#src-repo-tiredofeverything) — TiredOfEverything/llama-cpp-turboquant.
-- [SRC-REPO-UNIXSYSDEV](../00-sources/github-repositories.md#src-repo-unixsysdev) — unixsysdev/llama-turboquant.
-
-See [`00-governance/claim-source-matrix.md`](../00-governance/claim-source-matrix.md) for claim-level mappings.
+- `SRC-PAPER-TURBOQUANT-2025`
+- `SRC-PAPER-QJL-2024`
+- `SRC-REPO-AMESIANX`
+- `SRC-REPO-ANIMEHACKER`
+- `SRC-REPO-ATOMICBOT`
+- `SRC-REPO-ATOMICMILKSHAKE`
+- `SRC-REPO-BEELLAMA`
+- `SRC-REPO-SPIRITBUUN`
+- `SRC-REPO-THEPRADIP`
+- `SRC-REPO-THETOM`
+- `SRC-REPO-TIREDOFEVERYTHING`
+- `SRC-REPO-UNIXSYSDEV`

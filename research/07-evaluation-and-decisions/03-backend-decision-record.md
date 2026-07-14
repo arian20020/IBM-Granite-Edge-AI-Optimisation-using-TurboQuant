@@ -1,77 +1,116 @@
----
-title: "Backend Decision Record"
-status: "curated"
-version: "2.0"
-last_updated: "2026-07-14"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
-  - "SRC-LLAMACPP-GITHUB"
-source_ids:
-  - "SRC-BOOK-SOFTWARE-ARCHITECTURE-2025"
-  - "SRC-MS-WINUI3-2026"
-  - "SRC-MS-WINDOWS-APP-SDK-2026"
-  - "SRC-OV-GENAI-2026"
-  - "SRC-LLAMACPP-GITHUB"
----
-
 # Backend decision record
 
-> **Evidence basis:** The main factual claims in this note are traced to [SRC-BOOK-SOFTWARE-ARCHITECTURE-2025](../00-sources/books-and-project-guidance.md#src-book-software-architecture-2025), [SRC-MS-WINUI3-2026](../00-sources/official-documentation.md#src-ms-winui3-2026), [SRC-MS-WINDOWS-APP-SDK-2026](../00-sources/official-documentation.md#src-ms-windows-app-sdk-2026), [SRC-OV-GENAI-2026](../00-sources/official-documentation.md#src-ov-genai-2026), [SRC-LLAMACPP-GITHUB](../00-sources/github-repositories.md#src-llamacpp-github). Recommendations, rankings and proposed test steps are project decisions, not claims made by those sources.
+> **Decision status:** Accepted for the current Windows milestone
+> **Version:** 3.0
+> **Last updated:** 14 July 2026
 
+## Decision
 
+Use two local backend routes behind one application-facing interface:
 
-## Current research position
+1. **llama.cpp CLI for GGUF models**;
+2. **OpenVINO GenAI direct API for OpenVINO models and Intel-focused acceleration**.
 
-The project should maintain two main runtime tracks. [SRC-BOOK-SOFTWARE-ARCHITECTURE-2025]
+Do not make a local HTTP server a requirement for the core application.
 
-### Track A: GGUF / llama.cpp
+## Context
 
-Purpose:
+The application targets users in education and healthcare-style environments. Some machines may work offline, may block local ports, or may have strict policies around background services. The application also needs to support two model ecosystems: portable GGUF files and Intel-focused OpenVINO representations.
 
-- practical local Granite inference;
-- standard and custom KV-cache formats;
-- real packed TurboQuant-style experiments;
-- local server integration with the Windows UI.
+## Why llama.cpp is included
 
-Main research candidates:
+- native C/C++ implementation;
+- strong GGUF support;
+- command-line prompting;
+- weight and KV-cache configuration;
+- useful upstream baseline for TurboQuant-related forks;
+- can run without a local web server.
 
-- TheTom for the broad prototype;
-- AtomicBot for Vulkan;
-- animehacker for Intel SYCL;
-- a CUDA fork for NVIDIA comparison.
+## Why OpenVINO GenAI is included
 
-### Track B: OpenVINO
+- direct Intel CPU, GPU and NPU route;
+- model compilation and device plugins;
+- generation-focused pipeline APIs;
+- suitable for a native backend service;
+- provides a route for testing device selection and fallback.
 
-Purpose:
+## Why one backend is not enough
 
-- Intel-native baseline and acceleration;
-- CPU/GPU/NPU comparison;
-- IR and device-plugin execution;
-- standard OpenVINO model and cache-precision capabilities.
+llama.cpp gives broad GGUF portability and a direct way to compare community forks. OpenVINO gives the Intel-specific execution path required by the project brief. Keeping both behind an interface prevents the WinUI pages from becoming tied to one executable or one model format.
 
-## Why the tracks stay separate initially
+## Proposed application-facing interface
 
-The supplied research found no finished repository that combines the reviewed TurboQuant cache formats with a proven OpenVINO or Intel NPU implementation. Keeping separate tracks makes the baseline clear and reduces integration risk.
+```text
+IModelRuntime
+- ValidateModelAsync(...)
+- LoadModelAsync(...)
+- GenerateAsync(...)
+- CancelAsync(...)
+- GetCapabilitiesAsync(...)
+- GetMetricsAsync(...)
+- UnloadAsync(...)
+```
 
-## Decision status
+Each backend can implement this interface while returning the same application-level result types.
 
-**Status: provisional.** Final backend choice depends on target-device experiments and application integration evidence.
+## Security and process rules
 
-## Architecture principle
+- use fixed executable paths and separate process arguments;
+- do not build shell command strings from user input;
+- capture standard output and error separately;
+- support cancellation and process cleanup;
+- do not expose a port by default;
+- do not send prompts, documents or telemetry to a cloud service without explicit design and consent;
+- validate model paths and file pairs before loading.
 
-Use a backend interface in the Windows application so the UI does not depend directly on one experimental runtime. This supports replacement, comparison and fallback.
+## Consequences
 
-## Further reading
+### Positive
 
-- *Fundamentals of Software Architecture*, Chapters 2, 4-6 and 19.
-- *Engineering Software Products*, Chapter 4.
-- `windows-apps.pdf`, WinUI and Windows App SDK guidance.
+- supports both GGUF and OpenVINO models;
+- works offline;
+- supports controlled comparison;
+- avoids mandatory local-server deployment;
+- keeps future backend changes away from the UI.
+
+### Costs
+
+- two backends require separate build, packaging and test routes;
+- metrics and errors must be normalised;
+- model compatibility differs between backends;
+- cancellation and token streaming need a shared design.
+
+## Rejected alternatives
+
+### Server-only architecture
+
+Rejected as the required core route because it introduces ports, service lifecycle and policy issues that are unnecessary for the first desktop application.
+
+### LM Studio or Ollama as the product backend
+
+Useful for research, but rejected as a required dependency because the final application should not depend on another desktop application or background service.
+
+### OpenVINO-only route
+
+Rejected because GGUF and llama.cpp are important for portability, existing quantised models and comparison with TurboQuant forks.
+
+### llama.cpp-only route
+
+Rejected because the project specifically needs an Intel/OpenVINO acceleration investigation.
+
+## Review trigger
+
+Review this decision when:
+
+- a backend no longer supports the selected Granite model;
+- packaging becomes impractical;
+- a direct library integration becomes more reliable than process execution;
+- target organisation policy changes;
+- experimental evidence shows one route cannot meet the quality or performance gates.
 
 ## Sources used
 
-- [SRC-BOOK-SOFTWARE-ARCHITECTURE-2025](../00-sources/books-and-project-guidance.md#src-book-software-architecture-2025) — Fundamentals of Software Architecture: A Modern Engineering Approach, Second Edition.
-- [SRC-MS-WINUI3-2026](../00-sources/official-documentation.md#src-ms-winui3-2026) — WinUI 3.
-- [SRC-MS-WINDOWS-APP-SDK-2026](../00-sources/official-documentation.md#src-ms-windows-app-sdk-2026) — Windows App SDK.
-- [SRC-OV-GENAI-2026](../00-sources/official-documentation.md#src-ov-genai-2026) — Generative AI workflow.
-- [SRC-LLAMACPP-GITHUB](../00-sources/github-repositories.md#src-llamacpp-github) — ggml-org/llama.cpp.
-
-See [`00-governance/claim-source-matrix.md`](../00-governance/claim-source-matrix.md) for claim-level mappings.
+- `SRC-LLAMACPP-GITHUB`
+- `SRC-OV-GENAI-2026`
+- `SRC-MS-WINDOWS-DESKTOP-2026`
+- `SRC-BOOK-FUNDAMENTALS-SOFTWARE-ARCHITECTURE`

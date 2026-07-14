@@ -1,26 +1,3 @@
----
-title: "TurboQuant Repository Comparison Matrix"
-status: "curated"
-version: "2.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "All repository-analysis DOCX files"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
-  - "SRC-PAPER-TURBOQUANT-2025"
-source_ids:
-  - "SRC-REPO-AMESIANX"
-  - "SRC-REPO-ATOMICBOT"
-  - "SRC-REPO-ANIMEHACKER"
-  - "SRC-REPO-ATOMICMILKSHAKE"
-  - "SRC-REPO-BEELLAMA"
-  - "SRC-REPO-SPIRITBUUN"
-  - "SRC-REPO-THEPRADIP"
-  - "SRC-REPO-THETOM"
-  - "SRC-REPO-TIREDOFEVERYTHING"
-  - "SRC-REPO-UNIXSYSDEV"
-  - "SRC-PAPER-TURBOQUANT-2025"
----
-
 # TurboQuant repository comparison matrix
 
 > **Evidence basis:** The main factual claims in this note are traced to [SRC-REPO-AMESIANX](../00-sources/github-repositories.md#src-repo-amesianx), [SRC-REPO-ATOMICBOT](../00-sources/github-repositories.md#src-repo-atomicbot), [SRC-REPO-ANIMEHACKER](../00-sources/github-repositories.md#src-repo-animehacker), [SRC-REPO-ATOMICMILKSHAKE](../00-sources/github-repositories.md#src-repo-atomicmilkshake), [SRC-REPO-BEELLAMA](../00-sources/github-repositories.md#src-repo-beellama), [SRC-REPO-SPIRITBUUN](../00-sources/github-repositories.md#src-repo-spiritbuun), plus 5 repository/source entries listed below. Recommendations, rankings and proposed test steps are project decisions, not claims made by those sources.

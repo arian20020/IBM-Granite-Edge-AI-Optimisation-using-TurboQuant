@@ -1,13 +1,3 @@
----
-title: "LM Studio"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Local Chat apps/LM Studio.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # LM Studio
 
 ## What is it
@@ -215,7 +205,7 @@ The prediction will consider:
 The application could display a result such as:
 
 Granite 4.0 Micro BF16  
-  
+
 Suitability: Not recommended  
 Estimated memory requirement: 8.2 GB  
 Available safe memory: 6.5 GB
@@ -223,7 +213,7 @@ Available safe memory: 6.5 GB
 It could then recommend:
 
 Recommended alternative:  
-  
+
 Granite 4.0 Micro Q4_K_M  
 Estimated memory requirement: 3.4 GB  
 Recommended context length: 16,384 tokens
@@ -235,15 +225,15 @@ The application will test several suitable configurations instead of requiring t
 For example:
 
 Original model  
-  
+
 Q8 weight quantisation  
-  
+
 Q5 weight quantisation  
-  
+
 Q4 weight quantisation  
-  
+
 Q4 with standard KV-cache quantisation  
-  
+
 Q4 with TurboQuant KV-cache compression
 
 Each configuration will be tested using the same prompts, generation settings and hardware conditions.
@@ -301,7 +291,7 @@ The quality tests may include:
 For example, the application could report:
 
 Q4 + aggressive KV-cache compression  
-  
+
 Memory reduction: 58%  
 Generation speed improvement: 22%  
 Instruction-following quality retained: 93%  
@@ -370,12 +360,12 @@ The recommendation will then change according to the selected task.
 For example:
 
 Coding  
-  
+
 Priority:  
 Answer accuracy  
 Valid structured output  
 Lower risk of quality loss  
-  
+
 Recommended:  
 Q5 model weights  
 High-precision KV cache
@@ -383,12 +373,12 @@ High-precision KV cache
 For long documents:
 
 Long-document analysis  
-  
+
 Priority:  
 Context length  
 KV-cache memory efficiency  
 Long-context retrieval accuracy  
-  
+
 Recommended:  
 Q4 model weights  
 TurboQuant Balanced KV cache  

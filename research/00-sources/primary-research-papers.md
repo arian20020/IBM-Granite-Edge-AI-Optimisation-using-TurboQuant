@@ -1,10 +1,3 @@
----
-title: "Primary research papers"
-status: "verified-source-register"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Primary research papers
 
 Each entry has a stable source ID. The reliability label explains how strongly it can support a claim.

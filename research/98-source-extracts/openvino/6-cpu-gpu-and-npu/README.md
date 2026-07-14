@@ -1,13 +1,3 @@
----
-title: "6. CPU, GPU AND NPU"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "OpenVINO/6. CPU, GPU AND NPU.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 ## **4.5 Intel CPU, GPU and NPU**
 
 OpenVINO can run AI models on different types of Intel hardware. The main devices are the CPU, GPU and NPU. Each processor has a different purpose and is suited to different types of calculations.
@@ -43,11 +33,11 @@ A simplified comparison is shown below:
 CPU  
 Flexible and widely compatible  
 Best as a reliable general-purpose option  
-  
+
 GPU  
 Performs many calculations in parallel  
 Best for large and highly parallel AI operations  
-  
+
 NPU  
 Specialised for supported AI calculations  
 Best for efficient, low-power local AI workloads

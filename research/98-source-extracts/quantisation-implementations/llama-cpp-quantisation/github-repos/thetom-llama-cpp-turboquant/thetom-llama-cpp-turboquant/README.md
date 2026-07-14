@@ -1,13 +1,3 @@
----
-title: "TheTom llama-cpp-turboquant"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/TheTom llama-cpp-turboquant/TheTom llama-cpp-turboquant.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # TheTom’s llama.cpp TurboQuant Repository
 
 ## What llama.cpp is
@@ -80,7 +70,7 @@ Q8_0 is a normal llama.cpp quantisation format, not a TurboQuant format.
 More compression generally means lower memory use but a greater risk of affecting model quality.
 
 Higher quality and memory use  
-  
+
 F16  
 ↓  
 Q8_0  
@@ -90,7 +80,7 @@ Turbo4
 Turbo3  
 ↓  
 Turbo2  
-  
+
 Lower memory use and greater quality risk
 
 ## Key cache and value cache

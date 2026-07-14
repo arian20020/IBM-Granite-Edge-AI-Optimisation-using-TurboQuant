@@ -1,13 +1,3 @@
----
-title: "3. KV Cache compression Evaluation Idea"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "KV-Cache Compression/3. KV Cache compression Evaluation Idea.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 #  Evaluation Aim
 
 The purpose of the evaluation is to determine whether TurboQuant can reduce the memory required by the KV cache while preserving acceptable model quality and maintaining efficient local inference when applied to IBM Granite models on Intel Windows hardware.
@@ -56,7 +46,7 @@ Each prompt should be run once against the baseline and once against every suppo
 
 Prompt A at 4K context:  
 FP16 → INT8 → INT4 → TurboQuant 3.5 → TurboQuant 2.5  
-  
+
 Prompt B at 4K context:  
 FP16 → INT8 → INT4 → TurboQuant 3.5 → TurboQuant 2.5
 

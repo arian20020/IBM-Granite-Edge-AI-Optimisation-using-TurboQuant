@@ -1,13 +1,3 @@
----
-title: "atomicmilkshake llama-cpp-turboquant"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/atomicmilkshake lla-cpp-turboquant/atomicmilkshake llama-cpp-turboquant.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # **Repository analysis: atomicmilkshake/llama-cpp-turboquant**
 
 ## **Repository snapshot**
@@ -24,10 +14,10 @@ The repository deliberately uses an experimental feature branch as its default. 
 
 feature/triattention  
 → TurboQuant + TriAttention  
-  
+
 feature/turboquant-kv-cache  
 → TurboQuant without TriAttention  
-  
+
 master  
 → Upstream llama.cpp base
 
@@ -44,7 +34,7 @@ These solve different problems.
 TurboQuant  
 → Keeps every cached token  
 → Stores each token using fewer bits  
-  
+
 TriAttention  
 → Limits how many cached tokens are retained  
 → Removes tokens judged to be less important
@@ -84,7 +74,7 @@ The block size was increased from 32 to 128 so that only one FP16 norm is stored
 turbo3:  
 3.50 → 3.125 bits/value  
 4.57× → 5.12× compression  
-  
+
 turbo2:  
 2.50 → 2.125 bits/value  
 6.40× → 7.53× compression
@@ -124,7 +114,7 @@ The three-bit index is divided into:
 
 Lower two bits  
 → qs array  
-  
+
 Upper one bit  
 → signs array
 
@@ -174,7 +164,7 @@ However, the formats used by default do **not** implement the complete two-stage
 
 Stage 1: PolarQuant-style rotated approximation  
 → Implemented  
-  
+
 Stage 2: QJL residual correction  
 → Not used by the current default formats
 
@@ -236,10 +226,10 @@ One example is **Boundary V**:
 
 First few value-cache layers  
 → q8_0  
-  
+
 Middle value-cache layers  
 → turbo2  
-  
+
 Last few value-cache layers  
 → q8_0
 
@@ -267,7 +257,7 @@ It later changed to zero-padding each attention head to the next multiple of 128
 
 192 dimensions  
 → padded to 256  
-  
+
 576 dimensions  
 → padded to 640
 
@@ -390,13 +380,13 @@ It inherits ordinary Vulkan and SYCL code from llama.cpp, but the repository’s
 
 Normal GGUF + inherited Vulkan  
 → May work  
-  
+
 Turbo2/3/4 + Vulkan  
 → No custom implementation found  
-  
+
 Normal GGUF + inherited SYCL  
 → May work  
-  
+
 Turbo2/3/4 + Intel SYCL  
 → No custom implementation found
 
@@ -456,13 +446,13 @@ Therefore:
 
 Normal Granite GGUF loading  
 → Likely supported through inherited llama.cpp  
-  
+
 Granite + CUDA TurboQuant  
 → Plausible but not validated  
-  
+
 Granite + Intel TurboQuant  
 → Not supported by a custom backend  
-  
+
 Granite + TriAttention  
 → Not validated and lacks a complete calibration workflow
 
@@ -474,13 +464,13 @@ For Granite Hybrid models, TurboQuant would only reduce the attention KV cache. 
 
 Intel Vulkan backend  
 → Low relevance  
-  
+
 Intel SYCL backend  
 → Low relevance  
-  
+
 OpenVINO backend  
 → Low relevance  
-  
+
 Intel NPU  
 → No relevance currently
 
@@ -490,19 +480,19 @@ The custom performance kernels are primarily CUDA, Metal and HIP-focused.
 
 Practical PolarQuant design  
 → High relevance  
-  
+
 2-bit, 3-bit and 4-bit comparison  
 → High relevance  
-  
+
 Asymmetric K/V compression  
 → High relevance  
-  
+
 Layer-adaptive compression  
 → High relevance  
-  
+
 Non-standard head-dimension handling  
 → High relevance  
-  
+
 Long-context token pruning  
 → Potentially high future relevance
 
@@ -526,22 +516,22 @@ This repository should be classified as:
 
 Main Intel application backend  
 → No  
-  
+
 Vulkan implementation candidate  
 → No  
-  
+
 SYCL implementation candidate  
 → No  
-  
+
 CUDA research implementation  
 → Yes  
-  
+
 Granite RTX 4060 benchmark candidate  
 → Yes  
-  
+
 Reference for porting features to Intel  
 → Yes  
-  
+
 TriAttention production component  
 → Not yet
 

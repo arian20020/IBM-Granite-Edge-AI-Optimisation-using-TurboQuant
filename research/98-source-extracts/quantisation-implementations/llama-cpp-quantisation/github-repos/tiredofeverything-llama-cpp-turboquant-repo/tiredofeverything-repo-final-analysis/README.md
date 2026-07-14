@@ -1,13 +1,3 @@
----
-title: "TiredOfEverything repo final analysis"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/TiredOfEverything llama-cpp-turboquant repo/TiredOfEverything repo final analysis.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 Repository: llama-cpp-turboquant
 
 URL: <https://github.com/TiredOfEverything/llama-cpp-turboquant>
@@ -159,14 +149,14 @@ Build command:
 
 git clone <https://github.com/TiredOfEverything/llama-cpp-turboquant.git>  
 cd llama-cpp-turboquant  
-  
+
 cmake -S . -B build \`  
 -DGGML_CUDA=ON \`  
 -DGGML_NATIVE=ON \`  
 -DGGML_CUDA_FA=ON \`  
 -DGGML_CUDA_FA_ALL_QUANTS=ON \`  
 -DCMAKE_BUILD_TYPE=Release  
-  
+
 cmake --build build --config Release -j
 
 The repository recommends enabling the CUDA Flash Attention and all-quant kernel options.
@@ -174,7 +164,7 @@ The repository recommends enabling the CUDA Flash Attention and all-quant kernel
 Run command:
 
 \$env:TURBO_LAYER_ADAPTIVE="1"  
-  
+
 .\build\bin\Release\llama-server.exe \`  
 -m granite.gguf \`  
 -ngl 99 \`  
@@ -259,12 +249,12 @@ README.md
 TURBOQUANT_CUDA_IMPLEMENTATION.md  
 benchmark-results.md  
 experiments.md  
-  
+
 ggml/src/ggml-common.h  
 ggml/src/ggml-turbo-quant.c  
 ggml/src/ggml-quants.c  
 ggml/src/ggml-quants.h  
-  
+
 ggml/src/ggml-cuda/turbo-quant-cuda.cuh  
 ggml/src/ggml-cuda/turbo-wht.cu  
 ggml/src/ggml-cuda/fattn-common.cuh  
@@ -273,16 +263,16 @@ ggml/src/ggml-cuda/fattn.cu
 ggml/src/ggml-cuda/set-rows.cu  
 ggml/src/ggml-cuda/getrows.cu  
 ggml/src/ggml-cuda/ggml-cuda.cu  
-  
+
 ggml/src/ggml-metal/ggml-metal.metal  
 ggml/src/ggml-metal/turbo-wht.h  
 ggml/src/ggml-metal/turbo-matrices.h  
-  
+
 src/llama-kv-cache.cpp  
 src/llama-kv-cache.h  
 src/llama-graph.cpp  
 src/llama-context.cpp  
-  
+
 common/arg.cpp
 
 Ease of integration: Medium for NVIDIA testing. The easiest method is to compile llama-server, run it as a separate local process and communicate with it through its OpenAI-compatible HTTP interface. Integration is difficult for the Intel-focused application because none of the custom TurboQuant formats has a Vulkan, SYCL or OpenVINO implementation.

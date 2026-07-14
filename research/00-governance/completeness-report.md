@@ -1,10 +1,3 @@
----
-title: "Research Package Completeness Report"
-status: "complete"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Research package completeness report
 
 ## Supplied-content preservation

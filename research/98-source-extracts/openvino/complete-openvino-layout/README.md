@@ -1,22 +1,12 @@
----
-title: "Complete OpenVINO layout"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "OpenVINO/Complete OpenVINO layout.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 Yes. The clearest way to understand the complete system is to separate it into **three connected levels**:
 
 1\. Generative AI pipeline  
 Converts text into tokens and manages generation  
-  
+
 2. LLM architecture  
 Performs embeddings, attention or Mamba processing,  
 feed-forward calculations and next-token prediction  
-  
+
 3. OpenVINO execution  
 Represents those calculations as an IR graph,  
 compiles the graph and executes it on the hardware
@@ -153,7 +143,7 @@ The important beginner-level idea is:
 Embedding  
 =  
 what the token represents  
-  
+
 Position information  
 =  
 where the token appears in the sequence
@@ -255,11 +245,11 @@ A useful analogy is:
 Query  
 =  
 “What information am I looking for?”  
-  
+
 Key  
 =  
 “What type of information do I contain?”  
-  
+
 Value  
 =  
 “What information should I provide if I am relevant?”
@@ -430,11 +420,11 @@ Without a KV cache:
 
 Generate token 1:  
 calculate keys and values for the whole prompt  
-  
+
 Generate token 2:  
 recalculate keys and values for the whole prompt  
 and token 1  
-  
+
 Generate token 3:  
 recalculate everything again
 
@@ -442,11 +432,11 @@ With a KV cache:
 
 Generate token 1:  
 calculate and store previous keys and values  
-  
+
 Generate token 2:  
 reuse stored keys and values  
 and calculate only the new token's values  
-  
+
 Generate token 3:  
 reuse the cache again
 
@@ -508,7 +498,7 @@ The complete user prompt is initially processed.
 
 Prompt:  
 “Explain how OpenVINO executes an LLM.”  
-  
+
 All prompt tokens  
 │  
 ▼  
@@ -629,13 +619,13 @@ OpenVINO GenAI can apply generation settings such as:
 
 Greedy selection  
 Choose the token with the highest score  
-  
+
 Temperature  
 Adjust how predictable or varied the selection is  
-  
+
 Top-k  
 Only consider the k highest-scoring tokens  
-  
+
 Top-p  
 Consider the smallest token group whose  
 combined probability reaches a threshold
@@ -735,12 +725,12 @@ Therefore:
 Directed  
 =  
 every connection has a defined direction  
-  
+
 Computation graph  
 =  
 operations are connected according to  
 which tensors they consume and produce  
-  
+
 Not necessarily sequential  
 =  
 independent branches may run in parallel  
@@ -780,7 +770,7 @@ The device plugin may:
 For example:
 
 IR graph:  
-  
+
 MatMul  
 │  
 ▼  
@@ -792,7 +782,7 @@ Activation
 may become:
 
 Compiled GPU graph:  
-  
+
 Fused MatMul + Add + Activation kernel
 
 The compiled graph may therefore look different from the original IR graph. OpenVINO IR is the portable representation, while the compiled model is the device-specific execution representation.
@@ -896,7 +886,7 @@ Transformer attention blocks
 =  
 produce key and value tensors  
 and use a KV cache  
-  
+
 Mamba-2 blocks  
 =  
 use a different internal sequence state  

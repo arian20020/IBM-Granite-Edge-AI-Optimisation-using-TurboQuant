@@ -1,62 +1,138 @@
----
-title: "Research to Development Handoff"
-status: "curated"
-version: "2.0"
-last_updated: "2026-07-14"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
-  - "SRC-MS-WINDOWS-DESKTOP-2026"
-source_ids:
-  - "SRC-BOOK-ENGINEERING-SOFTWARE-PRODUCTS-2021"
-  - "SRC-BOOK-SYSTEMS-ENGINEERING-2020"
-  - "SRC-MS-WINDOWS-DESKTOP-2026"
----
-
 # Research-to-development handoff
 
-> **Evidence basis:** The main factual claims in this note are traced to [SRC-BOOK-ENGINEERING-SOFTWARE-PRODUCTS-2021](../00-sources/books-and-project-guidance.md#src-book-engineering-software-products-2021), [SRC-BOOK-SYSTEMS-ENGINEERING-2020](../00-sources/books-and-project-guidance.md#src-book-systems-engineering-2020), [SRC-MS-WINDOWS-DESKTOP-2026](../00-sources/official-documentation.md#src-ms-windows-desktop-2026). Recommendations, rankings and proposed test steps are project decisions, not claims made by those sources.
+> **Document status:** Step-by-step implementation handoff
+> **Version:** 3.0
+> **Last updated:** 14 July 2026
 
+## Purpose
 
+Research is ready for development only when the next developer can identify the decision, supporting evidence, implementation boundary, acceptance criteria and remaining uncertainty. This document turns the research folders into small development increments.
 
-Research is ready to become a development task when it has: [SRC-BOOK-ENGINEERING-SOFTWARE-PRODUCTS-2021]
+## Stage 1: Freeze the first application milestone
 
-- a clear problem and expected benefit;
-- a selected source and pinned version;
-- an identified model and hardware target;
-- acceptance criteria;
-- a baseline and comparison plan;
-- known risks and unsupported routes;
-- an evidence folder location;
-- a rollback or fallback path.
+Build only:
 
-## Example handoff: Intel SYCL TQ3_0
+- packaged WinUI 3 shell;
+- first-launch model-import page;
+- `.gguf` file selection;
+- OpenVINO `.xml` and `.bin` pair selection;
+- simple validation messages;
+- navigation to a placeholder chat screen after a valid model is selected.
 
-**Research finding:** animehacker contains a custom Intel SYCL TQ3_0 route.
+Do not add inference, deep model parsing or TurboQuant into the first UI milestone.
 
-**Unknowns:** Granite compatibility, target integrated-GPU support, quality, memory and speed.
+## Stage 2: Define shared model records
 
-**Development task:** build the pinned commit on the target Windows machine and execute the common test sequence.
+Create application-level records for:
 
-**Acceptance:** real TQ3_0 cache allocation, stable Granite output and measured benefit against F16/Q8_0.
+- model path and format;
+- display name;
+- size on disk;
+- model family and architecture where known;
+- weight format;
+- expected backend;
+- validation warnings;
+- hardware-fit result.
 
-**Fallback:** standard llama.cpp SYCL or CPU without custom cache compression.
+The UI should depend on these records rather than reading backend-specific objects directly.
 
-## Example handoff: OpenVINO baseline
+## Stage 3: Implement the llama.cpp diagnostic path
 
-**Research finding:** OpenVINO provides a separate Intel execution route using Runtime and device plugins.
+1. Add a backend service that starts `llama-cli` safely.
+2. Use a small diagnostic GGUF model.
+3. Stream generated output.
+4. Capture warnings and exit codes.
+5. Implement cancellation.
+6. Store the command and log file.
+7. Show a simple success or error result in the application.
 
-**Development task:** run the same Granite model or closest supported exported model on CPU and GPU, then record compatibility, speed and memory.
+## Stage 4: Validate Granite through llama.cpp
 
-**Acceptance:** reproducible local generation and a saved device comparison.
+1. Select the exact Granite model revision.
+2. Verify or create the GGUF conversion.
+3. Test loading before integrating it into the UI.
+4. Record unsupported architecture or tokenizer errors.
+5. Add the working configuration to the model catalogue.
 
-## Further reading
+## Stage 5: Implement the OpenVINO diagnostic path
 
-- *Systems Engineering: Principles and Practice*, Chapters 3, 6 and 12.
-- *Engineering Software Products*, agile planning and architecture chapters.
+1. Validate XML/BIN model pairs.
+2. Create the OpenVINO Core or GenAI pipeline.
+3. Query available devices.
+4. Run a CPU baseline.
+5. Add GPU and NPU tests only when supported.
+6. Return requested device, actual device and fallback information.
+
+## Stage 6: Add common chat behaviour
+
+- conversation state;
+- prompt submission;
+- token streaming;
+- stop generation;
+- model-load progress;
+- clear error messages;
+- optional local chat saving;
+- no mandatory server port.
+
+## Stage 7: Add metrics
+
+Expose:
+
+- model-load time;
+- time to first token;
+- tokens per second;
+- peak memory where measurable;
+- context length;
+- weight and KV formats;
+- requested and actual device.
+
+## Stage 8: Add optimisation modes only from evidence
+
+- **Quality:** highest tested quality that fits the machine.
+- **Balanced:** tested compromise between quality, memory and speed.
+- **Efficiency:** lowest-memory tested configuration that still passes the quality gate.
+- **Automatic:** selects among tested profiles using hardware and model compatibility.
+
+Do not hard-code attractive names onto untested configurations.
+
+## Stage 9: Isolate TurboQuant experiments
+
+1. Keep experimental forks outside the production application repository or in a clearly separated experiment area.
+2. Build the pinned upstream baseline.
+3. Reproduce the candidate fork.
+4. Identify the exact algorithm stages.
+5. Run Granite quality and performance tests.
+6. Write an architecture decision before bringing code into the product backend.
+
+## Stage 10: Definition of done for a backend feature
+
+A backend feature is done only when:
+
+- code builds in a clean environment;
+- automated or repeatable tests pass;
+- failure behaviour is tested;
+- logs and metrics are captured;
+- documentation and change log are updated;
+- no secrets or local absolute paths are committed;
+- a pull request explains what changed, why it changed, evidence, limitations and rollback.
+
+## Suggested small commits
+
+```text
+feat(model-import): validate GGUF selection
+feat(model-import): validate OpenVINO XML and BIN pair
+feat(runtime): add llama.cpp diagnostic process runner
+feat(runtime): stream and cancel llama.cpp generation
+feat(runtime): add OpenVINO CPU diagnostic pipeline
+feat(metrics): normalise generation measurements
+feat(chat): connect validated backend to chat page
+docs(testing): record controlled Granite baseline
+```
 
 ## Sources used
 
-- [SRC-BOOK-ENGINEERING-SOFTWARE-PRODUCTS-2021](../00-sources/books-and-project-guidance.md#src-book-engineering-software-products-2021) — Engineering Software Products: An Introduction to Modern Software Engineering.
-- [SRC-BOOK-SYSTEMS-ENGINEERING-2020](../00-sources/books-and-project-guidance.md#src-book-systems-engineering-2020) — Systems Engineering: Principles and Practice, Third Edition.
-- [SRC-MS-WINDOWS-DESKTOP-2026](../00-sources/official-documentation.md#src-ms-windows-desktop-2026) — Build desktop apps for Windows.
-
-See [`00-governance/claim-source-matrix.md`](../00-governance/claim-source-matrix.md) for claim-level mappings.
+- `SRC-MS-WINDOWS-DESKTOP-2026`
+- `SRC-BOOK-ENGINEERING-SOFTWARE-PRODUCTS`
+- `SRC-BOOK-SYSTEMS-ENGINEERING`
+- `SRC-BOOK-FUNDAMENTALS-SOFTWARE-ARCHITECTURE`
+- `SRC-BOOK-UX-BOOK`

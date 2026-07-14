@@ -1,10 +1,3 @@
----
-title: "Claim-to-Source Matrix"
-status: "audit-register"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # Claim-to-source matrix
 
 This matrix connects the most important technical statements to the sources that support them. It does not convert a paper or repository result into a project result. Project results still need reproducible local evidence.

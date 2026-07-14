@@ -1,13 +1,3 @@
----
-title: "Source Register"
-status: "audit-register"
-version: "2.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "All supplied research DOCX files"
-verification_note: "Supplied research reorganised; time-sensitive claims must be rechecked before testing."
----
-
 # Internal document source register
 
 Every supplied DOCX appears in this register. The full written Markdown extraction is included in Git, while the exact original is retained in the controlled provenance ZIP. **This register proves document preservation; it is not the external bibliography.** External papers, documentation, model cards and repositories are registered in [`00-sources`](../00-sources/README.md), while important claims are mapped in the [`claim-source matrix`](claim-source-matrix.md).

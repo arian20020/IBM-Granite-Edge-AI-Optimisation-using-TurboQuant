@@ -1,13 +1,3 @@
----
-title: "BeeLlama repo summary"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/BeeLlama repo/BeeLlama repo summary.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # BeeLlama repo summary
 
 # BeeLlama.cpp — simple study summary
@@ -103,10 +93,10 @@ BeeLlama monitors whether speculation is actually profitable and changes the num
 
 Draft predictions are accurate  
 → increase or maintain draft length  
-  
+
 Draft predictions are frequently rejected  
 → reduce draft length  
-  
+
 Speculation becomes slower than normal inference  
 → temporarily disable it and test again later
 
@@ -210,7 +200,7 @@ Classic TurboQuant approximately chooses the closest code for each value individ
 
 Classic TurboQuant  
 → choose the best code for each value separately  
-  
+
 TCQ  
 → find a good sequence of codes across the whole block
 
@@ -290,13 +280,13 @@ BeeLlama is essentially a combined and expanded fork:
 
 llama.cpp  
 → main GGUF runtime and server  
-  
+
 TheTom  
 → classic TurboQuant formats  
-  
+
 spiritbuun/buun  
 → TCQ and initial DFlash work  
-  
+
 BeeLlama  
 → combines them and adds adaptive controls,  
 multimodal rules and server improvements
@@ -329,19 +319,19 @@ The important limitations are:
 
 Normal llama.cpp inference through Intel backends  
 → Potentially supported through inherited code  
-  
+
 TCQ on Intel GPU  
 → Not supported; documented as CUDA-only  
-  
+
 DFlash’s fastest implementation  
 → Strongly CUDA-focused  
-  
+
 Classic TurboQuant on Intel SYCL/Vulkan/OpenVINO  
 → Not clearly documented or validated  
-  
+
 Published Bee benchmarks  
 → RTX 3090, not Intel hardware  
-  
+
 Granite  
 → No Granite-specific example in the main documentation inspected
 
@@ -351,16 +341,16 @@ So for your project:
 
 Useful for understanding advanced local inference  
 → Yes  
-  
+
 Useful for studying TCQ and DFlash  
 → Yes  
-  
+
 Useful as an RTX 4060 research comparison  
 → Yes  
-  
+
 Ready-made Intel Vulkan/SYCL TurboQuant backend  
 → No clear evidence  
-  
+
 Ready-made OpenVINO or Intel NPU TurboQuant route  
 → No
 
@@ -371,14 +361,14 @@ BeeLlama attacks two different bottlenecks:
 DFlash  
 → reduces how often the full model must generate tokens  
 → mainly improves generation speed  
-  
+
 TurboQuant / TCQ  
 → reduces the size of stored past-token information  
 → mainly improves memory use and maximum context  
-  
+
 Adaptive controls  
 → decide whether the acceleration is currently worthwhile  
-  
+
 Reasoning guard  
 → prevents wasted generation from repeated reasoning loops
 

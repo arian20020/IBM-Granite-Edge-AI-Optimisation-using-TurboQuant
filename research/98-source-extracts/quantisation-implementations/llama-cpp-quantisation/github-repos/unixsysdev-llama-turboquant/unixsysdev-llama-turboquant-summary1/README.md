@@ -1,13 +1,3 @@
----
-title: "unixsysdev llama-turboquant Summary1"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/unixsysdev llama-turboquant/unixsysdev llama-turboquant Summary1.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 Repository: llama-turboquant
 
 URL: <https://github.com/unixsysdev/llama-turboquant>
@@ -112,23 +102,23 @@ Build command:
 
 git clone <https://github.com/unixsysdev/llama-turboquant.git>  
 cd llama-turboquant  
-  
+
 cmake -S . -B build \`  
 -DGGML_CUDA=ON \`  
 -DCMAKE_BUILD_TYPE=Release  
-  
+
 cmake --build build --config Release -j
 
 AMD HIP build:
 
 git clone <https://github.com/unixsysdev/llama-turboquant.git>  
 cd llama-turboquant  
-  
+
 cmake -S . -B build-hip \\  
 -DGGML_HIP=ON \\  
 -DCMAKE_BUILD_TYPE=Release \\  
 -DAMDGPU_TARGETS="gfx1151"  
-  
+
 cmake --build build-hip -j
 
 The repository documents CUDA, HIP and CPU-only build routes.

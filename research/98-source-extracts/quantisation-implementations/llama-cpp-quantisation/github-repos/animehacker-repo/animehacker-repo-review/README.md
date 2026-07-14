@@ -1,13 +1,3 @@
----
-title: "animehacker repo review"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/animehacker repo/animehacker repo review.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # Detailed review: animehacker/llama-turboquant
 
 ## Main conclusion
@@ -20,10 +10,10 @@ It should therefore become one of our main implementation candidates:
 
 Primary Intel-specific candidate  
 → animehacker TQ3_0 through SYCL  
-  
+
 Alternative cross-vendor candidate  
 → AtomicBot turbo3 through Vulkan  
-  
+
 General Intel fallback  
 → Standard SYCL, CPU or OpenVINO without TurboQuant
 
@@ -44,7 +34,7 @@ The model weights remain in an ordinary GGUF format such as Q4_K_M or Q5_K_M. On
 
 Granite GGUF model weights  
 → Remain in their existing GGUF format  
-  
+
 Keys and values created during inference  
 → Stored using TQ3_0
 
@@ -94,7 +84,7 @@ The fixed sign changes and Walsh–Hadamard Transform mix the values together:
 
 Before rotation  
 → Some dimensions may contain unusually large or structured values  
-  
+
 After rotation  
 → Information is spread more evenly across the 32 coordinates
 
@@ -126,7 +116,7 @@ Formal TurboQuant contains two stages:
 
 Stage 1  
 PolarQuant-style main approximation  
-  
+
 Stage 2  
 QJL residual correction
 
@@ -146,7 +136,7 @@ Therefore:
 
 PolarQuant-style 3-bit compression  
 → Implemented  
-  
+
 QJL residual correction  
 → Not implemented
 
@@ -282,10 +272,10 @@ Therefore, for the current SYCL branch:
 
 TQ3_0 + Intel SYCL + Flash Attention  
 → Implemented and tested on B70  
-  
+
 TQ3_0 without Flash Attention  
 → Not the preferred Intel route  
-  
+
 Flash Attention on other Intel GPUs  
 → Must be validated per device
 
@@ -307,13 +297,13 @@ However:
 
 Normal Granite loading  
 → Supported by the inherited llama.cpp model code  
-  
+
 Granite + TQ3_0  
 → Not tested  
-  
+
 Granite + TQ3_0 + Intel SYCL  
 → Not tested  
-  
+
 Granite 4 hybrid-state compression  
 → Not confirmed
 
@@ -343,9 +333,9 @@ A corrected Windows build sequence for this actual repository would be:
 
 git clone <https://github.com/animehacker/llama-turboquant.git>  
 cd llama-turboquant  
-  
+
 call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 --force  
-  
+
 cmake -B build -G Ninja \`  
 -DLLAMA_OPENSSL=OFF \`  
 -DGGML_SYCL=ON \`  
@@ -353,7 +343,7 @@ cmake -B build -G Ninja \`
 -DCMAKE_CXX_COMPILER=icx \`  
 -DBUILD_SHARED_LIBS=ON \`  
 -DCMAKE_BUILD_TYPE=Release  
-  
+
 cmake --build build -j
 
 For Intel GPUs that need allocations larger than 4 GB:
@@ -485,19 +475,19 @@ This repository should move into the **primary implementation-testing group**.
 
 Intel relevance  
 → High  
-  
+
 Actual custom SYCL implementation  
 → Yes  
-  
+
 Intel validation  
 → Yes, but only Battlemage B70  
-  
+
 Granite validation  
 → No  
-  
+
 Formal QJL  
 → No  
-  
+
 Production readiness  
 → Not yet
 

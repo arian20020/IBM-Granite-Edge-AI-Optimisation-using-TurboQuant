@@ -1,13 +1,3 @@
----
-title: "3. OpenVINO Runtime"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "OpenVINO/3. OpenVINO Runtime.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 ## **OpenVINO Runtime**
 
 OpenVINO Runtime is the main execution engine within the OpenVINO toolkit. Its role is to load an OpenVINO model, prepare it for the selected hardware and run inference.
@@ -48,7 +38,7 @@ ov::Model
 =  
 A hardware-independent representation  
 of the model loaded into OpenVINO  
-  
+
 ov::CompiledModel  
 =  
 A version of the model that has been  
@@ -61,19 +51,19 @@ Overall, OpenVINO Runtime can be understood as the engine that loads, optimises,
 A simplified C++ workflow is:
 
 \#include \<openvino/openvino.hpp\>  
-  
+
 int main() {  
 ov::Core core;  
-  
+
 std::shared_ptr\<ov::Model\> model =  
 core.read_model("model.xml");  
-  
+
 ov::CompiledModel compiled_model =  
 core.compile_model(model, "GPU");  
-  
+
 ov::InferRequest request =  
 compiled_model.create_infer_request();  
-  
+
 // Set input tensors.  
 // Run inference.  
 // Read output tensors.  

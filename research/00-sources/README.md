@@ -1,10 +1,3 @@
----
-title: "External Research Sources"
-status: "verified-source-register"
-version: "2.0"
-last_updated: "2026-07-14"
----
-
 # External research sources
 
 This directory records **where the technical information originally came from**. It is separate from `00-governance/source-register.*`, which records how the supplied DOCX files were transformed into the curated Markdown files.

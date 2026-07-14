@@ -1,13 +1,3 @@
----
-title: "spiritbuun buun-llama-cpp overview"
-status: "full-source-extract"
-version: "1.0"
-last_updated: "2026-07-14"
-source_documents:
-  - "Quantisation implementations/llama.cpp quantisation/GitHub repos/spiritbuun buun-llama-cpp/spiritbuun buun-llama-cpp overview.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
----
-
 # Overview: spiritbuun/buun-llama-cpp
 
 ## What this repository is
@@ -205,10 +195,10 @@ Therefore:
 
 TCQ on NVIDIA CUDA  
 → real implementation  
-  
+
 TCQ on AMD HIP  
 → supported experimental path  
-  
+
 TCQ on CPU  
 → not a usable complete implementation
 
@@ -234,7 +224,7 @@ The reported 3-bit TCQ result was:
 
 3.25 bits per value  
 Perplexity: 5.802  
-  
+
 FP16 KV-cache perplexity:  
 5.805
 
@@ -371,7 +361,7 @@ This repository is **more experimental and narrower than TheTom’s repository**
 TheTom repository  
 → stronger general-purpose TurboQuant+ candidate  
 → broader backend and application integration  
-  
+
 Buun repository  
 → stronger experimental 2–3-bit TCQ candidate  
 → CUDA-focused research comparison
