@@ -76,13 +76,14 @@ notes/
 
 ## Non-negotiable rules
 
+1. Every test exists in the catalogue or frozen app-specific addendum before execution.
 1. Every execution ID exists in the route catalogue or frozen app-specific addendum before execution.
 2. Every execution receives a unique run ID.
 3. Environment, repository commit, build, model hash, configuration, prompt and command are recorded exactly.
 4. Raw evidence is immutable.
 5. Failed, blocked and inconclusive runs remain visible.
 6. Requested backend, device and optimisation are checked against actual runtime behaviour.
-7. Important results are entered in machine-readable registers before being copied into Word or an app-evaluation report.
+7. Important results are entered in machine-readable registers before being copied into Word.
 8. A workbook row or app-evaluation report is incomplete until it links to a run ID, evidence path and evidence commit.
 9. Formal benchmarking uses a pilot, one excluded warm-up and at least three measured repetitions unless a documented safety gate prevents it.
 10. Quality is reported on the controlled 0-10 rubric.
