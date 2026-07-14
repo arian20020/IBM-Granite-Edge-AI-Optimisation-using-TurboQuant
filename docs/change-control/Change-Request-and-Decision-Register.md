@@ -24,7 +24,7 @@
 | CR-012 | 2026-07-14 | Arian B | Freeze the app-specific evaluation addendum and evidence records. | Evaluation control | PD-09; EP-019 | Approved and implemented | Closed |
 | CR-013 | 2026-07-14 | Arian B | Resolve the draft first-release priority boundary and freeze MoSCoW v1.2. | Requirements and scope | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Approved as developer working baseline; supervisor review pending | Closed |
 | CR-014 | 2026-07-14 | Arian B | Separate Functional, Non-Functional, Research, Governance and Exclusion requirements into readable catalogues. | Documentation structure | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Approved and implemented as a presentation-only revision | Closed |
-| CR-015 | 2026-07-14 | Arian B | Bring the completed MoSCoW/RTM evidence packs into full template compliance, repair their indexes and replace the missing-workbook link with a controlled artifact record. | Evidence and configuration control | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001 | Approved and implemented; no scope or completion-status change | Closed |
+| CR-015 | 2026-07-14 | Arian B | Bring the completed MoSCoW/RTM evidence packs into full template compliance, repair their indexes and replace the missing-workbook link with a controlled artifact record. | Evidence and configuration control | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001 | Approved and implemented through PR #17; no scope or completion-status change | Closed |
 
 ## CR-013 decision record
 
@@ -62,6 +62,7 @@ The original draft bundled multiple independent features into Must scope. The re
 - `docs/requirements/Requirements-Traceability-Matrix-v1.3.md`
 - controlled RTM workbook artifact record and SHA-256
 - G-M02, PD-04, EP-004 and EP-005 evidence packs
+- PR #14
 
 ## CR-014 decision record
 
@@ -87,12 +88,13 @@ The combined table was technically correct but difficult to read. Separating req
 - `docs/requirements/catalogue/`
 - `docs/evidence/requirements/G-M02/Categorised-Catalogue-Audit.md`
 - CHG-014
+- PR #15
 
 ## CR-015 decision record
 
 **Decision owner:** Arian B  
 **Decision date:** 2026-07-14  
-**Approval state:** Approved and implemented  
+**Approval state:** Approved and implemented through PR #17  
 
 ### Problem found
 
@@ -122,3 +124,4 @@ The original G-M02, PD-04, EP-004 and EP-005 READMEs recorded valid conclusions 
 - `docs/requirements/RTM-Workbook-Artifact-Record.md`
 - G-M02, PD-04, EP-004, EP-005 and EP-006 evidence READMEs
 - CHG-015
+- PR #17
