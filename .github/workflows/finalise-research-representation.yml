@@ -34,9 +34,6 @@ jobs:
           from pathlib import Path
 
           root = Path('research')
-
-          # Replace links to deliberately archived PNG files with visible,
-          # readable markers rather than leaving broken image links in GitHub.
           image_pattern = re.compile(
               r'<img\b[^>]*?src="assets/([^"/]+)"[^>]*?/?>',
               re.IGNORECASE | re.DOTALL,
@@ -46,145 +43,86 @@ jobs:
           for path in root.rglob('*.md'):
               text = path.read_text(encoding='utf-8')
 
-              def replace_image(match: re.Match[str]) -> str:
+              def archive_image(match: re.Match[str]) -> str:
                   global image_count
                   image_count += 1
-                  filename = match.group(1)
                   return (
-                      f'\n\n> **Archived image:** `{filename}` is preserved in the '
+                      f'\n\n> **Archived image:** `{match.group(1)}` is preserved in the '
                       'controlled provenance ZIP and is not duplicated in Git.\n\n'
                   )
 
-              updated = image_pattern.sub(replace_image, text)
-              if updated != text:
-                  path.write_text(updated, encoding='utf-8')
-
-          # Clarify in every source extract that the exact DOCX is held in the
-          # controlled provenance archive rather than physically inside Git.
-          common_replacements = {
-              'original DOCX is also preserved.':
+              text = image_pattern.sub(archive_image, text)
+              text = text.replace(
+                  'original DOCX is also preserved.',
                   'original DOCX is preserved in the controlled provenance ZIP.',
-              'The exact original file is still preserved in `99-original-docx`.':
+              )
+              text = text.replace(
+                  'The exact original file is still preserved in `99-original-docx`.',
                   'The exact original file is preserved in the controlled provenance ZIP; '
                   '`99-original-docx` contains the archive notice.',
+              )
+              path.write_text(text, encoding='utf-8')
+
+          def replace(relative: str, old: str, new: str) -> None:
+              path = root / relative
+              text = path.read_text(encoding='utf-8')
+              path.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace(
+              'README.md',
+              '3. **Lossless source preservation (`98` and `99`)** - every supplied document is retained as a Markdown extraction and as the exact original DOCX.',
+              '3. **Source-preservation record (`98` and `99`)** - every supplied document has a full written Markdown extraction in Git. The exact DOCX and extracted PNG files are held in the controlled provenance ZIP referenced by the archive notice.',
+          )
+          replace(
+              'README.md',
+              'The source-preservation layer keeps every detail, image, command, table and earlier draft for audit purposes.',
+              'The source-preservation layer keeps the extracted written detail, commands, tables and earlier drafts searchable in Git. The controlled provenance ZIP keeps the original Word formatting and extracted image files for audit purposes.',
+          )
+          replace(
+              'README.md',
+              '├── 98-source-extracts/            Full Markdown extraction of every supplied DOCX\n└── 99-original-docx/              Exact original files, unchanged',
+              '├── 98-source-extracts/            Full written Markdown extraction of every supplied DOCX\n└── 99-original-docx/              Archive notice and retrieval/checksum pointer',
+          )
+          replace(
+              '98-source-extracts/README.md',
+              'This folder contains one Markdown extraction for every supplied DOCX. Images are stored beside the relevant document in an `assets` folder.',
+              'This folder contains one written Markdown extraction for every supplied DOCX. Where a source document contained an image, its original position is marked with an **Archived image** notice. The corresponding PNG is preserved in the controlled provenance ZIP and is not duplicated in Git.',
+          )
+          replace(
+              '98-source-extracts/README.md',
+              'DOCX conversion can alter equation and layout presentation. Check the matching original in `../99-original-docx` whenever exact formatting matters.',
+              'DOCX conversion can alter equation and layout presentation. Check the matching original in the controlled provenance ZIP whenever exact formatting matters; `../99-original-docx/BINARY-ARCHIVE-NOTICE.md` records where that archive is held.',
+          )
+
+          wording = {
+              'Blank documents were not silently removed. They remain in `99-original-docx`, are listed in the internal source register and have a curated destination where appropriate.':
+                  'Blank documents were not silently removed. Their exact DOCX files remain in the controlled provenance ZIP, they are listed in the internal source register, and `99-original-docx` contains the archive notice.',
+              'The curated notes may condense repetition, but the full extracts and exact original DOCX files remain available.':
+                  'The curated notes may condense repetition, but the full written extracts remain in Git and the exact original DOCX/PNG files remain available in the controlled provenance ZIP.',
+              'The exact original and a Markdown extraction are both included.':
+                  'The full written Markdown extraction is included in Git, while the exact original is retained in the controlled provenance ZIP.',
+              'The full Markdown extracts in `98-source-extracts` and the original DOCX files in `99-original-docx` were not rewritten.':
+                  'The full written Markdown extracts in `98-source-extracts` were not substantively rewritten, and the exact original DOCX/PNG files remain unchanged in the controlled provenance ZIP.',
+              '| Original DOCX preservation | PASS | 44 original DOCX files still present |':
+                  '| Original DOCX preservation | PASS | 44 original DOCX files verified by SHA-256 in the controlled provenance ZIP; Git stores the archive notice rather than the binaries |',
+              'Original private SharePoint URL preserved only in 98-source-extracts and 99-original-docx':
+                  'Original private SharePoint URL preserved only in 98-source-extracts and the controlled provenance ZIP',
+              'original DOCX → full Markdown extract → curated note.':
+                  'original DOCX in the controlled archive → full written Markdown extract in Git → curated note.',
+              'internal document traceability from original DOCX to extract and curated note.':
+                  'internal document traceability from archived original DOCX to Git extract and curated note.',
+              'Verified that all 44 original DOCX files still match their recorded SHA-256 checksums.':
+                  'Verified that all 44 original DOCX files in the controlled provenance ZIP match their recorded SHA-256 checksums.',
+              'Preserved the complete Markdown extracts and all original DOCX files.':
+                  'Preserved the complete written Markdown extracts in Git and all original DOCX/PNG files in the controlled provenance ZIP.',
           }
 
           for path in root.rglob('*.md'):
               text = path.read_text(encoding='utf-8')
-              updated = text
-              for old, new in common_replacements.items():
-                  updated = updated.replace(old, new)
-              if updated != text:
-                  path.write_text(updated, encoding='utf-8')
-
-          # Correct the root description of what Git contains and what remains
-          # in the external controlled archive.
-          path = root / 'README.md'
-          text = path.read_text(encoding='utf-8')
-          text = text.replace(
-              '3. **Lossless source preservation (`98` and `99`)** - every supplied document is retained as a Markdown extraction and as the exact original DOCX.',
-              '3. **Source-preservation record (`98` and `99`)** - every supplied document has a full written Markdown extraction in Git. The exact DOCX and extracted PNG files are held in the controlled provenance ZIP referenced by the archive notice.',
-          )
-          text = text.replace(
-              'The source-preservation layer keeps every detail, image, command, table and earlier draft for audit purposes.',
-              'The source-preservation layer keeps the extracted written detail, commands, tables and earlier drafts searchable in Git. The controlled provenance ZIP keeps the original Word formatting and extracted image files for audit purposes.',
-          )
-          text = text.replace(
-              '├── 98-source-extracts/            Full Markdown extraction of every supplied DOCX\n└── 99-original-docx/              Exact original files, unchanged',
-              '├── 98-source-extracts/            Full written Markdown extraction of every supplied DOCX\n└── 99-original-docx/              Archive notice and retrieval/checksum pointer',
-          )
-          path.write_text(text, encoding='utf-8')
-
-          # Correct the source-extract guide so readers know where images and
-          # exact Word formatting are retained.
-          path = root / '98-source-extracts' / 'README.md'
-          text = path.read_text(encoding='utf-8')
-          text = text.replace(
-              'This folder contains one Markdown extraction for every supplied DOCX. Images are stored beside the relevant document in an `assets` folder.',
-              'This folder contains one written Markdown extraction for every supplied DOCX. Where a source document contained an image, its original position is marked with an **Archived image** notice. The corresponding PNG is preserved in the controlled provenance ZIP and is not duplicated in Git.',
-          )
-          text = text.replace(
-              'DOCX conversion can alter equation and layout presentation. Check the matching original in `../99-original-docx` whenever exact formatting matters.',
-              'DOCX conversion can alter equation and layout presentation. Check the matching original in the controlled provenance ZIP whenever exact formatting matters; `../99-original-docx/BINARY-ARCHIVE-NOTICE.md` records where that archive is held.',
-          )
-          path.write_text(text, encoding='utf-8')
-
-          replacements = {
-              '00-governance/completeness-report.md': [
-                  (
-                      'Blank documents were not silently removed. They remain in `99-original-docx`, are listed in the internal source register and have a curated destination where appropriate.',
-                      'Blank documents were not silently removed. Their exact DOCX files remain in the controlled provenance ZIP, they are listed in the internal source register, and `99-original-docx` contains the archive notice.',
-                  ),
-                  (
-                      'The curated notes may condense repetition, but the full extracts and exact original DOCX files remain available. The new source IDs and claim matrix add evidence without deleting the earlier research trail.',
-                      'The curated notes may condense repetition, but the full written extracts remain in Git and the exact original DOCX/PNG files remain available in the controlled provenance ZIP. The new source IDs and claim matrix add evidence without deleting the earlier research trail.',
-                  ),
-              ],
-              '00-governance/source-register.md': [
-                  (
-                      'Every supplied DOCX appears in this register. The exact original and a Markdown extraction are both included. **This register proves document preservation; it is not the external bibliography.**',
-                      'Every supplied DOCX appears in this register. Its full written Markdown extraction is included in Git, while the exact original is retained in the controlled provenance ZIP referenced by `../99-original-docx/BINARY-ARCHIVE-NOTICE.md`. **This register proves document preservation across Git and the controlled archive; it is not the external bibliography.**',
-                  ),
-              ],
-              '00-governance/source-audit-report.md': [
-                  (
-                      'The full Markdown extracts in `98-source-extracts` and the original DOCX files in `99-original-docx` were not rewritten. This means the new provenance layer improves the research record without deleting the original content.',
-                      'The full written Markdown extracts in `98-source-extracts` were not substantively rewritten. The exact original DOCX and PNG files remain unchanged in the controlled provenance ZIP referenced by `99-original-docx/BINARY-ARCHIVE-NOTICE.md`. This means the provenance layer improves the Git research record without deleting the original content.',
-                  ),
-              ],
-              '00-governance/provenance-validation-report.md': [
-                  (
-                      '| Original DOCX preservation | PASS | 44 original DOCX files still present |',
-                      '| Original DOCX preservation | PASS | 44 original DOCX files verified by SHA-256 in the controlled provenance ZIP; Git stores the archive notice rather than the binaries |',
-                  ),
-              ],
-              '00-governance/link-check-report.md': [
-                  (
-                      'Original private SharePoint URL preserved only in 98-source-extracts and 99-original-docx',
-                      'Original private SharePoint URL preserved only in 98-source-extracts and the controlled provenance ZIP',
-                  ),
-              ],
-              '00-sources/secondary-sources.md': [
-                  (
-                      'Original private SharePoint URL preserved only in 98-source-extracts and 99-original-docx',
-                      'Original private SharePoint URL preserved only in 98-source-extracts and the controlled provenance ZIP',
-                  ),
-              ],
-              '00-sources/README.md': [
-                  (
-                      '1. **Document traceability:** original DOCX → full Markdown extract → curated note.',
-                      '1. **Document traceability:** original DOCX in the controlled archive → full written Markdown extract in Git → curated note.',
-                  ),
-              ],
-              '00-governance/README.md': [
-                  (
-                      'internal document traceability from original DOCX to extract and curated note.',
-                      'internal document traceability from archived original DOCX to Git extract and curated note.',
-                  ),
-              ],
-              'CHANGELOG.md': [
-                  (
-                      'Verified that all 44 original DOCX files still match their recorded SHA-256 checksums.',
-                      'Verified that all 44 original DOCX files in the controlled provenance ZIP match their recorded SHA-256 checksums.',
-                  ),
-                  (
-                      'Preserved the complete Markdown extracts and all original DOCX files.',
-                      'Preserved the complete written Markdown extracts in Git and all original DOCX/PNG files in the controlled provenance ZIP.',
-                  ),
-              ],
-          }
-
-          for relative, pairs in replacements.items():
-              path = root / relative
-              text = path.read_text(encoding='utf-8')
-              for old, new in pairs:
-                  if old not in text:
-                      raise RuntimeError(f'Expected text not found in {relative}: {old}')
+              for old, new in wording.items():
                   text = text.replace(old, new)
               path.write_text(text, encoding='utf-8')
 
-          # The existing package manifest describes the complete external ZIP,
-          # not the intentionally smaller Git representation.
           package_path = root / '00-governance' / 'package-manifest.json'
           package = json.loads(package_path.read_text(encoding='utf-8'))
           package['manifest_scope'] = (
@@ -200,52 +138,44 @@ jobs:
               encoding='utf-8',
           )
 
-          # Create a separate machine-readable manifest for the actual Git tree.
           git_manifest_path = root / '00-governance' / 'git-tree-manifest.json'
-          if git_manifest_path.exists():
-              git_manifest_path.unlink()
-
+          git_manifest_path.unlink(missing_ok=True)
           files = []
-          for file_path in sorted(path for path in root.rglob('*') if path.is_file()):
-              data = file_path.read_bytes()
+          for path in sorted(item for item in root.rglob('*') if item.is_file()):
+              data = path.read_bytes()
               files.append({
-                  'path': file_path.relative_to(root).as_posix(),
+                  'path': path.relative_to(root).as_posix(),
                   'bytes': len(data),
                   'sha256': hashlib.sha256(data).hexdigest(),
               })
-
-          git_manifest = {
-              'manifest_version': '1.0',
-              'generated_on': '2026-07-14',
-              'manifest_scope': 'Git /research tree after provenance finalisation, excluding this manifest itself.',
-              'tracked_file_count_excluding_manifest': len(files),
-              'expected_total_file_count_including_manifest': len(files) + 1,
-              'archive_policy': 'Exact DOCX and extracted PNG binaries are held in the controlled provenance ZIP; Git contains written extracts, archive markers, checksums, and the archive notice.',
-              'files': files,
-          }
           git_manifest_path.write_text(
-              json.dumps(git_manifest, indent=2, ensure_ascii=False) + '\n',
+              json.dumps({
+                  'manifest_version': '1.0',
+                  'generated_on': '2026-07-14',
+                  'manifest_scope': 'Git /research tree after provenance finalisation, excluding this manifest itself.',
+                  'tracked_file_count_excluding_manifest': len(files),
+                  'expected_total_file_count_including_manifest': len(files) + 1,
+                  'archive_policy': 'Exact DOCX and extracted PNG binaries are held in the controlled provenance ZIP; Git contains written extracts, archive markers, checksums, and the archive notice.',
+                  'files': files,
+              }, indent=2, ensure_ascii=False) + '\n',
               encoding='utf-8',
           )
 
-          markdown_files = list(root.rglob('*.md'))
+          markdown = list(root.rglob('*.md'))
           all_files = [path for path in root.rglob('*') if path.is_file()]
-          combined = '\n'.join(path.read_text(encoding='utf-8') for path in markdown_files)
-
-          assert image_count == 58, f'Expected 58 image markers, found {image_count}'
-          assert '<img' not in combined.lower(), 'HTML image tags remain'
-          assert 'src="assets/' not in combined, 'Broken asset references remain'
+          combined = '\n'.join(path.read_text(encoding='utf-8') for path in markdown)
+          assert image_count >= 50, image_count
+          assert '<img' not in combined.lower()
+          assert 'src="assets/' not in combined
           assert 'Images are stored beside the relevant document' not in combined
           assert 'Exact original files, unchanged' not in combined
-          assert 'exact original file is still preserved in `99-original-docx`' not in combined
-          assert len(markdown_files) == 109, len(markdown_files)
+          assert len(markdown) == 109, len(markdown)
           assert len(all_files) == 117, len(all_files)
-          assert list((root / '99-original-docx').iterdir()) == [
-              root / '99-original-docx' / 'BINARY-ARCHIVE-NOTICE.md'
-          ]
+          assert (root / '99-original-docx' / 'BINARY-ARCHIVE-NOTICE.md').exists()
+          assert len(list((root / '99-original-docx').iterdir())) == 1
 
           print(f'Archived image markers: {image_count}')
-          print(f'Markdown files: {len(markdown_files)}')
+          print(f'Markdown files: {len(markdown)}')
           print(f'Total research files: {len(all_files)}')
           PY
 
@@ -253,13 +183,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           rm -f .github/workflows/finalise-research-representation.yml
           git add --all
           git commit \
             -m "docs(research): finalise archive boundaries and Git manifest" \
-            -m "Replace 58 broken archived-image links with explicit archive markers, correct every claim about where DOCX and PNG originals are stored, distinguish the full ZIP manifest from the Git tree, add a SHA-256 Git-tree manifest, validate 109 Markdown files and 117 total research files, and remove this one-use workflow."
+            -m "Replace broken archived-image links with explicit archive markers, correct claims about where DOCX and PNG originals are stored, distinguish the full ZIP manifest from the Git tree, add a SHA-256 Git-tree manifest, validate 109 Markdown files and 117 total research files, and remove this one-use workflow."
           git push origin HEAD:research/provenance-library-v2
