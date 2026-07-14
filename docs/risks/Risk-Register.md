@@ -1,12 +1,12 @@
 # Risk Register
 
 **Document ID:** REG-RISK-001  
-**Version:** 0.2  
-**Status:** Draft content population — candidates require formal review  
+**Version:** 0.3  
+**Status:** Draft content populated — candidate consolidation and treatment review pending  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
 **Last reviewed:** 2026-07-14  
-**Next review:** Pending candidate consolidation and assessment  
+**Next review:** Formal candidate consolidation and assessment  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
@@ -16,9 +16,9 @@
 
 This register records uncertain events or conditions that may affect project scope, schedule, quality, safety, evidence, reproducibility, licensing or technical delivery.
 
-The existing full risk records remain below. A wider project risk inventory has now been added under [`candidates/`](candidates/README.md). It covers the intended Windows 11 x64 and Intel-focused application, Granite, llama.cpp, OpenVINO, TurboQuant and TurboVec scope, together with testing, security, usability, licensing and release concerns.
+The existing full risk records remain below. A wider project risk inventory has been added under [`candidates/`](candidates/README.md). It covers the intended Windows 11 x64 and Intel-focused application, Granite, llama.cpp, OpenVINO, TurboQuant and TurboVec scope, together with testing, security, usability, licensing and release concerns.
 
-Candidate entries are not yet assessed or baselined. They must be reviewed, merged where appropriate, scored and completed before they are promoted into the full risk-record table.
+Candidate entries are not yet assessed or baselined. They must be reviewed, merged where appropriate, scored and completed before they are promoted into the full risk-record table. The scoring and review method is controlled by [Control-and-Validation-Plan.md](Control-and-Validation-Plan.md).
 
 ## Status vocabulary
 
@@ -35,8 +35,8 @@ Candidate entries are not yet assessed or baselined. They must be reviewed, merg
 
 | Risk ID | Category | Description | Cause | Probability | Impact | Exposure | Trigger | Validation method | Mitigation | Contingency | Owner | Residual risk | Status | Evidence | Related IDs | Last reviewed | Next review |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| R-001 | Schedule | Development may exceed the 15 August target. | Draft carry-forward; detailed cause review pending. | Medium | High | Pending assessment | Weekly schedule review identifies missed gates or insufficient remaining capacity. | Compare completed work and remaining Must-Have effort against the controlled timetable. | Protect Must Haves and control scope growth. | Use approved change control to defer lower-priority work where necessary. | Arian B | Pending assessment | Open | Timetable and task catalogue; exact evidence link pending | `PD-05`; project schedule | 2026-07-14 | Pending |
-| R-002 | Technical | TurboQuant may fail, fail to activate or silently fall back to another route. | Experimental implementation and route-specific compatibility limitations. | High | High | Pending assessment | Activation evidence is absent, requested and actual state differ, or the route fails to load or generate. | Review activation markers, backend/device evidence, runtime logs and matched fallback tests. | Keep the dependable upstream route available and require truthful requested-versus-actual reporting. | Disable the affected Experimental configuration and use the upstream route while the defect is investigated. | Arian B | Pending assessment | Open | Controlled test workbooks and activation evidence; exact links pending | `F-M21`; `F-M22`; `N-M11`; `QX-04` | 2026-07-14 | Pending |
+| R-001 | Schedule | Development may exceed the 15 August target. | The first-release scope contains several dependent technical routes and the work is being completed by one developer within a fixed academic timetable. | Medium | High | High | Weekly schedule review identifies missed gates, overdue critical work or insufficient remaining capacity. | Compare completed work, remaining Must-Have effort, dependency gates and report/testing time against the controlled timetable. | Protect the approved first-release scope, review progress weekly, sequence dependent work and control scope growth. | Use approved change control to reduce or defer lower-priority depth while preserving truthful evidence and the core deliverable. | Arian B | Medium until the remaining work is re-estimated and schedule gates are met | Open | Timetable, active task catalogue and weekly journal; exact review links pending | `PD-05`; project schedule; scope risks | 2026-07-14 | Weekly during active development |
+| R-002 | Technical | TurboQuant may fail, fail to activate or silently fall back to another route. | TurboQuant integrations are experimental and depend on an exact model, fork, build, backend, cache format, driver and target device combination. | High | High | Critical | Activation evidence is absent, requested and actual state differ, cache allocation is not compressed, or the route fails to load or generate. | Review activation markers, cache-format and allocation evidence, requested-versus-actual backend/device records, runtime logs and matched fallback tests. | Pin one exact route, require activation proof, test quality and stability, preserve the upstream fallback and report requested-versus-actual state truthfully. | Disable the affected Experimental configuration, use the verified upstream route and record the blocker or fallback without claiming TurboQuant success. | Arian B | High until one exact Granite/Windows/Intel configuration is proven with repeatable activation, quality and fallback evidence | Open | Controlled test workbooks, activation logs and memory evidence; exact validated links pending | `F-M21`; `F-M22`; `N-M11`; `QX-04`; `A-009`; `A-010` | 2026-07-14 | Before every TurboQuant implementation or release gate |
 
 ## Candidate risk inventory
 
@@ -58,14 +58,14 @@ During the next formal review:
 1. merge duplicate or closely related candidates;
 2. confirm that each row describes an uncertain event rather than an existing issue, assumption or constraint;
 3. define cause, trigger, validation method, mitigation and contingency;
-4. assess probability, impact and exposure;
+4. assess probability, impact and exposure using the controlled method;
 5. identify related requirements, work packages, experiments and evidence;
 6. promote accepted candidates into the full risk-record table;
-7. mark rejected or merged candidates as `Superseded` with the replacement ID;
+7. mark rejected or merged candidates as `Superseded` with the replacement ID or recorded reason;
 8. update the Review Log before any baseline is frozen.
 
 ## Entry rule
 
 A full risk record is not complete until its cause, trigger, validation method, mitigation, contingency, owner, residual risk, status, evidence and review dates are populated or explicitly marked not applicable with justification.
 
-High risks must not be treated as controlled merely because they appear in this register. Their mitigation and contingency must be reviewable and linked to evidence.
+Critical and High risks must not be treated as controlled merely because they appear in this register. Their mitigation, contingency and residual-risk decision must be reviewable and linked to evidence.
