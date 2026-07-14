@@ -13,12 +13,15 @@ Folder creation alone is not evidence of completion.
 
 ## Common template
 
-All new requirement, work-package and engineering-practice evidence READMEs must follow the common template:
+All new requirement, work-package, engineering-practice and experiment evidence READMEs must follow the current common template:
 
-- [Evidence Record Template](templates/Evidence-Record-Template.md)
-- [Template usage guidance](templates/README.md)
+- [Evidence Record Template v1.1](templates/Evidence-Record-Template.md)
+- [Template usage and migration guidance](templates/README.md)
+- [Evidence template revision history](templates/Evidence-Template-Revision-History.md)
 
-The required sections are metadata, statement being evidenced, Definition of Done or acceptance criteria, evidence summary, authoritative evidence, validation record, traceability, limitations and change control.
+The required nine sections are metadata, statement being evidenced, Definition-of-Done or acceptance-criterion mapping, evidence summary and claim boundary, authoritative evidence, validation record, traceability, limitations/revalidation and change control.
+
+Template v1.1 is mandatory for new records. Existing validated v1.0 records remain valid when their evidence and conclusions remain sound, but they must migrate when materially changed, revalidated or superseded and must be reviewed during the final release audit.
 
 ## Evidence collections
 
@@ -43,9 +46,12 @@ The current MoSCoW/RTM planning completion is evidenced by:
 
 - Keep one authoritative source and cross-reference it instead of copying it into several folders.
 - Use stable requirement, work-package, engineering-practice, experiment and research-question IDs.
-- Record status, validation state, owner, date, validator and method.
+- Record template version, evidence-record version, source baseline, status, validation state, owner, date, validator, independence and approval scope.
+- Map every required acceptance criterion or Definition-of-Done item to identified evidence.
+- State both what the evidence proves and what it does not prove.
 - Link implementation, tests, logs, screenshots, manifests, hashes, commits or pull requests where relevant.
 - Preserve raw evidence and generate processed results with version-controlled scripts.
+- Record revalidation triggers and revalidate when relevant code, requirements, methods, models, environments or evidence change.
 - Record negative results, blockers and limitations rather than deleting failed evidence.
 - Do not commit secrets, API keys, personal data, large model weights or unlicensed material.
 - Prefer relative repository links so evidence remains usable after cloning.
