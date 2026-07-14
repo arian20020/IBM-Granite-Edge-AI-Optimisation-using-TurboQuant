@@ -4,7 +4,9 @@
 **Auditor:** Arian B  
 **Change:** CHG-014 / CR-014  
 **Workbook:** `IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx`  
-**SHA-256:** `1ebb8e25a1c624af805d98228c37b09933363c53e2fab790809abe74e863b588`
+**SHA-256:** `1ebb8e25a1c624af805d98228c37b09933363c53e2fab790809abe74e863b588`  
+**Evidence record:** [G-M02 README](README.md)  
+**Workbook control:** [ART-RTM-XLSX-001](../../../requirements/RTM-Workbook-Artifact-Record.md)  
 
 ## Validation results
 
@@ -38,6 +40,15 @@
 The original `Requirements` worksheet remains the authoritative full RTM table used by formulas and traceability. Separate readable views were added for Functional, Non-Functional, Research, Governance and Exclusion requirements.
 
 The MoSCoW repository document now acts as an index linking separate category catalogues.
+
+## Controlled sources
+
+- [MoSCoW Requirements Baseline v1.2](../../../requirements/MoSCoW-Requirements-v1.2.md)
+- [Requirements Traceability Matrix v1.3](../../../requirements/Requirements-Traceability-Matrix-v1.3.md)
+- [Workbook artifact record](../../../requirements/RTM-Workbook-Artifact-Record.md)
+- [Workbook checksum](../../../requirements/RTM-Working-Baseline-SHA256.txt)
+- [Requirements and Scope Change Log](../../../change-control/Requirements-and-Scope-Change-Log.md)
+- [Change Request and Decision Register](../../../change-control/Change-Request-and-Decision-Register.md)
 
 ## Scope boundary
 
