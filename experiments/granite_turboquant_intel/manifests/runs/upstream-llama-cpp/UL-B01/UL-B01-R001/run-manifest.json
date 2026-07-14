@@ -1,0 +1,124 @@
+{
+    "schema_version":  "1.0",
+    "campaign_id":  "GTQ-RETEST-v1",
+    "test_id":  "UL-B01",
+    "run_id":  "UL-B01-R001",
+    "route":  "upstream-llama-cpp",
+    "workbook_id":  "WB-01",
+    "run_purpose":  "Clone, pin and verify one exact upstream llama.cpp repository revision.",
+    "operator":  "Student",
+    "timestamps":  {
+                       "start_utc":  "2026-07-14T01:39:50.8403590Z",
+                       "end_utc":  "",
+                       "start_local":  "2026-07-14T02:39:50.8423648+01:00",
+                       "end_local":  "",
+                       "timezone":  "GMT Standard Time"
+                   },
+    "references":  {
+                       "environment_id":  "",
+                       "repository_id":  "",
+                       "build_id":  "",
+                       "model_id":  "",
+                       "configuration_id":  "",
+                       "prompt_set_id":  "GTQ-PROMPTS-v1",
+                       "prompt_id":  "",
+                       "rubric_id":  "GTQ-QUALITY-RUBRIC-v1"
+                   },
+    "execution":  {
+                      "working_directory":  "",
+                      "command_path":  "",
+                      "environment_variables_path":  "",
+                      "exit_code":  null,
+                      "requested_backend":  "",
+                      "actual_backend":  "",
+                      "requested_device":  "",
+                      "actual_device":  "",
+                      "requested_offload":  "",
+                      "actual_model_layer_placement":  "",
+                      "actual_kv_placement":  "",
+                      "k_cache_type":  "",
+                      "v_cache_type":  "",
+                      "optimisation_name":  "",
+                      "optimisation_requested":  false,
+                      "optimisation_activated":  false,
+                      "activation_proof_path":  "",
+                      "silent_fallback_check":  "",
+                      "fallback_observed":  false
+                  },
+    "generation":  {
+                       "seed":  42,
+                       "sampling_settings":  {
+
+                                             },
+                       "max_output_tokens":  0,
+                       "context_target_tokens":  0,
+                       "actual_input_tokens":  0,
+                       "actual_output_tokens":  0
+                   },
+    "correctness":  {
+                        "model_load_success":  false,
+                        "generation_success":  false,
+                        "output_completion_status":  "",
+                        "deterministic_check_result":  "",
+                        "schema_or_format_valid":  "",
+                        "required_facts_retained":  "",
+                        "unsupported_statements_count":  0,
+                        "long_context_result":  "",
+                        "multi_turn_result":  ""
+                    },
+    "performance":  {
+                        "model_load_time_ms":  null,
+                        "ttft_ms":  null,
+                        "prompt_processing_tokens_per_second":  null,
+                        "tpot_ms":  null,
+                        "decode_tokens_per_second":  null,
+                        "total_generation_time_ms":  null,
+                        "perplexity":  null
+                    },
+    "resources":  {
+                      "peak_working_set_bytes":  null,
+                      "peak_private_bytes":  null,
+                      "available_ram_before_bytes":  null,
+                      "minimum_available_ram_during_bytes":  null,
+                      "available_ram_after_bytes":  null,
+                      "kv_cache_allocated_bytes":  null,
+                      "gpu_dedicated_peak_bytes":  null,
+                      "gpu_shared_peak_bytes":  null,
+                      "cpu_mean_percent":  null,
+                      "cpu_peak_percent":  null,
+                      "gpu_engine_mean_percent":  null,
+                      "gpu_engine_peak_percent":  null
+                  },
+    "procedure":  {
+                      "pilot_warmup_or_measured":  "",
+                      "repetition_number":  0,
+                      "included_in_formal_statistics":  false
+                  },
+    "quality":  {
+                    "score_0_to_10":  null,
+                    "criterion_scores_path":  "",
+                    "repetition_corruption_or_truncation":  "",
+                    "stability_result":  ""
+                },
+    "evidence":  {
+                     "stdout_path":  "",
+                     "stderr_path":  "",
+                     "raw_response_path":  "",
+                     "resource_samples_path":  "",
+                     "device_proof_path":  "",
+                     "processed_result_path":  "",
+                     "hash_manifest_path":  ""
+                 },
+    "classification":  {
+                           "result":  "Ready",
+                           "result_reason":  "Controlled workspace and six generated workbooks validated. No llama.cpp clone, build, model load or inference has been executed.",
+                           "failure_ids":  [
+
+                                           ],
+                           "missing_data_codes":  [
+
+                                                  ],
+                           "next_action":  "Capture the target Windows machine environment and populate the environment and test-run registers before cloning llama.cpp."
+                       },
+    "notes":  "Preparation evidence only. Workspace validation attempt 1 found the six generated DOCX workbooks absent. The workbooks were generated from the canonical Markdown sources, checked against their controlled SHA-256 values and accepted by validation attempt 2. No llama.cpp or Granite execution claim is made."
+}

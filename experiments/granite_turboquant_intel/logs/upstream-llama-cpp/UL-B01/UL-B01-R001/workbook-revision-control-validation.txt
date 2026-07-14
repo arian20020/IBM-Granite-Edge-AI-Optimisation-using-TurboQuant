@@ -1,0 +1,18 @@
+WORKBOOK REVISION CONTROL: FAIL
+ - WB-01: current PR/merge gate is incorrect
+ - WB-01: template hash mismatch
+ - WB-01: generated DOCX hash mismatch
+ - WB-02: current PR/merge gate is incorrect
+ - WB-02: template hash mismatch
+ - WB-02: generated DOCX hash mismatch
+ - WB-03: current PR/merge gate is incorrect
+ - WB-03: template hash mismatch
+ - WB-03: generated DOCX hash mismatch
+ - WB-04: current PR/merge gate is incorrect
+ - WB-04: generated DOCX hash mismatch
+ - WB-05: current PR/merge gate is incorrect
+ - WB-05: template hash mismatch
+ - WB-05: generated DOCX hash mismatch
+ - WB-06: current PR/merge gate is incorrect
+ - WB-06: template hash mismatch
+ - WB-06: generated DOCX hash mismatch

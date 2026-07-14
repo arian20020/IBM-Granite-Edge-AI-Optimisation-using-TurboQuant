@@ -519,3 +519,9 @@ third-party/cache/
 temp/
 cache/
 *.tmp
+
+# === Controlled testing evidence exceptions ===
+
+# Formal testing logs are controlled evidence and must remain visible to Git.
+!/experiments/granite_turboquant_intel/logs/
+!/experiments/granite_turboquant_intel/logs/**
