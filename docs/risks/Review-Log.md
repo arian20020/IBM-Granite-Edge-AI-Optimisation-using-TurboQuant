@@ -1,7 +1,7 @@
 # Risk, Assumption, Constraint and Licence Review Log
 
 **Document ID:** LOG-RACL-REV-001  
-**Version:** 0.6  
+**Version:** 0.7  
 **Status:** Active control record  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
@@ -28,6 +28,7 @@ Routine wording changes do not need a separate entry unless they change an itemâ
 | RV-005 | 2026-07-14 | Scope-alignment review | Project Definition, MoSCoW requirements, RTM roles, ADR-TurboVec and risk records | Arian B | Confirmed the intended current roles: Windows 11 x64, Intel, Granite, llama.cpp and TurboQuant are core; OpenVINO is a Should Have; TurboVec is a later feasibility investigation and full integration remains deferred. Corrected `R-017` from a current Critical mismatch to a Medium future document-drift risk. Adjusted TurboVec risks to match their deferred timing. | **Passed for the current developer working baseline.** The present scope is aligned and no scope-change request is required. | Use change control if OpenVINO is promoted to Must Have or full TurboVec integration is reactivated. | Project Definition Â§4â€“Â§5; MoSCoW catalogue; ADR-TurboVec; corrected Risk Register; PR #25 |
 | RV-006 | 2026-07-14 | Assumption-content and constraint approval review | `A-001`â€“`A-017` and `C-001`â€“`C-015` | Arian B | Approved the Assumption Register as the controlled planning-assumption set while retaining evidence-dependent outcomes as `Pending`. Approved all 15 constraints as the current Active boundaries. Corrected stale risk references and clarified that the no-port rule is a project design constraint for restricted environments rather than a universal NHS claim. | **Passed for register content and active constraint approval.** Assumptions may be used for planning but are not confirmed until their validation evidence passes. Constraint compliance evidence remains gate-dependent. | Execute assumption validation methods; review constraint compliance at architecture, implementation, experiment, packaging and report gates. | `Assumption-Register.md` v0.4; `Constraint-Register.md` v0.3; Project Definition; requirements; UCL guidance |
 | RV-007 | 2026-07-14 | Initial licence review | Models, runtimes, forks, NuGet dependencies, data, assets, research sources and project-source licensing | Arian B | Reviewed authoritative model cards, repository licences and official package/source records; updated `L-001`â€“`L-015`; approved pinned llama.cpp source use; recorded Apache/MIT permissions; restricted final package decisions where exact binaries, notices or provenance remain; added pending project-source and converted-model decisions. | **Initial source-licence review passed.** The project has a sound basis for research, development and modification of the reviewed components. One complete release bundle is not yet approved. | Pin exact release artefacts; export dependency and notice inventories; complete model/asset/data provenance; decide the projectâ€™s root licence; inspect the produced release package. | `Licence-Register.md` v0.3; `Licence-Review-Notes.md`; official IBM Granite model cards; MIT/Apache licence files; NuGet package records |
+| RV-008 | 2026-07-14 | Cross-register and task-validation review | `G-M05`, `PD-05`, `EP-007` and the complete RACL control area | Arian B | Audited the four registers, consolidation map, licence evidence, control plan, review history and claim boundaries. Added evidence records for `G-M05`, `PD-05` and `EP-007`. Confirmed that all substantive criteria pass and no material cross-register contradiction prevents use. | **Substantive developer validation passed; controlled status remains Partially Validated until RTM synchronisation.** The deliverable is implemented and ready for Verified status once the authoritative workbook and generated catalogues agree. | Update the controlled RTM rows to `Implemented` + `Validated`, regenerate traceability outputs and update the three evidence metadata blocks to effective `Verified`. | `Cross-Register-Validation-Audit.md`; `docs/evidence/requirements/G-M05/`; `docs/evidence/work-packages/PD-05/`; `docs/evidence/engineering-practices/EP-007/`; PR #26 |
 
 ## Review types
 
@@ -41,6 +42,7 @@ Routine wording changes do not need a separate entry unless they change an itemâ
 | Assumption-content review | Approves the controlled assumption set without confusing planning approval with evidence confirmation. |
 | Constraint approval review | Confirms that listed boundaries are real, sourced and active for the current scope. |
 | Licence review | Reviews exact permissions, duties and packaging restrictions for external material. |
+| Cross-register validation review | Checks criterion-to-evidence coverage, contradictions, claim boundaries and readiness for controlled task validation. |
 | Routine review | Checks owners, statuses, triggers, evidence and next actions. |
 | Gate review | Checks records before dependent implementation, experiment, packaging or release work. |
 | Incident review | Responds to a triggered risk, rejected assumption, changed constraint or licence problem. |
@@ -56,8 +58,9 @@ Routine wording changes do not need a separate entry unless they change an itemâ
 | Assumption-content review | Completed as part of `RV-006` | Maintain the approved set and validate each assumption at its dependent gate | No evidence-dependent assumption may be marked Confirmed without evidence |
 | Constraint approval review | Completed as part of `RV-006` | Maintain the 15 approved Active boundaries and check compliance at gates | No baseline with an unaddressed material constraint breach |
 | Initial licence review | Completed as `RV-007` | Maintain source-level decisions and restrictions | Pending/Restricted items must not be bundled outside their recorded conditions |
+| Cross-register audit | Completed as `RV-008` | Recheck after material register, scope, status or evidence changes | No Verified claim while the audit or controlled RTM shows a contradiction |
+| Controlled RTM synchronisation | Pending | Apply the validated `G-M05`, `PD-05` and `EP-007` status changes and regenerate outputs | Effective Verified status cannot be claimed until the source-of-truth workbook agrees |
 | Final licence and packaging review | Pending | Inspect exact versions, files, notices and the produced release package | No release while a bundled item remains Pending or its duties are unmet |
-| Cross-register audit | Pending | Confirm that all four registers and evidence records agree | No baseline with unresolved contradictions unless explicitly accepted |
 | Baseline review | Pending | Approve or reject `v1.0` | No baseline without a source commit, reviewed files and recorded decision |
 | Final release review | Pending | Confirm package, evidence, residual risks, notices and claims | No release where records contradict the package or RTM |
 
@@ -65,4 +68,4 @@ Routine wording changes do not need a separate entry unless they change an itemâ
 
 A baseline review must not pass while a required Critical or High risk control, critical assumption outcome, active constraint response or release-relevant licence decision is missing without an explicit accepted gap, owner and target date.
 
-The completed reviews prove that the operational risk set, current scope, planning-assumption set, active constraints and initial source-licence decisions are coherent. They do not prove that every technical assumption is true, that every risk control has passed, or that one final release bundle is licensed and ready to distribute.
+The completed reviews prove that the operational risk set, current scope, planning-assumption set, active constraints, initial source-licence decisions and task-level RACL deliverable are coherent. They do not prove that every technical assumption is true, that every risk control has passed, or that one final release bundle is licensed and ready to distribute.
