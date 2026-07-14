@@ -55,7 +55,7 @@ Public source links in the new catalogue were checked during the provenance rebu
 | `SRC-REPO-UNIXSYSDEV` | Verified on access date | <https://github.com/unixsysdev/llama-turboquant> | Recheck before final report or experiment. |
 | `SRC-GOOGLE-TURBOQUANT-BLOG` | Verified on access date | <https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/> | Recheck before final report or experiment. |
 | `SRC-TURBOQUANT-TOOLS` | Verified on access date | <https://turbo-quant.com/how-to-use-turboquant> | Recheck before final report or experiment. |
-| `SRC-PRIVATE-SHAREPOINT-RETIRED` | Retired/inaccessible | Original private SharePoint URL preserved only in 98-source-extracts and 99-original-docx | Do not use as public evidence. |
+| `SRC-PRIVATE-SHAREPOINT-RETIRED` | Retired/inaccessible | Original private SharePoint URL preserved only in 98-source-extracts and the controlled provenance ZIP | Do not use as public evidence. |
 | `SRC-BOOK-AI-ENGINEERING-2025` | Available in project library | ISBN 978-1-098-16630-4 | Do not publish copyrighted full text. |
 | `SRC-BOOK-ENGINEERING-SOFTWARE-PRODUCTS-2021` | Available in project library | ISBN 978-1-292-37634-9 | Do not publish copyrighted full text. |
 | `SRC-BOOK-SYSTEMS-ENGINEERING-2020` | Available in project library | ISBN 978-1-119-51666-8 | Do not publish copyrighted full text. |

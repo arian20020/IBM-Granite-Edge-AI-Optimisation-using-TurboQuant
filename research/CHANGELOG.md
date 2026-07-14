@@ -20,9 +20,9 @@ last_updated: "2026-07-14"
 - Added citation rules, source reliability labels, a link check report and a provenance repair audit.
 - Marked the private SharePoint source as retired from public evidence while preserving it in the lossless source layer.
 - Added a BibTeX starter file.
-- Verified that all 44 original DOCX files still match their recorded SHA-256 checksums.
+- Verified that all 44 original DOCX files in the controlled provenance ZIP match their recorded SHA-256 checksums.
 
 ## Version 1.0 — 14 July 2026
 
 - Created the simplified GitHub-ready research structure.
-- Preserved the complete Markdown extracts and all original DOCX files.
+- Preserved the complete written Markdown extracts in Git and all original DOCX/PNG files in the controlled provenance ZIP.

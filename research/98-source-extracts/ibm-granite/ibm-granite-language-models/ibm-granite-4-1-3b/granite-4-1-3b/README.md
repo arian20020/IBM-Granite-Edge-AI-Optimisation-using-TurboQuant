@@ -5,7 +5,7 @@ version: "1.0"
 last_updated: "2026-07-14"
 source_documents:
   - "IBM Granite/IBM Granite Language Models/IBM Granite 4.1 3B/Granite 4.1 3B.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is also preserved."
+verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
 ---
 
 Granite 4.1 3B is an IBM instruct language model released by the IBM Granite Team. It is available on Hugging Face under the Apache 2.0 licence. The model card provides usage examples for Transformers, vLLM, SGLang, Docker, and quantised/local app options such as llama.cpp, Ollama, and LM Studio.
@@ -32,7 +32,11 @@ Granite 4.1 3B is built using [transformer](https://liveuclac-my.sharepoint.com/
 
 ## Architecture Details
 
-<img src="assets/43d29fe779364ff4e5e066eec794ffba650565d3.png" style="width:3.82292in;height:6.26042in" />
+
+
+> **Archived image:** `43d29fe779364ff4e5e066eec794ffba650565d3.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 Granite 4.1 3B is the smallest model in the Granite 4.1 language model family. It has an embedding size of 2560, 40 layers, 40 attention heads, 8 KV heads, an MLP hidden size of 8192, and a sequence length of 131,072 tokens. These architecture details matter because they affect how much memory and computing power the model needs during inference.
 

@@ -5,12 +5,16 @@ version: "1.0"
 last_updated: "2026-07-14"
 source_documents:
   - "IBM Granite/IBM Granite Language Models/Full Granite Inference Guide.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is also preserved."
+verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
 ---
 
 # Granite Inference Guide
 
-<img src="assets/cd46c2bee2687db88e6c5de670f38b65bc0f6579.png" style="width:6.26042in;height:4.17708in" />
+
+
+> **Archived image:** `cd46c2bee2687db88e6c5de670f38b65bc0f6579.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 ## Input a prompt
 

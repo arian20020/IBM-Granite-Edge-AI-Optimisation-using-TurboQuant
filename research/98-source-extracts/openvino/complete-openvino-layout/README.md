@@ -5,7 +5,7 @@ version: "1.0"
 last_updated: "2026-07-14"
 source_documents:
   - "OpenVINO/Complete OpenVINO layout.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is also preserved."
+verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
 ---
 
 Yes. The clearest way to understand the complete system is to separate it into **three connected levels**:

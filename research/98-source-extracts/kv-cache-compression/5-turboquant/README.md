@@ -5,7 +5,7 @@ version: "1.0"
 last_updated: "2026-07-14"
 source_documents:
   - "KV-Cache Compression/5. TurboQuant.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is also preserved."
+verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
 ---
 
 # 1. Introduction
@@ -44,13 +44,25 @@ Together, the two stages provide a small approximation of the original vector an
 
 TurboQuant*mse\_{mse}*mse tries to compress the vector while making the reconstructed vector as numerically close as possible to the original.
 
-It is a first-stage quantiser designed to minimise<img src="assets/e7271d51f31631440f88a7337d39f2bec2f7b468.png" style="width:1.80233in;height:0.41672in" />
+It is a first-stage quantiser designed to minimise
 
-<img src="assets/9bcf2fa7a8de2618060da8ad49e06546d7395a9b.png" style="width:6.26042in;height:2.45833in" />TurboQuant*mse\_{mse}* tries to compress the vector while making the reconstructed vector as numerically close as possible to the original.
+> **Archived image:** `e7271d51f31631440f88a7337d39f2bec2f7b468.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
+
+
+
+> **Archived image:** `9bcf2fa7a8de2618060da8ad49e06546d7395a9b.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+TurboQuant*mse\_{mse}* tries to compress the vector while making the reconstructed vector as numerically close as possible to the original.
 
 ## 5.2 Complete first-stage flow
 
-<img src="assets/0b6508ba98c980cb9d4b2f5be50b6a436dda4e20.png" style="width:4.7715in;height:4.83401in" />
+
+
+> **Archived image:** `0b6508ba98c980cb9d4b2f5be50b6a436dda4e20.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 ## 5.3 Step 1: Normalising the Vector to Unit Length
 
@@ -466,9 +478,17 @@ So QJL does not try to rebuild the entire key vector. It only tries to preserve 
 
 ### 6.1 First understand what the key and value does
 
-<img src="assets/0e36f2a6ec50981ac53f9bfe5aa36c6abfb009db.png" style="width:6.26042in;height:3.42708in" />
 
-<img src="assets/edf4a88a05681820238b785d699a82636aecb26d.png" style="width:6.26042in;height:4.79167in" />
+
+> **Archived image:** `0e36f2a6ec50981ac53f9bfe5aa36c6abfb009db.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
+
+
+
+> **Archived image:** `edf4a88a05681820238b785d699a82636aecb26d.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 ### 6.2 What Problem is QJL Solving?
 
@@ -663,7 +683,11 @@ The estimator then compares the precise query measurements with the stored one-b
 
 Using the same matrix is essential. If different random matrices were used for the query and key, their measurements would refer to unrelated directions and could not be compared meaningfully.
 
-So JL creates the random projected sketch; QJL compresses that sketch further into signs. <img src="assets/d58fb226db8f0c958b49157e1702895a83a0347c.png" style="width:6.2092in;height:1.75024in" />
+So JL creates the random projected sketch; QJL compresses that sketch further into signs. 
+
+> **Archived image:** `d58fb226db8f0c958b49157e1702895a83a0347c.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 ### 
 
@@ -755,11 +779,19 @@ To preserve this missing magnitude information, QJL also calculates and stores t
 
 The Euclidean norm is the overall length of the vector. It is calculated as:
 
-<img src="assets/560599546f34797074990ef30c136ddce6df8022.png" style="width:6.26042in;height:1.45833in" />
+
+
+> **Archived image:** `560599546f34797074990ef30c136ddce6df8022.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 For the two example keys:
 
-<img src="assets/73ac89a331b600c8ae3ce28153e3e2c5e00f74a1.png" style="width:5.27157in;height:1.64606in" />
+
+
+> **Archived image:** `73ac89a331b600c8ae3ce28153e3e2c5e00f74a1.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 Although the sign sketches are identical, the norms show that the second key is 100 times larger.
 
@@ -779,7 +811,11 @@ When the current query arrives, QJL applies the same random projection matrix to
 
 The projected query remains at higher precision. QJL then compares the precise projected query with the stored key signs and multiplies the result by the stored key norm. The inner-product estimator is:
 
-<img src="assets/22702d2e29be5245498fa3bef10bf9f6b20c43d6.png" style="width:5.08404in;height:1.2085in" />
+
+
+> **Archived image:** `22702d2e29be5245498fa3bef10bf9f6b20c43d6.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 The sign sketch indicates how the query and key align across the random projected directions. The norm scales this directional result according to the original size of the key. Therefore, the norm does not reconstruct every missing key coordinate. Instead, it acts as one overall scaling factor when estimating the query–key inner product.
 
@@ -797,7 +833,11 @@ Traditional quantisation therefore usually divides the key into blocks and store
 
 The approximate value may then be reconstructed using a formula such as:
 
-<img src="assets/d5e3f9b5fc7e1ab5dd642c1408d03307dccd624c.png" style="width:5.49035in;height:0.58341in" />
+
+
+> **Archived image:** `d5e3f9b5fc7e1ab5dd642c1408d03307dccd624c.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 These extra values are normally stored at higher precision. As a result, a method described as 2-bit quantisation may require more than two effective bits per original value once the scales and zero points are included.
 
@@ -861,7 +901,11 @@ It doesn’t cause any overhead issues since keeping one query precise is inexpe
 
 ### 6.3.10 What happens for all the keys?
 
-<img src="assets/956c3b48237de8ace1b6af462138b6de83941b93.png" style="width:5.30208in;height:6.26042in" />
+
+
+> **Archived image:** `956c3b48237de8ace1b6af462138b6de83941b93.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 ### 6.3.11 What happens to the value vectors?
 
@@ -879,6 +923,10 @@ The paper states on pages 3 and 7 that standard token-wise quantisation is used 
 
 ## 6.4 The entire QJL Process
 
-<img src="assets/ddd9d8a7c5d198cd65440aeb338f5fd0981ba734.png" style="width:5.55208in;height:6.26042in" />
+
+
+> **Archived image:** `ddd9d8a7c5d198cd65440aeb338f5fd0981ba734.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 Overall, QJL asks each key m random directional questions, stores only the positive-or-negative answers and the key’s overall length, then compares those answers with a precise projection of the current query to estimate the original attention scores.

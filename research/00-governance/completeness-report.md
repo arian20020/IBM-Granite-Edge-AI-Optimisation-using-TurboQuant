@@ -16,7 +16,7 @@ last_updated: "2026-07-14"
 - Original DOCX files intentionally edited: **no**
 - Existing full extracts intentionally rewritten: **no**
 
-Blank documents were not silently removed. They remain in `99-original-docx`, are listed in the internal source register and have a curated destination where appropriate.
+Blank documents were not silently removed. Their exact DOCX files remain in the controlled provenance ZIP, they are listed in the internal source register, and `99-original-docx` contains the archive notice.
 
 ## New provenance layer
 
@@ -30,4 +30,4 @@ Blank documents were not silently removed. They remain in `99-original-docx`, ar
 
 ## Why content was not lost
 
-The curated notes may condense repetition, but the full extracts and exact original DOCX files remain available. The new source IDs and claim matrix add evidence without deleting the earlier research trail.
+The curated notes may condense repetition, but the full written extracts remain in Git and the exact original DOCX/PNG files remain available in the controlled provenance ZIP. The new source IDs and claim matrix add evidence without deleting the earlier research trail.

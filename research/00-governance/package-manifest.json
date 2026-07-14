@@ -1,7 +1,7 @@
 {
   "package_version": "2.0",
   "generated_on": "2026-07-14",
-  "manifest_scope": "All files except package-manifest.json itself",
+  "manifest_scope": "Full controlled provenance ZIP, excluding package-manifest.json itself; this is not a manifest of the smaller Git research tree.",
   "file_count": 214,
   "files": [
     {
@@ -1074,5 +1074,6 @@
       "bytes": 5046,
       "sha256": "2d90a41a80cb735d190107ee8303cd51dfef05a307aa53c399e9d397daaee21b"
     }
-  ]
+  ],
+  "repository_note": "Git stores curated notes, written Markdown extracts, provenance records, and an archive notice. Exact DOCX and PNG binaries remain in the controlled ZIP."
 }

@@ -10,8 +10,8 @@ verification_note: "Supplied research reorganised; time-sensitive claims must be
 
 # Full source extracts
 
-This folder contains one Markdown extraction for every supplied DOCX. Images are stored beside the relevant document in an `assets` folder.
+This folder contains one written Markdown extraction for every supplied DOCX. Where a source document contained an image, its original position is marked with an **Archived image** notice. The corresponding PNG is preserved in the controlled provenance ZIP and is not duplicated in Git.
 
 These files are included for traceability and detailed reading. They may contain repetition, earlier drafts, raw commands or formatting inherited from Word. Use the curated folders for the normal reading path.
 
-DOCX conversion can alter equation and layout presentation. Check the matching original in `../99-original-docx` whenever exact formatting matters.
+DOCX conversion can alter equation and layout presentation. Check the matching original in the controlled provenance ZIP whenever exact formatting matters; `../99-original-docx/BINARY-ARCHIVE-NOTICE.md` records where that archive is held.

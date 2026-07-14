@@ -5,7 +5,7 @@ version: "1.0"
 last_updated: "2026-07-14"
 source_documents:
   - "KV-Cache Compression/1. Understanding KV Cache.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is also preserved."
+verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
 ---
 
 # Why do we need to cache?
@@ -22,7 +22,11 @@ Which earlier tokens are relevant for generating the next token?
 
 At each attention layer, the model transforms the token embedding representation into three versions of it:
 
-<img src="assets/20a8266e6e7736ea0a6b6395eba12b7a18170ebd.png" style="width:1.82317in;height:2.00028in" />
+
+
+> **Archived image:** `20a8266e6e7736ea0a6b6395eba12b7a18170ebd.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 Where:
 
@@ -48,9 +52,17 @@ It is a vector that contains the content of the useful tokens that should be ret
 
 ## The Attention Formula
 
-<img src="assets/ce95b9425c1dfdd836ed4c9e1f5f321735bb0b90.png" style="width:4.85484in;height:0.82303in" />
 
-<img src="assets/74e138cff7bc6f1ffdcfdc838b63e009d978181b.png" style="width:2.85456in;height:3.40673in" />
+
+> **Archived image:** `ce95b9425c1dfdd836ed4c9e1f5f321735bb0b90.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
+
+
+
+> **Archived image:** `74e138cff7bc6f1ffdcfdc838b63e009d978181b.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 QK^T essentially calculates the dot product of each query and each key. It then generates a number, the higher it is the more relebant the earlier token is to the current token.
 
@@ -182,7 +194,11 @@ Source: [Caching · Hugging Face](https://huggingface.co/docs/transformers/cache
 
 Multi-head attention applies scaled dot-product attention separately to every attention head, and those head calculations are carried out in parallel. Each head uses its own projected queries, keys and values, so each head can produce different attention scores and a different output. The head outputs are then concatenated and passed through the final output matrix W^O:
 
-<img src="assets/9f3e41b9358c8925a09763cdc9a7fe32207725d2.png" style="width:5.79247in;height:3.57342in" />
+
+
+> **Archived image:** `9f3e41b9358c8925a09763cdc9a7fe32207725d2.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 Where W^O is called the **output projection matrix**.
 
@@ -202,6 +218,10 @@ final multi-head attention output
 
 Without *W^O*, the head results would simply sit beside one another.
 
-<img src="assets/fdbf63730542f7ecb80f12f177535e2baa77aa5d.png" style="width:4.55208in;height:6.26042in" />
+
+
+> **Archived image:** `fdbf63730542f7ecb80f12f177535e2baa77aa5d.png` is preserved in the controlled provenance ZIP and is not duplicated in Git.
+
+
 
 Source: [1706.03762](https://arxiv.org/pdf/1706.03762)

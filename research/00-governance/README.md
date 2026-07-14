@@ -11,7 +11,7 @@ This directory controls completeness, evidence language, provenance and GitHub i
 
 ## Main files
 
-- [`source-register.md`](source-register.md) and [`source-register.csv`](source-register.csv): internal document traceability from original DOCX to extract and curated note.
+- [`source-register.md`](source-register.md) and [`source-register.csv`](source-register.csv): internal document traceability from archived original DOCX to Git extract and curated note.
 - [`../00-sources/`](../00-sources/): external research provenance for papers, official documentation, model cards and repositories.
 - [`claim-source-matrix.md`](claim-source-matrix.md): important claim-to-source mappings.
 - [`citation-rules.md`](citation-rules.md): how to cite, classify and version evidence.

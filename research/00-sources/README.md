@@ -11,7 +11,7 @@ This directory records **where the technical information originally came from**.
 
 ## Two kinds of traceability
 
-1. **Document traceability:** original DOCX → full Markdown extract → curated note.
+1. **Document traceability:** original DOCX in the controlled archive → full written Markdown extract in Git → curated note.
 2. **Research provenance:** technical claim → source ID → paper, official documentation, model card or pinned source repository.
 
 Use the stable source IDs, such as `[SRC-PAPER-TURBOQUANT-2025]`, inside research notes and the dissertation. The IDs remain the same even if a title or URL needs to be updated later.

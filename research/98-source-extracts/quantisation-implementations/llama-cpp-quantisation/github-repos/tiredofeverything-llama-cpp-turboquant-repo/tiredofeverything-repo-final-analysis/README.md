@@ -5,7 +5,7 @@ version: "1.0"
 last_updated: "2026-07-14"
 source_documents:
   - "Quantisation implementations/llama.cpp quantisation/GitHub repos/TiredOfEverything llama-cpp-turboquant repo/TiredOfEverything repo final analysis.docx"
-verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is also preserved."
+verification_note: "Direct Markdown extraction of the supplied DOCX. Formatting may differ, so the original DOCX is preserved in the controlled provenance ZIP."
 ---
 
 Repository: llama-cpp-turboquant

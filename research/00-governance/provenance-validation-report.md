@@ -18,7 +18,7 @@ last_updated: "2026-07-14"
 | Claim matrix exists | PASS | 33 important claims mapped |
 | Machine-readable source catalogue exists | PASS | 52 sources registered |
 | Private SharePoint URL removed from curated research | PASS | Original link remains only in the lossless source layer |
-| Original DOCX preservation | PASS | 44 original DOCX files still present |
+| Original DOCX preservation | PASS | 44 original DOCX files verified by SHA-256 in the controlled provenance ZIP; Git stores the archive notice rather than the binaries |
 | Full extract preservation | PASS | 102 files in the extract layer, including the new provenance note |
 
 ## Exceptions

@@ -14,9 +14,9 @@ This folder is the GitHub-ready version of the supplied research. It now has thr
 
 1. **External provenance (`00-sources`)** - formal papers, official documentation, model cards, repository URLs, reliability labels and BibTeX.
 2. **Curated research (`01` to `07`)** - shorter, clearer notes written in simple English and organised by topic, with source IDs.
-3. **Lossless source preservation (`98` and `99`)** - every supplied document is retained as a Markdown extraction and as the exact original DOCX.
+3. **Source-preservation record (`98` and `99`)** - every supplied document has a full written Markdown extraction in Git. The exact DOCX and extracted PNG files are held in the controlled provenance ZIP referenced by the archive notice.
 
-This structure solves the conflict between **condensing the research** and **not losing any content**. The curated layer removes repetition and gives the project a clear reading order. The source-preservation layer keeps every detail, image, command, table and earlier draft for audit purposes.
+This structure solves the conflict between **condensing the research** and **not losing any content**. The curated layer removes repetition and gives the project a clear reading order. The source-preservation layer keeps the extracted written detail, commands, tables and earlier drafts searchable in Git. The controlled provenance ZIP keeps the original Word formatting and extracted image files for audit purposes.
 
 ## Recommended reading order
 
@@ -41,8 +41,8 @@ research/
 ├── 05-local-inference-tools/      llama.cpp, LM Studio and Ollama
 ├── 06-repository-reviews/         Standardised reviews of practical implementations
 ├── 07-evaluation-and-decisions/   Common tests, metrics and decision rules
-├── 98-source-extracts/            Full Markdown extraction of every supplied DOCX
-└── 99-original-docx/              Exact original files, unchanged
+├── 98-source-extracts/            Full written Markdown extraction of every supplied DOCX
+└── 99-original-docx/              Archive notice and retrieval/checksum pointer
 ```
 
 ## Evidence rules

@@ -47,6 +47,6 @@ Each entry has a stable source ID. The reliability label explains how strongly i
 - **Reliability:** R
 - **Status:** retired
 - **Accessed:** 2026-07-14
-- **Identifier:** Original private SharePoint URL preserved only in 98-source-extracts and 99-original-docx
+- **Identifier:** Original private SharePoint URL preserved only in 98-source-extracts and the controlled provenance ZIP
 - **Used for:** Audit history only
 - **Notes:** Not publicly reproducible. Replaced in curated notes by public IBM/model-card sources.

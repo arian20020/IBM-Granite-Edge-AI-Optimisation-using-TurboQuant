@@ -10,7 +10,7 @@ verification_note: "Supplied research reorganised; time-sensitive claims must be
 
 # Internal document source register
 
-Every supplied DOCX appears in this register. The exact original and a Markdown extraction are both included. **This register proves document preservation; it is not the external bibliography.** External papers, documentation, model cards and repositories are registered in [`00-sources`](../00-sources/README.md), while important claims are mapped in the [`claim-source matrix`](claim-source-matrix.md).
+Every supplied DOCX appears in this register. The full written Markdown extraction is included in Git, while the exact original is retained in the controlled provenance ZIP. **This register proves document preservation; it is not the external bibliography.** External papers, documentation, model cards and repositories are registered in [`00-sources`](../00-sources/README.md), while important claims are mapped in the [`claim-source matrix`](claim-source-matrix.md).
 
 | # | Original source | Status | Words extracted | Curated destination | Full extract |
 |---:|---|---|---:|---|---|

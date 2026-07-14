@@ -28,4 +28,4 @@ The earlier package preserved the research well, but it mainly showed **which DO
 
 ## Preservation statement
 
-The full Markdown extracts in `98-source-extracts` and the original DOCX files in `99-original-docx` were not rewritten. This means the new provenance layer improves the research record without deleting the original content.
+The full written Markdown extracts in `98-source-extracts` were not substantively rewritten, and the exact original DOCX/PNG files remain unchanged in the controlled provenance ZIP. This means the new provenance layer improves the research record without deleting the original content.
