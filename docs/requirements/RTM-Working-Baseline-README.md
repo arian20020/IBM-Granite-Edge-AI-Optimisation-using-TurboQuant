@@ -1,9 +1,22 @@
-# Controlled RTM Workbook
+# Controlled RTM workbook — categorised presentation revision
 
-**File:** `IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Working_Baseline.xlsx`  
-**SHA-256:** `88385b743cbc52921d71d5a0805a1d8fefd6b6c513c6507ad263a24b2e65ea50`  
+**File:** `IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx`  
+**Baseline:** RTM v1.3 / MoSCoW v1.2  
 **Owner:** Arian B  
-**Baseline date:** 14 July 2026  
+**Date:** 14 July 2026  
+**Change:** CHG-014 / CR-014 — presentation only; no scope change
+
+## What changed
+
+The original `Requirements` sheet remains the authoritative full traceability table.
+The workbook now also contains:
+
+- `Requirements Overview`
+- `Functional Requirements`
+- `Non-Functional Reqs`
+- `Research Requirements`
+- `Governance Requirements`
+- `Exclusions & Boundaries`
 
 ## Verified contents
 
@@ -13,25 +26,35 @@
 - 14 active Should Haves;
 - 2 active Could Haves;
 - 13 validated master tasks;
-- G-M02, PD-04, EP-004, EP-005 and EP-006 set to Implemented / Validated / Verified;
+- G-M02, PD-04, EP-004, EP-005 and EP-006 remain Implemented / Validated / Verified;
 - no duplicate requirement IDs;
-- no active requirement missing traceability;
-- no Excel formula errors detected.
+- no active Must Have missing required traceability fields;
+- all 111 records assigned to exactly one category view;
+- no spreadsheet calculation errors detected.
 
-## Integrity check
+## Integrity
+
+SHA-256:
+
+`1ebb8e25a1c624af805d98228c37b09933363c53e2fab790809abe74e863b588`
 
 After placing the workbook in this directory, run:
 
 ```powershell
 (Get-FileHash `
-  -LiteralPath 'docs/requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Working_Baseline.xlsx' `
+  -LiteralPath 'docs/requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx' `
   -Algorithm SHA256).Hash.ToLowerInvariant()
 ```
 
-The result must equal the checksum above. Do not treat a workbook with a different checksum as this reviewed baseline unless a new change record explains the difference.
+The category sheets are readable views. Controlled requirement changes must still be made in the master `Requirements` sheet and recorded through change control.
 
-The human-readable baseline is preserved in:
+The human-readable baseline is split across:
 
 - `MoSCoW-Requirements-v1.2.md`;
+- `catalogue/Functional-Requirements.md`;
+- `catalogue/Non-Functional-Requirements.md`;
+- `catalogue/Research-Requirements.md`;
+- `catalogue/Governance-Requirements.md`;
+- `catalogue/Exclusions-and-Boundaries.md`;
 - `Requirements-Traceability-Matrix-v1.3.md`;
 - `Traceability-Reverse-Indexes-v1.3.md`.
