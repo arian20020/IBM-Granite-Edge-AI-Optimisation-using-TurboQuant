@@ -17,11 +17,12 @@
 | 7 | Unapproved external decisions are explicitly marked pending rather than presented as approved. | Pass | CHG-002 to CHG-004; CHG-009; CR-007 |
 | 8 | The Workflow Register links the EP-006 control documents. | Pass | Workflow Register v1.2 |
 | 9 | The Workflow Change Log records the addition of the EP-006 control set. | Pass | CHG-WF-014 to CHG-WF-016 |
-| 10 | Repository evidence path and commit hash are recorded after integration. | Pass after merge | The branch and pull request provide repository evidence; replace the pending reference with the merge commit after merge. |
+| 10 | Repository evidence path and commit hash are recorded after integration. | Pass | PR #10 merged as `85530ad22f5aeb999cddd83e7563e4bb5ced2833`. |
 
 ## Repository evidence
 
 - Evidence path: `docs/evidence/engineering-practices/EP-006/`
-- Git evidence: `docs/ep-006-change-control-logs` branch and associated pull request
-- Merge commit hash: `[record after merge]`
-- Final status: Implemented and validated on the change branch; Verified after pull-request merge.
+- Pull request: `#10 — docs: add EP-006 change-control and workbook revision logs`
+- Merge commit hash: `85530ad22f5aeb999cddd83e7563e4bb5ced2833`
+- Finalisation commit: `7b8c48c8e8032408f960e45a44ed2c5c552310c8`
+- Final status: Implemented, Validated and Verified.
