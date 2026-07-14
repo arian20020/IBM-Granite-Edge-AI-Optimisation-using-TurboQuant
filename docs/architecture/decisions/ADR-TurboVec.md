@@ -1,9 +1,9 @@
-﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
+<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # ADR-TurboVec: TurboVec First-Release Decision
 
-**Status:** Proposed â€” technical and supervisor gate required  
+**Status:** Proposed — technical and supervisor gate required  
 **Date:** YYYY-MM-DD  
-**Decision owner:** Project developer  
+**Decision owner:** Arian B  
 **Related IDs:** R-M02, R-M13, F-M25, F-M26, F-M27, TV-01 to TV-04
 
 ## Context
@@ -42,4 +42,3 @@ _To be completed._
 ## Consequences and Claim Boundary
 
 State exactly what ran, what did not run, what comparison was performed and whether the result is app-integrated, command-line only or deferred.
-
