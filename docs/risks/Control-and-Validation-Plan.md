@@ -1,95 +1,106 @@
 # Risk, Assumption, Constraint and Licence Control and Validation Plan
 
 **Document ID:** PLAN-RACL-001  
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Active working plan  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
 **Last reviewed:** 2026-07-14  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
-**Related engineering practice:** `EP-007`
+**Related engineering practice:** `EP-007`  
+**Related reviews:** `RV-004`; `RV-005`
 
 ## 1. Purpose
 
-This plan defines how the four live registers move from populated working records to a reviewed and frozen developer baseline.
+This plan explains how the Risk, Assumption, Constraint and Licence registers move from working documents to a reviewed and frozen baseline.
 
-It prevents three common errors:
+It prevents four common mistakes:
 
-- treating a listed risk as though its controls have already been proven;
-- treating a reasonable assumption as though it has been confirmed;
-- treating public source code or a model page as automatic permission to bundle or redistribute it.
+- treating a listed risk as though its controls have already passed;
+- treating an assumption as proven without evidence;
+- treating public code or a model page as automatic permission to redistribute it;
+- treating a future idea as part of the current release without an approved scope change.
 
-## 2. Current state
+## 2. Current controlled scope
 
-| Register | Current content state | What remains |
+The current documents are aligned around these release roles:
+
+| Area | Current release role |
+|---|---|
+| Windows 11 x64 and WinUI 3 | Core Must Have |
+| Intel hardware focus | Core Must Have |
+| IBM Granite | Core model family |
+| Upstream llama.cpp | Core dependable inference route and fallback |
+| TurboQuant | Core Experimental route; one exact configuration must be proved |
+| OpenVINO | Active Should Have after its integration gate passes |
+| TurboVec | Later feasibility investigation; full integration remains deferred unless reactivated through change control |
+
+This alignment was confirmed in review `RV-005`. No scope-change request is needed for the current wording.
+
+A future decision to promote OpenVINO to Must Have or reactivate full TurboVec integration would be a material scope change and must update every affected controlled record.
+
+## 3. Current register state
+
+| Register | Current state | What still remains |
 |---|---|---|
-| Risk Register | The 254-item identification inventory has been consolidated into 37 operational risks with ratings and planned treatment | Review treatment evidence, reassess residual risk at gates and obtain baseline approval |
-| Assumption Register | `A-001`–`A-017` populated | Execute validation methods, link exact evidence and set evidence-backed outcomes |
-| Constraint Register | `C-001`–`C-015` populated | Confirm authoritative sources, check scope consistency and approve the active wording |
-| Licence Register | `L-001`–`L-013` populated | Pin exact versions, inspect package/model terms and approve or restrict final packaging decisions |
-| Review Log | Structural, content-population, consistency and risk-consolidation reviews recorded | Record assumption, constraint, licence, baseline and final-release reviews |
-| Baselines | Structure and record template prepared | Freeze `v1.0` only after the criteria in this plan are met |
+| Risk Register | 254 identified items consolidated into 37 operational risks | Review treatment evidence and reassess residual risks at the relevant gates |
+| Assumption Register | `A-001`–`A-017` populated | Run validation methods, link evidence and set evidence-backed outcomes |
+| Constraint Register | `C-001`–`C-015` populated | Confirm sources, wording and project compliance |
+| Licence Register | `L-001`–`L-013` populated | Pin exact versions and complete packaging decisions |
+| Review Log | Structural, content, consistency, consolidation and scope-alignment reviews recorded | Record assumption, constraint, licence, baseline and release reviews |
+| Baselines | Template and freeze rules prepared | Create `v1.0` only after the baseline review passes |
 
-## 3. Review order
+## 4. Review order
 
-The review follows this order because later decisions depend on earlier ones.
+### Stage 1 — Confirm the release scope
 
-### Stage 1 — Confirm the controlled release scope
+**Status:** Completed for the current developer working baseline.
 
-Before the first baseline review, resolve the difference between the intended Windows/Intel/OpenVINO/TurboQuant/TurboVec scope and any controlled requirements or ADRs that still classify OpenVINO or full TurboVec work differently.
+The review confirmed that:
 
-Required output:
+- Windows, Intel, Granite, llama.cpp and TurboQuant are the core focus;
+- OpenVINO remains a Should Have;
+- TurboVec remains a later feasibility investigation;
+- full TurboVec application integration remains deferred.
 
-- an approved or explicitly pending scope-change decision;
-- synchronised Project Definition, requirements, RTM and ADR wording where approved;
-- updated risk, assumption and constraint relationships.
-
-The registers may remain operational while this is pending, but the first baseline must state the unresolved scope gap clearly.
+Future scope changes must use project change control and update the Project Definition, requirements, RTM, ADRs, work packages, evidence paths and affected registers together.
 
 ### Stage 2 — Consolidate and assess risks
 
-**Consolidation status:** Completed on 2026-07-14 for the developer working register.
+**Status:** Completed for the developer working register.
 
-The original candidate inventory remains preserved as historical identification evidence. The operational result is controlled by:
+The original candidate list is preserved as history. The live operational result is controlled by:
 
-- `Risk-Register.md` — 37 retained operational risks;
-- `Risk-Consolidation-Map.md` — mapping from merged candidates to retained risks;
-- `candidates/` — read-only discovery history.
+- `Risk-Register.md` — 37 active operational risks;
+- `Risk-Consolidation-Map.md` — mapping from original IDs to retained risks;
+- `candidates/` — historical discovery records.
 
-The consolidation review:
+The remaining risk work is to:
 
-1. separated risks from assumptions, constraints, licences and existing failures;
-2. merged duplicate and overly narrow candidates;
-3. retained only risks with materially different treatment needs;
-4. assigned probability, impact and exposure;
-5. populated trigger, validation, mitigation, contingency, owner, status and planned evidence;
-6. preserved all original IDs through the consolidation map.
-
-The remaining risk work is not more risk-list expansion. It is evidence review and treatment monitoring:
-
-- confirm that planned controls are implemented where required;
-- link exact evidence at each dependent gate;
-- reassess residual risk;
-- change status to Monitoring, Triggered, Accepted or Closed only with a recorded reason.
+1. check that planned controls are implemented where required;
+2. link exact evidence at each dependent gate;
+3. reassess probability, impact and residual risk when evidence changes;
+4. change status only with a recorded reason;
+5. avoid creating duplicate risks for new examples of an existing uncertainty.
 
 #### Probability scale
 
 | Rating | Meaning |
 |---|---|
 | Low | Unlikely under the current plan; no strong warning signs |
-| Medium | Plausible or dependent on unresolved technical evidence |
+| Medium | Plausible or dependent on unresolved evidence |
 | High | Likely, already showing warning signs or strongly dependent on an experimental route |
 
 #### Impact scale
 
 | Rating | Meaning |
 |---|---|
-| Low | Local rework with no important requirement, evidence or release effect |
+| Low | Local rework with no important release or evidence effect |
 | Medium | Delays or weakens a work package, route, experiment or report claim |
-| High | Threatens a Must-Have, safety boundary, evidence integrity, legal permission, deadline or final release |
+| High | Threatens a Must Have, safety boundary, legal permission, deadline, evidence integrity or final release |
 
-#### Exposure and treatment priority
+#### Exposure matrix
 
 | Probability | Impact | Exposure |
 |---|---|---|
@@ -103,74 +114,74 @@ The remaining risk work is not more risk-list expansion. It is evidence review a
 | Low | Medium | Low |
 | Low | Low | Low |
 
-Critical and High risks require an owner, trigger, validation method, mitigation, contingency, residual-risk assessment and review date. Their planned controls must also be checked against evidence before the relevant gate can pass.
+Critical and High risks require a clear owner, trigger, validation method, mitigation, contingency, residual-risk statement and review date. Their controls must be checked against evidence before the dependent gate can pass.
 
 ### Stage 3 — Validate assumptions
 
 Validate assumptions in dependency order:
 
 1. evidence recovery and backup — `A-001`, `A-015`;
-2. legitimate model source and exact identities — `A-002`, `A-003`;
-3. dependable upstream baseline and available Intel hardware — `A-004`, `A-006`, `A-007`;
+2. model source and exact identities — `A-002`, `A-003`;
+3. upstream baseline and available Intel hardware — `A-004`, `A-006`, `A-007`;
 4. OpenVINO route — `A-005`;
 5. memory-fit estimator — `A-008`;
 6. TurboQuant build and activation — `A-009`, `A-010`;
-7. TurboVec implementation and retrieval quality — `A-011`, `A-012`;
-8. offline/no-port operation — `A-013`;
+7. TurboVec feasibility and later role decision — `A-011`, `A-012`;
+8. offline and no-port operation — `A-013`;
 9. repeatable evaluation — `A-014`;
 10. licensing — `A-016`;
 11. target-user usability — `A-017`.
 
 An assumption may be:
 
-- `Confirmed` only for the exact scope proven by evidence;
+- `Confirmed` only for the exact scope proved by evidence;
 - `Rejected` when evidence shows it is false or unreliable;
-- left `Pending` only with an owner, planned action and review date;
-- `Superseded` when a later decision removes or replaces it.
+- `Pending` only with an owner, planned action and review date;
+- `Superseded` when a later decision replaces it.
+
+A deferred feature does not require full implementation evidence. Its assumptions must instead support the current feasibility or decision gate.
 
 ### Stage 4 — Review constraints
 
-For every constraint:
+For each constraint:
 
 1. confirm the authoritative source;
 2. confirm that it is a real boundary rather than a preference or risk;
-3. check that the Project Definition, requirements, architecture, tests and report obey it;
+3. check that planning, architecture, testing and reporting obey it;
 4. record any material change through change control;
-5. retain removed or replaced constraints with their history.
+5. keep removed or superseded constraints in the history.
 
-The review must pay special attention to:
+Important checks include:
 
-- the Windows 11 x64 and Intel release boundary;
+- Windows 11 x64 and Intel focus;
 - local and no-port operation;
 - available hardware and memory limits;
-- experimental-claim boundaries;
-- sensitive-data exclusion;
-- prototype and academic-integrity boundaries.
+- Experimental-claim boundaries;
+- no real patient or pupil data;
+- research-prototype and academic-integrity boundaries.
 
 ### Stage 5 — Complete the licence gate
 
-Review licences using the exact files and versions actually used, not only family-level or repository-level claims.
+For each release-relevant model, package, fork, asset or dataset:
 
-For each release-relevant item:
-
-1. pin the exact model, package, repository commit or asset;
-2. archive or link the authoritative licence and NOTICE files;
-3. inspect transitive dependencies and third-party notices;
-4. decide whether it is referenced, used during development, downloaded separately, bundled or excluded;
-5. record all attribution and distribution duties;
-6. mark the result `Approved`, `Restricted` or `Rejected`.
+1. pin the exact version, commit or revision;
+2. link or archive the authoritative licence and NOTICE files;
+3. check third-party and transitive notices;
+4. decide whether it is referenced, used only during development, downloaded separately, bundled or excluded;
+5. record attribution and distribution duties;
+6. set the outcome to `Approved`, `Restricted` or `Rejected`.
 
 No `Pending` component may be bundled into the release.
 
-### Stage 6 — Run a cross-register consistency audit
+### Stage 6 — Run a cross-register audit
 
 Check that:
 
-- the same fact does not appear as conflicting risk, assumption and constraint entries;
+- the same fact is not recorded as conflicting risk, assumption and constraint entries;
 - retained risk IDs and consolidation mappings resolve correctly;
-- owners and review dates are current;
-- the exact first-release scope is consistent across planning, requirements, architecture and these registers;
-- licence restrictions are reflected in packaging and model-download requirements;
+- owners, dates and statuses are current;
+- release roles match the Project Definition, requirements, RTM, ADRs and work packages;
+- licence restrictions match packaging and download decisions;
 - evidence paths exist or are clearly marked pending;
 - closed, rejected, removed and superseded history remains visible.
 
@@ -180,11 +191,11 @@ Create and validate:
 
 - `docs/evidence/work-packages/PD-05/README.md`;
 - `docs/evidence/engineering-practices/EP-007/README.md`;
-- any required `G-M05` requirement evidence record.
+- `docs/evidence/requirements/G-M05/README.md` where required.
 
-Each record must use the current evidence template and map every acceptance criterion to authoritative evidence.
+Each record must use Evidence Template v1.1.1 and map every acceptance criterion to authoritative evidence.
 
-### Stage 8 — Freeze the first baseline
+### Stage 8 — Freeze baseline `v1.0`
 
 Create `baselines/v1.0/` only after a recorded Baseline Review passes.
 
@@ -196,21 +207,22 @@ The snapshot must contain:
 - `Constraint-Register.md`;
 - `Licence-Register.md`.
 
-The baseline record must identify the reviewed commit, review ID, approval scope, open gaps and included files. Later findings update the live registers and lead to a later baseline; they do not rewrite the frozen snapshot.
+The baseline record must identify the reviewed commit, review ID, approval scope, open gaps and included files. Later changes update the live registers and create a later baseline; they do not rewrite the frozen snapshot.
 
-## 4. Definition of Done for the folder
+## 5. Definition of Done for `docs/risks/`
 
-The `docs/risks/` control area is operationally complete when:
+The control area is ready for full validation when:
 
 - all four live registers contain the important project entries;
-- the risk identification backlog has been consolidated into a manageable operational set;
-- every Critical or High risk has complete treatment fields and its dependent gate reviews the planned evidence;
-- critical assumptions have evidence-backed outcomes or explicit assigned pending actions;
-- all active constraints have approved sources, effects and project responses;
-- every release-relevant third-party component has a clear licence and packaging decision;
+- the risk backlog is consolidated into a manageable operational set;
+- Critical and High risks have complete treatment fields and evidence reviews at their dependent gates;
+- critical assumptions have evidence-backed outcomes or explicitly accepted pending actions;
+- active constraints have approved sources, effects and project responses;
+- every release-relevant third-party item has a licence and packaging decision;
+- the cross-register audit passes or records accepted gaps;
 - the Review Log records the substantive reviews;
-- PD-05, EP-007 and G-M05 evidence records are complete;
+- `PD-05`, `EP-007` and `G-M05` evidence records are complete;
 - the RTM matches the evidence and validation state;
-- the first controlled baseline is frozen without hiding open gaps.
+- the first baseline is frozen without hiding unresolved gaps.
 
-The risk-consolidation criterion is now complete. The whole folder remains **populated and operational**, not fully validated or baselined, until the remaining assumption, constraint, licence, evidence and baseline gates pass.
+Risk consolidation and current scope alignment are complete. The folder remains **populated and operational**, but not fully validated or baselined, until the remaining assumption, constraint, licence, evidence and baseline gates pass.
