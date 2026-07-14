@@ -51,7 +51,8 @@ jobs:
             echo '## Parts in reconstruction order'
             echo
             for part in "${parts[@]}"; do
-              printf -- '- `%s` — %s bytes\n' "$(basename "${part}")" "$(stat -c '%s' "${part}")"
+              part_sha256="$(tr -d '\r\n' < "${part}" | sha256sum | awk '{print $1}')"
+              printf -- '- `%s` — %s bytes — SHA-256 `%s`\n' "$(basename "${part}")" "$(stat -c '%s' "${part}")" "${part_sha256}"
             done
           } > .github/research-import/DIAGNOSTIC.md
 
