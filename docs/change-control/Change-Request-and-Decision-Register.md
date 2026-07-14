@@ -1,7 +1,7 @@
 # Change Request and Decision Register
 
 **Document ID:** LOG-CRD-001  
-**Version:** 1.3  
+**Version:** 1.4  
 **Status:** Baselined  
 **Owner:** Arian B  
 **Last reviewed:** 2026-07-14
@@ -25,6 +25,7 @@
 | CR-013 | 2026-07-14 | Arian B | Resolve the draft first-release priority boundary and freeze MoSCoW v1.2. | Requirements and scope | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Approved as developer working baseline; supervisor review pending | Closed |
 | CR-014 | 2026-07-14 | Arian B | Separate Functional, Non-Functional, Research, Governance and Exclusion requirements into readable catalogues. | Documentation structure | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Approved and implemented as a presentation-only revision | Closed |
 | CR-015 | 2026-07-14 | Arian B | Bring the completed MoSCoW/RTM evidence packs into full template compliance, repair their indexes and replace the missing-workbook link with a controlled artifact record. | Evidence and configuration control | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001 | Approved and implemented through PR #17; no scope or completion-status change | Closed |
+| CR-016 | 2026-07-14 | Arian B | Strengthen the common evidence-record template while preserving existing validated evidence and avoiding unnecessary mass migration. | Evidence governance | Evidence Record Template; all future REQ/WP/EP/EXP evidence records; final release evidence audit | Approved and implemented as template v1.1; no requirement, scope or completion-status change | Closed |
 
 ## CR-013 decision record
 
@@ -125,3 +126,48 @@ The original G-M02, PD-04, EP-004 and EP-005 READMEs recorded valid conclusions 
 - G-M02, PD-04, EP-004, EP-005 and EP-006 evidence READMEs
 - CHG-015
 - PR #17
+
+## CR-016 decision record
+
+**Decision owner:** Arian B  
+**Decision date:** 2026-07-14  
+**Approval state:** Approved and implemented as the developer-controlled evidence baseline  
+
+### Problem found
+
+Template v1.0 provided a sound nine-section evidence structure, but it did not require an explicit mapping from each acceptance criterion to evidence. It also lacked template/record versioning, a mandatory claim boundary, validation-independence fields, controlled effective-status calculation and clear revalidation triggers. These gaps could lead to inconsistent future records or claims that are broader than the evidence supports.
+
+### Decision
+
+1. Retain the familiar nine-section evidence-record structure.
+2. Release common Evidence Record Template v1.1.
+3. Require template version, record version, source baseline, last review, validation independence, approval scope and supersession metadata.
+4. Require stable local criterion IDs and direct criterion-to-evidence mapping.
+5. Require explicit statements of what the evidence proves and does not prove.
+6. Strengthen evidence identification with version, commit, run and checksum fields where relevant.
+7. Define the controlled relationship between Working status, Validation state and Effective status.
+8. Add revalidation triggers for changes to requirements, code, architecture, models, dependencies, methods, environments or contradictory evidence.
+9. Make v1.1 mandatory for new evidence records.
+10. Preserve existing validated v1.0 records unless their evidence is unsound; migrate them when materially changed, revalidated or superseded and inspect active Verified records during the final release audit.
+11. Do not change any requirement, scope, priority, acceptance criterion or existing completion decision through this template revision alone.
+
+### Rationale
+
+The revision improves auditability and makes overclaiming harder while avoiding disruptive, cosmetic rewrites of records that have already been validated. It creates a controlled forward standard and a proportionate migration path.
+
+### Impact
+
+- New evidence records have stronger criterion-level traceability and claim boundaries.
+- Existing v1.0 records are not automatically invalidated.
+- No task becomes Verified or loses Verified status merely because the template changed.
+- Final release audit gains a clear migration and revalidation check.
+- No first-release scope or application behaviour changes.
+
+### Evidence
+
+- `docs/evidence/templates/Evidence-Record-Template.md`
+- `docs/evidence/templates/README.md`
+- `docs/evidence/templates/Evidence-Template-Revision-History.md`
+- `docs/evidence/README.md`
+- CHG-016
+- evidence-template v1.1 pull request
