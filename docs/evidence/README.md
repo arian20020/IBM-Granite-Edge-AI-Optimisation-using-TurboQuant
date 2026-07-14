@@ -18,7 +18,7 @@ All new requirement, work-package and engineering-practice evidence READMEs must
 - [Evidence Record Template](templates/Evidence-Record-Template.md)
 - [Template usage guidance](templates/README.md)
 
-The common sections are metadata, statement being evidenced, Definition of Done, evidence summary, evidence links, validation checklist, validation result, traceability, limitations and change control.
+The required sections are metadata, statement being evidenced, Definition of Done or acceptance criteria, evidence summary, authoritative evidence, validation record, traceability, limitations and change control.
 
 ## Evidence collections
 
@@ -27,6 +27,17 @@ The common sections are metadata, statement being evidenced, Definition of Done,
 - [Engineering-practice evidence](engineering-practices/README.md)
 - [Evidence recovery and checksums](Evidence-Recovery-Index.md)
 - [Evidence indexes and validation](indexes/README.md)
+- [MoSCoW and RTM Evidence Index](indexes/MoSCoW-and-RTM-Evidence-Index.md)
+
+## Completed requirements-baseline evidence
+
+The current MoSCoW/RTM planning completion is evidenced by:
+
+- [G-M02 — versioned MoSCoW baseline](requirements/G-M02/README.md)
+- [PD-04 — Must-Have RTM and acceptance criteria](work-packages/PD-04/README.md)
+- [EP-004 — stable MoSCoW catalogue](engineering-practices/EP-004/README.md)
+- [EP-005 — bidirectional traceability](engineering-practices/EP-005/README.md)
+- [EP-006 — derived-requirement and change log](engineering-practices/EP-006/README.md)
 
 ## Evidence rules
 
