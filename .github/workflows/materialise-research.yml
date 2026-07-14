@@ -20,7 +20,7 @@ jobs:
           ref: research/provenance-library-v2
           fetch-depth: 0
 
-      - name: Diagnose the staged archive
+      - name: Reconstruct and validate the staged archive
         shell: bash
         run: |
           set -euo pipefail
@@ -39,28 +39,16 @@ jobs:
           archive_size="$(stat -c '%s' research-import.tar.xz)"
           encoded_size="$(cat "${parts[@]}" | tr -d '\r\n' | wc -c | tr -d ' ')"
 
-          {
-            echo '# Research import diagnostic'
-            echo
-            echo "- Part count: ${#parts[@]}"
-            echo "- Encoded character count: ${encoded_size}"
-            echo "- Decoded archive byte count: ${archive_size}"
-            echo "- Actual SHA-256: ${actual_sha256}"
-            echo "- Expected SHA-256: ${expected_sha256}"
-            echo
-            echo '## Parts in reconstruction order'
-            echo
-            for part in "${parts[@]}"; do
-              part_sha256="$(tr -d '\r\n' < "${part}" | sha256sum | awk '{print $1}')"
-              printf -- '- `%s` — %s bytes — SHA-256 `%s`\n' "$(basename "${part}")" "$(stat -c '%s' "${part}")" "${part_sha256}"
-            done
-          } > .github/research-import/DIAGNOSTIC.md
+          echo "Part count: ${#parts[@]}"
+          echo "Encoded character count: ${encoded_size}"
+          echo "Decoded archive byte count: ${archive_size}"
+          echo "Actual SHA-256: ${actual_sha256}"
+          echo "Expected SHA-256: ${expected_sha256}"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/research-import/DIAGNOSTIC.md
-          git commit -m "chore(research-import): record archive reconstruction diagnostic"
-          git push origin HEAD:research/provenance-library-v2
+          for part in "${parts[@]}"; do
+            part_sha256="$(tr -d '\r\n' < "${part}" | sha256sum | awk '{print $1}')"
+            printf -- '%s | %s bytes | %s\n' "$(basename "${part}")" "$(stat -c '%s' "${part}")" "${part_sha256}"
+          done
 
           if [ "${actual_sha256}" != "${expected_sha256}" ]; then
             echo "The reconstructed archive checksum does not match the controlled package." >&2
@@ -89,6 +77,9 @@ jobs:
           markdown_count="$(find research -type f -name '*.md' | wc -l | tr -d ' ')"
           total_file_count="$(find research -type f | wc -l | tr -d ' ')"
 
+          echo "Markdown files: ${markdown_count}"
+          echo "Total research files: ${total_file_count}"
+
           if [ "${markdown_count}" -ne 109 ]; then
             echo "Unexpected Markdown file count: ${markdown_count}." >&2
             exit 1
@@ -103,6 +94,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add --all
           git commit \
