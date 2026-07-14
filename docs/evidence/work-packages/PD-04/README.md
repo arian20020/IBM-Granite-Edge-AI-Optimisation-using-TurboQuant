@@ -30,7 +30,7 @@
 - [x] Every active Must Have has a verification method.
 - [x] Every active Must Have has a test/evidence ID or evidence path and an owner.
 - [x] Forward and reverse traceability views are available.
-- [x] The controlled workbook, generated Markdown and evidence records agree on the reviewed baseline counts.
+- [x] The controlled workbook record, generated Markdown and evidence records agree on the reviewed baseline counts.
 
 ## 4. Evidence summary
 
@@ -44,7 +44,7 @@ The work package proves completeness of the requirements and acceptance design. 
 |---|---|---|---|
 | Requirements Traceability Matrix v1.3 | [Requirements-Traceability-Matrix-v1.3.md](../../../requirements/Requirements-Traceability-Matrix-v1.3.md) | Provides the forward requirement mappings and complete acceptance/verification records. | Available |
 | Traceability reverse indexes | [Traceability-Reverse-Indexes-v1.3.md](../../../requirements/Traceability-Reverse-Indexes-v1.3.md) | Provides reverse links from objectives, RQs, WPs, components, test/evidence IDs and evidence paths. | Available |
-| Controlled RTM workbook | [IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx](../../../requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx) | Provides the authoritative editable RTM, Task Checklist, Dashboard and formulas. | Available |
+| Controlled workbook artifact record | [RTM-Workbook-Artifact-Record.md](../../../requirements/RTM-Workbook-Artifact-Record.md) | Controls the exact binary filename, size, SHA-256, package and recovery/placement procedure. | Available |
 | Workbook integrity record | [RTM-Working-Baseline-SHA256.txt](../../../requirements/RTM-Working-Baseline-SHA256.txt) | Identifies the reviewed workbook by SHA-256. | Available |
 | MoSCoW Requirements Baseline v1.2 | [MoSCoW-Requirements-v1.2.md](../../../requirements/MoSCoW-Requirements-v1.2.md) | Identifies the current priority and lifecycle boundary. | Available |
 | Project Definition v1.1 | [Project-Definition-v1.1.md](../../../planning/Project-Definition-v1.1.md) | Provides the objectives, research questions and scope used by the RTM. | Available |
@@ -59,7 +59,7 @@ The work package proves completeness of the requirements and acceptance design. 
 
 | Check | Result | Evidence or note |
 |---|---|---|
-| Required deliverable exists | Pass | RTM v1.3, reverse indexes, workbook and coverage audit are present. |
+| Required deliverable exists | Pass | RTM v1.3, reverse indexes, the workbook artifact record, checksum and coverage audit are present in Git; the binary is independently controlled. |
 | Definition of Done checked | Pass | Every criterion in section 3 was checked against the controlled RTM. |
 | Stable requirement ID and statement | Pass | 56 of 56 active Must Haves. |
 | Source and rationale | Pass | 56 of 56. |
@@ -70,8 +70,8 @@ The work package proves completeness of the requirements and acceptance design. 
 | Verification method | Pass | 56 of 56. |
 | Evidence path and owner | Pass | 56 of 56. |
 | Reverse indexes available | Pass | Six reverse-index families are version-controlled. |
-| Evidence is version-controlled or independently backed up | Pass | Markdown records and the controlled workbook are in Git and the workbook has a matching SHA-256 record. |
-| No unresolved contradiction affects the claim | Pass | The Project Definition, MoSCoW baseline, RTM counts and evidence records agree. |
+| Evidence is version-controlled or independently backed up | Pass | Markdown records and checksums are in Git; the exact binary is retained in the controlled completion package and identified by filename, size and SHA-256. |
+| No unresolved contradiction affects the claim | Pass with limitation | Direct binary Git placement remains pending, but the artifact status is explicit and no broken link is used. |
 
 **Validation result:** Validated
 
@@ -87,11 +87,12 @@ PD-04 is verified because the complete Must-Have RTM and acceptance design exist
 | Engineering practice(s) | `EP-004`, `EP-005`, `EP-006` |
 | Objective(s) | `O1`–`O11`, as mapped per requirement |
 | Research question(s) | `RQ1`, `RQ2`, `RQ3`, `RQ4`, `RQ-TV`, as mapped per requirement |
-| Test / experiment / evidence IDs | Requirement-specific acceptance IDs; Must-Have coverage audit; bidirectional-traceability audit |
+| Test / experiment / evidence IDs | `ART-RTM-XLSX-001`; requirement-specific acceptance IDs; Must-Have coverage audit; bidirectional-traceability audit |
 
 ## 8. Limitations, gaps and follow-up
 
 - PD-04 validates the design and coverage of the RTM, not completion of all implementation work.
+- Direct placement of the exact `.xlsx` binary in Git remains pending; the artifact record and checksum prevent an untraceable or broken reference.
 - GitHub issue, commit, executed-test and final-evidence links remain to be populated for individual requirements during development.
 - G-M03 remains open until final release traceability proves every active Must Have against implementation and executed evidence.
 - A future approved scope change requires a repeat coverage audit for all affected Must Haves.
@@ -100,7 +101,7 @@ PD-04 is verified because the complete Must-Have RTM and acceptance design exist
 
 Any later change that affects this evidence claim must update:
 
-1. the controlled RTM workbook;
+1. the controlled RTM workbook artifact and checksum;
 2. the generated RTM and reverse indexes;
 3. `Must-Have-Coverage-Audit.md`;
 4. this PD-04 evidence record;
