@@ -110,15 +110,15 @@
                      "hash_manifest_path":  ""
                  },
     "classification":  {
-                           "result":  "Ready",
-                           "result_reason":  "Controlled workspace and six generated workbooks validated. No llama.cpp clone, build, model load or inference has been executed.",
+                           "result":  "Blocked",
+                           "result_reason":  "Pre-execution workbook control validation failed. All six generated DOCX hashes differed from the controlled manifest, the detailed workbook revision-control validator failed, and the general workspace validator only confirmed file presence.",
                            "failure_ids":  [
-
+                                               "FAIL-CTRL-001"
                                            ],
                            "missing_data_codes":  [
 
                                                   ],
-                           "next_action":  "Capture the target Windows machine environment and populate the environment and test-run registers before cloning llama.cpp."
+                           "next_action":  "Repair the cross-platform workbook hash and revision-control baseline, regenerate the six DOCX files, rerun detailed validation and obtain a genuine pass before capturing the machine environment."
                        },
-    "notes":  "Preparation evidence only. Workspace validation attempt 1 found the six generated DOCX workbooks absent. The workbooks were generated from the canonical Markdown sources, checked against their controlled SHA-256 values and accepted by validation attempt 2. No llama.cpp or Granite execution claim is made."
+    "notes":  "The earlier Ready classification is superseded. Preparation commit d30f645 preserved the original generation and validation evidence. No llama.cpp clone, build, model load, hardware test or inference test has been executed."
 }
