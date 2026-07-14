@@ -1,7 +1,7 @@
 # Risk, Assumption, Constraint and Licence Control and Validation Plan
 
 **Document ID:** PLAN-RACL-001  
-**Version:** 1.4  
+**Version:** 1.5  
 **Status:** Active working plan  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
@@ -9,11 +9,11 @@
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
-**Related reviews:** `RV-004`; `RV-005`; `RV-006`; `RV-007`
+**Related reviews:** `RV-004`; `RV-005`; `RV-006`; `RV-007`; `RV-008`
 
 ## 1. Purpose
 
-This plan explains how the Risk, Assumption, Constraint and Licence registers move from working records to an evidence-reviewed and frozen baseline.
+This plan explains how the Risk, Assumption, Constraint and Licence registers move from working records to evidence-reviewed controls and, later, a frozen baseline.
 
 It prevents four common mistakes:
 
@@ -38,14 +38,15 @@ This alignment was confirmed in `RV-005`.
 
 ## 3. Current register state
 
-| Register | Current state | What remains |
+| Register / control | Current state | What remains |
 |---|---|---|
 | Risk Register | 254 identified items consolidated into 37 operational risks | Review treatment evidence and reassess residual risks at dependent gates |
 | Assumption Register | `A-001`–`A-017` approved as the controlled planning set | Run validation methods and set evidence-backed outcomes |
 | Constraint Register | `C-001`–`C-015` approved as Active boundaries | Check compliance evidence at dependent gates |
 | Licence Register | `L-001`–`L-015` reviewed at source level | Pin final artefacts, inspect notices and approve the produced release package |
-| Review Log | Reviews `RV-001`–`RV-007` recorded | Add gate, cross-register, baseline and final-release reviews |
-| Baselines | Template and freeze rules prepared | Create `v1.0` only after the baseline review passes |
+| Cross-register audit | `AUD-RACL-001` completed as `RV-008` | Revalidate after material changes |
+| Task evidence | `G-M05`, `PD-05` and `EP-007` evidence records created | Synchronise the controlled RTM and then promote the records to effective Verified |
+| Baselines | Template and freeze rules prepared | Create `v1.0` only after a separate Baseline Review passes |
 
 ## 4. Review order
 
@@ -161,29 +162,54 @@ No `Pending` item may be bundled. A `Restricted` item may be used only within it
 
 ### Stage 6 — Run the cross-register audit
 
-Check that:
+**Status:** Completed as `AUD-RACL-001` / `RV-008`.
 
-- risks, assumptions, constraints and licence decisions do not conflict;
-- all IDs and consolidation mappings resolve;
-- owners, dates and statuses are current;
-- release roles agree with planning, requirements, RTM and ADRs;
-- licence restrictions match the actual packaging plan;
+The audit checked that:
+
+- risks, assumptions, constraints and licence decisions do not materially conflict;
+- all retained IDs and consolidation mappings resolve;
+- owners, dates and statuses are present;
+- release roles agree with planning and requirements;
+- licence restrictions are explicit;
 - evidence paths exist or are explicitly pending;
-- negative and superseded history remains visible.
+- negative and superseded history remains visible;
+- the PD-05 Definition of Done is satisfied.
+
+The audit found no material contradiction preventing use of the governance system. The only remaining task-status blocker is controlled RTM synchronisation.
 
 ### Stage 7 — Complete evidence records
 
-Create and validate:
+**Status:** Substantively completed as part of `RV-008`.
+
+The following Evidence Template v1.1.1 records now exist:
 
 - `docs/evidence/work-packages/PD-05/README.md`;
 - `docs/evidence/engineering-practices/EP-007/README.md`;
-- `docs/evidence/requirements/G-M05/README.md` where required.
+- `docs/evidence/requirements/G-M05/README.md`.
 
-Each record must map acceptance criteria to authoritative evidence using Evidence Template v1.1.1.
+Their criteria and authoritative evidence pass. Their controlled metadata remains `Implemented / Not Validated / Implemented` until the RTM workbook is updated and regenerated.
 
-### Stage 8 — Freeze baseline `v1.0`
+### Stage 8 — Synchronise the controlled RTM
 
-Create `baselines/v1.0/` only after a recorded Baseline Review passes.
+**Status:** Pending.
+
+Update `REQ:G-M05`, `WP:PD-05` and `EP:EP-007` to:
+
+- Working status: `Implemented`;
+- Validation: `Validated`;
+- Effective status: `Verified`;
+- evidence paths pointing to the three completed evidence records.
+
+Then:
+
+1. update the workbook revision, SHA-256 and size records;
+2. regenerate traceability catalogues and evidence maps;
+3. confirm the generated outputs show all three tasks as Verified;
+4. update the evidence metadata and validation conclusions to remove the RTM synchronisation caveat.
+
+### Stage 9 — Freeze a later baseline
+
+Create `baselines/v1.0/` only after a separate recorded Baseline Review passes.
 
 The snapshot must contain:
 
@@ -197,18 +223,28 @@ The baseline record must identify the reviewed commit, review ID, approval scope
 
 ## 5. Definition of Done
 
-The control area is fully validated when:
+### Task-level Definition of Done for `G-M05`, `PD-05` and `EP-007`
 
-- all four live registers contain the important entries;
+The task-level register deliverable is complete when:
+
+- all four authoritative registers exist;
 - the risk backlog is consolidated;
-- Critical and High risk treatments have gate evidence;
-- assumptions relied upon by completed claims have evidence-backed outcomes;
-- active constraints have approved wording and compliance evidence at relevant gates;
-- every release-relevant item has an exact licence and packaging decision;
-- the cross-register audit passes or records accepted gaps;
-- the Review Log records the substantive reviews;
-- `PD-05`, `EP-007` and `G-M05` evidence records are complete;
-- the RTM matches the evidence state;
-- baseline `v1.0` is frozen without hiding unresolved gaps.
+- High and Critical risks have the required treatment fields;
+- assumptions, constraints and licence outcomes are explicit and owned;
+- a cross-register audit passes;
+- the three evidence records exist;
+- the controlled RTM matches the validated evidence state.
 
-Risk consolidation, scope alignment, assumption-set approval, constraint approval and the initial source-licence review are complete. The folder is not yet fully validated or release-approved because technical assumption evidence, risk-treatment evidence, final package licensing, the cross-register audit and the baseline remain pending.
+All substantive criteria have passed. RTM synchronisation is the only remaining status-control step.
+
+### Continuing control-area and release work
+
+The wider `docs/risks/` area continues throughout the project. Later technical and release claims require:
+
+- gate evidence for Critical and High risk controls;
+- evidence-backed outcomes for assumptions relied upon by completed claims;
+- constraint-compliance evidence at relevant gates;
+- exact release-file licence and packaging decisions;
+- a later baseline review and frozen snapshot where appropriate.
+
+Those continuing controls do not invalidate completion of the initial register-consolidation work package and engineering practice.
