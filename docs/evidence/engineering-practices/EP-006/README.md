@@ -8,11 +8,11 @@
 | Record type | Engineering Practice |
 | Working status | Implemented |
 | Validation state | Validated |
-| Effective status | Verified after merge |
+| Effective status | Verified |
 | Owner | Arian B. |
 | Evidence date | 2026-07-14 |
 | Validation date | 2026-07-14 |
-| Validator | Project developer; repository review pending merge |
+| Validator | Project developer; repository review through PR #10 |
 | Validation method | Document review, cross-link inspection and Git history review |
 
 ## 2. Statement being evidenced
@@ -50,13 +50,13 @@ The repository now contains one connected change-control system for requirements
 
 | Check | Result | Evidence or note |
 |---|---|---|
-| Required deliverables exist | Pass | All linked Markdown/CSV records exist on the change branch. |
+| Required deliverables exist | Pass | All linked Markdown/CSV records are present on `main`. |
 | Definition of Done checked | Pass | All criteria above are satisfied. |
-| Evidence is version-controlled | Pass after merge | Branch and pull request retain reviewable history. |
+| Evidence is version-controlled | Pass | PR #10 was merged as commit `85530ad22f5aeb999cddd83e7563e4bb5ced2833`. |
 | Existing testing logs were reused | Pass | Decision-Log.md and workbook revision controls remain authoritative. |
 | No unresolved contradiction affects the claim | Pass | Pending technical/supervisor decisions remain explicitly Pending/Open. |
 
-**Validation result:** Validated; effective status becomes Verified when this pull request is merged.
+**Validation result:** Verified.
 
 ## 7. Traceability
 
