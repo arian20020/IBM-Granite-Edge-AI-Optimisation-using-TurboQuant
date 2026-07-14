@@ -11,6 +11,7 @@ Use the [Evidence Record Template](../templates/Evidence-Record-Template.md) for
 ## Current evidence packs
 
 - [EP-001 — Freeze problem, aim, research questions, contribution and scope](EP-001/README.md)
+- [EP-019 — Freeze app-specific evaluation addendum](EP-019/README.md)
 
 ## Evidence rules
 
