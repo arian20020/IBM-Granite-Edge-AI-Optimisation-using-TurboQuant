@@ -24,7 +24,7 @@ This index connects the completed requirements-governance tasks to their templat
 - [MoSCoW Requirements Baseline v1.2](../../requirements/MoSCoW-Requirements-v1.2.md)
 - [Requirements Traceability Matrix v1.3](../../requirements/Requirements-Traceability-Matrix-v1.3.md)
 - [Traceability Reverse Indexes v1.3](../../requirements/Traceability-Reverse-Indexes-v1.3.md)
-- [Controlled RTM workbook](../../requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx)
+- [Controlled RTM workbook artifact record](../../requirements/RTM-Workbook-Artifact-Record.md)
 - [Workbook SHA-256](../../requirements/RTM-Working-Baseline-SHA256.txt)
 - [Categorised catalogue audit](../../requirements/Categorised-Requirements-Catalogue-Audit.md)
 - [Project Definition v1.1](../../planning/Project-Definition-v1.1.md)
@@ -39,4 +39,4 @@ This index connects the completed requirements-governance tasks to their templat
 
 ## Validation boundary
 
-These records prove completion of the requirements baseline, coverage design, traceability structure and change-control practice. They do not claim that all 56 active Must-Have product requirements have been implemented or tested.
+These records prove completion of the requirements baseline, coverage design, traceability structure and change-control practice. They do not claim that all 56 active Must-Have product requirements have been implemented or tested. The exact workbook binary is independently controlled by the artifact record and checksum until direct Git placement is completed.
