@@ -3,7 +3,7 @@
 
 ## Purpose
 
-Each work-package folder is an evidence pack that explains what was completed, how the Definition of Done was checked, and where the authoritative proof is stored. The README should link to existing planning, implementation, test, experiment or release artefacts rather than duplicate them.
+Each work-package folder is an evidence pack that explains what was completed, how the Definition of Done was checked, and where the authoritative proof is stored. The README must link to existing planning, implementation, test, experiment or release artefacts rather than duplicate them.
 
 ## Common template
 
@@ -16,13 +16,15 @@ Required sections:
 - Definition of Done;
 - evidence summary;
 - authoritative evidence links;
-- validation checklist and result;
+- validation checklist, result and conclusion;
 - traceability;
 - limitations and change control.
 
 ## Current evidence packs
 
 - [PD-01 — Freeze first-release definition and research questions](PD-01/README.md)
+- [PD-04 — Must-Have RTM and acceptance criteria](PD-04/README.md)
+  - [Must-Have coverage audit](PD-04/Must-Have-Coverage-Audit.md)
 - [PD-09 — App-specific evaluation addendum](PD-09/README.md)
 
 ## Evidence rules
