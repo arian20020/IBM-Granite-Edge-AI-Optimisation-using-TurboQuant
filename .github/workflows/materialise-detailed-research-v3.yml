@@ -1,0 +1,127 @@
+name: Materialise detailed research v3
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the research correction branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/detailed-v3-yaml-fix
+          fetch-depth: 0
+
+      - name: Reconstruct and verify the transformation script
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat .github/research-v3-import/script-*.b64 \
+            | tr -d '\r\n' \
+            | base64 --decode \
+            > build-research-v3.py.xz
+
+          actual_sha256="$(sha256sum build-research-v3.py.xz | awk '{print $1}')"
+          expected_sha256="1bdf71a151ff5dd4c58f0270ec47467b18fd03c4327aeed7590f1e2999569581"
+
+          echo "Transformation archive SHA-256: ${actual_sha256}"
+          test "${actual_sha256}" = "${expected_sha256}"
+
+          xz --decompress build-research-v3.py.xz
+          python -m py_compile build-research-v3.py
+
+      - name: Rebuild the detailed research library
+        shell: bash
+        run: |
+          set -euo pipefail
+          python build-research-v3.py
+
+      - name: Validate the corrected Markdown and research volume
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path('research')
+          markdown = sorted(root.rglob('*.md'))
+          yaml_files = [
+              path for path in markdown
+              if path.read_text(encoding='utf-8-sig').startswith('---')
+          ]
+          if yaml_files:
+              raise SystemExit(f'YAML front matter remains: {yaml_files[:10]}')
+
+          validation = json.loads(
+              (root / '00-governance' / 'v3-validation.json')
+              .read_text(encoding='utf-8')
+          )
+
+          if validation['curated_words'] < 35000:
+              raise SystemExit(
+                  f"Curated content remains too short: {validation['curated_words']} words"
+              )
+          if validation['critical_broken_links'] != 0:
+              raise SystemExit('Critical local links remain broken')
+          if validation['yaml_frontmatter_files'] != 0:
+              raise SystemExit('Validation report still records YAML front matter')
+
+          required = [
+              root / 'README.md',
+              root / '00-governance' / 'v3-revision-report.md',
+              root / '00-governance' / 'v3-validation.json',
+              root / '00-governance' / 'v3-git-tree-manifest.json',
+              root / '02-ibm-granite' / '03-granite-4-1-3b.md',
+              root / '03-kv-cache-and-turboquant' / '04-turboquant-and-qjl.md',
+              root / '04-openvino' / '06-end-to-end-llm-flow.md',
+              root / '05-local-inference-tools' / '01-llama-cpp.md',
+          ]
+          missing = [str(path) for path in required if not path.exists()]
+          if missing:
+              raise SystemExit(f'Required detailed files are missing: {missing}')
+
+          word_re = re.compile(r"\b[\w'-]+\b")
+          key_counts = {
+              str(path.relative_to(root)): len(
+                  word_re.findall(path.read_text(encoding='utf-8'))
+              )
+              for path in required[4:]
+          }
+          print(json.dumps({
+              'markdown_files': len(markdown),
+              'validation': validation,
+              'key_document_word_counts': key_counts,
+          }, indent=2))
+          PY
+
+      - name: Commit the corrected research library
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -f build-research-v3.py
+          rm -rf .github/research-v3-import
+          rm -f .github/workflows/materialise-detailed-research-v3.yml
+          rm -f .github/workflows/correct-original-archive-pointer.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add --all
+          git commit \
+            -m "docs(research): restore detailed research and remove broken YAML" \
+            -m "Remove YAML front matter from every Markdown file, rebuild the curated research from the full source extracts, retain the user's original explanations, examples and step-by-step learning order with only exact repetition removed, add overview and project-relevance sections, preserve provenance and source mappings, validate content volume and local links, and remove all temporary import files and one-use workflows."
+
+          git push origin HEAD:research/detailed-v3-yaml-fix
