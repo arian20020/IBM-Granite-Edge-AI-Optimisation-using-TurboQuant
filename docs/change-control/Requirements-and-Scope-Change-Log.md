@@ -1,10 +1,10 @@
 # Requirements and Scope Change Log
 
 **Document ID:** LOG-REQ-CHG-001  
-**Version:** 1.6  
+**Version:** 1.7  
 **Status:** Baselined  
 **Owner:** Arian B  
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-15
 
 | Date | Change ID | Description | Reason | Affected IDs | Decision / status | Approved by | Evidence / link |
 |---|---|---|---|---|---|---|---|
@@ -22,42 +22,14 @@
 | 2026-07-14 | CHG-012 | Froze the app-specific evaluation addendum. | Control remaining evaluation IDs, schemas, gates and claims. | PD-09; EP-019; APP-EVAL-01–12 | Implemented and validated | Arian B | PR #11/#12 |
 | 2026-07-14 | CHG-013 | Resolved CHG-002, CHG-003 and CHG-004 and froze the MoSCoW v1.2 working baseline. | Protect the essential first-release route, retain one bounded TurboQuant contribution and defer unproven TurboVec integration. | F-M16–F-M27; R-M02; R-M13; G-M02; PD-04; EP-004; EP-005 | Developer-approved working baseline; supervisor review pending | Arian B | Project Definition v1.1; MoSCoW v1.2; RTM v1.3; CR-013; PR #14 |
 | 2026-07-14 | CHG-014 | Split the requirements catalogue into separate Functional, Non-Functional, Research, Governance and Exclusion views. | Improve readability and reviewability without changing controlled requirement content. | All requirement lifecycle records; MoSCoW v1.2; RTM v1.3 | Implemented — presentation only; no scope change | Arian B | Categorised workbook; repository category catalogues; CR-014; PR #15 |
-| 2026-07-14 | CHG-015 | Conformed the G-M02, PD-04, EP-004, EP-005 and EP-006 evidence records to the common template, repaired evidence indexes and replaced broken workbook links with a controlled artifact record. | Ensure every verified planning task has a complete, auditable evidence record and no repository link falsely claims that a missing binary exists. | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001; evidence indexes | Implemented — evidence/control correction; no scope change | Arian B | CR-015; template-compliant evidence packs; MoSCoW and RTM Evidence Index; RTM Workbook Artifact Record; PR #17 |
-| 2026-07-14 | CHG-016 | Released Evidence Record Template v1.1 with criterion-to-evidence mapping, claim boundaries, stronger integrity metadata, controlled status guidance and revalidation triggers. | Strengthen future evidence quality without invalidating sound existing records or creating unnecessary retrospective rework. | Evidence Record Template; all future REQ/WP/EP/EXP evidence records; final release evidence audit | Implemented — evidence-governance revision; no requirements or first-release scope change | Arian B | CR-016; template v1.1; guidance; revision history; PR #19 |
-| 2026-07-14 | CHG-017 | Released template v1.1.1 to restore compatibility with the controlled RTM status vocabulary and clarify that evidence records mirror rather than redefine project status. | Prevent a competing local validation/status model from diverging from the authoritative RTM. | Evidence Record Template v1.1; guidance; all future evidence records | Implemented — corrective compatibility patch; no requirement, scope or task-status change | Arian B | CR-017; template v1.1.1; guidance; revision history; PR #20 |
-| 2026-07-14 | CHG-018 | Replaced the mixed risk/assumption/constraint/licence table with a controlled directory containing separate Risk, Assumption, Constraint and Licence registers, a review log and baseline-freeze controls. | Prepare a clear operational structure for G-M05, PD-05 and EP-007 before discussing and validating the substantive entries. | G-M05; PD-05; EP-007; `docs/risks/` | Implemented — structure only; content population, validation and task-status changes remain pending | Arian B | CR-018; RACL controlling index; four register schemas; Review Log; baseline controls; initialisation pull request |
+| 2026-07-14 | CHG-015 | Conformed the G-M02, PD-04, EP-004, EP-005 and EP-006 evidence records to the common template, repaired evidence indexes and replaced broken workbook links with a controlled artifact record. | Ensure every verified planning task has a complete, auditable evidence record and no repository link falsely claims that a missing binary exists. | G-M02; PD-04; EP-004; EP-005; EP-006; ART-RTM-XLSX-001; evidence indexes | Implemented — evidence/control correction; no scope change | Arian B | CR-015; evidence packs; RTM Workbook Artifact Record; PR #17 |
+| 2026-07-14 | CHG-016 | Released Evidence Record Template v1.1 with criterion-to-evidence mapping, claim boundaries, stronger integrity metadata, controlled status guidance and revalidation triggers. | Strengthen future evidence quality without invalidating sound existing records. | Evidence Record Template and future evidence records | Implemented — no scope change | Arian B | CR-016; PR #19 |
+| 2026-07-14 | CHG-017 | Released template v1.1.1 to restore compatibility with the controlled RTM status vocabulary. | Prevent a competing status model. | Evidence template and future evidence records | Implemented — corrective patch | Arian B | CR-017; PR #20 |
+| 2026-07-14 | CHG-018 | Replaced the mixed risk/assumption/constraint/licence table with separate controlled registers, review and baseline controls. | Establish the RACL governance system. | G-M05; PD-05; EP-007; `docs/risks/` | Implemented — structural and governance foundation | Arian B | CR-018; PRs #22–#25 |
+| 2026-07-15 | CHG-019 | Synchronized RACL validation and related scheduling/status views in RTM v1.3.1. | Make the authoritative workbook agree with `AUD-RACL-001` / `RV-008` and the completed evidence records. | G-M05; PD-05; EP-007; ART-RTM-XLSX-001; yellow after-implementation task group | Implemented and validated — no first-release scope change | Arian B | [CR-019](CR-019-RTM-RACL-Validation.md); RTM v1.3.1 artifact record; PR #26 |
 
-## CHG-013 priority results
+## CHG-019 control statement
 
-| ID | Result |
-|---|---|
-| F-M16; F-M17 | Active Should Haves |
-| F-M18 | Remains Must |
-| F-M19 | Remains Must with core loading/generation acceptance; optional routes inherit the rule if implemented |
-| F-M20 | Active Should Have |
-| F-M21; F-M22; N-M11 | Remain bounded Must Haves |
-| F-M23; F-M24 | Active Should Haves |
-| R-M02 | Remains Must as the TurboVec decision gate |
-| F-M25; F-M26; F-M27; R-M13 | Deferred from first release |
+CHG-019 changes task status, evidence links and schedule presentation based on completed validation. It does not change requirement meaning, priority, release role or first-release scope. `G-M05`, `PD-05` and `EP-007` are now `Implemented / Validated / Verified`. Yellow-highlighted tasks remain planned after implementation.
 
-## CHG-014 control statement
-
-CHG-014 changes presentation only. It does not alter any requirement ID, priority, release role, lifecycle state, acceptance criterion, verification method or traceability relationship.
-
-## CHG-015 control statement
-
-CHG-015 corrects evidence structure and links only. It does not change any requirement, work-package or engineering-practice completion decision. The exact workbook remains independently controlled by filename, size, package and SHA-256 until direct binary Git placement is completed.
-
-## CHG-016 control statement
-
-CHG-016 changes mandatory evidence-governance rules for future and materially revised records. It does not alter project scope, requirement meaning, acceptance criteria, work-package outcomes or existing completion decisions. Existing validated template-v1.0 records remain valid when their evidence remains sound; migration is required on material change, revalidation or supersession and is checked again during the final release audit.
-
-## CHG-017 control statement
-
-CHG-017 corrects template status compatibility only. The controlled RTM remains authoritative for Working status, Validation and Effective status. No status value in the RTM or any existing evidence record is changed by this correction.
-
-## CHG-018 control statement
-
-CHG-018 establishes register structure and control rules only. It preserves the existing draft risk and assumption information, creates no approved licence decision, freezes no `v1.0` baseline and does not mark `G-M05`, `PD-05` or `EP-007` as Implemented, Validated or Verified. Substantive entries and evidence will be reviewed separately before the RTM is changed.
-
-Future material changes must append a new row. Do not overwrite CHG-013, CHG-014, CHG-015, CHG-016, CHG-017 or CHG-018.
+Future material changes must append a new row and preserve this history.
