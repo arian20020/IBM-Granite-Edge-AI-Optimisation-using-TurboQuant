@@ -1,0 +1,10 @@
+
+=== Initialize external repository ===
+
+=== Disable automatic CRLF conversion ===
+
+=== Use LF repository checkout ===
+
+=== Add official upstream remote ===
+
+=== Fetch exact official tag ===

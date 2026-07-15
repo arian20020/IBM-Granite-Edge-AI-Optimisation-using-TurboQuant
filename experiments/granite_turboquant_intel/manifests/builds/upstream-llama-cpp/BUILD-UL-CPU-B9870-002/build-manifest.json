@@ -1,0 +1,74 @@
+{
+    "schema_version":  "1.0",
+    "build_id":  "BUILD-UL-CPU-B9870-002",
+    "repository_id":  "REPO-UPSTREAM-LLAMA-CPP-B9870",
+    "environment_id":  "ENV-20260714-INTEL-LAPTOP-01",
+    "started_at_utc":  "2026-07-14T21:59:12.7094964Z",
+    "ended_at_utc":  "2026-07-14T22:18:04.3657086Z",
+    "build_type":  "CPU-only static",
+    "architecture":  "x64",
+    "compiler":  "MSVC through Visual Studio 18 2026",
+    "cmake_version":  "cmake version 4.3.1-msvc1",
+    "cmake_executable":  "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+    "generator":  "Visual Studio 18 2026",
+    "configuration":  "Release",
+    "build_options":  [
+                          "-DGGML_NATIVE=ON",
+                          "-DGGML_BLAS=OFF",
+                          "-DGGML_CUDA=OFF",
+                          "-DGGML_VULKAN=OFF",
+                          "-DGGML_SYCL=OFF",
+                          "-DGGML_OPENVINO=OFF",
+                          "-DBUILD_SHARED_LIBS=OFF",
+                          "-DLLAMA_BUILD_TESTS=ON",
+                          "-DLLAMA_BUILD_TOOLS=ON",
+                          "-DLLAMA_BUILD_EXAMPLES=ON",
+                          "-DLLAMA_BUILD_SERVER=ON",
+                          "-DLLAMA_BUILD_UI=OFF",
+                          "-DLLAMA_USE_PREBUILT_UI=OFF",
+                          "-DLLAMA_OPENSSL=OFF"
+                      ],
+    "environment_variables_path":  "experiments/granite_turboquant_intel/manifests/environments/ENV-20260714-INTEL-LAPTOP-01/machine-manifest.json",
+    "configure_command_path":  "experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B02/UL-B02-R002/configure-command.txt",
+    "build_command_path":  "experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B03/UL-B03-R002/build-command.txt",
+    "test_command_path":  "",
+    "configure_stdout_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B02/UL-B02-R002/configure-stdout.txt",
+    "configure_stderr_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B02/UL-B02-R002/configure-stderr.txt",
+    "build_stdout_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B03/UL-B03-R002/build-stdout.txt",
+    "build_stderr_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B03/UL-B03-R002/build-stderr.txt",
+    "repository_tests_result":  "Not run yet",
+    "binaries":  [
+                     {
+                         "Name":  "llama-cli.exe",
+                         "Path":  "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002\\bin\\Release\\llama-cli.exe",
+                         "Size_Bytes":  7208448,
+                         "SHA256":  "bb911e3d75f79e477f91b0478af3abdd68c50fa157d7b9dcacb249ce4e2d0b3c"
+                     },
+                     {
+                         "Name":  "llama-server.exe",
+                         "Path":  "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002\\bin\\Release\\llama-server.exe",
+                         "Size_Bytes":  8165888,
+                         "SHA256":  "eeca81a8ac1c6e1e3f550498dc4eb26c5c0e42f84a9eecfb4f5a188a99efc78e"
+                     },
+                     {
+                         "Name":  "llama-bench.exe",
+                         "Path":  "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002\\bin\\Release\\llama-bench.exe",
+                         "Size_Bytes":  4174848,
+                         "SHA256":  "fa8676d9d08a14c668fed1d449dd85b72aeb9f93a337695c50919607c3f19f3b"
+                     },
+                     {
+                         "Name":  "llama-perplexity.exe",
+                         "Path":  "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002\\bin\\Release\\llama-perplexity.exe",
+                         "Size_Bytes":  5732352,
+                         "SHA256":  "7fbbc0f0e51eacc8f198e8fad2af3184c1622d7d19e056de1c98f3a16955ac65"
+                     }
+                 ],
+    "warnings":  [
+
+                 ],
+    "errors":  [
+
+               ],
+    "result":  "Passed",
+    "notes":  "Corrected configuration disabled both UI construction and prebuilt UI provisioning. Repository tests remain for UL-B04."
+}
