@@ -1,58 +1,37 @@
-# Controlled RTM workbook — categorised presentation revision
+# Controlled RTM workbook — v1.3.1 RACL validation revision
 
-**File:** `IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx`  
+**File:** `IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3.1_RACL_Validated.xlsx`  
 **Artifact record:** [`ART-RTM-XLSX-001`](RTM-Workbook-Artifact-Record.md)  
-**Baseline:** RTM v1.3 / MoSCoW v1.2  
+**Baseline:** RTM v1.3.1 / MoSCoW v1.2  
 **Owner:** Arian B  
-**Date:** 14 July 2026  
-**Change:** CHG-014 / CR-014 — presentation only; no scope change  
-**Direct binary Git placement:** Pending  
+**Date:** 15 July 2026  
+**Change:** `CHG-019` / `CR-019` — status, validation and schedule-control synchronisation; no first-release scope change  
+**Direct binary Git placement:** Not required for validation; exact binary is independently controlled by checksum.
 
 ## What changed
 
-The original `Requirements` sheet remains the authoritative full traceability table.
-The reviewed workbook also contains:
+The workbook now records:
 
-- `Requirements Overview`
-- `Functional Requirements`
-- `Non-Functional Reqs`
-- `Research Requirements`
-- `Governance Requirements`
-- `Exclusions & Boundaries`
+- `REQ:G-M05` as `Implemented / Validated / Verified`;
+- `WP:PD-05` as `Implemented / Validated / Verified`;
+- `EP:EP-007` as `Implemented / Validated / Verified`;
+- matching evidence paths and validation notes;
+- synchronised detailed-tab statuses;
+- updated Dashboard, Evidence Register, Change Log and Status History;
+- yellow-highlighted tasks as scheduled after implementation rather than overdue July work.
 
-## Verified contents
+## Integrity
 
-- 111 requirement lifecycle records;
-- 72 active requirements;
-- 56 active Must Haves;
-- 14 active Should Haves;
-- 2 active Could Haves;
-- 13 validated master tasks;
-- G-M02, PD-04, EP-004, EP-005 and EP-006 marked Implemented / Validated / Verified;
-- no duplicate requirement IDs;
-- no active Must Have missing required traceability fields;
-- all 111 records assigned to exactly one category view;
-- no spreadsheet calculation errors detected.
+- **SHA-256:** `2414c6790c2815a75edfcab0c9f35462dd334fe14d8c16e9810e80261f098e96`
+- **Size:** 120,290 bytes
+- **Worksheets reviewed:** 11
+- **Formula-error scan:** no detected `#REF!`, `#DIV/0!`, `#VALUE!`, `#NAME?` or `#N/A` errors
 
-## Integrity and current storage state
-
-SHA-256:
-
-`1ebb8e25a1c624af805d98228c37b09933363c53e2fab790809abe74e863b588`
-
-The repository contains the human-readable RTM, reverse indexes, category catalogues, checksum and [controlled workbook artifact record](RTM-Workbook-Artifact-Record.md). The exact `.xlsx` binary is independently retained in `MoSCoW_Categorised_Completion_Package_2026-07-14.zip` supplied to the project owner. Direct placement of the binary in Git remains pending and is not falsely claimed.
-
-After recovering the exact workbook from the controlled package, place it at:
-
-```text
-docs/requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx
-```
-
-Verify it before use:
+## Verification
 
 ```powershell
-$Path = 'docs/requirements/IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3_Categorised.xlsx'
-$Expected = '1ebb8e25a1c624af805d98228c37b09933363c53e2fab790809abe74e863b588'
+$Path = 'IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3.1_RACL_Validated.xlsx'
+$Expected = '2414c6790c2815a75edfcab0c9f35462dd334fe14d8c16e9810e80261f098e96'
 $Actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($Actual -ne $Expected) {
     throw "RTM workbook checksum mismatch. Expected $Expected but found $Actual."
@@ -60,19 +39,6 @@ if ($Actual -ne $Expected) {
 Write-Host 'RTM workbook checksum verified.' -ForegroundColor Green
 ```
 
-## Human-readable baseline
-
-- [MoSCoW Requirements Baseline v1.2](MoSCoW-Requirements-v1.2.md)
-- [Requirements Traceability Matrix v1.3](Requirements-Traceability-Matrix-v1.3.md)
-- [Traceability Reverse Indexes v1.3](Traceability-Reverse-Indexes-v1.3.md)
-- [Functional requirements](catalogue/Functional-Requirements.md)
-- [Non-Functional requirements](catalogue/Non-Functional-Requirements.md)
-- [Research requirements](catalogue/Research-Requirements.md)
-- [Governance requirements](catalogue/Governance-Requirements.md)
-- [Exclusions and boundaries](catalogue/Exclusions-and-Boundaries.md)
-- [Categorised catalogue audit](Categorised-Requirements-Catalogue-Audit.md)
-- [MoSCoW and RTM evidence index](../evidence/indexes/MoSCoW-and-RTM-Evidence-Index.md)
-
 ## Control rule
 
-The category sheets and Markdown catalogues are readable views. Controlled requirement changes must begin in the authoritative workbook, use dated change control, regenerate the Markdown views and update all affected evidence records.
+The workbook is the authoritative editable status source. Markdown evidence and catalogues must reflect it and must not independently redefine task status. A later edit requires a new revision, checksum, change entry and evidence revalidation.
