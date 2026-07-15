@@ -1,0 +1,19 @@
+{
+    "schema_version":  "1.0",
+    "test_id":  "UL-B04",
+    "run_id":  "UL-B04-R001",
+    "result":  "Failed",
+    "exit_code":  8,
+    "start_utc":  "2026-07-15T01:16:34.8148365+00:00",
+    "end_utc":  "2026-07-15T01:17:41.7662362+00:00",
+    "start_local":  "2026-07-15T02:16:34.8148365+01:00",
+    "end_local":  "2026-07-15T02:17:41.7662362+01:00",
+    "ctest_executable":  "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe",
+    "build_directory":  "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002",
+    "configuration":  "Release",
+    "command_path":  "experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B04/UL-B04-R001/ctest-command.txt",
+    "stdout_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B04/UL-B04-R001/ctest-stdout.txt",
+    "stderr_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B04/UL-B04-R001/ctest-stderr.txt",
+    "evidence_base_commit":  "e7af1be03e9a663203986c925e023850bec8d756",
+    "model_inference_run":  false
+}
