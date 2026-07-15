@@ -1,8 +1,8 @@
 {
-  "fixtures": {
-    "Malformed": "Malformed test assets",
-    "GGUF": "GGUF model fixture assets",
-    "OpenVINO": "OpenVINO model fixture assets",
-    "ExpectedMetadata": "Expected metadata fixtures"
-  }
+    "fixtures": {
+        "Malformed": "Malformed test assets",
+        "GGUF": "GGUF model fixture assets",
+        "OpenVINO": "OpenVINO model fixture assets",
+        "ExpectedMetadata": "Expected metadata fixtures"
+    }
 }
