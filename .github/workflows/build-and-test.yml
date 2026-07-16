@@ -104,7 +104,9 @@ jobs:
       # Compile the application before running automated tests.
       #
       # Package generation and signing are disabled because CI is
-      # validating compilation, not producing a release package.
+      # validating compilation, not producing a release package. Clear
+      # the local-only publish profile and disable publish optimizations
+      # that require a self-contained deployment.
       - name: Build WinUI application
         run: |
           msbuild "$env:APP_PROJECT" `
@@ -114,6 +116,9 @@ jobs:
             /property:Configuration=Release `
             /property:Platform=x64 `
             /property:RuntimeIdentifier=win-x64 `
+            /property:PublishProfile= `
+            /property:PublishTrimmed=false `
+            /property:PublishReadyToRun=false `
             /property:AppxPackageSigningEnabled=false `
             /property:GenerateAppxPackageOnBuild=false
 
