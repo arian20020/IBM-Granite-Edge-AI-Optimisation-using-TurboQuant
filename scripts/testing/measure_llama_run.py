@@ -79,6 +79,32 @@ def working_set_bytes(pid: int) -> int | None:
         kernel32.CloseHandle(handle)
 
 
+def process_memory_bytes(pid: int) -> tuple[int, int] | None:
+    """Return current physical working set and committed private bytes."""
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    psapi.GetProcessMemoryInfo.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX), wintypes.DWORD
+    ]
+    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+    handle = kernel32.OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, False, pid
+    )
+    if not handle:
+        return None
+    try:
+        counters = PROCESS_MEMORY_COUNTERS_EX()
+        counters.cb = ctypes.sizeof(counters)
+        if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+            return None
+        return int(counters.WorkingSetSize), int(counters.PrivateUsage)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def process_tree_pids(root_pid: int) -> set[int]:
     """Return the root PID and every currently live descendant on Windows."""
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -112,6 +138,30 @@ def process_tree_working_set_bytes(root_pid: int) -> int | None:
     values = [working_set_bytes(pid) for pid in process_tree_pids(root_pid)]
     available = [value for value in values if value is not None]
     return sum(available) if available else None
+
+
+def process_tree_memory_bytes(root_pid: int) -> tuple[int, int] | None:
+    values = [process_memory_bytes(pid) for pid in process_tree_pids(root_pid)]
+    available = [value for value in values if value is not None]
+    if not available:
+        return None
+    return sum(value[0] for value in available), sum(value[1] for value in available)
+
+
+class MEMORYSTATUSEX(ctypes.Structure):
+    _fields_ = [
+        ("dwLength", wintypes.DWORD), ("dwMemoryLoad", wintypes.DWORD),
+        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def available_ram_bytes() -> int | None:
+    status = MEMORYSTATUSEX()
+    status.dwLength = ctypes.sizeof(status)
+    return int(status.ullAvailPhys) if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)) else None
 
 
 def parse_args() -> argparse.Namespace:

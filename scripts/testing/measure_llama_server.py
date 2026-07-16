@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from measure_llama_run import process_tree_working_set_bytes
+from measure_llama_run import available_ram_bytes, process_tree_memory_bytes
 from parse_llama_measurement import summarize_measurement
 
 
@@ -77,9 +77,12 @@ def main() -> int:
 
     def sample_memory() -> None:
         while not stop_sampling.is_set() and process.poll() is None:
-            value = process_tree_working_set_bytes(process.pid)
-            if value is not None:
-                add({"kind": "memory", "elapsed_ms": elapsed_ms(), "private_bytes": value})
+            values = process_tree_memory_bytes(process.pid)
+            available = available_ram_bytes()
+            if values is not None:
+                add({"kind": "memory", "elapsed_ms": elapsed_ms(),
+                     "working_set_bytes": values[0], "private_bytes": values[1],
+                     "available_ram_bytes": available})
             stop_sampling.wait(0.1)
 
     threads = [
