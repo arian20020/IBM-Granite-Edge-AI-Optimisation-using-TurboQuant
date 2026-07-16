@@ -25,6 +25,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--environment-json")
     parser.add_argument("--timeout-seconds", type=float, default=600)
+    parser.add_argument("--minimum-available-ram-mb", type=float, default=0,
+                        help="Emergency-stop floor; zero disables the floor")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.command and args.command[0] == "--":
@@ -48,6 +50,7 @@ def main() -> int:
     stdout_data = bytearray()
     run_start = time.perf_counter_ns()
     stop_sampling = threading.Event()
+    emergency_stop = threading.Event()
 
     def elapsed_ms(start_ns=run_start) -> float:
         return (time.perf_counter_ns() - start_ns) / 1_000_000
@@ -83,6 +86,15 @@ def main() -> int:
                 add({"kind": "memory", "elapsed_ms": elapsed_ms(),
                      "working_set_bytes": values[0], "private_bytes": values[1],
                      "available_ram_bytes": available})
+            if (args.minimum_available_ram_mb > 0 and available is not None and
+                    available < args.minimum_available_ram_mb * 1024 * 1024):
+                add({"kind": "emergency_stop", "elapsed_ms": elapsed_ms(),
+                     "available_ram_bytes": available,
+                     "minimum_available_ram_mb": args.minimum_available_ram_mb})
+                emergency_stop.set()
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
             stop_sampling.wait(0.1)
 
     threads = [
@@ -96,7 +108,7 @@ def main() -> int:
     health_url = f"http://127.0.0.1:{args.port}/health"
     deadline = time.monotonic() + args.timeout_seconds
     ready = False
-    while time.monotonic() < deadline and process.poll() is None:
+    while time.monotonic() < deadline and process.poll() is None and not emergency_stop.is_set():
         try:
             with urllib.request.urlopen(health_url, timeout=1) as response:
                 if response.status == 200:
@@ -106,7 +118,9 @@ def main() -> int:
             time.sleep(0.2)
 
     request_error = None
-    if ready:
+    if emergency_stop.is_set():
+        request_error = "emergency stop: available RAM crossed configured floor"
+    elif ready:
         body = json.dumps({"prompt": args.prompt, "n_predict": 16, "temperature": 0,
                            "top_p": 1, "seed": 42, "stream": True,
                            "return_tokens": True}).encode("utf-8")

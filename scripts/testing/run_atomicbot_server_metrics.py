@@ -31,6 +31,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--only", action="append")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--base-port", type=int, default=18200)
+    parser.add_argument("--include-guarded", action="store_true")
+    parser.add_argument("--minimum-available-ram-mb", type=float, default=0)
+    parser.add_argument("--pilot-only", action="store_true")
     return parser.parse_args()
 
 
@@ -58,7 +61,7 @@ def main() -> int:
               "granite-4.1-8b": args.granite8_model}
     selected = set(args.only or ())
     cases = [case for case in load_matrix(args.matrix)
-             if case.backend != "build" and case.guard == "none"
+             if case.backend != "build" and (case.guard == "none" or args.include_guarded)
              and (not selected or case.test_id in selected)]
     collector = ROOT / "scripts/testing/measure_llama_server.py"
     state = {"revision": 1, "rows": {case.test_id: "pending" for case in cases}}
@@ -81,7 +84,7 @@ def main() -> int:
             {"GGML_VK_VISIBLE_DEVICES": "0"} if case.backend.startswith("vulkan") else {}, indent=2
         ), encoding="utf-8")
         measurements = []
-        labels = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
+        labels = ("pilot",) if args.pilot_only else ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
         for sample_index, label in enumerate(labels):
             output = case_root / label
             measurement_path = output / "measurement.json"
@@ -93,6 +96,9 @@ def main() -> int:
                            "--sample-id", f"{case.test_id}-{label}", "--port", str(port),
                            "--prompt", "Reply with OK only.", "--environment-json",
                            str(environment_path), "--timeout-seconds", "900", "--", *server_command]
+                if args.minimum_available_ram_mb:
+                    marker = command.index("--")
+                    command[marker:marker] = ["--minimum-available-ram-mb", str(args.minimum_available_ram_mb)]
                 completed = subprocess.run(command, text=True, capture_output=True, timeout=960)
                 if completed.returncode != 0:
                     raise RuntimeError(f"{case.test_id} {label} failed: {completed.stderr}\n{completed.stdout}")
@@ -101,6 +107,13 @@ def main() -> int:
                 raise RuntimeError(f"invalid measurement: {measurement_path}")
             if label.startswith("sample-"):
                 measurements.append(measurement)
+        if args.pilot_only:
+            state["rows"][case.test_id] = "pilot-complete"
+            checkpoint(args.output_root / "state.json", state)
+            print(json.dumps({"test_id": case.test_id, "pilot": "valid",
+                              "peak_ram_mb": measurement["peak_ram_mb"],
+                              "kv_mb": measurement["kv_mb"], "ttft_ms": measurement["ttft_ms"]}), flush=True)
+            continue
         summary = {"test_id": case.test_id, "backend": case.backend, "context": case.context,
                    "cache": case.turbo_type, "samples": measurements,
                    "aggregate": aggregate(measurements),

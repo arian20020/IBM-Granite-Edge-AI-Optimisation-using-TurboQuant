@@ -1,0 +1,11 @@
+{
+  "emergency_stopped": false,
+  "exit_code": 0,
+  "kv_mb": 125.0,
+  "missing": [],
+  "peak_ram_mb": 10454.2734375,
+  "sample_id": "AB-15M-sample-2",
+  "timed_out": false,
+  "ttft_ms": 6728.0597,
+  "valid": true
+}

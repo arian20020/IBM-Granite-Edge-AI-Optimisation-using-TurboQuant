@@ -171,6 +171,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=float, default=3600)
     parser.add_argument("--environment-json")
     parser.add_argument("--response-after-text-file")
+    parser.add_argument("--minimum-available-ram-mb", type=float, default=0)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.command and args.command[0] == "--":
@@ -262,12 +263,23 @@ def main() -> int:
 
     deadline = time.monotonic() + args.timeout_seconds
     timed_out = False
+    emergency_stopped = False
     while process.poll() is None:
         value = process_tree_working_set_bytes(process.pid)
         if value is not None:
             add_event(
                 {"kind": "memory", "elapsed_ms": elapsed_ms(), "private_bytes": value}
             )
+        available = available_ram_bytes()
+        if (args.minimum_available_ram_mb > 0 and available is not None and
+                available < args.minimum_available_ram_mb * 1024 * 1024):
+            emergency_stopped = True
+            add_event({"kind": "emergency_stop", "elapsed_ms": elapsed_ms(),
+                       "available_ram_bytes": available,
+                       "minimum_available_ram_mb": args.minimum_available_ram_mb})
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            break
         if time.monotonic() >= deadline:
             timed_out = True
             process.kill()
@@ -287,7 +299,8 @@ def main() -> int:
     )
     events.sort(key=lambda event: event["elapsed_ms"])
     summary = summarize_measurement(events)
-    summary.update({"sample_id": args.sample_id, "timed_out": timed_out})
+    summary.update({"sample_id": args.sample_id, "timed_out": timed_out,
+                    "emergency_stopped": emergency_stopped})
 
     (output_dir / "stdout.txt").write_bytes(stdout_data)
     (output_dir / "stderr.txt").write_bytes(stderr_data)

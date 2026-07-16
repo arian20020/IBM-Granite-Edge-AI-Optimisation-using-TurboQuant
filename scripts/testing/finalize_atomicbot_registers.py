@@ -31,12 +31,21 @@ def main() -> int:
     master = json.loads((RAW / "acquisition/results/AtomicBot_Master_Summary.json").read_text(encoding="utf-8"))
     executed = [test_id for test_id in master["passed"] if test_id.startswith("AB-") and
                 (RAW / "server-metrics" / test_id / "server-metrics-summary.json").is_file()]
+    bypass = {
+        "AB-KV8-F16-4K": {"purpose": "Supplemental matched 8B F16 allocation baseline", "backend": "cpu",
+                           "context": 4096, "cache_k": "f16", "cache_v": "f16", "median_tokens_per_second": 8.37},
+        "AB-15M": {"purpose": "Conditional 8B maximum Vulkan TurboQuant", "backend": "vulkan-full",
+                   "context": 4096, "cache_k": "turbo3", "cache_v": "turbo3", "median_tokens_per_second": 4.19},
+    }
+    executed.extend(test_id for test_id in bypass
+                    if (RAW / "safety-bypass" / test_id / "server-metrics-summary.json").is_file())
     perf = []
     tests = []
     for test_id in executed:
-        summary_path = RAW / "server-metrics" / test_id / "server-metrics-summary.json"
+        metrics_root = RAW / ("safety-bypass" if test_id in bypass else "server-metrics") / test_id
+        summary_path = metrics_root / "server-metrics-summary.json"
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
-        acquired = master["tests"][test_id]["summary"]
+        acquired = bypass.get(test_id, master["tests"][test_id]["summary"])
         for repetition, sample in enumerate(summary["samples"], 1):
             perf.append({"Measurement_ID": f"MEAS-{test_id}-R{repetition}", "Run_ID": f"{test_id}-R{repetition}",
                          "Test_ID": test_id, "Route": ROUTE, "Workbook_ID": WB,
@@ -70,10 +79,10 @@ def main() -> int:
                       "Peak_Working_Set_Bytes": round(summary["aggregate"]["peak_ram_mb"]["max"] * 1048576),
                       "KV_Cache_Allocated_Bytes": round(summary["aggregate"]["kv_mb"]["median"] * 1048576),
                       "Cleanup_Result": "Pass", "Warmup_or_Measured": "Formal aggregate", "Included_In_Formal_Statistics": "True",
-                      "Stability_Result": "Pass; 3/3 measured repetitions", "Raw_Evidence_Path": str((RAW / "server-metrics" / test_id).relative_to(ROOT)).replace("\\", "/"),
+                      "Stability_Result": "Pass; 3/3 measured repetitions", "Raw_Evidence_Path": str(metrics_root.relative_to(ROOT)).replace("\\", "/"),
                       "Processed_Result_Path": str(summary_path.relative_to(ROOT)).replace("\\", "/"), "Result": "Passed",
                       "Result_Reason": "Pilot, excluded warm-up and three measured repetitions passed.",
-                      "Workbook_Update_Status": "Complete in WB-02 v1.3", "Workbook_Section": "7", "Evidence_Commit": "Pending PR",
+                      "Workbook_Update_Status": "Complete in WB-02 v1.4", "Workbook_Section": "7", "Evidence_Commit": "Pending PR",
                       "Reviewer": "Codex evidence reconciliation", "Review_Date": "2026-07-16"})
     rewrite("Performance-Measurement-Register.csv", perf, lambda r: r.get("Route") == ROUTE)
     rewrite("Test-Run-Register.csv", tests, lambda r: r.get("Route") == ROUTE and r.get("Run_ID", "").endswith("-FORMAL"))
@@ -95,15 +104,15 @@ def main() -> int:
                         "Device_Proof_Path": f"experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/{test_id}/",
                         "Utilisation_Samples_Path": "N/A - Windows GPU engine counter unavailable",
                         "Result": "Passed", "Evidence_Commit": "Pending PR", "Notes": "Placement is from llama.cpp buffers/layer logs; GPU percent is not invented."})
-    devices.append({"Test_ID": "AB-15M", "Route": ROUTE, "Workbook_ID": WB, "Latest_Run_ID": "AB-15M-GATE",
-                    "Requested_Device": "Vulkan maximum", "Actual_Device": "Not run", "Backend": "Blocked",
-                    "Compiled_or_Execution_Device": "N/A", "Requested_Offload": "ngl=999", "Actual_Model_Layer_Placement": "N/A - safety blocked",
-                    "Actual_KV_Placement": "N/A - safety blocked", "Optimisation_Device": "N/A", "CPU_Fallback": "N/A",
-                    "Hybrid_Behaviour": "N/A", "Silent_Fallback_Check": "N/A", "CPU_Mean_Percent": "N/A",
+    devices.append({"Test_ID": "AB-15M", "Route": ROUTE, "Workbook_ID": WB, "Latest_Run_ID": "AB-15M-FORMAL",
+                    "Requested_Device": "Vulkan maximum", "Actual_Device": "Intel UHD Vulkan0", "Backend": "Vulkan",
+                    "Compiled_or_Execution_Device": "Vulkan0", "Requested_Offload": "ngl=999", "Actual_Model_Layer_Placement": "41/41",
+                    "Actual_KV_Placement": "Vulkan0 125.13 MiB", "Optimisation_Device": "Vulkan0", "CPU_Fallback": "No unexplained fallback",
+                    "Hybrid_Behaviour": "CPU-mapped 220.50 MiB plus Vulkan-native model/KV", "Silent_Fallback_Check": "Passed", "CPU_Mean_Percent": "N/A",
                     "CPU_Peak_Percent": "N/A", "GPU_Engine_Mean_Percent": "N/A", "GPU_Engine_Peak_Percent": "N/A",
-                    "Device_Proof_Path": "experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Master_Summary.json",
-                    "Utilisation_Samples_Path": "N/A - not run", "Result": "Blocked", "Failure_IDs": "AB-I04",
-                    "Evidence_Commit": "Pending PR", "Notes": "16 GB shared-memory safety gate."})
+                    "Device_Proof_Path": "experiments/raw-results/atomicbot-turboquant/2026-07-16/safety-bypass/AB-15M/pilot/stderr.txt",
+                    "Utilisation_Samples_Path": "N/A - bypass collector did not sample GPU engine percent", "Result": "Passed", "Failure_IDs": "FAIL-AB-8B-SAFETY",
+                    "Evidence_Commit": "Pending PR", "Notes": "Controlled serial bypass with 256 MiB emergency-stop floor; floor was not crossed."})
     rewrite("Device-Verification-Register.csv", devices, lambda r: r.get("Route") == ROUTE)
 
     repo = {"Repository_ID": "REPO-ATOMICBOT-519F0C5", "Route": ROUTE,
@@ -215,7 +224,7 @@ def main() -> int:
         ("FAIL-AB-UI-ASSET", "AB-B02/AB-B05", "UI-BUNDLE-MISSING", "Generated UI embed target lacked loading.html", "Resolved", "Exact pinned source loading.html copied into generated build output"),
         ("FAIL-AB-DEVICE-GUARD", "AB-B04", "DEVICE-GUARD-4551", "test-barrier.exe blocked at launch", "Open - external policy", "42 other tests effective-pass; do not claim 43/43"),
         ("FAIL-AB-08Q-MEMORY", "AB-08Q", "MEMORY-GUARD", "Initial batch reached 470.7 MiB free", "Resolved", "Isolated idle rerun passed all repetitions"),
-        ("FAIL-AB-8B-SAFETY", "AB-KV8-F16-4K/AB-15M", "SAFETY-GATE", "High-risk 8B rows not executed", "Open - intentional", "Blocked classifications retained"),
+        ("FAIL-AB-8B-SAFETY", "AB-KV8-F16-4K/AB-15M", "SAFETY-GATE", "Initial preventive gate blocked high-risk 8B rows", "Resolved by controlled bypass", "Serial idle-system retry with 256 MiB emergency floor passed both rows"),
         ("FAIL-AB-P5-TIMEOUT", "P5/AB-06", "QUALITY-TIMEOUT-2400", "Turbo3 P5 returned no response within 2400 seconds", "Open", "Empty output retained and scored 0"),
     ]
     failures = []

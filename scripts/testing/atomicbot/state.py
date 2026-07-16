@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 
-ROW_STATUSES = {"pending", "running", "complete", "passed", "failed", "blocked", "unsupported", "n/a"}
+ROW_STATUSES = {"pending", "running", "pilot-complete", "complete", "passed", "failed", "blocked", "unsupported", "n/a"}
 
 
 def _validate(state: dict) -> None:

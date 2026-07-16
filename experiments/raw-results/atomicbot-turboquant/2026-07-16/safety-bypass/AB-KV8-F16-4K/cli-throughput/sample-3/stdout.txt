@@ -1,0 +1,31 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9964-519f0c594
+model      : granite-4.1-8b-Q4_K_M.gguf
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Explain what a KV cache does during autoregressive language-model inference in no more than 90 words. You must mention keys, values, reused computation and memory.
+
+During autoregressive language-model inference, a KV cache stores previously computed key-value pairs (keys and values) from earlier time steps. As the model generates each token sequentially, it reuses these cached keys and values to efficiently compute attention without redundant calculations, leveraging shared memory. This reuse accelerates inference by reducing computational overhead
+
+[ Prompt: 24.3 t/s | Generation: 7.3 t/s ]
+
+Exiting...
