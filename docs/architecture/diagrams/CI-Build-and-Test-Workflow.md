@@ -6,7 +6,7 @@
 **Owner:** Project developer  
 **Last reviewed:** 16 July 2026  
 **Source of truth:** `.github/workflows/build-and-test.yml`  
-**Status:** Implemented locally; GitHub-hosted validation pending  
+**Status:** Implemented and GitHub-hosted validation confirmed
 
 ## 1. Purpose
 
