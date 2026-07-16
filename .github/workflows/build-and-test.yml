@@ -44,11 +44,23 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # Retrieve the exact repository revision being validated.
+      # Retrieve only the repository directories required by this CI job.
+      #
+      # The repository also contains deeply nested research material that
+      # is not needed to build or test the application. A sparse checkout
+      # prevents those unrelated paths from being written to the Windows
+      # runner and keeps the checkout smaller and more focused.
+      #
+      # Root-level files, including global.json, remain available when
+      # sparse checkout uses its default cone mode.
       #
       # Pinned immutable commit for actions/checkout v7.0.0.
-      - name: Check out repository
+      - name: Check out required build inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            IBM Granite with TurboQuant (Intel)
+            tests/UnitTests/GraniteEdgeAI.UnitTests
 
       # Install the .NET SDK selected by the repository's global.json.
       #

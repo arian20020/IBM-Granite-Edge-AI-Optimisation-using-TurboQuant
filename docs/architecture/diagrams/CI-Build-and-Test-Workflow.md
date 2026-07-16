@@ -24,7 +24,7 @@ architecture views.
 flowchart TD
     A["Branch push, pull request to main,<br/>or manual workflow run"]
     B["GitHub Actions<br/>Windows runner"]
-    C["Check out exact repository revision"]
+    C["Check out required build inputs<br/>from exact repository revision"]
     D["Install .NET SDK<br/>from global.json"]
     E["Configure x64 MSBuild"]
     F["Restore WinUI application"]
