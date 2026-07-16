@@ -10,6 +10,20 @@ from pathlib import Path
 from scripts.testing.atomicbot.matrix import TestCase
 
 
+def build_server_command(case: TestCase, server: Path, model: Path, port: int) -> list[str]:
+    gpu_layers = {"cpu": 0, "vulkan-partial": 1, "vulkan-full": 999}[case.backend]
+    command = [
+        str(server), "-m", str(model), "-c", str(case.context), "-t", "8", "-tb", "8",
+        "-b", "512", "-ub", "512", "-ctk", case.turbo_type, "-ctv", case.turbo_type,
+        "-ngl", str(gpu_layers), "--host", "127.0.0.1", "--port", str(port), "-np", "1",
+        "--cache-ram", "0", "--fit", "off", "--offline", "--no-webui",
+        "--log-colors", "off", "-lv", "4",
+    ]
+    if case.backend.startswith("vulkan"):
+        command.extend(("--device", "Vulkan0"))
+    return command
+
+
 def select_cases(cases: list[TestCase], *, only: set[str] | None = None,
                  start_at: str | None = None, skip: set[str] | None = None,
                  resume_state: dict | None = None) -> list[TestCase]:

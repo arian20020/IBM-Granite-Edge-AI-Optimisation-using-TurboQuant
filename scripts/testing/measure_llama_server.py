@@ -108,7 +108,8 @@ def main() -> int:
     request_error = None
     if ready:
         body = json.dumps({"prompt": args.prompt, "n_predict": 16, "temperature": 0,
-                           "top_p": 1, "seed": 42, "stream": True}).encode("utf-8")
+                           "top_p": 1, "seed": 42, "stream": True,
+                           "return_tokens": True}).encode("utf-8")
         request = urllib.request.Request(
             f"http://127.0.0.1:{args.port}/completion", data=body,
             headers={"Content-Type": "application/json"}, method="POST"
@@ -122,9 +123,10 @@ def main() -> int:
                         break
                     if line.startswith(b"data:"):
                         payload = json.loads(line[5:].strip())
-                        if payload.get("content"):
+                        if payload.get("content") or payload.get("tokens"):
                             add({"kind": "first_response_byte",
-                                 "elapsed_ms": (time.perf_counter_ns() - request_start) / 1_000_000})
+                                 "elapsed_ms": (time.perf_counter_ns() - request_start) / 1_000_000,
+                                 "signal": "first-generated-token"})
                             break
         except Exception as exc:  # preserved in evidence and invalidates the sample
             request_error = repr(exc)

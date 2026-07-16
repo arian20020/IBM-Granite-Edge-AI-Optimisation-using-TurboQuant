@@ -74,6 +74,31 @@ class AtomicBotRunnerTests(unittest.TestCase):
             self.assertTrue(result["cleanup_attempted"])
             self.assertTrue((Path(directory) / "command.json").exists())
 
+    def test_server_command_uses_case_cache_context_and_backend(self):
+        from scripts.testing.atomicbot.matrix import TestCase
+        from scripts.testing.atomicbot.runner import build_server_command
+
+        case = TestCase("AB-12", "granite-4.1-3b", "MODEL", "turbo3",
+                        "vulkan-partial", 4096, "none", "turbo3", False,
+                        ("ttft_ms",))
+        command = build_server_command(case, Path("llama-server.exe"),
+                                       Path("model.gguf"), 18112)
+        self.assertEqual(command[command.index("-ctk") + 1], "turbo3")
+        self.assertEqual(command[command.index("-ctv") + 1], "turbo3")
+        self.assertEqual(command[command.index("-c") + 1], "4096")
+        self.assertEqual(command[command.index("-ngl") + 1], "1")
+        self.assertIn("--no-webui", command)
+
+    def test_server_metric_resume_reuses_only_valid_measurement(self):
+        from scripts.testing.run_atomicbot_server_metrics import read_valid_measurement
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "measurement.json"
+            path.write_text('{"valid": false, "request_error": "interrupted"}')
+            self.assertIsNone(read_valid_measurement(path))
+            path.write_text('{"valid": true, "ttft_ms": 10}')
+            self.assertEqual(read_valid_measurement(path)["ttft_ms"], 10)
+
 
 if __name__ == "__main__":
     unittest.main()

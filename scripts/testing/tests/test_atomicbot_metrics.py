@@ -94,6 +94,21 @@ class AtomicBotMetricTests(unittest.TestCase):
             self.assertGreater(memory["private_bytes"], 0)
             self.assertGreater(memory["available_ram_bytes"], 0)
 
+    def test_server_collector_timestamps_token_with_empty_decoded_content(self):
+        collector = ROOT / "scripts/testing/measure_llama_server.py"
+        fake_server = ROOT / "scripts/testing/tests/fixtures/fake_llama_server.py"
+        with tempfile.TemporaryDirectory() as directory:
+            completed = subprocess.run(
+                [sys.executable, str(collector), "--output-dir", directory,
+                 "--sample-id", "empty-token", "--port", "18093", "--prompt", "hello",
+                 "--", sys.executable, str(fake_server), "--port", "18093",
+                 "--empty-content-token"], capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            result = json.loads((Path(directory) / "measurement.json").read_text())
+            self.assertTrue(result["valid"])
+            self.assertGreater(result["ttft_ms"], 250)
+
 
 if __name__ == "__main__":
     unittest.main()
