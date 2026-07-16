@@ -63,7 +63,8 @@
 
 **Files:**
 - Use evidence: `experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-13/UL-13-R002/`
-- Create evidence under: `experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-13/UL-13-QUALITY-R001/`
+- Retain superseded calibration evidence under: `experiments/granite_turboquant_intel/logs/upstream-llama-cpp/archive/calibration-and-superseded/UL-13/UL-13-QUALITY-R001/`
+- Create corrected formal evidence under: `experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-13/UL-13-QUALITY-R002/`
 - Modify: `experiments/granite_turboquant_intel/processed-results/upstream-llama-cpp/quality-scoring-2026-07-15.md`
 
 - [ ] Validate R002 exit code, backend, device, layer count, context, and sample count.

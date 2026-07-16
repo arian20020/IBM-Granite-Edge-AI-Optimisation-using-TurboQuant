@@ -29,7 +29,7 @@
 
 - [ ] Enumerate the exact source run directories and reject a missing source or existing destination.
 - [ ] Calculate file count, total bytes and a deterministic tree digest from each relative file path plus SHA-256.
-- [ ] Write the CSV and verify it lists 23 superseded runs: 13 `METRICS-R001` runs, six UL-01 metrics calibrations, one UL-01 TTFT calibration, two UL-01 pilot generations, and UL-13 quality R001.
+- [ ] Write the CSV and verify it lists 21 evidence-bearing superseded runs: 13 `METRICS-R001` runs, four populated UL-01 metrics calibrations, one UL-01 TTFT calibration, two UL-01 pilot generations, and UL-13 quality R001. Verify and remove the two empty calibration directory shells (`UL-01-METRICS-CALIBRATION` and `UL-01-METRICS-CALIBRATION-R002`).
 
 ### Task 2: Move superseded evidence
 

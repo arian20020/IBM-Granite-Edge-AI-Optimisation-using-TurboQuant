@@ -10,7 +10,7 @@ The Git-reviewable workbook content is stored under `text-templates/`. The appen
 
 | Workbook | Version | Technical scope |
 |---|---:|---|
-| WB-01 Upstream llama.cpp | 1.1 | Original controlled baseline plus formal revision history |
+| WB-01 Upstream llama.cpp | 1.4 | Completed UL-01 through UL-13 baseline with quality, peak RAM, KV allocation and loaded-server TTFT evidence; SYCL project pass retains the 49/52 edge-suite limitation |
 | WB-02 AtomicBot TurboQuant | 1.1 | Original controlled route plus formal revision history |
 | WB-03 animehacker TQ3_0 | 1.1 | Original controlled comparator plus formal revision history |
 | WB-04 Official OpenVINO | 1.2 | PR #5 TBQ3/TBQ4 coverage plus formal revision history |

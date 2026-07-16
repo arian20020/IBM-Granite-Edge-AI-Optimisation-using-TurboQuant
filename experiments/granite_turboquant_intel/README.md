@@ -26,6 +26,8 @@ Example:
 
 `logs/upstream-llama-cpp/UL-04/UL-04-R001/stdout.log`
 
+Route-specific guides may define an archive for calibration, pilot and superseded runs. For upstream llama.cpp, begin with `logs/upstream-llama-cpp/README.md`. Current formal evidence stays beneath its test ID; archived evidence remains immutable and must not be treated as the current workbook result.
+
 ## Immutability rule
 
 Raw command, output, log and sample files are not edited after capture. Corrections are new processed files or new run IDs. Every final evidence directory receives a SHA-256 manifest before its workbook row is marked complete.
