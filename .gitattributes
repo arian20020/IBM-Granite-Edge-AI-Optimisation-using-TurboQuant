@@ -7,7 +7,7 @@
 *.ps1 text eol=crlf
 # BEGIN IXN CONTROLLED EXPERIMENT EVIDENCE
 # Machine-generated evidence is immutable. Do not normalize line endings.
-experiments/granite_turboquant_intel/logs/** -text
+experiments/granite_turboquant_intel/logs/** -text whitespace=-blank-at-eol,-blank-at-eof
 experiments/granite_turboquant_intel/manifests/** -text
 experiments/granite_turboquant_intel/notes/upstream-llama-cpp/** -text
 # END IXN CONTROLLED EXPERIMENT EVIDENCE

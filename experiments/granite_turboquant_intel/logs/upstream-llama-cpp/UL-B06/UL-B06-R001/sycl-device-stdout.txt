@@ -1,0 +1,22 @@
+:: initializing oneAPI environment...
+   Initializing Visual Studio command-line environment...
+   Visual Studio version 18.7.3 environment configured.
+   "C:\Program Files\Microsoft Visual Studio\18\Community\"
+   Visual Studio command-line environment initialized for: 'x64'
+:  compiler -- latest
+:  dev-utilities -- latest
+:  dnnl -- latest
+:  dpl -- latest
+:  ipp -- latest
+:  ippcp -- latest
+:  mkl -- latest
+:  mpi -- latest
+:  ocloc -- latest
+:  tbb -- latest
+:  tcm -- latest
+:  umf -- latest
+:  vtune -- latest
+:: oneAPI environment initialized ::
+[level_zero:gpu][level_zero:0] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) UHD Graphics 12.3.0 [1.6.34728]
+[opencl:cpu][opencl:0] Intel(R) OpenCL, 12th Gen Intel(R) Core(TM) i5-12450H OpenCL 3.0 (Build 0) [2026.21.6.0.17_160000]
+[opencl:gpu][opencl:1] Intel(R) OpenCL Graphics, Intel(R) UHD Graphics OpenCL 3.0 NEO  [32.0.101.7076]

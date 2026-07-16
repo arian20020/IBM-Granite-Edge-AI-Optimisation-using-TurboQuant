@@ -1,0 +1,11 @@
+{
+  "exit_code": 0,
+  "kv_mb": 340.0,
+  "missing": [],
+  "peak_ram_mb": 5773.41015625,
+  "request_error": null,
+  "sample_id": "UL-11-sample-3",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 3333.7068,
+  "valid": true
+}

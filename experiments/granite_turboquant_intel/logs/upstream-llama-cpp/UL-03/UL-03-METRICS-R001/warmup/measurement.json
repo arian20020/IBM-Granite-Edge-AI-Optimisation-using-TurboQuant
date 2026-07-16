@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "kv_mb": 320.0,
+  "missing": [],
+  "peak_ram_mb": 3829.109375,
+  "sample_id": "UL-03-warmup",
+  "timed_out": false,
+  "ttft_ms": 5952.1291,
+  "valid": true
+}

@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "kv_mb": 170.0,
+  "missing": [],
+  "peak_ram_mb": 4350.71875,
+  "sample_id": "UL-10-sample-2",
+  "timed_out": false,
+  "ttft_ms": 2788.5202,
+  "valid": true
+}
