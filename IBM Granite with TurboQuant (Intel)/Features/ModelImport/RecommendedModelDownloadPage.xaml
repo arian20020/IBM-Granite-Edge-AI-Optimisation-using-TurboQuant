@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<!--
+    Displays the recommended-model selection and download workflow.
+-->
+<Page
+    x:Class="GraniteEdgeAI.Features.ModelImport.RecommendedModelDownloadPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:GraniteEdgeAI.Features.ModelImport"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--  Provides the page's light-grey background.  -->
+    <Grid
+        Background="#F5F6FA">
+
+        <!--  Allows the page to remain usable in shorter windows.  -->
+        <ScrollViewer
+            HorizontalContentAlignment="Stretch"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled"
+            VerticalScrollBarVisibility="Auto"
+            VerticalScrollMode="Auto">
+
+            <!--  Creates the main white page surface.  -->
+            <Border
+                MaxWidth="920"
+                Margin="32"
+                Padding="48"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top"
+                Background="White"
+                CornerRadius="28">
+
+                <!--  Arranges the page content vertically.  -->
+                <StackPanel
+                    Spacing="16">
+
+                    <!--  Returns to the model-import page.  -->
+                    <Button
+                        Width="90"
+                        Padding="8,4"
+                        HorizontalAlignment="Left"
+                        HorizontalContentAlignment="Left"
+                        AutomationProperties.Name="Return to model import"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        Click="BackButton_Click"
+                        Content="← Back"
+                        Foreground="#6B7280"
+                        UseSystemFocusVisuals="True">
+
+                        <!--  Keeps the back button visually lightweight.  -->
+                        <Button.Resources>
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#6B7280" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#111827" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="Transparent" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#2563EB" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="Transparent" />
+
+                        </Button.Resources>
+
+                    </Button>
+
+                    <!--  Displays the page heading.  -->
+                    <TextBlock
+                        FontSize="34"
+                        FontWeight="SemiBold"
+                        Foreground="#111827"
+                        Text="Download a recommended model"
+                        TextWrapping="Wrap" />
+
+                    <!--  Explains the purpose of the model scale.  -->
+                    <TextBlock
+                        FontSize="15"
+                        Foreground="#6B7280"
+                        Text="Choose the balance between efficiency and model capability that suits this device."
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Displays the reusable model profile, preference slider
+                        and download button.
+                    -->
+                    <local:ModelCard
+                        Margin="0,12,0,0" />
+
+                </StackPanel>
+
+            </Border>
+
+        </ScrollViewer>
+
+    </Grid>
+
+</Page>

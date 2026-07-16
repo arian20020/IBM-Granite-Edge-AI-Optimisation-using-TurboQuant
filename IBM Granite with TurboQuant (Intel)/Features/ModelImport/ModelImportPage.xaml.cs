@@ -14,29 +14,12 @@ namespace GraniteEdgeAI.Features.ModelImport
             InitializeComponent();
         }
 
-        /*
-            Opens or closes the recommended-model section.
-
-            This is view-only behaviour because it only controls whether
-            part of the interface is visible.
-        */
-        private void RecommendedModelToggleButton_Click(
+        // Opens the separate recommended-model selection page.
+        private void RecommendedModelDownloadButton_Click(
             object sender,
             RoutedEventArgs e)
         {
-            // Checks whether the recommended-model card is currently hidden.
-            bool shouldOpen =
-                RecommendedModelCard.Visibility == Visibility.Collapsed;
-
-            // Shows the card when closed, or hides it when already open.
-            RecommendedModelCard.Visibility = shouldOpen
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-
-            // Changes the arrow to show what clicking the button will do next.
-            RecommendedModelToggleArrow.Text = shouldOpen
-                ? "↑"
-                : "↓";
+            Frame.Navigate(typeof(RecommendedModelDownloadPage));
         }
     }
 }
