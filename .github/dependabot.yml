@@ -1,0 +1,13 @@
+version: 2
+
+updates:
+  # Check the actions used under .github/workflows and propose reviewed
+  # pull requests when secure newer revisions become available.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    open-pull-requests-limit: 5

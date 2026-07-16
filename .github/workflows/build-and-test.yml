@@ -1,0 +1,142 @@
+name: Build and test
+
+# Run the validation after branch pushes, for pull requests into main,
+# and when manually started from the GitHub Actions interface.
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# give the workflow permission to only read the repository, not to cahnge anything else.
+permissions:
+  contents: read
+
+## prevents GitHub from wasting time on obsolete builds. For example: You push commit A. GitHub starts testing commit A. You quickly push commit B. The commit A run is cancelled. GitHub tests the newer commit B instead.
+
+concurrency:
+  group: build-and-test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# tell workflow to use PowerShell consistently for all command-line build steps.
+defaults:
+  run:
+    shell: pwsh
+
+# Keep project paths in one place so the commands cannot accidentally
+# point to different projects.
+env:
+  APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+  TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
+  TEST_RESULTS_DIRECTORY: 'TestResults/UnitTests'
+
+jobs:
+  build-and-test:
+    # Keep this name stable. It will later be selected as a required
+    # status check for the protected main branch.
+    name: Build WinUI and run unit tests
+
+    # WinUI and Windows App SDK compilation require a Windows runner.
+    runs-on: windows-latest
+
+    # Stop a stalled build rather than allowing it to run indefinitely.
+    timeout-minutes: 30
+
+    steps:
+      # Retrieve the exact repository revision being validated.
+      #
+      # Pinned immutable commit for actions/checkout v7.0.0.
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      # Install the .NET SDK selected by the repository's global.json.
+      #
+      # Pinned immutable commit for actions/setup-dotnet v5.0.0.
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      # Locate the x64 MSBuild installation supplied by Visual Studio
+      # on the Windows runner.
+      #
+      # Pinned immutable commit for microsoft/setup-msbuild v3.0.0.
+      - name: Add x64 MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+        with:
+          msbuild-architecture: x64
+
+      # Record the selected tools in the workflow log to make failures
+      # diagnosable and reproducible.
+      - name: Display tool versions
+        run: |
+          dotnet --info
+          msbuild -version
+
+      # Resolve all dependencies required to compile the packaged
+      # WinUI application.
+      - name: Restore WinUI application
+        run: |
+          msbuild "$env:APP_PROJECT" `
+            /target:Restore `
+            /property:Configuration=Release `
+            /property:Platform=x64 `
+            /property:RuntimeIdentifier=win-x64
+
+      # Resolve all dependencies required by MSTest.
+      - name: Restore unit-test project
+        run: |
+          dotnet restore "$env:TEST_PROJECT"
+
+      # Compile the application before running automated tests.
+      #
+      # Package generation and signing are disabled because CI is
+      # validating compilation, not producing a release package.
+      - name: Build WinUI application
+        run: |
+          msbuild "$env:APP_PROJECT" `
+            /target:Build `
+            /maxCpuCount `
+            /verbosity:minimal `
+            /property:Configuration=Release `
+            /property:Platform=x64 `
+            /property:RuntimeIdentifier=win-x64 `
+            /property:AppxPackageSigningEnabled=false `
+            /property:GenerateAppxPackageOnBuild=false
+
+      # Compile the test source without repeating package restoration.
+      - name: Build unit-test project
+        run: |
+          dotnet build "$env:TEST_PROJECT" `
+            --configuration Release `
+            --no-restore
+
+      # Run the already-built tests through Microsoft Testing Platform.
+      #
+      # Arguments following the standalone -- are passed to Microsoft
+      # Testing Platform. They create one deterministic TRX report.
+      - name: Run unit tests
+        run: |
+          dotnet test "$env:TEST_PROJECT" `
+            --configuration Release `
+            --no-build `
+            -- `
+            --report-trx `
+            --report-trx-filename "GraniteEdgeAI.UnitTests.trx" `
+            --results-directory "$env:GITHUB_WORKSPACE\$env:TEST_RESULTS_DIRECTORY"
+
+      # Preserve the available report even when unit tests fail.
+      #
+      # When an earlier build fails, no TRX file will exist. In that
+      # situation, issue a warning while preserving the original failure.
+      #
+      # Pinned immutable commit for actions/upload-artifact v7.0.0.
+      - name: Upload unit-test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: TestResults/UnitTests/**/*.trx
+          if-no-files-found: warn
+          retention-days: 30
