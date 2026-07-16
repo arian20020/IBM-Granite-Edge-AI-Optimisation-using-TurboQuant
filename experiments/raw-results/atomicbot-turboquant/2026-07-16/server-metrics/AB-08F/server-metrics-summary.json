@@ -1,0 +1,59 @@
+{
+  "aggregate": {
+    "kv_mb": {
+      "max": 320.0,
+      "median": 320.0,
+      "min": 320.0
+    },
+    "peak_ram_mb": {
+      "max": 8914.6328125,
+      "median": 8914.578125,
+      "min": 8914.51953125
+    },
+    "ttft_ms": {
+      "max": 516.7385,
+      "median": 459.3079,
+      "min": 393.8566
+    }
+  },
+  "backend": "cpu",
+  "cache": "f16",
+  "context": 2048,
+  "samples": [
+    {
+      "exit_code": 0,
+      "kv_mb": 320.0,
+      "missing": [],
+      "peak_ram_mb": 8914.6328125,
+      "request_error": null,
+      "sample_id": "AB-08F-sample-1",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 516.7385,
+      "valid": true
+    },
+    {
+      "exit_code": 0,
+      "kv_mb": 320.0,
+      "missing": [],
+      "peak_ram_mb": 8914.51953125,
+      "request_error": null,
+      "sample_id": "AB-08F-sample-2",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 459.3079,
+      "valid": true
+    },
+    {
+      "exit_code": 0,
+      "kv_mb": 320.0,
+      "missing": [],
+      "peak_ram_mb": 8914.578125,
+      "request_error": null,
+      "sample_id": "AB-08F-sample-3",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 393.8566,
+      "valid": true
+    }
+  ],
+  "test_id": "AB-08F",
+  "ttft_definition": "HTTP request initiation to first streamed generated token"
+}

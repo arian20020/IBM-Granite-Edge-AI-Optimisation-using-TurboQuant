@@ -1,0 +1,73 @@
+{
+  "created_at": "2026-07-16T19:50:03.113901+01:00",
+  "repository": "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\repositories\\atomic-llama-cpp-turboquant",
+  "origin": "https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant.git",
+  "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+  "branch": "DETACHED",
+  "working_tree_clean": true,
+  "status_stderr": "",
+  "machine": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "logical_cpus": 12,
+    "available_memory_mib": 10280.234375,
+    "VSCMD_ARG_HOST_ARCH": "x64",
+    "VSCMD_ARG_TGT_ARCH": "x64",
+    "VULKAN_SDK": "C:\\VulkanSDK\\1.4.350.0"
+  },
+  "tools": {
+    "git": {
+      "exit_code": 0,
+      "stdout": "git version 2.53.0.windows.3",
+      "stderr": "",
+      "argv": [
+        "git",
+        "--version"
+      ]
+    },
+    "cmake": {
+      "exit_code": 0,
+      "stdout": "cmake version 4.3.1-msvc1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+      "stderr": "",
+      "argv": [
+        "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+        "--version"
+      ]
+    },
+    "ctest": {
+      "exit_code": 0,
+      "stdout": "ctest version 4.3.1-msvc1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+      "stderr": "",
+      "argv": [
+        "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe",
+        "--version"
+      ]
+    },
+    "ninja": {
+      "exit_code": 0,
+      "stdout": "1.13.2",
+      "stderr": "",
+      "argv": [
+        "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe",
+        "--version"
+      ]
+    },
+    "cl": {
+      "exit_code": 0,
+      "stdout": "usage: cl [ option... ] filename... [ /link linkoption... ]",
+      "stderr": "Microsoft (R) C/C++ Optimizing Compiler Version 19.51.36248 for x64\r\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+      "argv": [
+        "cl.exe"
+      ]
+    },
+    "python": {
+      "exit_code": 0,
+      "stdout": "Python 3.11.9",
+      "stderr": "",
+      "argv": [
+        "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "--version"
+      ]
+    }
+  }
+}

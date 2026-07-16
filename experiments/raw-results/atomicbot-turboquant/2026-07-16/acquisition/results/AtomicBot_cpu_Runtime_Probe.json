@@ -1,0 +1,43 @@
+{
+  "version": {
+    "argv": [
+      "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-cli.exe",
+      "--version"
+    ],
+    "cwd": "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\repositories\\atomic-llama-cpp-turboquant",
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 0.03,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\probes\\cpu\\version-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\probes\\cpu\\version-stderr.log"
+  },
+  "help": {
+    "argv": [
+      "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-cli.exe",
+      "--help"
+    ],
+    "cwd": "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\repositories\\atomic-llama-cpp-turboquant",
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 0.021,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\probes\\cpu\\help-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\probes\\cpu\\help-stderr.log"
+  },
+  "devices": {
+    "argv": [
+      "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-cli.exe",
+      "--list-devices"
+    ],
+    "cwd": "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\repositories\\atomic-llama-cpp-turboquant",
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 0.033,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\probes\\cpu\\devices-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\probes\\cpu\\devices-stderr.log"
+  },
+  "cache_formats": {
+    "turbo2": true,
+    "turbo3": true,
+    "turbo4": true
+  }
+}

@@ -1,0 +1,21 @@
+AB-08F RESULTS TO RETURN
+========================================
+Status: Pass
+Reason: Pilot, excluded warm-up and all formal runs passed
+Model: C:\Users\Student\atomicbot-retest-20260716\models\granite-4.1-8b\q4_k_m\granite-4.1-8b-Q4_K_M.gguf
+Cache: f16/f16
+Backend: cpu
+Context: 2048
+Requested GPU layers: 0
+Median TTFT ms: 13624.632
+Median tokens/s: 6.8
+Peak working set MiB: 8923.32
+KV allocation MiB: 320.0
+Minimum system available MiB: 540.469
+Median CPU %: 50.768
+Median GPU engine %: None
+Maximum GPU engine %: None
+GPU samples: 0
+Responses identical: True
+Run directory: C:\Users\Student\atomicbot-retest-20260716\logs\atomicbot\AB-08F\20260716-185720
+Manual quality score: Pending review

@@ -1,0 +1,21 @@
+AB-01 RESULTS TO RETURN
+========================================
+Status: Pass
+Reason: Pilot, excluded warm-up and all formal runs passed
+Model: C:\Users\Student\atomicbot-retest-20260716\models\diagnostic\gemma-3-1b-it-Q4_K_M\gemma-3-1b-it-Q4_K_M.gguf
+Cache: f16/f16
+Backend: cpu
+Context: 1024
+Requested GPU layers: 0
+Median TTFT ms: 2465.908
+Median tokens/s: 37.5
+Peak working set MiB: 930.449
+KV allocation MiB: 26.0
+Minimum system available MiB: 7881.797
+Median CPU %: 57.643
+Median GPU engine %: None
+Maximum GPU engine %: None
+GPU samples: 0
+Responses identical: True
+Run directory: C:\Users\Student\atomicbot-retest-20260716\logs\atomicbot\AB-01\20260716-185200
+Manual quality score: Pending review

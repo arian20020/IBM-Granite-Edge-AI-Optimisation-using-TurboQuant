@@ -1,0 +1,32 @@
+{
+  "llama-cli.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-cli.exe",
+    "sha256": "d3d85f91b64dc09ca6e01f69e5103398c1484c15dd77569c2e74f5ad97a389f7",
+    "size_bytes": 10240
+  },
+  "llama-server.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-server.exe",
+    "sha256": "3dce5d665ac5194bef9c5b431a20be091704d97e95dac56363e1f4ee3ebcb53e",
+    "size_bytes": 10240
+  },
+  "llama-bench.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-bench.exe",
+    "sha256": "1e8ac433d970951fa28e2b5cbe1a064f58c774deac6559f541a69dab939568b2",
+    "size_bytes": 10240
+  },
+  "llama-perplexity.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-perplexity.exe",
+    "sha256": "1ea1542fcdd4e856ea39f472c8399d651a92b962ab510baaff57c71e88717a6d",
+    "size_bytes": 10240
+  },
+  "llama-quantize.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-quantize.exe",
+    "sha256": "eccef7d3870d83dfdfb2feebdd0d80bb6e604c395d1ff9857b9c1a57964eb710",
+    "size_bytes": 10240
+  },
+  "test-backend-ops.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\test-backend-ops.exe",
+    "sha256": "53bf8d9ed92146f6c100898e55bbb01ba40ad4c16004e5bd72852f87d8fe25c9",
+    "size_bytes": 954880
+  }
+}

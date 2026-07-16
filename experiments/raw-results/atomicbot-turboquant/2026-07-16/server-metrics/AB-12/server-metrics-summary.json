@@ -1,0 +1,59 @@
+{
+  "aggregate": {
+    "kv_mb": {
+      "max": 125.0,
+      "median": 125.0,
+      "min": 125.0
+    },
+    "peak_ram_mb": {
+      "max": 2705.5625,
+      "median": 2705.421875,
+      "min": 2705.25390625
+    },
+    "ttft_ms": {
+      "max": 228.7868,
+      "median": 224.5092,
+      "min": 215.4597
+    }
+  },
+  "backend": "vulkan-partial",
+  "cache": "turbo3",
+  "context": 4096,
+  "samples": [
+    {
+      "exit_code": 0,
+      "kv_mb": 125.0,
+      "missing": [],
+      "peak_ram_mb": 2705.5625,
+      "request_error": null,
+      "sample_id": "AB-12-sample-1",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 228.7868,
+      "valid": true
+    },
+    {
+      "exit_code": 0,
+      "kv_mb": 125.0,
+      "missing": [],
+      "peak_ram_mb": 2705.25390625,
+      "request_error": null,
+      "sample_id": "AB-12-sample-2",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 224.5092,
+      "valid": true
+    },
+    {
+      "exit_code": 0,
+      "kv_mb": 125.0,
+      "missing": [],
+      "peak_ram_mb": 2705.421875,
+      "request_error": null,
+      "sample_id": "AB-12-sample-3",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 215.4597,
+      "valid": true
+    }
+  ],
+  "test_id": "AB-12",
+  "ttft_definition": "HTTP request initiation to first streamed generated token"
+}

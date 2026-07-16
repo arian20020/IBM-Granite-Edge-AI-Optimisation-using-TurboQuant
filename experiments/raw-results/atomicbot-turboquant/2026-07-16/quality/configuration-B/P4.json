@@ -1,0 +1,5 @@
+{
+  "prompt_id": "P4",
+  "output": "The test involves the IBM Granite 4.1 3B model, running on llama.cpp, using Q4_K_M weights with Q8_0 caches, handling a 4096-token context, executed locally on a Windows Intel laptop without activating TurboQuant.",
+  "output_sha256": "b4c88c9d6212d1d1931a0cfc82643f8362ea84b78f3e1ffa2a3528a2baa876ee"
+}

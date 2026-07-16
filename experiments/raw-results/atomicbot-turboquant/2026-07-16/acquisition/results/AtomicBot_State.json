@@ -1,0 +1,298 @@
+{
+  "suite_version": "1.1.1-vulkan-gate-fix",
+  "stages": {
+    "repository-environment": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:03.167303+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AtomicBot_Environment_Manifest.json"
+    },
+    "models": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:10.681214+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AtomicBot_Model_Manifest.json"
+    },
+    "source-audit": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:11.263718+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": [
+        "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AB-Source-Audit.md",
+        "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AB-Source-Audit.json"
+      ]
+    },
+    "build-cpu": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:11.263718+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": {
+        "mode": "--skip-build",
+        "required": [
+          "llama-bench.exe",
+          "llama-cli.exe",
+          "llama-perplexity.exe",
+          "llama-server.exe"
+        ],
+        "missing": [],
+        "binaries": {
+          "llama-cli.exe": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-cli.exe",
+          "llama-server.exe": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-server.exe",
+          "llama-bench.exe": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-bench.exe",
+          "llama-perplexity.exe": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-perplexity.exe",
+          "llama-quantize.exe": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-quantize.exe",
+          "test-backend-ops.exe": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\test-backend-ops.exe"
+        }
+      }
+    },
+    "build-vulkan": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:11.288017+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": {
+        "mode": "--skip-build",
+        "required": [
+          "llama-cli.exe"
+        ],
+        "missing": [],
+        "binaries": {
+          "llama-cli.exe": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-cli.exe",
+          "llama-server.exe": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-server.exe",
+          "llama-bench.exe": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-bench.exe",
+          "llama-perplexity.exe": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-perplexity.exe",
+          "llama-quantize.exe": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\llama-quantize.exe",
+          "test-backend-ops.exe": "C:\\Users\\Student\\ab-retest-20260716\\vulkan\\bin\\test-backend-ops.exe"
+        }
+      }
+    },
+    "build-sycl": {
+      "status": "Skipped",
+      "updated_at": "2026-07-16T19:50:11.290018+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "--skip-sycl"
+    },
+    "repo-tests": {
+      "status": "Fail",
+      "updated_at": "2026-07-16T19:50:50.030156+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": {
+        "argv": [
+          "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe",
+          "--test-dir",
+          "C:\\Users\\Student\\ab-retest-20260716\\cpu",
+          "--output-on-failure",
+          "-j",
+          "1"
+        ],
+        "cwd": "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\repositories\\atomic-llama-cpp-turboquant",
+        "exit_code": 8,
+        "timed_out": false,
+        "elapsed_seconds": 38.737,
+        "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\build\\cpu\\ctest\\ctest-stdout-20260716-195011.log",
+        "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\build\\cpu\\ctest\\ctest-stderr-20260716-195011.log"
+      }
+    },
+    "cache-flags": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:50.113397+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": {
+        "formats": {
+          "turbo2": true,
+          "turbo3": true,
+          "turbo4": true
+        },
+        "probe": "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AtomicBot_cpu_Runtime_Probe.json"
+      }
+    },
+    "warnings-intel-limitations": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:50.346701+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AtomicBot_Build_Warning_Log_Index.json"
+    },
+    "activation-precheck": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:50:50.346701+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": {
+        "help_strings": {
+          "turbo2": true,
+          "turbo3": true,
+          "turbo4": true
+        },
+        "source_turbo_matches": true,
+        "source_wht_matches": true,
+        "preliminary": true,
+        "activated": false
+      }
+    },
+    "quality": {
+      "status": "Skipped",
+      "updated_at": "2026-07-16T19:52:41.396127+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "--skip-quality"
+    },
+    "ppl": {
+      "status": "Skipped",
+      "updated_at": "2026-07-16T19:52:41.397127+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "--skip-ppl"
+    },
+    "final": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T19:52:42.173291+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\results\\atomicbot\\AtomicBot_Master_Summary.json"
+    },
+    "activation": {
+      "status": "Pass",
+      "updated_at": "2026-07-16T18:52:24.703487+01:00",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "evidence": {
+        "activated": true,
+        "baseline_kv_mib": 26.0,
+        "turbo3_kv_mib": 5.33,
+        "distinct_allocation": true,
+        "runtime_mentions_turbo3": true,
+        "pilot_summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-02\\20260716-185222\\pilot-summary.json"
+      }
+    }
+  },
+  "tests": {
+    "AB-01": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-01\\20260716-185200\\AB-01-formal-summary.json",
+      "updated_at": "2026-07-16T18:52:22.479684+01:00"
+    },
+    "AB-02": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-02\\20260716-185222\\AB-02-formal-summary.json",
+      "updated_at": "2026-07-16T18:52:46.338017+01:00"
+    },
+    "AB-03": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-03\\20260716-185246\\AB-03-formal-summary.json",
+      "updated_at": "2026-07-16T18:53:30.888947+01:00"
+    },
+    "AB-KV3-F16-4K": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-KV3-F16-4K\\20260716-185330\\AB-KV3-F16-4K-formal-summary.json",
+      "updated_at": "2026-07-16T18:54:16.510666+01:00"
+    },
+    "AB-04": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-04\\20260716-185416\\AB-04-formal-summary.json",
+      "updated_at": "2026-07-16T18:54:57.050620+01:00"
+    },
+    "AB-05": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-05\\20260716-185457\\AB-05-formal-summary.json",
+      "updated_at": "2026-07-16T18:55:45.114023+01:00"
+    },
+    "AB-06": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-06\\20260716-185545\\AB-06-formal-summary.json",
+      "updated_at": "2026-07-16T18:56:33.158102+01:00"
+    },
+    "AB-07": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-07\\20260716-185633\\AB-07-formal-summary.json",
+      "updated_at": "2026-07-16T18:57:20.221871+01:00"
+    },
+    "AB-08F": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-08F\\20260716-185720\\AB-08F-formal-summary.json",
+      "updated_at": "2026-07-16T18:59:24.691589+01:00"
+    },
+    "AB-KV8-F16-4K": {
+      "status": "Research-only",
+      "reason": "Skipped after the earlier 8B F16 4K pilot left under 1 GiB available memory and contributed to system instability; AB-08Q provides the safe matched 4K baseline.",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": null,
+      "updated_at": "2026-07-16T18:59:24.693595+01:00"
+    },
+    "AB-08Q": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-08Q\\20260716-195050\\AB-08Q-formal-summary.json",
+      "updated_at": "2026-07-16T19:52:41.394121+01:00"
+    },
+    "AB-09": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-09\\20260716-190026\\AB-09-formal-summary.json",
+      "updated_at": "2026-07-16T19:02:26.078027+01:00"
+    },
+    "AB-10": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-10\\20260716-190226\\AB-10-formal-summary.json",
+      "updated_at": "2026-07-16T19:04:28.259274+01:00"
+    },
+    "AB-11": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-11\\20260716-190428\\AB-11-formal-summary.json",
+      "updated_at": "2026-07-16T19:05:16.147457+01:00"
+    },
+    "AB-12": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-12\\20260716-190516\\AB-12-formal-summary.json",
+      "updated_at": "2026-07-16T19:06:17.748691+01:00"
+    },
+    "AB-13": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-13\\20260716-190617\\AB-13-formal-summary.json",
+      "updated_at": "2026-07-16T19:07:28.945925+01:00"
+    },
+    "AB-14": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\AB-14-formal-summary.json",
+      "updated_at": "2026-07-16T19:09:19.163016+01:00"
+    },
+    "AB-15": {
+      "status": "Pass",
+      "reason": "Pilot, excluded warm-up and all formal runs passed",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-15\\20260716-190919\\AB-15-formal-summary.json",
+      "updated_at": "2026-07-16T19:11:15.434966+01:00"
+    },
+    "AB-15M": {
+      "status": "Research-only",
+      "reason": "Optional full 8B Vulkan offload was not attempted on this 16 GB shared-memory laptop. The upstream matched class previously left only 80.609 MiB available; AB-14 and AB-15 provide the safe partial-offload evidence.",
+      "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+      "summary": null,
+      "updated_at": "2026-07-16T19:11:15.434966+01:00"
+    }
+  },
+  "updated_at": "2026-07-16T19:52:42.173291+01:00"
+}

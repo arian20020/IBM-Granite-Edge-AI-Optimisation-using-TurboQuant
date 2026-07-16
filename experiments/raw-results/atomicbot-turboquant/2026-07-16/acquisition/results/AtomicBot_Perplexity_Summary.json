@@ -1,0 +1,37 @@
+[
+  {
+    "cache": "f16",
+    "exit_code": 0,
+    "ppl": 1.001,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\f16-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\f16-stderr.log"
+  },
+  {
+    "cache": "q8_0",
+    "exit_code": 0,
+    "ppl": 1.0009,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\q8_0-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\q8_0-stderr.log"
+  },
+  {
+    "cache": "turbo4",
+    "exit_code": 0,
+    "ppl": 1.0014,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\turbo4-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\turbo4-stderr.log"
+  },
+  {
+    "cache": "turbo3",
+    "exit_code": 0,
+    "ppl": 1.0197,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\turbo3-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\turbo3-stderr.log"
+  },
+  {
+    "cache": "turbo2",
+    "exit_code": 0,
+    "ppl": 1.8613,
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\turbo2-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\ppl\\20260716-192009\\turbo2-stderr.log"
+  }
+]

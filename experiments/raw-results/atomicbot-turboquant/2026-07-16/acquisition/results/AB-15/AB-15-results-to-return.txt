@@ -1,0 +1,21 @@
+AB-15 RESULTS TO RETURN
+========================================
+Status: Pass
+Reason: Pilot, excluded warm-up and all formal runs passed
+Model: C:\Users\Student\atomicbot-retest-20260716\models\granite-4.1-8b\q4_k_m\granite-4.1-8b-Q4_K_M.gguf
+Cache: turbo3/turbo3
+Backend: vulkan
+Context: 4096
+Requested GPU layers: 1
+Median TTFT ms: 12892.795
+Median tokens/s: 5.4
+Peak working set MiB: 5918.672
+KV allocation MiB: 125.13
+Minimum system available MiB: 4859.977
+Median CPU %: 49.173
+Median GPU engine %: None
+Maximum GPU engine %: None
+GPU samples: 0
+Responses identical: True
+Run directory: C:\Users\Student\atomicbot-retest-20260716\logs\atomicbot\AB-15\20260716-190919
+Manual quality score: Pending review

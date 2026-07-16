@@ -1,0 +1,11 @@
+{
+  "exit_code": 0,
+  "kv_mb": 320.0,
+  "missing": [],
+  "peak_ram_mb": 3817.8046875,
+  "request_error": null,
+  "sample_id": "AB-KV3-F16-4K-pilot",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 146.9356,
+  "valid": true
+}
