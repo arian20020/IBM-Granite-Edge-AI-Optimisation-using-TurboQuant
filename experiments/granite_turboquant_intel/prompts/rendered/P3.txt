@@ -1,0 +1,1 @@
+Return only valid JSON about a local LLM KV-cache test. Use exactly these top-level keys: optimisation, memory_effect, quality_risk, verification. Set optimisation to TurboQuant. Each other value must be a single short string. Do not use Markdown or add extra keys.

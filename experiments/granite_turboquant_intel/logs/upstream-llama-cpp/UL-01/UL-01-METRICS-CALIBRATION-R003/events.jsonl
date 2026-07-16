@@ -1,0 +1,40 @@
+{"elapsed_ms": 0.0, "kind": "start", "pid": 2584}
+{"elapsed_ms": 5.6805, "kind": "memory", "private_bytes": 2469888}
+{"elapsed_ms": 16.1403, "kind": "stderr", "text": "warning: no usable GPU found, --gpu-layers option will be ignored"}
+{"elapsed_ms": 16.1627, "kind": "stderr", "text": "warning: one possible reason is that llama.cpp was compiled without GPU support"}
+{"elapsed_ms": 16.1649, "kind": "stderr", "text": "warning: consult docs/build.md for compilation instructions"}
+{"elapsed_ms": 106.3884, "kind": "memory", "private_bytes": 25157632}
+{"elapsed_ms": 206.9861, "kind": "memory", "private_bytes": 25710592}
+{"elapsed_ms": 307.7017, "kind": "memory", "private_bytes": 39665664}
+{"elapsed_ms": 408.3465, "kind": "memory", "private_bytes": 55754752}
+{"elapsed_ms": 508.7362, "kind": "memory", "private_bytes": 64512000}
+{"elapsed_ms": 609.4354, "kind": "memory", "private_bytes": 21716992}
+{"elapsed_ms": 709.8933, "kind": "memory", "private_bytes": 24162304}
+{"elapsed_ms": 810.4932, "kind": "memory", "private_bytes": 23781376}
+{"elapsed_ms": 911.1935, "kind": "memory", "private_bytes": 56168448}
+{"elapsed_ms": 1011.8717, "kind": "memory", "private_bytes": 64741376}
+{"elapsed_ms": 1112.4894, "kind": "memory", "private_bytes": 65732608}
+{"elapsed_ms": 1213.0172, "kind": "memory", "private_bytes": 267177984}
+{"elapsed_ms": 1333.0686, "kind": "memory", "private_bytes": 966725632}
+{"elapsed_ms": 1433.869, "kind": "memory", "private_bytes": 977694720}
+{"elapsed_ms": 1538.2866, "kind": "memory", "private_bytes": 977698816}
+{"elapsed_ms": 1643.5891, "kind": "memory", "private_bytes": 977698816}
+{"elapsed_ms": 1747.1676, "kind": "memory", "private_bytes": 977698816}
+{"elapsed_ms": 1847.8416, "kind": "memory", "private_bytes": 977801216}
+{"elapsed_ms": 1948.209, "kind": "memory", "private_bytes": 982614016}
+{"elapsed_ms": 1948.315, "kind": "first_response_byte"}
+{"elapsed_ms": 2048.9826, "kind": "memory", "private_bytes": 982634496}
+{"elapsed_ms": 2149.5409, "kind": "memory", "private_bytes": 982634496}
+{"elapsed_ms": 2250.1468, "kind": "memory", "private_bytes": 982638592}
+{"elapsed_ms": 2351.0657, "kind": "memory", "private_bytes": 982638592}
+{"elapsed_ms": 2451.8703, "kind": "memory", "private_bytes": 982638592}
+{"elapsed_ms": 2552.9216, "kind": "memory", "private_bytes": 982638592}
+{"elapsed_ms": 2653.8717, "kind": "memory", "private_bytes": 982642688}
+{"elapsed_ms": 2754.399, "kind": "memory", "private_bytes": 982642688}
+{"elapsed_ms": 2855.1854, "kind": "memory", "private_bytes": 982642688}
+{"elapsed_ms": 2955.9926, "kind": "memory", "private_bytes": 982646784}
+{"elapsed_ms": 3056.4807, "kind": "memory", "private_bytes": 982646784}
+{"elapsed_ms": 3156.9805, "kind": "memory", "private_bytes": 982646784}
+{"elapsed_ms": 3257.6072, "kind": "memory", "private_bytes": 982646784}
+{"elapsed_ms": 3358.0661, "kind": "memory", "private_bytes": 473862144}
+{"elapsed_ms": 3458.5867, "exit_code": 0, "kind": "exit", "timed_out": false}

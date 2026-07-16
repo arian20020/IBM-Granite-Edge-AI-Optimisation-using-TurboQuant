@@ -1,0 +1,6 @@
+git -C "C:\Users\Student\experiments\granite_turboquant_intel\repositories\upstream-llama.cpp-b9870-formal-R004" init
+git -C "C:\Users\Student\experiments\granite_turboquant_intel\repositories\upstream-llama.cpp-b9870-formal-R004" config core.autocrlf false
+git -C "C:\Users\Student\experiments\granite_turboquant_intel\repositories\upstream-llama.cpp-b9870-formal-R004" config core.eol lf
+git -C "C:\Users\Student\experiments\granite_turboquant_intel\repositories\upstream-llama.cpp-b9870-formal-R004" remote add origin https://github.com/ggml-org/llama.cpp.git
+git -C "C:\Users\Student\experiments\granite_turboquant_intel\repositories\upstream-llama.cpp-b9870-formal-R004" fetch --depth 1 origin refs/tags/b9870:refs/tags/b9870
+git -C "C:\Users\Student\experiments\granite_turboquant_intel\repositories\upstream-llama.cpp-b9870-formal-R004" checkout --detach b9870

@@ -1,0 +1,1381 @@
+:: initializing oneAPI environment...
+   Initializing Visual Studio command-line environment...
+   Visual Studio version 18.7.3 environment configured.
+   "C:\Program Files\Microsoft Visual Studio\18\Community\"
+   Visual Studio command-line environment initialized for: 'x64'
+:  compiler -- latest
+:  dev-utilities -- latest
+:  dnnl -- latest
+:  dpl -- latest
+:  ipp -- latest
+:  ippcp -- latest
+:  mkl -- latest
+:  mpi -- latest
+:  ocloc -- latest
+:  tbb -- latest
+:  tcm -- latest
+:  umf -- latest
+:  vtune -- latest
+:: oneAPI environment initialized ::
+[1/619] Building C object ggml\src\CMakeFiles\ggml-base.dir\ggml-alloc.c.obj
+[2/619] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml.cpp.obj
+[3/619] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-threading.cpp.obj
+[4/619] Building C object ggml\src\CMakeFiles\ggml-base.dir\ggml.c.obj
+[5/619] Building C object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\ggml-cpu.c.obj
+cl : Command line warning D9002 : ignoring unknown option '-fno-associative-math'
+[6/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\hbm.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[7/619] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-opt.cpp.obj
+[8/619] Building C object ggml\src\CMakeFiles\ggml-base.dir\ggml-quants.c.obj
+[9/619] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-backend.cpp.obj
+[10/619] Building C object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\quants.c.obj
+cl : Command line warning D9002 : ignoring unknown option '-fno-associative-math'
+[11/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\traits.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[12/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\ggml-cpu.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[13/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\amx\amx.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[14/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\amx\mmq.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[15/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\vec.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[16/619] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-backend-meta.cpp.obj
+[17/619] Building C object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\arch\x86\quants.c.obj
+cl : Command line warning D9002 : ignoring unknown option '-fno-associative-math'
+[18/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\binary-ops.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[19/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\arch\x86\repack.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[20/619] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\gguf.cpp.obj
+[21/619] Linking CXX static library ggml\src\ggml-base.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[22/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\llamafile\sgemm.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[23/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\unary-ops.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[24/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\repack.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[25/619] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\ops.cpp.obj
+icx: warning: unknown argument ignored in clang-cl: '-fno-associative-math' [-Wunknown-argument]
+[26/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\add-id.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\add-id.cpp:2:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[27/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\common.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[28/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\conv.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[29/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\conv2d-dw.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv2d-dw.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv2d-dw.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[30/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\concat.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\concat.cpp:15:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\concat.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[31/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\binbcast.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\binbcast.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\binbcast.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[32/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\conv2d-transpose.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv2d-transpose.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv2d-transpose.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[33/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\ggml-sycl.cpp.obj
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ggml-sycl.cpp(1104,101): warning: format specifies type 'unsigned long' but the argument has type 'size_t' (aka 'unsigned long long') [-Wformat]
+ 1104 |             snprintf(err_buf, 1023, "%s: can't allocate %lu Bytes of memory on device\n", __func__, size);
+      |                                                         ~~~                                         ^~~~
+      |                                                         %zu
+1 warning generated.
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ggml-sycl.cpp:53:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\add-id.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ggml-sycl.cpp(1104,101): warning: format specifies type 'unsigned long' but the argument has type 'size_t' (aka 'unsigned long long') [-Wformat]
+ 1104 |             snprintf(err_buf, 1023, "%s: can't allocate %lu Bytes of memory on device\n", __func__, size);
+      |                                                         ~~~                                         ^~~~
+      |                                                         %zu
+2 warnings generated.
+[34/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\conv2d.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv2d.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv2d.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[35/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\conv3d.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv3d.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\conv3d.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[36/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\count-equal.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\count-equal.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\count-equal.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[37/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\convert.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\convert.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\convert.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[38/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\cpy.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\cpy.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\cpy.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[39/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\cumsum.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\cumsum.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\cumsum.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[40/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\diag.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\diag.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\diag.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[41/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\dmmv.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dmmv.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\convert.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[42/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\fattn-buffers.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-buffers.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[43/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\fattn-tile.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.cpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[44/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\fill.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fill.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fill.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[45/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\fattn.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn.cpp:15:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[46/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\element_wise.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\element_wise.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[47/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\gated_delta_net.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\gated_delta_net.cpp:2:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[48/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\getrows.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\getrows.cpp:14:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[49/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\gla.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\gla.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[50/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\im2col.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\im2col.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\im2col.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[51/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\mmq.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\mmq.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\mmq.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[52/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\norm.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\norm.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\norm.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[53/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\outprod.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\outprod.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\outprod.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[54/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\pad.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\pad.cpp:14:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\pad.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[55/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\pad_reflect_1d.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\pad_reflect_1d.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\pad_reflect_1d.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[56/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\pool.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\pool.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\pool.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[57/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\repeat_back.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\repeat_back.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\repeat_back.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[58/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\roll.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\roll.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\roll.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[59/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\mmvq.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\mmvq.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\mmvq.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[60/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\set.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set.cpp:2:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[61/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\rope.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\rope.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\rope.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[62/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\set_rows.cpp.obj
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp(138,42): warning: attribute 'intel::reqd_sub_group_size' is deprecated [-Wdeprecated-attributes]
+  138 |         [=](sycl::nd_item<1> item_ct1) [[intel::reqd_sub_group_size(WARP_SIZE)]] {
+      |                                          ^
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp(244,9): note: in instantiation of function template specialization 'set_rows_sycl<float, long long>' requested here
+  244 |         set_rows_sycl<float, int64_t>(ctx, src0, src1, dst);
+      |         ^
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp(138,42): note: did you mean to use 'sycl::reqd_sub_group_size' instead?
+  138 |         [=](sycl::nd_item<1> item_ct1) [[intel::reqd_sub_group_size(WARP_SIZE)]] {
+      |                                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                          sycl::reqd_sub_group_size
+1 warning generated.
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp(138,42): warning: attribute 'intel::reqd_sub_group_size' is deprecated [-Wdeprecated-attributes]
+  138 |         [=](sycl::nd_item<1> item_ct1) [[intel::reqd_sub_group_size(WARP_SIZE)]] {
+      |                                          ^
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp(244,9): note: in instantiation of function template specialization 'set_rows_sycl<float, long long>' requested here
+  244 |         set_rows_sycl<float, int64_t>(ctx, src0, src1, dst);
+      |         ^
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\set_rows.cpp(138,42): note: did you mean to use 'sycl::reqd_sub_group_size' instead?
+  138 |         [=](sycl::nd_item<1> item_ct1) [[intel::reqd_sub_group_size(WARP_SIZE)]] {
+      |                                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                          sycl::reqd_sub_group_size
+2 warnings generated.
+[63/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\sycl_hw.cpp.obj
+[64/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\solve_tri.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\solve_tri.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\solve_tri.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[65/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\softmax.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\softmax.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\softmax.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[66/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\ssm_conv.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ssm_conv.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ssm_conv.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[67/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\ssm_scan.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ssm_scan.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ssm_scan.hpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[68/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\tsembd.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\tsembd.cpp:13:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\tsembd.hpp:16:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[69/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\upscale.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\upscale.cpp:1:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\upscale.hpp:4:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[70/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\wkv.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\wkv.cpp:2:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\wkv.hpp:4:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\common.hpp:21:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[71/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq576-dv512.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq576-dv512.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[72/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq112-dv112.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq112-dv112.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[73/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq512-dv512.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq512-dv512.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[74/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq128-dv128.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq128-dv128.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[75/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq256-dv256.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq256-dv256.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[76/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq40-dv40.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq40-dv40.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[77/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq64-dv64.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq64-dv64.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[78/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq72-dv72.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq72-dv72.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[79/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-f16-f16.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-f16-f16.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[80/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-f16-q4_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-f16-q4_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[81/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-f16-q4_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-f16-q4_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[82/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-f16-q5_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-f16-q5_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[83/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq80-dv80.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq80-dv80.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[84/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-tile-instance-dkq96-dv96.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-tile-instance-dkq96-dv96.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-tile.hpp:3:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[85/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-f16-q5_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-f16-q5_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[86/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-f16-q8_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-f16-q8_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[87/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_0-f16.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_0-f16.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[88/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_0-q4_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_0-q4_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[89/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_0-q4_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_0-q4_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[90/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_0-q5_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_0-q5_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[91/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_0-q5_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_0-q5_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[92/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_0-q8_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_0-q8_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[93/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_1-f16.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_1-f16.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[94/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_1-q4_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_1-q4_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[95/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_1-q4_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_1-q4_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[96/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_1-q5_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_1-q5_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[97/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_1-q5_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_1-q5_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[98/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q4_1-q8_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q4_1-q8_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[99/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_0-f16.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_0-f16.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[100/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_0-q4_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_0-q4_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[101/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_0-q4_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_0-q4_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[102/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_0-q5_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_0-q5_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[103/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_0-q5_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_0-q5_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[104/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_0-q8_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_0-q8_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[105/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_1-q4_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_1-q4_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[106/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_1-f16.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_1-f16.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[107/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_1-q4_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_1-q4_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[108/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_1-q5_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_1-q5_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[109/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_1-q5_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_1-q5_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[110/619] Building CXX object ggml\src\CMakeFiles\ggml.dir\ggml-backend-dl.cpp.obj
+[111/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q5_1-q8_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q5_1-q8_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[112/619] Linking CXX static library ggml\src\ggml-cpu.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[113/619] Building CXX object ggml\src\CMakeFiles\ggml.dir\ggml-backend-reg.cpp.obj
+[114/619] Building CXX object tools\ui\CMakeFiles\llama-ui-embed.dir\embed.cpp.obj
+[115/619] Building CXX object src\CMakeFiles\llama.dir\llama.cpp.obj
+[116/619] Building CXX object src\CMakeFiles\llama.dir\llama-arch.cpp.obj
+[117/619] Building CXX object src\CMakeFiles\llama.dir\llama-adapter.cpp.obj
+[118/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q8_0-f16.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q8_0-f16.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[119/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q8_0-q4_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q8_0-q4_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[120/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q8_0-q4_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q8_0-q4_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[121/619] Building CXX object src\CMakeFiles\llama.dir\llama-cparams.cpp.obj
+[122/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q8_0-q5_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q8_0-q5_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[123/619] Building CXX object src\CMakeFiles\llama.dir\llama-chat.cpp.obj
+[124/619] Building CXX object src\CMakeFiles\llama.dir\llama-hparams.cpp.obj
+[125/619] Building CXX object src\CMakeFiles\llama.dir\llama-batch.cpp.obj
+[126/619] Building CXX object src\CMakeFiles\llama.dir\llama-io.cpp.obj
+[127/619] Building CXX object src\CMakeFiles\llama.dir\llama-impl.cpp.obj
+[128/619] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache-iswa.cpp.obj
+[129/619] Building CXX object src\CMakeFiles\llama.dir\llama-context.cpp.obj
+[130/619] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache-dsa.cpp.obj
+[131/619] Building CXX object src\CMakeFiles\llama.dir\llama-graph.cpp.obj
+[132/619] Building CXX object src\CMakeFiles\llama.dir\llama-memory.cpp.obj
+[133/619] Building CXX object src\CMakeFiles\llama.dir\llama-grammar.cpp.obj
+[134/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q8_0-q5_1.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q8_0-q5_1.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[135/619] Building CXX object src\CMakeFiles\llama.dir\llama-memory-hybrid-iswa.cpp.obj
+[136/619] Building CXX object src\CMakeFiles\llama.dir\llama-memory-hybrid.cpp.obj
+[137/619] Building CXX object src\CMakeFiles\llama.dir\llama-mmap.cpp.obj
+[138/619] Building CXX object ggml\src\ggml-sycl\CMakeFiles\ggml-sycl.dir\template-instances\fattn-vec-instance-q8_0-q8_0.cpp.obj
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\template-instances\fattn-vec-instance-q8_0-q8_0.cpp:3:
+In file included from C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\fattn-vec.hpp:9:
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\dpct\helper.hpp(1029,9): warning: non-void function does not return a value in all control paths [-Wreturn-type]
+ 1029 |         }
+      |         ^
+1 warning generated.
+[139/619] Building CXX object src\CMakeFiles\llama.dir\llama-model-saver.cpp.obj
+[140/619] Building CXX object src\CMakeFiles\llama.dir\llama-memory-recurrent.cpp.obj
+[141/619] Linking CXX static library ggml\src\ggml-sycl\ggml-sycl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[142/619] Linking CXX static library ggml\src\ggml.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[143/619] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache-dsv4.cpp.obj
+[144/619] Building CXX object src\CMakeFiles\llama.dir\unicode-data.cpp.obj
+[145/619] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache.cpp.obj
+[146/619] Building CXX object src\CMakeFiles\llama.dir\models\afmoe.cpp.obj
+[147/619] Building CXX object src\CMakeFiles\llama.dir\models\apertus.cpp.obj
+[148/619] Building CXX object src\CMakeFiles\llama.dir\models\arcee.cpp.obj
+[149/619] Building CXX object src\CMakeFiles\llama.dir\llama-model-loader.cpp.obj
+[150/619] Building CXX object src\CMakeFiles\llama.dir\models\arctic.cpp.obj
+[151/619] Building CXX object src\CMakeFiles\llama.dir\llama-quant.cpp.obj
+[152/619] Building CXX object src\CMakeFiles\llama.dir\models\arwkv7.cpp.obj
+[153/619] Building CXX object src\CMakeFiles\llama.dir\models\baichuan.cpp.obj
+[154/619] Building CXX object src\CMakeFiles\llama.dir\models\bailingmoe.cpp.obj
+[155/619] Building CXX object src\CMakeFiles\llama.dir\llama-model.cpp.obj
+[156/619] Building CXX object src\CMakeFiles\llama.dir\llama-sampler.cpp.obj
+[157/619] Building CXX object src\CMakeFiles\llama.dir\models\bailingmoe2.cpp.obj
+[158/619] Building CXX object src\CMakeFiles\llama.dir\models\bert.cpp.obj
+[159/619] Building CXX object src\CMakeFiles\llama.dir\models\bitnet.cpp.obj
+[160/619] Building CXX object src\CMakeFiles\llama.dir\llama-vocab.cpp.obj
+[161/619] Building CXX object src\CMakeFiles\llama.dir\models\bloom.cpp.obj
+[162/619] Building CXX object src\CMakeFiles\llama.dir\models\chameleon.cpp.obj
+[163/619] Building CXX object src\CMakeFiles\llama.dir\models\chatglm.cpp.obj
+[164/619] Building CXX object src\CMakeFiles\llama.dir\unicode.cpp.obj
+[165/619] Building CXX object src\CMakeFiles\llama.dir\models\cohere2.cpp.obj
+[166/619] Building CXX object src\CMakeFiles\llama.dir\models\codeshell.cpp.obj
+[167/619] Building CXX object src\CMakeFiles\llama.dir\models\cogvlm.cpp.obj
+[168/619] Building CXX object src\CMakeFiles\llama.dir\models\command-r.cpp.obj
+[169/619] Building CXX object src\CMakeFiles\llama.dir\models\cohere2moe.cpp.obj
+[170/619] Building CXX object src\CMakeFiles\llama.dir\models\dbrx.cpp.obj
+[171/619] Building CXX object src\CMakeFiles\llama.dir\models\deci.cpp.obj
+[172/619] Building CXX object src\CMakeFiles\llama.dir\models\deepseek.cpp.obj
+[173/619] Building CXX object src\CMakeFiles\llama.dir\models\deepseek2ocr.cpp.obj
+[174/619] Building CXX object src\CMakeFiles\llama.dir\models\deepseek2.cpp.obj
+[175/619] Building CXX object src\CMakeFiles\llama.dir\models\deepseek32.cpp.obj
+[176/619] Building CXX object src\CMakeFiles\llama.dir\models\delta-net-base.cpp.obj
+[177/619] Building CXX object src\CMakeFiles\llama.dir\models\dots1.cpp.obj
+[178/619] Building CXX object src\CMakeFiles\llama.dir\models\deepseek4.cpp.obj
+[179/619] Building CXX object src\CMakeFiles\llama.dir\models\dflash.cpp.obj
+[180/619] Building CXX object src\CMakeFiles\llama.dir\models\dream.cpp.obj
+[181/619] Building CXX object src\CMakeFiles\llama.dir\models\eagle3.cpp.obj
+[182/619] Building CXX object src\CMakeFiles\llama.dir\models\ernie4-5-moe.cpp.obj
+[183/619] Building CXX object src\CMakeFiles\llama.dir\models\ernie4-5.cpp.obj
+[184/619] Building CXX object src\CMakeFiles\llama.dir\models\eurobert.cpp.obj
+[185/619] Building CXX object src\CMakeFiles\llama.dir\models\exaone-moe.cpp.obj
+[186/619] Building CXX object src\CMakeFiles\llama.dir\models\exaone.cpp.obj
+[187/619] Building CXX object src\CMakeFiles\llama.dir\models\exaone4.cpp.obj
+[188/619] Building CXX object src\CMakeFiles\llama.dir\models\falcon-h1.cpp.obj
+[189/619] Building CXX object src\CMakeFiles\llama.dir\models\falcon.cpp.obj
+[190/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma-embedding.cpp.obj
+[191/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma.cpp.obj
+[192/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma2.cpp.obj
+[193/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma3.cpp.obj
+[194/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma4-assistant.cpp.obj
+[195/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma3n.cpp.obj
+[196/619] Building CXX object src\CMakeFiles\llama.dir\models\glm-dsa.cpp.obj
+[197/619] Building CXX object src\CMakeFiles\llama.dir\models\gemma4.cpp.obj
+[198/619] Building CXX object src\CMakeFiles\llama.dir\models\glm4-moe.cpp.obj
+[199/619] Building CXX object src\CMakeFiles\llama.dir\models\glm4.cpp.obj
+[200/619] Building CXX object src\CMakeFiles\llama.dir\models\gpt2.cpp.obj
+[201/619] Building CXX object src\CMakeFiles\llama.dir\models\gptneox.cpp.obj
+[202/619] Building CXX object src\CMakeFiles\llama.dir\models\granite-hybrid.cpp.obj
+[203/619] Building CXX object src\CMakeFiles\llama.dir\models\granite-moe.cpp.obj
+[204/619] Building CXX object src\CMakeFiles\llama.dir\models\grovemoe.cpp.obj
+[205/619] Building CXX object src\CMakeFiles\llama.dir\models\grok.cpp.obj
+[206/619] Building CXX object src\CMakeFiles\llama.dir\models\hunyuan-dense.cpp.obj
+[207/619] Building CXX object src\CMakeFiles\llama.dir\models\granite.cpp.obj
+[208/619] Building CXX object src\CMakeFiles\llama.dir\models\hunyuan-moe.cpp.obj
+[209/619] Building CXX object src\CMakeFiles\llama.dir\models\hunyuan-vl.cpp.obj
+[210/619] Building CXX object src\CMakeFiles\llama.dir\models\internlm2.cpp.obj
+[211/619] Building CXX object src\CMakeFiles\llama.dir\models\jais.cpp.obj
+[212/619] Building CXX object src\CMakeFiles\llama.dir\models\jamba.cpp.obj
+[213/619] Building CXX object src\CMakeFiles\llama.dir\models\jais2.cpp.obj
+[214/619] Building CXX object src\CMakeFiles\llama.dir\models\jina-bert-v2.cpp.obj
+[215/619] Building CXX object src\CMakeFiles\llama.dir\models\jina-bert-v3.cpp.obj
+[216/619] Building CXX object src\CMakeFiles\llama.dir\models\kimi-linear.cpp.obj
+[217/619] Building CXX object src\CMakeFiles\llama.dir\models\llada-moe.cpp.obj
+[218/619] Building CXX object src\CMakeFiles\llama.dir\models\lfm2moe.cpp.obj
+[219/619] Building CXX object src\CMakeFiles\llama.dir\models\lfm2.cpp.obj
+[220/619] Building CXX object src\CMakeFiles\llama.dir\models\llada.cpp.obj
+[221/619] Building CXX object src\CMakeFiles\llama.dir\models\llama-embed.cpp.obj
+[222/619] Building CXX object src\CMakeFiles\llama.dir\models\llama.cpp.obj
+[223/619] Building CXX object src\CMakeFiles\llama.dir\models\llama4.cpp.obj
+[224/619] Building CXX object src\CMakeFiles\llama.dir\models\maincoder.cpp.obj
+[225/619] Building CXX object src\CMakeFiles\llama.dir\models\mamba-base.cpp.obj
+[226/619] Building CXX object src\CMakeFiles\llama.dir\models\mamba.cpp.obj
+[227/619] Building CXX object src\CMakeFiles\llama.dir\models\mamba2.cpp.obj
+[228/619] Building CXX object src\CMakeFiles\llama.dir\models\mellum.cpp.obj
+[229/619] Building CXX object src\CMakeFiles\llama.dir\models\mimo2.cpp.obj
+[230/619] Building CXX object src\CMakeFiles\llama.dir\models\minicpm.cpp.obj
+[231/619] Building CXX object src\CMakeFiles\llama.dir\models\minimax-m2.cpp.obj
+[232/619] Building CXX object src\CMakeFiles\llama.dir\models\minicpm3.cpp.obj
+[233/619] Building CXX object src\CMakeFiles\llama.dir\models\mistral3.cpp.obj
+[234/619] Building CXX object src\CMakeFiles\llama.dir\models\mistral4.cpp.obj
+[235/619] Building CXX object src\CMakeFiles\llama.dir\models\modern-bert.cpp.obj
+[236/619] Building CXX object src\CMakeFiles\llama.dir\models\nemotron-h-moe.cpp.obj
+[237/619] Building CXX object src\CMakeFiles\llama.dir\models\mpt.cpp.obj
+[238/619] Building CXX object src\CMakeFiles\llama.dir\models\nemotron-h.cpp.obj
+[239/619] Building CXX object src\CMakeFiles\llama.dir\models\nemotron.cpp.obj
+[240/619] Building CXX object src\CMakeFiles\llama.dir\models\neo-bert.cpp.obj
+[241/619] Building CXX object src\CMakeFiles\llama.dir\models\nomic-bert-moe.cpp.obj
+[242/619] Building CXX object src\CMakeFiles\llama.dir\models\nomic-bert.cpp.obj
+[243/619] Building CXX object src\CMakeFiles\llama.dir\models\olmo.cpp.obj
+[244/619] Building CXX object src\CMakeFiles\llama.dir\models\olmo2.cpp.obj
+[245/619] Building CXX object src\CMakeFiles\llama.dir\models\olmoe.cpp.obj
+[246/619] Building CXX object src\CMakeFiles\llama.dir\models\openai-moe.cpp.obj
+[247/619] Building CXX object src\CMakeFiles\llama.dir\models\openelm.cpp.obj
+[248/619] Building CXX object src\CMakeFiles\llama.dir\models\orion.cpp.obj
+[249/619] Building CXX object src\CMakeFiles\llama.dir\models\paddleocr.cpp.obj
+[250/619] Building CXX object src\CMakeFiles\llama.dir\models\pangu-embed.cpp.obj
+[251/619] Building CXX object src\CMakeFiles\llama.dir\models\phi2.cpp.obj
+[252/619] Building CXX object src\CMakeFiles\llama.dir\models\phi3.cpp.obj
+[253/619] Building CXX object src\CMakeFiles\llama.dir\models\phimoe.cpp.obj
+[254/619] Building CXX object src\CMakeFiles\llama.dir\models\plamo.cpp.obj
+[255/619] Building CXX object src\CMakeFiles\llama.dir\models\plamo3.cpp.obj
+[256/619] Building CXX object src\CMakeFiles\llama.dir\models\plamo2.cpp.obj
+[257/619] Building CXX object src\CMakeFiles\llama.dir\models\plm.cpp.obj
+[258/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen.cpp.obj
+[259/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen2.cpp.obj
+[260/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen2moe.cpp.obj
+[261/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen2vl.cpp.obj
+[262/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen3.cpp.obj
+[263/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen3moe.cpp.obj
+[264/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen35.cpp.obj
+[265/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen35moe.cpp.obj
+[266/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen3vl.cpp.obj
+[267/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen3next.cpp.obj
+[268/619] Building CXX object src\CMakeFiles\llama.dir\models\qwen3vlmoe.cpp.obj
+[269/619] Building CXX object src\CMakeFiles\llama.dir\models\refact.cpp.obj
+[270/619] Building CXX object src\CMakeFiles\llama.dir\models\rnd1.cpp.obj
+[271/619] Building CXX object src\CMakeFiles\llama.dir\models\rwkv6-base.cpp.obj
+[272/619] Building CXX object src\CMakeFiles\llama.dir\models\rwkv6.cpp.obj
+[273/619] Building CXX object src\CMakeFiles\llama.dir\models\rwkv6qwen2.cpp.obj
+[274/619] Building CXX object src\CMakeFiles\llama.dir\models\rwkv7-base.cpp.obj
+[275/619] Building CXX object src\CMakeFiles\llama.dir\models\rwkv7.cpp.obj
+[276/619] Building CXX object src\CMakeFiles\llama.dir\models\seed-oss.cpp.obj
+[277/619] Building CXX object src\CMakeFiles\llama.dir\models\smallthinker.cpp.obj
+[278/619] Building CXX object src\CMakeFiles\llama.dir\models\smollm3.cpp.obj
+[279/619] Building CXX object src\CMakeFiles\llama.dir\models\stablelm.cpp.obj
+[280/619] Building CXX object src\CMakeFiles\llama.dir\models\starcoder.cpp.obj
+[281/619] Building CXX object src\CMakeFiles\llama.dir\models\starcoder2.cpp.obj
+[282/619] Building CXX object src\CMakeFiles\llama.dir\models\t5.cpp.obj
+[283/619] Building CXX object src\CMakeFiles\llama.dir\models\t5encoder.cpp.obj
+[284/619] Building CXX object src\CMakeFiles\llama.dir\models\step35.cpp.obj
+[285/619] Building CXX object src\CMakeFiles\llama.dir\models\talkie.cpp.obj
+[286/619] Building CXX object src\CMakeFiles\llama.dir\models\xverse.cpp.obj
+[287/619] Building CXX object common\CMakeFiles\llama-common-base.dir\build-info.cpp.obj
+[288/619] Building CXX object src\CMakeFiles\llama.dir\models\wavtokenizer-dec.cpp.obj
+[289/619] Linking CXX executable tools\ui\llama-ui-embed.exe
+[290/619] Linking CXX static library common\llama-common-base.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[291/619] Linking CXX static library src\llama.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[292/619] Building CXX object common\CMakeFiles\llama-common.dir\chat-auto-parser-helpers.cpp.obj
+[293/619] Building CXX object common\CMakeFiles\llama-common.dir\chat-auto-parser-generator.cpp.obj
+[294/619] Building CXX object common\CMakeFiles\llama-common.dir\console.cpp.obj
+[295/619] Building CXX object common\CMakeFiles\llama-common.dir\common.cpp.obj
+C:\Users\Student\gtq-src\llama-b9870-R004\common\common.cpp(1110,33): warning: 'fileno' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _fileno. See online help for details. [-Wdeprecated-declarations]
+ 1110 |     bool stdout_is_tty = isatty(fileno(stdout));
+      |                                 ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\stdio.h(2433,28): note: 'fileno' has been explicitly marked deprecated here
+ 2433 |         _Check_return_     _CRT_NONSTDC_DEPRECATE(_fileno)    _ACRTIMP int   __cdecl fileno(_In_ FILE* _Stream);
+      |                            ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+C:\Users\Student\gtq-src\llama-b9870-R004\common\common.cpp(1110,26): warning: 'isatty' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _isatty. See online help for details. [-Wdeprecated-declarations]
+ 1110 |     bool stdout_is_tty = isatty(fileno(stdout));
+      |                          ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt_io.h(492,24): note: 'isatty' has been explicitly marked deprecated here
+  492 |         _Check_return_ _CRT_NONSTDC_DEPRECATE(_isatty)
+      |                        ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+C:\Users\Student\gtq-src\llama-b9870-R004\common\common.cpp(1111,33): warning: 'fileno' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _fileno. See online help for details. [-Wdeprecated-declarations]
+ 1111 |     bool stderr_is_tty = isatty(fileno(stderr));
+      |                                 ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\stdio.h(2433,28): note: 'fileno' has been explicitly marked deprecated here
+ 2433 |         _Check_return_     _CRT_NONSTDC_DEPRECATE(_fileno)    _ACRTIMP int   __cdecl fileno(_In_ FILE* _Stream);
+      |                            ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+C:\Users\Student\gtq-src\llama-b9870-R004\common\common.cpp(1111,26): warning: 'isatty' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _isatty. See online help for details. [-Wdeprecated-declarations]
+ 1111 |     bool stderr_is_tty = isatty(fileno(stderr));
+      |                          ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt_io.h(492,24): note: 'isatty' has been explicitly marked deprecated here
+  492 |         _Check_return_ _CRT_NONSTDC_DEPRECATE(_isatty)
+      |                        ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+4 warnings generated.
+[296/619] Building CXX object common\CMakeFiles\llama-common.dir\chat-peg-parser.cpp.obj
+[297/619] Building CXX object common\CMakeFiles\llama-common.dir\debug.cpp.obj
+[298/619] Building CXX object common\CMakeFiles\llama-common.dir\fit.cpp.obj
+[299/619] Building CXX object common\CMakeFiles\llama-common.dir\imatrix-loader.cpp.obj
+[300/619] Building CXX object common\CMakeFiles\llama-common.dir\llguidance.cpp.obj
+[301/619] Building CXX object common\CMakeFiles\llama-common.dir\chat-diff-analyzer.cpp.obj
+[302/619] Building CXX object common\CMakeFiles\llama-common.dir\log.cpp.obj
+[303/619] Building CXX object common\CMakeFiles\llama-common.dir\ngram-cache.cpp.obj
+[304/619] Building CXX object common\CMakeFiles\llama-common.dir\ngram-map.cpp.obj
+[305/619] Building CXX object common\CMakeFiles\llama-common.dir\ngram-mod.cpp.obj
+[306/619] Building CXX object common\CMakeFiles\llama-common.dir\hf-cache.cpp.obj
+[307/619] Building CXX object common\CMakeFiles\llama-common.dir\reasoning-budget.cpp.obj
+[308/619] Building CXX object common\CMakeFiles\llama-common.dir\arg.cpp.obj
+[309/619] Building CXX object common\CMakeFiles\llama-common.dir\chat.cpp.obj
+[310/619] Building CXX object common\CMakeFiles\llama-common.dir\download.cpp.obj
+[311/619] Building CXX object common\CMakeFiles\llama-common.dir\unicode.cpp.obj
+[312/619] Building CXX object common\CMakeFiles\llama-common.dir\sampling.cpp.obj
+[313/619] Building CXX object common\CMakeFiles\llama-common.dir\jinja\lexer.cpp.obj
+[314/619] Building CXX object vendor\cpp-httplib\CMakeFiles\cpp-httplib.dir\httplib.cpp.obj
+[315/619] Building CXX object common\CMakeFiles\llama-common.dir\json-schema-to-grammar.cpp.obj
+[316/619] Building CXX object common\CMakeFiles\llama-common.dir\preset.cpp.obj
+[317/619] Linking CXX static library vendor\cpp-httplib\cpp-httplib.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[318/619] Building CXX object common\CMakeFiles\llama-common.dir\jinja\string.cpp.obj
+[319/619] Building CXX object common\CMakeFiles\llama-common.dir\speculative.cpp.obj
+[320/619] Provisioning UI assets
+CMake Warning at C:/Users/Student/gtq-src/llama-b9870-R004/scripts/ui-assets.cmake:353 (message):
+  UI: no assets available - building without an embedded UI.  In a
+  disconnected environment, download the pre-built UI from a llama.cpp
+  release at https://github.com/ggml-org/llama.cpp/releases and extract to
+  tools/ui/dist.
+
+
+embed: write output file C:/Users/Student/gtq-build/llama-b9870-sycl-release-001/tools/ui/ui.h
+embed: write output file C:/Users/Student/gtq-build/llama-b9870-sycl-release-001/tools/ui/ui.cpp
+[321/619] Building CXX object common\CMakeFiles\llama-common.dir\jinja\parser.cpp.obj
+[322/619] Building CXX object common\CMakeFiles\llama-common.dir\jinja\runtime.cpp.obj
+[323/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd-audio.cpp.obj
+[324/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd-image.cpp.obj
+[325/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd.cpp.obj
+[326/619] Building CXX object common\CMakeFiles\llama-common.dir\jinja\caps.cpp.obj
+[327/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\cogvlm.cpp.obj
+[328/619] Building CXX object common\CMakeFiles\llama-common.dir\jinja\value.cpp.obj
+[329/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\conformer.cpp.obj
+[330/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\dotsocr.cpp.obj
+[331/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\exaone4_5.cpp.obj
+[332/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4a.cpp.obj
+[333/619] Building CXX object common\CMakeFiles\llama-common.dir\peg-parser.cpp.obj
+[334/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4ua.cpp.obj
+[335/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4v.cpp.obj
+[336/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4uv.cpp.obj
+[337/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\glm4v.cpp.obj
+[338/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\granite-speech.cpp.obj
+[339/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\clip.cpp.obj
+[340/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\granite4-vision.cpp.obj
+[341/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\hunyuanvl.cpp.obj
+[342/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\internvl.cpp.obj
+[343/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\kimivl.cpp.obj
+[344/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\kimik25.cpp.obj
+[345/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\nemotron-v2-vl.cpp.obj
+[346/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\llama4.cpp.obj
+[347/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\llava.cpp.obj
+[348/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\minicpmv.cpp.obj
+[349/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\paddleocr.cpp.obj
+[350/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\pixtral.cpp.obj
+[351/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\qwen2vl.cpp.obj
+[352/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\qwen3vl.cpp.obj
+[353/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd-helper.cpp.obj
+C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\mtmd-helper.cpp(889,25): warning: 'strdup' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _strdup. See online help for details. [-Wdeprecated-declarations]
+  889 |             *out_text = strdup(pending_text.c_str());
+      |                         ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\string.h(531,20): note: 'strdup' has been explicitly marked deprecated here
+  531 |     _Check_return_ _CRT_NONSTDC_DEPRECATE(_strdup)
+      |                    ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\mtmd-helper.cpp(904,29): warning: 'strdup' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _strdup. See online help for details. [-Wdeprecated-declarations]
+  904 |                 *out_text = strdup(prompt_start.c_str());
+      |                             ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\string.h(531,20): note: 'strdup' has been explicitly marked deprecated here
+  531 |     _Check_return_ _CRT_NONSTDC_DEPRECATE(_strdup)
+      |                    ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+2 warnings generated.
+[354/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\mimovl.cpp.obj
+[355/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\qwen3a.cpp.obj
+[356/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\step3vl.cpp.obj
+[357/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\siglip.cpp.obj
+[358/619] Linking CXX static library common\llama-common.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[359/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\whisper-enc.cpp.obj
+[360/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\deepseekocr.cpp.obj
+[361/619] Building CXX object tools\ui\CMakeFiles\llama-ui.dir\ui.cpp.obj
+[362/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\deepseekocr2.cpp.obj
+[363/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\mobilenetv5.cpp.obj
+[364/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\youtuvl.cpp.obj
+[365/619] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\yasa2.cpp.obj
+[366/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-queue.cpp.obj
+[367/619] Linking CXX static library tools\mtmd\mtmd.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[368/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-chat.cpp.obj
+[369/619] Building CXX object examples\diffusion\CMakeFiles\llama-diffusion.dir\diffusion.cpp.obj
+[370/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-stream.cpp.obj
+[371/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-schema.cpp.obj
+[372/619] Building CXX object tools\batched-bench\CMakeFiles\llama-batched-bench-impl.dir\batched-bench.cpp.obj
+[373/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-common.cpp.obj
+[374/619] Linking CXX static library tools\ui\llama-ui.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[375/619] Building CXX object tools\completion\CMakeFiles\llama-completion-impl.dir\completion.cpp.obj
+[376/619] Building CXX object tools\quantize\CMakeFiles\llama-quantize-impl.dir\quantize.cpp.obj
+[377/619] Building CXX object tools\perplexity\CMakeFiles\llama-perplexity-impl.dir\perplexity.cpp.obj
+[378/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-tools.cpp.obj
+[379/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-task.cpp.obj
+[380/619] Building CXX object tools\fit-params\CMakeFiles\llama-fit-params-impl.dir\fit-params.cpp.obj
+[381/619] Building CXX object tests\CMakeFiles\test-tokenizer-0.dir\test-tokenizer-0.cpp.obj
+[382/619] Building CXX object tests\CMakeFiles\test-sampling.dir\get-model.cpp.obj
+[383/619] Building CXX object tools\llama-bench\CMakeFiles\llama-bench-impl.dir\llama-bench.cpp.obj
+[384/619] Building CXX object tests\CMakeFiles\test-sampling.dir\test-sampling.cpp.obj
+[385/619] Building CXX object tests\CMakeFiles\test-reasoning-budget.dir\get-model.cpp.obj
+[386/619] Building CXX object tests\CMakeFiles\test-grammar-parser.dir\get-model.cpp.obj
+[387/619] Building CXX object tests\CMakeFiles\test-reasoning-budget.dir\test-reasoning-budget.cpp.obj
+[388/619] Building CXX object tests\CMakeFiles\test-grammar-integration.dir\get-model.cpp.obj
+[389/619] Building CXX object tools\cli\CMakeFiles\llama-cli-impl.dir\cli.cpp.obj
+[390/619] Building CXX object tests\CMakeFiles\test-llama-grammar.dir\get-model.cpp.obj
+[391/619] Building CXX object tests\CMakeFiles\test-grammar-parser.dir\test-grammar-parser.cpp.obj
+[392/619] Building CXX object tests\CMakeFiles\test-chat.dir\get-model.cpp.obj
+[393/619] Building CXX object tests\CMakeFiles\test-llama-grammar.dir\test-llama-grammar.cpp.obj
+[394/619] Building CXX object tests\CMakeFiles\test-json-schema-to-grammar.dir\get-model.cpp.obj
+[395/619] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\server.cpp.obj
+[396/619] Building CXX object tools\server\CMakeFiles\server-context.dir\server-context.cpp.obj
+[397/619] Linking CXX static library tools\server\server-context.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[398/619] Building CXX object tests\CMakeFiles\test-gbnf-validator.dir\test-gbnf-validator.cpp.obj
+[399/619] Building CXX object tests\CMakeFiles\test-tokenizer-1-bpe.dir\test-tokenizer-1-bpe.cpp.obj
+[400/619] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\server-http.cpp.obj
+[401/619] Building CXX object tests\CMakeFiles\test-llama-archs.dir\get-model.cpp.obj
+[402/619] Building CXX object tests\CMakeFiles\test-tokenizer-1-spm.dir\test-tokenizer-1-spm.cpp.obj
+[403/619] Building CXX object tests\CMakeFiles\test-quantize-stats.dir\test-quantize-stats.cpp.obj
+[404/619] Building CXX object tests\CMakeFiles\test-chat-peg-parser.dir\get-model.cpp.obj
+[405/619] Building CXX object tests\CMakeFiles\test-grammar-integration.dir\test-grammar-integration.cpp.obj
+[406/619] Building CXX object tests\CMakeFiles\test-chat-peg-parser.dir\peg-parser\simple-tokenize.cpp.obj
+[407/619] Building CXX object tests\CMakeFiles\test-llama-archs.dir\test-llama-archs.cpp.obj
+[408/619] Building CXX object tests\CMakeFiles\test-jinja.dir\get-model.cpp.obj
+[409/619] Building CXX object tests\CMakeFiles\test-chat-auto-parser.dir\get-model.cpp.obj
+[410/619] Building CXX object tests\CMakeFiles\test-chat-template.dir\get-model.cpp.obj
+[411/619] Building CXX object tests\CMakeFiles\test-log.dir\test-log.cpp.obj
+[412/619] Building CXX object tests\CMakeFiles\test-json-schema-to-grammar.dir\test-json-schema-to-grammar.cpp.obj
+[413/619] Building CXX object tests\CMakeFiles\test-log.dir\get-model.cpp.obj
+[414/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\simple-tokenize.cpp.obj
+[415/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\test-peg-parser.cpp.obj
+[416/619] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\server-models.cpp.obj
+[417/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\test-json-parser.cpp.obj
+[418/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\test-basic.cpp.obj
+[419/619] Building CXX object tests\CMakeFiles\test-chat-template.dir\test-chat-template.cpp.obj
+[420/619] Building CXX object tests\CMakeFiles\test-chat-peg-parser.dir\test-chat-peg-parser.cpp.obj
+[421/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\test-gbnf-generation.cpp.obj
+[422/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\get-model.cpp.obj
+[423/619] Building CXX object tests\CMakeFiles\test-thread-safety.dir\get-model.cpp.obj
+[424/619] Building CXX object tests\CMakeFiles\test-chat-auto-parser.dir\test-chat-auto-parser.cpp.obj
+[425/619] Building CXX object tests\CMakeFiles\test-arg-parser.dir\get-model.cpp.obj
+[426/619] Building CXX object tests\CMakeFiles\test-thread-safety.dir\test-thread-safety.cpp.obj
+[427/619] Building CXX object tests\CMakeFiles\test-opt.dir\get-model.cpp.obj
+[428/619] Building CXX object tests\CMakeFiles\test-arg-parser.dir\test-arg-parser.cpp.obj
+[429/619] Building CXX object tests\CMakeFiles\test-gguf.dir\get-model.cpp.obj
+[430/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\test-python-dict-parser.cpp.obj
+[431/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\test-json-serialization.cpp.obj
+[432/619] Building CXX object tests\CMakeFiles\test-backend-ops.dir\get-model.cpp.obj
+[433/619] Building CXX object tests\CMakeFiles\test-model-load-cancel.dir\test-model-load-cancel.cpp.obj
+[434/619] Building CXX object tests\CMakeFiles\test-model-load-cancel.dir\get-model.cpp.obj
+[435/619] Building CXX object tests\CMakeFiles\test-autorelease.dir\get-model.cpp.obj
+[436/619] Building CXX object tests\CMakeFiles\test-opt.dir\test-opt.cpp.obj
+[437/619] Building CXX object tests\CMakeFiles\test-autorelease.dir\test-autorelease.cpp.obj
+[438/619] Building CXX object tests\CMakeFiles\test-backend-sampler.dir\get-model.cpp.obj
+[439/619] Building CXX object tests\CMakeFiles\test-state-restore-fragmented.dir\get-model.cpp.obj
+[440/619] Building CXX object tests\CMakeFiles\test-peg-parser.dir\peg-parser\test-unicode.cpp.obj
+[441/619] Building CXX object tests\CMakeFiles\test-gguf.dir\test-gguf.cpp.obj
+[442/619] Building CXX object tests\CMakeFiles\test-recurrent-state-rollback.dir\get-model.cpp.obj
+[443/619] Building CXX object tests\CMakeFiles\test-save-load-state.dir\get-model.cpp.obj
+[444/619] Building CXX object tests\CMakeFiles\test-jinja.dir\test-jinja.cpp.obj
+[445/619] Building CXX object tests\CMakeFiles\test-barrier.dir\get-model.cpp.obj
+[446/619] Building CXX object tests\CMakeFiles\test-state-restore-fragmented.dir\test-state-restore-fragmented.cpp.obj
+[447/619] Building CXX object tests\CMakeFiles\test-quantize-fns.dir\get-model.cpp.obj
+[448/619] Building CXX object tests\CMakeFiles\test-recurrent-state-rollback.dir\test-recurrent-state-rollback.cpp.obj
+[449/619] Building CXX object tests\CMakeFiles\test-backend-sampler.dir\test-backend-sampler.cpp.obj
+[450/619] Building CXX object tests\CMakeFiles\test-quantize-perf.dir\get-model.cpp.obj
+[451/619] Building CXX object tests\CMakeFiles\test-barrier.dir\test-barrier.cpp.obj
+[452/619] Building CXX object tests\CMakeFiles\test-rope.dir\get-model.cpp.obj
+[453/619] Building CXX object tests\CMakeFiles\test-col2im-1d.dir\get-model.cpp.obj
+[454/619] Building C object tests\CMakeFiles\test-mtmd-c-api.dir\test-mtmd-c-api.c.obj
+[455/619] Building CXX object tests\CMakeFiles\test-save-load-state.dir\test-save-load-state.cpp.obj
+[456/619] Building CXX object tests\CMakeFiles\test-mtmd-c-api.dir\get-model.cpp.obj
+[457/619] Building CXX object tests\CMakeFiles\test-quantize-fns.dir\test-quantize-fns.cpp.obj
+[458/619] Building C object tests\CMakeFiles\test-c.dir\test-c.c.obj
+[459/619] Building CXX object tests\CMakeFiles\test-alloc.dir\get-model.cpp.obj
+[460/619] Building CXX object tests\CMakeFiles\test-rope.dir\test-rope.cpp.obj
+[461/619] Building CXX object tests\CMakeFiles\test-col2im-1d.dir\test-col2im-1d.cpp.obj
+[462/619] Building CXX object tests\CMakeFiles\test-quantize-perf.dir\test-quantize-perf.cpp.obj
+[463/619] Building CXX object tests\CMakeFiles\test-alloc.dir\test-alloc.cpp.obj
+[464/619] Building CXX object examples\batched\CMakeFiles\llama-batched.dir\batched.cpp.obj
+[465/619] Building CXX object examples\eval-callback\CMakeFiles\llama-eval-callback.dir\eval-callback.cpp.obj
+[466/619] Building C object examples\gguf-hash\CMakeFiles\xxhash.dir\deps\xxhash\xxhash.c.obj
+[467/619] Building CXX object tests\CMakeFiles\test-export-graph-ops.dir\test-export-graph-ops.cpp.obj
+[468/619] Building CXX object examples\embedding\CMakeFiles\llama-embedding.dir\embedding.cpp.obj
+[469/619] Building C object examples\gguf-hash\CMakeFiles\sha1.dir\deps\sha1\sha1.c.obj
+[470/619] Building CXX object examples\gguf-hash\CMakeFiles\llama-gguf-hash.dir\gguf-hash.cpp.obj
+[471/619] Building C object examples\gguf-hash\CMakeFiles\sha256.dir\deps\sha256\sha256.c.obj
+[472/619] Building CXX object examples\gguf\CMakeFiles\llama-gguf.dir\gguf.cpp.obj
+[473/619] Building CXX object examples\idle\CMakeFiles\llama-idle.dir\idle.cpp.obj
+[474/619] Building CXX object examples\lookup\CMakeFiles\llama-lookup-create.dir\lookup-create.cpp.obj
+[475/619] Building CXX object examples\lookup\CMakeFiles\llama-lookup.dir\lookup.cpp.obj
+[476/619] Building CXX object examples\debug\CMakeFiles\llama-debug.dir\debug.cpp.obj
+[477/619] Building CXX object examples\lookahead\CMakeFiles\llama-lookahead.dir\lookahead.cpp.obj
+[478/619] Building CXX object examples\lookup\CMakeFiles\llama-lookup-merge.dir\lookup-merge.cpp.obj
+[479/619] Building CXX object examples\simple\CMakeFiles\llama-simple.dir\simple.cpp.obj
+[480/619] Building CXX object examples\lookup\CMakeFiles\llama-lookup-stats.dir\lookup-stats.cpp.obj
+[481/619] Building CXX object examples\simple-chat\CMakeFiles\llama-simple-chat.dir\simple-chat.cpp.obj
+C:\Users\Student\gtq-src\llama-b9870-R004\examples\simple-chat\simple-chat.cpp(173,37): warning: 'strdup' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _strdup. See online help for details. [-Wdeprecated-declarations]
+  173 |         messages.push_back({"user", strdup(user.c_str())});
+      |                                     ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\string.h(531,20): note: 'strdup' has been explicitly marked deprecated here
+  531 |     _Check_return_ _CRT_NONSTDC_DEPRECATE(_strdup)
+      |                    ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+C:\Users\Student\gtq-src\llama-b9870-R004\examples\simple-chat\simple-chat.cpp(193,42): warning: 'strdup' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _strdup. See online help for details. [-Wdeprecated-declarations]
+  193 |         messages.push_back({"assistant", strdup(response.c_str())});
+      |                                          ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\string.h(531,20): note: 'strdup' has been explicitly marked deprecated here
+  531 |     _Check_return_ _CRT_NONSTDC_DEPRECATE(_strdup)
+      |                    ^
+C:\Program Files (x86)\Windows Kits\10\include\10.0.28000.0\ucrt\corecrt.h(428,50): note: expanded from macro '_CRT_NONSTDC_DEPRECATE'
+  428 |         #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT(             \
+      |                                                  ^
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vcruntime.h(348,47): note: expanded from macro '_CRT_DEPRECATE_TEXT'
+  348 | #define _CRT_DEPRECATE_TEXT(_Text) __declspec(deprecated(_Text))
+      |                                               ^
+2 warnings generated.
+[482/619] Building CXX object examples\passkey\CMakeFiles\llama-passkey.dir\passkey.cpp.obj
+[483/619] Building CXX object examples\parallel\CMakeFiles\llama-parallel.dir\parallel.cpp.obj
+[484/619] Linking CXX static library examples\diffusion\llama-diffusion.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[485/619] Building CXX object examples\retrieval\CMakeFiles\llama-retrieval.dir\retrieval.cpp.obj
+[486/619] Building CXX object examples\training\CMakeFiles\llama-finetune.dir\finetune.cpp.obj
+[487/619] Building CXX object examples\sycl\CMakeFiles\llama-ls-sycl-device.dir\ls-sycl-device.cpp.obj
+[488/619] Building CXX object examples\gen-docs\CMakeFiles\llama-gen-docs.dir\gen-docs.cpp.obj
+[489/619] Building CXX object examples\speculative-simple\CMakeFiles\llama-speculative-simple.dir\speculative-simple.cpp.obj
+[490/619] Linking CXX static library tools\batched-bench\llama-batched-bench-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[491/619] Building CXX object tools\batched-bench\CMakeFiles\llama-batched-bench.dir\main.cpp.obj
+[492/619] Building CXX object examples\speculative\CMakeFiles\llama-speculative.dir\speculative.cpp.obj
+[493/619] Building CXX object examples\convert-llama2c-to-ggml\CMakeFiles\llama-convert-llama2c-to-ggml.dir\convert-llama2c-to-ggml.cpp.obj
+[494/619] Building CXX object pocs\vdot\CMakeFiles\llama-vdot.dir\vdot.cpp.obj
+[495/619] Building CXX object tools\llama-bench\CMakeFiles\llama-bench.dir\main.cpp.obj
+[496/619] Linking CXX static library tools\llama-bench\llama-bench-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[497/619] Building CXX object examples\diffusion\CMakeFiles\llama-diffusion-cli.dir\diffusion-cli.cpp.obj
+[498/619] Building CXX object tools\completion\CMakeFiles\llama-completion.dir\main.cpp.obj
+[499/619] Building CXX object pocs\vdot\CMakeFiles\llama-q8dot.dir\q8dot.cpp.obj
+[500/619] Linking CXX static library tools\completion\llama-completion-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[501/619] Linking CXX static library tools\perplexity\llama-perplexity-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[502/619] Building CXX object tools\perplexity\CMakeFiles\llama-perplexity.dir\main.cpp.obj
+[503/619] Building CXX object tools\quantize\CMakeFiles\llama-quantize.dir\main.cpp.obj
+[504/619] Linking CXX static library tools\quantize\llama-quantize-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[505/619] Building CXX object tools\cli\CMakeFiles\llama-cli.dir\main.cpp.obj
+[506/619] Linking CXX static library tools\cli\llama-cli-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[507/619] Building CXX object tools\server\CMakeFiles\llama-server.dir\main.cpp.obj
+[508/619] Linking CXX static library tools\server\llama-server-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[509/619] Building CXX object tools\gguf-split\CMakeFiles\llama-gguf-split.dir\gguf-split.cpp.obj
+[510/619] Building CXX object tools\tokenize\CMakeFiles\llama-tokenize.dir\tokenize.cpp.obj
+[511/619] Building CXX object tools\mtmd\CMakeFiles\llama-llava-cli.dir\deprecation-warning.cpp.obj
+[512/619] Building CXX object tools\mtmd\CMakeFiles\llama-gemma3-cli.dir\deprecation-warning.cpp.obj
+[513/619] Building CXX object tools\mtmd\CMakeFiles\llama-minicpmv-cli.dir\deprecation-warning.cpp.obj
+[514/619] Building CXX object tests\CMakeFiles\test-chat.dir\test-chat.cpp.obj
+[515/619] Building CXX object tools\mtmd\CMakeFiles\llama-qwen2vl-cli.dir\deprecation-warning.cpp.obj
+[516/619] Building CXX object tools\mtmd\CMakeFiles\llama-mtmd-debug.dir\debug\mtmd-debug.cpp.obj
+[517/619] Building CXX object tools\imatrix\CMakeFiles\llama-imatrix.dir\imatrix.cpp.obj
+[518/619] Linking CXX static library tools\fit-params\llama-fit-params-impl.lib
+icx: warning: unknown argument ignored in clang-cl: '-machine:x64' [-Wunknown-argument]
+[519/619] Building CXX object tools\fit-params\CMakeFiles\llama-fit-params.dir\main.cpp.obj
+[520/619] Building CXX object tools\parser\CMakeFiles\llama-debug-template-parser.dir\debug-template-parser.cpp.obj
+[521/619] Building CXX object tools\mtmd\CMakeFiles\llama-mtmd-cli.dir\mtmd-cli.cpp.obj
+[522/619] Building CXX object tools\cvector-generator\CMakeFiles\llama-cvector-generator.dir\cvector-generator.cpp.obj
+[523/619] Building CXX object app\CMakeFiles\llama-app.dir\__\license.cpp.obj
+[524/619] Building CXX object tests\CMakeFiles\test-backend-ops.dir\test-backend-ops.cpp.obj
+[525/619] Building CXX object tools\parser\CMakeFiles\llama-template-analysis.dir\template-analysis.cpp.obj
+[526/619] Building CXX object app\CMakeFiles\llama-app.dir\llama.cpp.obj
+[527/619] Building CXX object tools\results\CMakeFiles\llama-results.dir\results.cpp.obj
+[528/619] Building CXX object tools\export-lora\CMakeFiles\llama-export-lora.dir\export-lora.cpp.obj
+[529/619] Building CXX object app\CMakeFiles\llama-app.dir\download.cpp.obj
+[530/619] Building CXX object tools\tts\CMakeFiles\llama-tts.dir\tts.cpp.obj
+[531/619] Linking CXX executable bin\test-llama-grammar.exe
+[532/619] Linking CXX executable bin\test-chat.exe
+[533/619] Linking CXX executable bin\test-tokenizer-0.exe
+[534/619] Linking CXX executable bin\test-grammar-integration.exe
+[535/619] Linking CXX executable bin\test-grammar-parser.exe
+[536/619] Linking CXX executable bin\test-reasoning-budget.exe
+[537/619] Linking CXX executable bin\test-sampling.exe
+[538/619] Linking CXX executable bin\test-json-schema-to-grammar.exe
+[539/619] Linking CXX executable bin\test-quantize-stats.exe
+[540/619] Linking CXX executable bin\test-gbnf-validator.exe
+[541/619] Linking CXX executable bin\test-tokenizer-1-bpe.exe
+[542/619] Linking CXX executable bin\test-tokenizer-1-spm.exe
+[543/619] Linking CXX executable bin\test-llama-archs.exe
+[544/619] Linking CXX executable bin\test-chat-auto-parser.exe
+[545/619] Linking CXX executable bin\test-chat-peg-parser.exe
+[546/619] Linking CXX executable bin\test-jinja.exe
+[547/619] Linking CXX executable bin\test-chat-template.exe
+[548/619] Linking CXX executable bin\test-log.exe
+[549/619] Linking CXX executable bin\test-arg-parser.exe
+[550/619] Linking CXX executable bin\test-thread-safety.exe
+[551/619] Linking CXX executable bin\test-opt.exe
+[552/619] Linking CXX executable bin\test-backend-ops.exe
+[553/619] Linking CXX executable bin\test-gguf.exe
+[554/619] Linking CXX executable bin\test-peg-parser.exe
+[555/619] Linking CXX executable bin\test-barrier.exe
+[556/619] Linking CXX executable bin\test-quantize-fns.exe
+[557/619] Linking CXX executable bin\test-quantize-perf.exe
+[558/619] Linking CXX executable bin\test-rope.exe
+[559/619] Linking CXX executable bin\test-col2im-1d.exe
+[560/619] Linking CXX executable bin\test-model-load-cancel.exe
+[561/619] Linking CXX executable bin\test-c.exe
+[562/619] Linking CXX executable bin\test-autorelease.exe
+[563/619] Linking CXX executable bin\test-backend-sampler.exe
+[564/619] Linking CXX executable bin\test-recurrent-state-rollback.exe
+[565/619] Linking CXX executable bin\test-state-restore-fragmented.exe
+[566/619] Linking CXX executable bin\test-save-load-state.exe
+[567/619] Linking CXX executable bin\test-alloc.exe
+[568/619] Linking CXX executable bin\llama-gguf-hash.exe
+[569/619] Linking CXX executable bin\llama-gguf.exe
+[570/619] Linking CXX executable bin\test-mtmd-c-api.exe
+[571/619] Linking CXX executable bin\test-export-graph-ops.exe
+[572/619] Linking CXX executable bin\llama-batched.exe
+[573/619] Linking CXX executable bin\llama-debug.exe
+[574/619] Linking CXX executable bin\llama-embedding.exe
+[575/619] Linking CXX executable bin\llama-eval-callback.exe
+[576/619] Linking CXX executable bin\llama-idle.exe
+[577/619] Linking CXX executable bin\llama-lookahead.exe
+[578/619] Linking CXX executable bin\llama-lookup.exe
+[579/619] Linking CXX executable bin\llama-lookup-create.exe
+[580/619] Linking CXX executable bin\llama-lookup-merge.exe
+[581/619] Linking CXX executable bin\llama-lookup-stats.exe
+[582/619] Linking CXX executable bin\llama-parallel.exe
+[583/619] Linking CXX executable bin\llama-passkey.exe
+[584/619] Linking CXX executable bin\llama-retrieval.exe
+[585/619] Linking CXX executable bin\llama-simple.exe
+[586/619] Linking CXX executable bin\llama-simple-chat.exe
+[587/619] Linking CXX executable bin\llama-vdot.exe
+[588/619] Linking CXX executable bin\llama-speculative.exe
+[589/619] Linking CXX executable bin\llama-speculative-simple.exe
+[590/619] Linking CXX executable bin\llama-gen-docs.exe
+[591/619] Linking CXX executable bin\llama-finetune.exe
+[592/619] Linking CXX executable bin\llama-diffusion-cli.exe
+[593/619] Linking CXX executable bin\llama-q8dot.exe
+[594/619] Linking CXX executable bin\llama-ls-sycl-device.exe
+[595/619] Linking CXX executable bin\llama-convert-llama2c-to-ggml.exe
+[596/619] Linking CXX executable bin\llama-batched-bench.exe
+[597/619] Linking CXX executable bin\llama-gguf-split.exe
+[598/619] Linking CXX executable bin\llama-imatrix.exe
+[599/619] Linking CXX executable bin\llama-bench.exe
+[600/619] Linking CXX executable bin\llama-completion.exe
+[601/619] Linking CXX executable bin\llama-perplexity.exe
+[602/619] Linking CXX executable bin\llama-llava-cli.exe
+[603/619] Linking CXX executable bin\llama-gemma3-cli.exe
+[604/619] Linking CXX executable bin\llama-minicpmv-cli.exe
+[605/619] Linking CXX executable bin\llama-qwen2vl-cli.exe
+[606/619] Linking CXX executable bin\llama-quantize.exe
+[607/619] Linking CXX executable bin\llama-cli.exe
+[608/619] Linking CXX executable bin\llama-tokenize.exe
+[609/619] Linking CXX executable bin\llama-server.exe
+[610/619] Linking CXX executable bin\llama-debug-template-parser.exe
+[611/619] Linking CXX executable bin\llama-template-analysis.exe
+[612/619] Linking CXX executable bin\llama-tts.exe
+[613/619] Linking CXX executable bin\llama-mtmd-cli.exe
+[614/619] Linking CXX executable bin\llama-mtmd-debug.exe
+[615/619] Linking CXX executable bin\llama-cvector-generator.exe
+[616/619] Linking CXX executable bin\llama-fit-params.exe
+[617/619] Linking CXX executable bin\llama-export-lora.exe
+[618/619] Linking CXX executable bin\llama-results.exe
+[619/619] Linking CXX executable bin\llama.exe

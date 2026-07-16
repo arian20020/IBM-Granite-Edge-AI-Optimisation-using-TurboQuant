@@ -1,0 +1,41 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-3b\bf16\granite-4.1-3b-bf16.gguf
+ftype      : BF16
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Supplied test facts:
+- The model is IBM Granite 4.1 3B.
+- The runtime is upstream llama.cpp.
+- The model weights use Q4_K_M.
+- The K and V caches use Q8_0.
+- The context length is 4096 tokens.
+- The test ran locally on a Windows Intel laptop.
+- This configuration is a baseline and does not activate TurboQuant.
+
+Summarise the supplied test facts in exactly two sentences. The summary must state the model, runtime, weight precision, both cache types, context length, local Windows Intel execution, a ... (truncated)
+
+The test utilized the IBM Granite 4.1 3B model with the upstream llama.cpp runtime, employing Q4_K_M weight precision and Q8_0 for both the K and V caches. The context length was set to 4096 tokens, and the test was executed locally on a Windows Intel laptop without activating TurboQuant.
+
+[ Prompt: 31.0 t/s | Generation: 6.3 t/s ]
+
+Exiting...

@@ -1,0 +1,30 @@
+{
+  "command": [
+    "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002\\bin\\Release\\llama-cli.exe",
+    "-m",
+    "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-8b\\q8_0\\granite-4.1-8b-Q8_0.gguf",
+    "-f",
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\granite_turboquant_intel\\prompts\\rendered\\P1.txt",
+    "-ngl",
+    "0",
+    "-ctk",
+    "f16",
+    "-ctv",
+    "f16",
+    "-c",
+    "2048",
+    "-n",
+    "16",
+    "--seed",
+    "42",
+    "--temp",
+    "0",
+    "--top-p",
+    "1",
+    "--simple-io",
+    "-cnv",
+    "-st",
+    "-v"
+  ],
+  "sample_id": "UL-06-sample-2"
+}

@@ -1,0 +1,46 @@
+CONTROLLED ENVIRONMENT REVIEW
+
+Environment ID: ENV-20260714-INTEL-LAPTOP-01
+Review UTC: 2026-07-14T18:33:10.2026064Z
+Review local: 2026-07-14T19:33:10.2026064+01:00
+Branch: testing/upstream-llama-cpp-formal-execution
+
+CPU:
+ - 12th Gen Intel(R) Core(TM) i5-12450H
+
+GPU:
+ - Intel(R) UHD Graphics
+
+NPU or AI accelerator: Microsoft Input Configuration Device
+Power source: AC mains
+Active power scheme: Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
+Available RAM bytes at review: 9505730560
+
+Thermal state:
+Not measured. No dependable cross-device Windows thermal sensor is used.
+
+Graphics-memory note:
+Integrated Intel graphics uses shared system memory. Runtime GPU-memory usage
+will be measured during the Vulkan or SYCL phase rather than guessed here.
+
+Route-specific tool note:
+Vulkan, oneAPI/SYCL, and OpenVINO versions are deferred until their relevant
+build or execution gates. They are not required for the UL-B01 clone gate.
+
+Top processes by accumulated CPU time at review:
+
+ProcessName        Id  CPUSeconds WorkingSet64
+-----------        --  ---------- ------------
+msedge           9396 5049.859375    686080000
+msedge           9996    1503.375    305639424
+msedge          10408     92.1875    312672256
+msedge           2500   28.296875     59297792
+WindowsTerminal 15916     24.3125    135700480
+SDXHelper       11236   21.390625     33251328
+msedge          10624   18.953125     26804224
+explorer        10668   17.671875    318447616
+powershell      16292   17.109375    160104448
+msedge           8124   10.984375     28270592
+
+
+

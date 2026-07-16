@@ -1,0 +1,124 @@
+{
+    "schema_version":  "1.0",
+    "campaign_id":  "GTQ-RETEST-v1",
+    "test_id":  "UL-B01",
+    "run_id":  "UL-B01-R004",
+    "route":  "upstream-llama-cpp",
+    "workbook_id":  "WB-01",
+    "run_purpose":  "Fetch and verify the exact official upstream llama.cpp tag and commit.",
+    "operator":  "Student",
+    "timestamps":  {
+                       "start_utc":  "2026-07-14T18:49:15.6486704Z",
+                       "end_utc":  "2026-07-14T18:57:05.3793052Z",
+                       "start_local":  "2026-07-14T19:49:15.6486704+01:00",
+                       "end_local":  "2026-07-14T19:57:05.3793052+01:00",
+                       "timezone":  "GMT Standard Time"
+                   },
+    "references":  {
+                       "environment_id":  "ENV-20260714-INTEL-LAPTOP-01",
+                       "repository_id":  "REPO-UPSTREAM-LLAMA-CPP-B9870",
+                       "build_id":  "",
+                       "model_id":  "",
+                       "configuration_id":  "UL-B01-EXACT-SOURCE",
+                       "prompt_set_id":  "GTQ-PROMPTS-v1",
+                       "prompt_id":  "",
+                       "rubric_id":  "GTQ-QUALITY-RUBRIC-v1"
+                   },
+    "execution":  {
+                      "working_directory":  "C:\\Users\\Student\\gtq-src\\llama-b9870-R004",
+                      "command_path":  "",
+                      "environment_variables_path":  "",
+                      "exit_code":  0,
+                      "requested_backend":  "Git source control",
+                      "actual_backend":  "Git source control",
+                      "requested_device":  "Windows host",
+                      "actual_device":  "Windows host",
+                      "requested_offload":  "Not applicable",
+                      "actual_model_layer_placement":  "",
+                      "actual_kv_placement":  "",
+                      "k_cache_type":  "",
+                      "v_cache_type":  "",
+                      "optimisation_name":  "None",
+                      "optimisation_requested":  false,
+                      "optimisation_activated":  false,
+                      "activation_proof_path":  "",
+                      "silent_fallback_check":  "",
+                      "fallback_observed":  false
+                  },
+    "generation":  {
+                       "seed":  42,
+                       "sampling_settings":  {
+
+                                             },
+                       "max_output_tokens":  0,
+                       "context_target_tokens":  0,
+                       "actual_input_tokens":  0,
+                       "actual_output_tokens":  0
+                   },
+    "correctness":  {
+                        "model_load_success":  false,
+                        "generation_success":  false,
+                        "output_completion_status":  "Completed",
+                        "deterministic_check_result":  "Exact tag, commit, official remote and clean working tree verified after Windows long-path recovery",
+                        "schema_or_format_valid":  "",
+                        "required_facts_retained":  "",
+                        "unsupported_statements_count":  0,
+                        "long_context_result":  "",
+                        "multi_turn_result":  ""
+                    },
+    "performance":  {
+                        "model_load_time_ms":  null,
+                        "ttft_ms":  null,
+                        "prompt_processing_tokens_per_second":  null,
+                        "tpot_ms":  null,
+                        "decode_tokens_per_second":  null,
+                        "total_generation_time_ms":  null,
+                        "perplexity":  null
+                    },
+    "resources":  {
+                      "peak_working_set_bytes":  null,
+                      "peak_private_bytes":  null,
+                      "available_ram_before_bytes":  null,
+                      "minimum_available_ram_during_bytes":  null,
+                      "available_ram_after_bytes":  null,
+                      "kv_cache_allocated_bytes":  null,
+                      "gpu_dedicated_peak_bytes":  null,
+                      "gpu_shared_peak_bytes":  null,
+                      "cpu_mean_percent":  null,
+                      "cpu_peak_percent":  null,
+                      "gpu_engine_mean_percent":  null,
+                      "gpu_engine_peak_percent":  null
+                  },
+    "procedure":  {
+                      "pilot_warmup_or_measured":  "Setup gate",
+                      "repetition_number":  1,
+                      "included_in_formal_statistics":  false
+                  },
+    "quality":  {
+                    "score_0_to_10":  null,
+                    "criterion_scores_path":  "",
+                    "repetition_corruption_or_truncation":  "",
+                    "stability_result":  ""
+                },
+    "evidence":  {
+                     "stdout_path":  "",
+                     "stderr_path":  "",
+                     "raw_response_path":  "",
+                     "resource_samples_path":  "",
+                     "device_proof_path":  "",
+                     "processed_result_path":  "experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B01/UL-B01-R004/Windows-Long-Path-Recovery.md",
+                     "hash_manifest_path":  ""
+                 },
+    "classification":  {
+                           "result":  "Passed",
+                           "result_reason":  "Official tag b9870 resolved to the pinned commit; the missing long-path file was restored; the official remote and clean working tree were verified.",
+                           "failure_ids":  [
+
+                                           ],
+                           "missing_data_codes":  [
+
+                                                  ],
+                           "next_action":  "Run UL-B02-R001 to configure the clean x64 CPU Release build using a short external build path."
+                       },
+    "notes":  "The initial R004 checkout omitted one tracked file because of the Windows absolute-path length. The source was moved to a shorter directory and core.longpaths was enabled before restoring the exact file from HEAD."
+}

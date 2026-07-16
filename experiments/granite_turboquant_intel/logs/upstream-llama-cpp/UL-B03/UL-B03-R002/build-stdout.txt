@@ -1,0 +1,848 @@
+MSBuild version 18.7.8+1ac568fee for .NET Framework
+
+  1>Checking Build System
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/ui/CMakeLists.txt
+  sha1.c
+  sha256.c
+  embed.cpp
+  sha1.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\gguf-hash\sha1.dir\Release\sha1.lib
+  sha256.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\gguf-hash\sha256.dir\Release\sha256.lib
+  xxhash.c
+  xxhash.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\gguf-hash\xxhash.dir\Release\xxhash.lib
+  llama-ui-embed.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\ui\Release\llama-ui-embed.exe
+  1>Provisioning UI assets
+  CMake Warning at C:/Users/Student/gtq-src/llama-b9870-R004/scripts/ui-assets.cmake:353 (message):
+    UI: no assets available - building without an embedded UI.  In a
+    disconnected environment, download the pre-built UI from a llama.cpp
+    release at https://github.com/ggml-org/llama.cpp/releases and extract to
+    tools/ui/dist.
+  
+  
+  embed: write output file C:/Users/Student/gtq-build/llama-b9870-cpu-release-002/tools/ui/ui.h
+  embed: write output file C:/Users/Student/gtq-build/llama-b9870-cpu-release-002/tools/ui/ui.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/ui/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/vendor/cpp-httplib/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/common/CMakeLists.txt
+  ggml.c
+  ggml-alloc.c
+  ggml.cpp
+  build-info.cpp
+cl : command line  warning D9025: overriding '/W1' with '/w' [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\vendor\cpp-httplib\cpp-httplib.vcxproj]
+  httplib.cpp
+  ggml-backend-meta.cpp
+  ggml-backend.cpp
+  ggml-opt.cpp
+  gguf.cpp
+  ggml-threading.cpp
+  ggml-quants.c
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  llama-common-base.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\common\Release\llama-common-base.lib
+  deprecation-warning.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  deprecation-warning.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/ui/CMakeLists.txt
+  deprecation-warning.cpp
+  llama-minicpmv-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-minicpmv-cli.exe
+  ui.cpp
+  llama-gemma3-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-gemma3-cli.exe
+  deprecation-warning.cpp
+  llama-llava-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-llava-cli.exe
+  ggml-base.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\ggml\src\Release\ggml-base.lib
+  llama-ui.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\ui\Release\llama-ui.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/CMakeLists.txt
+  ggml-cpu.cpp
+  ggml-cpu.c
+  vec.cpp
+  quants.c
+  hbm.cpp
+  amx.cpp
+  repack.cpp
+  traits.cpp
+  binary-ops.cpp
+  mmq.cpp
+  unary-ops.cpp
+  llama-qwen2vl-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-qwen2vl-cli.exe
+  ops.cpp
+  sgemm.cpp
+  quants.c
+  repack.cpp
+  ggml-cpu.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\ggml\src\Release\ggml-cpu.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/CMakeLists.txt
+  ggml-backend-dl.cpp
+  ggml-backend-reg.cpp
+  ggml.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\ggml\src\Release\ggml.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/src/CMakeLists.txt
+  gguf.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  llama.cpp
+  llama-adapter.cpp
+  llama-cparams.cpp
+  llama-graph.cpp
+  llama-context.cpp
+  llama-hparams.cpp
+  llama-grammar.cpp
+  llama-chat.cpp
+  llama-arch.cpp
+  llama-batch.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\memory(3666,56): warning C4244: 'argument': conversion from 'const int64_t' to 'uint32_t', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-graph.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\memory(3666,56):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-graph.cpp(2268,21):
+          see reference to function template instantiation 'std::unique_ptr<llm_graph_input_out_ids,std::default_delete<llm_graph_input_out_ids>> std::make_unique<llm_graph_input_out_ids,const llama_hparams&,const llama_cparams&,const int64_t&,0>(const llama_hparams &,const llama_cparams &,const int64_t &)' being compiled
+  
+  gguf-hash.cpp
+  llama-gguf.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-gguf.exe
+  cpp-httplib.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\vendor\cpp-httplib\Release\cpp-httplib.lib
+  llama-io.cpp
+  llama-impl.cpp
+  llama-kv-cache.cpp
+  llama-gguf-hash.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-gguf-hash.exe
+  llama-kv-cache-iswa.cpp
+  llama-memory-hybrid-iswa.cpp
+  llama-kv-cache-dsv4.cpp
+  llama-memory-hybrid.cpp
+  llama-memory.cpp
+  llama-kv-cache-dsa.cpp
+  llama-mmap.cpp
+  llama-memory-recurrent.cpp
+  llama-model-loader.cpp
+  llama-model-saver.cpp
+  llama-model.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244: 'initializing': conversion from '_Ty' to '_Ty2', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:             _Ty=int64_t [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         and [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:             _Ty2=uint32_t [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-model.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(525,29):
+          see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,int64_t,0>(_Other1,_Other2 &&) noexcept' being compiled
+          with
+          [
+              _Other1=const int64_t &,
+              _Other2=int64_t
+          ]
+              C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(525,21):
+              see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_424fd24dafc2802ed57b1a6a3a1c2e4b>::operator ()'
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244: 'initializing': conversion from 'const int64_t' to '_Ty2', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:             _Ty2=uint32_t [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-model.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(528,29):
+          see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,const int64_t&,0>(_Other1,_Other2) noexcept' being compiled
+          with
+          [
+              _Other1=const int64_t &,
+              _Other2=const int64_t &
+          ]
+              C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(528,21):
+              see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_424fd24dafc2802ed57b1a6a3a1c2e4b>::operator ()'
+  
+  llama-quant.cpp
+  unicode-data.cpp
+  llama-vocab.cpp
+  llama-sampler.cpp
+  afmoe.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\type_traits(1811,98): warning C4244: 'argument': conversion from 'unsigned __int64' to 'int', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-quant.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\type_traits(1811,98):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-quant.cpp(276,17):
+          see reference to function template instantiation 'std::thread &std::vector<std::thread,std::allocator<std::thread>>::emplace_back<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,uint8_t*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,uint8_t *&&,float *&&,size_t &)' being compiled
+              C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-quant.cpp(276,29):
+              see the first reference to 'std::vector<std::thread,std::allocator<std::thread>>::emplace_back' in 'llama_tensor_dequantize_impl'
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(927,24):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=std::thread
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(847,20):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=std::thread
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(865,27):
+          see reference to function template instantiation 'void std::_Default_allocator_traits<_Alloc>::construct<_Ty,llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,unsigned char*,float*,size_t&>(_Alloc &,_Objty *const ,llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Alloc=std::allocator<std::thread>,
+              _Ty=std::thread,
+              _Objty=std::thread
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xmemory(732,82):
+          see reference to function template instantiation 'std::thread::thread<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,_Ty,float*,size_t&,0>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=uint8_t *,
+              _Fn=llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(93,9):
+          see reference to function template instantiation 'void std::thread::_Start<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,_Ty,float*,size_t&>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=uint8_t *,
+              _Fn=llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(76,40):
+          see reference to function template instantiation 'unsigned int (__cdecl *std::thread::_Get_invoke<std::thread::_Start::_Tuple,0,1,2,3,4>(std::integer_sequence<size_t,0,1,2,3,4>) noexcept)(void *) noexcept' being compiled
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(67,17):
+          see reference to function template instantiation 'unsigned int std::thread::_Invoke<_Tuple,0,1,2,3,4>(void *) noexcept' being compiled
+          with
+          [
+              _Tuple=std::thread::_Start::_Tuple
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(60,14):
+          see reference to function template instantiation 'void std::invoke<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>,ggml_type,uint8_t*,_Ty*,unsigned __int64>(_Callable &&,_Ty1 &&,uint8_t *&&,_Ty *&&,unsigned __int64 &&) noexcept(false)' being compiled
+          with
+          [
+              _Ty=float,
+              _Callable=llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>,
+              _Ty1=ggml_type
+          ]
+  
+  unicode.cpp
+  apertus.cpp
+  arcee.cpp
+  arctic.cpp
+  arwkv7.cpp
+  baichuan.cpp
+  bailingmoe.cpp
+  bailingmoe2.cpp
+  bloom.cpp
+  bert.cpp
+  bitnet.cpp
+  chameleon.cpp
+  codeshell.cpp
+  chatglm.cpp
+  cogvlm.cpp
+  cohere2.cpp
+  cohere2moe.cpp
+  command-r.cpp
+  dbrx.cpp
+  deci.cpp
+  deepseek.cpp
+  deepseek2.cpp
+  deepseek2ocr.cpp
+  deepseek32.cpp
+  deepseek4.cpp
+  delta-net-base.cpp
+  dflash.cpp
+  dots1.cpp
+  dream.cpp
+  eagle3.cpp
+  ernie4-5-moe.cpp
+  ernie4-5.cpp
+  exaone-moe.cpp
+  eurobert.cpp
+  exaone.cpp
+  falcon-h1.cpp
+  exaone4.cpp
+  falcon.cpp
+  gemma-embedding.cpp
+  gemma.cpp
+  gemma2.cpp
+  gemma3.cpp
+  gemma3n.cpp
+  gemma4-assistant.cpp
+  gemma4.cpp
+  glm-dsa.cpp
+  glm4-moe.cpp
+  glm4.cpp
+  gpt2.cpp
+  gptneox.cpp
+  granite-hybrid.cpp
+  granite-moe.cpp
+  granite.cpp
+  grok.cpp
+  grovemoe.cpp
+  hunyuan-dense.cpp
+  hunyuan-moe.cpp
+  hunyuan-vl.cpp
+  internlm2.cpp
+  jais.cpp
+  jais2.cpp
+  jamba.cpp
+  jina-bert-v3.cpp
+  jina-bert-v2.cpp
+  kimi-linear.cpp
+  lfm2.cpp
+  lfm2moe.cpp
+  llada-moe.cpp
+  llada.cpp
+  llama-embed.cpp
+  llama.cpp
+  llama4.cpp
+  maincoder.cpp
+  mamba-base.cpp
+  mamba.cpp
+  mamba2.cpp
+  mellum.cpp
+  mimo2.cpp
+  minicpm.cpp
+  minicpm3.cpp
+  minimax-m2.cpp
+  mistral3.cpp
+  mistral4.cpp
+  modern-bert.cpp
+  mpt.cpp
+  nemotron-h-moe.cpp
+  nemotron-h.cpp
+  nemotron.cpp
+  neo-bert.cpp
+  nomic-bert-moe.cpp
+  nomic-bert.cpp
+  olmo.cpp
+  olmo2.cpp
+  openai-moe.cpp
+  olmoe.cpp
+  orion.cpp
+  openelm.cpp
+  paddleocr.cpp
+  pangu-embed.cpp
+  phi2.cpp
+  phi3.cpp
+  phimoe.cpp
+  plamo2.cpp
+  plamo.cpp
+  plamo3.cpp
+  plm.cpp
+  qwen.cpp
+  qwen2.cpp
+  qwen2moe.cpp
+  qwen2vl.cpp
+  qwen3.cpp
+  qwen35.cpp
+  qwen35moe.cpp
+  qwen3moe.cpp
+  qwen3next.cpp
+  qwen3vl.cpp
+  qwen3vlmoe.cpp
+  refact.cpp
+  rnd1.cpp
+  rwkv6-base.cpp
+  rwkv6qwen2.cpp
+  rwkv6.cpp
+  rwkv7.cpp
+  rwkv7-base.cpp
+  seed-oss.cpp
+  smallthinker.cpp
+  smollm3.cpp
+  stablelm.cpp
+  starcoder.cpp
+  starcoder2.cpp
+  step35.cpp
+  t5.cpp
+  t5encoder.cpp
+  talkie.cpp
+  wavtokenizer-dec.cpp
+  xverse.cpp
+  llama.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\src\Release\llama.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/simple/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/simple-chat/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/common/CMakeLists.txt
+  simple-chat.cpp
+  simple.cpp
+  test-c.c
+  conformer.cpp
+  mtmd.cpp
+  dotsocr.cpp
+  mtmd-image.cpp
+  cogvlm.cpp
+  mtmd-helper.cpp
+  mtmd-audio.cpp
+  clip.cpp
+  exaone4_5.cpp
+  gemma4a.cpp
+  test-c.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-c.exe
+  arg.cpp
+  gemma4ua.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:             _Ty=double [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+  (compiling source file '../../../../gtq-src/llama-b9870-R004/tools/mtmd/mtmd-audio.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\mtmd-audio.cpp(321,18):
+          see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+          with
+          [
+              _Ty=float,
+              _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+          ]
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:             _Ty=int [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+  (compiling source file '../../../../gtq-src/llama-b9870-R004/tools/mtmd/mtmd-audio.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\mtmd-audio.cpp(405,14):
+          see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,int>(const _FwdIt,const _FwdIt,const int &)' being compiled
+          with
+          [
+              _Ty=float,
+              _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+          ]
+  
+  llama-simple.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-simple.exe
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:             _Ty=double [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\mtmd.vcxproj]
+  (compiling source file '../../../../gtq-src/llama-b9870-R004/tools/mtmd/clip.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\clip.cpp(3916,38):
+          see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+          with
+          [
+              _Ty=float,
+              _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+          ]
+  
+  llama-simple-chat.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-simple-chat.exe
+  chat-auto-parser-generator.cpp
+  gemma4v.cpp
+  hf-cache.cpp
+  debug.cpp
+  glm4v.cpp
+  granite-speech.cpp
+  chat.cpp
+  kimivl.cpp
+  download.cpp
+  common.cpp
+  fit.cpp
+  internvl.cpp
+  granite4-vision.cpp
+  minicpmv.cpp
+  kimik25.cpp
+  gemma4uv.cpp
+  hunyuanvl.cpp
+  llama4.cpp
+  mimovl.cpp
+  qwen2vl.cpp
+  nemotron-v2-vl.cpp
+  paddleocr.cpp
+  llava.cpp
+  whisper-enc.cpp
+  llguidance.cpp
+  imatrix-loader.cpp
+  console.cpp
+  siglip.cpp
+  deepseekocr2.cpp
+  pixtral.cpp
+  log.cpp
+  qwen3a.cpp
+  yasa2.cpp
+  deepseekocr.cpp
+  youtuvl.cpp
+  ngram-map.cpp
+  chat-auto-parser-helpers.cpp
+  chat-peg-parser.cpp
+  chat-diff-analyzer.cpp
+  ngram-mod.cpp
+  json-schema-to-grammar.cpp
+  qwen3vl.cpp
+  reasoning-budget.cpp
+  ngram-cache.cpp
+  mobilenetv5.cpp
+  preset.cpp
+  step3vl.cpp
+  speculative.cpp
+  sampling.cpp
+  unicode.cpp
+  lexer.cpp
+  peg-parser.cpp
+  runtime.cpp
+  parser.cpp
+  value.cpp
+  mtmd.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\mtmd\Release\mtmd.lib
+  caps.cpp
+  string.cpp
+  llama-common.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\common\Release\llama-common.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/training/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/tokenize/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/parallel/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/speculative-simple/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/speculative/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/idle/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/convert-llama2c-to-ggml/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/tts/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/parser/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/imatrix/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/pocs/vdot/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/pocs/vdot/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/passkey/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/results/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/parser/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/batched-bench/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/gguf-split/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/retrieval/CMakeLists.txt
+  batched-bench.cpp
+  get-model.cpp
+  test-thread-safety.cpp
+  get-model.cpp
+  q8dot.cpp
+  test-log.cpp
+  test-jinja.cpp
+  get-model.cpp
+  lookup.cpp
+  gguf-split.cpp
+  test-gbnf-validator.cpp
+  test-chat-peg-parser.cpp
+  get-model.cpp
+  simple-tokenize.cpp
+  lookup-create.cpp
+  retrieval.cpp
+  imatrix.cpp
+  get-model.cpp
+  test-arg-parser.cpp
+  test-tokenizer-0.cpp
+  test-quantize-stats.cpp
+  llama-q8dot.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-q8dot.exe
+  test-model-load-cancel.cpp
+  llama-batched-bench-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\batched-bench\Release\llama-batched-bench-impl.lib
+  get-model.cpp
+  test-model-load-cancel.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-model-load-cancel.exe
+  test-thread-safety.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-thread-safety.exe
+  parallel.cpp
+  get-model.cpp
+  test-gguf.cpp
+C:\Users\Student\gtq-src\llama-b9870-R004\tests\test-gguf.cpp(676,28): warning C4319: '~': zero extending 'uint32_t' to 'size_t' of greater size [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tests\test-gguf.vcxproj]
+  test-tokenizer-1-bpe.cpp
+  llama-lookup-create.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-lookup-create.exe
+  llama-retrieval.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-retrieval.exe
+  debug-template-parser.cpp
+  test-reasoning-budget.cpp
+  get-model.cpp
+  convert-llama2c-to-ggml.cpp
+  test-grammar-parser.cpp
+  get-model.cpp
+  test-gguf.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-gguf.exe
+  finetune.cpp
+  test-tokenizer-1-spm.cpp
+  test-tokenizer-1-bpe.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-tokenizer-1-bpe.exe
+  llama-imatrix.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-imatrix.exe
+  get-model.cpp
+  test-recurrent-state-rollback.cpp
+  test-quantize-stats.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-quantize-stats.exe
+  llama-convert-llama2c-to-ggml.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-convert-llama2c-to-ggml.exe
+  test-tokenizer-1-spm.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-tokenizer-1-spm.exe
+  llama-gguf-split.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-gguf-split.exe
+  test-gbnf-validator.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-gbnf-validator.exe
+  test-grammar-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-grammar-parser.exe
+  speculative-simple.cpp
+  test-sampling.cpp
+  get-model.cpp
+  test-arg-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-arg-parser.exe
+  llama-lookup.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-lookup.exe
+  llama-finetune.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-finetune.exe
+  llama-parallel.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-parallel.exe
+  test-quantize-fns.cpp
+  test-json-schema-to-grammar.cpp
+  get-model.cpp
+  get-model.cpp
+  tokenize.cpp
+  test-reasoning-budget.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-reasoning-budget.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  get-model.cpp
+  test-recurrent-state-rollback.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-recurrent-state-rollback.exe
+  test-backend-sampler.cpp
+  test-tokenizer-0.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-tokenizer-0.exe
+  test-sampling.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-sampling.exe
+  get-model.cpp
+  test-chat-template.cpp
+  template-analysis.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/perplexity/CMakeLists.txt
+  perplexity.cpp
+  test-jinja.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-jinja.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/llama-bench/CMakeLists.txt
+  llama-debug-template-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-debug-template-parser.exe
+  llama-bench.cpp
+  test-chat-peg-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-chat-peg-parser.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  lookup-merge.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/export-lora/CMakeLists.txt
+  export-lora.cpp
+  test-basic.cpp
+  test-python-dict-parser.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookahead/CMakeLists.txt
+  test-backend-sampler.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-backend-sampler.exe
+  llama-lookup-merge.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-lookup-merge.exe
+  test-unicode.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/quantize/CMakeLists.txt
+  llama-perplexity-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\perplexity\Release\llama-perplexity-impl.lib
+  test-quantize-fns.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-quantize-fns.exe
+  llama-tokenize.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-tokenize.exe
+  test-peg-parser.cpp
+  lookahead.cpp
+  test-json-parser.cpp
+  get-model.cpp
+  test-json-serialization.cpp
+  test-json-schema-to-grammar.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-json-schema-to-grammar.exe
+  llama-export-lora.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-export-lora.exe
+  idle.cpp
+  test-gbnf-generation.cpp
+  simple-tokenize.cpp
+  test-save-load-state.cpp
+  quantize.cpp
+  get-model.cpp
+  test-quantize-perf.cpp
+  llama-template-analysis.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-template-analysis.exe
+  get-model.cpp
+  test-llama-grammar.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/debug/CMakeLists.txt
+  llama-speculative-simple.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-speculative-simple.exe
+  debug.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/completion/CMakeLists.txt
+  test-export-graph-ops.cpp
+  vdot.cpp
+  completion.cpp
+  test-chat-template.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-chat-template.exe
+  results.cpp
+  llama-bench-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\llama-bench\Release\llama-bench-impl.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/diffusion/CMakeLists.txt
+  diffusion.cpp
+  llama-lookahead.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-lookahead.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/cvector-generator/CMakeLists.txt
+  llama-quantize-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\quantize\Release\llama-quantize-impl.lib
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267: 'initializing': conversion from 'size_t' to '_Ty2', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:         with [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:         [ [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:             _Ty2=int32_t [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:         ] [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\diffusion\llama-diffusion.vcxproj]
+  (compiling source file '../../../../gtq-src/llama-b9870-R004/examples/diffusion/diffusion.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\examples\diffusion\diffusion.cpp(339,33):
+          see reference to function template instantiation 'std::pair<float,int32_t> &std::vector<std::pair<float,int32_t>,std::allocator<std::pair<float,int32_t>>>::emplace_back<float&,size_t&>(float &,size_t &)' being compiled
+              C:\Users\Student\gtq-src\llama-b9870-R004\examples\diffusion\diffusion.cpp(339,45):
+              see the first reference to 'std::vector<std::pair<float,int32_t>,std::allocator<std::pair<float,int32_t>>>::emplace_back' in 'diffusion_generate'
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(927,24):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<float&,size_t&>(float &,size_t &)' being compiled
+          with
+          [
+              _Ty=std::pair<float,int32_t>
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(847,20):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<float&,size_t&>(float &,size_t &)' being compiled
+          with
+          [
+              _Ty=std::pair<float,int32_t>
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(862,18):
+          see reference to function template instantiation 'void std::_Construct_in_place<std::pair<float,int32_t>,float&,size_t&>(_Ty &,float &,size_t &) noexcept' being compiled
+          with
+          [
+              _Ty=std::pair<float,int32_t>
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(661,61):
+          see reference to function template instantiation 'std::pair<float,int32_t>::pair<float&,size_t&,0>(_Other1,_Other2) noexcept' being compiled
+          with
+          [
+              _Other1=float &,
+              _Other2=size_t &
+          ]
+  
+C:\Users\Student\gtq-src\llama-b9870-R004\tools\completion\completion.cpp(427,19): warning C4804: '>': unsafe use of type 'bool' in operation [C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\completion\llama-completion-impl.vcxproj]
+  test-quantize-perf.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-quantize-perf.exe
+  cvector-generator.cpp
+  llama-vdot.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-vdot.exe
+  test-llama-grammar.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-llama-grammar.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/quantize/CMakeLists.txt
+  test-log.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-log.exe
+  llama-idle.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-idle.exe
+  test-state-restore-fragmented.cpp
+  get-model.cpp
+  test-rope.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/llama-bench/CMakeLists.txt
+  test-opt.cpp
+  get-model.cpp
+  get-model.cpp
+  test-llama-archs.cpp
+  passkey.cpp
+  test-save-load-state.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-save-load-state.exe
+  test-rope.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-rope.exe
+  test-export-graph-ops.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-export-graph-ops.exe
+  lookup-stats.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  llama-debug.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-debug.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gen-docs/CMakeLists.txt
+  test-grammar-integration.cpp
+  get-model.cpp
+  get-model.cpp
+  test-chat-auto-parser.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  test-col2im-1d.cpp
+  get-model.cpp
+  gen-docs.cpp
+  test-barrier.cpp
+  get-model.cpp
+  test-peg-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-peg-parser.exe
+  llama-results.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-results.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  llama-completion-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\completion\Release\llama-completion-impl.lib
+  test-autorelease.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/eval-callback/CMakeLists.txt
+  test-col2im-1d.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-col2im-1d.exe
+  eval-callback.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/fit-params/CMakeLists.txt
+  test-llama-archs.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-llama-archs.exe
+  fit-params.cpp
+  llama-cvector-generator.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-cvector-generator.exe
+  test-barrier.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-barrier.exe
+  test-backend-ops.cpp
+  get-model.cpp
+  get-model.cpp
+  test-alloc.cpp
+  llama-diffusion.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\examples\diffusion\Release\llama-diffusion.lib
+  tts.cpp
+  llama-passkey.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-passkey.exe
+  test-autorelease.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-autorelease.exe
+  speculative.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/diffusion/CMakeLists.txt
+  diffusion-cli.cpp
+  test-alloc.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-alloc.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/batched-bench/CMakeLists.txt
+  main.cpp
+  llama-lookup-stats.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-lookup-stats.exe
+  main.cpp
+  llama-eval-callback.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-eval-callback.exe
+  llama-fit-params-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\fit-params\Release\llama-fit-params-impl.lib
+  llama-batched-bench.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-batched-bench.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/fit-params/CMakeLists.txt
+  main.cpp
+  llama-bench.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-bench.exe
+  main.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/completion/CMakeLists.txt
+  main.cpp
+  llama-gen-docs.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-gen-docs.exe
+  llama-quantize.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-quantize.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/perplexity/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/server/CMakeLists.txt
+  llama-fit-params.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-fit-params.exe
+  server-queue.cpp
+  server-task.cpp
+  test-grammar-integration.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-grammar-integration.exe
+  server-chat.cpp
+  server-context.cpp
+  llama-completion.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-completion.exe
+  server-common.cpp
+  server-stream.cpp
+  server-tools.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  llama-speculative.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-speculative.exe
+  server-schema.cpp
+  mtmd-debug.cpp
+  mtmd-cli.cpp
+  test-chat-auto-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-chat-auto-parser.exe
+  main.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  llama-tts.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-tts.exe
+  test-mtmd-c-api.c
+  test-state-restore-fragmented.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-state-restore-fragmented.exe
+  get-model.cpp
+  test-backend-ops.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-backend-ops.exe
+  llama-diffusion-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-diffusion-cli.exe
+  llama-perplexity.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-perplexity.exe
+  llama-mtmd-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-mtmd-cli.exe
+  llama-mtmd-debug.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-mtmd-debug.exe
+  test-mtmd-c-api.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-mtmd-c-api.exe
+  test-opt.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-opt.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/embedding/CMakeLists.txt
+  embedding.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/batched/CMakeLists.txt
+  batched.cpp
+  llama-batched.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-batched.exe
+  server-context.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\server\Release\server-context.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/cli/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  llama-embedding.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-embedding.exe
+  cli.cpp
+  test-chat.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/server/CMakeLists.txt
+  server-models.cpp
+  server-http.cpp
+  server.cpp
+  llama-cli-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\cli\Release\llama-cli-impl.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/cli/CMakeLists.txt
+  main.cpp
+  llama-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-cli.exe
+  llama-server-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\tools\server\Release\llama-server-impl.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/app/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/server/CMakeLists.txt
+  main.cpp
+  llama.cpp
+  download.cpp
+  license.cpp
+  llama-server.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-server.exe
+  llama-app.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama.exe
+  test-chat.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\test-chat.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/CMakeLists.txt

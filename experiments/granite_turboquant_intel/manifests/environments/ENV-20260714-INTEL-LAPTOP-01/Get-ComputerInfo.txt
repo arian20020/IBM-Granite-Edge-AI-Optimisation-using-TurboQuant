@@ -1,0 +1,241 @@
+﻿
+
+WindowsBuildLabEx                                       : 26100.1.amd64fre.
+                                                          ge_release.240331
+                                                          -1435
+WindowsCurrentVersion                                   : 6.3
+WindowsEditionId                                        : Core
+WindowsInstallationType                                 : Client
+WindowsInstallDateFromRegistry                          : 05/06/2026 
+                                                          14:25:16
+WindowsProductId                                        : 00342-22215-37556
+                                                          -AAOEM
+WindowsProductName                                      : Windows 10 Home
+WindowsRegisteredOrganization                           : 
+WindowsRegisteredOwner                                  : TSGAdmin
+WindowsSystemRoot                                       : C:\WINDOWS
+WindowsVersion                                          : 2009
+OSDisplayVersion                                        : 25H2
+BiosCharacteristics                                     : {7, 11, 12, 
+                                                          15...}
+BiosBIOSVersion                                         : {LENOVO - 1, 
+                                                          LTCN31WW, INSYDE 
+                                                          Corp. - 71234031}
+BiosBuildNumber                                         : 
+BiosCaption                                             : LTCN31WW
+BiosCodeSet                                             : 
+BiosCurrentLanguage                                     : en|US|iso8859-1,0
+BiosDescription                                         : LTCN31WW
+BiosEmbeddedControllerMajorVersion                      : 1
+BiosEmbeddedControllerMinorVersion                      : 31
+BiosFirmwareType                                        : Uefi
+BiosIdentificationCode                                  : 
+BiosInstallableLanguages                                : 8
+BiosInstallDate                                         : 
+BiosLanguageEdition                                     : 
+BiosListOfLanguages                                     : {en|US|iso8859-1,
+                                                          0, fr|FR|iso8859-
+                                                          1,0, 
+                                                          zh|TW|unicode,0, 
+                                                          ja|JP|unicode,0..
+                                                          .}
+BiosManufacturer                                        : LENOVO
+BiosName                                                : LTCN31WW
+BiosOtherTargetOS                                       : 
+BiosPrimaryBIOS                                         : True
+BiosReleaseDate                                         : 29/11/2023 
+                                                          00:00:00
+BiosSeralNumber                                         : PF4HMD0T
+BiosSMBIOSBIOSVersion                                   : LTCN31WW
+BiosSMBIOSMajorVersion                                  : 3
+BiosSMBIOSMinorVersion                                  : 4
+BiosSMBIOSPresent                                       : True
+BiosSoftwareElementState                                : Running
+BiosStatus                                              : OK
+BiosSystemBiosMajorVersion                              : 1
+BiosSystemBiosMinorVersion                              : 31
+BiosTargetOperatingSystem                               : 0
+BiosVersion                                             : LENOVO - 1
+CsAdminPasswordStatus                                   : Enabled
+CsAutomaticManagedPagefile                              : True
+CsAutomaticResetBootOption                              : True
+CsAutomaticResetCapability                              : True
+CsBootOptionOnLimit                                     : 
+CsBootOptionOnWatchDog                                  : 
+CsBootROMSupported                                      : True
+CsBootStatus                                            : {0, 0, 0, 39...}
+CsBootupState                                           : Normal boot
+CsCaption                                               : LENOVO-PF4HMD0T
+CsChassisBootupState                                    : Safe
+CsChassisSKUNumber                                      : SKU Number
+CsCurrentTimeZone                                       : 60
+CsDaylightInEffect                                      : True
+CsDescription                                           : AT/AT COMPATIBLE
+CsDNSHostName                                           : Lenovo-PF4HMD0T
+CsDomain                                                : WORKGROUP
+CsDomainRole                                            : StandaloneWorksta
+                                                          tion
+CsEnableDaylightSavingsTime                             : True
+CsFrontPanelResetStatus                                 : Disabled
+CsHypervisorPresent                                     : True
+CsInfraredSupported                                     : False
+CsInitialLoadInfo                                       : 
+CsInstallDate                                           : 
+CsKeyboardPasswordStatus                                : Disabled
+CsLastLoadInfo                                          : 
+CsManufacturer                                          : LENOVO
+CsModel                                                 : 83ER
+CsName                                                  : LENOVO-PF4HMD0T
+CsNetworkAdapters                                       : {Bluetooth 
+                                                          Network 
+                                                          Connection, WiFi}
+CsNetworkServerModeEnabled                              : True
+CsNumberOfLogicalProcessors                             : 12
+CsNumberOfProcessors                                    : 1
+CsProcessors                                            : {12th Gen 
+                                                          Intel(R) 
+                                                          Core(TM) 
+                                                          i5-12450H}
+CsOEMStringArray                                        : {Modern Preload}
+CsPartOfDomain                                          : False
+CsPauseAfterReset                                       : -1
+CsPCSystemType                                          : Mobile
+CsPCSystemTypeEx                                        : Mobile
+CsPowerManagementCapabilities                           : 
+CsPowerManagementSupported                              : 
+CsPowerOnPasswordStatus                                 : Disabled
+CsPowerState                                            : Unknown
+CsPowerSupplyState                                      : Safe
+CsPrimaryOwnerContact                                   : 
+CsPrimaryOwnerName                                      : TSGAdmin
+CsResetCapability                                       : Other
+CsResetCount                                            : -1
+CsResetLimit                                            : -1
+CsRoles                                                 : {LM_Workstation, 
+                                                          LM_Server, NT}
+CsStatus                                                : OK
+CsSupportContactDescription                             : 
+CsSystemFamily                                          : IdeaPad Slim 3 
+                                                          15IAH8
+CsSystemSKUNumber                                       : LENOVO_MT_83ER_BU
+                                                          _idea_FM_IdeaPad 
+                                                          Slim 3 15IAH8
+CsSystemType                                            : x64-based PC
+CsThermalState                                          : Safe
+CsTotalPhysicalMemory                                   : 16857817088
+CsPhyicallyInstalledMemory                              : 16777216
+CsUserName                                              : LENOVO-PF4HMD0T\S
+                                                          tudent
+CsWakeUpType                                            : PowerSwitch
+CsWorkgroup                                             : WORKGROUP
+OsName                                                  : Microsoft 
+                                                          Windows 11 Home
+OsType                                                  : WINNT
+OsOperatingSystemSKU                                    : WindowsHome
+OsVersion                                               : 10.0.26200
+OsCSDVersion                                            : 
+OsBuildNumber                                           : 26200
+OsHotFixes                                              : {KB5087051, 
+                                                          KB5054156, 
+                                                          KB5094126, 
+                                                          KB5094135}
+OsBootDevice                                            : \Device\HarddiskV
+                                                          olume1
+OsSystemDevice                                          : \Device\HarddiskV
+                                                          olume3
+OsSystemDirectory                                       : C:\WINDOWS\system
+                                                          32
+OsSystemDrive                                           : C:
+OsWindowsDirectory                                      : C:\WINDOWS
+OsCountryCode                                           : 44
+OsCurrentTimeZone                                       : 60
+OsLocaleID                                              : 0809
+OsLocale                                                : en-GB
+OsLocalDateTime                                         : 14/07/2026 
+                                                          19:18:46
+OsLastBootUpTime                                        : 13/07/2026 
+                                                          16:57:35
+OsUptime                                                : 1.02:21:10.975122
+                                                          0
+OsBuildType                                             : Multiprocessor 
+                                                          Free
+OsCodeSet                                               : 1252
+OsDataExecutionPreventionAvailable                      : True
+OsDataExecutionPrevention32BitApplications              : True
+OsDataExecutionPreventionDrivers                        : True
+OsDataExecutionPreventionSupportPolicy                  : OptIn
+OsDebug                                                 : False
+OsDistributed                                           : False
+OsEncryptionLevel                                       : 256
+OsForegroundApplicationBoost                            : Maximum
+OsTotalVisibleMemorySize                                : 16462712
+OsFreePhysicalMemory                                    : 9425460
+OsTotalVirtualMemorySize                                : 18690936
+OsFreeVirtualMemory                                     : 10157596
+OsInUseVirtualMemory                                    : 8533340
+OsTotalSwapSpaceSize                                    : 
+OsSizeStoredInPagingFiles                               : 2228224
+OsFreeSpaceInPagingFiles                                : 2112232
+OsPagingFiles                                           : {C:\pagefile.sys}
+OsHardwareAbstractionLayer                              : 10.0.26100.1
+OsInstallDate                                           : 05/06/2026 
+                                                          15:25:16
+OsManufacturer                                          : Microsoft 
+                                                          Corporation
+OsMaxNumberOfProcesses                                  : 4294967295
+OsMaxProcessMemorySize                                  : 137438953344
+OsMuiLanguages                                          : {en-GB}
+OsNumberOfLicensedUsers                                 : 
+OsNumberOfProcesses                                     : 218
+OsNumberOfUsers                                         : 2
+OsOrganization                                          : 
+OsArchitecture                                          : 64-bit
+OsLanguage                                              : en-GB
+OsProductSuites                                         : {TerminalServices
+                                                          SingleSession, 
+                                                          HomeEdition}
+OsOtherTypeDescription                                  : 
+OsPAEEnabled                                            : 
+OsPortableOperatingSystem                               : False
+OsPrimary                                               : True
+OsProductType                                           : WorkStation
+OsRegisteredUser                                        : TSGAdmin
+OsSerialNumber                                          : 00342-22215-37556
+                                                          -AAOEM
+OsServicePackMajorVersion                               : 0
+OsServicePackMinorVersion                               : 0
+OsStatus                                                : OK
+OsSuites                                                : {TerminalServices
+                                                          , TerminalService
+                                                          sSingleSession, 
+                                                          HomeEdition}
+OsServerLevel                                           : 
+KeyboardLayout                                          : en-GB
+TimeZone                                                : (UTC+00:00) 
+                                                          Dublin, 
+                                                          Edinburgh, 
+                                                          Lisbon, London
+LogonServer                                             : \\LENOVO-PF4HMD0T
+PowerPlatformRole                                       : Mobile
+HyperVisorPresent                                       : True
+HyperVRequirementDataExecutionPreventionAvailable       : 
+HyperVRequirementSecondLevelAddressTranslation          : 
+HyperVRequirementVirtualizationFirmwareEnabled          : 
+HyperVRequirementVMMonitorModeExtensions                : 
+DeviceGuardSmartStatus                                  : Off
+DeviceGuardRequiredSecurityProperties                   : {BaseVirtualizati
+                                                          onSupport}
+DeviceGuardAvailableSecurityProperties                  : {BaseVirtualizati
+                                                          onSupport, 
+                                                          SecureBoot, 
+                                                          DMAProtection, 
+                                                          5...}
+DeviceGuardSecurityServicesConfigured                   : {HypervisorEnforc
+                                                          edCodeIntegrity}
+DeviceGuardSecurityServicesRunning                      : {HypervisorEnforc
+                                                          edCodeIntegrity}
+DeviceGuardCodeIntegrityPolicyEnforcementStatus         : EnforcementMode
+DeviceGuardUserModeCodeIntegrityPolicyEnforcementStatus : EnforcementMode
+
+
+

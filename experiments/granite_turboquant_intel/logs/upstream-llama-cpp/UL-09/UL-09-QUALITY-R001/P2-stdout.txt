@@ -1,0 +1,36 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-3b\q4_k_m\granite-4.1-3b-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Describe one benefit, one limitation, and one verification check for TurboQuant KV-cache compression. Return exactly three non-empty lines in this order and use these exact labels: BENEFIT:, LIMITATION:, CHECK:. Do not add a title or any other text.
+
+BENEFIT: TurboQuant KV-cache compression reduces memory usage, allowing more data to be stored efficiently.
+
+LIMITATION: The compression may introduce latency due to additional decompression steps required during data retrieval.
+
+CHECK: Regular performance testing ensures that the compression ratio does not adversely affect query response times.
+
+[ Prompt: 53.8 t/s | Generation: 14.6 t/s ]
+
+Exiting...

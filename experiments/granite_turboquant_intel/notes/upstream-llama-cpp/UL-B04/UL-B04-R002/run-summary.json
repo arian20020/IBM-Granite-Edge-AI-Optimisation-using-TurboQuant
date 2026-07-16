@@ -1,0 +1,19 @@
+{
+    "schema_version":  "1.0",
+    "test_id":  "UL-B04",
+    "run_id":  "UL-B04-R002",
+    "result":  "Passed",
+    "exit_code":  0,
+    "start_utc":  "2026-07-15T01:31:04.7594428+00:00",
+    "end_utc":  "2026-07-15T01:32:05.1828251+00:00",
+    "start_local":  "2026-07-15T02:31:04.7606556+01:00",
+    "end_local":  "2026-07-15T02:32:05.1828251+01:00",
+    "total_tests":  52,
+    "failed_tests":  0,
+    "passed_percent":  100,
+    "repaired_dependency":  "Jinja2",
+    "python_version":  "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+    "jinja2_version":  "3.1.6",
+    "evidence_base_commit":  "e7af1be03e9a663203986c925e023850bec8d756",
+    "model_inference_run":  false
+}

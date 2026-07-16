@@ -1,0 +1,38 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-3b\q4_k_m\granite-4.1-3b-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+using custom system prompt
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Evidence paragraph 0001: The controlled Granite-TurboQuant campaign records exact models, commits, commands, devices, memory, speed, quality, failures, and evidence hashes. This paragraph is filler and does not contain the answer marker.
+
+Evidence paragraph 0002: The controlled Granite-TurboQuant campaign records exact models, commits, commands, devices, memory, speed, quality, failures, and evidence hashes. This paragraph is filler and does not contain the answer marker.
+
+Evidence paragraph 000 ... (truncated)
+
+Error: request (8707 tokens) exceeds the available context size (8192 tokens), try increasing it
+
+
+[ Prompt: 0.0 t/s | Generation: 0.0 t/s ]
+
+Exiting...

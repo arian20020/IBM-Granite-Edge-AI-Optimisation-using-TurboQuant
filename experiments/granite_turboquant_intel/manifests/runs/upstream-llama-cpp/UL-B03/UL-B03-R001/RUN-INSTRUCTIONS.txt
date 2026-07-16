@@ -1,0 +1,11 @@
+﻿Run ID: UL-B03-R001
+Test ID: UL-B03
+Route: upstream-llama-cpp
+
+Before execution:
+1. Complete every manifest reference and the exact command path.
+2. Save the command and environment variables before running it.
+3. Capture stdout and stderr separately.
+4. Record requested and actual backend, device, placement and optimisation.
+5. Label pilot, warm-up and measured repetitions correctly.
+6. Do not edit raw evidence after capture.

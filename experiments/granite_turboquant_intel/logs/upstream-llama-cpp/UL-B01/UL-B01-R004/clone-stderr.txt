@@ -1,0 +1,26 @@
+
+=== Initialize external repository ===
+
+=== Disable automatic CRLF conversion ===
+
+=== Use LF checkout ===
+
+=== Add official upstream remote ===
+
+=== Fetch exact official tag ===
+From https://github.com/ggml-org/llama.cpp
+ * [new tag]         b9870      -> b9870
+
+=== Checkout exact tag in detached state ===
+error: unable to create file tools/ui/src/lib/components/app/chat/ChatAttachments/ChatAttachmentsPreview/ChatAttachmentsPreviewCurrentItem/ChatAttachmentsPreviewCurrentItemUnavailable.svelte: Filename too long
+HEAD is now at 2d97363 chat: trim messages sent to StepFun parser (fixes long reasoning loops) (#25238)
+
+=== Read checked-out commit ===
+
+=== Resolve tag commit ===
+
+=== Confirm exact tag ===
+
+=== Read official remote URL ===
+
+=== Verify clean source working tree ===

@@ -1,0 +1,114 @@
+Test project C:/Users/Student/gtq-build/llama-b9870-vulkan-release-001
+      Start  1: test-tokenizer-0-bert-bge
+ 1/52 Test  #1: test-tokenizer-0-bert-bge ...........   Passed    0.14 sec
+      Start  2: test-tokenizer-0-command-r
+ 2/52 Test  #2: test-tokenizer-0-command-r ..........   Passed    0.82 sec
+      Start  3: test-tokenizer-0-deepseek-coder
+ 3/52 Test  #3: test-tokenizer-0-deepseek-coder .....   Passed    0.16 sec
+      Start  4: test-tokenizer-0-deepseek-llm
+ 4/52 Test  #4: test-tokenizer-0-deepseek-llm .......   Passed    0.35 sec
+      Start  5: test-tokenizer-0-falcon
+ 5/52 Test  #5: test-tokenizer-0-falcon .............   Passed    0.22 sec
+      Start  6: test-tokenizer-0-gemma-4
+ 6/52 Test  #6: test-tokenizer-0-gemma-4 ............   Passed    1.02 sec
+      Start  7: test-tokenizer-0-gpt-2
+ 7/52 Test  #7: test-tokenizer-0-gpt-2 ..............   Passed    0.17 sec
+      Start  8: test-tokenizer-0-llama-bpe
+ 8/52 Test  #8: test-tokenizer-0-llama-bpe ..........   Passed    0.54 sec
+      Start  9: test-tokenizer-0-llama-spm
+ 9/52 Test  #9: test-tokenizer-0-llama-spm ..........   Passed    0.13 sec
+      Start 10: test-tokenizer-0-mpt
+10/52 Test #10: test-tokenizer-0-mpt ................   Passed    0.18 sec
+      Start 11: test-tokenizer-0-phi-3
+11/52 Test #11: test-tokenizer-0-phi-3 ..............   Passed    0.13 sec
+      Start 12: test-tokenizer-0-qwen2
+12/52 Test #12: test-tokenizer-0-qwen2 ..............   Passed    0.44 sec
+      Start 13: test-tokenizer-0-qwen35
+13/52 Test #13: test-tokenizer-0-qwen35 .............   Passed    0.45 sec
+      Start 14: test-tokenizer-0-refact
+14/52 Test #14: test-tokenizer-0-refact .............   Passed    0.17 sec
+      Start 15: test-tokenizer-0-starcoder
+15/52 Test #15: test-tokenizer-0-starcoder ..........   Passed    0.17 sec
+      Start 16: test-sampling
+16/52 Test #16: test-sampling .......................   Passed    1.31 sec
+      Start 17: test-reasoning-budget
+17/52 Test #17: test-reasoning-budget ...............   Passed    0.02 sec
+      Start 18: test-grammar-parser
+18/52 Test #18: test-grammar-parser .................   Passed    0.02 sec
+      Start 19: test-grammar-integration
+19/52 Test #19: test-grammar-integration ............   Passed    0.03 sec
+      Start 20: test-llama-grammar
+20/52 Test #20: test-llama-grammar ..................   Passed    0.02 sec
+      Start 21: test-chat
+21/52 Test #21: test-chat ...........................   Passed    6.47 sec
+      Start 22: test-json-schema-to-grammar
+22/52 Test #22: test-json-schema-to-grammar .........   Passed    7.52 sec
+      Start 23: test-tokenizer-1-llama-spm
+23/52 Test #23: test-tokenizer-1-llama-spm ..........   Passed    0.38 sec
+      Start 24: test-llama-archs
+24/52 Test #24: test-llama-archs ....................   Passed   34.06 sec
+      Start 25: test-chat-peg-parser
+25/52 Test #25: test-chat-peg-parser ................   Passed    0.07 sec
+      Start 26: test-jinja
+26/52 Test #26: test-jinja ..........................   Passed    0.18 sec
+      Start 27: test-jinja-py
+27/52 Test #27: test-jinja-py .......................   Passed   40.11 sec
+      Start 28: test-chat-auto-parser
+28/52 Test #28: test-chat-auto-parser ...............   Passed    0.87 sec
+      Start 29: test-chat-template
+29/52 Test #29: test-chat-template ..................   Passed    0.19 sec
+      Start 30: test-log
+30/52 Test #30: test-log ............................   Passed    0.04 sec
+      Start 31: test-peg-parser
+31/52 Test #31: test-peg-parser .....................   Passed    0.04 sec
+      Start 32: test-download-model
+32/52 Test #32: test-download-model .................   Passed    0.13 sec
+      Start 33: test-thread-safety
+33/52 Test #33: test-thread-safety ..................   Passed    1.30 sec
+      Start 34: test-arg-parser
+34/52 Test #34: test-arg-parser .....................   Passed    0.33 sec
+      Start 35: test-opt
+35/52 Test #35: test-opt ............................   Passed    1.48 sec
+      Start 36: test-gguf
+36/52 Test #36: test-gguf ...........................   Passed    0.76 sec
+      Start 37: test-backend-ops
+37/52 Test #37: test-backend-ops ....................   Passed  532.37 sec
+      Start 38: test-model-load-cancel
+38/52 Test #38: test-model-load-cancel ..............   Passed    0.02 sec
+      Start 39: test-autorelease
+39/52 Test #39: test-autorelease ....................   Passed    0.02 sec
+      Start 40: test-backend-sampler
+40/52 Test #40: test-backend-sampler ................   Passed    0.02 sec
+      Start 41: test-state-restore-fragmented
+41/52 Test #41: test-state-restore-fragmented .......   Passed    0.43 sec
+      Start 42: test-recurrent-state-rollback
+42/52 Test #42: test-recurrent-state-rollback .......   Passed    0.28 sec
+      Start 43: test-save-load-state
+43/52 Test #43: test-save-load-state ................   Passed    0.60 sec
+      Start 44: test-barrier
+44/52 Test #44: test-barrier ........................   Passed    0.38 sec
+      Start 45: test-quantize-fns
+45/52 Test #45: test-quantize-fns ...................   Passed    4.88 sec
+      Start 46: test-quantize-perf
+46/52 Test #46: test-quantize-perf ..................   Passed    0.12 sec
+      Start 47: test-rope
+47/52 Test #47: test-rope ...........................   Passed    0.06 sec
+      Start 48: test-col2im-1d
+48/52 Test #48: test-col2im-1d ......................   Passed    0.02 sec
+      Start 49: test-mtmd-c-api
+49/52 Test #49: test-mtmd-c-api .....................   Passed    0.02 sec
+      Start 50: test-alloc
+50/52 Test #50: test-alloc ..........................   Passed    0.01 sec
+      Start 51: test-eval-callback-download-model
+51/52 Test #51: test-eval-callback-download-model ...   Passed    0.12 sec
+      Start 52: test-eval-callback
+52/52 Test #52: test-eval-callback ..................   Passed    0.34 sec
+
+100% tests passed, 0 tests failed out of 52
+
+Label Time Summary:
+main      = 598.02 sec*proc (42 tests)
+model     =   1.36 sec*proc (6 tests)
+python    =  40.11 sec*proc (1 test)
+
+Total Test time (real) = 640.35 sec

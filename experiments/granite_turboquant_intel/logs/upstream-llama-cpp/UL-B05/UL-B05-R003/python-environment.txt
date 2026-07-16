@@ -1,0 +1,2 @@
+﻿C:\Users\Student\gtq-venvs\llama-b9870-tests-R002\Scripts\python.exe
+3.1.6

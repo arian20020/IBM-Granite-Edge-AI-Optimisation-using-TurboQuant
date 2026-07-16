@@ -1,0 +1,37 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-8b\q4_k_m\granite-4.1-8b-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Return only valid JSON about a local LLM KV-cache test. Use exactly these top-level keys: optimisation, memory_effect, quality_risk, verification. Set optimisation to TurboQuant. Each other value must be a single short string. Do not use Markdown or add extra keys.
+
+{
+  "optimisation": "TurboQuant",
+  "memory_effect": "Reduced latency",
+  "quality_risk": "Minor accuracy degradation",
+  "verification": "Automated testing"
+}
+
+[ Prompt: 15.0 t/s | Generation: 6.9 t/s ]
+
+Exiting...

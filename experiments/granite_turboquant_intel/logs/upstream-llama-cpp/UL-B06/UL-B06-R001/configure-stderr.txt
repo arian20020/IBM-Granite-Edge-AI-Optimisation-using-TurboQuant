@@ -1,0 +1,16 @@
+CMAKE_BUILD_TYPE=Release
+CMake Warning (dev) at C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-4.3/Modules/CMakeDetermineASMCompiler.cmake:234 (message):
+  Policy CMP194 is not set: MSVC is not an assembler for language ASM.  Run
+  "cmake --help-policy CMP194" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  ggml/CMakeLists.txt:3 (project)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+Intel(R) oneAPI DPC++/C++ Compiler for applications running on Intel(R) 64, Version 2026.1.0 Build 20260617
+Copyright (C) 1985-2026 Intel Corporation. All rights reserved.
+
+CMake Warning at ggml/src/ggml-sycl/CMakeLists.txt:121 (message):
+  Level Zero loader or headers not found, Level Zero support disabled
+
+

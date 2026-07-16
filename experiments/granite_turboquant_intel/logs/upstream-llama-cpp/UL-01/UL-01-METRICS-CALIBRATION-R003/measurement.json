@@ -1,0 +1,12 @@
+{
+  "exit_code": 0,
+  "kv_mb": null,
+  "missing": [
+    "kv_mb"
+  ],
+  "peak_ram_mb": 937.125,
+  "sample_id": "calibration-r003",
+  "timed_out": false,
+  "ttft_ms": 1948.315,
+  "valid": false
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "test_id": "UL-B05",
+  "run_id": "UL-B05-R003",
+  "result": "Passed",
+  "exit_code": 0,
+  "start_utc": "2026-07-15T18:51:31.2155150Z",
+  "end_utc": "2026-07-15T19:02:12.0281615Z",
+  "source_commit": "2d973636e292ee6f75fadcf08d29cb33511f509f",
+  "build_directory": "C:\\Users\\Student\\gtq-build\\llama-b9870-vulkan-release-001",
+  "build_result_from_run": "UL-B05-R002",
+  "repository_tests_passed": 52,
+  "repository_tests_failed": 0,
+  "ctest_elapsed_seconds": 640.35,
+  "python_environment": "C:\\Users\\Student\\gtq-venvs\\llama-b9870-tests-R002",
+  "jinja2_version": "3.1.6",
+  "model_inference_run": false
+}
