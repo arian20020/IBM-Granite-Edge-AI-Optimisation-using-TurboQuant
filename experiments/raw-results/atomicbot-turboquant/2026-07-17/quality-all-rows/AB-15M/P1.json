@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **Benefit**: KV cache reduces memory usage by storing key-value pairs efficiently.\n- **Benefit**: Enables offline operation, allowing the model to run without internet access.\n- **Limitation**: Quantisation may degrade model accuracy due to reduced precision.\n- **Limitation**: Increased computational overhead during quantisation and dequantisation processes.\n- **Check**: Verify that the quantised model still meets the accuracy requirements for the intended task.",
+  "test_id": "AB-15M",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 26.203,
+  "output_sha256": "5ccbbcf154652d40f6569655dc10ed54947276925d18b600e48e69d8cc0c8823"
+}

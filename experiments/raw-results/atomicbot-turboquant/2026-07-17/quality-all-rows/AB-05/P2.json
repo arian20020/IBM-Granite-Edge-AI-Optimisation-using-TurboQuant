@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Improves data storage efficiency by reducing the size of quantized data.\n\nLIMITATION: May lead to increased computational overhead due to additional decompression steps.\n\nCHECK: Ensures that decompression accuracy is maintained during data retrieval.",
+  "test_id": "AB-05",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "turbo4",
+  "quality_context": 16384,
+  "elapsed_seconds": 6.031,
+  "output_sha256": "38717ce623a42596bebc31353db20f53bad5e52b75f5484ec8c62c13a99b3765"
+}

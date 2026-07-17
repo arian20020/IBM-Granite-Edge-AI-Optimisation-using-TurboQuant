@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- Benefit: Reduces memory footprint by quantising KV cache.\n- Limitation: May reduce model accuracy due to quantisation.\n- Benefit: Enables offline operation on memory-limited laptops.\n- Limitation: Requires careful tuning to ensure compatibility.\n- Check: User should verify model performance post-quantisation.",
+  "test_id": "AB-13",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 12.468,
+  "output_sha256": "e7b549ea54dc3f527b1782268a14f0ec417cd5a7e9535456f8477241f2a0326f"
+}

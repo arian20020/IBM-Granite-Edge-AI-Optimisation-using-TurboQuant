@@ -1,0 +1,5 @@
+- **KV cache** reduces memory usage by storing key-value pairs efficiently.  
+- Enables **offline** operation by minimizing data loading needs.  
+- **Benefit:** Faster inference due to reduced computational overhead.  
+- **Limitation:** Quantisation may degrade model accuracy.  
+- **Check:** Verify quantisation levels against acceptable accuracy thresholds.

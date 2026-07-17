@@ -1,0 +1,5 @@
+- KV cache reduces parameter access time, enabling offline operation.  
+- Offline mode conserves battery life on laptops.  
+- Memory usage is minimized, fitting within limited resources.  
+- Reduced latency improves response speed for local queries.  
+- Check: Verify the model size fits within the laptop's RAM constraints.

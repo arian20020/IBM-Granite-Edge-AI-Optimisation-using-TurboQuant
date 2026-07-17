@@ -1,0 +1,13 @@
+{
+  "prompt_id": "P5",
+  "status": "safety-blocked",
+  "output": "",
+  "error": "available RAM fell below 1536 MiB during server startup",
+  "test_id": "AB-15M",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 16384,
+  "elapsed_seconds": 0.0,
+  "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- KV cache reduces parameter access time, enabling offline operation.  \n- Offline mode conserves battery life on laptops.  \n- Memory usage is minimized, fitting within limited resources.  \n- Reduced latency improves response speed for local queries.  \n- Check: Verify the model size fits within the laptop's RAM constraints.",
+  "test_id": "AB-15",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-partial",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 17.375,
+  "output_sha256": "b4b9d1571cbec5fd38d7d94be62c713c6ce32592c97b432cb1d069e21374bc94"
+}

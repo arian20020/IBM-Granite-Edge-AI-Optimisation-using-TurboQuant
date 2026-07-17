@@ -1,0 +1,5 @@
+- **Benefit:** Reduces memory usage, enabling **KV cache** to run **offline** on limited hardware.  
+- **Benefit:** Speeds up inference by storing key-value pairs efficiently.  
+- **Limitation:** May degrade performance if quantisation precision is too low.  
+- **Limitation:** Could increase latency due to additional quantisation/dequantisation steps.  
+- **Check:** Verify quantisation levels against available memory to ensure compatibility.

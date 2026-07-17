@@ -1,0 +1,9 @@
+- **Benefit**: KV cache quantisation reduces memory usage, allowing the model to fit within limited memory constraints on an offline laptop.
+
+- **Benefit**: Quantisation enables faster inference, improving performance on limited hardware by reducing precision requirements.
+
+- **Limitation**: Quantisation may lead to a loss of model accuracy due to reduced bit-width representation.
+
+- **Limitation**: The model might become less precise because of quantisation, affecting performance on complex tasks.
+
+- **Check**: Ensure the model's performance is evaluated post-quantisation to confirm it meets the desired accuracy and efficiency goals.

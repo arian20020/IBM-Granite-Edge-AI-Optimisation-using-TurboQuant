@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: TurboQuant KV-cache compression reduces memory usage by efficiently storing data, allowing more information to fit within limited space.  \nLIMITATION: The compression may introduce latency during decompression, potentially impacting performance in real-time applications.  \nCHECK: Ensure decompression accuracy by verifying that decompressed data matches original input data bit-for-bit.",
+  "test_id": "AB-06",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 16384,
+  "elapsed_seconds": 7.688,
+  "output_sha256": "12bc3dc480ab31229683f5e5519527a05e74abe546f2c1dd641b3fd8885ded1c"
+}

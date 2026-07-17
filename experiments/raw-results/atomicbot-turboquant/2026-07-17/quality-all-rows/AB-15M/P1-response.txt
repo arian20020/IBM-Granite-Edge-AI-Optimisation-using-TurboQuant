@@ -1,0 +1,5 @@
+- **Benefit**: KV cache reduces memory usage by storing key-value pairs efficiently.
+- **Benefit**: Enables offline operation, allowing the model to run without internet access.
+- **Limitation**: Quantisation may degrade model accuracy due to reduced precision.
+- **Limitation**: Increased computational overhead during quantisation and dequantisation processes.
+- **Check**: Verify that the quantised model still meets the accuracy requirements for the intended task.

@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P3",
+  "status": "complete",
+  "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Reduced\",\n  \"quality_risk\": \"Minimal\",\n  \"verification\": \"Successful\"\n}",
+  "test_id": "AB-15",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-partial",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 11.234,
+  "output_sha256": "8fd83d4d0d2ecf5667fce297724551006c721223b8192ed889e323e779fa9462"
+}

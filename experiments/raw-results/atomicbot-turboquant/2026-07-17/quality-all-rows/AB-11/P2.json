@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: TurboQuant KV-cache compression reduces memory usage by storing data more compactly, allowing for higher data density in the cache.\n\nLIMITATION: The compression may introduce additional computational overhead for decompression, potentially impacting performance in latency-sensitive applications.\n\nCHECK: Regular verification of cache integrity and decompression accuracy ensures that data remains correct and accessible after compression.",
+  "test_id": "AB-11",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-partial",
+  "cache": "f16",
+  "quality_context": 4096,
+  "elapsed_seconds": 5.547,
+  "output_sha256": "96c661912a0e4f3ceb58126ab364276c3966464324e9585120bb647069ba5ea1"
+}

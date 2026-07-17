@@ -1,0 +1,6 @@
+{
+  "optimisation": "TurboQuant",
+  "memory_effect": "low",
+  "quality_risk": "low",
+  "verification": "manual"
+}

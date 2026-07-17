@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- KV cache reduces parameter storage, enabling offline operation.  \n- Memory constraints are eased by quantisation.  \n- Offline capability is enhanced with reduced model size.  \n- Quantisation may lower accuracy slightly.  \n- Quantisation can increase inference latency.  \n- Verify quantisation levels for acceptable performance.",
+  "test_id": "AB-09",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "turbo4",
+  "quality_context": 4096,
+  "elapsed_seconds": 14.187,
+  "output_sha256": "f94ce0d7c6f4b22d23639e313d95a03d654e1d25044b4e6201767ca324aadc83"
+}

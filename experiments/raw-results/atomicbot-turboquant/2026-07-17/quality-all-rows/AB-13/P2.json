@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: TurboQuant KV-cache compression reduces storage requirements by efficiently encoding data, leading to faster data retrieval and lower bandwidth usage.  \nLIMITATION: The compression may introduce overhead in decompression processes, potentially increasing computational load during data access.  \nCHECK: Verify that the compression ratio remains above 70% to ensure data integrity and avoid decompression errors.",
+  "test_id": "AB-13",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 12.281,
+  "output_sha256": "bec302e7e453b726e15c0dd2348a97842802caeeb2081145b3f93a2ea597a242"
+}

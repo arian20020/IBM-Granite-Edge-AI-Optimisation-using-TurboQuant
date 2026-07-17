@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P5",
+  "status": "complete",
+  "output": "MARKER: IXN-TQ-7319",
+  "test_id": "AB-04",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "q8_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 965.718,
+  "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+}

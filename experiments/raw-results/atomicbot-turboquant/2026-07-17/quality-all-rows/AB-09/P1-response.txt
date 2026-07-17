@@ -1,0 +1,6 @@
+- KV cache reduces parameter storage, enabling offline operation.  
+- Memory constraints are eased by quantisation.  
+- Offline capability is enhanced with reduced model size.  
+- Quantisation may lower accuracy slightly.  
+- Quantisation can increase inference latency.  
+- Verify quantisation levels for acceptable performance.

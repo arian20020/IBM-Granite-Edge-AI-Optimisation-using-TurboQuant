@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- Reduces model size for easier storage on limited memory.\n- Enables faster inference for real-time responses in offline mode.\n- **Check**: Ensure model performance meets desired accuracy thresholds.",
+  "test_id": "AB-05",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "turbo4",
+  "quality_context": 16384,
+  "elapsed_seconds": 5.344,
+  "output_sha256": "d3dadc06fa2a735c42f85bded56e53cd6b363f0e13f5c3c679f6b2fa9287b243"
+}

@@ -1,0 +1,746 @@
+{
+  "schema_version": 1,
+  "rows": [
+    {
+      "test_id": "AB-01",
+      "model_id": "gemma-3-1b",
+      "format": "F16",
+      "backend": "cpu",
+      "quality_mean": 6.225,
+      "prompts": {
+        "P1": {
+          "score": 9.0,
+          "deterministic_pass": true,
+          "response_sha256": "0ed6cbe79d0b67d980eeb907cbee929adabd41fa1515f055e7d97b6bf2375986"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "9888235a7f3bfad49c679db735b719145ee836bfe1bd599fdfb715067317a0a5"
+        },
+        "P3": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "8dcc3e75af2ba4d31a002fa1f25486e359447c0762598783637004fce470f58e"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c"
+        },
+        "P5": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-02",
+      "model_id": "gemma-3-1b",
+      "format": "turbo3",
+      "backend": "cpu",
+      "quality_mean": 5.3917,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "e852b5d02588bb68cb5cdba09ce6f97b85f8cc5e30b71d63ccb89ee218341e13"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "cbc46a12d3ed9ee8f533637e92d7a88cd73f5069addc9199a689e77123eaf6d8"
+        },
+        "P3": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "835923c15d0426c64d63c00037373b8c22c5fb3a4399137e142cd2362d2a8a58"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "0efeabc06f019f5c2bd4c8f15597dd1db0ebbba8371612ba17347307c6323ea5"
+        },
+        "P5": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "491094813ab33f8f992c348a3c6f79b6bc3dc2df1b521ca498f9214567e4fa9d"
+        }
+      }
+    },
+    {
+      "test_id": "AB-03",
+      "model_id": "granite-4.1-3b",
+      "format": "F16",
+      "backend": "cpu",
+      "quality_mean": 6.3917,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67"
+        },
+        "P3": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e"
+        },
+        "P5": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+        },
+        "P6": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2"
+        }
+      }
+    },
+    {
+      "test_id": "AB-KV3-F16-4K",
+      "model_id": "granite-4.1-3b",
+      "format": "F16",
+      "backend": "cpu",
+      "quality_mean": 6.3917,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67"
+        },
+        "P3": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e"
+        },
+        "P5": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+        },
+        "P6": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2"
+        }
+      }
+    },
+    {
+      "test_id": "AB-04",
+      "model_id": "granite-4.1-3b",
+      "format": "Q8_0",
+      "backend": "cpu",
+      "quality_mean": 6.725,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "8d1f5afbaee909ef173edb387f0b10c4783841aa2cf4ecac63e7dc0e73ccae97"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "f425733e6ffc9f2eb721db5e60e0ce59e957ebf812728eb4cc1ac3e994313c4d"
+        },
+        "P3": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "a98356a461c6fc7e2c08e0f6bf9567200d6948317d5702883ba02ce344797739"
+        },
+        "P5": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-05",
+      "model_id": "granite-4.1-3b",
+      "format": "turbo4",
+      "backend": "cpu",
+      "quality_mean": 6.8417,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "d3dadc06fa2a735c42f85bded56e53cd6b363f0e13f5c3c679f6b2fa9287b243"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "38717ce623a42596bebc31353db20f53bad5e52b75f5484ec8c62c13a99b3765"
+        },
+        "P3": {
+          "score": 8.7,
+          "deterministic_pass": true,
+          "response_sha256": "501ce96bff6c3c0751388f2172d3aa8beb60da4464e9c5041d5ee581812303bb"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "18982ca2cfc89c6d1f560cb69ac7feb2512b24ae62c61eb0ef7968e2da9d6246"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-06",
+      "model_id": "granite-4.1-3b",
+      "format": "turbo3",
+      "backend": "cpu",
+      "quality_mean": 5.95,
+      "prompts": {
+        "P1": {
+          "score": 9.0,
+          "deterministic_pass": true,
+          "response_sha256": "3363d3dcce600461ee093d19323c85db062f0dbc241b4a4ddea52098cf143f61"
+        },
+        "P2": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "12bc3dc480ab31229683f5e5519527a05e74abe546f2c1dd641b3fd8885ded1c"
+        },
+        "P3": {
+          "score": 8.7,
+          "deterministic_pass": true,
+          "response_sha256": "21b9c66c8bd359e62d9462422b9f632ec330097941d3caa85c3632f0db8094e0"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "b4c88c9d6212d1d1931a0cfc82643f8362ea84b78f3e1ffa2a3528a2baa876ee"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-07",
+      "model_id": "granite-4.1-3b",
+      "format": "turbo2",
+      "backend": "cpu",
+      "quality_mean": 0.7,
+      "prompts": {
+        "P1": {
+          "score": 0.55,
+          "deterministic_pass": false,
+          "response_sha256": "4d0283094c310eecec95dc2754d77406122a6d99323c55482cebcdf8b772a0e1"
+        },
+        "P2": {
+          "score": 0.65,
+          "deterministic_pass": false,
+          "response_sha256": "1660f6affa1a58dbcd3600759ffe24431c02d72be575cb12df43958b3d4d6b82"
+        },
+        "P3": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "2c846e7f43db3e2aadf6aa5b437ad0763091ed35746c0c5fce50c67f47a5c3da"
+        },
+        "P4": {
+          "score": 1.0,
+          "deterministic_pass": false,
+          "response_sha256": "4d3bec045ca16f6da8d8044dab76cf2be8067654c550524b2f0ac0741e365207"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    {
+      "test_id": "AB-08F",
+      "model_id": "granite-4.1-8b",
+      "format": "F16",
+      "backend": "cpu",
+      "quality_mean": 5.6917,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "49dbbc04932425930491d4d75d6a523a1e7bc95ca69c2f93e36124479fe9bde6"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3"
+        },
+        "P3": {
+          "score": 7.8,
+          "deterministic_pass": true,
+          "response_sha256": "468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-KV8-F16-4K",
+      "model_id": "granite-4.1-8b",
+      "format": "F16",
+      "backend": "cpu",
+      "quality_mean": 5.6917,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "49dbbc04932425930491d4d75d6a523a1e7bc95ca69c2f93e36124479fe9bde6"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3"
+        },
+        "P3": {
+          "score": 7.8,
+          "deterministic_pass": true,
+          "response_sha256": "468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-08Q",
+      "model_id": "granite-4.1-8b",
+      "format": "Q8_0",
+      "backend": "cpu",
+      "quality_mean": 6.6917,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2fa40e53214f0494e14800f1597f43a729eaf6d727ef3968eef29a6119a9df0e"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3"
+        },
+        "P3": {
+          "score": 7.8,
+          "deterministic_pass": true,
+          "response_sha256": "3ae07e59aec6237aa8a69a0f57b7d50c3c1c172e4749c151be785e6611b34b0e"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "7e1973c48b9b779f46a42b8597ec66c15b64ec4844c023640e9473e39af7a275"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-09",
+      "model_id": "granite-4.1-8b",
+      "format": "turbo4",
+      "backend": "cpu",
+      "quality_mean": 5.9667,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "f94ce0d7c6f4b22d23639e313d95a03d654e1d25044b4e6201767ca324aadc83"
+        },
+        "P2": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "1281c797e8c37b0fa9039026a5651d18be6a15963e8cd17805bb38011987b6c0"
+        },
+        "P3": {
+          "score": 7.8,
+          "deterministic_pass": true,
+          "response_sha256": "468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "17f651c63097631ef4a95e338bb0345976b65b8726da106b41d782909be74c97"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-10",
+      "model_id": "granite-4.1-8b",
+      "format": "turbo3",
+      "backend": "cpu",
+      "quality_mean": 6.675,
+      "prompts": {
+        "P1": {
+          "score": 9.0,
+          "deterministic_pass": true,
+          "response_sha256": "4f5ca398a4db2ec4b9aa6186de1ebb1ad16e5e553f96dda0795522d935cd9f7a"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "7d1e702937edc224451dbbb25f82273b3b13dc77fb32a46ae75eee25f4803641"
+        },
+        "P3": {
+          "score": 8.7,
+          "deterministic_pass": true,
+          "response_sha256": "a2d1523ba20bf174eca6fb086943a49f56d3c813cfb5df920519bf29346ef36c"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "e08d70301268a903ba2d1ebf0e429f8bd00c9c195cbb73d1b89d4b4e2e4a153e"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-11",
+      "model_id": "granite-4.1-3b",
+      "format": "F16",
+      "backend": "vulkan-partial",
+      "quality_mean": 6.725,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "96c661912a0e4f3ceb58126ab364276c3966464324e9585120bb647069ba5ea1"
+        },
+        "P3": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "8d2dedb57423d93d465192642c28461c754b8c6e9d39efeea8b69b3cc09ffdac"
+        },
+        "P5": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-12",
+      "model_id": "granite-4.1-3b",
+      "format": "turbo3",
+      "backend": "vulkan-partial",
+      "quality_mean": 6.225,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "e287332baf2f162e4415d01d63f2bee9a0c8f3b2d8dead519ff5a3ce769b47eb"
+        },
+        "P2": {
+          "score": 7.35,
+          "deterministic_pass": true,
+          "response_sha256": "73cebb9859d0162bad0571d02194e0df7e6b1e8894c1f64920acb7d1fb6842a6"
+        },
+        "P3": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "16a89723ed96cfe5fc76a1764993670132d07922fff2b20757dc7a78dbbd3116"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "f968aaf7abfa1f31b945bb900d242ba465d79b42fb153d1301458c9deff256c1"
+        },
+        "P5": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+        },
+        "P6": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2"
+        }
+      }
+    },
+    {
+      "test_id": "AB-13",
+      "model_id": "granite-4.1-3b",
+      "format": "turbo3",
+      "backend": "vulkan-full",
+      "quality_mean": 7.225,
+      "prompts": {
+        "P1": {
+          "score": 9.0,
+          "deterministic_pass": true,
+          "response_sha256": "e7b549ea54dc3f527b1782268a14f0ec417cd5a7e9535456f8477241f2a0326f"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "bec302e7e453b726e15c0dd2348a97842802caeeb2081145b3f93a2ea597a242"
+        },
+        "P3": {
+          "score": 2.0,
+          "deterministic_pass": false,
+          "response_sha256": "535daa992c1f8f8a071328027604c6bd0340e22d0c13e1bc7abd4983caad6f70"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "a8af0905032f17beb7d92c2e8b7f45000ec1c9a320d1d5de1466cebab2b3dc0e"
+        },
+        "P5": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-14",
+      "model_id": "granite-4.1-8b",
+      "format": "Q8_0",
+      "backend": "vulkan-partial",
+      "quality_mean": 8.3583,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "e918fe24471bcd571dadefc408e6d24e8169c8330313487cc8d142025548807a"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "80a41e5ab214ac754825aa7ae0507d68a2a8a2c4a4a4d4b2ea2cef3394523c05"
+        },
+        "P3": {
+          "score": 7.8,
+          "deterministic_pass": true,
+          "response_sha256": "357902f2678dcedd6b09d099387aee510f2e8fe8a64bcee86b389a760165bc7b"
+        },
+        "P4": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "74e34141551d7f0fba31304fb697060617748e5c435dc6f67218de4165c15af0"
+        },
+        "P5": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-15",
+      "model_id": "granite-4.1-8b",
+      "format": "turbo3",
+      "backend": "vulkan-partial",
+      "quality_mean": 7.5083,
+      "prompts": {
+        "P1": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "b4b9d1571cbec5fd38d7d94be62c713c6ce32592c97b432cb1d069e21374bc94"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "7cd8837090325593c0973f8d2e77e2ae638442ecd72556d8c1f996ff055b9e19"
+        },
+        "P3": {
+          "score": 8.7,
+          "deterministic_pass": true,
+          "response_sha256": "8fd83d4d0d2ecf5667fce297724551006c721223b8192ed889e323e779fa9462"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "e34aa6ad47d61780d9ec6804d3f7897d79ac164b32ee6dc789f4da82a82657ea"
+        },
+        "P5": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    },
+    {
+      "test_id": "AB-15M",
+      "model_id": "granite-4.1-8b",
+      "format": "turbo3",
+      "backend": "vulkan-full",
+      "quality_mean": 6.675,
+      "prompts": {
+        "P1": {
+          "score": 9.0,
+          "deterministic_pass": true,
+          "response_sha256": "5ccbbcf154652d40f6569655dc10ed54947276925d18b600e48e69d8cc0c8823"
+        },
+        "P2": {
+          "score": 8.35,
+          "deterministic_pass": true,
+          "response_sha256": "dd9831f629031224666e6de1cda05154cbebb4bb9e63d03cd25c75ded63f291f"
+        },
+        "P3": {
+          "score": 8.7,
+          "deterministic_pass": true,
+          "response_sha256": "00b613631dfac2ed00acada18539beb0b5b3bfd56cb84e0370382a373d6e0485"
+        },
+        "P4": {
+          "score": 4.0,
+          "deterministic_pass": false,
+          "response_sha256": "4f8e8b0361a1ea3cf3faae46b0d1bb3b6e71c6194a93e89c4ed6d63d4d05a7f1"
+        },
+        "P5": {
+          "score": 0.0,
+          "deterministic_pass": false,
+          "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "P6": {
+          "score": 10.0,
+          "deterministic_pass": true,
+          "response_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+        }
+      }
+    }
+  ]
+}

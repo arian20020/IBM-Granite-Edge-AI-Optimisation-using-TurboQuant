@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Reduces storage requirements by compressing key-value data, allowing more efficient use of memory resources.\nLIMITATION: Compression and decompression operations introduce latency, potentially impacting real-time performance.\nCHECK: Verify compression ratio and ensure decompressed data matches original data integrity through checksum comparison.",
+  "test_id": "AB-15M",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 17.437,
+  "output_sha256": "dd9831f629031224666e6de1cda05154cbebb4bb9e63d03cd25c75ded63f291f"
+}

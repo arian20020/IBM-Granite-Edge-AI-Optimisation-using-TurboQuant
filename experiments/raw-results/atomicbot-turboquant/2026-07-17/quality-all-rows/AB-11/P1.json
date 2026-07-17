@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- Reduces model size for offline use.\n- Saves memory on limited laptops.\n- Enables faster inference without external data.\n- May limit model accuracy due to quantisation.\n- Check model performance after quantisation.",
+  "test_id": "AB-11",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-partial",
+  "cache": "f16",
+  "quality_context": 4096,
+  "elapsed_seconds": 4.156,
+  "output_sha256": "1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457"
+}

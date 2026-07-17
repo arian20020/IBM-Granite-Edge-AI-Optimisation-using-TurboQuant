@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: TurboQuant KV-cache compression reduces data storage requirements, leading to cost savings and improved data retrieval speeds.\n\nLIMITATION: LIMITATION: One limitation is that the compression may increase the complexity of data retrieval and processing, potentially leading to slower performance in certain scenarios.\n\nCHECK: CHECK: Verification check involves testing the decompression speed and data integrity to ensure that the compressed data can be accurately restored without loss of information.",
+  "test_id": "AB-12",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-partial",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 12.093,
+  "output_sha256": "73cebb9859d0162bad0571d02194e0df7e6b1e8894c1f64920acb7d1fb6842a6"
+}

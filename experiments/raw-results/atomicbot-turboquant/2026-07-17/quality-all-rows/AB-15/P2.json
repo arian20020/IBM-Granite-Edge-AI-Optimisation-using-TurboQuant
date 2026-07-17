@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Reduced storage requirements by compressing key-value data, leading to lower disk usage and potentially faster data retrieval due to smaller footprint.\n\nLIMITATION: Compression and decompression processes introduce computational overhead, which may impact performance, especially for high-frequency write operations or in environments with limited processing power.\n\nCHECK: Verify the integrity of compressed data by periodically running a decompression test on a sample subset of the KV-cache to ensure that all data can be accurately reconstructed without loss.",
+  "test_id": "AB-15",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-partial",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 21.703,
+  "output_sha256": "7cd8837090325593c0973f8d2e77e2ae638442ecd72556d8c1f996ff055b9e19"
+}

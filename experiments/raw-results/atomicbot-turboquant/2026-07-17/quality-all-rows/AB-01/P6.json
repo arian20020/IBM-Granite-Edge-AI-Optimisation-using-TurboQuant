@@ -1,0 +1,13 @@
+{
+  "prompt_id": "P6",
+  "status": "complete",
+  "turn_1": "SAVED\n",
+  "output": "amber:4821",
+  "test_id": "AB-01",
+  "model_id": "gemma-3-1b",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 1.297,
+  "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+}

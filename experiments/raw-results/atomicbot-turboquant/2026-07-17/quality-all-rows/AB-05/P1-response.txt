@@ -1,0 +1,3 @@
+- Reduces model size for easier storage on limited memory.
+- Enables faster inference for real-time responses in offline mode.
+- **Check**: Ensure model performance meets desired accuracy thresholds.

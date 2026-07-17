@@ -123,25 +123,25 @@ Numeric rows report median TTFT and generation throughput across measured runs, 
 
 | Test ID | Model | Weights | K cache | V cache | Device | Context | Peak WS MiB | KV MiB | TTFT ms | Tok/s | Quality /10 | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| AB-01 | Gemma 3 1B | Q4_K_M | f16 | f16 | CPU | 1024 | 923.949 | 26.00 | 110.562 | 37.50 | N/A - diagnostic not quality-screened | Pass |
-| AB-02 | Gemma 3 1B | Q4_K_M | turbo3 | turbo3 | CPU | 1024 | 903.688 | 5.08 | 81.053 | 30.80 | N/A - diagnostic not quality-screened | Pass |
-| AB-03 | 3B | Q4_K_M | f16 | f16 | CPU | 2048 | 3657.688 | 160.00 | 118.903 | 15.90 | N/A - unmatched quality config | Pass |
-| AB-KV3-F16-4K | 3B | Q4_K_M | f16 | f16 | CPU | 4096 | 3818.957 | 320.00 | 144.610 | 15.10 | N/A - quality baseline is Q8_0 | Pass |
-| AB-04 | 3B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 3668.938 | 170.00 | 134.316 | 15.90 | 6.67 | Pass |
-| AB-05 | 3B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 3669.125 | 170.00 | 166.100 | 11.80 | N/A - not quality-screened | Pass |
-| AB-06 | 3B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 3624.750 | 125.00 | 137.405 | 11.80 | 6.64 | Pass; quality limitation |
-| AB-07 | 3B | Q4_K_M | turbo2 | turbo2 | CPU | 4096 | 3588.754 | 89.25 | 150.086 | 13.10 | N/A - not quality-screened | Pass |
-| AB-08F | 8B | Q4_K_M | f16 | f16 | CPU | 2048 | 8914.633 | 320.00 | 459.308 | 6.80 | N/A - not quality-screened | Pass |
-| AB-KV8-F16-4K | 8B | Q4_K_M | f16 | f16 | CPU | 4096 | 9235.957 | 640.00 | 334.844 | 8.37 | N/A - not quality-screened | Pass - controlled bypass |
-| AB-08Q | 8B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 8934.840 | 340.00 | 540.412 | 6.80 | N/A - not quality-screened | Pass after isolated rerun |
-| AB-09 | 8B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 8767.055 | 170.00 | 332.794 | 5.90 | N/A - not quality-screened | Pass |
-| AB-10 | 8B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 8720.383 | 125.00 | 339.918 | 5.90 | N/A - not quality-screened | Pass |
-| AB-11 | 3B | Q4_K_M | f16 | f16 | Vulkan partial | 4096 | 2903.941 | 320.00 | 203.267 | 14.00 | N/A - not quality-screened | Pass |
-| AB-12 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 2705.563 | 125.00 | 224.509 | 9.60 | N/A - device differs from quality route | Pass |
-| AB-13 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 4541.016 | 125.00 | 410.507 | 7.60 | N/A - device differs from quality route | Pass |
-| AB-14 | 8B | Q4_K_M | q8_0 | q8_0 | Vulkan partial | 4096 | 6073.473 | 340.00 | 639.484 | 6.00 | N/A - not quality-screened | Pass |
-| AB-15 | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 5868.852 | 125.00 | 504.813 | 5.40 | N/A - not quality-screened | Pass |
-| AB-15M | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 10455.605 | 125.00 | 637.928 | 4.19 | N/A - not quality-screened | Pass - controlled bypass |
+| AB-01 | Gemma 3 1B | Q4_K_M | f16 | f16 | CPU | 1024 | 923.949 | 26.00 | 110.562 | 37.50 | 6.22 | Pass |
+| AB-02 | Gemma 3 1B | Q4_K_M | turbo3 | turbo3 | CPU | 1024 | 903.688 | 5.08 | 81.053 | 30.80 | 5.39 | Pass |
+| AB-03 | 3B | Q4_K_M | f16 | f16 | CPU | 2048 | 3657.688 | 160.00 | 118.903 | 15.90 | 6.39 | Pass |
+| AB-KV3-F16-4K | 3B | Q4_K_M | f16 | f16 | CPU | 4096 | 3818.957 | 320.00 | 144.610 | 15.10 | 6.39 | Pass |
+| AB-04 | 3B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 3668.938 | 170.00 | 134.316 | 15.90 | 6.72 | Pass |
+| AB-05 | 3B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 3669.125 | 170.00 | 166.100 | 11.80 | 6.84 | Pass; P5 timeout |
+| AB-06 | 3B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 3624.750 | 125.00 | 137.405 | 11.80 | 5.95 | Pass; P5 timeout |
+| AB-07 | 3B | Q4_K_M | turbo2 | turbo2 | CPU | 4096 | 3588.754 | 89.25 | 150.086 | 13.10 | 0.70 | Pass; severe quality failure |
+| AB-08F | 8B | Q4_K_M | f16 | f16 | CPU | 2048 | 8914.633 | 320.00 | 459.308 | 6.80 | 5.69 | Pass; P5 safety-blocked |
+| AB-KV8-F16-4K | 8B | Q4_K_M | f16 | f16 | CPU | 4096 | 9235.957 | 640.00 | 334.844 | 8.37 | 5.69 | Pass - controlled bypass; P5 safety-blocked |
+| AB-08Q | 8B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 8934.840 | 340.00 | 540.412 | 6.80 | 6.69 | Pass; P5 safety-blocked |
+| AB-09 | 8B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 8767.055 | 170.00 | 332.794 | 5.90 | 5.97 | Pass; P5 safety-blocked |
+| AB-10 | 8B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 8720.383 | 125.00 | 339.918 | 5.90 | 6.67 | Pass; P5 safety-blocked |
+| AB-11 | 3B | Q4_K_M | f16 | f16 | Vulkan partial | 4096 | 2903.941 | 320.00 | 203.267 | 14.00 | 6.72 | Pass |
+| AB-12 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 2705.563 | 125.00 | 224.509 | 9.60 | 6.22 | Pass |
+| AB-13 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 4541.016 | 125.00 | 410.507 | 7.60 | 7.22 | Pass |
+| AB-14 | 8B | Q4_K_M | q8_0 | q8_0 | Vulkan partial | 4096 | 6073.473 | 340.00 | 639.484 | 6.00 | 8.36 | Pass |
+| AB-15 | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 5868.852 | 125.00 | 504.813 | 5.40 | 7.51 | Pass |
+| AB-15M | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 10455.605 | 125.00 | 637.928 | 4.19 | 6.67 | Pass - controlled bypass; P5 safety-blocked |
 
 # 8. Compression and bounded perplexity supplements
 
@@ -150,8 +150,8 @@ Numeric rows report median TTFT and generation throughput across measured runs, 
 | Diagnostic 1B turbo3 | 26.00 | 5.08 | 5.118x | 80.46% | Direct 1K matched allocation reduction versus F16 |
 | Granite 3B Q8_0 | 320.00 | 170.00 | 1.882x | 46.88% | Direct matched 4K conventional baseline |
 | Granite 3B turbo4 | 320.00 | 170.00 | 1.882x | 46.88% | Direct matched 4K allocation reduction; no advantage over Q8_0 here |
-| Granite 3B turbo3 | 320.00 | 125.00 | 2.560x | 60.94% | Direct matched 4K allocation reduction; controlled quality score lower than Q8_0 |
-| Granite 3B turbo2 | 320.00 | 89.25 | 3.585x | 72.11% | Largest measured reduction; quality not evaluated in P1-P6 screen |
+| Granite 3B turbo3 | 320.00 | 125.00 | 2.560x | 60.94% | Direct matched 4K allocation reduction; CPU quality 5.95 versus Q8_0 6.72 |
+| Granite 3B turbo2 | 320.00 | 89.25 | 3.585x | 72.11% | Largest measured reduction; severe all-row quality failure at 0.70 |
 | Granite 8B turbo4 | 640.00 | 170.00 | 3.765x | 73.44% | Direct matched 4K allocation reduction after isolated F16 safety-gate bypass |
 | Granite 8B turbo3 | 640.00 | 125.00 | 5.120x | 80.47% | Direct matched 4K allocation reduction after isolated F16 safety-gate bypass |
 
@@ -167,17 +167,31 @@ Perplexity must use a named, versioned dataset. A synthetic repeated sentence is
 
 # 9. Model quality verifier and context summary
 
-| Prompt ID | Task | Baseline /10 | Optimised /10 | Format valid? | Required facts retained? | Repetition/corruption? | Notes |
-|---|---|---|---|---|---|---|---|
-| P1 | Sanity explanation | 4.00 | 9.00 | Both: Yes | Baseline: No; optimised: Yes | No | Baseline supplies three benefits and only one limitation, so it is critically capped; optimised meets five bullets, 82 words, required terms and all semantic slots |
-| P2 | Instruction following | 8.00 | 8.10 | Both: Yes | Both: Yes | No | Both have exactly three non-empty labelled lines; content is usable but verification wording is not perfect |
-| P3 | Exact JSON structure | 4.00 | 8.75 | Both: Yes | Baseline: No; optimised: Yes | No | Baseline's `memory_effect: Increased` materially contradicts the optimisation, imposing a 4/10 cap |
-| P4 | Summarisation | 10.00 | 4.00 | Baseline: Yes; optimised: No | Baseline: Yes; optimised: No | No | Optimised emits one sentence, omits `upstream`, and collapses explicit K/V wording; critical cap applied |
-| P5 | Long-context retrieval | 4.00 | 0.00 | Baseline: No; optimised: No | Baseline: Yes; optimised: No | Optimised timed out | Baseline retrieved the right marker but inserted a prohibited space; Turbo3 returned no response within 2400 s at the required 8706-token prompt |
-| P6 | Multi-turn stability | 10.00 | 10.00 | Both: Yes | Both: Yes | No | Both returned `SAVED` then exact `amber:4821` |
-| Total | P1-P6 result | 6.67 | 6.64 | Mixed; see rows | Mixed; see rows | Turbo3 P5 timeout | Q8_0 ranks marginally higher; scores are harsh critical-cap results, not precision-based assumptions |
+Every runtime row was independently run on P1-P6. P1-P4 and P6 use a practical 4K quality server for 8B rows; P5 alone uses the frozen 8,706-token fixture at 16K. A controlled timeout or RAM safety block is a measured zero for P5, not a pass or an imputed response.
 
-Baseline = Granite 3B Q4_K_M with Q8_0 KV. Optimised = the same model with turbo3 KV. Preserve every raw output and deterministic validation result.
+| Test ID | Cache | Backend | P1 | P2 | P3 | P4 | P5 | P6 | Mean /10 | Main cap or limitation |
+|---|---|---|---|---|---|---|---|---|---|---|
+| AB-01 | F16 | CPU | 9.00 | 8.30 | 2.00 | 4.00 | 4.00 | 10.00 | 6.22 | Fenced/wrong-schema JSON; P4 missing runtime; P5 spacing |
+| AB-02 | turbo3 | CPU | 4.00 | 8.30 | 2.00 | 4.00 | 4.00 | 10.00 | P1 required-term failure; wrong JSON schema; P5 spacing |
+| AB-03 | F16 | CPU | 4.00 | 8.30 | 4.00 | 10.00 | 10.00 | 2.00 | P1 semantic-slot failure; wrong memory claim; P6 lost prefix |
+| AB-KV3-F16-4K | F16 | CPU | 4.00 | 8.30 | 4.00 | 10.00 | 10.00 | 2.00 | Same independently observed response failures as AB-03 |
+| AB-04 | Q8_0 | CPU | 4.00 | 8.30 | 4.00 | 10.00 | 4.00 | 10.00 | P1 slot failure; wrong memory claim; P5 spacing |
+| AB-05 | turbo4 | CPU | 4.00 | 8.30 | 8.70 | 10.00 | 0.00 | 10.00 | P1 incomplete; P5 2,400-second timeout |
+| AB-06 | turbo3 | CPU | 9.00 | 4.00 | 8.70 | 4.00 | 0.00 | 10.00 | Lossless-check contradiction; P4 omissions; P5 timeout |
+| AB-07 | turbo2 | CPU | 0.60 | 0.70 | 2.00 | 1.00 | 0.00 | 0.00 | 0.70 | Severe corruption/incompleteness across the screen |
+| AB-08F | F16 | CPU | 4.00 | 8.30 | 7.80 | 4.00 | 0.00 | 10.00 | 5.69 | P1/P4 omissions; 16K P5 safety-blocked |
+| AB-KV8-F16-4K | F16 | CPU | 4.00 | 8.30 | 7.80 | 4.00 | 0.00 | 10.00 | 5.69 | Independently observed same caps; P5 safety-blocked |
+| AB-08Q | Q8_0 | CPU | 4.00 | 8.30 | 7.80 | 10.00 | 0.00 | 10.00 | 6.69 | P1 slot failure; P5 safety-blocked |
+| AB-09 | turbo4 | CPU | 4.00 | 4.00 | 7.80 | 10.00 | 0.00 | 10.00 | 5.97 | Quantum-circuit hallucination; P5 safety-blocked |
+| AB-10 | turbo3 | CPU | 9.00 | 8.30 | 8.70 | 4.00 | 0.00 | 10.00 | 6.67 | P4 missing upstream wording; P5 safety-blocked |
+| AB-11 | F16 | Vulkan partial | 4.00 | 8.30 | 4.00 | 10.00 | 4.00 | 10.00 | 6.72 | P1/P3 caps; P5 marker spacing |
+| AB-12 | turbo3 | Vulkan partial | 4.00 | 7.30 | 4.00 | 10.00 | 10.00 | 2.00 | 6.22 | P1 count, wrong memory claim and P6 prefix loss |
+| AB-13 | turbo3 | Vulkan full | 9.00 | 8.30 | 2.00 | 4.00 | 10.00 | 10.00 | 7.22 | Missing JSON key; P4 model wording cap |
+| AB-14 | Q8_0 | Vulkan partial | 4.00 | 8.30 | 7.80 | 10.00 | 10.00 | 10.00 | 8.36 | Highest mean; P1 still critically capped |
+| AB-15 | turbo3 | Vulkan partial | 4.00 | 8.30 | 8.70 | 4.00 | 10.00 | 10.00 | 7.51 | P1 slot and P4 sentence-count caps |
+| AB-15M | turbo3 | Vulkan full | 9.00 | 8.30 | 8.70 | 4.00 | 0.00 | 10.00 | 6.67 | P4 wording cap; 16K P5 safety-blocked |
+
+These scores are response-derived, not ordered by nominal precision. AB-14 ranks highest at 8.36; AB-07 ranks lowest at 0.70 because its outputs are visibly corrupted. Preserve every raw output, hash and deterministic validation result under `2026-07-17/quality-all-rows/`.
 
 ## 9.1 Quality Verifier v2.0 methodology
 
@@ -209,6 +223,8 @@ Evaluation order: deterministic gates, independent blinded scoring, reverse-orde
 | AB-I03 | AB-08Q | MEMORY-GUARD | Initial 8B Q8_0 batch stopped at 470.7 MiB free | Earlier 8B work left insufficient shared memory | Isolated rerun from idle passed pilot, warm-up and all three samples | Yes | `acquisition/logs/AB-08Q/` |
 | AB-I04 | AB-KV8-F16-4K/AB-15M | SAFETY-GATE | Initial preventive gate blocked high-risk 8B F16/full-Vulkan rows | 16 GB shared-memory ceiling and prior matched-class low-memory evidence | Retried serially from idle with 256 MiB emergency floor; pilot, warm-up and three samples passed for both without emergency stop | Yes | `safety-bypass/` |
 | AB-I05 | Quality P5 turbo3 | QUALITY-TIMEOUT-2400 | Turbo3 produced no P5 response within 2400 seconds | 8706-token frozen fixture is extremely slow on CPU Turbo3 | Empty output retained and scored 0; no truncation or substitution | No | `quality/configuration-B/P5.json` |
+| AB-I06 | AB-08F through AB-15M P5 | QUALITY-RAM-GATE | Several 8B CPU/full-Vulkan 16K P5 servers crossed the 1.5 GiB free-RAM reserve | 8,706-token fixture requires a 16K server and large KV allocation on a 16 GB shared-memory laptop | Short prompts measured at 4K; isolated P5 attempt retained as safety-blocked and scored 0 | No - hardware limit | `2026-07-17/quality-all-rows/` |
+| AB-I07 | Quality harness | SLEEP-DEADLINE | A Windows sleep/resume interval bypassed one long blocking wait | A single Windows wait did not advance as UTC wall time advanced during system sleep | Replaced with absolute UTC polling; duplicate-controller lock and per-prompt checkpoints added | Yes | `scripts/testing/run_atomicbot_full_quality.py` |
 
 # 11. Final repository/runtime decision
 
@@ -216,18 +232,18 @@ Evaluation order: deterministic gates, independent blinded scoring, reverse-orde
 |---|---|
 | TurboQuant implementation class | Substantial partial: CPU reference paths and Vulkan placement work; specialised Vulkan Turbo3 FA shader generation is disabled at the tested source location |
 | Source-scope correction | Generic backend presence is not proof of native TQ kernels; SYCL is not claimed and partial Vulkan rows retain CPU KV |
-| Granite 3B TurboQuant | Pass for runtime/memory; turbo3 uses 125 MiB versus 320 MiB F16 at 4K, but Q8_0 narrowly wins the controlled quality screen 6.67 to 6.64 |
+| Granite 3B TurboQuant | Pass for runtime/memory; CPU turbo3 uses 125 MiB versus 320 MiB F16 at 4K and scores 5.95; Vulkan full turbo3 scores 7.22 |
 | Granite 8B TurboQuant | Pass for CPU, partial Vulkan and full Vulkan rows; guarded extremes passed only under isolated serial execution with an emergency memory floor |
-| Best CPU cache | Q8_0 for conservative quality/throughput; turbo3 only when its 60.94% KV reduction is worth the measured quality and long-context latency risk |
-| Best GPU or hybrid cache | turbo3 full Vulkan is technically validated for 3B and guarded 8B; partial turbo3 keeps KV on CPU and is hybrid, not native KV execution |
+| Best CPU cache | Workload-dependent: 3B turbo4 scores 6.84, Q8_0 6.72 and turbo3 5.95; 8B Q8_0/turbo3 are close at 6.69/6.67 but both have safety-blocked P5 |
+| Best GPU or hybrid cache | Q8_0 Vulkan partial 8B has the highest all-row screen at 8.36; turbo3 Vulkan partial 8B scores 7.51; device placement limitations remain |
 | Measured memory benefit | 8B turbo3: 125 versus 640 MiB KV (5.12x smaller, 80.47% reduction); 3B turbo3: 125 versus 320 MiB (60.94%); 1B turbo3: 5.08 versus 26 MiB (80.46%) |
 | Silent fallback detected? | No unexplained fallback; partial runs intentionally used 1/41 GPU layers and CPU KV, while AB-13 placed 41/41 layers and KV on Vulkan0 |
 | Integration difficulty | Moderate/high on Windows: UI packaging repair, Vulkan toolchain ordering, Device Guard exception, and explicit memory gating required |
 | Final status | Accepted with limitations |
 | Application role | Experimental memory-saving option behind configuration/quality guardrails; not the unconditional default |
 | Main evidence path | `experiments/raw-results/atomicbot-turboquant/2026-07-16/` |
-| Quality verification status | Complete for controlled Q8_0 vs turbo3 P1-P6 screen; Q8_0 6.67, turbo3 6.64; P5 uses 16K context to fit the frozen 8706-token fixture |
-| Final reasoning | Runtime activation, material KV savings and both guarded 8B extremes are proven under controlled bypass. Lower Turbo3 quality, a 2400-second P5 timeout, hybrid placement on partial Vulkan, high 10.46 GiB full-8B working set, and one policy-blocked repository test still prevent an unrestricted recommendation. |
+| Quality verification status | Complete all-row P1-P6 coverage: 114 terminal records, 114 matching hashes and 19 row means; P5 uses 16K, with explicit 0 scores for controlled timeouts/safety blocks |
+| Final reasoning | Runtime activation and material KV savings are proven, but quality is response- and backend-dependent rather than precision-ordered. AB-14 leads at 8.36; AB-07 fails severely at 0.70. CPU long-context timeouts, 8B 16K safety blocks, hybrid placement, high full-8B working set and one policy-blocked repository test prevent an unrestricted recommendation. |
 
 # 12. Interpretation controls
 

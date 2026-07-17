@@ -1,0 +1,13 @@
+{
+  "prompt_id": "P6",
+  "status": "complete",
+  "turn_1": "SAVED",
+  "output": "amber:4821",
+  "test_id": "AB-KV8-F16-4K",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 4096,
+  "elapsed_seconds": 4.063,
+  "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+}

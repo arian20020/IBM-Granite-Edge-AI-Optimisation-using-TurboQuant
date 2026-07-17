@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: TurboQuant KV-cache compression reduces memory usage by efficiently storing data, allowing more entries to fit within the available cache space.\n\nLIMITATION: The compression may introduce overhead in terms of computational resources required for encoding and decoding operations, potentially impacting performance.\n\nCHECK: Regular verification of cache integrity and data accuracy post-compression is essential to ensure that no information is lost or corrupted during the compression process.",
+  "test_id": "AB-03",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 6.313,
+  "output_sha256": "a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67"
+}

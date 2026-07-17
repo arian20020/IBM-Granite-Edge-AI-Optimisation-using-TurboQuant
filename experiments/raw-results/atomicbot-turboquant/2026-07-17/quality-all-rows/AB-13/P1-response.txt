@@ -1,0 +1,5 @@
+- Benefit: Reduces memory footprint by quantising KV cache.
+- Limitation: May reduce model accuracy due to quantisation.
+- Benefit: Enables offline operation on memory-limited laptops.
+- Limitation: Requires careful tuning to ensure compatibility.
+- Check: User should verify model performance post-quantisation.

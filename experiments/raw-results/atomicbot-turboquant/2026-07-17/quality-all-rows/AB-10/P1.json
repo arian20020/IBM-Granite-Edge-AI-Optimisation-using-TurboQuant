@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **Benefit:** Reduces memory usage, enabling **KV cache** to run **offline** on limited hardware.  \n- **Benefit:** Speeds up inference by storing key-value pairs efficiently.  \n- **Limitation:** May degrade performance if quantisation precision is too low.  \n- **Limitation:** Could increase latency due to additional quantisation/dequantisation steps.  \n- **Check:** Verify quantisation levels against available memory to ensure compatibility.",
+  "test_id": "AB-10",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 19.812,
+  "output_sha256": "4f5ca398a4db2ec4b9aa6186de1ebb1ad16e5e553f96dda0795522d935cd9f7a"
+}
