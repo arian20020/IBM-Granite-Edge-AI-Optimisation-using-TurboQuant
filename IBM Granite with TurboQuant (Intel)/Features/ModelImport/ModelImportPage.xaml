@@ -159,6 +159,7 @@
                                     Background="#2563EB"
                                     BorderBrush="#2563EB"
                                     BorderThickness="1"
+                                    Click="BrowseFilesButton_ClickAsync"
                                     Content="Browse files"
                                     CornerRadius="12"
                                     FontWeight="SemiBold"

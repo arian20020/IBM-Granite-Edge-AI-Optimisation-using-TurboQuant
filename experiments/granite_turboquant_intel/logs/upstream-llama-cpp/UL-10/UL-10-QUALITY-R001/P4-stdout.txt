@@ -1,0 +1,41 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-3b\q4_k_m\granite-4.1-3b-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Supplied test facts:
+- The model is IBM Granite 4.1 3B.
+- The runtime is upstream llama.cpp.
+- The model weights use Q4_K_M.
+- The K and V caches use Q8_0.
+- The context length is 4096 tokens.
+- The test ran locally on a Windows Intel laptop.
+- This configuration is a baseline and does not activate TurboQuant.
+
+Summarise the supplied test facts in exactly two sentences. The summary must state the model, runtime, weight precision, both cache types, context length, local Windows Intel execution, a ... (truncated)
+
+The test uses the IBM Granite 4.1 3B model with the upstream llama.cpp runtime, where the model weights are in Q4_K_M precision and both the K and V caches are in Q8_0. The configuration runs locally on a Windows Intel laptop with a context length of 4096 tokens and does not activate TurboQuant.
+
+[ Prompt: 92.9 t/s | Generation: 9.7 t/s ]
+
+Exiting...

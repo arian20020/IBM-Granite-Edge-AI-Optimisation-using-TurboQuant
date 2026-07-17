@@ -1,0 +1,1198 @@
+:: initializing oneAPI environment...
+   Initializing Visual Studio command-line environment...
+   Visual Studio version 18.7.3 environment configured.
+   "C:\Program Files\Microsoft Visual Studio\18\Community\"
+   Visual Studio command-line environment initialized for: 'x64'
+:  compiler -- latest
+:  dev-utilities -- latest
+:  dnnl -- latest
+:  dpl -- latest
+:  ipp -- latest
+:  ippcp -- latest
+:  mkl -- latest
+:  mpi -- latest
+:  ocloc -- latest
+:  tbb -- latest
+:  tcm -- latest
+:  umf -- latest
+:  vtune -- latest
+:: oneAPI environment initialized ::
+Test project C:/Users/Student/gtq-build/llama-b9870-sycl-release-001
+      Start  1: test-tokenizer-0-bert-bge
+ 1/52 Test  #1: test-tokenizer-0-bert-bge ...........   Passed   13.35 sec
+      Start  2: test-tokenizer-0-command-r
+ 2/52 Test  #2: test-tokenizer-0-command-r ..........   Passed    1.06 sec
+      Start  3: test-tokenizer-0-deepseek-coder
+ 3/52 Test  #3: test-tokenizer-0-deepseek-coder .....   Passed    0.53 sec
+      Start  4: test-tokenizer-0-deepseek-llm
+ 4/52 Test  #4: test-tokenizer-0-deepseek-llm .......   Passed    0.70 sec
+      Start  5: test-tokenizer-0-falcon
+ 5/52 Test  #5: test-tokenizer-0-falcon .............   Passed    0.60 sec
+      Start  6: test-tokenizer-0-gemma-4
+ 6/52 Test  #6: test-tokenizer-0-gemma-4 ............   Passed    1.34 sec
+      Start  7: test-tokenizer-0-gpt-2
+ 7/52 Test  #7: test-tokenizer-0-gpt-2 ..............   Passed    0.51 sec
+      Start  8: test-tokenizer-0-llama-bpe
+ 8/52 Test  #8: test-tokenizer-0-llama-bpe ..........   Passed    0.77 sec
+      Start  9: test-tokenizer-0-llama-spm
+ 9/52 Test  #9: test-tokenizer-0-llama-spm ..........   Passed    0.56 sec
+      Start 10: test-tokenizer-0-mpt
+10/52 Test #10: test-tokenizer-0-mpt ................   Passed    0.55 sec
+      Start 11: test-tokenizer-0-phi-3
+11/52 Test #11: test-tokenizer-0-phi-3 ..............   Passed    0.47 sec
+      Start 12: test-tokenizer-0-qwen2
+12/52 Test #12: test-tokenizer-0-qwen2 ..............   Passed    0.82 sec
+      Start 13: test-tokenizer-0-qwen35
+13/52 Test #13: test-tokenizer-0-qwen35 .............   Passed    0.75 sec
+      Start 14: test-tokenizer-0-refact
+14/52 Test #14: test-tokenizer-0-refact .............   Passed    0.61 sec
+      Start 15: test-tokenizer-0-starcoder
+15/52 Test #15: test-tokenizer-0-starcoder ..........   Passed    0.67 sec
+      Start 16: test-sampling
+16/52 Test #16: test-sampling .......................   Passed    6.28 sec
+      Start 17: test-reasoning-budget
+17/52 Test #17: test-reasoning-budget ...............   Passed    5.06 sec
+      Start 18: test-grammar-parser
+18/52 Test #18: test-grammar-parser .................   Passed    5.25 sec
+      Start 19: test-grammar-integration
+19/52 Test #19: test-grammar-integration ............   Passed    4.61 sec
+      Start 20: test-llama-grammar
+20/52 Test #20: test-llama-grammar ..................   Passed    4.36 sec
+      Start 21: test-chat
+21/52 Test #21: test-chat ...........................   Passed    9.51 sec
+      Start 22: test-json-schema-to-grammar
+22/52 Test #22: test-json-schema-to-grammar .........   Passed   10.47 sec
+      Start 23: test-tokenizer-1-llama-spm
+23/52 Test #23: test-tokenizer-1-llama-spm ..........   Passed    4.78 sec
+      Start 24: test-llama-archs
+24/52 Test #24: test-llama-archs ....................Exit code 0xc0000409***Exception: 156.52 sec
+main: using seed 3863671423
+|     Model arch.|                              Device|Config|   NMSE vs. CPU|Roundtrip|
+|----------------|------------------------------------|------|---------------|---------|
+|            clip|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            clip|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            clip|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           llama|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.00e-11)|       [1;32mOK[0m|
+|           llama|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           llama|                                Meta| Dense|  [1;32mOK[0m (1.00e-11)|     [1;33mSKIP[0m|
+|           llama|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.01e-11)|       [1;32mOK[0m|
+|           llama|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           llama|                                Meta|   MoE|  [1;32mOK[0m (1.01e-11)|     [1;33mSKIP[0m|
+|          llama4|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.10e-10)|       [1;32mOK[0m|
+|          llama4|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          llama4|                                Meta|   MoE|  [1;32mOK[0m (2.10e-10)|     [1;33mSKIP[0m|
+|            deci|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (7.31e-12)|       [1;32mOK[0m|
+|            deci|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            deci|                                Meta| Dense|  [1;32mOK[0m (7.31e-12)|     [1;33mSKIP[0m|
+|          falcon|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.30e-11)|       [1;32mOK[0m|
+|          falcon|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          falcon|                                Meta| Dense|  [1;32mOK[0m (3.30e-11)|     [1;33mSKIP[0m|
+|        baichuan|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.90e-11)|       [1;32mOK[0m|
+|        baichuan|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        baichuan|                                Meta| Dense|  [1;32mOK[0m (2.90e-11)|     [1;33mSKIP[0m|
+|            grok|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.07e-13)|       [1;32mOK[0m|
+|            grok|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            grok|                                Meta|   MoE|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            gpt2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.51e-10)|       [1;32mOK[0m|
+|            gpt2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            gpt2|                                Meta| Dense|  [1;32mOK[0m (1.51e-10)|     [1;33mSKIP[0m|
+|            gptj|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            gptj|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            gptj|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|         gptneox|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.94e-10)|       [1;32mOK[0m|
+|         gptneox|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         gptneox|                                Meta| Dense|  [1;32mOK[0m (1.94e-10)|     [1;33mSKIP[0m|
+|             mpt|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.11e-08)|       [1;32mOK[0m|
+|             mpt|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|             mpt|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       starcoder|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.51e-10)|       [1;32mOK[0m|
+|       starcoder|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       starcoder|                                Meta| Dense|  [1;32mOK[0m (1.51e-10)|     [1;33mSKIP[0m|
+|          refact|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (8.52e-13)|       [1;32mOK[0m|
+|          refact|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          refact|                                Meta| Dense|  [1;32mOK[0m (8.52e-13)|     [1;33mSKIP[0m|
+|          refact|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.02e-12)|       [1;32mOK[0m|
+|          refact|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          refact|                                Meta|   MoE|  [1;32mOK[0m (1.02e-12)|     [1;33mSKIP[0m|
+|            bert|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            bert|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            bert|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|     modern-bert|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|     modern-bert|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|     modern-bert|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      nomic-bert|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      nomic-bert|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      nomic-bert|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|  nomic-bert-moe|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|  nomic-bert-moe|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|  nomic-bert-moe|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|        neo-bert|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|        neo-bert|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|        neo-bert|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|    jina-bert-v2|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|    jina-bert-v2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|    jina-bert-v2|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|    jina-bert-v3|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|    jina-bert-v3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|    jina-bert-v3|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|        eurobert|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|        eurobert|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|        eurobert|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           bloom|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.39e-10)|       [1;32mOK[0m|
+|           bloom|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           bloom|                                Meta| Dense|  [1;32mOK[0m (1.39e-10)|     [1;33mSKIP[0m|
+|        stablelm|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.26e-11)|       [1;32mOK[0m|
+|        stablelm|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        stablelm|                                Meta| Dense|  [1;32mOK[0m (1.26e-11)|     [1;33mSKIP[0m|
+|            qwen|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.41e-11)|       [1;32mOK[0m|
+|            qwen|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            qwen|                                Meta| Dense|  [1;32mOK[0m (2.41e-11)|     [1;33mSKIP[0m|
+|           qwen2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (6.21e-13)|       [1;32mOK[0m|
+|           qwen2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           qwen2|                                Meta| Dense|  [1;32mOK[0m (6.21e-13)|     [1;33mSKIP[0m|
+|        qwen2moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.93e-11)|       [1;32mOK[0m|
+|        qwen2moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        qwen2moe|                                Meta|   MoE|  [1;32mOK[0m (2.93e-11)|     [1;33mSKIP[0m|
+|         qwen2vl|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.96e-11)|       [1;32mOK[0m|
+|         qwen2vl|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         qwen2vl|                                Meta| Dense|  [1;32mOK[0m (2.96e-11)|     [1;33mSKIP[0m|
+|           qwen3|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|           qwen3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           qwen3|                                Meta| Dense|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|        qwen3moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|        qwen3moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        qwen3moe|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|       qwen3next|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.09e-13)|       [1;32mOK[0m|
+|       qwen3next|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       qwen3next|                                Meta|   MoE|  [1;32mOK[0m (1.09e-13)|     [1;33mSKIP[0m|
+|         qwen3vl|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|         qwen3vl|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         qwen3vl|                                Meta| Dense|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|      qwen3vlmoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|      qwen3vlmoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      qwen3vlmoe|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|          qwen35|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.01e-13)|       [1;32mOK[0m|
+|          qwen35|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          qwen35|                                Meta| Dense|  [1;32mOK[0m (1.01e-13)|     [1;33mSKIP[0m|
+|       qwen35moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.01e-13)|       [1;32mOK[0m|
+|       qwen35moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       qwen35moe|                                Meta|   MoE|  [1;32mOK[0m (1.01e-13)|     [1;33mSKIP[0m|
+|            phi2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (7.58e-12)|       [1;32mOK[0m|
+|            phi2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            phi2|                                Meta| Dense|  [1;32mOK[0m (7.58e-12)|     [1;33mSKIP[0m|
+|            phi3|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.89e-11)|       [1;32mOK[0m|
+|            phi3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            phi3|                                Meta| Dense|  [1;32mOK[0m (2.89e-11)|     [1;33mSKIP[0m|
+|          phimoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.09e-13)|       [1;32mOK[0m|
+|          phimoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          phimoe|                                Meta|   MoE|  [1;32mOK[0m (2.09e-13)|     [1;33mSKIP[0m|
+|           plamo|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.93e-11)|       [1;32mOK[0m|
+|           plamo|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           plamo|                                Meta| Dense|  [1;32mOK[0m (2.93e-11)|     [1;33mSKIP[0m|
+|          plamo2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.22e-13)|       [1;32mOK[0m|
+|          plamo2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          plamo2|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          plamo3|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.23e-13)|     [1;33mSKIP[0m|
+|          plamo3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|          plamo3|                                Meta| Dense|  [1;32mOK[0m (1.23e-13)|     [1;33mSKIP[0m|
+|       codeshell|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.84e-10)|       [1;32mOK[0m|
+|       codeshell|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       codeshell|                                Meta| Dense|  [1;32mOK[0m (1.84e-10)|     [1;33mSKIP[0m|
+|           orion|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.26e-11)|       [1;32mOK[0m|
+|           orion|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           orion|                                Meta| Dense|  [1;32mOK[0m (1.26e-11)|     [1;33mSKIP[0m|
+|       internlm2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|       internlm2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       internlm2|                                Meta| Dense|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|         minicpm|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.07e-13)|       [1;32mOK[0m|
+|         minicpm|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         minicpm|                                Meta| Dense|  [1;32mOK[0m (3.07e-13)|     [1;33mSKIP[0m|
+|         minicpm|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (3.05e-13)|       [1;32mOK[0m|
+|         minicpm|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         minicpm|                                Meta|   MoE|  [1;32mOK[0m (3.05e-13)|     [1;33mSKIP[0m|
+|        minicpm3|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.05e-13)|       [1;32mOK[0m|
+|        minicpm3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        minicpm3|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           gemma|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.06e-13)|       [1;32mOK[0m|
+|           gemma|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           gemma|                                Meta| Dense|  [1;32mOK[0m (2.06e-13)|     [1;33mSKIP[0m|
+|          gemma2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (5.02e-13)|       [1;32mOK[0m|
+|          gemma2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          gemma2|                                Meta| Dense|  [1;32mOK[0m (5.02e-13)|     [1;33mSKIP[0m|
+|          gemma3|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (4.56e-13)|     [1;33mSKIP[0m|
+|          gemma3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|          gemma3|                                Meta| Dense|  [1;32mOK[0m (4.56e-13)|     [1;33mSKIP[0m|
+|         gemma3n|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.90e-06)|     [1;33mSKIP[0m|
+|         gemma3n|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|         gemma3n|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+| gemma-embedding|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+| gemma-embedding|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+| gemma-embedding|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      starcoder2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.84e-10)|       [1;32mOK[0m|
+|      starcoder2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      starcoder2|                                Meta| Dense|  [1;32mOK[0m (1.84e-10)|     [1;33mSKIP[0m|
+|           mamba|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.02e-13)|       [1;32mOK[0m|
+|           mamba|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           mamba|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          mamba2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.02e-13)|       [1;32mOK[0m|
+|          mamba2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          mamba2|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           jamba|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.07e-11)|       [1;32mOK[0m|
+|           jamba|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           jamba|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       falcon-h1|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.15e-11)|       [1;32mOK[0m|
+|       falcon-h1|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       falcon-h1|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          xverse|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|          xverse|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          xverse|                                Meta| Dense|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|       command-r|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.36e-11)|       [1;32mOK[0m|
+|       command-r|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       command-r|                                Meta| Dense|  [1;32mOK[0m (2.36e-11)|     [1;33mSKIP[0m|
+|         cohere2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (7.48e-12)|     [1;33mSKIP[0m|
+|         cohere2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|         cohere2|                                Meta| Dense|  [1;32mOK[0m (7.48e-12)|     [1;33mSKIP[0m|
+|      cohere2moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.23e-11)|     [1;33mSKIP[0m|
+|      cohere2moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|      cohere2moe|                                Meta|   MoE|  [1;32mOK[0m (2.23e-11)|     [1;33mSKIP[0m|
+|            dbrx|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.12e-13)|       [1;32mOK[0m|
+|            dbrx|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            dbrx|                                Meta|   MoE|  [1;32mOK[0m (1.12e-13)|     [1;33mSKIP[0m|
+|            olmo|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.37e-12)|       [1;32mOK[0m|
+|            olmo|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            olmo|                                Meta| Dense|  [1;32mOK[0m (2.37e-12)|     [1;33mSKIP[0m|
+|           olmo2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.30e-13)|     [1;33mSKIP[0m|
+|           olmo2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|           olmo2|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           olmoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.08e-13)|       [1;32mOK[0m|
+|           olmoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           olmoe|                                Meta|   MoE|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|         openelm|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.09e-13)|       [1;32mOK[0m|
+|         openelm|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         openelm|                                Meta| Dense|  [1;32mOK[0m (1.09e-13)|     [1;33mSKIP[0m|
+|          arctic|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|          arctic|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          arctic|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|        deepseek|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|        deepseek|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        deepseek|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|       deepseek2|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (5.30e-14)|       [1;32mOK[0m|
+|       deepseek2|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       deepseek2|                                Meta|   MoE|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|   deepseek2-ocr|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|   deepseek2-ocr|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|   deepseek2-ocr|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      deepseek32|               Intel(R) UHD Graphics|   MoE|[1;31mFAIL[0m (2.60e-02)|       [1;32mOK[0m|
+|      deepseek32|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      deepseek32|                                Meta|   MoE|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       deepseek4|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       deepseek4|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       deepseek4|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|         chatglm|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|         chatglm|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         chatglm|                                Meta| Dense|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|            glm4|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.42e-10)|       [1;32mOK[0m|
+|            glm4|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            glm4|                                Meta| Dense|  [1;32mOK[0m (3.42e-10)|     [1;33mSKIP[0m|
+|         glm4moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|         glm4moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         glm4moe|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|         glm-dsa|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (5.51e-14)|       [1;32mOK[0m|
+|         glm-dsa|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         glm-dsa|                                Meta|   MoE|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          bitnet|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.05e-13)|     [1;33mSKIP[0m|
+|          bitnet|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|          bitnet|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|              t5|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.42e-11)|     [1;33mSKIP[0m|
+|              t5|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|              t5|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       t5encoder|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       t5encoder|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       t5encoder|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|            jais|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.89e-13)|       [1;32mOK[0m|
+|            jais|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            jais|                                Meta| Dense|  [1;32mOK[0m (1.89e-13)|     [1;33mSKIP[0m|
+|           jais2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.34e-12)|       [1;32mOK[0m|
+|           jais2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           jais2|                                Meta| Dense|  [1;32mOK[0m (3.34e-12)|     [1;33mSKIP[0m|
+|        nemotron|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.34e-12)|       [1;32mOK[0m|
+|        nemotron|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        nemotron|                                Meta| Dense|  [1;32mOK[0m (3.34e-12)|     [1;33mSKIP[0m|
+|      nemotron_h|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.08e-11)|       [1;32mOK[0m|
+|      nemotron_h|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      nemotron_h|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|  nemotron_h_moe|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.08e-11)|       [1;32mOK[0m|
+|  nemotron_h_moe|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|  nemotron_h_moe|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          exaone|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.89e-11)|       [1;32mOK[0m|
+|          exaone|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|          exaone|                                Meta| Dense|  [1;32mOK[0m (2.89e-11)|     [1;33mSKIP[0m|
+|         exaone4|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (3.49e-10)|       [1;32mOK[0m|
+|         exaone4|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         exaone4|                                Meta| Dense|  [1;32mOK[0m (3.49e-10)|     [1;33mSKIP[0m|
+|      exaone-moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.07e-11)|     [1;33mSKIP[0m|
+|      exaone-moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|      exaone-moe|                                Meta|   MoE|  [1;32mOK[0m (1.07e-11)|     [1;33mSKIP[0m|
+|           rwkv6|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           rwkv6|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           rwkv6|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      rwkv6qwen2|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      rwkv6qwen2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      rwkv6qwen2|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           rwkv7|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           rwkv7|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           rwkv7|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          arwkv7|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          arwkv7|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|          arwkv7|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|         granite|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (7.31e-12)|       [1;32mOK[0m|
+|         granite|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         granite|                                Meta| Dense|  [1;32mOK[0m (7.31e-12)|     [1;33mSKIP[0m|
+|         granite|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.01e-11)|       [1;32mOK[0m|
+|         granite|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         granite|                                Meta|   MoE|  [1;32mOK[0m (1.01e-11)|     [1;33mSKIP[0m|
+|      granitemoe|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (7.31e-12)|       [1;32mOK[0m|
+|      granitemoe|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      granitemoe|                                Meta| Dense|  [1;32mOK[0m (7.31e-12)|     [1;33mSKIP[0m|
+|      granitemoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.01e-11)|       [1;32mOK[0m|
+|      granitemoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      granitemoe|                                Meta|   MoE|  [1;32mOK[0m (1.01e-11)|     [1;33mSKIP[0m|
+|   granitehybrid|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (5.89e-12)|       [1;32mOK[0m|
+|   granitehybrid|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|   granitehybrid|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       chameleon|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       chameleon|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|       chameleon|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|wavtokenizer-dec|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|wavtokenizer-dec|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|wavtokenizer-dec|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|             plm|               Intel(R) UHD Graphics| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|             plm|12th Gen Intel(R) Core(TM) i5-12450H| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|             plm|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|      bailingmoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|      bailingmoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      bailingmoe|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|     bailingmoe2|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.08e-13)|       [1;32mOK[0m|
+|     bailingmoe2|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|     bailingmoe2|                                Meta|   MoE|  [1;32mOK[0m (1.08e-13)|     [1;33mSKIP[0m|
+|           dots1|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|           dots1|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           dots1|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|           arcee|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.90e-11)|       [1;32mOK[0m|
+|           arcee|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           arcee|                                Meta| Dense|  [1;32mOK[0m (2.90e-11)|     [1;33mSKIP[0m|
+|           afmoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (1.95e-13)|     [1;33mSKIP[0m|
+|           afmoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|           afmoe|                                Meta|   MoE|  [1;32mOK[0m (1.95e-13)|     [1;33mSKIP[0m|
+|        ernie4_5|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|        ernie4_5|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        ernie4_5|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|    ernie4_5-moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|    ernie4_5-moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|    ernie4_5-moe|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|     hunyuan-moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.91e-11)|       [1;32mOK[0m|
+|     hunyuan-moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|     hunyuan-moe|                                Meta|   MoE|  [1;32mOK[0m (2.91e-11)|     [1;33mSKIP[0m|
+|   hunyuan-dense|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.91e-11)|       [1;32mOK[0m|
+|   hunyuan-dense|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|   hunyuan-dense|                                Meta| Dense|  [1;32mOK[0m (2.91e-11)|     [1;33mSKIP[0m|
+|      hunyuan_vl|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.91e-11)|       [1;32mOK[0m|
+|      hunyuan_vl|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|      hunyuan_vl|                                Meta| Dense|  [1;32mOK[0m (2.91e-11)|     [1;33mSKIP[0m|
+|         smollm3|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|         smollm3|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         smollm3|                                Meta| Dense|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|         gpt-oss|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (3.16e-12)|       [1;32mOK[0m|
+|         gpt-oss|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         gpt-oss|                                Meta|   MoE|  [1;32mOK[0m (3.16e-12)|     [1;33mSKIP[0m|
+|            lfm2|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.47e-12)|       [1;32mOK[0m|
+|            lfm2|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|            lfm2|                                Meta| Dense|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|         lfm2moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.16e-11)|       [1;32mOK[0m|
+|         lfm2moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|         lfm2moe|                                Meta|   MoE|[1;33mSKIP[0m           |     [1;33mSKIP[0m|
+|           dream|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (5.88e-11)|       [1;32mOK[0m|
+|           dream|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           dream|                                Meta| Dense|  [1;32mOK[0m (5.88e-11)|     [1;33mSKIP[0m|
+|    smallthinker|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.94e-11)|       [1;32mOK[0m|
+|    smallthinker|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|    smallthinker|                                Meta|   MoE|  [1;32mOK[0m (2.94e-11)|     [1;33mSKIP[0m|
+|           llada|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.09e-13)|       [1;32mOK[0m|
+|           llada|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|           llada|                                Meta| Dense|  [1;32mOK[0m (1.09e-13)|     [1;33mSKIP[0m|
+|       llada-moe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (5.88e-11)|       [1;32mOK[0m|
+|       llada-moe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|       llada-moe|                                Meta|   MoE|  [1;32mOK[0m (5.88e-11)|     [1;33mSKIP[0m|
+|        seed_oss|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (2.93e-11)|       [1;32mOK[0m|
+|        seed_oss|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        seed_oss|                                Meta| Dense|  [1;32mOK[0m (2.93e-11)|     [1;33mSKIP[0m|
+|        grovemoe|               Intel(R) UHD Graphics|   MoE|  [1;32mOK[0m (2.92e-11)|       [1;32mOK[0m|
+|        grovemoe|12th Gen Intel(R) Core(TM) i5-12450H|   MoE|  [1;32mOK[0m (0.00e+00)|       [1;32mOK[0m|
+|        grovemoe|                                Meta|   MoE|  [1;32mOK[0m (2.92e-11)|     [1;33mSKIP[0m|
+|         apertus|               Intel(R) UHD Graphics| Dense|  [1;32mOK[0m (1.00e-11)|     [1;33mSKIP[0m|
+|         apertus|12th Gen Intel(R) Core(TM) i5-12450H| Dense|  [1;32mOK[0m (0.00e+00)|     [1;33mSKIP[0m|
+|         apertus|                                Meta| Dense|C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-backend-meta.cpp:593: fatal error
+
+      Start 25: test-chat-peg-parser
+25/52 Test #25: test-chat-peg-parser ................   Passed    8.42 sec
+      Start 26: test-jinja
+26/52 Test #26: test-jinja ..........................   Passed    5.37 sec
+      Start 27: test-jinja-py
+27/52 Test #27: test-jinja-py .......................   Passed   32.13 sec
+      Start 28: test-chat-auto-parser
+28/52 Test #28: test-chat-auto-parser ...............   Passed    5.29 sec
+      Start 29: test-chat-template
+29/52 Test #29: test-chat-template ..................   Passed    4.53 sec
+      Start 30: test-log
+30/52 Test #30: test-log ............................   Passed    5.02 sec
+      Start 31: test-peg-parser
+31/52 Test #31: test-peg-parser .....................   Passed    4.67 sec
+      Start 32: test-download-model
+32/52 Test #32: test-download-model .................   Passed    1.05 sec
+      Start 33: test-thread-safety
+33/52 Test #33: test-thread-safety ..................   Passed   25.05 sec
+      Start 34: test-arg-parser
+34/52 Test #34: test-arg-parser .....................   Passed    5.32 sec
+      Start 35: test-opt
+35/52 Test #35: test-opt ............................   Passed    4.66 sec
+      Start 36: test-gguf
+36/52 Test #36: test-gguf ...........................   Passed    4.87 sec
+      Start 37: test-backend-ops
+37/52 Test #37: test-backend-ops ....................***Failed   25.94 sec
+Build with Macros:
+  GGML_SYCL_FORCE_MMQ: no
+  GGML_SYCL_F16: no
+  GGML_SYCL_GRAPH: yes
+  GGML_SYCL_DNNL: yes
+  GGML_SYCL_SUPPORT_LEVEL_ZERO_API: no
+  GGML_SYCL_USE_VMM: yes
+Running with Environment Variables:
+  GGML_SYCL_DEBUG: 0
+  GGML_SYCL_DISABLE_OPT: 0
+  GGML_SYCL_DISABLE_GRAPH: 1
+  GGML_SYCL_USE_LEVEL_ZERO_API: Disable Level Zero API usage by compile flag
+  GGML_SYCL_DEV2DEV_MEMCPY: 0, enable to SYCL API since missing GGML_SYCL_SUPPORT_LEVEL_ZERO_API
+  GGML_SYCL_DISABLE_DNN: 0
+  GGML_SYCL_ENABLE_VMM: 1
+  GGML_SYCL_PRIORITIZE_DMMV: 0
+  GGML_SYCL_USE_ASYNC_MEM_OP: 1
+  GGML_SYCL_ENABLE_FLASH_ATTN: 1
+  GGML_SYCL_USM_SYSTEM: 0
+Found 1 SYCL devices:
+|  |                   |                                       |       |Max    |        |Max  |Global |                     |
+|  |                   |                                       |       |compute|Max work|sub  |mem    |                     |
+|ID|        Device Type|                                   Name|Version|units  |group   |group|size   |       Driver version|
+|--|-------------------|---------------------------------------|-------|-------|--------|-----|-------|---------------------|
+| 0| [level_zero:gpu:0]|                     Intel UHD Graphics|   12.3|     48|     512|   32|  7451M|            1.6.34728|
+SYCL Optimization Feature:
+|ID|        Device Type|Reorder|
+|--|-------------------|-------|
+| 0| [level_zero:gpu:0]|      Y|
+Testing 2 devices
+
+Backend 1/2: SYCL0
+  Device description: Intel(R) UHD Graphics
+  Device memory: 7106 MB (7106 MB free)
+
+  ABS(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  ABS(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SGN(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SGN(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  NEG(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  NEG(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  STEP(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  STEP(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  TANH(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  TANH(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  ELU(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  ELU(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  RELU(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  RELU(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SIGMOID(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SIGMOID(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  GELU(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  GELU(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  GELU_QUICK(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  GELU_QUICK(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SILU(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SILU(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  HARDSWISH(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  HARDSWISH(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  HARDSIGMOID(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  HARDSIGMOID(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  EXP(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  EXP(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  EXPM1(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  EXPM1(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SOFTPLUS(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SOFTPLUS(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  GELU_ERF(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  GELU_ERF(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  FLOOR(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  FLOOR(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  CEIL(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  CEIL(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  ROUND(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  ROUND(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  TRUNC(type=f16,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  TRUNC(type=f16,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  ABS(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  ABS(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SGN(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SGN(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  NEG(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  NEG(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  STEP(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  STEP(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  TANH(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  TANH(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  ELU(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  ELU(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  RELU(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  RELU(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SIGMOID(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SIGMOID(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  GELU(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  GELU(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  GELU_QUICK(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  GELU_QUICK(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SILU(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SILU(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  HARDSWISH(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  HARDSWISH(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  HARDSIGMOID(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  HARDSIGMOID(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  EXP(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  EXP(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  EXPM1(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  EXPM1(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SOFTPLUS(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SOFTPLUS(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  GELU_ERF(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  GELU_ERF(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  FLOOR(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  FLOOR(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  CEIL(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  CEIL(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  ROUND(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  ROUND(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  TRUNC(type=f16,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  TRUNC(type=f16,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  ABS(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  ABS(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SGN(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SGN(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  NEG(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  NEG(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  STEP(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  STEP(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  TANH(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  TANH(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  ELU(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  ELU(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  RELU(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  RELU(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SIGMOID(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SIGMOID(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  GELU(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  GELU(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  GELU_QUICK(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  GELU_QUICK(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SILU(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SILU(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  HARDSWISH(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  HARDSWISH(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  HARDSIGMOID(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  HARDSIGMOID(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  EXP(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  EXP(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  EXPM1(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  EXPM1(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  SOFTPLUS(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  SOFTPLUS(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  GELU_ERF(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  GELU_ERF(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  FLOOR(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  FLOOR(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  CEIL(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  CEIL(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  ROUND(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  ROUND(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  TRUNC(type=f32,ne_a=[128,2,2,2],v=0): [1;32mOK[0m
+  TRUNC(type=f32,ne_a=[5,7,11,13],v=0): [1;32mOK[0m
+  ABS(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  ABS(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SGN(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SGN(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  NEG(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  NEG(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  STEP(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  STEP(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  TANH(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  TANH(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  ELU(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  ELU(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  RELU(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  RELU(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SIGMOID(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SIGMOID(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  GELU(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  GELU(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  GELU_QUICK(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  GELU_QUICK(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SILU(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SILU(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  HARDSWISH(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  HARDSWISH(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  HARDSIGMOID(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  HARDSIGMOID(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  EXP(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  EXP(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  EXPM1(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  EXPM1(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  SOFTPLUS(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  SOFTPLUS(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  GELU_ERF(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  GELU_ERF(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  FLOOR(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  FLOOR(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  CEIL(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  CEIL(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  ROUND(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  ROUND(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  TRUNC(type=f32,ne_a=[128,2,2,2],v=1): [1;32mOK[0m
+  TRUNC(type=f32,ne_a=[5,7,11,13],v=1): [1;32mOK[0m
+  RELU_SQR(type=f16,ne=[128,2,2,2]): [1;32mOK[0m
+  RELU_SQR(type=f16,ne=[5,7,11,13]): [1;32mOK[0m
+  RELU_SQR(type=f32,ne=[128,2,2,2]): [1;32mOK[0m
+  RELU_SQR(type=f32,ne=[5,7,11,13]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[5,7,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[33,32,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[1025,13,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[128,16,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[256,192,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[64,32,2,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[64,32,1,2]): [1;32mOK[0m
+  SNAKE_FUSE(type=f32,ne=[64,32,2,3]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[5,7,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[33,32,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[1025,13,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[128,16,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[256,192,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[64,32,2,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[64,32,1,2]): [1;32mOK[0m
+  SNAKE_FUSE(type=f16,ne=[64,32,2,3]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[5,7,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[33,32,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[1025,13,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[128,16,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[256,192,1,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[64,32,2,1]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[64,32,1,2]): [1;32mOK[0m
+  SNAKE_FUSE(type=bf16,ne=[64,32,2,3]): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  REGLU(type=f16,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  GEGLU(type=f16,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  SWIGLU(type=f16,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  GEGLU_ERF(type=f16,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f16,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[128,2,2,2],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[5,7,11,13],v=0,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[128,2,2,2],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[5,7,11,13],v=0,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[128,2,2,2],v=0,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[5,7,11,13],v=0,split): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  REGLU(type=f32,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  GEGLU(type=f32,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  SWIGLU(type=f32,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  GEGLU_ERF(type=f32,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[128,2,2,2],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[5,7,11,13],v=1,swapped=0): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[128,2,2,2],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[5,7,11,13],v=1,swapped=1): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[128,2,2,2],v=1,split): [1;32mOK[0m
+  GEGLU_QUICK(type=f32,ne_a=[5,7,11,13],v=1,split): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=0,alpha=0.500000,limit=2.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=0,alpha=0.500000,limit=7.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=0,alpha=1.702000,limit=2.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=0,alpha=1.702000,limit=7.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=1,alpha=0.500000,limit=2.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=1,alpha=0.500000,limit=7.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=1,alpha=1.702000,limit=2.000000): [1;32mOK[0m
+  SWIGLU_OAI(type=f32,ne_a=[128,2,2,2],v=1,alpha=1.702000,limit=7.000000): [1;32mOK[0m
+  GET_ROWS(type=f32,n=76800,m=5,r=4,be1=1,be2=2,v=0): [1;32mOK[0m
+  GET_ROWS(type=f32,n=256,m=80000,r=70000,be1=2,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=f32,n=256,m=5,r=4,be1=700,be2=100,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=76800,m=5,r=4,be1=1,be2=2,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=256,m=80000,r=70000,be1=2,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=256,m=5,r=4,be1=700,be2=100,v=0): [1;32mOK[0m
+  GET_ROWS(type=f32,n=1,m=8,r=2,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=f32,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=f32,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=f32,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=f32,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=f16,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=f16,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=f16,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=f16,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=bf16,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=bf16,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=bf16,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=bf16,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_0,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q4_1,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_1,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q4_1,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_1,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q5_0,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q5_0,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q5_0,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q5_0,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q5_1,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q5_1,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q5_1,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q5_1,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q8_0,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q8_0,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q8_0,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q8_0,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q1_0,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q1_0,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q1_0,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q1_0,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=mxfp4,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=mxfp4,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=mxfp4,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=mxfp4,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=nvfp4,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=nvfp4,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=nvfp4,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=nvfp4,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q2_K,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q2_K,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q2_K,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q2_K,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q3_K,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q3_K,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q3_K,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q3_K,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q4_K,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_K,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q4_K,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q4_K,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q5_K,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q5_K,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q5_K,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q5_K,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q6_K,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q6_K,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=q6_K,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=q6_K,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq2_xxs,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq2_xxs,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq2_xxs,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq2_xxs,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq2_xs,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq2_xs,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq2_xs,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq2_xs,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq2_s,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq2_s,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq2_s,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq2_s,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq3_xxs,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq3_xxs,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq3_xxs,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq3_xxs,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq1_s,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq1_s,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq1_s,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq1_s,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq1_m,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq1_m,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq1_m,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq1_m,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq4_nl,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq4_nl,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq4_nl,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq4_nl,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq3_s,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq3_s,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq3_s,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq3_s,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq4_xs,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq4_xs,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=iq4_xs,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=iq4_xs,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=i32,n=256,m=5,r=4,be1=1,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=i32,n=256,m=5,r=4,be1=1,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS(type=i32,n=256,m=5,r=4,be1=7,be2=1,v=0): [1;32mOK[0m
+  GET_ROWS(type=i32,n=256,m=5,r=4,be1=7,be2=1,v=1): [1;32mOK[0m
+  GET_ROWS_BACK(type=f32,n=1,m=8,r=2,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=f32,n=1,m=70000,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=f32,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=f32,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=f16,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=f16,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=bf16,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=bf16,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q4_0,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q4_0,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q4_1,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q4_1,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q5_0,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q5_0,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q5_1,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q5_1,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q8_0,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q8_0,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q1_0,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q1_0,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=mxfp4,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=mxfp4,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=nvfp4,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=nvfp4,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q2_K,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q2_K,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q3_K,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q3_K,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q4_K,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q4_K,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q5_K,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q5_K,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q6_K,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=q6_K,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq2_xxs,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq2_xxs,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq2_xs,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq2_xs,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq2_s,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq2_s,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq3_xxs,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq3_xxs,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq1_s,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq1_s,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq1_m,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq1_m,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq4_nl,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq4_nl,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq3_s,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq3_s,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq4_xs,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=iq4_xs,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  GET_ROWS_BACK(type=i32,n=256,m=5,r=4,b=1,v=0): not supported [SYCL0] 
+  GET_ROWS_BACK(type=i32,n=256,m=5,r=4,b=1,v=1): not supported [SYCL0] 
+  SET_ROWS(type=f32,type_idx=i64,ne=[1,8,1,3],nr23=[1,1],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i32,ne=[1,8,1,3],nr23=[1,1],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i32,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[3,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[31,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[33,5,1,1],nr23=[2,3],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[3,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[31,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[33,5,1,1],nr23=[2,3],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[3,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[31,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[33,5,1,7],nr23=[2,3],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[3,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[31,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f32,type_idx=i64,ne=[33,5,1,7],nr23=[2,3],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[3,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[31,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[33,5,1,1],nr23=[2,3],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[3,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[31,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[33,5,1,1],nr23=[2,3],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[3,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[31,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[33,5,1,7],nr23=[2,3],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[3,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[31,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=f16,type_idx=i64,ne=[33,5,1,7],nr23=[2,3],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[3,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[31,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[33,5,1,1],nr23=[2,3],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[3,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[31,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[33,5,1,1],nr23=[2,3],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[3,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[31,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[33,5,1,7],nr23=[2,3],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[3,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[31,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=bf16,type_idx=i64,ne=[33,5,1,7],nr23=[2,3],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_0,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q4_1,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_0,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q5_1,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q8_0,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[384,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[384,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[384,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=q1_0,type_idx=i64,ne=[384,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,5,1,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,11,1,1],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[96,3,1,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=0): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=0): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=0): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,5,7,3],nr23=[1,1],r=1,v=1): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[256,11,1,7],nr23=[2,3],r=7,v=1): [1;32mOK[0m
+  SET_ROWS(type=mxfp4,type_idx=i64,ne=[96,3,7,1],nr23=[2,3],r=2,v=1): [1;32mOK[0m
+Required aspect fp64 is not supported on the deviceException caught at file:C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ggml-sycl.cpp, line:4996
+Error OP SET_ROWS
+
+      Start 38: test-model-load-cancel
+38/52 Test #38: test-model-load-cancel ..............   Passed    4.41 sec
+      Start 39: test-autorelease
+39/52 Test #39: test-autorelease ....................   Passed    4.46 sec
+      Start 40: test-backend-sampler
+40/52 Test #40: test-backend-sampler ................   Passed    4.47 sec
+      Start 41: test-state-restore-fragmented
+41/52 Test #41: test-state-restore-fragmented .......   Passed   10.06 sec
+      Start 42: test-recurrent-state-rollback
+42/52 Test #42: test-recurrent-state-rollback .......   Passed    8.49 sec
+      Start 43: test-save-load-state
+43/52 Test #43: test-save-load-state ................Exit code 0xc0000409***Exception:  12.24 sec
+0.00.361.959 W load: empty token at index 30143
+0.00.362.133 W load: bad special token: 'tokenizer.ggml.seperator_token_id' = 4294967295, using default id -1
+0.00.362.135 W load: bad special token: 'tokenizer.ggml.padding_token_id' = 4294967295, using default id -1
+0.00.401.590 I main: no prompt provided, generating 100 (n_batch) random tokens
+0.00.401.609 I main: the input prompt is 100 tokens
+0.00.401.663 W llama_context: n_ctx_seq (256) > n_ctx_train (128) -- possible training context overflow
+0.00.403.037 W sched_reserve: layer 0 is assigned to device SYCL0 but the Flash Attention tensor is assigned to device CPU (usually due to missing support)
+0.00.403.047 W sched_reserve: Flash Attention was auto, set to disabled
+0.03.692.869 I cmn  common_promp: saved session before last token to dump_state.bin, n_new = 100
+
+=== Test 1: baseline ===
+1497 16823 1497 29892 376 3629 273 8842 373 278 274 1296 2768 29889 319 371 
+0.03.800.883 W llama_context: n_ctx_seq (256) > n_ctx_train (128) -- possible training context overflow
+level_zero backend failed with error: 20 (UR_RESULT_ERROR_DEVICE_LOST)
+Exception caught at file:C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ggml-sycl.cpp, line:727, func:operator()
+SYCL error: CHECK_TRY_ERROR(dpct::get_current_device().queues_wait_and_throw()): Exception caught in this line of code.
+  in function ggml_backend_sycl_buffer_clear at C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\ggml-sycl.cpp:727
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-sycl\..\ggml-sycl\common.hpp:150: SYCL error
+
+      Start 44: test-barrier
+44/52 Test #44: test-barrier ........................   Passed    1.08 sec
+      Start 45: test-quantize-fns
+45/52 Test #45: test-quantize-fns ...................   Passed    5.94 sec
+      Start 46: test-quantize-perf
+46/52 Test #46: test-quantize-perf ..................   Passed    0.86 sec
+      Start 47: test-rope
+47/52 Test #47: test-rope ...........................   Passed    0.72 sec
+      Start 48: test-col2im-1d
+48/52 Test #48: test-col2im-1d ......................   Passed    0.59 sec
+      Start 49: test-mtmd-c-api
+49/52 Test #49: test-mtmd-c-api .....................   Passed    4.52 sec
+      Start 50: test-alloc
+50/52 Test #50: test-alloc ..........................   Passed    0.60 sec
+      Start 51: test-eval-callback-download-model
+51/52 Test #51: test-eval-callback-download-model ...   Passed    0.10 sec
+      Start 52: test-eval-callback
+52/52 Test #52: test-eval-callback ..................   Passed    5.09 sec
+
+94% tests passed, 3 tests failed out of 52
+
+Label Time Summary:
+main      = 343.58 sec*proc (42 tests)
+model     =  44.11 sec*proc (6 tests)
+python    =  32.13 sec*proc (1 test)
+
+Total Test time (real) = 427.30 sec
+
+The following tests FAILED:
+	 24 - test-llama-archs (Exit code 0xc0000409)           main
+	 37 - test-backend-ops (Failed)                         main
+	 43 - test-save-load-state (Exit code 0xc0000409)       model

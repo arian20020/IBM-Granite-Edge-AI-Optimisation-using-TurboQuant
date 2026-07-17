@@ -1,0 +1,15 @@
+{
+  "version": "3.0",
+  "generated_on": "2026-07-14",
+  "markdown_files": 110,
+  "docx_files_in_git": 0,
+  "png_files_in_git": 0,
+  "docx_files_in_controlled_zip": 44,
+  "png_files_in_controlled_zip": 56,
+  "curated_words": 76917,
+  "source_extract_words": 58057,
+  "yaml_frontmatter_files": 0,
+  "broken_local_links_total": 0,
+  "critical_broken_links": 0,
+  "scope": "Detailed version-3 Git research tree; binaries remain in the controlled ZIP."
+}

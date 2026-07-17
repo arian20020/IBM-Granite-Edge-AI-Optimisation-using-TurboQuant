@@ -1,0 +1,34 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\diagnostic\gemma-3-1b-it-Q4_K_M\gemma-3-1b-it-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Explain why KV-cache quantisation can help a local language model run offline on a memory-limited laptop. Use exactly five bullet points and fewer than 90 words in total. Include the exact terms 'KV cache', 'offline', and 'memory'. Give two benefits, two limitations, and one check the user should perform.
+
+Here’s a breakdown of how KV cache quantization helps offline models:
+
+*
+
+[ Prompt: 114.4 t/s | Generation: 51.2 t/s ]
+
+Exiting...

@@ -1,0 +1,5 @@
+"Name","Path","Size_Bytes","SHA256"
+"llama-cli.exe","C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-cli.exe","7208448","bb911e3d75f79e477f91b0478af3abdd68c50fa157d7b9dcacb249ce4e2d0b3c"
+"llama-server.exe","C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-server.exe","8165888","eeca81a8ac1c6e1e3f550498dc4eb26c5c0e42f84a9eecfb4f5a188a99efc78e"
+"llama-bench.exe","C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-bench.exe","4174848","fa8676d9d08a14c668fed1d449dd85b72aeb9f93a337695c50919607c3f19f3b"
+"llama-perplexity.exe","C:\Users\Student\gtq-build\llama-b9870-cpu-release-002\bin\Release\llama-perplexity.exe","5732352","7fbbc0f0e51eacc8f198e8fad2af3184c1622d7d19e056de1c98f3a16955ac65"

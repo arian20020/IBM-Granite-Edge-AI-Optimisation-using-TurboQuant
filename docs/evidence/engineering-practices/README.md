@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Each engineering-practice folder records how the practice was applied, what artefacts prove it, and how the result was validated. Engineering-practice evidence should cross-reference the same authoritative project artefacts used by related requirements and work packages.
+Each engineering-practice folder records how the practice was applied, what artefacts prove it, and how the result was validated. Engineering-practice evidence must cross-reference the same authoritative project artefacts used by related requirements and work packages.
 
 ## Common template
 
@@ -11,6 +11,12 @@ Use the [Evidence Record Template](../templates/Evidence-Record-Template.md) for
 ## Current evidence packs
 
 - [EP-001 — Freeze problem, aim, research questions, contribution and scope](EP-001/README.md)
+- [EP-004 — Maintain stable MoSCoW catalogue](EP-004/README.md)
+  - [Stable catalogue audit](EP-004/Stable-Catalogue-Audit.md)
+- [EP-005 — Build bidirectional requirements traceability](EP-005/README.md)
+  - [Bidirectional traceability audit](EP-005/Bidirectional-Traceability-Audit.md)
+- [EP-006 — Maintain derived-requirement and change log](EP-006/README.md)
+- [EP-019 — Freeze app-specific evaluation addendum](EP-019/README.md)
 
 ## Evidence rules
 
@@ -18,4 +24,5 @@ Use the [Evidence Record Template](../templates/Evidence-Record-Template.md) for
 - Reuse authoritative sources through relative links rather than creating copies.
 - Record the practice statement, status, validation method, validator, date and traceability.
 - Link to decisions, plans, code, tests, experiments, reports or release records as appropriate.
-- Keep negative findings and limitations visible.
+- Keep negative findings, unresolved approvals and limitations visible.
+- Prefer relative repository links so the evidence remains usable after cloning.

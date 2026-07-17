@@ -4,6 +4,10 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/UnitTests/">
+    <Project Path="tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" />
+  </Folder>
   <Project Path="IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />

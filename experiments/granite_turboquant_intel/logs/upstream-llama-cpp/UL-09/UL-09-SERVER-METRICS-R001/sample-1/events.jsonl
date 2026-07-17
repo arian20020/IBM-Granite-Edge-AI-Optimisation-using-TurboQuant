@@ -1,0 +1,1515 @@
+{"elapsed_ms": 0.0, "kind": "start", "pid": 5852}
+{"elapsed_ms": 24.4228, "kind": "memory", "private_bytes": 13266944}
+{"elapsed_ms": 61.8098, "kind": "stderr", "text": "0.00.047.293 I cmn  common_param: common_params_print_info: build 1 (2d97363) with MSVC 19.51.36248.0 for x64"}
+{"elapsed_ms": 61.8234, "kind": "stderr", "text": "0.00.047.300 I cmn  common_param: common_params_print_info: verbosity = 2147483647 (adjust with the `-lv N` CLI arg)"}
+{"elapsed_ms": 61.8286, "kind": "stderr", "text": "0.00.047.301 I cmn  common_param: device_info:"}
+{"elapsed_ms": 62.4557, "kind": "stderr", "text": "0.00.047.983 I cmn  common_param:   - Vulkan0 : Intel(R) UHD Graphics (8038 MiB, 7380 MiB free)"}
+{"elapsed_ms": 62.4606, "kind": "stderr", "text": "0.00.047.991 I cmn  common_param:   - CPU     : 12th Gen Intel(R) Core(TM) i5-12450H (16076 MiB, 11751 MiB free)"}
+{"elapsed_ms": 62.4633, "kind": "stderr", "text": "0.00.048.036 I cmn  common_param: system_info: n_threads = 8 (n_threads_batch = 8) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | "}
+{"elapsed_ms": 62.4654, "kind": "stderr", "text": "0.00.048.038 I srv  llama_server: n_parallel is set to auto, using n_parallel = 4 and kv_unified = true"}
+{"elapsed_ms": 62.467, "kind": "stderr", "text": "0.00.048.074 I srv          init: using 11 threads for HTTP server"}
+{"elapsed_ms": 62.5687, "kind": "stderr", "text": "0.00.048.161 I srv         start: binding port with default address family"}
+{"elapsed_ms": 65.3578, "kind": "stderr", "text": "0.00.050.847 I srv    load_model: loading model 'C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf'"}
+{"elapsed_ms": 65.3686, "kind": "stderr", "text": "0.00.050.850 I srv    load_model: local path 'C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf'"}
+{"elapsed_ms": 65.3723, "kind": "stderr", "text": "0.00.050.858 I cmn  common_init_: fitting params to device memory ..."}
+{"elapsed_ms": 65.3732, "kind": "stderr", "text": "0.00.050.858 I cmn  common_init_: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)"}
+{"elapsed_ms": 65.3776, "kind": "stderr", "text": "0.00.050.861 I common_params_fit_impl: getting device memory data for initial parameters:"}
+{"elapsed_ms": 85.5887, "kind": "stderr", "text": "0.00.071.037 I llama_model_loader: loaded meta data with 34 key-value pairs and 362 tensors from C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf (version GGUF V3 (latest))"}
+{"elapsed_ms": 85.6063, "kind": "stderr", "text": "0.00.071.053 I llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output."}
+{"elapsed_ms": 85.6076, "kind": "stderr", "text": "0.00.071.056 I llama_model_loader: - kv   0:                       general.architecture str              = granite"}
+{"elapsed_ms": 85.6088, "kind": "stderr", "text": "0.00.071.057 I llama_model_loader: - kv   1:                               general.type str              = model"}
+{"elapsed_ms": 85.6096, "kind": "stderr", "text": "0.00.071.058 I llama_model_loader: - kv   2:                               general.name str              = Granite 4.1 3b"}
+{"elapsed_ms": 85.6105, "kind": "stderr", "text": "0.00.071.058 I llama_model_loader: - kv   3:                           general.basename str              = granite-4.1"}
+{"elapsed_ms": 85.6116, "kind": "stderr", "text": "0.00.071.059 I llama_model_loader: - kv   4:                         general.size_label str              = 3B"}
+{"elapsed_ms": 85.6122, "kind": "stderr", "text": "0.00.071.059 I llama_model_loader: - kv   5:                            general.license str              = apache-2.0"}
+{"elapsed_ms": 85.6129, "kind": "stderr", "text": "0.00.071.060 I llama_model_loader: - kv   6:                        granite.block_count u32              = 40"}
+{"elapsed_ms": 85.6137, "kind": "stderr", "text": "0.00.071.061 I llama_model_loader: - kv   7:                     granite.context_length u32              = 131072"}
+{"elapsed_ms": 85.6144, "kind": "stderr", "text": "0.00.071.061 I llama_model_loader: - kv   8:                   granite.embedding_length u32              = 2560"}
+{"elapsed_ms": 85.6152, "kind": "stderr", "text": "0.00.071.062 I llama_model_loader: - kv   9:                granite.feed_forward_length u32              = 8192"}
+{"elapsed_ms": 85.6163, "kind": "stderr", "text": "0.00.071.062 I llama_model_loader: - kv  10:               granite.attention.head_count u32              = 40"}
+{"elapsed_ms": 85.6174, "kind": "stderr", "text": "0.00.071.063 I llama_model_loader: - kv  11:            granite.attention.head_count_kv u32              = 8"}
+{"elapsed_ms": 85.6181, "kind": "stderr", "text": "0.00.071.069 I llama_model_loader: - kv  12:                     granite.rope.freq_base f32              = 10000000.000000"}
+{"elapsed_ms": 85.6187, "kind": "stderr", "text": "0.00.071.070 I llama_model_loader: - kv  13:   granite.attention.layer_norm_rms_epsilon f32              = 0.000010"}
+{"elapsed_ms": 85.6194, "kind": "stderr", "text": "0.00.071.071 I llama_model_loader: - kv  14:                         granite.vocab_size u32              = 100352"}
+{"elapsed_ms": 85.6248, "kind": "stderr", "text": "0.00.071.071 I llama_model_loader: - kv  15:               granite.rope.dimension_count u32              = 64"}
+{"elapsed_ms": 85.6254, "kind": "stderr", "text": "0.00.071.073 I llama_model_loader: - kv  16:                    granite.attention.scale f32              = 0.015625"}
+{"elapsed_ms": 85.626, "kind": "stderr", "text": "0.00.071.074 I llama_model_loader: - kv  17:                    granite.embedding_scale f32              = 12.000000"}
+{"elapsed_ms": 85.6266, "kind": "stderr", "text": "0.00.071.075 I llama_model_loader: - kv  18:                     granite.residual_scale f32              = 0.220000"}
+{"elapsed_ms": 85.6272, "kind": "stderr", "text": "0.00.071.075 I llama_model_loader: - kv  19:                        granite.logit_scale f32              = 10.000000"}
+{"elapsed_ms": 85.6299, "kind": "stderr", "text": "0.00.071.076 I llama_model_loader: - kv  20:                       tokenizer.ggml.model str              = gpt2"}
+{"elapsed_ms": 85.6305, "kind": "stderr", "text": "0.00.071.076 I llama_model_loader: - kv  21:                         tokenizer.ggml.pre str              = dbrx"}
+{"elapsed_ms": 103.1817, "kind": "stderr", "text": "0.00.088.693 I llama_model_loader: - kv  22:                      tokenizer.ggml.tokens arr[str,100352]  = [\"!\", \"\\\"\", \"#\", \"$\", \"%\", \"&\", \"'\", ..."}
+{"elapsed_ms": 110.7291, "kind": "stderr", "text": "0.00.096.255 I llama_model_loader: - kv  23:                  tokenizer.ggml.token_type arr[i32,100352]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..."}
+{"elapsed_ms": 128.7546, "kind": "stderr", "text": "0.00.114.346 I llama_model_loader: - kv  24:                      tokenizer.ggml.merges arr[str,100000]  = [\"\u0120 \u0120\", \"\u0120\u0120 \u0120\u0120\", \"i n\", \"\u0120 t\",..."}
+{"elapsed_ms": 128.768, "kind": "stderr", "text": "0.00.114.352 I llama_model_loader: - kv  25:                tokenizer.ggml.bos_token_id u32              = 100257"}
+{"elapsed_ms": 128.7695, "kind": "stderr", "text": "0.00.114.353 I llama_model_loader: - kv  26:                tokenizer.ggml.eos_token_id u32              = 100257"}
+{"elapsed_ms": 128.7703, "kind": "stderr", "text": "0.00.114.353 I llama_model_loader: - kv  27:            tokenizer.ggml.unknown_token_id u32              = 100269"}
+{"elapsed_ms": 128.7747, "kind": "stderr", "text": "0.00.114.354 I llama_model_loader: - kv  28:            tokenizer.ggml.padding_token_id u32              = 100256"}
+{"elapsed_ms": 128.7828, "kind": "stderr", "text": "0.00.114.355 I llama_model_loader: - kv  29:               tokenizer.ggml.add_bos_token bool             = false"}
+{"elapsed_ms": 128.7864, "kind": "stderr", "text": "0.00.114.364 I llama_model_loader: - kv  30:                    tokenizer.chat_template str              = {%- set tools_system_message_prefix =..."}
+{"elapsed_ms": 128.7876, "kind": "stderr", "text": "0.00.114.364 I llama_model_loader: - kv  31:            tokenizer.ggml.add_space_prefix bool             = false"}
+{"elapsed_ms": 128.7902, "kind": "stderr", "text": "0.00.114.365 I llama_model_loader: - kv  32:               general.quantization_version u32              = 2"}
+{"elapsed_ms": 128.7911, "kind": "stderr", "text": "0.00.114.366 I llama_model_loader: - kv  33:                          general.file_type u32              = 15"}
+{"elapsed_ms": 128.7922, "kind": "stderr", "text": "0.00.114.366 I llama_model_loader: - type  f32:   81 tensors"}
+{"elapsed_ms": 128.7936, "kind": "stderr", "text": "0.00.114.367 I llama_model_loader: - type q4_K:  240 tensors"}
+{"elapsed_ms": 128.7944, "kind": "stderr", "text": "0.00.114.367 I llama_model_loader: - type q6_K:   41 tensors"}
+{"elapsed_ms": 128.7951, "kind": "stderr", "text": "0.00.114.369 I print_info: file format = GGUF V3 (latest)"}
+{"elapsed_ms": 128.7957, "kind": "stderr", "text": "0.00.114.376 I print_info: file type   = Q4_K - Medium"}
+{"elapsed_ms": 128.7965, "kind": "stderr", "text": "0.00.114.381 I print_info: file size   = 1.95 GiB (4.93 BPW) "}
+{"elapsed_ms": 129.6873, "kind": "stderr", "text": "0.00.115.230 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"}
+{"elapsed_ms": 135.6566, "kind": "memory", "private_bytes": 45793280}
+{"elapsed_ms": 165.293, "kind": "stderr", "text": "0.00.150.836 D init_tokenizer: initializing tokenizer for type 2"}
+{"elapsed_ms": 186.6863, "kind": "stderr", "text": "0.00.172.154 I load: 69 unused tokens"}
+{"elapsed_ms": 187.7544, "kind": "stderr", "text": "0.00.173.173 D load: control token: 100260 '<|fim_suffix|>' is not marked as EOG"}
+{"elapsed_ms": 188.0215, "kind": "stderr", "text": "0.00.173.589 D load: control token: 100265 '<|end_of_role|>' is not marked as EOG"}
+{"elapsed_ms": 188.0437, "kind": "stderr", "text": "0.00.173.707 D load: control token: 100268 '<|end_of_plugin|>' is not marked as EOG"}
+{"elapsed_ms": 188.6799, "kind": "stderr", "text": "0.00.174.273 D load: control token: 100263 '<|reponame|>' is not marked as EOG"}
+{"elapsed_ms": 189.1068, "kind": "stderr", "text": "0.00.174.647 D load: control token: 100281 '</tools>' is not marked as EOG"}
+{"elapsed_ms": 192.2347, "kind": "stderr", "text": "0.00.177.774 D load: control token: 100277 '<think_off>' is not marked as EOG"}
+{"elapsed_ms": 193.5215, "kind": "stderr", "text": "0.00.179.057 D load: control token: 100267 '<|start_of_plugin|>' is not marked as EOG"}
+{"elapsed_ms": 193.9221, "kind": "stderr", "text": "0.00.179.470 D load: control token: 100276 '<think_on>' is not marked as EOG"}
+{"elapsed_ms": 197.5018, "kind": "stderr", "text": "0.00.183.033 D load: control token: 100269 '<|unk|>' is not marked as EOG"}
+{"elapsed_ms": 199.1459, "kind": "stderr", "text": "0.00.184.724 D load: control token: 100258 '<|fim_prefix|>' is not marked as EOG"}
+{"elapsed_ms": 199.3595, "kind": "stderr", "text": "0.00.184.951 D load: control token: 100256 '<|pad|>' is not marked as EOG"}
+{"elapsed_ms": 199.9466, "kind": "stderr", "text": "0.00.185.463 D load: control token: 100259 '<|fim_middle|>' is not marked as EOG"}
+{"elapsed_ms": 199.9511, "kind": "stderr", "text": "0.00.185.465 D load: control token: 100262 '<|filename|>' is not marked as EOG"}
+{"elapsed_ms": 199.952, "kind": "stderr", "text": "0.00.185.466 D load: control token: 100264 '<|start_of_role|>' is not marked as EOG"}
+{"elapsed_ms": 199.9527, "kind": "stderr", "text": "0.00.185.467 D load: control token: 100278 '<schema>' is not marked as EOG"}
+{"elapsed_ms": 199.9562, "kind": "stderr", "text": "0.00.185.467 D load: control token: 100279 '</schema>' is not marked as EOG"}
+{"elapsed_ms": 199.9569, "kind": "stderr", "text": "0.00.185.468 D load: control token: 100280 '<tools>' is not marked as EOG"}
+{"elapsed_ms": 199.9575, "kind": "stderr", "text": "0.00.185.468 D load: control token: 100282 '<documents>' is not marked as EOG"}
+{"elapsed_ms": 199.9581, "kind": "stderr", "text": "0.00.185.469 D load: control token: 100283 '</documents>' is not marked as EOG"}
+{"elapsed_ms": 203.2852, "kind": "stderr", "text": "0.00.188.789 I load: printing all EOG tokens:"}
+{"elapsed_ms": 203.2922, "kind": "stderr", "text": "0.00.188.794 I load:   - 100257 ('<|end_of_text|>')"}
+{"elapsed_ms": 203.2952, "kind": "stderr", "text": "0.00.188.795 I load:   - 100261 ('<|fim_pad|>')"}
+{"elapsed_ms": 203.437, "kind": "stderr", "text": "0.00.189.017 I load: special tokens cache size = 96"}
+{"elapsed_ms": 218.1832, "kind": "stderr", "text": "0.00.203.575 I load: token to piece cache size = 0.6152 MB"}
+{"elapsed_ms": 218.1942, "kind": "stderr", "text": "0.00.203.599 I print_info: arch                  = granite"}
+{"elapsed_ms": 218.1952, "kind": "stderr", "text": "0.00.203.600 I print_info: vocab_only            = 0"}
+{"elapsed_ms": 218.1961, "kind": "stderr", "text": "0.00.203.600 I print_info: no_alloc              = 1"}
+{"elapsed_ms": 218.1968, "kind": "stderr", "text": "0.00.203.600 I print_info: n_ctx_train           = 131072"}
+{"elapsed_ms": 218.2009, "kind": "stderr", "text": "0.00.203.601 I print_info: n_embd_inp            = 2560"}
+{"elapsed_ms": 218.2016, "kind": "stderr", "text": "0.00.203.601 I print_info: n_embd                = 2560"}
+{"elapsed_ms": 218.2022, "kind": "stderr", "text": "0.00.203.601 I print_info: n_embd_out            = 2560"}
+{"elapsed_ms": 218.2062, "kind": "stderr", "text": "0.00.203.601 I print_info: n_layer               = 40"}
+{"elapsed_ms": 218.2068, "kind": "stderr", "text": "0.00.203.602 I print_info: n_layer_all           = 40"}
+{"elapsed_ms": 218.2075, "kind": "stderr", "text": "0.00.203.616 I print_info: n_head                = 40"}
+{"elapsed_ms": 218.208, "kind": "stderr", "text": "0.00.203.618 I print_info: n_head_kv             = 8"}
+{"elapsed_ms": 218.2094, "kind": "stderr", "text": "0.00.203.618 I print_info: n_rot                 = 64"}
+{"elapsed_ms": 218.21, "kind": "stderr", "text": "0.00.203.619 I print_info: n_swa                 = 0"}
+{"elapsed_ms": 218.2106, "kind": "stderr", "text": "0.00.203.619 I print_info: is_swa_any            = 0"}
+{"elapsed_ms": 218.2112, "kind": "stderr", "text": "0.00.203.619 I print_info: n_embd_head_k         = 64"}
+{"elapsed_ms": 218.2117, "kind": "stderr", "text": "0.00.203.620 I print_info: n_embd_head_v         = 64"}
+{"elapsed_ms": 218.2134, "kind": "stderr", "text": "0.00.203.621 I print_info: n_gqa                 = 5"}
+{"elapsed_ms": 218.214, "kind": "stderr", "text": "0.00.203.623 I print_info: n_embd_k_gqa          = 512"}
+{"elapsed_ms": 218.2146, "kind": "stderr", "text": "0.00.203.624 I print_info: n_embd_v_gqa          = 512"}
+{"elapsed_ms": 218.2151, "kind": "stderr", "text": "0.00.203.625 I print_info: f_norm_eps            = 0.0e+00"}
+{"elapsed_ms": 218.2157, "kind": "stderr", "text": "0.00.203.626 I print_info: f_norm_rms_eps        = 1.0e-05"}
+{"elapsed_ms": 218.2162, "kind": "stderr", "text": "0.00.203.627 I print_info: f_clamp_kqv           = 0.0e+00"}
+{"elapsed_ms": 218.2168, "kind": "stderr", "text": "0.00.203.627 I print_info: f_max_alibi_bias      = 0.0e+00"}
+{"elapsed_ms": 218.2196, "kind": "stderr", "text": "0.00.203.627 I print_info: f_logit_scale         = 1.0e+01"}
+{"elapsed_ms": 218.2202, "kind": "stderr", "text": "0.00.203.628 I print_info: f_attn_scale          = 1.6e-02"}
+{"elapsed_ms": 218.2209, "kind": "stderr", "text": "0.00.203.629 I print_info: f_attn_value_scale    = 0.0000"}
+{"elapsed_ms": 218.2215, "kind": "stderr", "text": "0.00.203.630 I print_info: n_ff                  = 8192"}
+{"elapsed_ms": 218.222, "kind": "stderr", "text": "0.00.203.631 I print_info: n_expert              = 0"}
+{"elapsed_ms": 218.2226, "kind": "stderr", "text": "0.00.203.631 I print_info: n_expert_used         = 0"}
+{"elapsed_ms": 218.2232, "kind": "stderr", "text": "0.00.203.631 I print_info: n_expert_groups       = 0"}
+{"elapsed_ms": 218.2237, "kind": "stderr", "text": "0.00.203.631 I print_info: n_group_used          = 0"}
+{"elapsed_ms": 218.2243, "kind": "stderr", "text": "0.00.203.632 I print_info: causal attn           = 1"}
+{"elapsed_ms": 218.2248, "kind": "stderr", "text": "0.00.203.632 I print_info: pooling type          = -1"}
+{"elapsed_ms": 218.2255, "kind": "stderr", "text": "0.00.203.632 I print_info: rope type             = 0"}
+{"elapsed_ms": 218.2263, "kind": "stderr", "text": "0.00.203.633 I print_info: rope scaling          = linear"}
+{"elapsed_ms": 218.2271, "kind": "stderr", "text": "0.00.203.633 I print_info: freq_base_train       = 10000000.0"}
+{"elapsed_ms": 218.2279, "kind": "stderr", "text": "0.00.203.634 I print_info: freq_scale_train      = 1"}
+{"elapsed_ms": 218.2287, "kind": "stderr", "text": "0.00.203.635 I print_info: n_ctx_orig_yarn       = 131072"}
+{"elapsed_ms": 218.2294, "kind": "stderr", "text": "0.00.203.635 I print_info: rope_yarn_log_mul     = 0.0000"}
+{"elapsed_ms": 218.2299, "kind": "stderr", "text": "0.00.203.635 I print_info: rope_finetuned        = yes"}
+{"elapsed_ms": 218.2305, "kind": "stderr", "text": "0.00.203.636 I print_info: model type            = 3B"}
+{"elapsed_ms": 218.2311, "kind": "stderr", "text": "0.00.203.637 I print_info: model params          = 3.40 B"}
+{"elapsed_ms": 218.2317, "kind": "stderr", "text": "0.00.203.638 I print_info: general.name          = Granite 4.1 3b"}
+{"elapsed_ms": 218.2341, "kind": "stderr", "text": "0.00.203.638 I print_info: f_embedding_scale     = 12.000000"}
+{"elapsed_ms": 218.2347, "kind": "stderr", "text": "0.00.203.639 I print_info: f_residual_scale      = 0.220000"}
+{"elapsed_ms": 218.2353, "kind": "stderr", "text": "0.00.203.640 I print_info: f_attention_scale     = 0.015625"}
+{"elapsed_ms": 218.2359, "kind": "stderr", "text": "0.00.203.640 I print_info: n_ff_shexp            = 0"}
+{"elapsed_ms": 218.2365, "kind": "stderr", "text": "0.00.203.641 I print_info: vocab type            = BPE"}
+{"elapsed_ms": 218.237, "kind": "stderr", "text": "0.00.203.641 I print_info: n_vocab               = 100352"}
+{"elapsed_ms": 218.2376, "kind": "stderr", "text": "0.00.203.641 I print_info: n_merges              = 100000"}
+{"elapsed_ms": 218.2382, "kind": "stderr", "text": "0.00.203.642 I print_info: BOS token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 218.2389, "kind": "stderr", "text": "0.00.203.642 I print_info: EOS token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 218.2395, "kind": "stderr", "text": "0.00.203.643 I print_info: EOT token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 218.2401, "kind": "stderr", "text": "0.00.203.643 I print_info: UNK token             = 100269 '<|unk|>'"}
+{"elapsed_ms": 218.2408, "kind": "stderr", "text": "0.00.203.643 I print_info: PAD token             = 100256 '<|pad|>'"}
+{"elapsed_ms": 218.2414, "kind": "stderr", "text": "0.00.203.644 I print_info: LF token              = 198 '\u010a'"}
+{"elapsed_ms": 218.2439, "kind": "stderr", "text": "0.00.203.644 I print_info: FIM PRE token         = 100258 '<|fim_prefix|>'"}
+{"elapsed_ms": 218.2446, "kind": "stderr", "text": "0.00.203.645 I print_info: FIM SUF token         = 100260 '<|fim_suffix|>'"}
+{"elapsed_ms": 218.2456, "kind": "stderr", "text": "0.00.203.645 I print_info: FIM MID token         = 100259 '<|fim_middle|>'"}
+{"elapsed_ms": 218.2462, "kind": "stderr", "text": "0.00.203.645 I print_info: FIM PAD token         = 100261 '<|fim_pad|>'"}
+{"elapsed_ms": 218.247, "kind": "stderr", "text": "0.00.203.646 I print_info: EOG token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 218.2512, "kind": "stderr", "text": "0.00.203.646 I print_info: EOG token             = 100261 '<|fim_pad|>'"}
+{"elapsed_ms": 218.2589, "kind": "stderr", "text": "0.00.203.647 I print_info: max token length      = 256"}
+{"elapsed_ms": 218.2603, "kind": "stderr", "text": "0.00.203.649 I load_tensors: loading model tensors, this can take a while... (mmap = false, direct_io = false)"}
+{"elapsed_ms": 231.1047, "kind": "stderr", "text": "0.00.216.545 D load_tensors: layer   0 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.116, "kind": "stderr", "text": "0.00.216.552 D load_tensors: layer   1 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1211, "kind": "stderr", "text": "0.00.216.552 D load_tensors: layer   2 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1218, "kind": "stderr", "text": "0.00.216.553 D load_tensors: layer   3 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1239, "kind": "stderr", "text": "0.00.216.553 D load_tensors: layer   4 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1252, "kind": "stderr", "text": "0.00.216.553 D load_tensors: layer   5 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1258, "kind": "stderr", "text": "0.00.216.554 D load_tensors: layer   6 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1263, "kind": "stderr", "text": "0.00.216.554 D load_tensors: layer   7 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1269, "kind": "stderr", "text": "0.00.216.554 D load_tensors: layer   8 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1274, "kind": "stderr", "text": "0.00.216.555 D load_tensors: layer   9 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1279, "kind": "stderr", "text": "0.00.216.555 D load_tensors: layer  10 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1284, "kind": "stderr", "text": "0.00.216.556 D load_tensors: layer  11 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1289, "kind": "stderr", "text": "0.00.216.556 D load_tensors: layer  12 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1294, "kind": "stderr", "text": "0.00.216.557 D load_tensors: layer  13 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1322, "kind": "stderr", "text": "0.00.216.557 D load_tensors: layer  14 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1328, "kind": "stderr", "text": "0.00.216.557 D load_tensors: layer  15 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1333, "kind": "stderr", "text": "0.00.216.558 D load_tensors: layer  16 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1338, "kind": "stderr", "text": "0.00.216.558 D load_tensors: layer  17 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1353, "kind": "stderr", "text": "0.00.216.559 D load_tensors: layer  18 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1358, "kind": "stderr", "text": "0.00.216.559 D load_tensors: layer  19 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1363, "kind": "stderr", "text": "0.00.216.559 D load_tensors: layer  20 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1369, "kind": "stderr", "text": "0.00.216.560 D load_tensors: layer  21 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1374, "kind": "stderr", "text": "0.00.216.560 D load_tensors: layer  22 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1397, "kind": "stderr", "text": "0.00.216.560 D load_tensors: layer  23 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1404, "kind": "stderr", "text": "0.00.216.561 D load_tensors: layer  24 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.141, "kind": "stderr", "text": "0.00.216.561 D load_tensors: layer  25 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1416, "kind": "stderr", "text": "0.00.216.562 D load_tensors: layer  26 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1421, "kind": "stderr", "text": "0.00.216.562 D load_tensors: layer  27 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1426, "kind": "stderr", "text": "0.00.216.562 D load_tensors: layer  28 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1432, "kind": "stderr", "text": "0.00.216.563 D load_tensors: layer  29 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1437, "kind": "stderr", "text": "0.00.216.563 D load_tensors: layer  30 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1442, "kind": "stderr", "text": "0.00.216.563 D load_tensors: layer  31 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1447, "kind": "stderr", "text": "0.00.216.564 D load_tensors: layer  32 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1453, "kind": "stderr", "text": "0.00.216.564 D load_tensors: layer  33 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1467, "kind": "stderr", "text": "0.00.216.565 D load_tensors: layer  34 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1473, "kind": "stderr", "text": "0.00.216.565 D load_tensors: layer  35 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.148, "kind": "stderr", "text": "0.00.216.565 D load_tensors: layer  36 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.149, "kind": "stderr", "text": "0.00.216.566 D load_tensors: layer  37 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1497, "kind": "stderr", "text": "0.00.216.566 D load_tensors: layer  38 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1502, "kind": "stderr", "text": "0.00.216.567 D load_tensors: layer  39 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 231.1508, "kind": "stderr", "text": "0.00.216.567 D load_tensors: layer  40 assigned to device Vulkan0, is_swa = 0"}
+{"elapsed_ms": 231.1514, "kind": "stderr", "text": "0.00.216.620 D create_tensor: loading tensor token_embd.weight"}
+{"elapsed_ms": 231.152, "kind": "stderr", "text": "0.00.216.634 D create_tensor: loading tensor output_norm.weight"}
+{"elapsed_ms": 231.1527, "kind": "stderr", "text": "0.00.216.643 D create_tensor: loading tensor token_embd.weight"}
+{"elapsed_ms": 231.1533, "kind": "stderr", "text": "0.00.216.651 D create_tensor: loading tensor blk.0.attn_norm.weight"}
+{"elapsed_ms": 231.1539, "kind": "stderr", "text": "0.00.216.666 D create_tensor: loading tensor blk.0.attn_q.weight"}
+{"elapsed_ms": 231.1545, "kind": "stderr", "text": "0.00.216.675 D create_tensor: loading tensor blk.0.attn_k.weight"}
+{"elapsed_ms": 231.155, "kind": "stderr", "text": "0.00.216.683 D create_tensor: loading tensor blk.0.attn_v.weight"}
+{"elapsed_ms": 231.1555, "kind": "stderr", "text": "0.00.216.703 D create_tensor: loading tensor blk.0.attn_output.weight"}
+{"elapsed_ms": 231.1561, "kind": "stderr", "text": "0.00.216.716 D create_tensor: loading tensor blk.0.ffn_norm.weight"}
+{"elapsed_ms": 231.1566, "kind": "stderr", "text": "0.00.216.730 D create_tensor: loading tensor blk.0.ffn_gate.weight"}
+{"elapsed_ms": 231.1579, "kind": "stderr", "text": "0.00.216.739 D create_tensor: loading tensor blk.0.ffn_down.weight"}
+{"elapsed_ms": 231.1858, "kind": "stderr", "text": "0.00.216.748 D create_tensor: loading tensor blk.0.ffn_up.weight"}
+{"elapsed_ms": 231.1874, "kind": "stderr", "text": "0.00.216.771 D create_tensor: loading tensor blk.1.attn_norm.weight"}
+{"elapsed_ms": 231.1898, "kind": "stderr", "text": "0.00.216.783 D create_tensor: loading tensor blk.1.attn_q.weight"}
+{"elapsed_ms": 231.1947, "kind": "stderr", "text": "0.00.216.792 D create_tensor: loading tensor blk.1.attn_k.weight"}
+{"elapsed_ms": 231.1954, "kind": "stderr", "text": "0.00.216.800 D create_tensor: loading tensor blk.1.attn_v.weight"}
+{"elapsed_ms": 231.201, "kind": "stderr", "text": "0.00.216.819 D create_tensor: loading tensor blk.1.attn_output.weight"}
+{"elapsed_ms": 231.2026, "kind": "stderr", "text": "0.00.216.832 D create_tensor: loading tensor blk.1.ffn_norm.weight"}
+{"elapsed_ms": 231.2046, "kind": "stderr", "text": "0.00.216.842 D create_tensor: loading tensor blk.1.ffn_gate.weight"}
+{"elapsed_ms": 231.2191, "kind": "stderr", "text": "0.00.216.852 D create_tensor: loading tensor blk.1.ffn_down.weight"}
+{"elapsed_ms": 231.2204, "kind": "stderr", "text": "0.00.216.860 D create_tensor: loading tensor blk.1.ffn_up.weight"}
+{"elapsed_ms": 231.2211, "kind": "stderr", "text": "0.00.216.880 D create_tensor: loading tensor blk.2.attn_norm.weight"}
+{"elapsed_ms": 231.2231, "kind": "stderr", "text": "0.00.216.892 D create_tensor: loading tensor blk.2.attn_q.weight"}
+{"elapsed_ms": 231.2266, "kind": "stderr", "text": "0.00.216.901 D create_tensor: loading tensor blk.2.attn_k.weight"}
+{"elapsed_ms": 231.251, "kind": "stderr", "text": "0.00.216.909 D create_tensor: loading tensor blk.2.attn_v.weight"}
+{"elapsed_ms": 231.8413, "kind": "stderr", "text": "0.00.216.972 D create_tensor: loading tensor blk.2.attn_output.weight"}
+{"elapsed_ms": 231.8462, "kind": "stderr", "text": "0.00.216.986 D create_tensor: loading tensor blk.2.ffn_norm.weight"}
+{"elapsed_ms": 231.8498, "kind": "stderr", "text": "0.00.216.996 D create_tensor: loading tensor blk.2.ffn_gate.weight"}
+{"elapsed_ms": 231.8505, "kind": "stderr", "text": "0.00.217.004 D create_tensor: loading tensor blk.2.ffn_down.weight"}
+{"elapsed_ms": 231.8511, "kind": "stderr", "text": "0.00.217.013 D create_tensor: loading tensor blk.2.ffn_up.weight"}
+{"elapsed_ms": 231.8517, "kind": "stderr", "text": "0.00.217.349 D create_tensor: loading tensor blk.3.attn_norm.weight"}
+{"elapsed_ms": 231.8523, "kind": "stderr", "text": "0.00.217.364 D create_tensor: loading tensor blk.3.attn_q.weight"}
+{"elapsed_ms": 231.8529, "kind": "stderr", "text": "0.00.217.373 D create_tensor: loading tensor blk.3.attn_k.weight"}
+{"elapsed_ms": 231.8534, "kind": "stderr", "text": "0.00.217.381 D create_tensor: loading tensor blk.3.attn_v.weight"}
+{"elapsed_ms": 231.854, "kind": "stderr", "text": "0.00.217.401 D create_tensor: loading tensor blk.3.attn_output.weight"}
+{"elapsed_ms": 231.8546, "kind": "stderr", "text": "0.00.217.414 D create_tensor: loading tensor blk.3.ffn_norm.weight"}
+{"elapsed_ms": 231.8551, "kind": "stderr", "text": "0.00.217.443 D create_tensor: loading tensor blk.3.ffn_gate.weight"}
+{"elapsed_ms": 231.8557, "kind": "stderr", "text": "0.00.217.452 D create_tensor: loading tensor blk.3.ffn_down.weight"}
+{"elapsed_ms": 231.8562, "kind": "stderr", "text": "0.00.217.461 D create_tensor: loading tensor blk.3.ffn_up.weight"}
+{"elapsed_ms": 231.8568, "kind": "stderr", "text": "0.00.217.482 D create_tensor: loading tensor blk.4.attn_norm.weight"}
+{"elapsed_ms": 231.8574, "kind": "stderr", "text": "0.00.217.495 D create_tensor: loading tensor blk.4.attn_q.weight"}
+{"elapsed_ms": 231.8851, "kind": "stderr", "text": "0.00.217.507 D create_tensor: loading tensor blk.4.attn_k.weight"}
+{"elapsed_ms": 231.8874, "kind": "stderr", "text": "0.00.217.517 D create_tensor: loading tensor blk.4.attn_v.weight"}
+{"elapsed_ms": 231.8881, "kind": "stderr", "text": "0.00.217.537 D create_tensor: loading tensor blk.4.attn_output.weight"}
+{"elapsed_ms": 231.8886, "kind": "stderr", "text": "0.00.217.550 D create_tensor: loading tensor blk.4.ffn_norm.weight"}
+{"elapsed_ms": 231.9372, "kind": "stderr", "text": "0.00.217.561 D create_tensor: loading tensor blk.4.ffn_gate.weight"}
+{"elapsed_ms": 231.999, "kind": "stderr", "text": "0.00.217.571 D create_tensor: loading tensor blk.4.ffn_down.weight"}
+{"elapsed_ms": 232.0092, "kind": "stderr", "text": "0.00.217.632 D create_tensor: loading tensor blk.4.ffn_up.weight"}
+{"elapsed_ms": 232.0144, "kind": "stderr", "text": "0.00.217.655 D create_tensor: loading tensor blk.5.attn_norm.weight"}
+{"elapsed_ms": 232.0746, "kind": "stderr", "text": "0.00.217.714 D create_tensor: loading tensor blk.5.attn_q.weight"}
+{"elapsed_ms": 232.0794, "kind": "stderr", "text": "0.00.217.728 D create_tensor: loading tensor blk.5.attn_k.weight"}
+{"elapsed_ms": 232.0824, "kind": "stderr", "text": "0.00.217.737 D create_tensor: loading tensor blk.5.attn_v.weight"}
+{"elapsed_ms": 232.0883, "kind": "stderr", "text": "0.00.217.759 D create_tensor: loading tensor blk.5.attn_output.weight"}
+{"elapsed_ms": 232.1255, "kind": "stderr", "text": "0.00.217.773 D create_tensor: loading tensor blk.5.ffn_norm.weight"}
+{"elapsed_ms": 232.1268, "kind": "stderr", "text": "0.00.217.788 D create_tensor: loading tensor blk.5.ffn_gate.weight"}
+{"elapsed_ms": 232.1454, "kind": "stderr", "text": "0.00.217.796 D create_tensor: loading tensor blk.5.ffn_down.weight"}
+{"elapsed_ms": 232.1476, "kind": "stderr", "text": "0.00.217.807 D create_tensor: loading tensor blk.5.ffn_up.weight"}
+{"elapsed_ms": 232.1676, "kind": "stderr", "text": "0.00.217.828 D create_tensor: loading tensor blk.6.attn_norm.weight"}
+{"elapsed_ms": 232.1916, "kind": "stderr", "text": "0.00.217.843 D create_tensor: loading tensor blk.6.attn_q.weight"}
+{"elapsed_ms": 232.1963, "kind": "stderr", "text": "0.00.217.852 D create_tensor: loading tensor blk.6.attn_k.weight"}
+{"elapsed_ms": 232.1989, "kind": "stderr", "text": "0.00.217.860 D create_tensor: loading tensor blk.6.attn_v.weight"}
+{"elapsed_ms": 232.2197, "kind": "stderr", "text": "0.00.217.881 D create_tensor: loading tensor blk.6.attn_output.weight"}
+{"elapsed_ms": 232.2329, "kind": "stderr", "text": "0.00.217.895 D create_tensor: loading tensor blk.6.ffn_norm.weight"}
+{"elapsed_ms": 232.2366, "kind": "stderr", "text": "0.00.217.908 D create_tensor: loading tensor blk.6.ffn_gate.weight"}
+{"elapsed_ms": 232.2513, "kind": "stderr", "text": "0.00.217.917 D create_tensor: loading tensor blk.6.ffn_down.weight"}
+{"elapsed_ms": 232.2539, "kind": "stderr", "text": "0.00.217.925 D create_tensor: loading tensor blk.6.ffn_up.weight"}
+{"elapsed_ms": 232.2853, "kind": "stderr", "text": "0.00.217.945 D create_tensor: loading tensor blk.7.attn_norm.weight"}
+{"elapsed_ms": 232.3104, "kind": "stderr", "text": "0.00.217.959 D create_tensor: loading tensor blk.7.attn_q.weight"}
+{"elapsed_ms": 232.3114, "kind": "stderr", "text": "0.00.217.968 D create_tensor: loading tensor blk.7.attn_k.weight"}
+{"elapsed_ms": 232.3122, "kind": "stderr", "text": "0.00.217.977 D create_tensor: loading tensor blk.7.attn_v.weight"}
+{"elapsed_ms": 232.3346, "kind": "stderr", "text": "0.00.217.995 D create_tensor: loading tensor blk.7.attn_output.weight"}
+{"elapsed_ms": 232.3522, "kind": "stderr", "text": "0.00.218.010 D create_tensor: loading tensor blk.7.ffn_norm.weight"}
+{"elapsed_ms": 232.3579, "kind": "stderr", "text": "0.00.218.021 D create_tensor: loading tensor blk.7.ffn_gate.weight"}
+{"elapsed_ms": 232.3598, "kind": "stderr", "text": "0.00.218.029 D create_tensor: loading tensor blk.7.ffn_down.weight"}
+{"elapsed_ms": 232.3665, "kind": "stderr", "text": "0.00.218.038 D create_tensor: loading tensor blk.7.ffn_up.weight"}
+{"elapsed_ms": 232.3982, "kind": "stderr", "text": "0.00.218.058 D create_tensor: loading tensor blk.8.attn_norm.weight"}
+{"elapsed_ms": 232.4245, "kind": "stderr", "text": "0.00.218.072 D create_tensor: loading tensor blk.8.attn_q.weight"}
+{"elapsed_ms": 232.4254, "kind": "stderr", "text": "0.00.218.081 D create_tensor: loading tensor blk.8.attn_k.weight"}
+{"elapsed_ms": 232.4274, "kind": "stderr", "text": "0.00.218.090 D create_tensor: loading tensor blk.8.attn_v.weight"}
+{"elapsed_ms": 232.4482, "kind": "stderr", "text": "0.00.218.109 D create_tensor: loading tensor blk.8.attn_output.weight"}
+{"elapsed_ms": 232.476, "kind": "stderr", "text": "0.00.218.130 D create_tensor: loading tensor blk.8.ffn_norm.weight"}
+{"elapsed_ms": 232.4809, "kind": "stderr", "text": "0.00.218.142 D create_tensor: loading tensor blk.8.ffn_gate.weight"}
+{"elapsed_ms": 232.4837, "kind": "stderr", "text": "0.00.218.151 D create_tensor: loading tensor blk.8.ffn_down.weight"}
+{"elapsed_ms": 232.4893, "kind": "stderr", "text": "0.00.218.162 D create_tensor: loading tensor blk.8.ffn_up.weight"}
+{"elapsed_ms": 232.5219, "kind": "stderr", "text": "0.00.218.181 D create_tensor: loading tensor blk.9.attn_norm.weight"}
+{"elapsed_ms": 232.5408, "kind": "stderr", "text": "0.00.218.196 D create_tensor: loading tensor blk.9.attn_q.weight"}
+{"elapsed_ms": 232.5417, "kind": "stderr", "text": "0.00.218.206 D create_tensor: loading tensor blk.9.attn_k.weight"}
+{"elapsed_ms": 232.555, "kind": "stderr", "text": "0.00.218.215 D create_tensor: loading tensor blk.9.attn_v.weight"}
+{"elapsed_ms": 232.5746, "kind": "stderr", "text": "0.00.218.235 D create_tensor: loading tensor blk.9.attn_output.weight"}
+{"elapsed_ms": 232.6026, "kind": "stderr", "text": "0.00.218.250 D create_tensor: loading tensor blk.9.ffn_norm.weight"}
+{"elapsed_ms": 232.6102, "kind": "stderr", "text": "0.00.218.261 D create_tensor: loading tensor blk.9.ffn_gate.weight"}
+{"elapsed_ms": 232.6233, "kind": "stderr", "text": "0.00.218.288 D create_tensor: loading tensor blk.9.ffn_down.weight"}
+{"elapsed_ms": 232.6288, "kind": "stderr", "text": "0.00.218.300 D create_tensor: loading tensor blk.9.ffn_up.weight"}
+{"elapsed_ms": 232.6873, "kind": "stderr", "text": "0.00.218.321 D create_tensor: loading tensor blk.10.attn_norm.weight"}
+{"elapsed_ms": 232.6904, "kind": "stderr", "text": "0.00.218.337 D create_tensor: loading tensor blk.10.attn_q.weight"}
+{"elapsed_ms": 232.6911, "kind": "stderr", "text": "0.00.218.345 D create_tensor: loading tensor blk.10.attn_k.weight"}
+{"elapsed_ms": 232.707, "kind": "stderr", "text": "0.00.218.354 D create_tensor: loading tensor blk.10.attn_v.weight"}
+{"elapsed_ms": 232.7312, "kind": "stderr", "text": "0.00.218.382 D create_tensor: loading tensor blk.10.attn_output.weight"}
+{"elapsed_ms": 232.7358, "kind": "stderr", "text": "0.00.218.396 D create_tensor: loading tensor blk.10.ffn_norm.weight"}
+{"elapsed_ms": 232.7421, "kind": "stderr", "text": "0.00.218.409 D create_tensor: loading tensor blk.10.ffn_gate.weight"}
+{"elapsed_ms": 232.7468, "kind": "stderr", "text": "0.00.218.420 D create_tensor: loading tensor blk.10.ffn_down.weight"}
+{"elapsed_ms": 232.7671, "kind": "stderr", "text": "0.00.218.429 D create_tensor: loading tensor blk.10.ffn_up.weight"}
+{"elapsed_ms": 232.7927, "kind": "stderr", "text": "0.00.218.451 D create_tensor: loading tensor blk.11.attn_norm.weight"}
+{"elapsed_ms": 232.8106, "kind": "stderr", "text": "0.00.218.466 D create_tensor: loading tensor blk.11.attn_q.weight"}
+{"elapsed_ms": 232.8116, "kind": "stderr", "text": "0.00.218.476 D create_tensor: loading tensor blk.11.attn_k.weight"}
+{"elapsed_ms": 232.8262, "kind": "stderr", "text": "0.00.218.484 D create_tensor: loading tensor blk.11.attn_v.weight"}
+{"elapsed_ms": 232.8461, "kind": "stderr", "text": "0.00.218.505 D create_tensor: loading tensor blk.11.attn_output.weight"}
+{"elapsed_ms": 232.8686, "kind": "stderr", "text": "0.00.218.520 D create_tensor: loading tensor blk.11.ffn_norm.weight"}
+{"elapsed_ms": 232.8733, "kind": "stderr", "text": "0.00.218.532 D create_tensor: loading tensor blk.11.ffn_gate.weight"}
+{"elapsed_ms": 232.8775, "kind": "stderr", "text": "0.00.218.541 D create_tensor: loading tensor blk.11.ffn_down.weight"}
+{"elapsed_ms": 232.8797, "kind": "stderr", "text": "0.00.218.552 D create_tensor: loading tensor blk.11.ffn_up.weight"}
+{"elapsed_ms": 232.9128, "kind": "stderr", "text": "0.00.218.571 D create_tensor: loading tensor blk.12.attn_norm.weight"}
+{"elapsed_ms": 232.9392, "kind": "stderr", "text": "0.00.218.586 D create_tensor: loading tensor blk.12.attn_q.weight"}
+{"elapsed_ms": 232.9401, "kind": "stderr", "text": "0.00.218.596 D create_tensor: loading tensor blk.12.attn_k.weight"}
+{"elapsed_ms": 232.9407, "kind": "stderr", "text": "0.00.218.604 D create_tensor: loading tensor blk.12.attn_v.weight"}
+{"elapsed_ms": 232.9644, "kind": "stderr", "text": "0.00.218.624 D create_tensor: loading tensor blk.12.attn_output.weight"}
+{"elapsed_ms": 232.9878, "kind": "stderr", "text": "0.00.218.639 D create_tensor: loading tensor blk.12.ffn_norm.weight"}
+{"elapsed_ms": 232.9924, "kind": "stderr", "text": "0.00.218.651 D create_tensor: loading tensor blk.12.ffn_gate.weight"}
+{"elapsed_ms": 232.9972, "kind": "stderr", "text": "0.00.218.659 D create_tensor: loading tensor blk.12.ffn_down.weight"}
+{"elapsed_ms": 232.9979, "kind": "stderr", "text": "0.00.218.670 D create_tensor: loading tensor blk.12.ffn_up.weight"}
+{"elapsed_ms": 233.031, "kind": "stderr", "text": "0.00.218.690 D create_tensor: loading tensor blk.13.attn_norm.weight"}
+{"elapsed_ms": 233.0564, "kind": "stderr", "text": "0.00.218.704 D create_tensor: loading tensor blk.13.attn_q.weight"}
+{"elapsed_ms": 233.0572, "kind": "stderr", "text": "0.00.218.713 D create_tensor: loading tensor blk.13.attn_k.weight"}
+{"elapsed_ms": 233.0579, "kind": "stderr", "text": "0.00.218.722 D create_tensor: loading tensor blk.13.attn_v.weight"}
+{"elapsed_ms": 233.0813, "kind": "stderr", "text": "0.00.218.741 D create_tensor: loading tensor blk.13.attn_output.weight"}
+{"elapsed_ms": 233.1012, "kind": "stderr", "text": "0.00.218.756 D create_tensor: loading tensor blk.13.ffn_norm.weight"}
+{"elapsed_ms": 233.1087, "kind": "stderr", "text": "0.00.218.767 D create_tensor: loading tensor blk.13.ffn_gate.weight"}
+{"elapsed_ms": 233.113, "kind": "stderr", "text": "0.00.218.776 D create_tensor: loading tensor blk.13.ffn_down.weight"}
+{"elapsed_ms": 233.115, "kind": "stderr", "text": "0.00.218.787 D create_tensor: loading tensor blk.13.ffn_up.weight"}
+{"elapsed_ms": 233.1486, "kind": "stderr", "text": "0.00.218.807 D create_tensor: loading tensor blk.14.attn_norm.weight"}
+{"elapsed_ms": 233.168, "kind": "stderr", "text": "0.00.218.822 D create_tensor: loading tensor blk.14.attn_q.weight"}
+{"elapsed_ms": 233.1689, "kind": "stderr", "text": "0.00.218.832 D create_tensor: loading tensor blk.14.attn_k.weight"}
+{"elapsed_ms": 233.1837, "kind": "stderr", "text": "0.00.218.840 D create_tensor: loading tensor blk.14.attn_v.weight"}
+{"elapsed_ms": 233.1984, "kind": "stderr", "text": "0.00.218.861 D create_tensor: loading tensor blk.14.attn_output.weight"}
+{"elapsed_ms": 233.2187, "kind": "stderr", "text": "0.00.218.875 D create_tensor: loading tensor blk.14.ffn_norm.weight"}
+{"elapsed_ms": 233.2234, "kind": "stderr", "text": "0.00.218.886 D create_tensor: loading tensor blk.14.ffn_gate.weight"}
+{"elapsed_ms": 233.2261, "kind": "stderr", "text": "0.00.218.895 D create_tensor: loading tensor blk.14.ffn_down.weight"}
+{"elapsed_ms": 233.2486, "kind": "stderr", "text": "0.00.218.906 D create_tensor: loading tensor blk.14.ffn_up.weight"}
+{"elapsed_ms": 233.2593, "kind": "stderr", "text": "0.00.218.925 D create_tensor: loading tensor blk.15.attn_norm.weight"}
+{"elapsed_ms": 233.2716, "kind": "stderr", "text": "0.00.218.937 D create_tensor: loading tensor blk.15.attn_q.weight"}
+{"elapsed_ms": 233.2751, "kind": "stderr", "text": "0.00.218.947 D create_tensor: loading tensor blk.15.attn_k.weight"}
+{"elapsed_ms": 233.2873, "kind": "stderr", "text": "0.00.218.956 D create_tensor: loading tensor blk.15.attn_v.weight"}
+{"elapsed_ms": 233.3149, "kind": "stderr", "text": "0.00.218.976 D create_tensor: loading tensor blk.15.attn_output.weight"}
+{"elapsed_ms": 233.3227, "kind": "stderr", "text": "0.00.218.991 D create_tensor: loading tensor blk.15.ffn_norm.weight"}
+{"elapsed_ms": 233.3361, "kind": "stderr", "text": "0.00.219.004 D create_tensor: loading tensor blk.15.ffn_gate.weight"}
+{"elapsed_ms": 233.3394, "kind": "stderr", "text": "0.00.219.013 D create_tensor: loading tensor blk.15.ffn_down.weight"}
+{"elapsed_ms": 233.3586, "kind": "stderr", "text": "0.00.219.021 D create_tensor: loading tensor blk.15.ffn_up.weight"}
+{"elapsed_ms": 233.3795, "kind": "stderr", "text": "0.00.219.043 D create_tensor: loading tensor blk.16.attn_norm.weight"}
+{"elapsed_ms": 233.3963, "kind": "stderr", "text": "0.00.219.058 D create_tensor: loading tensor blk.16.attn_q.weight"}
+{"elapsed_ms": 233.3978, "kind": "stderr", "text": "0.00.219.069 D create_tensor: loading tensor blk.16.attn_k.weight"}
+{"elapsed_ms": 233.4155, "kind": "stderr", "text": "0.00.219.077 D create_tensor: loading tensor blk.16.attn_v.weight"}
+{"elapsed_ms": 233.4357, "kind": "stderr", "text": "0.00.219.099 D create_tensor: loading tensor blk.16.attn_output.weight"}
+{"elapsed_ms": 233.45, "kind": "stderr", "text": "0.00.219.114 D create_tensor: loading tensor blk.16.ffn_norm.weight"}
+{"elapsed_ms": 233.4553, "kind": "stderr", "text": "0.00.219.127 D create_tensor: loading tensor blk.16.ffn_gate.weight"}
+{"elapsed_ms": 233.4667, "kind": "stderr", "text": "0.00.219.136 D create_tensor: loading tensor blk.16.ffn_down.weight"}
+{"elapsed_ms": 233.4699, "kind": "stderr", "text": "0.00.219.144 D create_tensor: loading tensor blk.16.ffn_up.weight"}
+{"elapsed_ms": 233.5013, "kind": "stderr", "text": "0.00.219.164 D create_tensor: loading tensor blk.17.attn_norm.weight"}
+{"elapsed_ms": 233.504, "kind": "stderr", "text": "0.00.219.178 D create_tensor: loading tensor blk.17.attn_q.weight"}
+{"elapsed_ms": 233.5243, "kind": "stderr", "text": "0.00.219.186 D create_tensor: loading tensor blk.17.attn_k.weight"}
+{"elapsed_ms": 233.5257, "kind": "stderr", "text": "0.00.219.197 D create_tensor: loading tensor blk.17.attn_v.weight"}
+{"elapsed_ms": 233.5529, "kind": "stderr", "text": "0.00.219.216 D create_tensor: loading tensor blk.17.attn_output.weight"}
+{"elapsed_ms": 233.5669, "kind": "stderr", "text": "0.00.219.231 D create_tensor: loading tensor blk.17.ffn_norm.weight"}
+{"elapsed_ms": 233.572, "kind": "stderr", "text": "0.00.219.244 D create_tensor: loading tensor blk.17.ffn_gate.weight"}
+{"elapsed_ms": 233.5901, "kind": "stderr", "text": "0.00.219.252 D create_tensor: loading tensor blk.17.ffn_down.weight"}
+{"elapsed_ms": 233.5936, "kind": "stderr", "text": "0.00.219.267 D create_tensor: loading tensor blk.17.ffn_up.weight"}
+{"elapsed_ms": 233.6232, "kind": "stderr", "text": "0.00.219.287 D create_tensor: loading tensor blk.18.attn_norm.weight"}
+{"elapsed_ms": 233.6372, "kind": "stderr", "text": "0.00.219.302 D create_tensor: loading tensor blk.18.attn_q.weight"}
+{"elapsed_ms": 233.64, "kind": "stderr", "text": "0.00.219.313 D create_tensor: loading tensor blk.18.attn_k.weight"}
+{"elapsed_ms": 233.6527, "kind": "stderr", "text": "0.00.219.322 D create_tensor: loading tensor blk.18.attn_v.weight"}
+{"elapsed_ms": 233.6788, "kind": "stderr", "text": "0.00.219.341 D create_tensor: loading tensor blk.18.attn_output.weight"}
+{"elapsed_ms": 233.6928, "kind": "stderr", "text": "0.00.219.356 D create_tensor: loading tensor blk.18.ffn_norm.weight"}
+{"elapsed_ms": 233.6954, "kind": "stderr", "text": "0.00.219.369 D create_tensor: loading tensor blk.18.ffn_gate.weight"}
+{"elapsed_ms": 233.7153, "kind": "stderr", "text": "0.00.219.378 D create_tensor: loading tensor blk.18.ffn_down.weight"}
+{"elapsed_ms": 233.7168, "kind": "stderr", "text": "0.00.219.388 D create_tensor: loading tensor blk.18.ffn_up.weight"}
+{"elapsed_ms": 233.7442, "kind": "stderr", "text": "0.00.219.408 D create_tensor: loading tensor blk.19.attn_norm.weight"}
+{"elapsed_ms": 233.7602, "kind": "stderr", "text": "0.00.219.422 D create_tensor: loading tensor blk.19.attn_q.weight"}
+{"elapsed_ms": 233.7616, "kind": "stderr", "text": "0.00.219.433 D create_tensor: loading tensor blk.19.attn_k.weight"}
+{"elapsed_ms": 233.7838, "kind": "stderr", "text": "0.00.219.442 D create_tensor: loading tensor blk.19.attn_v.weight"}
+{"elapsed_ms": 233.7981, "kind": "stderr", "text": "0.00.219.463 D create_tensor: loading tensor blk.19.attn_output.weight"}
+{"elapsed_ms": 233.8142, "kind": "stderr", "text": "0.00.219.477 D create_tensor: loading tensor blk.19.ffn_norm.weight"}
+{"elapsed_ms": 233.8167, "kind": "stderr", "text": "0.00.219.490 D create_tensor: loading tensor blk.19.ffn_gate.weight"}
+{"elapsed_ms": 233.8584, "kind": "stderr", "text": "0.00.219.499 D create_tensor: loading tensor blk.19.ffn_down.weight"}
+{"elapsed_ms": 233.8599, "kind": "stderr", "text": "0.00.219.510 D create_tensor: loading tensor blk.19.ffn_up.weight"}
+{"elapsed_ms": 233.8621, "kind": "stderr", "text": "0.00.219.529 D create_tensor: loading tensor blk.20.attn_norm.weight"}
+{"elapsed_ms": 233.8735, "kind": "stderr", "text": "0.00.219.541 D create_tensor: loading tensor blk.20.attn_q.weight"}
+{"elapsed_ms": 233.8759, "kind": "stderr", "text": "0.00.219.549 D create_tensor: loading tensor blk.20.attn_k.weight"}
+{"elapsed_ms": 233.8949, "kind": "stderr", "text": "0.00.219.558 D create_tensor: loading tensor blk.20.attn_v.weight"}
+{"elapsed_ms": 233.9165, "kind": "stderr", "text": "0.00.219.580 D create_tensor: loading tensor blk.20.attn_output.weight"}
+{"elapsed_ms": 233.9306, "kind": "stderr", "text": "0.00.219.594 D create_tensor: loading tensor blk.20.ffn_norm.weight"}
+{"elapsed_ms": 233.9358, "kind": "stderr", "text": "0.00.219.608 D create_tensor: loading tensor blk.20.ffn_gate.weight"}
+{"elapsed_ms": 233.9475, "kind": "stderr", "text": "0.00.219.616 D create_tensor: loading tensor blk.20.ffn_down.weight"}
+{"elapsed_ms": 233.9527, "kind": "stderr", "text": "0.00.219.625 D create_tensor: loading tensor blk.20.ffn_up.weight"}
+{"elapsed_ms": 233.9823, "kind": "stderr", "text": "0.00.219.645 D create_tensor: loading tensor blk.21.attn_norm.weight"}
+{"elapsed_ms": 233.9991, "kind": "stderr", "text": "0.00.219.660 D create_tensor: loading tensor blk.21.attn_q.weight"}
+{"elapsed_ms": 234.0006, "kind": "stderr", "text": "0.00.219.671 D create_tensor: loading tensor blk.21.attn_k.weight"}
+{"elapsed_ms": 234.0178, "kind": "stderr", "text": "0.00.219.680 D create_tensor: loading tensor blk.21.attn_v.weight"}
+{"elapsed_ms": 234.0392, "kind": "stderr", "text": "0.00.219.703 D create_tensor: loading tensor blk.21.attn_output.weight"}
+{"elapsed_ms": 234.055, "kind": "stderr", "text": "0.00.219.719 D create_tensor: loading tensor blk.21.ffn_norm.weight"}
+{"elapsed_ms": 234.0585, "kind": "stderr", "text": "0.00.219.732 D create_tensor: loading tensor blk.21.ffn_gate.weight"}
+{"elapsed_ms": 234.0779, "kind": "stderr", "text": "0.00.219.741 D create_tensor: loading tensor blk.21.ffn_down.weight"}
+{"elapsed_ms": 234.0804, "kind": "stderr", "text": "0.00.219.753 D create_tensor: loading tensor blk.21.ffn_up.weight"}
+{"elapsed_ms": 234.1099, "kind": "stderr", "text": "0.00.219.774 D create_tensor: loading tensor blk.22.attn_norm.weight"}
+{"elapsed_ms": 234.1256, "kind": "stderr", "text": "0.00.219.789 D create_tensor: loading tensor blk.22.attn_q.weight"}
+{"elapsed_ms": 234.1281, "kind": "stderr", "text": "0.00.219.800 D create_tensor: loading tensor blk.22.attn_k.weight"}
+{"elapsed_ms": 234.1468, "kind": "stderr", "text": "0.00.219.810 D create_tensor: loading tensor blk.22.attn_v.weight"}
+{"elapsed_ms": 234.1692, "kind": "stderr", "text": "0.00.219.833 D create_tensor: loading tensor blk.22.attn_output.weight"}
+{"elapsed_ms": 234.1845, "kind": "stderr", "text": "0.00.219.849 D create_tensor: loading tensor blk.22.ffn_norm.weight"}
+{"elapsed_ms": 234.1888, "kind": "stderr", "text": "0.00.219.862 D create_tensor: loading tensor blk.22.ffn_gate.weight"}
+{"elapsed_ms": 234.21, "kind": "stderr", "text": "0.00.219.871 D create_tensor: loading tensor blk.22.ffn_down.weight"}
+{"elapsed_ms": 234.2114, "kind": "stderr", "text": "0.00.219.883 D create_tensor: loading tensor blk.22.ffn_up.weight"}
+{"elapsed_ms": 234.2405, "kind": "stderr", "text": "0.00.219.904 D create_tensor: loading tensor blk.23.attn_norm.weight"}
+{"elapsed_ms": 234.2564, "kind": "stderr", "text": "0.00.219.919 D create_tensor: loading tensor blk.23.attn_q.weight"}
+{"elapsed_ms": 234.2587, "kind": "stderr", "text": "0.00.219.931 D create_tensor: loading tensor blk.23.attn_k.weight"}
+{"elapsed_ms": 234.2738, "kind": "stderr", "text": "0.00.219.940 D create_tensor: loading tensor blk.23.attn_v.weight"}
+{"elapsed_ms": 234.2987, "kind": "stderr", "text": "0.00.219.962 D create_tensor: loading tensor blk.23.attn_output.weight"}
+{"elapsed_ms": 234.3139, "kind": "stderr", "text": "0.00.219.978 D create_tensor: loading tensor blk.23.ffn_norm.weight"}
+{"elapsed_ms": 234.3186, "kind": "stderr", "text": "0.00.219.991 D create_tensor: loading tensor blk.23.ffn_gate.weight"}
+{"elapsed_ms": 234.3379, "kind": "stderr", "text": "0.00.220.000 D create_tensor: loading tensor blk.23.ffn_down.weight"}
+{"elapsed_ms": 234.3414, "kind": "stderr", "text": "0.00.220.012 D create_tensor: loading tensor blk.23.ffn_up.weight"}
+{"elapsed_ms": 234.3701, "kind": "stderr", "text": "0.00.220.034 D create_tensor: loading tensor blk.24.attn_norm.weight"}
+{"elapsed_ms": 234.3867, "kind": "stderr", "text": "0.00.220.049 D create_tensor: loading tensor blk.24.attn_q.weight"}
+{"elapsed_ms": 234.3889, "kind": "stderr", "text": "0.00.220.061 D create_tensor: loading tensor blk.24.attn_k.weight"}
+{"elapsed_ms": 234.4067, "kind": "stderr", "text": "0.00.220.070 D create_tensor: loading tensor blk.24.attn_v.weight"}
+{"elapsed_ms": 234.4295, "kind": "stderr", "text": "0.00.220.093 D create_tensor: loading tensor blk.24.attn_output.weight"}
+{"elapsed_ms": 234.4459, "kind": "stderr", "text": "0.00.220.109 D create_tensor: loading tensor blk.24.ffn_norm.weight"}
+{"elapsed_ms": 234.4484, "kind": "stderr", "text": "0.00.220.122 D create_tensor: loading tensor blk.24.ffn_gate.weight"}
+{"elapsed_ms": 234.4695, "kind": "stderr", "text": "0.00.220.131 D create_tensor: loading tensor blk.24.ffn_down.weight"}
+{"elapsed_ms": 234.4708, "kind": "stderr", "text": "0.00.220.143 D create_tensor: loading tensor blk.24.ffn_up.weight"}
+{"elapsed_ms": 234.5006, "kind": "stderr", "text": "0.00.220.164 D create_tensor: loading tensor blk.25.attn_norm.weight"}
+{"elapsed_ms": 234.5147, "kind": "stderr", "text": "0.00.220.180 D create_tensor: loading tensor blk.25.attn_q.weight"}
+{"elapsed_ms": 234.5182, "kind": "stderr", "text": "0.00.220.191 D create_tensor: loading tensor blk.25.attn_k.weight"}
+{"elapsed_ms": 234.5381, "kind": "stderr", "text": "0.00.220.201 D create_tensor: loading tensor blk.25.attn_v.weight"}
+{"elapsed_ms": 234.5602, "kind": "stderr", "text": "0.00.220.224 D create_tensor: loading tensor blk.25.attn_output.weight"}
+{"elapsed_ms": 234.5757, "kind": "stderr", "text": "0.00.220.239 D create_tensor: loading tensor blk.25.ffn_norm.weight"}
+{"elapsed_ms": 234.5805, "kind": "stderr", "text": "0.00.220.253 D create_tensor: loading tensor blk.25.ffn_gate.weight"}
+{"elapsed_ms": 234.6241, "kind": "stderr", "text": "0.00.220.286 D create_tensor: loading tensor blk.25.ffn_down.weight"}
+{"elapsed_ms": 234.6594, "kind": "stderr", "text": "0.00.220.316 D create_tensor: loading tensor blk.25.ffn_up.weight"}
+{"elapsed_ms": 234.6783, "kind": "stderr", "text": "0.00.220.343 D create_tensor: loading tensor blk.26.attn_norm.weight"}
+{"elapsed_ms": 234.6953, "kind": "stderr", "text": "0.00.220.357 D create_tensor: loading tensor blk.26.attn_q.weight"}
+{"elapsed_ms": 234.7114, "kind": "stderr", "text": "0.00.220.367 D create_tensor: loading tensor blk.26.attn_k.weight"}
+{"elapsed_ms": 234.7272, "kind": "stderr", "text": "0.00.220.376 D create_tensor: loading tensor blk.26.attn_v.weight"}
+{"elapsed_ms": 234.7431, "kind": "stderr", "text": "0.00.220.398 D create_tensor: loading tensor blk.26.attn_output.weight"}
+{"elapsed_ms": 234.7601, "kind": "stderr", "text": "0.00.220.412 D create_tensor: loading tensor blk.26.ffn_norm.weight"}
+{"elapsed_ms": 234.776, "kind": "stderr", "text": "0.00.220.424 D create_tensor: loading tensor blk.26.ffn_gate.weight"}
+{"elapsed_ms": 234.7919, "kind": "stderr", "text": "0.00.220.433 D create_tensor: loading tensor blk.26.ffn_down.weight"}
+{"elapsed_ms": 234.8079, "kind": "stderr", "text": "0.00.220.443 D create_tensor: loading tensor blk.26.ffn_up.weight"}
+{"elapsed_ms": 234.8238, "kind": "stderr", "text": "0.00.220.463 D create_tensor: loading tensor blk.27.attn_norm.weight"}
+{"elapsed_ms": 234.8398, "kind": "stderr", "text": "0.00.220.477 D create_tensor: loading tensor blk.27.attn_q.weight"}
+{"elapsed_ms": 234.8557, "kind": "stderr", "text": "0.00.220.486 D create_tensor: loading tensor blk.27.attn_k.weight"}
+{"elapsed_ms": 234.8687, "kind": "stderr", "text": "0.00.220.495 D create_tensor: loading tensor blk.27.attn_v.weight"}
+{"elapsed_ms": 234.87, "kind": "stderr", "text": "0.00.220.516 D create_tensor: loading tensor blk.27.attn_output.weight"}
+{"elapsed_ms": 234.8731, "kind": "stderr", "text": "0.00.220.529 D create_tensor: loading tensor blk.27.ffn_norm.weight"}
+{"elapsed_ms": 234.8738, "kind": "stderr", "text": "0.00.220.541 D create_tensor: loading tensor blk.27.ffn_gate.weight"}
+{"elapsed_ms": 234.8767, "kind": "stderr", "text": "0.00.220.550 D create_tensor: loading tensor blk.27.ffn_down.weight"}
+{"elapsed_ms": 234.9018, "kind": "stderr", "text": "0.00.220.559 D create_tensor: loading tensor blk.27.ffn_up.weight"}
+{"elapsed_ms": 234.9191, "kind": "stderr", "text": "0.00.220.583 D create_tensor: loading tensor blk.28.attn_norm.weight"}
+{"elapsed_ms": 234.9366, "kind": "stderr", "text": "0.00.220.599 D create_tensor: loading tensor blk.28.attn_q.weight"}
+{"elapsed_ms": 234.9393, "kind": "stderr", "text": "0.00.220.610 D create_tensor: loading tensor blk.28.attn_k.weight"}
+{"elapsed_ms": 234.9499, "kind": "stderr", "text": "0.00.220.619 D create_tensor: loading tensor blk.28.attn_v.weight"}
+{"elapsed_ms": 234.9758, "kind": "stderr", "text": "0.00.220.640 D create_tensor: loading tensor blk.28.attn_output.weight"}
+{"elapsed_ms": 234.9912, "kind": "stderr", "text": "0.00.220.656 D create_tensor: loading tensor blk.28.ffn_norm.weight"}
+{"elapsed_ms": 234.9972, "kind": "stderr", "text": "0.00.220.669 D create_tensor: loading tensor blk.28.ffn_gate.weight"}
+{"elapsed_ms": 235.0148, "kind": "stderr", "text": "0.00.220.678 D create_tensor: loading tensor blk.28.ffn_down.weight"}
+{"elapsed_ms": 235.0174, "kind": "stderr", "text": "0.00.220.690 D create_tensor: loading tensor blk.28.ffn_up.weight"}
+{"elapsed_ms": 235.0475, "kind": "stderr", "text": "0.00.220.712 D create_tensor: loading tensor blk.29.attn_norm.weight"}
+{"elapsed_ms": 235.0638, "kind": "stderr", "text": "0.00.220.728 D create_tensor: loading tensor blk.29.attn_q.weight"}
+{"elapsed_ms": 235.0691, "kind": "stderr", "text": "0.00.220.739 D create_tensor: loading tensor blk.29.attn_k.weight"}
+{"elapsed_ms": 235.0844, "kind": "stderr", "text": "0.00.220.749 D create_tensor: loading tensor blk.29.attn_v.weight"}
+{"elapsed_ms": 235.1074, "kind": "stderr", "text": "0.00.220.772 D create_tensor: loading tensor blk.29.attn_output.weight"}
+{"elapsed_ms": 235.1228, "kind": "stderr", "text": "0.00.220.788 D create_tensor: loading tensor blk.29.ffn_norm.weight"}
+{"elapsed_ms": 235.1276, "kind": "stderr", "text": "0.00.220.801 D create_tensor: loading tensor blk.29.ffn_gate.weight"}
+{"elapsed_ms": 235.1452, "kind": "stderr", "text": "0.00.220.810 D create_tensor: loading tensor blk.29.ffn_down.weight"}
+{"elapsed_ms": 235.1477, "kind": "stderr", "text": "0.00.220.821 D create_tensor: loading tensor blk.29.ffn_up.weight"}
+{"elapsed_ms": 235.1775, "kind": "stderr", "text": "0.00.220.842 D create_tensor: loading tensor blk.30.attn_norm.weight"}
+{"elapsed_ms": 235.1938, "kind": "stderr", "text": "0.00.220.858 D create_tensor: loading tensor blk.30.attn_q.weight"}
+{"elapsed_ms": 235.1986, "kind": "stderr", "text": "0.00.220.871 D create_tensor: loading tensor blk.30.attn_k.weight"}
+{"elapsed_ms": 235.2158, "kind": "stderr", "text": "0.00.220.881 D create_tensor: loading tensor blk.30.attn_v.weight"}
+{"elapsed_ms": 235.2388, "kind": "stderr", "text": "0.00.220.904 D create_tensor: loading tensor blk.30.attn_output.weight"}
+{"elapsed_ms": 235.2542, "kind": "stderr", "text": "0.00.220.919 D create_tensor: loading tensor blk.30.ffn_norm.weight"}
+{"elapsed_ms": 235.2651, "kind": "stderr", "text": "0.00.220.932 D create_tensor: loading tensor blk.30.ffn_gate.weight"}
+{"elapsed_ms": 235.2677, "kind": "stderr", "text": "0.00.220.941 D create_tensor: loading tensor blk.30.ffn_down.weight"}
+{"elapsed_ms": 235.2857, "kind": "stderr", "text": "0.00.220.950 D create_tensor: loading tensor blk.30.ffn_up.weight"}
+{"elapsed_ms": 235.3085, "kind": "stderr", "text": "0.00.220.973 D create_tensor: loading tensor blk.31.attn_norm.weight"}
+{"elapsed_ms": 235.3238, "kind": "stderr", "text": "0.00.220.989 D create_tensor: loading tensor blk.31.attn_q.weight"}
+{"elapsed_ms": 235.3265, "kind": "stderr", "text": "0.00.221.000 D create_tensor: loading tensor blk.31.attn_k.weight"}
+{"elapsed_ms": 235.3459, "kind": "stderr", "text": "0.00.221.009 D create_tensor: loading tensor blk.31.attn_v.weight"}
+{"elapsed_ms": 235.3689, "kind": "stderr", "text": "0.00.221.034 D create_tensor: loading tensor blk.31.attn_output.weight"}
+{"elapsed_ms": 235.3846, "kind": "stderr", "text": "0.00.221.049 D create_tensor: loading tensor blk.31.ffn_norm.weight"}
+{"elapsed_ms": 235.3898, "kind": "stderr", "text": "0.00.221.062 D create_tensor: loading tensor blk.31.ffn_gate.weight"}
+{"elapsed_ms": 235.4069, "kind": "stderr", "text": "0.00.221.072 D create_tensor: loading tensor blk.31.ffn_down.weight"}
+{"elapsed_ms": 235.4094, "kind": "stderr", "text": "0.00.221.083 D create_tensor: loading tensor blk.31.ffn_up.weight"}
+{"elapsed_ms": 235.4388, "kind": "stderr", "text": "0.00.221.104 D create_tensor: loading tensor blk.32.attn_norm.weight"}
+{"elapsed_ms": 235.4543, "kind": "stderr", "text": "0.00.221.119 D create_tensor: loading tensor blk.32.attn_q.weight"}
+{"elapsed_ms": 235.4568, "kind": "stderr", "text": "0.00.221.130 D create_tensor: loading tensor blk.32.attn_k.weight"}
+{"elapsed_ms": 235.4746, "kind": "stderr", "text": "0.00.221.139 D create_tensor: loading tensor blk.32.attn_v.weight"}
+{"elapsed_ms": 235.5055, "kind": "stderr", "text": "0.00.221.163 D create_tensor: loading tensor blk.32.attn_output.weight"}
+{"elapsed_ms": 235.5068, "kind": "stderr", "text": "0.00.221.178 D create_tensor: loading tensor blk.32.ffn_norm.weight"}
+{"elapsed_ms": 235.5263, "kind": "stderr", "text": "0.00.221.191 D create_tensor: loading tensor blk.32.ffn_gate.weight"}
+{"elapsed_ms": 235.5288, "kind": "stderr", "text": "0.00.221.202 D create_tensor: loading tensor blk.32.ffn_down.weight"}
+{"elapsed_ms": 235.547, "kind": "stderr", "text": "0.00.221.211 D create_tensor: loading tensor blk.32.ffn_up.weight"}
+{"elapsed_ms": 235.5695, "kind": "stderr", "text": "0.00.221.234 D create_tensor: loading tensor blk.33.attn_norm.weight"}
+{"elapsed_ms": 235.585, "kind": "stderr", "text": "0.00.221.249 D create_tensor: loading tensor blk.33.attn_q.weight"}
+{"elapsed_ms": 235.5887, "kind": "stderr", "text": "0.00.221.261 D create_tensor: loading tensor blk.33.attn_k.weight"}
+{"elapsed_ms": 235.6054, "kind": "stderr", "text": "0.00.221.270 D create_tensor: loading tensor blk.33.attn_v.weight"}
+{"elapsed_ms": 235.6275, "kind": "stderr", "text": "0.00.221.292 D create_tensor: loading tensor blk.33.attn_output.weight"}
+{"elapsed_ms": 235.6438, "kind": "stderr", "text": "0.00.221.309 D create_tensor: loading tensor blk.33.ffn_norm.weight"}
+{"elapsed_ms": 235.6534, "kind": "stderr", "text": "0.00.221.323 D create_tensor: loading tensor blk.33.ffn_gate.weight"}
+{"elapsed_ms": 235.6689, "kind": "stderr", "text": "0.00.221.333 D create_tensor: loading tensor blk.33.ffn_down.weight"}
+{"elapsed_ms": 235.6799, "kind": "stderr", "text": "0.00.221.346 D create_tensor: loading tensor blk.33.ffn_up.weight"}
+{"elapsed_ms": 235.7069, "kind": "stderr", "text": "0.00.221.370 D create_tensor: loading tensor blk.34.attn_norm.weight"}
+{"elapsed_ms": 235.7225, "kind": "stderr", "text": "0.00.221.387 D create_tensor: loading tensor blk.34.attn_q.weight"}
+{"elapsed_ms": 235.7248, "kind": "stderr", "text": "0.00.221.399 D create_tensor: loading tensor blk.34.attn_k.weight"}
+{"elapsed_ms": 235.7441, "kind": "stderr", "text": "0.00.221.409 D create_tensor: loading tensor blk.34.attn_v.weight"}
+{"elapsed_ms": 235.774, "kind": "stderr", "text": "0.00.221.433 D create_tensor: loading tensor blk.34.attn_output.weight"}
+{"elapsed_ms": 235.7767, "kind": "stderr", "text": "0.00.221.450 D create_tensor: loading tensor blk.34.ffn_norm.weight"}
+{"elapsed_ms": 235.7973, "kind": "stderr", "text": "0.00.221.462 D create_tensor: loading tensor blk.34.ffn_gate.weight"}
+{"elapsed_ms": 235.7998, "kind": "stderr", "text": "0.00.221.474 D create_tensor: loading tensor blk.34.ffn_down.weight"}
+{"elapsed_ms": 235.8189, "kind": "stderr", "text": "0.00.221.484 D create_tensor: loading tensor blk.34.ffn_up.weight"}
+{"elapsed_ms": 235.8439, "kind": "stderr", "text": "0.00.221.509 D create_tensor: loading tensor blk.35.attn_norm.weight"}
+{"elapsed_ms": 235.8617, "kind": "stderr", "text": "0.00.221.526 D create_tensor: loading tensor blk.35.attn_q.weight"}
+{"elapsed_ms": 235.8658, "kind": "stderr", "text": "0.00.221.539 D create_tensor: loading tensor blk.35.attn_k.weight"}
+{"elapsed_ms": 235.8838, "kind": "stderr", "text": "0.00.221.549 D create_tensor: loading tensor blk.35.attn_v.weight"}
+{"elapsed_ms": 235.9164, "kind": "stderr", "text": "0.00.221.574 D create_tensor: loading tensor blk.35.attn_output.weight"}
+{"elapsed_ms": 235.9193, "kind": "stderr", "text": "0.00.221.591 D create_tensor: loading tensor blk.35.ffn_norm.weight"}
+{"elapsed_ms": 235.9412, "kind": "stderr", "text": "0.00.221.604 D create_tensor: loading tensor blk.35.ffn_gate.weight"}
+{"elapsed_ms": 235.945, "kind": "stderr", "text": "0.00.221.617 D create_tensor: loading tensor blk.35.ffn_down.weight"}
+{"elapsed_ms": 235.963, "kind": "stderr", "text": "0.00.221.627 D create_tensor: loading tensor blk.35.ffn_up.weight"}
+{"elapsed_ms": 235.9898, "kind": "stderr", "text": "0.00.221.654 D create_tensor: loading tensor blk.36.attn_norm.weight"}
+{"elapsed_ms": 236.0075, "kind": "stderr", "text": "0.00.221.672 D create_tensor: loading tensor blk.36.attn_q.weight"}
+{"elapsed_ms": 236.0122, "kind": "stderr", "text": "0.00.221.685 D create_tensor: loading tensor blk.36.attn_k.weight"}
+{"elapsed_ms": 236.0309, "kind": "stderr", "text": "0.00.221.695 D create_tensor: loading tensor blk.36.attn_v.weight"}
+{"elapsed_ms": 236.0582, "kind": "stderr", "text": "0.00.221.723 D create_tensor: loading tensor blk.36.attn_output.weight"}
+{"elapsed_ms": 236.0759, "kind": "stderr", "text": "0.00.221.740 D create_tensor: loading tensor blk.36.ffn_norm.weight"}
+{"elapsed_ms": 236.0915, "kind": "stderr", "text": "0.00.221.755 D create_tensor: loading tensor blk.36.ffn_gate.weight"}
+{"elapsed_ms": 236.0943, "kind": "stderr", "text": "0.00.221.768 D create_tensor: loading tensor blk.36.ffn_down.weight"}
+{"elapsed_ms": 236.1151, "kind": "stderr", "text": "0.00.221.779 D create_tensor: loading tensor blk.36.ffn_up.weight"}
+{"elapsed_ms": 236.1407, "kind": "stderr", "text": "0.00.221.805 D create_tensor: loading tensor blk.37.attn_norm.weight"}
+{"elapsed_ms": 236.1581, "kind": "stderr", "text": "0.00.221.823 D create_tensor: loading tensor blk.37.attn_q.weight"}
+{"elapsed_ms": 236.1613, "kind": "stderr", "text": "0.00.221.836 D create_tensor: loading tensor blk.37.attn_k.weight"}
+{"elapsed_ms": 236.1813, "kind": "stderr", "text": "0.00.221.846 D create_tensor: loading tensor blk.37.attn_v.weight"}
+{"elapsed_ms": 236.2079, "kind": "stderr", "text": "0.00.221.873 D create_tensor: loading tensor blk.37.attn_output.weight"}
+{"elapsed_ms": 236.2256, "kind": "stderr", "text": "0.00.221.890 D create_tensor: loading tensor blk.37.ffn_norm.weight"}
+{"elapsed_ms": 236.242, "kind": "stderr", "text": "0.00.221.906 D create_tensor: loading tensor blk.37.ffn_gate.weight"}
+{"elapsed_ms": 236.2459, "kind": "stderr", "text": "0.00.221.919 D create_tensor: loading tensor blk.37.ffn_down.weight"}
+{"elapsed_ms": 236.2652, "kind": "stderr", "text": "0.00.221.930 D create_tensor: loading tensor blk.37.ffn_up.weight"}
+{"elapsed_ms": 236.2924, "kind": "stderr", "text": "0.00.221.957 D create_tensor: loading tensor blk.38.attn_norm.weight"}
+{"elapsed_ms": 236.3106, "kind": "stderr", "text": "0.00.221.975 D create_tensor: loading tensor blk.38.attn_q.weight"}
+{"elapsed_ms": 236.3153, "kind": "stderr", "text": "0.00.221.989 D create_tensor: loading tensor blk.38.attn_k.weight"}
+{"elapsed_ms": 236.3354, "kind": "stderr", "text": "0.00.222.000 D create_tensor: loading tensor blk.38.attn_v.weight"}
+{"elapsed_ms": 236.3697, "kind": "stderr", "text": "0.00.222.028 D create_tensor: loading tensor blk.38.attn_output.weight"}
+{"elapsed_ms": 236.3885, "kind": "stderr", "text": "0.00.222.053 D create_tensor: loading tensor blk.38.ffn_norm.weight"}
+{"elapsed_ms": 236.4042, "kind": "stderr", "text": "0.00.222.069 D create_tensor: loading tensor blk.38.ffn_gate.weight"}
+{"elapsed_ms": 236.4091, "kind": "stderr", "text": "0.00.222.083 D create_tensor: loading tensor blk.38.ffn_down.weight"}
+{"elapsed_ms": 236.4304, "kind": "stderr", "text": "0.00.222.095 D create_tensor: loading tensor blk.38.ffn_up.weight"}
+{"elapsed_ms": 236.4591, "kind": "stderr", "text": "0.00.222.124 D create_tensor: loading tensor blk.39.attn_norm.weight"}
+{"elapsed_ms": 236.4777, "kind": "stderr", "text": "0.00.222.143 D create_tensor: loading tensor blk.39.attn_q.weight"}
+{"elapsed_ms": 236.482, "kind": "stderr", "text": "0.00.222.156 D create_tensor: loading tensor blk.39.attn_k.weight"}
+{"elapsed_ms": 236.5027, "kind": "stderr", "text": "0.00.222.167 D create_tensor: loading tensor blk.39.attn_v.weight"}
+{"elapsed_ms": 236.5309, "kind": "stderr", "text": "0.00.222.196 D create_tensor: loading tensor blk.39.attn_output.weight"}
+{"elapsed_ms": 236.5496, "kind": "stderr", "text": "0.00.222.214 D create_tensor: loading tensor blk.39.ffn_norm.weight"}
+{"elapsed_ms": 236.5659, "kind": "stderr", "text": "0.00.222.231 D create_tensor: loading tensor blk.39.ffn_gate.weight"}
+{"elapsed_ms": 236.5756, "kind": "stderr", "text": "0.00.222.245 D create_tensor: loading tensor blk.39.ffn_down.weight"}
+{"elapsed_ms": 236.5923, "kind": "stderr", "text": "0.00.222.257 D create_tensor: loading tensor blk.39.ffn_up.weight"}
+{"elapsed_ms": 240.5392, "kind": "stderr", "text": "0.00.226.115 I load_tensors: offloading output layer to GPU"}
+{"elapsed_ms": 240.5476, "kind": "stderr", "text": "0.00.226.121 I load_tensors: offloading 0 repeating layers to GPU"}
+{"elapsed_ms": 240.5487, "kind": "stderr", "text": "0.00.226.121 I load_tensors: offloaded 1/41 layers to GPU"}
+{"elapsed_ms": 240.5502, "kind": "stderr", "text": "0.00.226.123 I load_tensors:      Vulkan0 model buffer size =     0.00 MiB"}
+{"elapsed_ms": 240.551, "kind": "stderr", "text": "0.00.226.124 I load_tensors:  Vulkan_Host model buffer size =     0.00 MiB"}
+{"elapsed_ms": 241.4343, "kind": "stderr", "text": "0.00.227.040 I llama_context: constructing llama_context"}
+{"elapsed_ms": 241.4414, "kind": "stderr", "text": "0.00.227.048 I llama_context: n_seq_max     = 4"}
+{"elapsed_ms": 241.4423, "kind": "stderr", "text": "0.00.227.049 I llama_context: n_ctx         = 4096"}
+{"elapsed_ms": 241.4431, "kind": "stderr", "text": "0.00.227.049 I llama_context: n_ctx_seq     = 4096"}
+{"elapsed_ms": 241.4438, "kind": "stderr", "text": "0.00.227.049 I llama_context: n_batch       = 2048"}
+{"elapsed_ms": 241.4444, "kind": "stderr", "text": "0.00.227.049 I llama_context: n_ubatch      = 512"}
+{"elapsed_ms": 241.451, "kind": "stderr", "text": "0.00.227.050 I llama_context: causal_attn   = 1"}
+{"elapsed_ms": 241.4517, "kind": "stderr", "text": "0.00.227.050 I llama_context: flash_attn    = auto"}
+{"elapsed_ms": 241.4523, "kind": "stderr", "text": "0.00.227.050 I llama_context: kv_unified    = true"}
+{"elapsed_ms": 241.453, "kind": "stderr", "text": "0.00.227.052 I llama_context: freq_base     = 10000000.0"}
+{"elapsed_ms": 241.4536, "kind": "stderr", "text": "0.00.227.054 I llama_context: freq_scale    = 1"}
+{"elapsed_ms": 241.4542, "kind": "stderr", "text": "0.00.227.054 I llama_context: n_rs_seq      = 0"}
+{"elapsed_ms": 241.4548, "kind": "stderr", "text": "0.00.227.055 I llama_context: n_outputs_max = 4"}
+{"elapsed_ms": 241.4555, "kind": "stderr", "text": "0.00.227.055 I llama_context: n_ctx_seq (4096) < n_ctx_train (131072) -- the full capacity of the model will not be utilized"}
+{"elapsed_ms": 241.4564, "kind": "stderr", "text": "0.00.227.088 D set_abort_callback: call"}
+{"elapsed_ms": 241.7972, "kind": "stderr", "text": "0.00.227.446 I llama_context: Vulkan_Host  output buffer size =     1.53 MiB"}
+{"elapsed_ms": 241.8461, "kind": "stderr", "text": "0.00.227.507 D llama_kv_cache: layer   0: dev = CPU"}
+{"elapsed_ms": 241.8479, "kind": "stderr", "text": "0.00.227.516 D llama_kv_cache: layer   1: dev = CPU"}
+{"elapsed_ms": 241.8507, "kind": "stderr", "text": "0.00.227.518 D llama_kv_cache: layer   2: dev = CPU"}
+{"elapsed_ms": 241.8514, "kind": "stderr", "text": "0.00.227.519 D llama_kv_cache: layer   3: dev = CPU"}
+{"elapsed_ms": 241.8582, "kind": "stderr", "text": "0.00.227.520 D llama_kv_cache: layer   4: dev = CPU"}
+{"elapsed_ms": 241.8589, "kind": "stderr", "text": "0.00.227.522 D llama_kv_cache: layer   5: dev = CPU"}
+{"elapsed_ms": 241.8617, "kind": "stderr", "text": "0.00.227.522 D llama_kv_cache: layer   6: dev = CPU"}
+{"elapsed_ms": 241.879, "kind": "stderr", "text": "0.00.227.524 D llama_kv_cache: layer   7: dev = CPU"}
+{"elapsed_ms": 241.8803, "kind": "stderr", "text": "0.00.227.525 D llama_kv_cache: layer   8: dev = CPU"}
+{"elapsed_ms": 241.881, "kind": "stderr", "text": "0.00.227.529 D llama_kv_cache: layer   9: dev = CPU"}
+{"elapsed_ms": 241.8817, "kind": "stderr", "text": "0.00.227.531 D llama_kv_cache: layer  10: dev = CPU"}
+{"elapsed_ms": 241.8838, "kind": "stderr", "text": "0.00.227.532 D llama_kv_cache: layer  11: dev = CPU"}
+{"elapsed_ms": 241.8866, "kind": "stderr", "text": "0.00.227.533 D llama_kv_cache: layer  12: dev = CPU"}
+{"elapsed_ms": 241.8872, "kind": "stderr", "text": "0.00.227.534 D llama_kv_cache: layer  13: dev = CPU"}
+{"elapsed_ms": 241.8879, "kind": "stderr", "text": "0.00.227.535 D llama_kv_cache: layer  14: dev = CPU"}
+{"elapsed_ms": 241.8899, "kind": "stderr", "text": "0.00.227.536 D llama_kv_cache: layer  15: dev = CPU"}
+{"elapsed_ms": 241.9024, "kind": "stderr", "text": "0.00.227.537 D llama_kv_cache: layer  16: dev = CPU"}
+{"elapsed_ms": 241.9031, "kind": "stderr", "text": "0.00.227.537 D llama_kv_cache: layer  17: dev = CPU"}
+{"elapsed_ms": 241.9095, "kind": "stderr", "text": "0.00.227.538 D llama_kv_cache: layer  18: dev = CPU"}
+{"elapsed_ms": 241.9102, "kind": "stderr", "text": "0.00.227.539 D llama_kv_cache: layer  19: dev = CPU"}
+{"elapsed_ms": 241.9133, "kind": "stderr", "text": "0.00.227.540 D llama_kv_cache: layer  20: dev = CPU"}
+{"elapsed_ms": 241.9139, "kind": "stderr", "text": "0.00.227.541 D llama_kv_cache: layer  21: dev = CPU"}
+{"elapsed_ms": 241.9145, "kind": "stderr", "text": "0.00.227.542 D llama_kv_cache: layer  22: dev = CPU"}
+{"elapsed_ms": 241.9151, "kind": "stderr", "text": "0.00.227.543 D llama_kv_cache: layer  23: dev = CPU"}
+{"elapsed_ms": 241.9194, "kind": "stderr", "text": "0.00.227.544 D llama_kv_cache: layer  24: dev = CPU"}
+{"elapsed_ms": 241.9212, "kind": "stderr", "text": "0.00.227.544 D llama_kv_cache: layer  25: dev = CPU"}
+{"elapsed_ms": 241.929, "kind": "stderr", "text": "0.00.227.545 D llama_kv_cache: layer  26: dev = CPU"}
+{"elapsed_ms": 241.9296, "kind": "stderr", "text": "0.00.227.546 D llama_kv_cache: layer  27: dev = CPU"}
+{"elapsed_ms": 241.9302, "kind": "stderr", "text": "0.00.227.547 D llama_kv_cache: layer  28: dev = CPU"}
+{"elapsed_ms": 241.9324, "kind": "stderr", "text": "0.00.227.548 D llama_kv_cache: layer  29: dev = CPU"}
+{"elapsed_ms": 241.9341, "kind": "stderr", "text": "0.00.227.549 D llama_kv_cache: layer  30: dev = CPU"}
+{"elapsed_ms": 241.9373, "kind": "stderr", "text": "0.00.227.550 D llama_kv_cache: layer  31: dev = CPU"}
+{"elapsed_ms": 241.9414, "kind": "stderr", "text": "0.00.227.550 D llama_kv_cache: layer  32: dev = CPU"}
+{"elapsed_ms": 241.953, "kind": "stderr", "text": "0.00.227.551 D llama_kv_cache: layer  33: dev = CPU"}
+{"elapsed_ms": 241.9671, "kind": "stderr", "text": "0.00.227.552 D llama_kv_cache: layer  34: dev = CPU"}
+{"elapsed_ms": 241.9678, "kind": "stderr", "text": "0.00.227.553 D llama_kv_cache: layer  35: dev = CPU"}
+{"elapsed_ms": 241.9684, "kind": "stderr", "text": "0.00.227.554 D llama_kv_cache: layer  36: dev = CPU"}
+{"elapsed_ms": 241.969, "kind": "stderr", "text": "0.00.227.555 D llama_kv_cache: layer  37: dev = CPU"}
+{"elapsed_ms": 241.9695, "kind": "stderr", "text": "0.00.227.555 D llama_kv_cache: layer  38: dev = CPU"}
+{"elapsed_ms": 241.9701, "kind": "stderr", "text": "0.00.227.556 D llama_kv_cache: layer  39: dev = CPU"}
+{"elapsed_ms": 241.9708, "kind": "stderr", "text": "0.00.227.559 I llama_kv_cache:        CPU KV buffer size =     0.00 MiB"}
+{"elapsed_ms": 241.975, "kind": "stderr", "text": "0.00.227.563 I llama_kv_cache: size =  170.00 MiB (  4096 cells,  40 layers,  4/1 seqs), K (q8_0):   85.00 MiB, V (q8_0):   85.00 MiB"}
+{"elapsed_ms": 241.9759, "kind": "stderr", "text": "0.00.227.567 I llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64"}
+{"elapsed_ms": 241.9777, "kind": "stderr", "text": "0.00.227.567 I llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64"}
+{"elapsed_ms": 241.9808, "kind": "stderr", "text": "0.00.227.583 D llama_context: enumerating backends"}
+{"elapsed_ms": 241.9815, "kind": "stderr", "text": "0.00.227.586 D llama_context: backend_ptrs.size() = 2"}
+{"elapsed_ms": 241.9929, "kind": "stderr", "text": "0.00.227.586 I sched_reserve: reserving ..."}
+{"elapsed_ms": 241.9961, "kind": "stderr", "text": "0.00.227.587 D sched_reserve: max_nodes = 2904"}
+{"elapsed_ms": 243.0714, "kind": "stderr", "text": "0.00.228.662 D sched_reserve: reserving full memory module"}
+{"elapsed_ms": 243.0758, "kind": "stderr", "text": "0.00.228.670 D sched_reserve: worst-case: n_tokens = 512, n_seqs = 4, n_outputs = 4"}
+{"elapsed_ms": 243.0768, "kind": "stderr", "text": "0.00.228.673 D graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 243.0782, "kind": "stderr", "text": "0.00.228.673 D graph_reserve: making n_tokens a multiple of n_seqs - n_tokens = 4, n_seqs = 4, n_outputs = 4"}
+{"elapsed_ms": 243.622, "kind": "stderr", "text": "0.00.229.232 I sched_reserve: Flash Attention was auto, set to enabled"}
+{"elapsed_ms": 243.6234, "kind": "stderr", "text": "0.00.229.236 I sched_reserve: resolving fused Gated Delta Net support:"}
+{"elapsed_ms": 243.6241, "kind": "stderr", "text": "0.00.229.237 D graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 243.6249, "kind": "stderr", "text": "0.00.229.237 D graph_reserve: making n_tokens a multiple of n_seqs - n_tokens = 4, n_seqs = 4, n_outputs = 4"}
+{"elapsed_ms": 244.0541, "kind": "stderr", "text": "0.00.229.665 I sched_reserve: fused Gated Delta Net (autoregressive) enabled"}
+{"elapsed_ms": 244.0555, "kind": "stderr", "text": "0.00.229.670 D graph_reserve: reserving a graph for ubatch with n_tokens =   64, n_seqs =  4, n_outputs =   64"}
+{"elapsed_ms": 244.9758, "kind": "stderr", "text": "0.00.230.595 I sched_reserve: fused Gated Delta Net (chunked) enabled"}
+{"elapsed_ms": 244.9772, "kind": "stderr", "text": "0.00.230.603 D graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 246.3372, "kind": "stderr", "text": "0.00.231.957 D graph_reserve: reserving a graph for ubatch with n_tokens =    4, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 246.7715, "kind": "stderr", "text": "0.00.232.393 D graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 247.5629, "kind": "stderr", "text": "0.00.233.206 I sched_reserve:    Vulkan0 compute buffer size =    86.78 MiB"}
+{"elapsed_ms": 247.5676, "kind": "stderr", "text": "0.00.233.210 I sched_reserve: Vulkan_Host compute buffer size =    14.04 MiB"}
+{"elapsed_ms": 247.5686, "kind": "stderr", "text": "0.00.233.210 I sched_reserve: graph nodes  = 1808"}
+{"elapsed_ms": 247.5732, "kind": "stderr", "text": "0.00.233.211 I sched_reserve: graph splits = 440 (with bs=512), 2 (with bs=1)"}
+{"elapsed_ms": 247.5753, "kind": "stderr", "text": "0.00.233.212 I sched_reserve: reserve took 5.62 ms, sched copies = 1"}
+{"elapsed_ms": 250.1655, "kind": "stderr", "text": "0.00.235.726 I common_memory_breakdown_print: | memory breakdown [MiB]              | total   free    self   model   context   compute    unaccounted |"}
+{"elapsed_ms": 250.1766, "kind": "stderr", "text": "0.00.235.733 I common_memory_breakdown_print: |   - Vulkan0 (Intel(R) UHD Graphics) |  8038 = 7378 + ( 287 =   200 +       0 +      86) +         371 |"}
+{"elapsed_ms": 250.178, "kind": "stderr", "text": "0.00.235.733 I common_memory_breakdown_print: |   - Host                            |                 2182 =  1998 +     170 +      14                |"}
+{"elapsed_ms": 252.2484, "kind": "memory", "private_bytes": 69599232}
+{"elapsed_ms": 265.115, "kind": "stderr", "text": "0.00.250.599 I common_params_fit_impl: projected to use 287 MiB of device memory vs. 7378 MiB of free device memory"}
+{"elapsed_ms": 265.1271, "kind": "stderr", "text": "0.00.250.604 I common_params_fit_impl: will leave 7090 >= 1024 MiB of free device memory, no changes needed"}
+{"elapsed_ms": 265.1314, "kind": "stderr", "text": "0.00.250.605 I common_fit_params: successfully fit params to free device memory"}
+{"elapsed_ms": 265.1322, "kind": "stderr", "text": "0.00.250.608 I common_fit_params: fitting params to free memory took 0.20 seconds"}
+{"elapsed_ms": 286.4222, "kind": "stderr", "text": "0.00.272.008 I llama_model_loader: loaded meta data with 34 key-value pairs and 362 tensors from C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf (version GGUF V3 (latest))"}
+{"elapsed_ms": 286.433, "kind": "stderr", "text": "0.00.272.024 I llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output."}
+{"elapsed_ms": 286.4341, "kind": "stderr", "text": "0.00.272.027 I llama_model_loader: - kv   0:                       general.architecture str              = granite"}
+{"elapsed_ms": 286.435, "kind": "stderr", "text": "0.00.272.028 I llama_model_loader: - kv   1:                               general.type str              = model"}
+{"elapsed_ms": 286.4357, "kind": "stderr", "text": "0.00.272.029 I llama_model_loader: - kv   2:                               general.name str              = Granite 4.1 3b"}
+{"elapsed_ms": 286.4367, "kind": "stderr", "text": "0.00.272.029 I llama_model_loader: - kv   3:                           general.basename str              = granite-4.1"}
+{"elapsed_ms": 286.4426, "kind": "stderr", "text": "0.00.272.030 I llama_model_loader: - kv   4:                         general.size_label str              = 3B"}
+{"elapsed_ms": 286.4434, "kind": "stderr", "text": "0.00.272.030 I llama_model_loader: - kv   5:                            general.license str              = apache-2.0"}
+{"elapsed_ms": 286.4441, "kind": "stderr", "text": "0.00.272.031 I llama_model_loader: - kv   6:                        granite.block_count u32              = 40"}
+{"elapsed_ms": 286.4447, "kind": "stderr", "text": "0.00.272.032 I llama_model_loader: - kv   7:                     granite.context_length u32              = 131072"}
+{"elapsed_ms": 286.4454, "kind": "stderr", "text": "0.00.272.032 I llama_model_loader: - kv   8:                   granite.embedding_length u32              = 2560"}
+{"elapsed_ms": 286.449, "kind": "stderr", "text": "0.00.272.033 I llama_model_loader: - kv   9:                granite.feed_forward_length u32              = 8192"}
+{"elapsed_ms": 286.4537, "kind": "stderr", "text": "0.00.272.033 I llama_model_loader: - kv  10:               granite.attention.head_count u32              = 40"}
+{"elapsed_ms": 286.4547, "kind": "stderr", "text": "0.00.272.034 I llama_model_loader: - kv  11:            granite.attention.head_count_kv u32              = 8"}
+{"elapsed_ms": 286.4611, "kind": "stderr", "text": "0.00.272.039 I llama_model_loader: - kv  12:                     granite.rope.freq_base f32              = 10000000.000000"}
+{"elapsed_ms": 286.4744, "kind": "stderr", "text": "0.00.272.040 I llama_model_loader: - kv  13:   granite.attention.layer_norm_rms_epsilon f32              = 0.000010"}
+{"elapsed_ms": 286.479, "kind": "stderr", "text": "0.00.272.041 I llama_model_loader: - kv  14:                         granite.vocab_size u32              = 100352"}
+{"elapsed_ms": 286.4823, "kind": "stderr", "text": "0.00.272.041 I llama_model_loader: - kv  15:               granite.rope.dimension_count u32              = 64"}
+{"elapsed_ms": 286.4993, "kind": "stderr", "text": "0.00.272.043 I llama_model_loader: - kv  16:                    granite.attention.scale f32              = 0.015625"}
+{"elapsed_ms": 286.5006, "kind": "stderr", "text": "0.00.272.044 I llama_model_loader: - kv  17:                    granite.embedding_scale f32              = 12.000000"}
+{"elapsed_ms": 286.5057, "kind": "stderr", "text": "0.00.272.045 I llama_model_loader: - kv  18:                     granite.residual_scale f32              = 0.220000"}
+{"elapsed_ms": 286.5203, "kind": "stderr", "text": "0.00.272.046 I llama_model_loader: - kv  19:                        granite.logit_scale f32              = 10.000000"}
+{"elapsed_ms": 286.5247, "kind": "stderr", "text": "0.00.272.046 I llama_model_loader: - kv  20:                       tokenizer.ggml.model str              = gpt2"}
+{"elapsed_ms": 286.5332, "kind": "stderr", "text": "0.00.272.047 I llama_model_loader: - kv  21:                         tokenizer.ggml.pre str              = dbrx"}
+{"elapsed_ms": 306.2098, "kind": "stderr", "text": "0.00.291.716 I llama_model_loader: - kv  22:                      tokenizer.ggml.tokens arr[str,100352]  = [\"!\", \"\\\"\", \"#\", \"$\", \"%\", \"&\", \"'\", ..."}
+{"elapsed_ms": 313.689, "kind": "stderr", "text": "0.00.299.224 I llama_model_loader: - kv  23:                  tokenizer.ggml.token_type arr[i32,100352]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..."}
+{"elapsed_ms": 334.2063, "kind": "stderr", "text": "0.00.319.760 I llama_model_loader: - kv  24:                      tokenizer.ggml.merges arr[str,100000]  = [\"\u0120 \u0120\", \"\u0120\u0120 \u0120\u0120\", \"i n\", \"\u0120 t\",..."}
+{"elapsed_ms": 334.2203, "kind": "stderr", "text": "0.00.319.769 I llama_model_loader: - kv  25:                tokenizer.ggml.bos_token_id u32              = 100257"}
+{"elapsed_ms": 334.2217, "kind": "stderr", "text": "0.00.319.770 I llama_model_loader: - kv  26:                tokenizer.ggml.eos_token_id u32              = 100257"}
+{"elapsed_ms": 334.2225, "kind": "stderr", "text": "0.00.319.771 I llama_model_loader: - kv  27:            tokenizer.ggml.unknown_token_id u32              = 100269"}
+{"elapsed_ms": 334.2233, "kind": "stderr", "text": "0.00.319.771 I llama_model_loader: - kv  28:            tokenizer.ggml.padding_token_id u32              = 100256"}
+{"elapsed_ms": 334.224, "kind": "stderr", "text": "0.00.319.772 I llama_model_loader: - kv  29:               tokenizer.ggml.add_bos_token bool             = false"}
+{"elapsed_ms": 334.2247, "kind": "stderr", "text": "0.00.319.781 I llama_model_loader: - kv  30:                    tokenizer.chat_template str              = {%- set tools_system_message_prefix =..."}
+{"elapsed_ms": 334.2255, "kind": "stderr", "text": "0.00.319.781 I llama_model_loader: - kv  31:            tokenizer.ggml.add_space_prefix bool             = false"}
+{"elapsed_ms": 334.2263, "kind": "stderr", "text": "0.00.319.782 I llama_model_loader: - kv  32:               general.quantization_version u32              = 2"}
+{"elapsed_ms": 334.227, "kind": "stderr", "text": "0.00.319.783 I llama_model_loader: - kv  33:                          general.file_type u32              = 15"}
+{"elapsed_ms": 334.2278, "kind": "stderr", "text": "0.00.319.784 I llama_model_loader: - type  f32:   81 tensors"}
+{"elapsed_ms": 334.2289, "kind": "stderr", "text": "0.00.319.784 I llama_model_loader: - type q4_K:  240 tensors"}
+{"elapsed_ms": 334.2295, "kind": "stderr", "text": "0.00.319.784 I llama_model_loader: - type q6_K:   41 tensors"}
+{"elapsed_ms": 334.2301, "kind": "stderr", "text": "0.00.319.786 I print_info: file format = GGUF V3 (latest)"}
+{"elapsed_ms": 334.2307, "kind": "stderr", "text": "0.00.319.786 I print_info: file type   = Q4_K - Medium"}
+{"elapsed_ms": 334.2335, "kind": "stderr", "text": "0.00.319.790 I print_info: file size   = 1.95 GiB (4.93 BPW) "}
+{"elapsed_ms": 335.0556, "kind": "stderr", "text": "0.00.320.631 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7378 MiB free"}
+{"elapsed_ms": 369.1238, "kind": "memory", "private_bytes": 73519104}
+{"elapsed_ms": 375.1085, "kind": "stderr", "text": "0.00.360.671 D init_tokenizer: initializing tokenizer for type 2"}
+{"elapsed_ms": 394.322, "kind": "stderr", "text": "0.00.379.800 I load: 69 unused tokens"}
+{"elapsed_ms": 395.3376, "kind": "stderr", "text": "0.00.380.858 D load: control token: 100260 '<|fim_suffix|>' is not marked as EOG"}
+{"elapsed_ms": 395.5536, "kind": "stderr", "text": "0.00.381.133 D load: control token: 100265 '<|end_of_role|>' is not marked as EOG"}
+{"elapsed_ms": 395.59, "kind": "stderr", "text": "0.00.381.235 D load: control token: 100268 '<|end_of_plugin|>' is not marked as EOG"}
+{"elapsed_ms": 396.2038, "kind": "stderr", "text": "0.00.381.725 D load: control token: 100263 '<|reponame|>' is not marked as EOG"}
+{"elapsed_ms": 396.4846, "kind": "stderr", "text": "0.00.382.064 D load: control token: 100281 '</tools>' is not marked as EOG"}
+{"elapsed_ms": 399.785, "kind": "stderr", "text": "0.00.385.308 D load: control token: 100277 '<think_off>' is not marked as EOG"}
+{"elapsed_ms": 401.1012, "kind": "stderr", "text": "0.00.386.641 D load: control token: 100267 '<|start_of_plugin|>' is not marked as EOG"}
+{"elapsed_ms": 401.4625, "kind": "stderr", "text": "0.00.387.060 D load: control token: 100276 '<think_on>' is not marked as EOG"}
+{"elapsed_ms": 405.2856, "kind": "stderr", "text": "0.00.390.818 D load: control token: 100269 '<|unk|>' is not marked as EOG"}
+{"elapsed_ms": 406.8256, "kind": "stderr", "text": "0.00.392.349 D load: control token: 100258 '<|fim_prefix|>' is not marked as EOG"}
+{"elapsed_ms": 406.9355, "kind": "stderr", "text": "0.00.392.570 D load: control token: 100256 '<|pad|>' is not marked as EOG"}
+{"elapsed_ms": 407.5738, "kind": "stderr", "text": "0.00.393.091 D load: control token: 100259 '<|fim_middle|>' is not marked as EOG"}
+{"elapsed_ms": 407.5783, "kind": "stderr", "text": "0.00.393.094 D load: control token: 100262 '<|filename|>' is not marked as EOG"}
+{"elapsed_ms": 407.5798, "kind": "stderr", "text": "0.00.393.094 D load: control token: 100264 '<|start_of_role|>' is not marked as EOG"}
+{"elapsed_ms": 407.5805, "kind": "stderr", "text": "0.00.393.095 D load: control token: 100278 '<schema>' is not marked as EOG"}
+{"elapsed_ms": 407.5812, "kind": "stderr", "text": "0.00.393.095 D load: control token: 100279 '</schema>' is not marked as EOG"}
+{"elapsed_ms": 407.5818, "kind": "stderr", "text": "0.00.393.096 D load: control token: 100280 '<tools>' is not marked as EOG"}
+{"elapsed_ms": 407.5824, "kind": "stderr", "text": "0.00.393.096 D load: control token: 100282 '<documents>' is not marked as EOG"}
+{"elapsed_ms": 407.5831, "kind": "stderr", "text": "0.00.393.097 D load: control token: 100283 '</documents>' is not marked as EOG"}
+{"elapsed_ms": 411.3022, "kind": "stderr", "text": "0.00.396.821 I load: printing all EOG tokens:"}
+{"elapsed_ms": 411.3093, "kind": "stderr", "text": "0.00.396.826 I load:   - 100257 ('<|end_of_text|>')"}
+{"elapsed_ms": 411.3104, "kind": "stderr", "text": "0.00.396.826 I load:   - 100261 ('<|fim_pad|>')"}
+{"elapsed_ms": 411.417, "kind": "stderr", "text": "0.00.397.038 I load: special tokens cache size = 96"}
+{"elapsed_ms": 426.1526, "kind": "stderr", "text": "0.00.411.556 I load: token to piece cache size = 0.6152 MB"}
+{"elapsed_ms": 426.1635, "kind": "stderr", "text": "0.00.411.578 I print_info: arch                  = granite"}
+{"elapsed_ms": 426.1647, "kind": "stderr", "text": "0.00.411.579 I print_info: vocab_only            = 0"}
+{"elapsed_ms": 426.1656, "kind": "stderr", "text": "0.00.411.579 I print_info: no_alloc              = 0"}
+{"elapsed_ms": 426.1664, "kind": "stderr", "text": "0.00.411.580 I print_info: n_ctx_train           = 131072"}
+{"elapsed_ms": 426.1671, "kind": "stderr", "text": "0.00.411.580 I print_info: n_embd_inp            = 2560"}
+{"elapsed_ms": 426.1677, "kind": "stderr", "text": "0.00.411.580 I print_info: n_embd                = 2560"}
+{"elapsed_ms": 426.1684, "kind": "stderr", "text": "0.00.411.581 I print_info: n_embd_out            = 2560"}
+{"elapsed_ms": 426.169, "kind": "stderr", "text": "0.00.411.581 I print_info: n_layer               = 40"}
+{"elapsed_ms": 426.1697, "kind": "stderr", "text": "0.00.411.581 I print_info: n_layer_all           = 40"}
+{"elapsed_ms": 426.1703, "kind": "stderr", "text": "0.00.411.591 I print_info: n_head                = 40"}
+{"elapsed_ms": 426.1709, "kind": "stderr", "text": "0.00.411.593 I print_info: n_head_kv             = 8"}
+{"elapsed_ms": 426.1714, "kind": "stderr", "text": "0.00.411.594 I print_info: n_rot                 = 64"}
+{"elapsed_ms": 426.1731, "kind": "stderr", "text": "0.00.411.594 I print_info: n_swa                 = 0"}
+{"elapsed_ms": 426.1736, "kind": "stderr", "text": "0.00.411.594 I print_info: is_swa_any            = 0"}
+{"elapsed_ms": 426.1741, "kind": "stderr", "text": "0.00.411.595 I print_info: n_embd_head_k         = 64"}
+{"elapsed_ms": 426.1746, "kind": "stderr", "text": "0.00.411.595 I print_info: n_embd_head_v         = 64"}
+{"elapsed_ms": 426.1788, "kind": "stderr", "text": "0.00.411.596 I print_info: n_gqa                 = 5"}
+{"elapsed_ms": 426.1794, "kind": "stderr", "text": "0.00.411.598 I print_info: n_embd_k_gqa          = 512"}
+{"elapsed_ms": 426.18, "kind": "stderr", "text": "0.00.411.599 I print_info: n_embd_v_gqa          = 512"}
+{"elapsed_ms": 426.1805, "kind": "stderr", "text": "0.00.411.600 I print_info: f_norm_eps            = 0.0e+00"}
+{"elapsed_ms": 426.1811, "kind": "stderr", "text": "0.00.411.601 I print_info: f_norm_rms_eps        = 1.0e-05"}
+{"elapsed_ms": 426.1816, "kind": "stderr", "text": "0.00.411.602 I print_info: f_clamp_kqv           = 0.0e+00"}
+{"elapsed_ms": 426.1821, "kind": "stderr", "text": "0.00.411.602 I print_info: f_max_alibi_bias      = 0.0e+00"}
+{"elapsed_ms": 426.1826, "kind": "stderr", "text": "0.00.411.603 I print_info: f_logit_scale         = 1.0e+01"}
+{"elapsed_ms": 426.1831, "kind": "stderr", "text": "0.00.411.603 I print_info: f_attn_scale          = 1.6e-02"}
+{"elapsed_ms": 426.1836, "kind": "stderr", "text": "0.00.411.604 I print_info: f_attn_value_scale    = 0.0000"}
+{"elapsed_ms": 426.1855, "kind": "stderr", "text": "0.00.411.605 I print_info: n_ff                  = 8192"}
+{"elapsed_ms": 426.1861, "kind": "stderr", "text": "0.00.411.605 I print_info: n_expert              = 0"}
+{"elapsed_ms": 426.1866, "kind": "stderr", "text": "0.00.411.606 I print_info: n_expert_used         = 0"}
+{"elapsed_ms": 426.1872, "kind": "stderr", "text": "0.00.411.606 I print_info: n_expert_groups       = 0"}
+{"elapsed_ms": 426.1877, "kind": "stderr", "text": "0.00.411.606 I print_info: n_group_used          = 0"}
+{"elapsed_ms": 426.1882, "kind": "stderr", "text": "0.00.411.606 I print_info: causal attn           = 1"}
+{"elapsed_ms": 426.1895, "kind": "stderr", "text": "0.00.411.607 I print_info: pooling type          = -1"}
+{"elapsed_ms": 426.1901, "kind": "stderr", "text": "0.00.411.607 I print_info: rope type             = 0"}
+{"elapsed_ms": 426.1906, "kind": "stderr", "text": "0.00.411.607 I print_info: rope scaling          = linear"}
+{"elapsed_ms": 426.1912, "kind": "stderr", "text": "0.00.411.608 I print_info: freq_base_train       = 10000000.0"}
+{"elapsed_ms": 426.1918, "kind": "stderr", "text": "0.00.411.609 I print_info: freq_scale_train      = 1"}
+{"elapsed_ms": 426.1924, "kind": "stderr", "text": "0.00.411.610 I print_info: n_ctx_orig_yarn       = 131072"}
+{"elapsed_ms": 426.1929, "kind": "stderr", "text": "0.00.411.610 I print_info: rope_yarn_log_mul     = 0.0000"}
+{"elapsed_ms": 426.1935, "kind": "stderr", "text": "0.00.411.610 I print_info: rope_finetuned        = yes"}
+{"elapsed_ms": 426.1941, "kind": "stderr", "text": "0.00.411.611 I print_info: model type            = 3B"}
+{"elapsed_ms": 426.1996, "kind": "stderr", "text": "0.00.411.612 I print_info: model params          = 3.40 B"}
+{"elapsed_ms": 426.2003, "kind": "stderr", "text": "0.00.411.613 I print_info: general.name          = Granite 4.1 3b"}
+{"elapsed_ms": 426.201, "kind": "stderr", "text": "0.00.411.613 I print_info: f_embedding_scale     = 12.000000"}
+{"elapsed_ms": 426.2016, "kind": "stderr", "text": "0.00.411.614 I print_info: f_residual_scale      = 0.220000"}
+{"elapsed_ms": 426.2021, "kind": "stderr", "text": "0.00.411.615 I print_info: f_attention_scale     = 0.015625"}
+{"elapsed_ms": 426.2305, "kind": "stderr", "text": "0.00.411.615 I print_info: n_ff_shexp            = 0"}
+{"elapsed_ms": 426.2312, "kind": "stderr", "text": "0.00.411.616 I print_info: vocab type            = BPE"}
+{"elapsed_ms": 426.2331, "kind": "stderr", "text": "0.00.411.616 I print_info: n_vocab               = 100352"}
+{"elapsed_ms": 426.2337, "kind": "stderr", "text": "0.00.411.616 I print_info: n_merges              = 100000"}
+{"elapsed_ms": 426.2344, "kind": "stderr", "text": "0.00.411.617 I print_info: BOS token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 426.235, "kind": "stderr", "text": "0.00.411.617 I print_info: EOS token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 426.2356, "kind": "stderr", "text": "0.00.411.617 I print_info: EOT token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 426.2362, "kind": "stderr", "text": "0.00.411.618 I print_info: UNK token             = 100269 '<|unk|>'"}
+{"elapsed_ms": 426.2368, "kind": "stderr", "text": "0.00.411.618 I print_info: PAD token             = 100256 '<|pad|>'"}
+{"elapsed_ms": 426.2374, "kind": "stderr", "text": "0.00.411.619 I print_info: LF token              = 198 '\u010a'"}
+{"elapsed_ms": 426.24, "kind": "stderr", "text": "0.00.411.619 I print_info: FIM PRE token         = 100258 '<|fim_prefix|>'"}
+{"elapsed_ms": 426.2406, "kind": "stderr", "text": "0.00.411.619 I print_info: FIM SUF token         = 100260 '<|fim_suffix|>'"}
+{"elapsed_ms": 426.2412, "kind": "stderr", "text": "0.00.411.620 I print_info: FIM MID token         = 100259 '<|fim_middle|>'"}
+{"elapsed_ms": 426.2418, "kind": "stderr", "text": "0.00.411.620 I print_info: FIM PAD token         = 100261 '<|fim_pad|>'"}
+{"elapsed_ms": 426.2467, "kind": "stderr", "text": "0.00.411.621 I print_info: EOG token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 426.2475, "kind": "stderr", "text": "0.00.411.621 I print_info: EOG token             = 100261 '<|fim_pad|>'"}
+{"elapsed_ms": 426.2481, "kind": "stderr", "text": "0.00.411.621 I print_info: max token length      = 256"}
+{"elapsed_ms": 426.2489, "kind": "stderr", "text": "0.00.411.622 I load_tensors: loading model tensors, this can take a while... (mmap = true, direct_io = false)"}
+{"elapsed_ms": 426.9785, "kind": "stderr", "text": "0.00.412.400 D load_tensors: layer   0 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9831, "kind": "stderr", "text": "0.00.412.404 D load_tensors: layer   1 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.984, "kind": "stderr", "text": "0.00.412.405 D load_tensors: layer   2 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9847, "kind": "stderr", "text": "0.00.412.405 D load_tensors: layer   3 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9853, "kind": "stderr", "text": "0.00.412.405 D load_tensors: layer   4 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9887, "kind": "stderr", "text": "0.00.412.406 D load_tensors: layer   5 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9893, "kind": "stderr", "text": "0.00.412.406 D load_tensors: layer   6 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9898, "kind": "stderr", "text": "0.00.412.407 D load_tensors: layer   7 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9904, "kind": "stderr", "text": "0.00.412.407 D load_tensors: layer   8 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.991, "kind": "stderr", "text": "0.00.412.407 D load_tensors: layer   9 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9916, "kind": "stderr", "text": "0.00.412.408 D load_tensors: layer  10 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9921, "kind": "stderr", "text": "0.00.412.408 D load_tensors: layer  11 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9927, "kind": "stderr", "text": "0.00.412.409 D load_tensors: layer  12 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9937, "kind": "stderr", "text": "0.00.412.409 D load_tensors: layer  13 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 426.9943, "kind": "stderr", "text": "0.00.412.409 D load_tensors: layer  14 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1698, "kind": "stderr", "text": "0.00.412.410 D load_tensors: layer  15 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1709, "kind": "stderr", "text": "0.00.412.410 D load_tensors: layer  16 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1715, "kind": "stderr", "text": "0.00.412.410 D load_tensors: layer  17 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.172, "kind": "stderr", "text": "0.00.412.411 D load_tensors: layer  18 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1725, "kind": "stderr", "text": "0.00.412.411 D load_tensors: layer  19 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.173, "kind": "stderr", "text": "0.00.412.412 D load_tensors: layer  20 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1736, "kind": "stderr", "text": "0.00.412.412 D load_tensors: layer  21 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1743, "kind": "stderr", "text": "0.00.412.412 D load_tensors: layer  22 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1749, "kind": "stderr", "text": "0.00.412.413 D load_tensors: layer  23 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1756, "kind": "stderr", "text": "0.00.412.413 D load_tensors: layer  24 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1784, "kind": "stderr", "text": "0.00.412.413 D load_tensors: layer  25 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.179, "kind": "stderr", "text": "0.00.412.414 D load_tensors: layer  26 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1796, "kind": "stderr", "text": "0.00.412.414 D load_tensors: layer  27 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1801, "kind": "stderr", "text": "0.00.412.414 D load_tensors: layer  28 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1807, "kind": "stderr", "text": "0.00.412.415 D load_tensors: layer  29 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1812, "kind": "stderr", "text": "0.00.412.415 D load_tensors: layer  30 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1818, "kind": "stderr", "text": "0.00.412.416 D load_tensors: layer  31 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1823, "kind": "stderr", "text": "0.00.412.416 D load_tensors: layer  32 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1828, "kind": "stderr", "text": "0.00.412.416 D load_tensors: layer  33 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1833, "kind": "stderr", "text": "0.00.412.417 D load_tensors: layer  34 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1838, "kind": "stderr", "text": "0.00.412.417 D load_tensors: layer  35 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1845, "kind": "stderr", "text": "0.00.412.417 D load_tensors: layer  36 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1851, "kind": "stderr", "text": "0.00.412.418 D load_tensors: layer  37 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1857, "kind": "stderr", "text": "0.00.412.418 D load_tensors: layer  38 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1863, "kind": "stderr", "text": "0.00.412.418 D load_tensors: layer  39 assigned to device CPU, is_swa = 0"}
+{"elapsed_ms": 427.1868, "kind": "stderr", "text": "0.00.412.419 D load_tensors: layer  40 assigned to device Vulkan0, is_swa = 0"}
+{"elapsed_ms": 427.1874, "kind": "stderr", "text": "0.00.412.474 D create_tensor: loading tensor token_embd.weight"}
+{"elapsed_ms": 427.188, "kind": "stderr", "text": "0.00.412.485 D create_tensor: loading tensor output_norm.weight"}
+{"elapsed_ms": 427.1886, "kind": "stderr", "text": "0.00.412.493 D create_tensor: loading tensor token_embd.weight"}
+{"elapsed_ms": 427.1892, "kind": "stderr", "text": "0.00.412.502 D create_tensor: loading tensor blk.0.attn_norm.weight"}
+{"elapsed_ms": 427.1898, "kind": "stderr", "text": "0.00.412.514 D create_tensor: loading tensor blk.0.attn_q.weight"}
+{"elapsed_ms": 427.1904, "kind": "stderr", "text": "0.00.412.523 D create_tensor: loading tensor blk.0.attn_k.weight"}
+{"elapsed_ms": 427.1909, "kind": "stderr", "text": "0.00.412.531 D create_tensor: loading tensor blk.0.attn_v.weight"}
+{"elapsed_ms": 427.1914, "kind": "stderr", "text": "0.00.412.550 D create_tensor: loading tensor blk.0.attn_output.weight"}
+{"elapsed_ms": 427.192, "kind": "stderr", "text": "0.00.412.563 D create_tensor: loading tensor blk.0.ffn_norm.weight"}
+{"elapsed_ms": 427.1937, "kind": "stderr", "text": "0.00.412.574 D create_tensor: loading tensor blk.0.ffn_gate.weight"}
+{"elapsed_ms": 427.1942, "kind": "stderr", "text": "0.00.412.583 D create_tensor: loading tensor blk.0.ffn_down.weight"}
+{"elapsed_ms": 427.1949, "kind": "stderr", "text": "0.00.412.592 D create_tensor: loading tensor blk.0.ffn_up.weight"}
+{"elapsed_ms": 427.1955, "kind": "stderr", "text": "0.00.412.611 D create_tensor: loading tensor blk.1.attn_norm.weight"}
+{"elapsed_ms": 427.1961, "kind": "stderr", "text": "0.00.412.625 D create_tensor: loading tensor blk.1.attn_q.weight"}
+{"elapsed_ms": 427.2047, "kind": "stderr", "text": "0.00.412.633 D create_tensor: loading tensor blk.1.attn_k.weight"}
+{"elapsed_ms": 427.2054, "kind": "stderr", "text": "0.00.412.644 D create_tensor: loading tensor blk.1.attn_v.weight"}
+{"elapsed_ms": 427.2059, "kind": "stderr", "text": "0.00.412.663 D create_tensor: loading tensor blk.1.attn_output.weight"}
+{"elapsed_ms": 427.2065, "kind": "stderr", "text": "0.00.412.676 D create_tensor: loading tensor blk.1.ffn_norm.weight"}
+{"elapsed_ms": 427.207, "kind": "stderr", "text": "0.00.412.690 D create_tensor: loading tensor blk.1.ffn_gate.weight"}
+{"elapsed_ms": 427.2084, "kind": "stderr", "text": "0.00.412.698 D create_tensor: loading tensor blk.1.ffn_down.weight"}
+{"elapsed_ms": 427.209, "kind": "stderr", "text": "0.00.412.709 D create_tensor: loading tensor blk.1.ffn_up.weight"}
+{"elapsed_ms": 427.2096, "kind": "stderr", "text": "0.00.412.729 D create_tensor: loading tensor blk.2.attn_norm.weight"}
+{"elapsed_ms": 427.2102, "kind": "stderr", "text": "0.00.412.744 D create_tensor: loading tensor blk.2.attn_q.weight"}
+{"elapsed_ms": 427.2107, "kind": "stderr", "text": "0.00.412.752 D create_tensor: loading tensor blk.2.attn_k.weight"}
+{"elapsed_ms": 427.2112, "kind": "stderr", "text": "0.00.412.761 D create_tensor: loading tensor blk.2.attn_v.weight"}
+{"elapsed_ms": 427.2118, "kind": "stderr", "text": "0.00.412.784 D create_tensor: loading tensor blk.2.attn_output.weight"}
+{"elapsed_ms": 427.2123, "kind": "stderr", "text": "0.00.412.798 D create_tensor: loading tensor blk.2.ffn_norm.weight"}
+{"elapsed_ms": 427.2128, "kind": "stderr", "text": "0.00.412.808 D create_tensor: loading tensor blk.2.ffn_gate.weight"}
+{"elapsed_ms": 427.2133, "kind": "stderr", "text": "0.00.412.816 D create_tensor: loading tensor blk.2.ffn_down.weight"}
+{"elapsed_ms": 427.2139, "kind": "stderr", "text": "0.00.412.825 D create_tensor: loading tensor blk.2.ffn_up.weight"}
+{"elapsed_ms": 427.2607, "kind": "stderr", "text": "0.00.412.847 D create_tensor: loading tensor blk.3.attn_norm.weight"}
+{"elapsed_ms": 427.2665, "kind": "stderr", "text": "0.00.412.861 D create_tensor: loading tensor blk.3.attn_q.weight"}
+{"elapsed_ms": 427.2674, "kind": "stderr", "text": "0.00.412.869 D create_tensor: loading tensor blk.3.attn_k.weight"}
+{"elapsed_ms": 427.2681, "kind": "stderr", "text": "0.00.412.878 D create_tensor: loading tensor blk.3.attn_v.weight"}
+{"elapsed_ms": 427.2688, "kind": "stderr", "text": "0.00.412.897 D create_tensor: loading tensor blk.3.attn_output.weight"}
+{"elapsed_ms": 427.2694, "kind": "stderr", "text": "0.00.412.910 D create_tensor: loading tensor blk.3.ffn_norm.weight"}
+{"elapsed_ms": 427.2724, "kind": "stderr", "text": "0.00.412.921 D create_tensor: loading tensor blk.3.ffn_gate.weight"}
+{"elapsed_ms": 427.2754, "kind": "stderr", "text": "0.00.412.929 D create_tensor: loading tensor blk.3.ffn_down.weight"}
+{"elapsed_ms": 427.2761, "kind": "stderr", "text": "0.00.412.938 D create_tensor: loading tensor blk.3.ffn_up.weight"}
+{"elapsed_ms": 427.3006, "kind": "stderr", "text": "0.00.412.956 D create_tensor: loading tensor blk.4.attn_norm.weight"}
+{"elapsed_ms": 427.3062, "kind": "stderr", "text": "0.00.412.972 D create_tensor: loading tensor blk.4.attn_q.weight"}
+{"elapsed_ms": 427.3242, "kind": "stderr", "text": "0.00.412.981 D create_tensor: loading tensor blk.4.attn_k.weight"}
+{"elapsed_ms": 427.3258, "kind": "stderr", "text": "0.00.412.992 D create_tensor: loading tensor blk.4.attn_v.weight"}
+{"elapsed_ms": 427.3649, "kind": "stderr", "text": "0.00.413.011 D create_tensor: loading tensor blk.4.attn_output.weight"}
+{"elapsed_ms": 427.3668, "kind": "stderr", "text": "0.00.413.026 D create_tensor: loading tensor blk.4.ffn_norm.weight"}
+{"elapsed_ms": 427.3908, "kind": "stderr", "text": "0.00.413.037 D create_tensor: loading tensor blk.4.ffn_gate.weight"}
+{"elapsed_ms": 427.3918, "kind": "stderr", "text": "0.00.413.048 D create_tensor: loading tensor blk.4.ffn_down.weight"}
+{"elapsed_ms": 427.394, "kind": "stderr", "text": "0.00.413.057 D create_tensor: loading tensor blk.4.ffn_up.weight"}
+{"elapsed_ms": 427.4249, "kind": "stderr", "text": "0.00.413.075 D create_tensor: loading tensor blk.5.attn_norm.weight"}
+{"elapsed_ms": 427.4315, "kind": "stderr", "text": "0.00.413.090 D create_tensor: loading tensor blk.5.attn_q.weight"}
+{"elapsed_ms": 427.4325, "kind": "stderr", "text": "0.00.413.101 D create_tensor: loading tensor blk.5.attn_k.weight"}
+{"elapsed_ms": 427.4656, "kind": "stderr", "text": "0.00.413.110 D create_tensor: loading tensor blk.5.attn_v.weight"}
+{"elapsed_ms": 427.4676, "kind": "stderr", "text": "0.00.413.132 D create_tensor: loading tensor blk.5.attn_output.weight"}
+{"elapsed_ms": 427.4845, "kind": "stderr", "text": "0.00.413.144 D create_tensor: loading tensor blk.5.ffn_norm.weight"}
+{"elapsed_ms": 427.4863, "kind": "stderr", "text": "0.00.413.157 D create_tensor: loading tensor blk.5.ffn_gate.weight"}
+{"elapsed_ms": 427.5121, "kind": "stderr", "text": "0.00.413.166 D create_tensor: loading tensor blk.5.ffn_down.weight"}
+{"elapsed_ms": 427.5133, "kind": "stderr", "text": "0.00.413.177 D create_tensor: loading tensor blk.5.ffn_up.weight"}
+{"elapsed_ms": 427.5504, "kind": "stderr", "text": "0.00.413.196 D create_tensor: loading tensor blk.6.attn_norm.weight"}
+{"elapsed_ms": 427.5522, "kind": "stderr", "text": "0.00.413.213 D create_tensor: loading tensor blk.6.attn_q.weight"}
+{"elapsed_ms": 427.5695, "kind": "stderr", "text": "0.00.413.221 D create_tensor: loading tensor blk.6.attn_k.weight"}
+{"elapsed_ms": 427.5705, "kind": "stderr", "text": "0.00.413.231 D create_tensor: loading tensor blk.6.attn_v.weight"}
+{"elapsed_ms": 427.6009, "kind": "stderr", "text": "0.00.413.249 D create_tensor: loading tensor blk.6.attn_output.weight"}
+{"elapsed_ms": 427.6022, "kind": "stderr", "text": "0.00.413.264 D create_tensor: loading tensor blk.6.ffn_norm.weight"}
+{"elapsed_ms": 427.6042, "kind": "stderr", "text": "0.00.413.274 D create_tensor: loading tensor blk.6.ffn_gate.weight"}
+{"elapsed_ms": 427.6148, "kind": "stderr", "text": "0.00.413.283 D create_tensor: loading tensor blk.6.ffn_down.weight"}
+{"elapsed_ms": 427.6174, "kind": "stderr", "text": "0.00.413.291 D create_tensor: loading tensor blk.6.ffn_up.weight"}
+{"elapsed_ms": 427.6514, "kind": "stderr", "text": "0.00.413.310 D create_tensor: loading tensor blk.7.attn_norm.weight"}
+{"elapsed_ms": 427.6699, "kind": "stderr", "text": "0.00.413.324 D create_tensor: loading tensor blk.7.attn_q.weight"}
+{"elapsed_ms": 427.671, "kind": "stderr", "text": "0.00.413.334 D create_tensor: loading tensor blk.7.attn_k.weight"}
+{"elapsed_ms": 427.6852, "kind": "stderr", "text": "0.00.413.344 D create_tensor: loading tensor blk.7.attn_v.weight"}
+{"elapsed_ms": 427.7277, "kind": "stderr", "text": "0.00.413.364 D create_tensor: loading tensor blk.7.attn_output.weight"}
+{"elapsed_ms": 427.7336, "kind": "stderr", "text": "0.00.413.378 D create_tensor: loading tensor blk.7.ffn_norm.weight"}
+{"elapsed_ms": 427.7342, "kind": "stderr", "text": "0.00.413.388 D create_tensor: loading tensor blk.7.ffn_gate.weight"}
+{"elapsed_ms": 427.737, "kind": "stderr", "text": "0.00.413.396 D create_tensor: loading tensor blk.7.ffn_down.weight"}
+{"elapsed_ms": 427.741, "kind": "stderr", "text": "0.00.413.405 D create_tensor: loading tensor blk.7.ffn_up.weight"}
+{"elapsed_ms": 427.759, "kind": "stderr", "text": "0.00.413.423 D create_tensor: loading tensor blk.8.attn_norm.weight"}
+{"elapsed_ms": 427.7793, "kind": "stderr", "text": "0.00.413.438 D create_tensor: loading tensor blk.8.attn_q.weight"}
+{"elapsed_ms": 427.7806, "kind": "stderr", "text": "0.00.413.449 D create_tensor: loading tensor blk.8.attn_k.weight"}
+{"elapsed_ms": 427.7909, "kind": "stderr", "text": "0.00.413.457 D create_tensor: loading tensor blk.8.attn_v.weight"}
+{"elapsed_ms": 427.8174, "kind": "stderr", "text": "0.00.413.477 D create_tensor: loading tensor blk.8.attn_output.weight"}
+{"elapsed_ms": 427.8381, "kind": "stderr", "text": "0.00.413.492 D create_tensor: loading tensor blk.8.ffn_norm.weight"}
+{"elapsed_ms": 427.8404, "kind": "stderr", "text": "0.00.413.503 D create_tensor: loading tensor blk.8.ffn_gate.weight"}
+{"elapsed_ms": 427.8584, "kind": "stderr", "text": "0.00.413.512 D create_tensor: loading tensor blk.8.ffn_down.weight"}
+{"elapsed_ms": 427.8593, "kind": "stderr", "text": "0.00.413.521 D create_tensor: loading tensor blk.8.ffn_up.weight"}
+{"elapsed_ms": 427.8882, "kind": "stderr", "text": "0.00.413.540 D create_tensor: loading tensor blk.9.attn_norm.weight"}
+{"elapsed_ms": 427.8951, "kind": "stderr", "text": "0.00.413.554 D create_tensor: loading tensor blk.9.attn_q.weight"}
+{"elapsed_ms": 427.8986, "kind": "stderr", "text": "0.00.413.565 D create_tensor: loading tensor blk.9.attn_k.weight"}
+{"elapsed_ms": 427.919, "kind": "stderr", "text": "0.00.413.581 D create_tensor: loading tensor blk.9.attn_v.weight"}
+{"elapsed_ms": 427.9444, "kind": "stderr", "text": "0.00.413.603 D create_tensor: loading tensor blk.9.attn_output.weight"}
+{"elapsed_ms": 427.9636, "kind": "stderr", "text": "0.00.413.618 D create_tensor: loading tensor blk.9.ffn_norm.weight"}
+{"elapsed_ms": 427.9657, "kind": "stderr", "text": "0.00.413.630 D create_tensor: loading tensor blk.9.ffn_gate.weight"}
+{"elapsed_ms": 427.9829, "kind": "stderr", "text": "0.00.413.640 D create_tensor: loading tensor blk.9.ffn_down.weight"}
+{"elapsed_ms": 427.9838, "kind": "stderr", "text": "0.00.413.650 D create_tensor: loading tensor blk.9.ffn_up.weight"}
+{"elapsed_ms": 428.0086, "kind": "stderr", "text": "0.00.413.669 D create_tensor: loading tensor blk.10.attn_norm.weight"}
+{"elapsed_ms": 428.0287, "kind": "stderr", "text": "0.00.413.684 D create_tensor: loading tensor blk.10.attn_q.weight"}
+{"elapsed_ms": 428.03, "kind": "stderr", "text": "0.00.413.693 D create_tensor: loading tensor blk.10.attn_k.weight"}
+{"elapsed_ms": 428.0318, "kind": "stderr", "text": "0.00.413.702 D create_tensor: loading tensor blk.10.attn_v.weight"}
+{"elapsed_ms": 428.0628, "kind": "stderr", "text": "0.00.413.721 D create_tensor: loading tensor blk.10.attn_output.weight"}
+{"elapsed_ms": 428.0816, "kind": "stderr", "text": "0.00.413.736 D create_tensor: loading tensor blk.10.ffn_norm.weight"}
+{"elapsed_ms": 428.0832, "kind": "stderr", "text": "0.00.413.748 D create_tensor: loading tensor blk.10.ffn_gate.weight"}
+{"elapsed_ms": 428.0999, "kind": "stderr", "text": "0.00.413.756 D create_tensor: loading tensor blk.10.ffn_down.weight"}
+{"elapsed_ms": 428.1008, "kind": "stderr", "text": "0.00.413.767 D create_tensor: loading tensor blk.10.ffn_up.weight"}
+{"elapsed_ms": 428.1467, "kind": "stderr", "text": "0.00.413.786 D create_tensor: loading tensor blk.11.attn_norm.weight"}
+{"elapsed_ms": 428.1516, "kind": "stderr", "text": "0.00.413.802 D create_tensor: loading tensor blk.11.attn_q.weight"}
+{"elapsed_ms": 428.1548, "kind": "stderr", "text": "0.00.413.813 D create_tensor: loading tensor blk.11.attn_k.weight"}
+{"elapsed_ms": 428.1557, "kind": "stderr", "text": "0.00.413.821 D create_tensor: loading tensor blk.11.attn_v.weight"}
+{"elapsed_ms": 428.1842, "kind": "stderr", "text": "0.00.413.840 D create_tensor: loading tensor blk.11.attn_output.weight"}
+{"elapsed_ms": 428.1876, "kind": "stderr", "text": "0.00.413.855 D create_tensor: loading tensor blk.11.ffn_norm.weight"}
+{"elapsed_ms": 428.2102, "kind": "stderr", "text": "0.00.413.868 D create_tensor: loading tensor blk.11.ffn_gate.weight"}
+{"elapsed_ms": 428.2122, "kind": "stderr", "text": "0.00.413.878 D create_tensor: loading tensor blk.11.ffn_down.weight"}
+{"elapsed_ms": 428.2236, "kind": "stderr", "text": "0.00.413.887 D create_tensor: loading tensor blk.11.ffn_up.weight"}
+{"elapsed_ms": 428.2788, "kind": "stderr", "text": "0.00.413.909 D create_tensor: loading tensor blk.12.attn_norm.weight"}
+{"elapsed_ms": 428.2801, "kind": "stderr", "text": "0.00.413.924 D create_tensor: loading tensor blk.12.attn_q.weight"}
+{"elapsed_ms": 428.2807, "kind": "stderr", "text": "0.00.413.933 D create_tensor: loading tensor blk.12.attn_k.weight"}
+{"elapsed_ms": 428.2813, "kind": "stderr", "text": "0.00.413.942 D create_tensor: loading tensor blk.12.attn_v.weight"}
+{"elapsed_ms": 428.302, "kind": "stderr", "text": "0.00.413.962 D create_tensor: loading tensor blk.12.attn_output.weight"}
+{"elapsed_ms": 428.3229, "kind": "stderr", "text": "0.00.413.977 D create_tensor: loading tensor blk.12.ffn_norm.weight"}
+{"elapsed_ms": 428.3275, "kind": "stderr", "text": "0.00.413.988 D create_tensor: loading tensor blk.12.ffn_gate.weight"}
+{"elapsed_ms": 428.3353, "kind": "stderr", "text": "0.00.413.997 D create_tensor: loading tensor blk.12.ffn_down.weight"}
+{"elapsed_ms": 428.336, "kind": "stderr", "text": "0.00.414.008 D create_tensor: loading tensor blk.12.ffn_up.weight"}
+{"elapsed_ms": 428.3687, "kind": "stderr", "text": "0.00.414.027 D create_tensor: loading tensor blk.13.attn_norm.weight"}
+{"elapsed_ms": 428.386, "kind": "stderr", "text": "0.00.414.042 D create_tensor: loading tensor blk.13.attn_q.weight"}
+{"elapsed_ms": 428.387, "kind": "stderr", "text": "0.00.414.052 D create_tensor: loading tensor blk.13.attn_k.weight"}
+{"elapsed_ms": 428.4018, "kind": "stderr", "text": "0.00.414.060 D create_tensor: loading tensor blk.13.attn_v.weight"}
+{"elapsed_ms": 428.4209, "kind": "stderr", "text": "0.00.414.081 D create_tensor: loading tensor blk.13.attn_output.weight"}
+{"elapsed_ms": 428.446, "kind": "stderr", "text": "0.00.414.097 D create_tensor: loading tensor blk.13.ffn_norm.weight"}
+{"elapsed_ms": 428.4506, "kind": "stderr", "text": "0.00.414.108 D create_tensor: loading tensor blk.13.ffn_gate.weight"}
+{"elapsed_ms": 428.4545, "kind": "stderr", "text": "0.00.414.117 D create_tensor: loading tensor blk.13.ffn_down.weight"}
+{"elapsed_ms": 428.4553, "kind": "stderr", "text": "0.00.414.128 D create_tensor: loading tensor blk.13.ffn_up.weight"}
+{"elapsed_ms": 428.4845, "kind": "stderr", "text": "0.00.414.147 D create_tensor: loading tensor blk.14.attn_norm.weight"}
+{"elapsed_ms": 428.506, "kind": "stderr", "text": "0.00.414.162 D create_tensor: loading tensor blk.14.attn_q.weight"}
+{"elapsed_ms": 428.5074, "kind": "stderr", "text": "0.00.414.173 D create_tensor: loading tensor blk.14.attn_k.weight"}
+{"elapsed_ms": 428.5095, "kind": "stderr", "text": "0.00.414.182 D create_tensor: loading tensor blk.14.attn_v.weight"}
+{"elapsed_ms": 428.5389, "kind": "stderr", "text": "0.00.414.201 D create_tensor: loading tensor blk.14.attn_output.weight"}
+{"elapsed_ms": 428.5534, "kind": "stderr", "text": "0.00.414.216 D create_tensor: loading tensor blk.14.ffn_norm.weight"}
+{"elapsed_ms": 428.5562, "kind": "stderr", "text": "0.00.414.230 D create_tensor: loading tensor blk.14.ffn_gate.weight"}
+{"elapsed_ms": 428.5776, "kind": "stderr", "text": "0.00.414.239 D create_tensor: loading tensor blk.14.ffn_down.weight"}
+{"elapsed_ms": 428.5792, "kind": "stderr", "text": "0.00.414.250 D create_tensor: loading tensor blk.14.ffn_up.weight"}
+{"elapsed_ms": 428.6056, "kind": "stderr", "text": "0.00.414.270 D create_tensor: loading tensor blk.15.attn_norm.weight"}
+{"elapsed_ms": 428.6214, "kind": "stderr", "text": "0.00.414.284 D create_tensor: loading tensor blk.15.attn_q.weight"}
+{"elapsed_ms": 428.6239, "kind": "stderr", "text": "0.00.414.295 D create_tensor: loading tensor blk.15.attn_k.weight"}
+{"elapsed_ms": 428.6352, "kind": "stderr", "text": "0.00.414.304 D create_tensor: loading tensor blk.15.attn_v.weight"}
+{"elapsed_ms": 428.6598, "kind": "stderr", "text": "0.00.414.324 D create_tensor: loading tensor blk.15.attn_output.weight"}
+{"elapsed_ms": 428.6745, "kind": "stderr", "text": "0.00.414.338 D create_tensor: loading tensor blk.15.ffn_norm.weight"}
+{"elapsed_ms": 428.6779, "kind": "stderr", "text": "0.00.414.351 D create_tensor: loading tensor blk.15.ffn_gate.weight"}
+{"elapsed_ms": 428.6987, "kind": "stderr", "text": "0.00.414.360 D create_tensor: loading tensor blk.15.ffn_down.weight"}
+{"elapsed_ms": 428.7001, "kind": "stderr", "text": "0.00.414.371 D create_tensor: loading tensor blk.15.ffn_up.weight"}
+{"elapsed_ms": 428.7275, "kind": "stderr", "text": "0.00.414.391 D create_tensor: loading tensor blk.16.attn_norm.weight"}
+{"elapsed_ms": 428.7571, "kind": "stderr", "text": "0.00.414.406 D create_tensor: loading tensor blk.16.attn_q.weight"}
+{"elapsed_ms": 428.758, "kind": "stderr", "text": "0.00.414.417 D create_tensor: loading tensor blk.16.attn_k.weight"}
+{"elapsed_ms": 428.7601, "kind": "stderr", "text": "0.00.414.426 D create_tensor: loading tensor blk.16.attn_v.weight"}
+{"elapsed_ms": 428.7833, "kind": "stderr", "text": "0.00.414.447 D create_tensor: loading tensor blk.16.attn_output.weight"}
+{"elapsed_ms": 428.798, "kind": "stderr", "text": "0.00.414.462 D create_tensor: loading tensor blk.16.ffn_norm.weight"}
+{"elapsed_ms": 428.8007, "kind": "stderr", "text": "0.00.414.475 D create_tensor: loading tensor blk.16.ffn_gate.weight"}
+{"elapsed_ms": 428.8206, "kind": "stderr", "text": "0.00.414.483 D create_tensor: loading tensor blk.16.ffn_down.weight"}
+{"elapsed_ms": 428.8221, "kind": "stderr", "text": "0.00.414.494 D create_tensor: loading tensor blk.16.ffn_up.weight"}
+{"elapsed_ms": 428.8698, "kind": "stderr", "text": "0.00.414.513 D create_tensor: loading tensor blk.17.attn_norm.weight"}
+{"elapsed_ms": 428.8727, "kind": "stderr", "text": "0.00.414.527 D create_tensor: loading tensor blk.17.attn_q.weight"}
+{"elapsed_ms": 428.8734, "kind": "stderr", "text": "0.00.414.540 D create_tensor: loading tensor blk.17.attn_k.weight"}
+{"elapsed_ms": 428.8843, "kind": "stderr", "text": "0.00.414.548 D create_tensor: loading tensor blk.17.attn_v.weight"}
+{"elapsed_ms": 428.9053, "kind": "stderr", "text": "0.00.414.569 D create_tensor: loading tensor blk.17.attn_output.weight"}
+{"elapsed_ms": 428.9201, "kind": "stderr", "text": "0.00.414.584 D create_tensor: loading tensor blk.17.ffn_norm.weight"}
+{"elapsed_ms": 428.9237, "kind": "stderr", "text": "0.00.414.597 D create_tensor: loading tensor blk.17.ffn_gate.weight"}
+{"elapsed_ms": 428.9436, "kind": "stderr", "text": "0.00.414.606 D create_tensor: loading tensor blk.17.ffn_down.weight"}
+{"elapsed_ms": 428.9452, "kind": "stderr", "text": "0.00.414.616 D create_tensor: loading tensor blk.17.ffn_up.weight"}
+{"elapsed_ms": 428.9713, "kind": "stderr", "text": "0.00.414.636 D create_tensor: loading tensor blk.18.attn_norm.weight"}
+{"elapsed_ms": 428.9873, "kind": "stderr", "text": "0.00.414.650 D create_tensor: loading tensor blk.18.attn_q.weight"}
+{"elapsed_ms": 428.9896, "kind": "stderr", "text": "0.00.414.661 D create_tensor: loading tensor blk.18.attn_k.weight"}
+{"elapsed_ms": 429.0009, "kind": "stderr", "text": "0.00.414.670 D create_tensor: loading tensor blk.18.attn_v.weight"}
+{"elapsed_ms": 429.0259, "kind": "stderr", "text": "0.00.414.690 D create_tensor: loading tensor blk.18.attn_output.weight"}
+{"elapsed_ms": 429.0401, "kind": "stderr", "text": "0.00.414.705 D create_tensor: loading tensor blk.18.ffn_norm.weight"}
+{"elapsed_ms": 429.045, "kind": "stderr", "text": "0.00.414.717 D create_tensor: loading tensor blk.18.ffn_gate.weight"}
+{"elapsed_ms": 429.0572, "kind": "stderr", "text": "0.00.414.726 D create_tensor: loading tensor blk.18.ffn_down.weight"}
+{"elapsed_ms": 429.062, "kind": "stderr", "text": "0.00.414.734 D create_tensor: loading tensor blk.18.ffn_up.weight"}
+{"elapsed_ms": 429.0908, "kind": "stderr", "text": "0.00.414.754 D create_tensor: loading tensor blk.19.attn_norm.weight"}
+{"elapsed_ms": 429.1057, "kind": "stderr", "text": "0.00.414.768 D create_tensor: loading tensor blk.19.attn_q.weight"}
+{"elapsed_ms": 429.1082, "kind": "stderr", "text": "0.00.414.779 D create_tensor: loading tensor blk.19.attn_k.weight"}
+{"elapsed_ms": 429.1194, "kind": "stderr", "text": "0.00.414.788 D create_tensor: loading tensor blk.19.attn_v.weight"}
+{"elapsed_ms": 429.1442, "kind": "stderr", "text": "0.00.414.807 D create_tensor: loading tensor blk.19.attn_output.weight"}
+{"elapsed_ms": 429.1583, "kind": "stderr", "text": "0.00.414.822 D create_tensor: loading tensor blk.19.ffn_norm.weight"}
+{"elapsed_ms": 429.1632, "kind": "stderr", "text": "0.00.414.836 D create_tensor: loading tensor blk.19.ffn_gate.weight"}
+{"elapsed_ms": 429.1755, "kind": "stderr", "text": "0.00.414.844 D create_tensor: loading tensor blk.19.ffn_down.weight"}
+{"elapsed_ms": 429.1803, "kind": "stderr", "text": "0.00.414.853 D create_tensor: loading tensor blk.19.ffn_up.weight"}
+{"elapsed_ms": 429.2096, "kind": "stderr", "text": "0.00.414.872 D create_tensor: loading tensor blk.20.attn_norm.weight"}
+{"elapsed_ms": 429.2251, "kind": "stderr", "text": "0.00.414.887 D create_tensor: loading tensor blk.20.attn_q.weight"}
+{"elapsed_ms": 429.2266, "kind": "stderr", "text": "0.00.414.898 D create_tensor: loading tensor blk.20.attn_k.weight"}
+{"elapsed_ms": 429.2436, "kind": "stderr", "text": "0.00.414.906 D create_tensor: loading tensor blk.20.attn_v.weight"}
+{"elapsed_ms": 429.264, "kind": "stderr", "text": "0.00.414.928 D create_tensor: loading tensor blk.20.attn_output.weight"}
+{"elapsed_ms": 429.2783, "kind": "stderr", "text": "0.00.414.943 D create_tensor: loading tensor blk.20.ffn_norm.weight"}
+{"elapsed_ms": 429.2892, "kind": "stderr", "text": "0.00.414.956 D create_tensor: loading tensor blk.20.ffn_gate.weight"}
+{"elapsed_ms": 429.2929, "kind": "stderr", "text": "0.00.414.966 D create_tensor: loading tensor blk.20.ffn_down.weight"}
+{"elapsed_ms": 429.3114, "kind": "stderr", "text": "0.00.414.974 D create_tensor: loading tensor blk.20.ffn_up.weight"}
+{"elapsed_ms": 429.3334, "kind": "stderr", "text": "0.00.414.997 D create_tensor: loading tensor blk.21.attn_norm.weight"}
+{"elapsed_ms": 429.3504, "kind": "stderr", "text": "0.00.415.013 D create_tensor: loading tensor blk.21.attn_q.weight"}
+{"elapsed_ms": 429.3528, "kind": "stderr", "text": "0.00.415.024 D create_tensor: loading tensor blk.21.attn_k.weight"}
+{"elapsed_ms": 429.3644, "kind": "stderr", "text": "0.00.415.033 D create_tensor: loading tensor blk.21.attn_v.weight"}
+{"elapsed_ms": 429.3898, "kind": "stderr", "text": "0.00.415.054 D create_tensor: loading tensor blk.21.attn_output.weight"}
+{"elapsed_ms": 429.4052, "kind": "stderr", "text": "0.00.415.069 D create_tensor: loading tensor blk.21.ffn_norm.weight"}
+{"elapsed_ms": 429.4194, "kind": "stderr", "text": "0.00.415.083 D create_tensor: loading tensor blk.21.ffn_gate.weight"}
+{"elapsed_ms": 429.4206, "kind": "stderr", "text": "0.00.415.092 D create_tensor: loading tensor blk.21.ffn_down.weight"}
+{"elapsed_ms": 429.4375, "kind": "stderr", "text": "0.00.415.102 D create_tensor: loading tensor blk.21.ffn_up.weight"}
+{"elapsed_ms": 429.4613, "kind": "stderr", "text": "0.00.415.125 D create_tensor: loading tensor blk.22.attn_norm.weight"}
+{"elapsed_ms": 429.4775, "kind": "stderr", "text": "0.00.415.141 D create_tensor: loading tensor blk.22.attn_q.weight"}
+{"elapsed_ms": 429.48, "kind": "stderr", "text": "0.00.415.154 D create_tensor: loading tensor blk.22.attn_k.weight"}
+{"elapsed_ms": 429.4992, "kind": "stderr", "text": "0.00.415.163 D create_tensor: loading tensor blk.22.attn_v.weight"}
+{"elapsed_ms": 429.5221, "kind": "stderr", "text": "0.00.415.186 D create_tensor: loading tensor blk.22.attn_output.weight"}
+{"elapsed_ms": 429.5375, "kind": "stderr", "text": "0.00.415.202 D create_tensor: loading tensor blk.22.ffn_norm.weight"}
+{"elapsed_ms": 429.5435, "kind": "stderr", "text": "0.00.415.215 D create_tensor: loading tensor blk.22.ffn_gate.weight"}
+{"elapsed_ms": 429.5604, "kind": "stderr", "text": "0.00.415.224 D create_tensor: loading tensor blk.22.ffn_down.weight"}
+{"elapsed_ms": 429.5639, "kind": "stderr", "text": "0.00.415.236 D create_tensor: loading tensor blk.22.ffn_up.weight"}
+{"elapsed_ms": 429.5931, "kind": "stderr", "text": "0.00.415.257 D create_tensor: loading tensor blk.23.attn_norm.weight"}
+{"elapsed_ms": 429.6087, "kind": "stderr", "text": "0.00.415.273 D create_tensor: loading tensor blk.23.attn_q.weight"}
+{"elapsed_ms": 429.612, "kind": "stderr", "text": "0.00.415.284 D create_tensor: loading tensor blk.23.attn_k.weight"}
+{"elapsed_ms": 429.6267, "kind": "stderr", "text": "0.00.415.293 D create_tensor: loading tensor blk.23.attn_v.weight"}
+{"elapsed_ms": 429.6525, "kind": "stderr", "text": "0.00.415.317 D create_tensor: loading tensor blk.23.attn_output.weight"}
+{"elapsed_ms": 429.6693, "kind": "stderr", "text": "0.00.415.333 D create_tensor: loading tensor blk.23.ffn_norm.weight"}
+{"elapsed_ms": 429.6726, "kind": "stderr", "text": "0.00.415.346 D create_tensor: loading tensor blk.23.ffn_gate.weight"}
+{"elapsed_ms": 429.6913, "kind": "stderr", "text": "0.00.415.356 D create_tensor: loading tensor blk.23.ffn_down.weight"}
+{"elapsed_ms": 429.6937, "kind": "stderr", "text": "0.00.415.367 D create_tensor: loading tensor blk.23.ffn_up.weight"}
+{"elapsed_ms": 429.7247, "kind": "stderr", "text": "0.00.415.388 D create_tensor: loading tensor blk.24.attn_norm.weight"}
+{"elapsed_ms": 429.7412, "kind": "stderr", "text": "0.00.415.404 D create_tensor: loading tensor blk.24.attn_q.weight"}
+{"elapsed_ms": 429.7435, "kind": "stderr", "text": "0.00.415.415 D create_tensor: loading tensor blk.24.attn_k.weight"}
+{"elapsed_ms": 429.761, "kind": "stderr", "text": "0.00.415.425 D create_tensor: loading tensor blk.24.attn_v.weight"}
+{"elapsed_ms": 429.7839, "kind": "stderr", "text": "0.00.415.448 D create_tensor: loading tensor blk.24.attn_output.weight"}
+{"elapsed_ms": 429.8004, "kind": "stderr", "text": "0.00.415.464 D create_tensor: loading tensor blk.24.ffn_norm.weight"}
+{"elapsed_ms": 429.8063, "kind": "stderr", "text": "0.00.415.478 D create_tensor: loading tensor blk.24.ffn_gate.weight"}
+{"elapsed_ms": 429.8268, "kind": "stderr", "text": "0.00.415.487 D create_tensor: loading tensor blk.24.ffn_down.weight"}
+{"elapsed_ms": 429.8281, "kind": "stderr", "text": "0.00.415.499 D create_tensor: loading tensor blk.24.ffn_up.weight"}
+{"elapsed_ms": 429.8559, "kind": "stderr", "text": "0.00.415.520 D create_tensor: loading tensor blk.25.attn_norm.weight"}
+{"elapsed_ms": 429.8714, "kind": "stderr", "text": "0.00.415.535 D create_tensor: loading tensor blk.25.attn_q.weight"}
+{"elapsed_ms": 429.8748, "kind": "stderr", "text": "0.00.415.547 D create_tensor: loading tensor blk.25.attn_k.weight"}
+{"elapsed_ms": 429.8892, "kind": "stderr", "text": "0.00.415.556 D create_tensor: loading tensor blk.25.attn_v.weight"}
+{"elapsed_ms": 429.9199, "kind": "stderr", "text": "0.00.415.584 D create_tensor: loading tensor blk.25.attn_output.weight"}
+{"elapsed_ms": 429.9351, "kind": "stderr", "text": "0.00.415.599 D create_tensor: loading tensor blk.25.ffn_norm.weight"}
+{"elapsed_ms": 429.9416, "kind": "stderr", "text": "0.00.415.613 D create_tensor: loading tensor blk.25.ffn_gate.weight"}
+{"elapsed_ms": 429.9531, "kind": "stderr", "text": "0.00.415.622 D create_tensor: loading tensor blk.25.ffn_down.weight"}
+{"elapsed_ms": 429.9685, "kind": "stderr", "text": "0.00.415.632 D create_tensor: loading tensor blk.25.ffn_up.weight"}
+{"elapsed_ms": 429.9917, "kind": "stderr", "text": "0.00.415.656 D create_tensor: loading tensor blk.26.attn_norm.weight"}
+{"elapsed_ms": 430.0073, "kind": "stderr", "text": "0.00.415.671 D create_tensor: loading tensor blk.26.attn_q.weight"}
+{"elapsed_ms": 430.0098, "kind": "stderr", "text": "0.00.415.683 D create_tensor: loading tensor blk.26.attn_k.weight"}
+{"elapsed_ms": 430.0285, "kind": "stderr", "text": "0.00.415.692 D create_tensor: loading tensor blk.26.attn_v.weight"}
+{"elapsed_ms": 430.0514, "kind": "stderr", "text": "0.00.415.715 D create_tensor: loading tensor blk.26.attn_output.weight"}
+{"elapsed_ms": 430.0685, "kind": "stderr", "text": "0.00.415.731 D create_tensor: loading tensor blk.26.ffn_norm.weight"}
+{"elapsed_ms": 430.0713, "kind": "stderr", "text": "0.00.415.745 D create_tensor: loading tensor blk.26.ffn_gate.weight"}
+{"elapsed_ms": 430.0906, "kind": "stderr", "text": "0.00.415.754 D create_tensor: loading tensor blk.26.ffn_down.weight"}
+{"elapsed_ms": 430.093, "kind": "stderr", "text": "0.00.415.766 D create_tensor: loading tensor blk.26.ffn_up.weight"}
+{"elapsed_ms": 430.1229, "kind": "stderr", "text": "0.00.415.787 D create_tensor: loading tensor blk.27.attn_norm.weight"}
+{"elapsed_ms": 430.1394, "kind": "stderr", "text": "0.00.415.803 D create_tensor: loading tensor blk.27.attn_q.weight"}
+{"elapsed_ms": 430.1426, "kind": "stderr", "text": "0.00.415.815 D create_tensor: loading tensor blk.27.attn_k.weight"}
+{"elapsed_ms": 430.1607, "kind": "stderr", "text": "0.00.415.824 D create_tensor: loading tensor blk.27.attn_v.weight"}
+{"elapsed_ms": 430.1837, "kind": "stderr", "text": "0.00.415.848 D create_tensor: loading tensor blk.27.attn_output.weight"}
+{"elapsed_ms": 430.1996, "kind": "stderr", "text": "0.00.415.864 D create_tensor: loading tensor blk.27.ffn_norm.weight"}
+{"elapsed_ms": 430.2045, "kind": "stderr", "text": "0.00.415.877 D create_tensor: loading tensor blk.27.ffn_gate.weight"}
+{"elapsed_ms": 430.2224, "kind": "stderr", "text": "0.00.415.886 D create_tensor: loading tensor blk.27.ffn_down.weight"}
+{"elapsed_ms": 430.2249, "kind": "stderr", "text": "0.00.415.898 D create_tensor: loading tensor blk.27.ffn_up.weight"}
+{"elapsed_ms": 430.2547, "kind": "stderr", "text": "0.00.415.919 D create_tensor: loading tensor blk.28.attn_norm.weight"}
+{"elapsed_ms": 430.2711, "kind": "stderr", "text": "0.00.415.935 D create_tensor: loading tensor blk.28.attn_q.weight"}
+{"elapsed_ms": 430.2734, "kind": "stderr", "text": "0.00.415.947 D create_tensor: loading tensor blk.28.attn_k.weight"}
+{"elapsed_ms": 430.2932, "kind": "stderr", "text": "0.00.415.957 D create_tensor: loading tensor blk.28.attn_v.weight"}
+{"elapsed_ms": 430.3158, "kind": "stderr", "text": "0.00.415.980 D create_tensor: loading tensor blk.28.attn_output.weight"}
+{"elapsed_ms": 430.3322, "kind": "stderr", "text": "0.00.415.996 D create_tensor: loading tensor blk.28.ffn_norm.weight"}
+{"elapsed_ms": 430.3355, "kind": "stderr", "text": "0.00.416.009 D create_tensor: loading tensor blk.28.ffn_gate.weight"}
+{"elapsed_ms": 430.3542, "kind": "stderr", "text": "0.00.416.018 D create_tensor: loading tensor blk.28.ffn_down.weight"}
+{"elapsed_ms": 430.3577, "kind": "stderr", "text": "0.00.416.030 D create_tensor: loading tensor blk.28.ffn_up.weight"}
+{"elapsed_ms": 430.3868, "kind": "stderr", "text": "0.00.416.051 D create_tensor: loading tensor blk.29.attn_norm.weight"}
+{"elapsed_ms": 430.402, "kind": "stderr", "text": "0.00.416.066 D create_tensor: loading tensor blk.29.attn_q.weight"}
+{"elapsed_ms": 430.4052, "kind": "stderr", "text": "0.00.416.078 D create_tensor: loading tensor blk.29.attn_k.weight"}
+{"elapsed_ms": 430.4233, "kind": "stderr", "text": "0.00.416.087 D create_tensor: loading tensor blk.29.attn_v.weight"}
+{"elapsed_ms": 430.4464, "kind": "stderr", "text": "0.00.416.111 D create_tensor: loading tensor blk.29.attn_output.weight"}
+{"elapsed_ms": 430.4632, "kind": "stderr", "text": "0.00.416.127 D create_tensor: loading tensor blk.29.ffn_norm.weight"}
+{"elapsed_ms": 430.4738, "kind": "stderr", "text": "0.00.416.141 D create_tensor: loading tensor blk.29.ffn_gate.weight"}
+{"elapsed_ms": 430.4765, "kind": "stderr", "text": "0.00.416.150 D create_tensor: loading tensor blk.29.ffn_down.weight"}
+{"elapsed_ms": 430.4951, "kind": "stderr", "text": "0.00.416.159 D create_tensor: loading tensor blk.29.ffn_up.weight"}
+{"elapsed_ms": 430.5186, "kind": "stderr", "text": "0.00.416.183 D create_tensor: loading tensor blk.30.attn_norm.weight"}
+{"elapsed_ms": 430.535, "kind": "stderr", "text": "0.00.416.198 D create_tensor: loading tensor blk.30.attn_q.weight"}
+{"elapsed_ms": 430.5511, "kind": "stderr", "text": "0.00.416.210 D create_tensor: loading tensor blk.30.attn_k.weight"}
+{"elapsed_ms": 430.554, "kind": "stderr", "text": "0.00.416.219 D create_tensor: loading tensor blk.30.attn_v.weight"}
+{"elapsed_ms": 430.5768, "kind": "stderr", "text": "0.00.416.241 D create_tensor: loading tensor blk.30.attn_output.weight"}
+{"elapsed_ms": 430.5914, "kind": "stderr", "text": "0.00.416.256 D create_tensor: loading tensor blk.30.ffn_norm.weight"}
+{"elapsed_ms": 430.6056, "kind": "stderr", "text": "0.00.416.270 D create_tensor: loading tensor blk.30.ffn_gate.weight"}
+{"elapsed_ms": 430.6083, "kind": "stderr", "text": "0.00.416.282 D create_tensor: loading tensor blk.30.ffn_down.weight"}
+{"elapsed_ms": 430.6282, "kind": "stderr", "text": "0.00.416.292 D create_tensor: loading tensor blk.30.ffn_up.weight"}
+{"elapsed_ms": 430.652, "kind": "stderr", "text": "0.00.416.316 D create_tensor: loading tensor blk.31.attn_norm.weight"}
+{"elapsed_ms": 430.6676, "kind": "stderr", "text": "0.00.416.332 D create_tensor: loading tensor blk.31.attn_q.weight"}
+{"elapsed_ms": 430.6701, "kind": "stderr", "text": "0.00.416.343 D create_tensor: loading tensor blk.31.attn_k.weight"}
+{"elapsed_ms": 430.6886, "kind": "stderr", "text": "0.00.416.352 D create_tensor: loading tensor blk.31.attn_v.weight"}
+{"elapsed_ms": 430.7133, "kind": "stderr", "text": "0.00.416.376 D create_tensor: loading tensor blk.31.attn_output.weight"}
+{"elapsed_ms": 430.7276, "kind": "stderr", "text": "0.00.416.392 D create_tensor: loading tensor blk.31.ffn_norm.weight"}
+{"elapsed_ms": 430.7329, "kind": "stderr", "text": "0.00.416.405 D create_tensor: loading tensor blk.31.ffn_gate.weight"}
+{"elapsed_ms": 430.7453, "kind": "stderr", "text": "0.00.416.414 D create_tensor: loading tensor blk.31.ffn_down.weight"}
+{"elapsed_ms": 430.7492, "kind": "stderr", "text": "0.00.416.423 D create_tensor: loading tensor blk.31.ffn_up.weight"}
+{"elapsed_ms": 430.7816, "kind": "stderr", "text": "0.00.416.444 D create_tensor: loading tensor blk.32.attn_norm.weight"}
+{"elapsed_ms": 430.7964, "kind": "stderr", "text": "0.00.416.461 D create_tensor: loading tensor blk.32.attn_q.weight"}
+{"elapsed_ms": 430.799, "kind": "stderr", "text": "0.00.416.473 D create_tensor: loading tensor blk.32.attn_k.weight"}
+{"elapsed_ms": 430.8191, "kind": "stderr", "text": "0.00.416.482 D create_tensor: loading tensor blk.32.attn_v.weight"}
+{"elapsed_ms": 430.8406, "kind": "stderr", "text": "0.00.416.505 D create_tensor: loading tensor blk.32.attn_output.weight"}
+{"elapsed_ms": 430.8561, "kind": "stderr", "text": "0.00.416.520 D create_tensor: loading tensor blk.32.ffn_norm.weight"}
+{"elapsed_ms": 430.8609, "kind": "stderr", "text": "0.00.416.534 D create_tensor: loading tensor blk.32.ffn_gate.weight"}
+{"elapsed_ms": 430.8788, "kind": "stderr", "text": "0.00.416.543 D create_tensor: loading tensor blk.32.ffn_down.weight"}
+{"elapsed_ms": 430.8826, "kind": "stderr", "text": "0.00.416.554 D create_tensor: loading tensor blk.32.ffn_up.weight"}
+{"elapsed_ms": 430.9111, "kind": "stderr", "text": "0.00.416.575 D create_tensor: loading tensor blk.33.attn_norm.weight"}
+{"elapsed_ms": 430.9275, "kind": "stderr", "text": "0.00.416.591 D create_tensor: loading tensor blk.33.attn_q.weight"}
+{"elapsed_ms": 430.9299, "kind": "stderr", "text": "0.00.416.602 D create_tensor: loading tensor blk.33.attn_k.weight"}
+{"elapsed_ms": 430.9485, "kind": "stderr", "text": "0.00.416.613 D create_tensor: loading tensor blk.33.attn_v.weight"}
+{"elapsed_ms": 430.9717, "kind": "stderr", "text": "0.00.416.636 D create_tensor: loading tensor blk.33.attn_output.weight"}
+{"elapsed_ms": 430.9882, "kind": "stderr", "text": "0.00.416.652 D create_tensor: loading tensor blk.33.ffn_norm.weight"}
+{"elapsed_ms": 430.9941, "kind": "stderr", "text": "0.00.416.666 D create_tensor: loading tensor blk.33.ffn_gate.weight"}
+{"elapsed_ms": 431.0125, "kind": "stderr", "text": "0.00.416.676 D create_tensor: loading tensor blk.33.ffn_down.weight"}
+{"elapsed_ms": 431.0149, "kind": "stderr", "text": "0.00.416.688 D create_tensor: loading tensor blk.33.ffn_up.weight"}
+{"elapsed_ms": 431.0469, "kind": "stderr", "text": "0.00.416.711 D create_tensor: loading tensor blk.34.attn_norm.weight"}
+{"elapsed_ms": 431.0638, "kind": "stderr", "text": "0.00.416.728 D create_tensor: loading tensor blk.34.attn_q.weight"}
+{"elapsed_ms": 431.0663, "kind": "stderr", "text": "0.00.416.740 D create_tensor: loading tensor blk.34.attn_k.weight"}
+{"elapsed_ms": 431.0861, "kind": "stderr", "text": "0.00.416.750 D create_tensor: loading tensor blk.34.attn_v.weight"}
+{"elapsed_ms": 431.1113, "kind": "stderr", "text": "0.00.416.775 D create_tensor: loading tensor blk.34.attn_output.weight"}
+{"elapsed_ms": 431.129, "kind": "stderr", "text": "0.00.416.793 D create_tensor: loading tensor blk.34.ffn_norm.weight"}
+{"elapsed_ms": 431.1338, "kind": "stderr", "text": "0.00.416.807 D create_tensor: loading tensor blk.34.ffn_gate.weight"}
+{"elapsed_ms": 431.1532, "kind": "stderr", "text": "0.00.416.817 D create_tensor: loading tensor blk.34.ffn_down.weight"}
+{"elapsed_ms": 431.1556, "kind": "stderr", "text": "0.00.416.829 D create_tensor: loading tensor blk.34.ffn_up.weight"}
+{"elapsed_ms": 431.1882, "kind": "stderr", "text": "0.00.416.852 D create_tensor: loading tensor blk.35.attn_norm.weight"}
+{"elapsed_ms": 431.2056, "kind": "stderr", "text": "0.00.416.870 D create_tensor: loading tensor blk.35.attn_q.weight"}
+{"elapsed_ms": 431.208, "kind": "stderr", "text": "0.00.416.882 D create_tensor: loading tensor blk.35.attn_k.weight"}
+{"elapsed_ms": 431.2284, "kind": "stderr", "text": "0.00.416.892 D create_tensor: loading tensor blk.35.attn_v.weight"}
+{"elapsed_ms": 431.3784, "kind": "stderr", "text": "0.00.416.919 D create_tensor: loading tensor blk.35.attn_output.weight"}
+{"elapsed_ms": 431.381, "kind": "stderr", "text": "0.00.416.936 D create_tensor: loading tensor blk.35.ffn_norm.weight"}
+{"elapsed_ms": 431.3821, "kind": "stderr", "text": "0.00.416.948 D create_tensor: loading tensor blk.35.ffn_gate.weight"}
+{"elapsed_ms": 431.3829, "kind": "stderr", "text": "0.00.416.960 D create_tensor: loading tensor blk.35.ffn_down.weight"}
+{"elapsed_ms": 431.4038, "kind": "stderr", "text": "0.00.417.033 D create_tensor: loading tensor blk.35.ffn_up.weight"}
+{"elapsed_ms": 431.4068, "kind": "stderr", "text": "0.00.417.062 D create_tensor: loading tensor blk.36.attn_norm.weight"}
+{"elapsed_ms": 431.425, "kind": "stderr", "text": "0.00.417.079 D create_tensor: loading tensor blk.36.attn_q.weight"}
+{"elapsed_ms": 431.426, "kind": "stderr", "text": "0.00.417.091 D create_tensor: loading tensor blk.36.attn_k.weight"}
+{"elapsed_ms": 431.4404, "kind": "stderr", "text": "0.00.417.102 D create_tensor: loading tensor blk.36.attn_v.weight"}
+{"elapsed_ms": 431.5062, "kind": "stderr", "text": "0.00.417.128 D create_tensor: loading tensor blk.36.attn_output.weight"}
+{"elapsed_ms": 431.5082, "kind": "stderr", "text": "0.00.417.145 D create_tensor: loading tensor blk.36.ffn_norm.weight"}
+{"elapsed_ms": 431.5095, "kind": "stderr", "text": "0.00.417.159 D create_tensor: loading tensor blk.36.ffn_gate.weight"}
+{"elapsed_ms": 431.5103, "kind": "stderr", "text": "0.00.417.169 D create_tensor: loading tensor blk.36.ffn_down.weight"}
+{"elapsed_ms": 431.5416, "kind": "stderr", "text": "0.00.417.180 D create_tensor: loading tensor blk.36.ffn_up.weight"}
+{"elapsed_ms": 431.608, "kind": "stderr", "text": "0.00.417.245 D create_tensor: loading tensor blk.37.attn_norm.weight"}
+{"elapsed_ms": 431.6111, "kind": "stderr", "text": "0.00.417.265 D create_tensor: loading tensor blk.37.attn_q.weight"}
+{"elapsed_ms": 431.612, "kind": "stderr", "text": "0.00.417.276 D create_tensor: loading tensor blk.37.attn_k.weight"}
+{"elapsed_ms": 431.6336, "kind": "stderr", "text": "0.00.417.287 D create_tensor: loading tensor blk.37.attn_v.weight"}
+{"elapsed_ms": 431.6804, "kind": "stderr", "text": "0.00.417.315 D create_tensor: loading tensor blk.37.attn_output.weight"}
+{"elapsed_ms": 431.6894, "kind": "stderr", "text": "0.00.417.348 D create_tensor: loading tensor blk.37.ffn_norm.weight"}
+{"elapsed_ms": 431.6955, "kind": "stderr", "text": "0.00.417.362 D create_tensor: loading tensor blk.37.ffn_gate.weight"}
+{"elapsed_ms": 431.702, "kind": "stderr", "text": "0.00.417.373 D create_tensor: loading tensor blk.37.ffn_down.weight"}
+{"elapsed_ms": 431.7259, "kind": "stderr", "text": "0.00.417.384 D create_tensor: loading tensor blk.37.ffn_up.weight"}
+{"elapsed_ms": 431.7836, "kind": "stderr", "text": "0.00.417.412 D create_tensor: loading tensor blk.38.attn_norm.weight"}
+{"elapsed_ms": 431.7853, "kind": "stderr", "text": "0.00.417.432 D create_tensor: loading tensor blk.38.attn_q.weight"}
+{"elapsed_ms": 431.7862, "kind": "stderr", "text": "0.00.417.447 D create_tensor: loading tensor blk.38.attn_k.weight"}
+{"elapsed_ms": 431.8013, "kind": "stderr", "text": "0.00.417.458 D create_tensor: loading tensor blk.38.attn_v.weight"}
+{"elapsed_ms": 431.8458, "kind": "stderr", "text": "0.00.417.486 D create_tensor: loading tensor blk.38.attn_output.weight"}
+{"elapsed_ms": 431.8487, "kind": "stderr", "text": "0.00.417.504 D create_tensor: loading tensor blk.38.ffn_norm.weight"}
+{"elapsed_ms": 431.8533, "kind": "stderr", "text": "0.00.417.517 D create_tensor: loading tensor blk.38.ffn_gate.weight"}
+{"elapsed_ms": 431.8559, "kind": "stderr", "text": "0.00.417.529 D create_tensor: loading tensor blk.38.ffn_down.weight"}
+{"elapsed_ms": 431.8727, "kind": "stderr", "text": "0.00.417.540 D create_tensor: loading tensor blk.38.ffn_up.weight"}
+{"elapsed_ms": 431.9908, "kind": "stderr", "text": "0.00.417.567 D create_tensor: loading tensor blk.39.attn_norm.weight"}
+{"elapsed_ms": 431.9951, "kind": "stderr", "text": "0.00.417.586 D create_tensor: loading tensor blk.39.attn_q.weight"}
+{"elapsed_ms": 431.9961, "kind": "stderr", "text": "0.00.417.597 D create_tensor: loading tensor blk.39.attn_k.weight"}
+{"elapsed_ms": 431.9968, "kind": "stderr", "text": "0.00.417.608 D create_tensor: loading tensor blk.39.attn_v.weight"}
+{"elapsed_ms": 431.9974, "kind": "stderr", "text": "0.00.417.643 D create_tensor: loading tensor blk.39.attn_output.weight"}
+{"elapsed_ms": 432.0571, "kind": "stderr", "text": "0.00.417.692 D create_tensor: loading tensor blk.39.ffn_norm.weight"}
+{"elapsed_ms": 432.0596, "kind": "stderr", "text": "0.00.417.713 D create_tensor: loading tensor blk.39.ffn_gate.weight"}
+{"elapsed_ms": 432.0608, "kind": "stderr", "text": "0.00.417.726 D create_tensor: loading tensor blk.39.ffn_down.weight"}
+{"elapsed_ms": 432.081, "kind": "stderr", "text": "0.00.417.739 D create_tensor: loading tensor blk.39.ffn_up.weight"}
+{"elapsed_ms": 434.2283, "kind": "stderr", "text": "0.00.419.847 D done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 360 others) cannot be used with preferred buffer type Vulkan_Host, using CPU instead"}
+{"elapsed_ms": 485.8924, "kind": "memory", "private_bytes": 79310848}
+{"elapsed_ms": 558.3452, "kind": "stderr", "text": "0.00.543.901 I load_tensors: offloading output layer to GPU"}
+{"elapsed_ms": 558.3559, "kind": "stderr", "text": "0.00.543.908 I load_tensors: offloading 0 repeating layers to GPU"}
+{"elapsed_ms": 558.3573, "kind": "stderr", "text": "0.00.543.908 I load_tensors: offloaded 1/41 layers to GPU"}
+{"elapsed_ms": 558.3582, "kind": "stderr", "text": "0.00.543.912 I load_tensors:   CPU_Mapped model buffer size =  1998.83 MiB"}
+{"elapsed_ms": 558.359, "kind": "stderr", "text": "0.00.543.913 I load_tensors:      Vulkan0 model buffer size =   200.99 MiB"}
+{"elapsed_ms": 602.262, "kind": "memory", "private_bytes": 432631808}
+{"elapsed_ms": 622.9321, "kind": "stderr", "text": "0.00.608.511 I cmn  common_init_: added <|end_of_text|> logit bias = -inf"}
+{"elapsed_ms": 622.9437, "kind": "stderr", "text": "0.00.608.516 I cmn  common_init_: added <|fim_pad|> logit bias = -inf"}
+{"elapsed_ms": 622.9961, "kind": "stderr", "text": "0.00.608.617 I llama_context: constructing llama_context"}
+{"elapsed_ms": 622.9972, "kind": "stderr", "text": "0.00.608.623 I llama_context: n_seq_max     = 4"}
+{"elapsed_ms": 622.9979, "kind": "stderr", "text": "0.00.608.624 I llama_context: n_ctx         = 4096"}
+{"elapsed_ms": 622.9986, "kind": "stderr", "text": "0.00.608.624 I llama_context: n_ctx_seq     = 4096"}
+{"elapsed_ms": 622.9992, "kind": "stderr", "text": "0.00.608.624 I llama_context: n_batch       = 2048"}
+{"elapsed_ms": 622.9999, "kind": "stderr", "text": "0.00.608.624 I llama_context: n_ubatch      = 512"}
+{"elapsed_ms": 623.0004, "kind": "stderr", "text": "0.00.608.625 I llama_context: causal_attn   = 1"}
+{"elapsed_ms": 623.001, "kind": "stderr", "text": "0.00.608.625 I llama_context: flash_attn    = auto"}
+{"elapsed_ms": 623.0016, "kind": "stderr", "text": "0.00.608.626 I llama_context: kv_unified    = true"}
+{"elapsed_ms": 623.0021, "kind": "stderr", "text": "0.00.608.628 I llama_context: freq_base     = 10000000.0"}
+{"elapsed_ms": 623.0027, "kind": "stderr", "text": "0.00.608.629 I llama_context: freq_scale    = 1"}
+{"elapsed_ms": 623.0081, "kind": "stderr", "text": "0.00.608.630 I llama_context: n_rs_seq      = 0"}
+{"elapsed_ms": 623.0088, "kind": "stderr", "text": "0.00.608.630 I llama_context: n_outputs_max = 4"}
+{"elapsed_ms": 623.0097, "kind": "stderr", "text": "0.00.608.631 I llama_context: n_ctx_seq (4096) < n_ctx_train (131072) -- the full capacity of the model will not be utilized"}
+{"elapsed_ms": 623.0544, "kind": "stderr", "text": "0.00.608.670 D set_abort_callback: call"}
+{"elapsed_ms": 623.6796, "kind": "stderr", "text": "0.00.609.166 I llama_context: Vulkan_Host  output buffer size =     1.53 MiB"}
+{"elapsed_ms": 623.6842, "kind": "stderr", "text": "0.00.609.223 D llama_kv_cache: layer   0: dev = CPU"}
+{"elapsed_ms": 623.6852, "kind": "stderr", "text": "0.00.609.227 D llama_kv_cache: layer   1: dev = CPU"}
+{"elapsed_ms": 623.6859, "kind": "stderr", "text": "0.00.609.228 D llama_kv_cache: layer   2: dev = CPU"}
+{"elapsed_ms": 623.6865, "kind": "stderr", "text": "0.00.609.231 D llama_kv_cache: layer   3: dev = CPU"}
+{"elapsed_ms": 623.6871, "kind": "stderr", "text": "0.00.609.232 D llama_kv_cache: layer   4: dev = CPU"}
+{"elapsed_ms": 623.6877, "kind": "stderr", "text": "0.00.609.233 D llama_kv_cache: layer   5: dev = CPU"}
+{"elapsed_ms": 623.6884, "kind": "stderr", "text": "0.00.609.234 D llama_kv_cache: layer   6: dev = CPU"}
+{"elapsed_ms": 623.689, "kind": "stderr", "text": "0.00.609.236 D llama_kv_cache: layer   7: dev = CPU"}
+{"elapsed_ms": 623.6896, "kind": "stderr", "text": "0.00.609.237 D llama_kv_cache: layer   8: dev = CPU"}
+{"elapsed_ms": 623.6902, "kind": "stderr", "text": "0.00.609.239 D llama_kv_cache: layer   9: dev = CPU"}
+{"elapsed_ms": 623.6908, "kind": "stderr", "text": "0.00.609.241 D llama_kv_cache: layer  10: dev = CPU"}
+{"elapsed_ms": 623.6913, "kind": "stderr", "text": "0.00.609.242 D llama_kv_cache: layer  11: dev = CPU"}
+{"elapsed_ms": 623.6919, "kind": "stderr", "text": "0.00.609.243 D llama_kv_cache: layer  12: dev = CPU"}
+{"elapsed_ms": 623.6924, "kind": "stderr", "text": "0.00.609.244 D llama_kv_cache: layer  13: dev = CPU"}
+{"elapsed_ms": 623.6929, "kind": "stderr", "text": "0.00.609.246 D llama_kv_cache: layer  14: dev = CPU"}
+{"elapsed_ms": 623.6935, "kind": "stderr", "text": "0.00.609.247 D llama_kv_cache: layer  15: dev = CPU"}
+{"elapsed_ms": 623.694, "kind": "stderr", "text": "0.00.609.248 D llama_kv_cache: layer  16: dev = CPU"}
+{"elapsed_ms": 623.6946, "kind": "stderr", "text": "0.00.609.253 D llama_kv_cache: layer  17: dev = CPU"}
+{"elapsed_ms": 623.6951, "kind": "stderr", "text": "0.00.609.254 D llama_kv_cache: layer  18: dev = CPU"}
+{"elapsed_ms": 623.6957, "kind": "stderr", "text": "0.00.609.255 D llama_kv_cache: layer  19: dev = CPU"}
+{"elapsed_ms": 623.6962, "kind": "stderr", "text": "0.00.609.257 D llama_kv_cache: layer  20: dev = CPU"}
+{"elapsed_ms": 623.6967, "kind": "stderr", "text": "0.00.609.258 D llama_kv_cache: layer  21: dev = CPU"}
+{"elapsed_ms": 623.6973, "kind": "stderr", "text": "0.00.609.259 D llama_kv_cache: layer  22: dev = CPU"}
+{"elapsed_ms": 623.6978, "kind": "stderr", "text": "0.00.609.260 D llama_kv_cache: layer  23: dev = CPU"}
+{"elapsed_ms": 623.701, "kind": "stderr", "text": "0.00.609.261 D llama_kv_cache: layer  24: dev = CPU"}
+{"elapsed_ms": 623.7016, "kind": "stderr", "text": "0.00.609.262 D llama_kv_cache: layer  25: dev = CPU"}
+{"elapsed_ms": 623.703, "kind": "stderr", "text": "0.00.609.264 D llama_kv_cache: layer  26: dev = CPU"}
+{"elapsed_ms": 623.7035, "kind": "stderr", "text": "0.00.609.265 D llama_kv_cache: layer  27: dev = CPU"}
+{"elapsed_ms": 623.705, "kind": "stderr", "text": "0.00.609.266 D llama_kv_cache: layer  28: dev = CPU"}
+{"elapsed_ms": 623.7067, "kind": "stderr", "text": "0.00.609.268 D llama_kv_cache: layer  29: dev = CPU"}
+{"elapsed_ms": 623.7072, "kind": "stderr", "text": "0.00.609.270 D llama_kv_cache: layer  30: dev = CPU"}
+{"elapsed_ms": 623.713, "kind": "stderr", "text": "0.00.609.272 D llama_kv_cache: layer  31: dev = CPU"}
+{"elapsed_ms": 623.7136, "kind": "stderr", "text": "0.00.609.272 D llama_kv_cache: layer  32: dev = CPU"}
+{"elapsed_ms": 623.7141, "kind": "stderr", "text": "0.00.609.273 D llama_kv_cache: layer  33: dev = CPU"}
+{"elapsed_ms": 623.7146, "kind": "stderr", "text": "0.00.609.275 D llama_kv_cache: layer  34: dev = CPU"}
+{"elapsed_ms": 623.7151, "kind": "stderr", "text": "0.00.609.276 D llama_kv_cache: layer  35: dev = CPU"}
+{"elapsed_ms": 623.7156, "kind": "stderr", "text": "0.00.609.277 D llama_kv_cache: layer  36: dev = CPU"}
+{"elapsed_ms": 623.7161, "kind": "stderr", "text": "0.00.609.281 D llama_kv_cache: layer  37: dev = CPU"}
+{"elapsed_ms": 623.7166, "kind": "stderr", "text": "0.00.609.282 D llama_kv_cache: layer  38: dev = CPU"}
+{"elapsed_ms": 623.7171, "kind": "stderr", "text": "0.00.609.282 D llama_kv_cache: layer  39: dev = CPU"}
+{"elapsed_ms": 623.7177, "kind": "stderr", "text": "0.00.609.305 I llama_kv_cache:        CPU KV buffer size =   170.00 MiB"}
+{"elapsed_ms": 656.2211, "kind": "stderr", "text": "0.00.641.702 I llama_kv_cache: size =  170.00 MiB (  4096 cells,  40 layers,  4/1 seqs), K (q8_0):   85.00 MiB, V (q8_0):   85.00 MiB"}
+{"elapsed_ms": 656.2329, "kind": "stderr", "text": "0.00.641.717 I llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64"}
+{"elapsed_ms": 656.2374, "kind": "stderr", "text": "0.00.641.717 I llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64"}
+{"elapsed_ms": 656.2385, "kind": "stderr", "text": "0.00.641.740 D llama_context: enumerating backends"}
+{"elapsed_ms": 656.2394, "kind": "stderr", "text": "0.00.641.747 D llama_context: backend_ptrs.size() = 2"}
+{"elapsed_ms": 656.2401, "kind": "stderr", "text": "0.00.641.747 I sched_reserve: reserving ..."}
+{"elapsed_ms": 656.2409, "kind": "stderr", "text": "0.00.641.748 D sched_reserve: max_nodes = 2904"}
+{"elapsed_ms": 657.4296, "kind": "stderr", "text": "0.00.643.035 D sched_reserve: reserving full memory module"}
+{"elapsed_ms": 657.4318, "kind": "stderr", "text": "0.00.643.040 D sched_reserve: worst-case: n_tokens = 512, n_seqs = 4, n_outputs = 4"}
+{"elapsed_ms": 657.4359, "kind": "stderr", "text": "0.00.643.041 D graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 657.4373, "kind": "stderr", "text": "0.00.643.042 D graph_reserve: making n_tokens a multiple of n_seqs - n_tokens = 4, n_seqs = 4, n_outputs = 4"}
+{"elapsed_ms": 658.1282, "kind": "stderr", "text": "0.00.643.616 I sched_reserve: Flash Attention was auto, set to enabled"}
+{"elapsed_ms": 658.1429, "kind": "stderr", "text": "0.00.643.620 I sched_reserve: resolving fused Gated Delta Net support:"}
+{"elapsed_ms": 658.1507, "kind": "stderr", "text": "0.00.643.621 D graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 658.1519, "kind": "stderr", "text": "0.00.643.622 D graph_reserve: making n_tokens a multiple of n_seqs - n_tokens = 4, n_seqs = 4, n_outputs = 4"}
+{"elapsed_ms": 658.5018, "kind": "stderr", "text": "0.00.644.060 I sched_reserve: fused Gated Delta Net (autoregressive) enabled"}
+{"elapsed_ms": 658.5064, "kind": "stderr", "text": "0.00.644.064 D graph_reserve: reserving a graph for ubatch with n_tokens =   64, n_seqs =  4, n_outputs =   64"}
+{"elapsed_ms": 659.4799, "kind": "stderr", "text": "0.00.645.009 I sched_reserve: fused Gated Delta Net (chunked) enabled"}
+{"elapsed_ms": 659.4851, "kind": "stderr", "text": "0.00.645.012 D graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 666.9611, "kind": "stderr", "text": "0.00.652.531 D graph_reserve: reserving a graph for ubatch with n_tokens =    4, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 667.6921, "kind": "stderr", "text": "0.00.653.226 D graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  4, n_outputs =    4"}
+{"elapsed_ms": 668.7685, "kind": "stderr", "text": "0.00.654.286 I sched_reserve:    Vulkan0 compute buffer size =    86.78 MiB"}
+{"elapsed_ms": 668.7733, "kind": "stderr", "text": "0.00.654.290 I sched_reserve: Vulkan_Host compute buffer size =    14.04 MiB"}
+{"elapsed_ms": 668.7783, "kind": "stderr", "text": "0.00.654.290 I sched_reserve: graph nodes  = 1808"}
+{"elapsed_ms": 668.7792, "kind": "stderr", "text": "0.00.654.291 I sched_reserve: graph splits = 440 (with bs=512), 2 (with bs=1)"}
+{"elapsed_ms": 668.7798, "kind": "stderr", "text": "0.00.654.292 I sched_reserve: reserve took 12.54 ms, sched copies = 1"}
+{"elapsed_ms": 668.7805, "kind": "stderr", "text": "0.00.654.411 D set_adapters_lora: adapters = 0000000000000000"}
+{"elapsed_ms": 668.7813, "kind": "stderr", "text": "0.00.654.411 D adapters_lora_are_same: adapters = 0000000000000000"}
+{"elapsed_ms": 668.7821, "kind": "stderr", "text": "0.00.654.412 I cmn  common_init_: warming up the model with an empty run - please wait ... (--no-warmup to disable)"}
+{"elapsed_ms": 713.3843, "kind": "memory", "private_bytes": 991973376}
+{"elapsed_ms": 823.8075, "kind": "memory", "private_bytes": 1532596224}
+{"elapsed_ms": 936.0641, "kind": "memory", "private_bytes": 2086428672}
+{"elapsed_ms": 1053.8011, "kind": "memory", "private_bytes": 2653782016}
+{"elapsed_ms": 1170.6303, "kind": "memory", "private_bytes": 2676817920}
+{"elapsed_ms": 1221.4049, "kind": "stderr", "text": "0.01.206.988 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 4096, kv_unified = 'true'"}
+{"elapsed_ms": 1221.4221, "kind": "stderr", "text": "0.01.207.030 I spec common_specu: no implementations specified for speculative decoding"}
+{"elapsed_ms": 1221.4252, "kind": "stderr", "text": "0.01.207.032 I slot   load_model: id  0 | task -1 | new slot, n_ctx = 4096"}
+{"elapsed_ms": 1221.4273, "kind": "stderr", "text": "0.01.207.033 D slot        reset: id  0 | task -1 | "}
+{"elapsed_ms": 1221.429, "kind": "stderr", "text": "0.01.207.036 I slot   load_model: id  1 | task -1 | new slot, n_ctx = 4096"}
+{"elapsed_ms": 1221.4304, "kind": "stderr", "text": "0.01.207.036 D slot        reset: id  1 | task -1 | "}
+{"elapsed_ms": 1221.4386, "kind": "stderr", "text": "0.01.207.037 I slot   load_model: id  2 | task -1 | new slot, n_ctx = 4096"}
+{"elapsed_ms": 1221.4407, "kind": "stderr", "text": "0.01.207.037 D slot        reset: id  2 | task -1 | "}
+{"elapsed_ms": 1221.442, "kind": "stderr", "text": "0.01.207.038 I slot   load_model: id  3 | task -1 | new slot, n_ctx = 4096"}
+{"elapsed_ms": 1221.4433, "kind": "stderr", "text": "0.01.207.038 D slot        reset: id  3 | task -1 | "}
+{"elapsed_ms": 1221.5177, "kind": "stderr", "text": "0.01.207.167 I srv    load_model: prompt cache is enabled, size limit: 8192 MiB"}
+{"elapsed_ms": 1221.5216, "kind": "stderr", "text": "0.01.207.173 I srv    load_model: use `--cache-ram 0` to disable the prompt cache"}
+{"elapsed_ms": 1221.5326, "kind": "stderr", "text": "0.01.207.174 I srv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391"}
+{"elapsed_ms": 1221.5346, "kind": "stderr", "text": "0.01.207.174 I srv    load_model: context checkpoints enabled, max = 32, min spacing = 8192"}
+{"elapsed_ms": 1221.5414, "kind": "stderr", "text": "0.01.207.206 I srv          init: idle slots will be saved to prompt cache and cleared upon starting a new task"}
+{"elapsed_ms": 1221.5465, "kind": "stderr", "text": "0.01.207.211 D srv          init: __TEST_TAG_CACHE_IDLE_SLOTS_ENABLED__"}
+{"elapsed_ms": 1226.8585, "kind": "stderr", "text": "0.01.212.454 D common_chat_templates_apply_jinja: using differential autoparser"}
+{"elapsed_ms": 1226.8735, "kind": "stderr", "text": "0.01.212.465 D \u001b[1m\u001b[38;5;126m=== Starting differential analysis ==="}
+{"elapsed_ms": 1226.8764, "kind": "stderr", "text": "\u001b[0m0.01.212.465 D \u001b[1m\u001b[38;5;214mPhase 1: Reasoning analysis"}
+{"elapsed_ms": 1229.668, "kind": "stderr", "text": "\u001b[0m0.01.215.266 D \u001b[1m\u001b[38;5;214mPhase 2: Content analysis"}
+{"elapsed_ms": 1232.5456, "kind": "stderr", "text": "\u001b[0m0.01.218.158 D \u001b[1m\u001b[38;5;214mPhase 3: Tool call analysis"}
+{"elapsed_ms": 1236.4377, "kind": "stderr", "text": "\u001b[0m0.01.222.043 D "}
+{"elapsed_ms": 1236.4521, "kind": "stderr", "text": "--- Reasoning & Content Structure ---"}
+{"elapsed_ms": 1236.455, "kind": "stderr", "text": "0.01.222.050 D user_msg_start: <|start_of_role|>user<|end_of_role|>"}
+{"elapsed_ms": 1236.457, "kind": "stderr", "text": "0.01.222.050 D assistant_msg_start: <|start_of_role|>assistant<|end_of_role|>"}
+{"elapsed_ms": 1236.4585, "kind": "stderr", "text": "0.01.222.052 D reasoning_mode: NONE"}
+{"elapsed_ms": 1236.4599, "kind": "stderr", "text": "0.01.222.052 D reasoning_start: ''"}
+{"elapsed_ms": 1236.4612, "kind": "stderr", "text": "0.01.222.052 D reasoning_end: ''"}
+{"elapsed_ms": 1236.5059, "kind": "stderr", "text": "0.01.222.053 D content_mode: PLAIN"}
+{"elapsed_ms": 1236.5127, "kind": "stderr", "text": "0.01.222.054 D content_start: ''"}
+{"elapsed_ms": 1236.5144, "kind": "stderr", "text": "0.01.222.054 D content_end: ''"}
+{"elapsed_ms": 1236.5156, "kind": "stderr", "text": "0.01.222.054 D "}
+{"elapsed_ms": 1236.5169, "kind": "stderr", "text": "--- Tool Call Structure ---"}
+{"elapsed_ms": 1236.5182, "kind": "stderr", "text": "0.01.222.055 D tool_mode: JSON_NATIVE"}
+{"elapsed_ms": 1236.5196, "kind": "stderr", "text": "0.01.222.058 D supports_tools: true"}
+{"elapsed_ms": 1236.5208, "kind": "stderr", "text": "0.01.222.058 D supports_parallel_calls: true"}
+{"elapsed_ms": 1236.5221, "kind": "stderr", "text": "0.01.222.058 D tool_section_start: ''"}
+{"elapsed_ms": 1236.5231, "kind": "stderr", "text": "0.01.222.059 D tool_section_end: ''"}
+{"elapsed_ms": 1236.5242, "kind": "stderr", "text": "0.01.222.059 D per_call_start: '<tool_call>"}
+{"elapsed_ms": 1236.5253, "kind": "stderr", "text": "'"}
+{"elapsed_ms": 1236.5268, "kind": "stderr", "text": "0.01.222.059 D per_call_end: '</tool_call>'"}
+{"elapsed_ms": 1236.5278, "kind": "stderr", "text": "0.01.222.059 D func_name_prefix: ''"}
+{"elapsed_ms": 1236.5395, "kind": "stderr", "text": "0.01.222.059 D func_name_suffix: ''"}
+{"elapsed_ms": 1236.5416, "kind": "stderr", "text": "0.01.222.060 D func_close: ''"}
+{"elapsed_ms": 1236.5428, "kind": "stderr", "text": "0.01.222.060 D call_id_prefix: ''"}
+{"elapsed_ms": 1236.544, "kind": "stderr", "text": "0.01.222.060 D call_id_suffix: ''"}
+{"elapsed_ms": 1236.5452, "kind": "stderr", "text": "0.01.222.061 D call_id_pos: 'NONE'"}
+{"elapsed_ms": 1236.5463, "kind": "stderr", "text": "0.01.222.061 D args_start: ''"}
+{"elapsed_ms": 1236.5747, "kind": "stderr", "text": "0.01.222.061 D args_end: ''"}
+{"elapsed_ms": 1236.5937, "kind": "stderr", "text": "0.01.222.062 D arg_name_prefix: ''"}
+{"elapsed_ms": 1236.5975, "kind": "stderr", "text": "0.01.222.062 D arg_name_suffix: ''"}
+{"elapsed_ms": 1236.5993, "kind": "stderr", "text": "0.01.222.062 D arg_value_prefix: ''"}
+{"elapsed_ms": 1236.6008, "kind": "stderr", "text": "0.01.222.062 D arg_value_suffix: ''"}
+{"elapsed_ms": 1236.6348, "kind": "stderr", "text": "0.01.222.062 D name_field: 'name'"}
+{"elapsed_ms": 1236.65, "kind": "stderr", "text": "0.01.222.063 D args_field: 'arguments'"}
+{"elapsed_ms": 1236.6533, "kind": "stderr", "text": "0.01.222.063 D id_field: ''"}
+{"elapsed_ms": 1236.6551, "kind": "stderr", "text": "0.01.222.063 D gen_id_field: ''"}
+{"elapsed_ms": 1236.6567, "kind": "stderr", "text": "0.01.222.064 D parameter_order: 'name, arguments'"}
+{"elapsed_ms": 1236.6581, "kind": "stderr", "text": "0.01.222.064 D \u001b[1m\u001b[38;5;126m=== Differential analysis complete ==="}
+{"elapsed_ms": 1237.981, "kind": "stderr", "text": "\u001b[0m0.01.223.558 D common_chat_templates_apply_jinja: generated parser:"}
+{"elapsed_ms": 1237.9923, "kind": "stderr", "text": "Sequence(Literal(<|start_of_role|>assistant<|end_of_role|>), Epsilon, Tag(content, Until()), End)"}
+{"elapsed_ms": 1238.0001, "kind": "stderr", "text": ""}
+{"elapsed_ms": 1238.0021, "kind": "stderr", "text": "parser generation prompt: <|start_of_role|>assistant<|end_of_role|>"}
+{"elapsed_ms": 1238.0135, "kind": "stderr", "text": "0.01.223.570 I srv          init: init: chat template, example_format: '<|start_of_role|>system<|end_of_role|>You are a helpful assistant<|end_of_text|>"}
+{"elapsed_ms": 1238.0165, "kind": "stderr", "text": "<|start_of_role|>user<|end_of_role|>Hello<|end_of_text|>"}
+{"elapsed_ms": 1238.0179, "kind": "stderr", "text": "<|start_of_role|>assistant<|end_of_role|>Hi there<|end_of_text|>"}
+{"elapsed_ms": 1238.0192, "kind": "stderr", "text": "<|start_of_role|>user<|end_of_role|>How are you?<|end_of_text|>"}
+{"elapsed_ms": 1238.0205, "kind": "stderr", "text": "<|start_of_role|>assistant<|end_of_role|>'"}
+{"elapsed_ms": 1238.0252, "kind": "stderr", "text": "0.01.223.604 D common_chat_templates_apply_jinja: using differential autoparser"}
+{"elapsed_ms": 1238.0316, "kind": "stderr", "text": "0.01.223.605 D \u001b[1m\u001b[38;5;126m=== Starting differential analysis ==="}
+{"elapsed_ms": 1238.0337, "kind": "stderr", "text": "\u001b[0m0.01.223.605 D \u001b[1m\u001b[38;5;214mPhase 1: Reasoning analysis"}
+{"elapsed_ms": 1240.0042, "kind": "stderr", "text": "\u001b[0m0.01.225.633 D \u001b[1m\u001b[38;5;214mPhase 2: Content analysis"}
+{"elapsed_ms": 1241.7319, "kind": "stderr", "text": "\u001b[0m0.01.227.357 D \u001b[1m\u001b[38;5;214mPhase 3: Tool call analysis"}
+{"elapsed_ms": 1244.999, "kind": "stderr", "text": "\u001b[0m0.01.230.589 D "}
+{"elapsed_ms": 1245.0121, "kind": "stderr", "text": "--- Reasoning & Content Structure ---"}
+{"elapsed_ms": 1245.0149, "kind": "stderr", "text": "0.01.230.594 D user_msg_start: <|start_of_role|>user<|end_of_role|>"}
+{"elapsed_ms": 1245.0167, "kind": "stderr", "text": "0.01.230.595 D assistant_msg_start: <|start_of_role|>assistant<|end_of_role|>"}
+{"elapsed_ms": 1245.0182, "kind": "stderr", "text": "0.01.230.597 D reasoning_mode: NONE"}
+{"elapsed_ms": 1245.0196, "kind": "stderr", "text": "0.01.230.597 D reasoning_start: ''"}
+{"elapsed_ms": 1245.0208, "kind": "stderr", "text": "0.01.230.597 D reasoning_end: ''"}
+{"elapsed_ms": 1245.0221, "kind": "stderr", "text": "0.01.230.598 D content_mode: PLAIN"}
+{"elapsed_ms": 1245.0396, "kind": "stderr", "text": "0.01.230.599 D content_start: ''"}
+{"elapsed_ms": 1245.0419, "kind": "stderr", "text": "0.01.230.599 D content_end: ''"}
+{"elapsed_ms": 1245.0432, "kind": "stderr", "text": "0.01.230.599 D "}
+{"elapsed_ms": 1245.0446, "kind": "stderr", "text": "--- Tool Call Structure ---"}
+{"elapsed_ms": 1245.0458, "kind": "stderr", "text": "0.01.230.600 D tool_mode: JSON_NATIVE"}
+{"elapsed_ms": 1245.047, "kind": "stderr", "text": "0.01.230.601 D supports_tools: true"}
+{"elapsed_ms": 1245.0481, "kind": "stderr", "text": "0.01.230.601 D supports_parallel_calls: true"}
+{"elapsed_ms": 1245.0495, "kind": "stderr", "text": "0.01.230.601 D tool_section_start: ''"}
+{"elapsed_ms": 1245.0505, "kind": "stderr", "text": "0.01.230.601 D tool_section_end: ''"}
+{"elapsed_ms": 1245.0517, "kind": "stderr", "text": "0.01.230.602 D per_call_start: '<tool_call>"}
+{"elapsed_ms": 1245.0562, "kind": "stderr", "text": "'"}
+{"elapsed_ms": 1245.058, "kind": "stderr", "text": "0.01.230.602 D per_call_end: '</tool_call>'"}
+{"elapsed_ms": 1245.0802, "kind": "stderr", "text": "0.01.230.602 D func_name_prefix: ''"}
+{"elapsed_ms": 1245.1469, "kind": "stderr", "text": "0.01.230.602 D func_name_suffix: ''"}
+{"elapsed_ms": 1245.1649, "kind": "stderr", "text": "0.01.230.603 D func_close: ''"}
+{"elapsed_ms": 1245.1681, "kind": "stderr", "text": "0.01.230.603 D call_id_prefix: ''"}
+{"elapsed_ms": 1245.1697, "kind": "stderr", "text": "0.01.230.603 D call_id_suffix: ''"}
+{"elapsed_ms": 1245.1712, "kind": "stderr", "text": "0.01.230.606 D call_id_pos: 'NONE'"}
+{"elapsed_ms": 1245.1725, "kind": "stderr", "text": "0.01.230.607 D args_start: ''"}
+{"elapsed_ms": 1245.174, "kind": "stderr", "text": "0.01.230.607 D args_end: ''"}
+{"elapsed_ms": 1245.1754, "kind": "stderr", "text": "0.01.230.607 D arg_name_prefix: ''"}
+{"elapsed_ms": 1245.1845, "kind": "stderr", "text": "0.01.230.607 D arg_name_suffix: ''"}
+{"elapsed_ms": 1245.1864, "kind": "stderr", "text": "0.01.230.608 D arg_value_prefix: ''"}
+{"elapsed_ms": 1245.1877, "kind": "stderr", "text": "0.01.230.608 D arg_value_suffix: ''"}
+{"elapsed_ms": 1245.1888, "kind": "stderr", "text": "0.01.230.608 D name_field: 'name'"}
+{"elapsed_ms": 1245.1961, "kind": "stderr", "text": "0.01.230.608 D args_field: 'arguments'"}
+{"elapsed_ms": 1245.198, "kind": "stderr", "text": "0.01.230.609 D id_field: ''"}
+{"elapsed_ms": 1245.1996, "kind": "stderr", "text": "0.01.230.609 D gen_id_field: ''"}
+{"elapsed_ms": 1245.2103, "kind": "stderr", "text": "0.01.230.610 D parameter_order: 'name, arguments'"}
+{"elapsed_ms": 1245.2125, "kind": "stderr", "text": "0.01.230.610 D \u001b[1m\u001b[38;5;126m=== Differential analysis complete ==="}
+{"elapsed_ms": 1245.6048, "kind": "stderr", "text": "\u001b[0m0.01.231.230 D common_chat_templates_apply_jinja: generated parser:"}
+{"elapsed_ms": 1245.6134, "kind": "stderr", "text": "Sequence(Literal(<|start_of_role|>assistant<|end_of_role|>), Epsilon, Tag(content, Until()), End)"}
+{"elapsed_ms": 1245.6152, "kind": "stderr", "text": ""}
+{"elapsed_ms": 1245.6165, "kind": "stderr", "text": "parser generation prompt: <|start_of_role|>assistant<|end_of_role|>"}
+{"elapsed_ms": 1245.6175, "kind": "stderr", "text": "0.01.231.239 I srv          init: init: chat template, thinking = 0"}
+{"elapsed_ms": 1245.6211, "kind": "stderr", "text": "0.01.231.260 I srv  llama_server: model loaded"}
+{"elapsed_ms": 1245.6221, "kind": "stderr", "text": "0.01.231.262 I srv  llama_server: listening on http://127.0.0.1:18291"}
+{"elapsed_ms": 1245.6275, "kind": "stderr", "text": "0.01.231.273 D que    start_loop: processing new tasks"}
+{"elapsed_ms": 1245.6285, "kind": "stderr", "text": "0.01.231.274 D que    start_loop: update slots"}
+{"elapsed_ms": 1245.6294, "kind": "stderr", "text": "0.01.231.276 I srv  update_slots: all slots are idle"}
+{"elapsed_ms": 1245.6303, "kind": "stderr", "text": "0.01.231.277 D que    start_loop: waiting for new tasks"}
+{"elapsed_ms": 1286.9665, "kind": "memory", "private_bytes": 2677858304}
+{"elapsed_ms": 1349.3323, "kind": "stderr", "text": "0.01.334.731 D srv          stop: all tasks already finished, no need to cancel"}
+{"elapsed_ms": 1368.4104, "kind": "stderr", "text": "0.01.353.669 D srv  eval_llama_c: reasoning budget: tokens=-1, generation_prompt='', start=0 toks, end=0 toks, forced=0 toks"}
+{"elapsed_ms": 1368.4332, "kind": "stderr", "text": "0.01.353.755 D res  add_waiting_: add task 0 to waiting list. current waiting = 0 (before add)"}
+{"elapsed_ms": 1368.4381, "kind": "stderr", "text": "0.01.353.758 D que          post: new task, id = 0/1, front = 0"}
+{"elapsed_ms": 1368.442, "kind": "stderr", "text": "0.01.353.901 D que    start_loop: processing new tasks"}
+{"elapsed_ms": 1368.4449, "kind": "stderr", "text": "0.01.353.915 D que    start_loop: processing task, id = 0"}
+{"elapsed_ms": 1368.4475, "kind": "stderr", "text": "0.01.353.941 I slot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1"}
+{"elapsed_ms": 1368.4502, "kind": "stderr", "text": "0.01.353.942 I srv  get_availabl: updating prompt cache"}
+{"elapsed_ms": 1368.4525, "kind": "stderr", "text": "0.01.353.955 I srv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000"}
+{"elapsed_ms": 1368.4552, "kind": "stderr", "text": "0.01.353.975 I srv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 4096 tokens, 8589934592 est)"}
+{"elapsed_ms": 1368.4781, "kind": "stderr", "text": "0.01.353.978 I srv  get_availabl: prompt cache update took 0.03 ms"}
+{"elapsed_ms": 1368.4808, "kind": "stderr", "text": "0.01.354.016 D slot launch_slot_: id  3 | task -1 | launching slot : {\"id\":3,\"n_ctx\":4096,\"speculative\":false,\"is_processing\":false}"}
+{"elapsed_ms": 1368.4838, "kind": "stderr", "text": "0.01.354.049 I slot launch_slot_: id  3 | task -1 | sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> ?top-p -> min-p -> ?xtc -> temp-ext -> dist "}
+{"elapsed_ms": 1368.4868, "kind": "stderr", "text": "0.01.354.081 I slot launch_slot_: id  3 | task -1 | sampler params: "}
+{"elapsed_ms": 1368.4894, "kind": "stderr", "text": "\trepeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000"}
+{"elapsed_ms": 1368.492, "kind": "stderr", "text": "\tdry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 4096"}
+{"elapsed_ms": 1368.4946, "kind": "stderr", "text": "\ttop_k = 40, top_p = 1.000, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000"}
+{"elapsed_ms": 1368.4971, "kind": "stderr", "text": "\tmirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900"}
+{"elapsed_ms": 1368.51, "kind": "stderr", "text": "0.01.354.086 I slot launch_slot_: id  3 | task 0 | processing task, is_child = 0"}
+{"elapsed_ms": 1368.5129, "kind": "stderr", "text": "0.01.354.088 I slot process_sing: id  0 | task -1 | saving idle slot to prompt cache"}
+{"elapsed_ms": 1368.5308, "kind": "stderr", "text": "0.01.354.094 I slot prompt_clear: id  0 | task -1 | clearing prompt with 0 tokens"}
+{"elapsed_ms": 1368.5332, "kind": "stderr", "text": "0.01.354.107 I slot process_sing: id  1 | task -1 | saving idle slot to prompt cache"}
+{"elapsed_ms": 1368.5353, "kind": "stderr", "text": "0.01.354.109 I slot prompt_clear: id  1 | task -1 | clearing prompt with 0 tokens"}
+{"elapsed_ms": 1368.5377, "kind": "stderr", "text": "0.01.354.117 I slot process_sing: id  2 | task -1 | saving idle slot to prompt cache"}
+{"elapsed_ms": 1368.54, "kind": "stderr", "text": "0.01.354.118 I slot prompt_clear: id  2 | task -1 | clearing prompt with 0 tokens"}
+{"elapsed_ms": 1368.5566, "kind": "stderr", "text": "0.01.354.127 D que    start_loop: update slots"}
+{"elapsed_ms": 1368.5638, "kind": "stderr", "text": "0.01.354.129 D srv  update_slots: posting NEXT_RESPONSE"}
+{"elapsed_ms": 1368.5736, "kind": "stderr", "text": "0.01.354.133 D que          post: new task, id = 1, front = 0"}
+{"elapsed_ms": 1368.5763, "kind": "stderr", "text": "0.01.354.156 I slot  operator (): id  3 | task 0 | new prompt, n_ctx_slot = 4096, n_keep = 0, task.n_tokens = 66"}
+{"elapsed_ms": 1368.6272, "kind": "stderr", "text": "0.01.354.177 D res          send: sending result for task id = 0"}
+{"elapsed_ms": 1368.6332, "kind": "stderr", "text": "0.01.354.178 D res          send: task id = 0 pushed to result queue"}
+{"elapsed_ms": 1368.6358, "kind": "stderr", "text": "0.01.354.203 I slot  operator (): id  3 | task 0 | cached n_tokens = 0, memory_seq_rm [0, end)"}
+{"elapsed_ms": 1368.6384, "kind": "stderr", "text": "0.01.354.259 I slot init_sampler: id  3 | task 0 | init sampler, took 0.02 ms, tokens: text = 66, total = 66"}
+{"elapsed_ms": 1368.641, "kind": "stderr", "text": "0.01.354.262 D slot  operator (): id  3 | task 0 | main/do_checkpoint = no, pos_min = -1, pos_max = -1"}
+{"elapsed_ms": 1368.6505, "kind": "stderr", "text": "0.01.354.274 D srv        decode: n_batch (effective) = 2048, off = 0"}
+{"elapsed_ms": 1368.6533, "kind": "stderr", "text": "0.01.354.278 D set_adapters_lora: adapters = 0000000000000000"}
+{"elapsed_ms": 1368.6725, "kind": "stderr", "text": "0.01.354.280 D adapters_lora_are_same: adapters = 0000000000000000"}
+{"elapsed_ms": 1368.6752, "kind": "stderr", "text": "0.01.354.281 D set_embeddings: value = 0"}
+{"elapsed_ms": 1368.6909, "kind": "stderr", "text": "0.01.354.290 I srv  stream_sessi: conv_id= (empty=1)"}
+{"elapsed_ms": 1368.7401, "kind": "stderr", "text": "0.01.354.301 D srv          stop: all tasks already finished, no need to cancel"}
+{"elapsed_ms": 1405.5239, "kind": "memory", "private_bytes": 2679410688}
+{"elapsed_ms": 1519.8563, "kind": "memory", "private_bytes": 2682150912}
+{"elapsed_ms": 1635.9111, "kind": "memory", "private_bytes": 2682175488}
+{"elapsed_ms": 1751.9012, "kind": "memory", "private_bytes": 2682232832}
+{"elapsed_ms": 1868.6139, "kind": "memory", "private_bytes": 2682347520}
+{"elapsed_ms": 1984.4421, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2101.5281, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2219.7134, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2335.4433, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2451.4581, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2566.9436, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2597.3276, "kind": "first_response_byte"}
+{"elapsed_ms": 2684.833, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2801.172, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 2918.5419, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3020.6458, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3135.8123, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3252.273, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3353.165, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3453.8586, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3568.6354, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3685.2863, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3802.093, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3903.0448, "kind": "memory", "private_bytes": 2682462208}
+{"elapsed_ms": 3947.4424, "kind": "stderr", "text": "0.03.932.983 D res          send: sending result for task id = 0"}
+{"elapsed_ms": 3947.459, "kind": "stderr", "text": "0.03.932.995 D res          send: task id = 0 pushed to result queue"}
+{"elapsed_ms": 3947.4613, "kind": "stderr", "text": "0.03.933.022 D slot process_toke: id  3 | task 0 | n_decoded = 1, n_remaining = 15, next token:    12 '-'"}
+{"elapsed_ms": 3947.463, "kind": "stderr", "text": "0.03.933.032 D que    start_loop: waiting for new tasks"}
+{"elapsed_ms": 3947.4642, "kind": "stderr", "text": "0.03.933.032 D que    start_loop: processing new tasks"}
+{"elapsed_ms": 3947.4652, "kind": "stderr", "text": "0.03.933.039 D que    start_loop: processing task, id = 1"}
+{"elapsed_ms": 3947.4716, "kind": "stderr", "text": "0.03.933.042 D que    start_loop: update slots"}
+{"elapsed_ms": 3947.4725, "kind": "stderr", "text": "0.03.933.042 D srv  update_slots: posting NEXT_RESPONSE"}
+{"elapsed_ms": 3947.4738, "kind": "stderr", "text": "0.03.933.046 D que          post: new task, id = 2, front = 0"}
+{"elapsed_ms": 3947.4751, "kind": "stderr", "text": "0.03.933.047 D No parser definition detected, assuming pure content parser.0.03.933.055 D slot handle_last_: id  3 | task 0 | slot decode token, id=12, n_ctx = 4096, n_tokens = 66, truncated = 0"}
+{"elapsed_ms": 3947.4767, "kind": "stderr", "text": "0.03.933.061 D srv        decode: n_batch (effective) = 2048, off = 0"}
+{"elapsed_ms": 3947.4778, "kind": "stderr", "text": "0.03.933.063 D set_adapters_lora: adapters = 0000000000000000"}
+{"elapsed_ms": 3947.4789, "kind": "stderr", "text": "0.03.933.063 D adapters_lora_are_same: adapters = 0000000000000000"}
+{"elapsed_ms": 3947.4841, "kind": "stderr", "text": "0.03.933.064 D set_embeddings: value = 0"}
+{"elapsed_ms": 3947.6367, "kind": "stderr", "text": "0.03.933.251 D srv   operator (): http: streamed chunk: data: {\"index\":0,\"content\":\"-\",\"tokens\":[12],\"stop\":false,\"id_slot\":-1,\"tokens_predicted\":1,\"tokens_evaluated\":66}"}
+{"elapsed_ms": 3947.6459, "kind": "stderr", "text": ""}
+{"elapsed_ms": 3947.6482, "kind": "stderr", "text": ""}
+{"elapsed_ms": 4013.9206, "kind": "stderr", "text": "0.03.999.425 D res          send: sending result for task id = 0"}
+{"elapsed_ms": 4013.9374, "kind": "stderr", "text": "0.03.999.437 D res          send: task id = 0 pushed to result queue"}
+{"elapsed_ms": 4013.9395, "kind": "stderr", "text": "0.03.999.444 D slot process_toke: id  3 | task 0 | n_decoded = 2, n_remaining = 14, next token:  3816 ' Red'"}
+{"elapsed_ms": 4013.9411, "kind": "stderr", "text": "0.03.999.447 D que    start_loop: waiting for new tasks"}
+{"elapsed_ms": 4013.9424, "kind": "stderr", "text": "0.03.999.447 D que    start_loop: processing new tasks"}
+{"elapsed_ms": 4013.9435, "kind": "stderr", "text": "0.03.999.452 D que    start_loop: processing task, id = 2"}
+{"elapsed_ms": 4013.9445, "kind": "stderr", "text": "0.03.999.455 D que    start_loop: update slots"}
+{"elapsed_ms": 4013.9454, "kind": "stderr", "text": "0.03.999.456 D srv  update_slots: posting NEXT_RESPONSE"}
+{"elapsed_ms": 4013.9464, "kind": "stderr", "text": "0.03.999.459 D que          post: new task, id = 3, front = 0"}
+{"elapsed_ms": 4013.9475, "kind": "stderr", "text": "0.03.999.464 D slot handle_last_: id  3 | task 0 | slot decode token, id=3816, n_ctx = 4096, n_tokens = 67, truncated = 0"}
+{"elapsed_ms": 4013.9491, "kind": "stderr", "text": "0.03.999.467 D srv        decode: n_batch (effective) = 2048, off = 0"}
+{"elapsed_ms": 4013.955, "kind": "stderr", "text": "0.03.999.469 D set_adapters_lora: adapters = 0000000000000000"}
+{"elapsed_ms": 4013.9561, "kind": "stderr", "text": "0.03.999.469 D adapters_lora_are_same: adapters = 0000000000000000"}
+{"elapsed_ms": 4013.9575, "kind": "stderr", "text": "0.03.999.470 D set_embeddings: value = 0"}
+{"elapsed_ms": 4014.1761, "kind": "stderr", "text": "0.03.999.550 D No parser definition detected, assuming pure content parser.0.03.999.771 D srv   operator (): http: streamed chunk: data: {\"index\":0,\"content\":\" Red\",\"tokens\":[3816],\"stop\":false,\"id_slot\":-1,\"tokens_predicted\":2,\"tokens_evaluated\":66}"}
+{"elapsed_ms": 4014.1861, "kind": "stderr", "text": ""}
+{"elapsed_ms": 4014.1887, "kind": "stderr", "text": ""}
+{"elapsed_ms": 4014.1908, "kind": "stderr", "text": "0.03.999.807 D res  remove_waiti: remove task 0 from waiting list. current waiting = 1 (before remove)"}
+{"elapsed_ms": 4014.1931, "kind": "stderr", "text": "0.03.999.809 W srv          stop: cancel task, id_task = 0"}
+{"elapsed_ms": 4014.1948, "kind": "stderr", "text": "0.03.999.812 D res  remove_waiti: remove task 0 from waiting list. current waiting = 0 (before remove)"}
+{"elapsed_ms": 4014.1963, "kind": "stderr", "text": "0.03.999.816 D que          post: new task, id = 4/1, front = 1"}
+{"elapsed_ms": 4270.1151, "exit_code": 0, "kind": "exit"}

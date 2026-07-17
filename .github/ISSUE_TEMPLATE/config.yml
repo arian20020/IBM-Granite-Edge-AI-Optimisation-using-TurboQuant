@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Traceability catalogue
+    url: https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/tree/main/docs/traceability
+    about: Search task definitions and IDs before opening a new issue.

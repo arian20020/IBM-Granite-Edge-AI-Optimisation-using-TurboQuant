@@ -1,0 +1,11 @@
+
+=== Initialize external repository ===
+Initialized empty Git repository in C:/Users/Student/experiments/granite_turboquant_intel/repositories/upstream-llama.cpp-b9870-formal/.git/
+
+=== Disable automatic CRLF conversion ===
+
+=== Use LF repository checkout ===
+
+=== Add official upstream remote ===
+
+=== Fetch exact official tag ===

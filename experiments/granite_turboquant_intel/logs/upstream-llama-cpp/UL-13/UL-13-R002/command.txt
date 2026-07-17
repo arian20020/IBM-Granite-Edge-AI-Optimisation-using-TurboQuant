@@ -1,0 +1,1 @@
+﻿"C:\Program Files (x86)\Intel\oneAPI\setvars.bat" >nul && set "ONEAPI_DEVICE_SELECTOR=level_zero:gpu" && "C:\Users\Student\gtq-build\llama-b9870-sycl-release-001\bin\llama-bench.exe" -m "C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-3b\q4_k_m\granite-4.1-3b-Q4_K_M.gguf" -ngl 99 -ctk q8_0 -ctv q8_0 -p 4096 -n 128 -o jsonl

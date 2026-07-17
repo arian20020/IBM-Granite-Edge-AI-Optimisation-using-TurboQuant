@@ -1,0 +1,124 @@
+{
+    "schema_version":  "1.0",
+    "campaign_id":  "GTQ-RETEST-v1",
+    "test_id":  "UL-B01",
+    "run_id":  "UL-B01-R003",
+    "route":  "upstream-llama-cpp",
+    "workbook_id":  "WB-01",
+    "run_purpose":  "Fetch and verify the exact official upstream llama.cpp tag and commit.",
+    "operator":  "Student",
+    "timestamps":  {
+                       "start_utc":  "2026-07-14T18:42:01.4356148Z",
+                       "end_utc":  "2026-07-14T18:49:15.5760156Z",
+                       "start_local":  "2026-07-14T19:42:01.4356148+01:00",
+                       "end_local":  "2026-07-14T19:49:15.5760156+01:00",
+                       "timezone":  "GMT Standard Time"
+                   },
+    "references":  {
+                       "environment_id":  "ENV-20260714-INTEL-LAPTOP-01",
+                       "repository_id":  "REPO-UPSTREAM-LLAMA-CPP-B9870",
+                       "build_id":  "",
+                       "model_id":  "",
+                       "configuration_id":  "",
+                       "prompt_set_id":  "GTQ-PROMPTS-v1",
+                       "prompt_id":  "",
+                       "rubric_id":  "GTQ-QUALITY-RUBRIC-v1"
+                   },
+    "execution":  {
+                      "working_directory":  "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\repositories\\upstream-llama.cpp-b9870-formal-R003",
+                      "command_path":  "",
+                      "environment_variables_path":  "",
+                      "exit_code":  null,
+                      "requested_backend":  "Git source control",
+                      "actual_backend":  "Not reached",
+                      "requested_device":  "Windows host",
+                      "actual_device":  "Windows host",
+                      "requested_offload":  "Not applicable",
+                      "actual_model_layer_placement":  "",
+                      "actual_kv_placement":  "",
+                      "k_cache_type":  "",
+                      "v_cache_type":  "",
+                      "optimisation_name":  "None",
+                      "optimisation_requested":  false,
+                      "optimisation_activated":  false,
+                      "activation_proof_path":  "",
+                      "silent_fallback_check":  "",
+                      "fallback_observed":  false
+                  },
+    "generation":  {
+                       "seed":  42,
+                       "sampling_settings":  {
+
+                                             },
+                       "max_output_tokens":  0,
+                       "context_target_tokens":  0,
+                       "actual_input_tokens":  0,
+                       "actual_output_tokens":  0
+                   },
+    "correctness":  {
+                        "model_load_success":  false,
+                        "generation_success":  false,
+                        "output_completion_status":  "",
+                        "deterministic_check_result":  "",
+                        "schema_or_format_valid":  "",
+                        "required_facts_retained":  "",
+                        "unsupported_statements_count":  0,
+                        "long_context_result":  "",
+                        "multi_turn_result":  ""
+                    },
+    "performance":  {
+                        "model_load_time_ms":  null,
+                        "ttft_ms":  null,
+                        "prompt_processing_tokens_per_second":  null,
+                        "tpot_ms":  null,
+                        "decode_tokens_per_second":  null,
+                        "total_generation_time_ms":  null,
+                        "perplexity":  null
+                    },
+    "resources":  {
+                      "peak_working_set_bytes":  null,
+                      "peak_private_bytes":  null,
+                      "available_ram_before_bytes":  null,
+                      "minimum_available_ram_during_bytes":  null,
+                      "available_ram_after_bytes":  null,
+                      "kv_cache_allocated_bytes":  null,
+                      "gpu_dedicated_peak_bytes":  null,
+                      "gpu_shared_peak_bytes":  null,
+                      "cpu_mean_percent":  null,
+                      "cpu_peak_percent":  null,
+                      "gpu_engine_mean_percent":  null,
+                      "gpu_engine_peak_percent":  null
+                  },
+    "procedure":  {
+                      "pilot_warmup_or_measured":  "Setup gate",
+                      "repetition_number":  1,
+                      "included_in_formal_statistics":  false
+                  },
+    "quality":  {
+                    "score_0_to_10":  null,
+                    "criterion_scores_path":  "",
+                    "repetition_corruption_or_truncation":  "",
+                    "stability_result":  ""
+                },
+    "evidence":  {
+                     "stdout_path":  "",
+                     "stderr_path":  "",
+                     "raw_response_path":  "",
+                     "resource_samples_path":  "",
+                     "device_proof_path":  "",
+                     "processed_result_path":  "",
+                     "hash_manifest_path":  ""
+                 },
+    "classification":  {
+                           "result":  "Failed",
+                           "result_reason":  "The harness rejected an intentionally empty raw stdout file because the Write-Utf8Text Text parameter did not permit empty strings. Git execution for R003 had not started.",
+                           "failure_ids":  [
+                                               "FAIL-UL-B01-R003-HARNESS"
+                                           ],
+                           "missing_data_codes":  [
+
+                                                  ],
+                           "next_action":  "Preserve R003 and rerun the exact-source gate as UL-B01-R004 with an empty-string-safe evidence writer and direct native process handling."
+                       },
+    "notes":  "Harness failure only. No Git fetch, compilation, model download, or inference occurred in R003."
+}

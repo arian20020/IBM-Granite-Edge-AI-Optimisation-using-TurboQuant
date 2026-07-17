@@ -1,16 +1,12 @@
-﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
-# Requirements and Scope Change Log
+# Project Change Log
 
-> This starter snapshot was generated from the uploaded RTM workbook. Keep the workbook as the authoritative status/statistics source and update this Markdown file when a reviewed change is accepted.
+The authoritative requirements and scope history is:
 
-| Date | Change ID | Description | Reason | Affected IDs | Decision / Status | Approved By | Evidence / Link |
-|---|---|---|---|---|---|---|---|
-| 2026-07-11 | CHG-001 | Imported MoSCoW Requirements Baseline v1.1. | Create the first controlled requirements catalogue. | All v1.1 IDs | Recorded | Project developer | SRC-01 |
-| 2026-07-13 | CHG-002 | Promoted controlled model download, streaming/two-turn chat, CLI adapter and GGUF processing into Must scope. | Align requirements with the agreed aim, objectives and first-release scope. | F-M16â€“F-M24 and superseded v1.1 IDs | Draft â€” supervisor approval required | Pending | Project Definition v1 draft |
-| 2026-07-13 | CHG-003 | Added an app-integrated TurboQuant Must Have with dependable upstream fallback. | TurboQuant must run through the application while remaining labelled Experimental. | F-M21; F-M22; N-M11 | Draft â€” supervisor approval required | Pending | Project Definition Â§5.2.11 |
-| 2026-07-13 | CHG-004 | Added bounded TurboVec knowledge-file/vector/retrieval scope. | User confirmed TurboVec as part of the intended release; exact implementation is still gated. | F-M25â€“F-M27; R-M02; R-M13 | Draft â€” technical and supervisor gate required | Pending | Project Definition Â§5.2.17 |
-| 2026-07-13 | CHG-005 | Created Excel master RTM and GitHub Markdown snapshot. | Close the highest-priority traceability gap. | G-M03; PD-04 | In progress | Project developer | This workbook and Markdown file |
+- [`../change-control/Requirements-and-Scope-Change-Log.md`](../change-control/Requirements-and-Scope-Change-Log.md)
+- [`../change-control/Change-Request-and-Decision-Register.md`](../change-control/Change-Request-and-Decision-Register.md)
 
-## Update rule
+The first-release boundary was frozen through **CHG-013 / CR-013** on **14 July 2026** by **Arian B** as the developer-approved working baseline. Supervisor review remains pending and is not claimed.
 
-For each material change, record the date, reason, affected requirements/work packages, schedule and risk effect, approval/decision, superseded IDs and evidence link.
+The requirements catalogue presentation was reorganised through **CHG-014 / CR-014** on **14 July 2026**. Functional, Non-Functional, Research, Governance and Exclusion requirements now have separate workbook sheets and repository catalogues. This is a presentation-only change and does not alter scope, priorities, lifecycle states, acceptance criteria or traceability.
+
+The evidence records and repository links were corrected through **CHG-015 / CR-015** on **14 July 2026**. G-M02, PD-04, EP-004, EP-005 and EP-006 now follow the common Evidence Record Template, the evidence indexes list the completed packs, and broken direct links to the absent workbook binary were replaced by `ART-RTM-XLSX-001`. The exact workbook remains independently controlled by filename, size, package and SHA-256 until direct binary Git placement is completed.

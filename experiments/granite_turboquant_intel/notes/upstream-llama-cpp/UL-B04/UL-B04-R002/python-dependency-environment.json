@@ -1,0 +1,9 @@
+{
+    "schema_version":  "1.0",
+    "purpose":  "Provide Jinja2 for test-jinja-py.",
+    "virtual_environment":  "C:\\Users\\Student\\gtq-venvs\\llama-b9870-tests-R002",
+    "python_executable":  "C:\\Users\\Student\\gtq-venvs\\llama-b9870-tests-R002\\Scripts\\python.exe",
+    "python_version":  "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+    "jinja2_version":  "3.1.6",
+    "source_requirement":  "scripts/jinja/requirements.txt at llama.cpp b9870"
+}

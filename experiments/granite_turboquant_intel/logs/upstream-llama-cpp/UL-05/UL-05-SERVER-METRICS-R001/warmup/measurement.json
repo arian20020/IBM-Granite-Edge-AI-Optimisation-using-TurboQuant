@@ -1,0 +1,11 @@
+{
+  "exit_code": 0,
+  "kv_mb": 170.0,
+  "missing": [],
+  "peak_ram_mb": 3678.55859375,
+  "request_error": null,
+  "sample_id": "UL-05-warmup",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 979.148,
+  "valid": true
+}

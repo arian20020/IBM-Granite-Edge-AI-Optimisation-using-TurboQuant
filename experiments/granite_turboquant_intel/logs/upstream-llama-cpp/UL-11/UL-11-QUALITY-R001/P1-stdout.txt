@@ -1,0 +1,36 @@
+
+Loading model... 
+
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-2d97363
+model      : C:\Users\Student\experiments\granite_turboquant_intel\models\granite-4.1-8b\q4_k_m\granite-4.1-8b-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+> Explain why KV-cache quantisation can help a local language model run offline on a memory-limited laptop. Use exactly five bullet points and fewer than 90 words in total. Include the exact terms 'KV cache', 'offline', and 'memory'. Give two benefits, two limitations, and one check the user should perform.
+
+- **KV cache** reduces memory usage by storing key-value pairs efficiently.  
+- Enables **offline** operation by minimizing data loading needs.  
+- **Benefit:** Faster inference due to reduced data retrieval.  
+- **Limitation:** Quantisation may degrade model accuracy.  
+- **Check:** Verify quantisation levels maintain acceptable performance.
+
+[ Prompt: 21.9 t/s | Generation: 6.3 t/s ]
+
+Exiting...

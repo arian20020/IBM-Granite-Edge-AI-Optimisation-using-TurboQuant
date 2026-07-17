@@ -1,0 +1,26 @@
+{
+  "measurement_revision": "R001",
+  "method": {
+    "warmups_per_row": 1,
+    "recorded_samples_per_row": 3,
+    "aggregation": "median of exactly three valid samples",
+    "peak_ram_mb": "maximum Windows process-tree physical working set sampled at 100 ms intervals",
+    "kv_mb": "deduplicated llama runtime KV allocation groups",
+    "ttft_ms": "HTTP request initiation to first streamed generated token after llama-server reports ready; tokenization and prefill included, model load excluded"
+  },
+  "rows": {
+    "UL-01": {"peak_ram_mb": 936.00, "kv_mb": 26.0, "ttft_ms": 602.9852},
+    "UL-02": {"peak_ram_mb": 6712.36, "kv_mb": 160.0, "ttft_ms": 1430.2001},
+    "UL-03": {"peak_ram_mb": 3829.81, "kv_mb": 320.0, "ttft_ms": 2394.2935},
+    "UL-04": {"peak_ram_mb": 3828.79, "kv_mb": 320.0, "ttft_ms": 945.6951},
+    "UL-05": {"peak_ram_mb": 3678.64, "kv_mb": 170.0, "ttft_ms": 939.5772},
+    "UL-06": {"peak_ram_mb": 8879.95, "kv_mb": 320.0, "ttft_ms": 7246.1296},
+    "UL-07": {"peak_ram_mb": 9251.02, "kv_mb": 640.0, "ttft_ms": 3172.4011},
+    "UL-08": {"peak_ram_mb": 8950.21, "kv_mb": 340.0, "ttft_ms": 2978.7173},
+    "UL-09": {"peak_ram_mb": 2558.20, "kv_mb": 170.0, "ttft_ms": 1677.2991},
+    "UL-10": {"peak_ram_mb": 4345.35, "kv_mb": 170.0, "ttft_ms": 1044.0224},
+    "UL-11": {"peak_ram_mb": 5773.38, "kv_mb": 340.0, "ttft_ms": 3339.7796},
+    "UL-12": {"peak_ram_mb": 10308.56, "kv_mb": 340.0, "ttft_ms": 2492.2619},
+    "UL-13": {"peak_ram_mb": 5274.96, "kv_mb": 170.0, "ttft_ms": 2314.2572}
+  }
+}

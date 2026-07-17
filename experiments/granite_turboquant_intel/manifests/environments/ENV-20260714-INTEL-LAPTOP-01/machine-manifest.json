@@ -1,0 +1,83 @@
+{
+    "schema_version":  "1.0",
+    "environment_id":  "ENV-20260714-INTEL-LAPTOP-01",
+    "captured_at_utc":  "2026-07-14T18:18:45.6718977Z",
+    "captured_at_local":  "2026-07-14T19:18:45.6718977+01:00",
+    "timezone":  "GMT Standard Time",
+    "machine":  {
+                    "name":  "LENOVO-PF4HMD0T",
+                    "role":  "target-windows-intel-laptop",
+                    "manufacturer":  "LENOVO",
+                    "model":  "83ER",
+                    "windows_caption":  "Microsoft Windows 11 Home",
+                    "windows_version":  "10.0.26200",
+                    "windows_build":  "26200",
+                    "architecture":  "64-bit"
+                },
+    "cpu":  [
+                {
+                    "model":  "12th Gen Intel(R) Core(TM) i5-12450H",
+                    "physical_cores":  8,
+                    "logical_processors":  12,
+                    "max_clock_mhz":  2000
+                }
+            ],
+    "gpu":  [
+                {
+                    "model":  "Intel(R) UHD Graphics",
+                    "driver":  "32.0.101.7076",
+                    "adapter_ram_bytes":  2147479552,
+                    "status":  "OK"
+                }
+            ],
+    "memory":  {
+                   "installed_ram_bytes":  16857817088,
+                   "available_ram_at_capture_bytes":  9578672128
+               },
+    "storage":  {
+                    "volume":  "C:",
+                    "free_bytes":  283350065152,
+                    "size_bytes":  511143047168
+                },
+    "operating_conditions":  {
+                                 "power_mode":  "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+                                 "power_source":  "AC mains",
+                                 "thermal_state":  "Not measured - no dependable cross-device Windows sensor used",
+                                 "background_load_notes":  "See environment-review.txt; close nonessential applications before measured runs."
+                             },
+    "toolchain":  {
+                      "git":  "git version 2.53.0.windows.3",
+                      "cmake":  "",
+                      "ninja":  "",
+                      "python":  "Python 3.11.9",
+                      "powershell":  "5.1.26100.8655",
+                      "cl":  ""
+                  },
+    "capture_files":  [
+                          "machine-manifest.json",
+                          "Get-ComputerInfo.txt"
+                      ],
+    "review_required":  [
+
+                        ],
+    "notes":  "",
+    "npu_review":  {
+                       "detected":  true,
+                       "devices":  [
+                                       {
+                                           "status":  "OK",
+                                           "class":  "HIDClass",
+                                           "name":  "Microsoft Input Configuration Device",
+                                           "instance_id":  "HID\\SYNA2BA6\u0026COL03\\5\u0026361BA749\u00260\u00260002"
+                                       }
+                                   ]
+                   },
+    "graphics_memory_review":  "Shared-memory usage will be measured during Vulkan/SYCL runs; no unsupported fixed value is claimed.",
+    "deferred_route_specific_versions":  [
+                                             "Vulkan SDK/driver before UL-B05",
+                                             "oneAPI/SYCL/Level Zero before UL-B06",
+                                             "OpenVINO packages before the official OpenVINO route"
+                                         ],
+    "review_completed_at_utc":  "2026-07-14T18:33:10.2555688Z",
+    "review_completed_at_local":  "2026-07-14T19:33:10.2555688+01:00"
+}

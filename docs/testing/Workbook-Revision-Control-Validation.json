@@ -1,0 +1,275 @@
+{
+  "timestamp_utc": "2026-07-14T00:00:00Z",
+  "branch": "docs/workbook-revision-control",
+  "pull_request": "#8",
+  "checks": [
+    {
+      "name": "revision_register_rows",
+      "passed": true,
+      "detail": "15/15"
+    },
+    {
+      "name": "current_revision_rows",
+      "passed": true,
+      "detail": "6/6"
+    },
+    {
+      "name": "manifest_rows",
+      "passed": true,
+      "detail": "6/6"
+    },
+    {
+      "name": "WB-01_history_rows",
+      "passed": true,
+      "detail": "2/2"
+    },
+    {
+      "name": "WB-01_current_version",
+      "passed": true,
+      "detail": "1.1"
+    },
+    {
+      "name": "WB-01_pending_merge_gate",
+      "passed": true,
+      "detail": "docs/workbook-revision-control; #8; Pending merge"
+    },
+    {
+      "name": "WB-01_template_hash",
+      "passed": true,
+      "detail": "232ca9473c36610559bf35753ed5a64728b0c4406ee9f79e73db3f255d9c202f"
+    },
+    {
+      "name": "WB-01_docx_hash",
+      "passed": true,
+      "detail": "b29721a3ee6b6e5148e3017b9849fc7a0bb339114d59fb3705d4d4f2392037a5"
+    },
+    {
+      "name": "WB-01_docx_package",
+      "passed": true,
+      "detail": "valid"
+    },
+    {
+      "name": "WB-01_embedded_history",
+      "passed": true,
+      "detail": "2/2"
+    },
+    {
+      "name": "WB-01_visible_version",
+      "passed": true,
+      "detail": "01 Upstream llama.cpp Controlled Retest Workbook v1.1"
+    },
+    {
+      "name": "WB-02_history_rows",
+      "passed": true,
+      "detail": "2/2"
+    },
+    {
+      "name": "WB-02_current_version",
+      "passed": true,
+      "detail": "1.1"
+    },
+    {
+      "name": "WB-02_pending_merge_gate",
+      "passed": true,
+      "detail": "docs/workbook-revision-control; #8; Pending merge"
+    },
+    {
+      "name": "WB-02_template_hash",
+      "passed": true,
+      "detail": "b26c1c67f26feb3038b3a2f29b3c088eec13421ec61a0a7c42f282404df7e1f1"
+    },
+    {
+      "name": "WB-02_docx_hash",
+      "passed": true,
+      "detail": "f1fbce66cf9465ce835dd1b6c4eee9f9ef0c201071a76170e30d26883aca08fa"
+    },
+    {
+      "name": "WB-02_docx_package",
+      "passed": true,
+      "detail": "valid"
+    },
+    {
+      "name": "WB-02_embedded_history",
+      "passed": true,
+      "detail": "2/2"
+    },
+    {
+      "name": "WB-02_visible_version",
+      "passed": true,
+      "detail": "02 AtomicBot TurboQuant Controlled Retest Workbook v1.1"
+    },
+    {
+      "name": "WB-03_history_rows",
+      "passed": true,
+      "detail": "2/2"
+    },
+    {
+      "name": "WB-03_current_version",
+      "passed": true,
+      "detail": "1.1"
+    },
+    {
+      "name": "WB-03_pending_merge_gate",
+      "passed": true,
+      "detail": "docs/workbook-revision-control; #8; Pending merge"
+    },
+    {
+      "name": "WB-03_template_hash",
+      "passed": true,
+      "detail": "63c55ad627e69a002b6e74c2323cf11d193a02c183c6b8cf5b6565210b28a63e"
+    },
+    {
+      "name": "WB-03_docx_hash",
+      "passed": true,
+      "detail": "542b551cf2c4ea7087423bc5eaf2561b0dbf6bdbb39b66ab2f9ccb7529a814e6"
+    },
+    {
+      "name": "WB-03_docx_package",
+      "passed": true,
+      "detail": "valid"
+    },
+    {
+      "name": "WB-03_embedded_history",
+      "passed": true,
+      "detail": "2/2"
+    },
+    {
+      "name": "WB-03_visible_version",
+      "passed": true,
+      "detail": "03 animehacker TQ3 0 Controlled Retest Workbook v1.1"
+    },
+    {
+      "name": "WB-04_history_rows",
+      "passed": true,
+      "detail": "3/3"
+    },
+    {
+      "name": "WB-04_current_version",
+      "passed": true,
+      "detail": "1.2"
+    },
+    {
+      "name": "WB-04_pending_merge_gate",
+      "passed": true,
+      "detail": "docs/workbook-revision-control; #8; Pending merge"
+    },
+    {
+      "name": "WB-04_template_hash",
+      "passed": true,
+      "detail": "097ab019e248188d468ec701d57f397063eca2c42c8fe72f71ffdaa82ecdf26e"
+    },
+    {
+      "name": "WB-04_docx_hash",
+      "passed": true,
+      "detail": "3d200fcf76332912a232dd180d4068e94612f9a8b7ab20d3913c8457193e7409"
+    },
+    {
+      "name": "WB-04_docx_package",
+      "passed": true,
+      "detail": "valid"
+    },
+    {
+      "name": "WB-04_embedded_history",
+      "passed": true,
+      "detail": "3/3"
+    },
+    {
+      "name": "WB-04_visible_version",
+      "passed": true,
+      "detail": "04 Official OpenVINO Controlled Retest Workbook v1.2"
+    },
+    {
+      "name": "WB-05_history_rows",
+      "passed": true,
+      "detail": "3/3"
+    },
+    {
+      "name": "WB-05_current_version",
+      "passed": true,
+      "detail": "1.2"
+    },
+    {
+      "name": "WB-05_pending_merge_gate",
+      "passed": true,
+      "detail": "docs/workbook-revision-control; #8; Pending merge"
+    },
+    {
+      "name": "WB-05_template_hash",
+      "passed": true,
+      "detail": "b91af6ce26f19b019d514aee0d5b71ad8fc3bd95921de69757fa9552f6876d42"
+    },
+    {
+      "name": "WB-05_docx_hash",
+      "passed": true,
+      "detail": "8a4d383e4629bbfa2bd9702bf2e4b99163a2ce52be8643dce456180e72c15048"
+    },
+    {
+      "name": "WB-05_docx_package",
+      "passed": true,
+      "detail": "valid"
+    },
+    {
+      "name": "WB-05_embedded_history",
+      "passed": true,
+      "detail": "3/3"
+    },
+    {
+      "name": "WB-05_visible_version",
+      "passed": true,
+      "detail": "05 Custom OpenVINO TurboQuant Controlled Retest Workbook v1.2"
+    },
+    {
+      "name": "WB-06_history_rows",
+      "passed": true,
+      "detail": "3/3"
+    },
+    {
+      "name": "WB-06_current_version",
+      "passed": true,
+      "detail": "1.2"
+    },
+    {
+      "name": "WB-06_pending_merge_gate",
+      "passed": true,
+      "detail": "docs/workbook-revision-control; #8; Pending merge"
+    },
+    {
+      "name": "WB-06_template_hash",
+      "passed": true,
+      "detail": "fd652fcae5adc28be74745dffbec937eaf419997fffa2a2d30d4c210751584f9"
+    },
+    {
+      "name": "WB-06_docx_hash",
+      "passed": true,
+      "detail": "1698eef4407c67b7dd8c8c4dc913005257d99348309ac27b2b76c96bcefb41a8"
+    },
+    {
+      "name": "WB-06_docx_package",
+      "passed": true,
+      "detail": "valid"
+    },
+    {
+      "name": "WB-06_embedded_history",
+      "passed": true,
+      "detail": "3/3"
+    },
+    {
+      "name": "WB-06_visible_version",
+      "passed": true,
+      "detail": "06 Cross Route Controlled Comparison Workbook v1.2"
+    },
+    {
+      "name": "deterministic_regeneration",
+      "passed": true,
+      "detail": "all six DOCX files matched a separate generation run byte-for-byte"
+    },
+    {
+      "name": "rendered_visual_review",
+      "passed": true,
+      "detail": "46/46 pages inspected; page counts 6, 8, 5, 9, 11 and 7"
+    }
+  ],
+  "errors": [],
+  "passed": true,
+  "boundary": "This validates workbook change control and document generation. It does not prove any hardware, model, backend or codec test passed."
+}

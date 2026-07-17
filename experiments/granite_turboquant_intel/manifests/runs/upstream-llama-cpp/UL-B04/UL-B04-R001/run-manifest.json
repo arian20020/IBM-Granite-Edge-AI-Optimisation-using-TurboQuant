@@ -1,0 +1,124 @@
+{
+    "schema_version":  "1.0",
+    "campaign_id":  "GTQ-RETEST-v1",
+    "test_id":  "UL-B04",
+    "run_id":  "UL-B04-R001",
+    "route":  "upstream-llama-cpp",
+    "workbook_id":  "WB-01",
+    "run_purpose":  "Run the repository-provided tests for the corrected pinned upstream CPU Release build.",
+    "operator":  "Student",
+    "timestamps":  {
+                       "start_utc":  "2026-07-15T01:16:34.8148365+00:00",
+                       "end_utc":  "2026-07-15T01:17:41.7662362+00:00",
+                       "start_local":  "2026-07-15T02:16:34.8148365+01:00",
+                       "end_local":  "2026-07-15T02:17:41.7662362+01:00",
+                       "timezone":  "GMT Standard Time"
+                   },
+    "references":  {
+                       "environment_id":  "ENV-20260714-INTEL-LAPTOP-01",
+                       "repository_id":  "REPO-UPSTREAM-LLAMA-CPP-B9870",
+                       "build_id":  "BUILD-UL-CPU-B9870-002",
+                       "model_id":  "",
+                       "configuration_id":  "CONFIG-UPSTREAM-CPU-X64-002",
+                       "prompt_set_id":  "",
+                       "prompt_id":  "",
+                       "rubric_id":  ""
+                   },
+    "execution":  {
+                      "working_directory":  "C:\\Users\\Student\\gtq-build\\llama-b9870-cpu-release-002",
+                      "command_path":  "experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B04/UL-B04-R001/ctest-command.txt",
+                      "environment_variables_path":  "",
+                      "exit_code":  8,
+                      "requested_backend":  "CTest",
+                      "actual_backend":  "CTest against the pinned CPU Release build",
+                      "requested_device":  "Windows x64 host",
+                      "actual_device":  "Windows x64 host",
+                      "requested_offload":  "Not applicable",
+                      "actual_model_layer_placement":  "",
+                      "actual_kv_placement":  "",
+                      "k_cache_type":  "",
+                      "v_cache_type":  "",
+                      "optimisation_name":  "None",
+                      "optimisation_requested":  false,
+                      "optimisation_activated":  false,
+                      "activation_proof_path":  "",
+                      "silent_fallback_check":  "Not applicable",
+                      "fallback_observed":  false
+                  },
+    "generation":  {
+                       "seed":  null,
+                       "sampling_settings":  {
+
+                                             },
+                       "max_output_tokens":  0,
+                       "context_target_tokens":  0,
+                       "actual_input_tokens":  0,
+                       "actual_output_tokens":  0
+                   },
+    "correctness":  {
+                        "model_load_success":  false,
+                        "generation_success":  false,
+                        "output_completion_status":  "Repository test gate only",
+                        "deterministic_check_result":  "",
+                        "schema_or_format_valid":  "True",
+                        "required_facts_retained":  "",
+                        "unsupported_statements_count":  0,
+                        "long_context_result":  "",
+                        "multi_turn_result":  ""
+                    },
+    "performance":  {
+                        "model_load_time_ms":  null,
+                        "ttft_ms":  null,
+                        "prompt_processing_tokens_per_second":  null,
+                        "tpot_ms":  null,
+                        "decode_tokens_per_second":  null,
+                        "total_generation_time_ms":  null,
+                        "perplexity":  null
+                    },
+    "resources":  {
+                      "peak_working_set_bytes":  null,
+                      "peak_private_bytes":  null,
+                      "available_ram_before_bytes":  null,
+                      "minimum_available_ram_during_bytes":  null,
+                      "available_ram_after_bytes":  null,
+                      "kv_cache_allocated_bytes":  null,
+                      "gpu_dedicated_peak_bytes":  null,
+                      "gpu_shared_peak_bytes":  null,
+                      "cpu_mean_percent":  null,
+                      "cpu_peak_percent":  null,
+                      "gpu_engine_mean_percent":  null,
+                      "gpu_engine_peak_percent":  null
+                  },
+    "procedure":  {
+                      "pilot_warmup_or_measured":  "Repository test gate",
+                      "repetition_number":  1,
+                      "included_in_formal_statistics":  false
+                  },
+    "quality":  {
+                    "score_0_to_10":  null,
+                    "criterion_scores_path":  "",
+                    "repetition_corruption_or_truncation":  "",
+                    "stability_result":  ""
+                },
+    "evidence":  {
+                     "stdout_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B04/UL-B04-R001/ctest-stdout.txt",
+                     "stderr_path":  "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-B04/UL-B04-R001/ctest-stderr.txt",
+                     "raw_response_path":  "",
+                     "resource_samples_path":  "",
+                     "device_proof_path":  "",
+                     "processed_result_path":  "experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B04/UL-B04-R001/run-summary.json",
+                     "hash_manifest_path":  ""
+                 },
+    "classification":  {
+                           "result":  "Failed",
+                           "result_reason":  "Fifty-one of fifty-two repository tests passed. Only test-jinja-py failed because the selected Python environment could not import Jinja2.",
+                           "failure_ids":  [
+                                               "FAIL-UL-B04-R001-JINJA2-MISSING"
+                                           ],
+                           "missing_data_codes":  [
+
+                                                  ],
+                           "next_action":  "Install Jinja2 in an isolated Python environment and rerun the complete suite as UL-B04-R002."
+                       },
+    "notes":  "No native llama.cpp test, rebuild, model, or inference failure was observed."
+}

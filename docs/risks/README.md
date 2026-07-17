@@ -1,35 +1,75 @@
-﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # Risk, Assumption, Constraint and Licence Control
+
+**Document ID:** IDX-RACL-001  
+**Version:** 0.8  
+**Status:** Operational and Verified for `G-M05`, `PD-05` and `EP-007`  
+**Owner:** Arian B  
+**Effective date:** 2026-07-14  
+**Last reviewed:** 2026-07-15  
+**Next review:** Event-driven register reviews and final release-package review  
+**Related requirement:** `G-M05`  
+**Related work package:** `PD-05`  
+**Related engineering practice:** `EP-007`  
+**Related changes:** `CR-018` / `CHG-018`; `CR-019` / `CHG-019`  
+**Related reviews:** `RV-004`–`RV-008`
 
 ## Purpose
 
-Planned evidence location for requirement G-M05: The project must maintain a consolidated risk, assumption, constraint and licence register.
+This directory is the controlled home for project risks, assumptions, constraints and licence decisions.
 
-## What belongs here
+- A **risk** is an uncertain event that may affect the project.
+- An **assumption** is accepted for planning but requires evidence before confirmation.
+- A **constraint** is an approved boundary the project must work within.
+- A **licence record** controls how external material may be used, changed and distributed.
 
-- Risk/assumption/constraint/licence register.
-- Owner and current status.
-- Evidence/trigger and review date.
-- Mitigation and contingency outcome.
-- Evidence matching AC-G-M05.
-- Acceptance criteria: Each high risk has probability, impact, owner, trigger, validation, mitigation, contingency and status; assumptions are confirmed/rejected with evidence; licences are reviewed.
-- Verification method: Register audit
-- Evidence index or README linking the artefacts to the requirement.
+## Current release roles
 
-## Related IDs
+| Area | Current role |
+|---|---|
+| Windows 11 x64, Intel, IBM Granite, upstream llama.cpp and one verified Experimental TurboQuant route | Core |
+| OpenVINO | Should Have |
+| TurboVec | Later feasibility investigation; full integration deferred |
 
-G-M05
+## Authoritative records
 
-## Evidence rules
+| Record | File | Current state |
+|---|---|---|
+| Risks | [Risk Register](Risk-Register.md) | 254 identified items consolidated into 37 operational risks |
+| Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017` approved for planning; outcomes remain evidence-gated |
+| Constraints | [Constraint Register](Constraint-Register.md) | `C-001`–`C-015` approved Active |
+| Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-015` reviewed at source level; final package gate remains |
 
-- Folder creation is only preparation; it is not proof of completion.
-- Use stable requirement, work-package, test/evidence and research-question IDs.
-- Preserve raw evidence; derive processed results with version-controlled scripts.
-- Record dates, versions, hashes, units, actual device/backend state and failures where relevant.
-- Do not commit secrets, API keys, private personal data, large model weights or unlicensed material.
-- Prefer relative repository links so evidence remains usable after cloning.
+Supporting controls:
 
-## Source
+- [Control and Validation Plan](Control-and-Validation-Plan.md)
+- [Review Log](Review-Log.md)
+- [Cross-Register Validation Audit](Cross-Register-Validation-Audit.md)
+- [Licence Review Notes](Licence-Review-Notes.md)
+- [Risk Consolidation Map](Risk-Consolidation-Map.md)
 
-Repository evidence structure; RTM Planned Evidence Path
+Task evidence:
 
+- [G-M05](../evidence/requirements/G-M05/README.md)
+- [PD-05](../evidence/work-packages/PD-05/README.md)
+- [EP-007](../evidence/engineering-practices/EP-007/README.md)
+
+## Verified result
+
+`AUD-RACL-001` / `RV-008` and controlled RTM v1.3.1 confirm:
+
+- the four authoritative registers exist;
+- risk duplication was reduced without losing history;
+- High and Critical risks contain required treatment fields;
+- assumptions, constraints and licences have clear owners, outcomes and evidence gates;
+- no material cross-register contradiction prevents use;
+- `G-M05`, `PD-05` and `EP-007` are `Implemented / Validated / Verified`.
+
+Controlled workbook:
+
+- filename: `IXN_IBM_Granite_Requirements_Traceability_Matrix_v1.3.1_RACL_Validated.xlsx`;
+- SHA-256: `2414c6790c2815a75edfcab0c9f35462dd334fe14d8c16e9810e80261f098e96`;
+- size: 120,290 bytes.
+
+## Continuing controls
+
+Continue event-driven assumption validation, constraint-compliance checks, risk-treatment review and final release-package licensing. These are ongoing project controls and do not reopen the three Verified governance tasks unless new evidence invalidates the system.

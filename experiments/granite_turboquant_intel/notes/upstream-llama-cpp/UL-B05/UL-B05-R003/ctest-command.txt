@@ -1,0 +1,2 @@
+set PATH=C:\Users\Student\gtq-venvs\llama-b9870-tests-R002\Scripts;%PATH%
+"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir "C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001" -C Release --output-on-failure

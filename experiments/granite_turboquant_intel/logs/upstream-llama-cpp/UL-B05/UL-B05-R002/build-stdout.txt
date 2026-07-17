@@ -1,0 +1,1180 @@
+MSBuild version 18.7.8+1ac568fee for .NET Framework
+
+  Checking File Globs
+  1>Checking Build System
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  1>Creating directories for 'vulkan-shaders-gen'
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/ui/CMakeLists.txt
+  No download step for 'vulkan-shaders-gen'
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/ggml-vulkan/CMakeLists.txt
+  No update step for 'vulkan-shaders-gen'
+  No patch step for 'vulkan-shaders-gen'
+  Performing configure step for 'vulkan-shaders-gen'
+  -- Selecting Windows SDK version 10.0.28000.0 to target Windows 10.0.26200.
+  sha1.c
+  embed.cpp
+  sha256.c
+  xxhash.c
+  xxhash.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\gguf-hash\xxhash.dir\Release\xxhash.lib
+  sha1.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\gguf-hash\sha1.dir\Release\sha1.lib
+  sha256.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\gguf-hash\sha256.dir\Release\sha256.lib
+  llama-ui-embed.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\ui\Release\llama-ui-embed.exe
+  1>Provisioning UI assets
+  CMake Warning at C:/Users/Student/gtq-src/llama-b9870-R004/scripts/ui-assets.cmake:353 (message):
+    UI: no assets available - building without an embedded UI.  In a
+    disconnected environment, download the pre-built UI from a llama.cpp
+    release at https://github.com/ggml-org/llama.cpp/releases and extract to
+    tools/ui/dist.
+  
+  
+  -- The C compiler identification is MSVC 19.51.36248.0
+  embed: write output file C:/Users/Student/gtq-build/llama-b9870-vulkan-release-001/tools/ui/ui.h
+  embed: write output file C:/Users/Student/gtq-build/llama-b9870-vulkan-release-001/tools/ui/ui.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/ui/CMakeLists.txt
+  -- The CXX compiler identification is MSVC 19.51.36248.0
+  -- Detecting C compiler ABI info
+  -- Detecting C compiler ABI info - done
+  -- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe - skipped
+  -- Detecting C compile features
+  -- Detecting C compile features - done
+  -- Detecting CXX compiler ABI info
+  -- Detecting CXX compiler ABI info - done
+  -- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe - skipped
+  -- Detecting CXX compile features
+  -- Detecting CXX compile features - done
+  -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+  -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+  -- Looking for pthread_create in pthreads
+  -- Looking for pthread_create in pthreads - not found
+  -- Looking for pthread_create in pthread
+  -- Looking for pthread_create in pthread - not found
+  -- Found Threads: TRUE
+  -- Enabling coopmat glslc support
+  -- Enabling coopmat2 glslc support
+  -- Enabling dot glslc support
+  -- Enabling bfloat16 glslc support
+  -- Configuring done (16.9s)
+  -- Generating done (0.1s)
+CUSTOMBUILD : CMake warning :  [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\vulkan-shaders-gen.vcxproj]
+    Manually-specified variables were not used by the project:
+  
+      CMAKE_BUILD_TYPE
+  
+  -- Build files have been written to: C:/Users/Student/gtq-build/llama-b9870-vulkan-release-001/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build
+  
+  Performing build step for 'vulkan-shaders-gen'
+  MSBuild version 18.7.8+1ac568fee for .NET Framework
+  
+    1>Checking Build System
+    Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/ggml-vulkan/vulkan-shaders/CMakeLists.txt
+    vulkan-shaders-gen.cpp
+    vulkan-shaders-gen.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\vulkan-shaders-gen-prefix\src\vulkan-shaders-gen-build\Release\vulkan-shaders-gen.exe
+    Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/ggml-vulkan/vulkan-shaders/CMakeLists.txt
+  Performing install step for 'vulkan-shaders-gen'
+  -- Installing: C:/Users/Student/gtq-build/llama-b9870-vulkan-release-001/Release/./vulkan-shaders-gen.exe
+  Completed 'vulkan-shaders-gen'
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/vendor/cpp-httplib/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/common/CMakeLists.txt
+cl : command line  warning D9025: overriding '/W1' with '/w' [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\vendor\cpp-httplib\cpp-httplib.vcxproj]
+  httplib.cpp
+  build-info.cpp
+  ggml.c
+  ggml-alloc.c
+  ggml.cpp
+  ggml-backend.cpp
+  ggml-backend-meta.cpp
+  ggml-opt.cpp
+  ggml-threading.cpp
+  ggml-quants.c
+  gguf.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  deprecation-warning.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  deprecation-warning.cpp
+  llama-common-base.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\common\Release\llama-common-base.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  deprecation-warning.cpp
+  llama-llava-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-llava-cli.exe
+  deprecation-warning.cpp
+  llama-gemma3-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-gemma3-cli.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/ui/CMakeLists.txt
+  llama-minicpmv-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-minicpmv-cli.exe
+  ui.cpp
+  llama-qwen2vl-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-qwen2vl-cli.exe
+  ggml-base.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\Release\ggml-base.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/CMakeLists.txt
+  2>Generate vulkan shaders for contig_copy.comp
+  1>Generate vulkan shaders header
+  6>Generate vulkan shaders for flash_attn_mask_opt.comp
+  4>Generate vulkan shaders for dequant_iq4_nl.comp
+  7>Generate vulkan shaders for im2col.comp
+  5>Generate vulkan shaders for dequant_q5_1.comp
+  llama-ui.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\ui\Release\llama-ui.lib
+  1>Generate vulkan shaders for acc.comp
+  7>Generate vulkan shaders for im2col_3d.comp
+  1>Generate vulkan shaders for add.comp
+  4>Generate vulkan shaders for dequant_iq4_xs.comp
+  2>Generate vulkan shaders for conv2d_dw.comp
+  5>Generate vulkan shaders for dequant_q5_k.comp
+  6>Generate vulkan shaders for flash_attn_split_k_reduce.comp
+  7>Generate vulkan shaders for l2_norm.comp
+  4>Generate vulkan shaders for dequant_mxfp4.comp
+  1>Generate vulkan shaders for add1.comp
+  5>Generate vulkan shaders for dequant_q6_k.comp
+  2>Generate vulkan shaders for conv2d_mm.comp
+  6>Generate vulkan shaders for fwht.comp
+  7>Generate vulkan shaders for log.comp
+  4>Generate vulkan shaders for dequant_nvfp4.comp
+  5>Generate vulkan shaders for dequant_q8_0.comp
+  1>Generate vulkan shaders for add_id.comp
+  6>Generate vulkan shaders for gated_delta_net.comp
+  2>Generate vulkan shaders for conv3d_mm.comp
+  7>Generate vulkan shaders for mul.comp
+  4>Generate vulkan shaders for dequant_q1_0.comp
+  6>Generate vulkan shaders for geglu.comp
+  1>Generate vulkan shaders for arange.comp
+  5>Generate vulkan shaders for diag.comp
+  2>Generate vulkan shaders for conv_transpose_1d.comp
+  7>Generate vulkan shaders for mul_mat_split_k_reduce.comp
+  4>Generate vulkan shaders for dequant_q2_k.comp
+  6>Generate vulkan shaders for geglu_erf.comp
+  1>Generate vulkan shaders for argmax.comp
+  5>Generate vulkan shaders for diag_mask_inf.comp
+  2>Generate vulkan shaders for copy.comp
+  7>Generate vulkan shaders for mul_mat_vec.comp
+  6>Generate vulkan shaders for geglu_quick.comp
+  4>Generate vulkan shaders for dequant_q3_k.comp
+  5>Generate vulkan shaders for div.comp
+  1>Generate vulkan shaders for argsort.comp
+  1>Generate vulkan shaders for argsort_large.comp
+  2>Generate vulkan shaders for copy_from_quant.comp
+  4>Generate vulkan shaders for dequant_q4_0.comp
+  6>Generate vulkan shaders for get_rows.comp
+  5>Generate vulkan shaders for fill.comp
+  1>Generate vulkan shaders for col2im_1d.comp
+  2>Generate vulkan shaders for copy_to_quant.comp
+  3>Generate vulkan shaders for cumsum.comp
+  3>Generate vulkan shaders for cumsum_multipass1.comp
+  3>Generate vulkan shaders for cumsum_multipass2.comp
+  3>Generate vulkan shaders for dequant_f32.comp
+  3>Generate vulkan shaders for dequant_iq1_m.comp
+  3>Generate vulkan shaders for dequant_iq1_s.comp
+  3>Generate vulkan shaders for dequant_iq2_s.comp
+  3>Generate vulkan shaders for dequant_iq2_xs.comp
+  1>Generate vulkan shaders for concat.comp
+  5>Generate vulkan shaders for flash_attn.comp
+  3>Generate vulkan shaders for dequant_iq2_xxs.comp
+  4>Generate vulkan shaders for dequant_q4_1.comp
+  6>Generate vulkan shaders for get_rows_back.comp
+  12>Generate vulkan shaders for sum_rows.comp
+  12>Generate vulkan shaders for swiglu.comp
+  12>Generate vulkan shaders for swiglu_oai.comp
+  12>Generate vulkan shaders for timestep_embedding.comp
+  12>Generate vulkan shaders for topk_argsort.comp
+  12>Generate vulkan shaders for topk_moe.comp
+  12>Generate vulkan shaders for topk_nary_search.comp
+  12>Generate vulkan shaders for tri.comp
+  12>Generate vulkan shaders for unary.comp
+  2>Generate vulkan shaders for copy_transpose.comp
+  4>Generate vulkan shaders for dequant_q4_k.comp
+  2>Generate vulkan shaders for count_equal.comp
+  6>Generate vulkan shaders for get_rows_quant.comp
+  3>Generate vulkan shaders for dequant_iq3_s.comp
+  4>Generate vulkan shaders for dequant_q5_0.comp
+  9>Generate vulkan shaders for mul_mm.comp
+  5>Generate vulkan shaders for flash_attn_cm1.comp
+  2>Generate vulkan shaders for count_experts.comp
+  8>Generate vulkan shaders for mul_mat_vec_iq2_xxs.comp
+  8>Generate vulkan shaders for mul_mat_vec_iq3_s.comp
+  8>Generate vulkan shaders for mul_mat_vec_iq3_xxs.comp
+  8>Generate vulkan shaders for mul_mat_vec_nc.comp
+  8>Generate vulkan shaders for mul_mat_vec_p021.comp
+  8>Generate vulkan shaders for mul_mat_vec_q2_k.comp
+  8>Generate vulkan shaders for mul_mat_vec_q3_k.comp
+  8>Generate vulkan shaders for mul_mat_vec_q4_k.comp
+  8>Generate vulkan shaders for mul_mat_vec_q5_k.comp
+  10>Generate vulkan shaders for repeat.comp
+  10>Generate vulkan shaders for repeat_back.comp
+  10>Generate vulkan shaders for rms_norm.comp
+  10>Generate vulkan shaders for rms_norm_back.comp
+  10>Generate vulkan shaders for rms_norm_partials.comp
+  10>Generate vulkan shaders for roll.comp
+  10>Generate vulkan shaders for rope_multi.comp
+  10>Generate vulkan shaders for rope_neox.comp
+  10>Generate vulkan shaders for rope_norm.comp
+  10>Generate vulkan shaders for rope_vision.comp
+  11>Generate vulkan shaders for silu_back.comp
+  11>Generate vulkan shaders for snake.comp
+  11>Generate vulkan shaders for soft_max.comp
+  11>Generate vulkan shaders for soft_max_back.comp
+  11>Generate vulkan shaders for soft_max_large1.comp
+  11>Generate vulkan shaders for soft_max_large2.comp
+  11>Generate vulkan shaders for soft_max_large3.comp
+  11>Generate vulkan shaders for solve_tri.comp
+  11>Generate vulkan shaders for ssm_conv.comp
+  11>Generate vulkan shaders for ssm_scan.comp
+  11>Generate vulkan shaders for sub.comp
+  1>Generate vulkan shaders for wkv7.comp
+  10>Generate vulkan shaders for scale.comp
+  3>Generate vulkan shaders for dequant_iq3_xxs.comp
+  12>Generate vulkan shaders for upscale.comp
+  8>Generate vulkan shaders for mul_mat_vec_q6_k.comp
+  7>Generate vulkan shaders for mul_mat_vec_iq1_m.comp
+  cpp-httplib.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\vendor\cpp-httplib\Release\cpp-httplib.lib
+  5>Generate vulkan shaders for flash_attn_cm2.comp
+  6>Generate vulkan shaders for group_norm.comp
+  ggml-cpu.c
+  repack.cpp
+  hbm.cpp
+  quants.c
+  ggml-cpu.cpp
+  12>Generate vulkan shaders for wkv6.comp
+  traits.cpp
+  amx.cpp
+  mmq.cpp
+  binary-ops.cpp
+  unary-ops.cpp
+  8>Generate vulkan shaders for mul_mat_vecq.comp
+  vec.cpp
+  ops.cpp
+  7>Generate vulkan shaders for mul_mat_vec_iq1_s.comp
+  sgemm.cpp
+  repack.cpp
+  quants.c
+  7>Generate vulkan shaders for mul_mat_vec_iq2_s.comp
+  ggml-cpu.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\Release\ggml-cpu.lib
+  7>Generate vulkan shaders for mul_mat_vec_iq2_xs.comp
+  9>Generate vulkan shaders for mul_mm_cm2.comp
+  9>Generate vulkan shaders for mul_mmq.comp
+  9>Generate vulkan shaders for multi_add.comp
+  9>Generate vulkan shaders for norm.comp
+  9>Generate vulkan shaders for opt_step_adamw.comp
+  9>Generate vulkan shaders for opt_step_sgd.comp
+  9>Generate vulkan shaders for pad.comp
+  9>Generate vulkan shaders for pool2d.comp
+  9>Generate vulkan shaders for quantize_q8_1.comp
+  9>Generate vulkan shaders for reglu.comp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/ggml-vulkan/CMakeLists.txt
+  col2im_1d.comp.cpp
+  add.comp.cpp
+  argmax.comp.cpp
+  argsort.comp.cpp
+  acc.comp.cpp
+  add1.comp.cpp
+  argsort_large.comp.cpp
+  add_id.comp.cpp
+  concat.comp.cpp
+  contig_copy.comp.cpp
+  ggml-vulkan.cpp
+  arange.comp.cpp
+  conv3d_mm.comp.cpp
+  copy_transpose.comp.cpp
+  conv_transpose_1d.comp.cpp
+  conv2d_dw.comp.cpp
+  copy.comp.cpp
+  copy_from_quant.comp.cpp
+  copy_to_quant.comp.cpp
+  conv2d_mm.comp.cpp
+  cumsum_multipass2.comp.cpp
+  count_experts.comp.cpp
+  dequant_f32.comp.cpp
+  count_equal.comp.cpp
+  cumsum_multipass1.comp.cpp
+  cumsum.comp.cpp
+  dequant_iq1_m.comp.cpp
+  dequant_iq1_s.comp.cpp
+  dequant_iq2_xs.comp.cpp
+  dequant_iq2_s.comp.cpp
+  dequant_iq2_xxs.comp.cpp
+  dequant_iq3_s.comp.cpp
+  dequant_iq3_xxs.comp.cpp
+  dequant_iq4_nl.comp.cpp
+  dequant_iq4_xs.comp.cpp
+  dequant_mxfp4.comp.cpp
+  dequant_nvfp4.comp.cpp
+  dequant_q2_k.comp.cpp
+  dequant_q1_0.comp.cpp
+  dequant_q3_k.comp.cpp
+  dequant_q4_0.comp.cpp
+  dequant_q5_0.comp.cpp
+  dequant_q4_1.comp.cpp
+  dequant_q4_k.comp.cpp
+  dequant_q5_1.comp.cpp
+  dequant_q5_k.comp.cpp
+  dequant_q8_0.comp.cpp
+  dequant_q6_k.comp.cpp
+  diag.comp.cpp
+  diag_mask_inf.comp.cpp
+  div.comp.cpp
+  fill.comp.cpp
+  flash_attn.comp.cpp
+  flash_attn_cm1.comp.cpp
+  flash_attn_mask_opt.comp.cpp
+  flash_attn_cm2.comp.cpp
+  flash_attn_split_k_reduce.comp.cpp
+  fwht.comp.cpp
+  gated_delta_net.comp.cpp
+  geglu.comp.cpp
+  geglu_erf.comp.cpp
+  get_rows.comp.cpp
+  geglu_quick.comp.cpp
+  get_rows_back.comp.cpp
+  get_rows_quant.comp.cpp
+  group_norm.comp.cpp
+  im2col.comp.cpp
+  im2col_3d.comp.cpp
+  l2_norm.comp.cpp
+  log.comp.cpp
+  mul.comp.cpp
+  mul_mat_split_k_reduce.comp.cpp
+  mul_mat_vec.comp.cpp
+  mul_mat_vec_iq1_m.comp.cpp
+  mul_mat_vec_iq1_s.comp.cpp
+  mul_mat_vec_iq2_s.comp.cpp
+  mul_mat_vec_iq2_xs.comp.cpp
+  mul_mat_vec_iq2_xxs.comp.cpp
+  mul_mat_vec_iq3_s.comp.cpp
+  mul_mat_vec_iq3_xxs.comp.cpp
+  mul_mat_vec_nc.comp.cpp
+  mul_mat_vec_p021.comp.cpp
+  mul_mat_vec_q2_k.comp.cpp
+  mul_mat_vec_q4_k.comp.cpp
+  mul_mat_vec_q5_k.comp.cpp
+  mul_mat_vec_q3_k.comp.cpp
+  mul_mat_vec_q6_k.comp.cpp
+  mul_mat_vecq.comp.cpp
+  mul_mm.comp.cpp
+  mul_mm_cm2.comp.cpp
+  mul_mmq.comp.cpp
+  multi_add.comp.cpp
+  norm.comp.cpp
+  opt_step_adamw.comp.cpp
+  pad.comp.cpp
+  opt_step_sgd.comp.cpp
+  pool2d.comp.cpp
+  quantize_q8_1.comp.cpp
+  reglu.comp.cpp
+  repeat.comp.cpp
+  repeat_back.comp.cpp
+  rms_norm.comp.cpp
+  rms_norm_back.comp.cpp
+  rms_norm_partials.comp.cpp
+  roll.comp.cpp
+  rope_multi.comp.cpp
+  rope_neox.comp.cpp
+  rope_norm.comp.cpp
+  scale.comp.cpp
+  rope_vision.comp.cpp
+  silu_back.comp.cpp
+  snake.comp.cpp
+  soft_max_large1.comp.cpp
+  soft_max.comp.cpp
+  soft_max_back.comp.cpp
+  soft_max_large2.comp.cpp
+  solve_tri.comp.cpp
+  ssm_scan.comp.cpp
+  ssm_conv.comp.cpp
+  soft_max_large3.comp.cpp
+  sub.comp.cpp
+  sum_rows.comp.cpp
+  swiglu_oai.comp.cpp
+  swiglu.comp.cpp
+  timestep_embedding.comp.cpp
+  topk_argsort.comp.cpp
+  topk_moe.comp.cpp
+  topk_nary_search.comp.cpp
+  tri.comp.cpp
+  unary.comp.cpp
+  upscale.comp.cpp
+  wkv6.comp.cpp
+  wkv7.comp.cpp
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(5405,9): warning C4003: not enough arguments for function-like macro invocation 'IM2COL' [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(5659,13): warning C4003: not enough arguments for function-like macro invocation 'CREATE_CONVS' [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(8690,44): warning C4319: '~': zero extending '_Ty' to 'uint64_t' of greater size [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(8690,44): warning C4319:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(8690,44): warning C4319:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(8690,44): warning C4319:             _Ty=uint32_t [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(8690,44): warning C4319:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(9625,44): warning C4319: '~': zero extending '_Ty' to 'uint64_t' of greater size [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(9625,44): warning C4319:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(9625,44): warning C4319:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(9625,44): warning C4319:             _Ty=uint32_t [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(9625,44): warning C4319:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+C:\Users\Student\gtq-src\llama-b9870-R004\ggml\src\ggml-vulkan\ggml-vulkan.cpp(12461,32): warning C4319: '~': zero extending 'uint32_t' to 'size_t' of greater size [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\ggml-vulkan.vcxproj]
+  ggml-vulkan.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\ggml-vulkan\Release\ggml-vulkan.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/ggml/src/CMakeLists.txt
+  ggml-backend-dl.cpp
+  ggml-backend-reg.cpp
+  ggml.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\ggml\src\Release\ggml.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/src/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gguf-hash/CMakeLists.txt
+  gguf.cpp
+  gguf-hash.cpp
+  llama-arch.cpp
+  llama-graph.cpp
+  llama-cparams.cpp
+  llama-grammar.cpp
+  llama-context.cpp
+  llama-adapter.cpp
+  llama-hparams.cpp
+  llama-batch.cpp
+  llama.cpp
+  llama-chat.cpp
+  llama-io.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\memory(3666,56): warning C4244: 'argument': conversion from 'const int64_t' to 'uint32_t', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-graph.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\memory(3666,56):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-graph.cpp(2268,21):
+          see reference to function template instantiation 'std::unique_ptr<llm_graph_input_out_ids,std::default_delete<llm_graph_input_out_ids>> std::make_unique<llm_graph_input_out_ids,const llama_hparams&,const llama_cparams&,const int64_t&,0>(const llama_hparams &,const llama_cparams &,const int64_t &)' being compiled
+  
+  llama-impl.cpp
+  llama-gguf.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-gguf.exe
+  llama-gguf-hash.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-gguf-hash.exe
+  llama-kv-cache.cpp
+  llama-kv-cache-dsa.cpp
+  llama-kv-cache-iswa.cpp
+  llama-kv-cache-dsv4.cpp
+  llama-mmap.cpp
+  llama-memory-recurrent.cpp
+  llama-memory.cpp
+  llama-model-loader.cpp
+  llama-model-saver.cpp
+  llama-memory-hybrid-iswa.cpp
+  llama-memory-hybrid.cpp
+  llama-model.cpp
+  llama-sampler.cpp
+  llama-quant.cpp
+  llama-vocab.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244: 'initializing': conversion from '_Ty' to '_Ty2', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:             _Ty=int64_t [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         and [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:             _Ty2=uint32_t [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-model.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(525,29):
+          see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,int64_t,0>(_Other1,_Other2 &&) noexcept' being compiled
+          with
+          [
+              _Other1=const int64_t &,
+              _Other2=int64_t
+          ]
+              C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(525,21):
+              see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_424fd24dafc2802ed57b1a6a3a1c2e4b>::operator ()'
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244: 'initializing': conversion from 'const int64_t' to '_Ty2', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:             _Ty2=uint32_t [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-model.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(528,29):
+          see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,const int64_t&,0>(_Other1,_Other2) noexcept' being compiled
+          with
+          [
+              _Other1=const int64_t &,
+              _Other2=const int64_t &
+          ]
+              C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-model.cpp(528,21):
+              see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_424fd24dafc2802ed57b1a6a3a1c2e4b>::operator ()'
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\type_traits(1811,98): warning C4244: 'argument': conversion from 'unsigned __int64' to 'int', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\llama.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/src/llama-quant.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\type_traits(1811,98):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-quant.cpp(276,17):
+          see reference to function template instantiation 'std::thread &std::vector<std::thread,std::allocator<std::thread>>::emplace_back<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,uint8_t*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,uint8_t *&&,float *&&,size_t &)' being compiled
+              C:\Users\Student\gtq-src\llama-b9870-R004\src\llama-quant.cpp(276,29):
+              see the first reference to 'std::vector<std::thread,std::allocator<std::thread>>::emplace_back' in 'llama_tensor_dequantize_impl'
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(927,24):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=std::thread
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(847,20):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=std::thread
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(865,27):
+          see reference to function template instantiation 'void std::_Default_allocator_traits<_Alloc>::construct<_Ty,llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,unsigned char*,float*,size_t&>(_Alloc &,_Objty *const ,llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Alloc=std::allocator<std::thread>,
+              _Ty=std::thread,
+              _Objty=std::thread
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xmemory(732,82):
+          see reference to function template instantiation 'std::thread::thread<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,_Ty,float*,size_t&,0>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=uint8_t *,
+              _Fn=llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(93,9):
+          see reference to function template instantiation 'void std::thread::_Start<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>&,ggml_type&,_Ty,float*,size_t&>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)' being compiled
+          with
+          [
+              _Ty=uint8_t *,
+              _Fn=llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184> &
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(76,40):
+          see reference to function template instantiation 'unsigned int (__cdecl *std::thread::_Get_invoke<std::thread::_Start::_Tuple,0,1,2,3,4>(std::integer_sequence<size_t,0,1,2,3,4>) noexcept)(void *) noexcept' being compiled
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(67,17):
+          see reference to function template instantiation 'unsigned int std::thread::_Invoke<_Tuple,0,1,2,3,4>(void *) noexcept' being compiled
+          with
+          [
+              _Tuple=std::thread::_Start::_Tuple
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\thread(60,14):
+          see reference to function template instantiation 'void std::invoke<llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>,ggml_type,uint8_t*,_Ty*,unsigned __int64>(_Callable &&,_Ty1 &&,uint8_t *&&,_Ty *&&,unsigned __int64 &&) noexcept(false)' being compiled
+          with
+          [
+              _Ty=float,
+              _Callable=llama_tensor_dequantize_impl::<lambda_4220c00d3c0f3e8175cbc0c754507184>,
+              _Ty1=ggml_type
+          ]
+  
+  unicode-data.cpp
+  unicode.cpp
+  afmoe.cpp
+  arcee.cpp
+  apertus.cpp
+  arctic.cpp
+  arwkv7.cpp
+  baichuan.cpp
+  bailingmoe.cpp
+  bitnet.cpp
+  bert.cpp
+  bailingmoe2.cpp
+  bloom.cpp
+  chameleon.cpp
+  chatglm.cpp
+  codeshell.cpp
+  cogvlm.cpp
+  cohere2.cpp
+  cohere2moe.cpp
+  deci.cpp
+  command-r.cpp
+  dbrx.cpp
+  deepseek.cpp
+  deepseek32.cpp
+  deepseek2ocr.cpp
+  deepseek2.cpp
+  deepseek4.cpp
+  delta-net-base.cpp
+  dflash.cpp
+  dots1.cpp
+  ernie4-5-moe.cpp
+  eagle3.cpp
+  dream.cpp
+  ernie4-5.cpp
+  exaone-moe.cpp
+  exaone.cpp
+  eurobert.cpp
+  exaone4.cpp
+  falcon.cpp
+  falcon-h1.cpp
+  gemma.cpp
+  gemma-embedding.cpp
+  gemma2.cpp
+  gemma3.cpp
+  gemma3n.cpp
+  gemma4.cpp
+  gemma4-assistant.cpp
+  glm-dsa.cpp
+  glm4-moe.cpp
+  glm4.cpp
+  gpt2.cpp
+  gptneox.cpp
+  granite-hybrid.cpp
+  granite-moe.cpp
+  granite.cpp
+  grok.cpp
+  grovemoe.cpp
+  hunyuan-dense.cpp
+  hunyuan-vl.cpp
+  hunyuan-moe.cpp
+  internlm2.cpp
+  jais2.cpp
+  jamba.cpp
+  jais.cpp
+  jina-bert-v2.cpp
+  jina-bert-v3.cpp
+  kimi-linear.cpp
+  lfm2.cpp
+  lfm2moe.cpp
+  llada-moe.cpp
+  llada.cpp
+  llama.cpp
+  llama4.cpp
+  llama-embed.cpp
+  maincoder.cpp
+  mamba-base.cpp
+  mamba.cpp
+  mamba2.cpp
+  mellum.cpp
+  mimo2.cpp
+  minicpm.cpp
+  minicpm3.cpp
+  minimax-m2.cpp
+  mistral4.cpp
+  mistral3.cpp
+  modern-bert.cpp
+  mpt.cpp
+  nemotron-h-moe.cpp
+  nemotron-h.cpp
+  nemotron.cpp
+  neo-bert.cpp
+  nomic-bert-moe.cpp
+  nomic-bert.cpp
+  olmoe.cpp
+  olmo2.cpp
+  openai-moe.cpp
+  olmo.cpp
+  openelm.cpp
+  orion.cpp
+  paddleocr.cpp
+  pangu-embed.cpp
+  phi2.cpp
+  phi3.cpp
+  phimoe.cpp
+  plamo2.cpp
+  plamo.cpp
+  qwen.cpp
+  plamo3.cpp
+  plm.cpp
+  qwen2.cpp
+  qwen2moe.cpp
+  qwen2vl.cpp
+  qwen3.cpp
+  qwen35.cpp
+  qwen35moe.cpp
+  qwen3moe.cpp
+  qwen3vlmoe.cpp
+  refact.cpp
+  qwen3vl.cpp
+  qwen3next.cpp
+  rnd1.cpp
+  rwkv6-base.cpp
+  rwkv6.cpp
+  rwkv6qwen2.cpp
+  rwkv7-base.cpp
+  rwkv7.cpp
+  seed-oss.cpp
+  smallthinker.cpp
+  stablelm.cpp
+  starcoder.cpp
+  smollm3.cpp
+  starcoder2.cpp
+  step35.cpp
+  t5.cpp
+  t5encoder.cpp
+  talkie.cpp
+  wavtokenizer-dec.cpp
+  xverse.cpp
+  llama.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\src\Release\llama.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/simple-chat/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/common/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/simple/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  mtmd.cpp
+  simple.cpp
+  cogvlm.cpp
+  mtmd-audio.cpp
+  mtmd-image.cpp
+  dotsocr.cpp
+  clip.cpp
+  conformer.cpp
+  mtmd-helper.cpp
+  gemma4v.cpp
+  gemma4a.cpp
+  exaone4_5.cpp
+  test-c.c
+  simple-chat.cpp
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:             _Ty=double [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/tools/mtmd/mtmd-audio.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\mtmd-audio.cpp(321,18):
+          see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+          with
+          [
+              _Ty=float,
+              _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+          ]
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:             _Ty=int [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/tools/mtmd/mtmd-audio.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\mtmd-audio.cpp(405,14):
+          see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,int>(const _FwdIt,const _FwdIt,const int &)' being compiled
+          with
+          [
+              _Ty=float,
+              _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+          ]
+  
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:             _Ty=double [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24): warning C4244:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\mtmd.vcxproj]
+  (compiling source file '../../../gtq-src/llama-b9870-R004/tools/mtmd/clip.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(5604,24):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\tools\mtmd\clip.cpp(3916,38):
+          see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+          with
+          [
+              _Ty=float,
+              _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+          ]
+  
+  chat-auto-parser-helpers.cpp
+  test-c.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-c.exe
+  llama-simple.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-simple.exe
+  chat-auto-parser-generator.cpp
+  arg.cpp
+  chat-peg-parser.cpp
+  llama-simple-chat.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-simple-chat.exe
+  granite-speech.cpp
+  hf-cache.cpp
+  chat.cpp
+  gemma4uv.cpp
+  glm4v.cpp
+  fit.cpp
+  gemma4ua.cpp
+  download.cpp
+  chat-diff-analyzer.cpp
+  granite4-vision.cpp
+  minicpmv.cpp
+  json-schema-to-grammar.cpp
+  paddleocr.cpp
+  llama4.cpp
+  nemotron-v2-vl.cpp
+  imatrix-loader.cpp
+  kimik25.cpp
+  kimivl.cpp
+  debug.cpp
+  common.cpp
+  console.cpp
+  ngram-cache.cpp
+  qwen3vl.cpp
+  qwen3a.cpp
+  llguidance.cpp
+  llava.cpp
+  peg-parser.cpp
+  siglip.cpp
+  mimovl.cpp
+  step3vl.cpp
+  preset.cpp
+  ngram-map.cpp
+  deepseekocr2.cpp
+  deepseekocr.cpp
+  qwen2vl.cpp
+  whisper-enc.cpp
+  pixtral.cpp
+  yasa2.cpp
+  unicode.cpp
+  lexer.cpp
+  mobilenetv5.cpp
+  runtime.cpp
+  log.cpp
+  hunyuanvl.cpp
+  youtuvl.cpp
+  string.cpp
+  value.cpp
+  parser.cpp
+  speculative.cpp
+  caps.cpp
+  internvl.cpp
+  sampling.cpp
+  reasoning-budget.cpp
+  ngram-mod.cpp
+  mtmd.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\mtmd\Release\mtmd.lib
+  llama-common.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\common\Release\llama-common.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/batched-bench/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/speculative-simple/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/perplexity/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookahead/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/parser/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/diffusion/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/export-lora/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/idle/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/results/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/retrieval/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/tts/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/passkey/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/gen-docs/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/tokenize/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/pocs/vdot/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/eval-callback/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/gguf-split/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/lookup/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/quantize/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/parser/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/fit-params/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/debug/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/cvector-generator/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/speculative/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/batched/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/completion/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/embedding/CMakeLists.txt
+  cvector-generator.cpp
+  test-tokenizer-1-bpe.cpp
+  test-tokenizer-0.cpp
+  debug.cpp
+  speculative.cpp
+  lookup-merge.cpp
+  retrieval.cpp
+  batched.cpp
+  embedding.cpp
+  completion.cpp
+  test-reasoning-budget.cpp
+  get-model.cpp
+C:\Users\Student\gtq-src\llama-b9870-R004\tools\completion\completion.cpp(427,19): warning C4804: '>': unsafe use of type 'bool' in operation [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\completion\llama-completion-impl.vcxproj]
+  results.cpp
+  lookahead.cpp
+  perplexity.cpp
+  test-opt.cpp
+  get-model.cpp
+  test-tokenizer-1-bpe.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-tokenizer-1-bpe.exe
+  llama-retrieval.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-retrieval.exe
+  test-json-schema-to-grammar.cpp
+  get-model.cpp
+  export-lora.cpp
+  batched-bench.cpp
+  llama-cvector-generator.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-cvector-generator.exe
+  llama-embedding.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-embedding.exe
+  test-opt.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-opt.exe
+  get-model.cpp
+  test-sampling.cpp
+  llama-completion-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\completion\Release\llama-completion-impl.lib
+  llama-results.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-results.exe
+  test-reasoning-budget.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-reasoning-budget.exe
+  get-model.cpp
+  test-jinja.cpp
+  test-model-load-cancel.cpp
+  get-model.cpp
+  llama-perplexity-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\perplexity\Release\llama-perplexity-impl.lib
+  passkey.cpp
+  lookup-stats.cpp
+  llama-speculative.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-speculative.exe
+  test-chat-peg-parser.cpp
+  get-model.cpp
+  simple-tokenize.cpp
+  llama-debug.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-debug.exe
+  test-model-load-cancel.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-model-load-cancel.exe
+  test-barrier.cpp
+  get-model.cpp
+  llama-lookahead.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-lookahead.exe
+  diffusion.cpp
+  idle.cpp
+  lookup.cpp
+  llama-export-lora.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-export-lora.exe
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267: 'initializing': conversion from 'size_t' to '_Ty2', possible loss of data [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:         with [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:         [ [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:             _Ty2=int32_t [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\diffusion\llama-diffusion.vcxproj]
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54): warning C4267:         ] [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\diffusion\llama-diffusion.vcxproj]
+  (compiling source file '../../../../gtq-src/llama-b9870-R004/examples/diffusion/diffusion.cpp')
+      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\utility(277,54):
+      the template instantiation context (the oldest one first) is
+          C:\Users\Student\gtq-src\llama-b9870-R004\examples\diffusion\diffusion.cpp(339,33):
+          see reference to function template instantiation 'std::pair<float,int32_t> &std::vector<std::pair<float,int32_t>,std::allocator<std::pair<float,int32_t>>>::emplace_back<float&,size_t&>(float &,size_t &)' being compiled
+              C:\Users\Student\gtq-src\llama-b9870-R004\examples\diffusion\diffusion.cpp(339,45):
+              see the first reference to 'std::vector<std::pair<float,int32_t>,std::allocator<std::pair<float,int32_t>>>::emplace_back' in 'diffusion_generate'
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(927,24):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<float&,size_t&>(float &,size_t &)' being compiled
+          with
+          [
+              _Ty=std::pair<float,int32_t>
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(847,20):
+          see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<float&,size_t&>(float &,size_t &)' being compiled
+          with
+          [
+              _Ty=std::pair<float,int32_t>
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\vector(862,18):
+          see reference to function template instantiation 'void std::_Construct_in_place<std::pair<float,int32_t>,float&,size_t&>(_Ty &,float &,size_t &) noexcept' being compiled
+          with
+          [
+              _Ty=std::pair<float,int32_t>
+          ]
+          C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include\xutility(661,61):
+          see reference to function template instantiation 'std::pair<float,int32_t>::pair<float&,size_t&,0>(_Other1,_Other2) noexcept' being compiled
+          with
+          [
+              _Other1=float &,
+              _Other2=size_t &
+          ]
+  
+  test-barrier.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-barrier.exe
+  llama-batched-bench-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\batched-bench\Release\llama-batched-bench-impl.lib
+  test-export-graph-ops.cpp
+  tts.cpp
+  lookup-create.cpp
+  gen-docs.cpp
+  test-sampling.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-sampling.exe
+  get-model.cpp
+  test-arg-parser.cpp
+  llama-passkey.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-passkey.exe
+  test-alloc.cpp
+  get-model.cpp
+  test-json-schema-to-grammar.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-json-schema-to-grammar.exe
+  llama-lookup-stats.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-lookup-stats.exe
+  template-analysis.cpp
+  test-tokenizer-1-spm.cpp
+  test-alloc.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-alloc.exe
+  gguf-split.cpp
+  fit-params.cpp
+  llama-lookup.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-lookup.exe
+  test-export-graph-ops.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-export-graph-ops.exe
+  llama-diffusion.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\examples\diffusion\Release\llama-diffusion.lib
+  test-arg-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-arg-parser.exe
+  test-tokenizer-1-spm.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-tokenizer-1-spm.exe
+  test-save-load-state.cpp
+  get-model.cpp
+  llama-lookup-merge.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-lookup-merge.exe
+  llama-gguf-split.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-gguf-split.exe
+  get-model.cpp
+  llama-gen-docs.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-gen-docs.exe
+  test-quantize-fns.cpp
+  get-model.cpp
+  llama-idle.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-idle.exe
+  test-llama-archs.cpp
+  test-tokenizer-0.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-tokenizer-0.exe
+  test-gguf.cpp
+  get-model.cpp
+  tokenize.cpp
+  test-jinja.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-jinja.exe
+  test-chat-template.cpp
+  llama-lookup-create.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-lookup-create.exe
+C:\Users\Student\gtq-src\llama-b9870-R004\tests\test-gguf.cpp(676,28): warning C4319: '~': zero extending 'uint32_t' to 'size_t' of greater size [C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tests\test-gguf.vcxproj]
+  get-model.cpp
+  llama-fit-params-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\fit-params\Release\llama-fit-params-impl.lib
+  get-model.cpp
+  test-recurrent-state-rollback.cpp
+  get-model.cpp
+  test-chat-auto-parser.cpp
+  test-grammar-parser.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/convert-llama2c-to-ggml/CMakeLists.txt
+  test-save-load-state.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-save-load-state.exe
+  convert-llama2c-to-ggml.cpp
+  llama-tokenize.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-tokenize.exe
+  simple-tokenize.cpp
+  test-peg-parser.cpp
+  test-gguf.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-gguf.exe
+  test-json-serialization.cpp
+  llama-tts.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-tts.exe
+  test-json-parser.cpp
+  eval-callback.cpp
+  test-basic.cpp
+  test-unicode.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/llama-bench/CMakeLists.txt
+  get-model.cpp
+  test-chat-peg-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-chat-peg-parser.exe
+  llama-template-analysis.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-template-analysis.exe
+  llama-bench.cpp
+  test-grammar-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-grammar-parser.exe
+  llama-convert-llama2c-to-ggml.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-convert-llama2c-to-ggml.exe
+  test-llama-archs.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-llama-archs.exe
+  test-python-dict-parser.cpp
+  test-quantize-fns.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-quantize-fns.exe
+  llama-eval-callback.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-eval-callback.exe
+  test-gbnf-generation.cpp
+  debug-template-parser.cpp
+  test-log.cpp
+  test-quantize-perf.cpp
+  test-backend-ops.cpp
+  test-recurrent-state-rollback.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-recurrent-state-rollback.exe
+  speculative-simple.cpp
+  test-state-restore-fragmented.cpp
+  get-model.cpp
+  get-model.cpp
+  get-model.cpp
+  test-log.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-log.exe
+  test-chat-template.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-chat-template.exe
+  test-quantize-perf.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-quantize-perf.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/pocs/vdot/CMakeLists.txt
+  test-llama-grammar.cpp
+  get-model.cpp
+  q8dot.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/parallel/CMakeLists.txt
+  quantize.cpp
+  vdot.cpp
+  parallel.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/imatrix/CMakeLists.txt
+  test-peg-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-peg-parser.exe
+  llama-debug-template-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-debug-template-parser.exe
+  get-model.cpp
+  imatrix.cpp
+  test-backend-sampler.cpp
+  test-state-restore-fragmented.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-state-restore-fragmented.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/training/CMakeLists.txt
+  finetune.cpp
+  llama-bench-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\llama-bench\Release\llama-bench-impl.lib
+  test-llama-grammar.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-llama-grammar.exe
+  llama-q8dot.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-q8dot.exe
+  llama-vdot.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-vdot.exe
+  test-chat-auto-parser.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-chat-auto-parser.exe
+  test-gbnf-validator.cpp
+  test-col2im-1d.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/batched-bench/CMakeLists.txt
+  main.cpp
+  test-col2im-1d.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-col2im-1d.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/completion/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/perplexity/CMakeLists.txt
+  llama-quantize-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\quantize\Release\llama-quantize-impl.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/fit-params/CMakeLists.txt
+  main.cpp
+  main.cpp
+  test-gbnf-validator.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-gbnf-validator.exe
+  llama-parallel.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-parallel.exe
+  llama-speculative-simple.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-speculative-simple.exe
+  llama-batched-bench.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-batched-bench.exe
+  test-backend-sampler.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-backend-sampler.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/llama-bench/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  test-grammar-integration.cpp
+  get-model.cpp
+  test-quantize-stats.cpp
+  test-rope.cpp
+  get-model.cpp
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/examples/diffusion/CMakeLists.txt
+  llama-perplexity.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-perplexity.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/mtmd/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/server/CMakeLists.txt
+  llama-completion.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-completion.exe
+  test-thread-safety.cpp
+  get-model.cpp
+  get-model.cpp
+  test-autorelease.cpp
+  llama-finetune.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-finetune.exe
+  mtmd-debug.cpp
+  mtmd-cli.cpp
+  get-model.cpp
+  test-mtmd-c-api.c
+  server-chat.cpp
+  server-tools.cpp
+  server-common.cpp
+  server-context.cpp
+  llama-batched.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-batched.exe
+  test-mtmd-c-api.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-mtmd-c-api.exe
+  llama-imatrix.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-imatrix.exe
+  server-schema.cpp
+  server-stream.cpp
+  server-queue.cpp
+  test-rope.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-rope.exe
+  server-task.cpp
+  main.cpp
+  main.cpp
+  test-backend-ops.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-backend-ops.exe
+  test-thread-safety.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-thread-safety.exe
+  llama-mtmd-debug.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-mtmd-debug.exe
+  test-quantize-stats.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-quantize-stats.exe
+  llama-fit-params.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-fit-params.exe
+  test-autorelease.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-autorelease.exe
+  llama-mtmd-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-mtmd-cli.exe
+  test-grammar-integration.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-grammar-integration.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/quantize/CMakeLists.txt
+  diffusion-cli.cpp
+  llama-bench.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-bench.exe
+  main.cpp
+  llama-quantize.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-quantize.exe
+  llama-diffusion-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-diffusion-cli.exe
+  server-context.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\server\Release\server-context.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tests/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/server/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/cli/CMakeLists.txt
+  cli.cpp
+  server-http.cpp
+  test-chat.cpp
+  get-model.cpp
+  server-models.cpp
+  server.cpp
+  llama-cli-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\cli\Release\llama-cli-impl.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/cli/CMakeLists.txt
+  main.cpp
+  llama-cli.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-cli.exe
+  llama-server-impl.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\tools\server\Release\llama-server-impl.lib
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/tools/server/CMakeLists.txt
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/app/CMakeLists.txt
+  main.cpp
+  download.cpp
+  license.cpp
+  llama.cpp
+  llama-server.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama-server.exe
+  llama-app.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\llama.exe
+  test-chat.vcxproj -> C:\Users\Student\gtq-build\llama-b9870-vulkan-release-001\bin\Release\test-chat.exe
+  Building Custom Rule C:/Users/Student/gtq-src/llama-b9870-R004/CMakeLists.txt

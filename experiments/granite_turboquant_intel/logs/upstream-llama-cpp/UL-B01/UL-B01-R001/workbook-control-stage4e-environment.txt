@@ -1,0 +1,17 @@
+Stage: Workbook control PR-number synchronization Stage 4E
+Run ID: UL-B01-R001
+Failure ID: FAIL-CTRL-001
+Pull request: #21
+Pull-request state: Draft and open
+Branch: testing/workbook-control-baseline-repair
+Base commit: c8ef758be14d863e5fb49fd8e24d61821ace66ca
+Timestamp UTC: 2026-07-14T17:28:33.8543585Z
+Timestamp local: 2026-07-14T18:28:33.8543585+01:00
+External workspace: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage4e-20260714-182812
+Backup directory: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage4e-20260714-182812\backup
+
+Python version:
+Python 3.13.14
+
+Installed packages:
+lxml==6.1.1 python-docx==1.2.0 typing_extensions==4.16.0

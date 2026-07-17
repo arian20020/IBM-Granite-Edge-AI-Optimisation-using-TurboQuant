@@ -1,0 +1,15 @@
+Stage: Workbook control semantic correction Stage 4B
+Run ID: UL-B01-R001
+Failure ID: FAIL-CTRL-001
+Branch: testing/workbook-control-baseline-repair
+Base commit: 4bee757fb8ad40986df33df7e352526bfa4e7338
+Timestamp UTC: 2026-07-14T16:29:04.7619613Z
+Timestamp local: 2026-07-14T17:29:04.7649643+01:00
+External workspace: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage4b-20260714-172843
+Backup directory: C:\Users\Student\AppData\Local\GTQ-TestTools\workbook-stage4b-20260714-172843\backup
+
+Python version:
+Python 3.13.14
+
+Installed packages:
+lxml==6.1.1 python-docx==1.2.0 typing_extensions==4.16.0
