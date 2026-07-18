@@ -34,14 +34,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--include-guarded", action="store_true")
     parser.add_argument("--minimum-available-ram-mb", type=float, default=0)
     parser.add_argument("--pilot-only", action="store_true")
+    parser.add_argument("--measurement-tokens", type=int, default=16)
+    parser.add_argument("--ignore-eos", action="store_true")
     return parser.parse_args()
 
 
 def aggregate(samples: list[dict]) -> dict:
     fields = ("peak_ram_mb", "kv_mb", "ttft_ms")
-    return {field: {"median": statistics.median(sample[field] for sample in samples),
+    result = {field: {"median": statistics.median(sample[field] for sample in samples),
                     "min": min(sample[field] for sample in samples),
                     "max": max(sample[field] for sample in samples)} for field in fields}
+    for device in ("cpu_percent", "gpu_percent"):
+        values = [sample["utilization"][device][stat]
+                  for sample in samples if sample.get("utilization", {}).get(device)
+                  for stat in ("mean",)]
+        medians = [sample["utilization"][device]["median"] for sample in samples
+                   if sample.get("utilization", {}).get(device)]
+        peaks = [sample["utilization"][device]["peak"] for sample in samples
+                 if sample.get("utilization", {}).get(device)]
+        result[device] = {
+            "mean": statistics.fmean(values),
+            "median": statistics.median(medians),
+            "peak": max(peaks),
+            "sample_count": sum(sample["utilization"][device]["sample_count"]
+                                for sample in samples
+                                if sample.get("utilization", {}).get(device)),
+        } if values else None
+    return result
 
 
 def read_valid_measurement(path: Path) -> dict | None:
@@ -96,6 +115,11 @@ def main() -> int:
                            "--sample-id", f"{case.test_id}-{label}", "--port", str(port),
                            "--prompt", "Reply with OK only.", "--environment-json",
                            str(environment_path), "--timeout-seconds", "900", "--", *server_command]
+                marker = command.index("--")
+                command[marker:marker] = ["--measurement-tokens", str(args.measurement_tokens)]
+                if args.ignore_eos:
+                    marker = command.index("--")
+                    command[marker:marker] = ["--ignore-eos"]
                 if args.minimum_available_ram_mb:
                     marker = command.index("--")
                     command[marker:marker] = ["--minimum-available-ram-mb", str(args.minimum_available_ram_mb)]

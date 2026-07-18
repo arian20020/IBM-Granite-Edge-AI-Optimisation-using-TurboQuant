@@ -108,40 +108,55 @@ AB-KV8-F16-4K and AB-15M began as research-only because of the 16 GB shared-memo
 
 Generation alone is not proof of GPU execution. The gate requires selected device, exact layer placement, model/compute buffer evidence, correct cache location and no unexplained fallback.
 
-| Test ID | Requested device | Actual device | Backend | Offload evidence | TQ/KV device | CPU fallback? | CPU % | GPU % | Evidence path |
+| Test ID | Requested device | Actual device | Backend | Offload evidence | TQ/KV device | CPU fallback? | CPU utilization | GPU utilization | Evidence path |
 |---|---|---|---|---|---|---|---|---|---|
-| AB-11 | Vulkan partial | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 200.99 MiB model and 86.77 MiB compute buffers on Vulkan0 | CPU, 320.00 MiB | Yes, intended hybrid | 48.186 median | N/A - counter unavailable | `acquisition/results/AB-11/` |
-| AB-12 | Vulkan partial | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 200.99 MiB model and 82.77 MiB compute buffers on Vulkan0 | CPU, 125.13 MiB | Yes, intended hybrid | 58.765 median | N/A - counter unavailable | `acquisition/results/AB-12/` |
-| AB-13 | Vulkan maximum | Intel UHD Vulkan0 | Vulkan native placement | 41/41 layers; 1998.84 MiB model and 62.01 MiB compute buffers on Vulkan0 | Vulkan0, 125.13 MiB | No unexplained fallback | 2.651 median | N/A - counter unavailable | `acquisition/results/AB-13/` |
-| AB-14 | Vulkan partial 8B | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 321.58 MiB model and 111.38 MiB compute buffers on Vulkan0 | CPU, 340.00 MiB | Yes, intended hybrid | 50.446 median | N/A - counter unavailable | `acquisition/results/AB-14/` |
-| AB-15 | Vulkan partial 8B | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 321.58 MiB model and 120.13 MiB compute buffers on Vulkan0 | CPU, 125.13 MiB | Yes, intended hybrid | 49.173 median | N/A - counter unavailable | `acquisition/results/AB-15/` |
-| AB-15M | Vulkan maximum 8B | Intel UHD Vulkan0 | Vulkan native placement | 41/41 layers; 4876.27 MiB model and 95.01 MiB compute buffers on Vulkan0 | Vulkan0, 125.13 MiB | No unexplained fallback | N/A - not sampled in bypass collector | N/A - counter unavailable | `safety-bypass/AB-15M/` |
+| AB-01 | CPU | CPU | CPU | All layers on CPU | CPU, 26.00 MiB | N/A - CPU requested | mean 64.51%; median 64.09%; peak 66.41% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-01/` |
+| AB-02 | CPU | CPU | CPU | All layers on CPU | CPU, 5.08 MiB | N/A - CPU requested | mean 63.66%; median 63.41%; peak 65.85% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-02/` |
+| AB-03 | CPU | CPU | CPU | All layers on CPU | CPU, 160.00 MiB | N/A - CPU requested | mean 63.90%; median 65.14%; peak 67.38% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-03/` |
+| AB-KV3-F16-4K | CPU | CPU | CPU | All layers on CPU | CPU, 320.00 MiB | N/A - CPU requested | mean 63.40%; median 64.42%; peak 65.92% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-KV3-F16-4K/` |
+| AB-04 | CPU | CPU | CPU | All layers on CPU | CPU, 170.00 MiB | N/A - CPU requested | mean 64.94%; median 65.34%; peak 67.43% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-04/` |
+| AB-05 | CPU | CPU | CPU | All layers on CPU | CPU, 170.00 MiB | N/A - CPU requested | mean 64.71%; median 65.17%; peak 66.92% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-05/` |
+| AB-06 | CPU | CPU | CPU | All layers on CPU | CPU, 125.00 MiB | N/A - CPU requested | mean 65.00%; median 64.89%; peak 67.43% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-06/` |
+| AB-07 | CPU | CPU | CPU | All layers on CPU | CPU, 89.25 MiB | N/A - CPU requested | mean 65.45%; median 65.27%; peak 67.58% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-07/` |
+| AB-08F | CPU | CPU | CPU | All layers on CPU | CPU, 320.00 MiB | N/A - CPU requested | mean 65.07%; median 65.28%; peak 67.58% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-08F/` |
+| AB-KV8-F16-4K | CPU | CPU | CPU | All layers on CPU | CPU, 640.00 MiB | N/A - CPU requested | mean 65.15%; median 65.38%; peak 67.71% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-KV8-F16-4K/` |
+| AB-08Q | CPU | CPU | CPU | All layers on CPU | CPU, 340.00 MiB | N/A - CPU requested | mean 64.95%; median 65.51%; peak 67.57% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-08Q/` |
+| AB-09 | CPU | CPU | CPU | All layers on CPU | CPU, 170.00 MiB | N/A - CPU requested | mean 65.36%; median 65.74%; peak 67.29% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-09/` |
+| AB-10 | CPU | CPU | CPU | All layers on CPU | CPU, 125.00 MiB | N/A - CPU requested | mean 65.30%; median 65.71%; peak 67.39% | mean 0.00%; median 0.00%; peak 0.00% | `2026-07-17/all-row-utilization-v1/AB-10/` |
+| AB-11 | Vulkan partial | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 200.99 MiB model and 86.77 MiB compute buffers on Vulkan0 | CPU, 320.00 MiB | Yes, intended hybrid | mean 64.43%; median 64.88%; peak 66.82% | mean 25.74%; median 25.00%; peak 43.00% | `2026-07-17/all-row-utilization-v1/AB-11/` |
+| AB-12 | Vulkan partial | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 200.99 MiB model and 82.77 MiB compute buffers on Vulkan0 | CPU, 125.13 MiB | Yes, intended hybrid | mean 65.30%; median 65.80%; peak 67.28% | mean 25.71%; median 23.00%; peak 41.00% | `2026-07-17/all-row-utilization-v1/AB-12/` |
+| AB-13 | Vulkan maximum | Intel UHD Vulkan0 | Vulkan native placement | 41/41 layers; 1998.84 MiB model and 62.01 MiB compute buffers on Vulkan0 | Vulkan0, 125.13 MiB | No unexplained fallback | mean 2.17%; median 2.21%; peak 2.96% | mean 92.44%; median 96.00%; peak 100.00% | `2026-07-17/all-row-utilization-v1/AB-13/` |
+| AB-14 | Vulkan partial 8B | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 321.58 MiB model and 111.38 MiB compute buffers on Vulkan0 | CPU, 340.00 MiB | Yes, intended hybrid | mean 65.41%; median 65.41%; peak 67.44% | mean 26.00%; median 26.00%; peak 44.00% | `2026-07-17/all-row-utilization-v1/AB-14/` |
+| AB-15 | Vulkan partial 8B | Intel UHD Vulkan0 + CPU | Vulkan hybrid | 1/41 layers; 321.58 MiB model and 120.13 MiB compute buffers on Vulkan0 | CPU, 125.13 MiB | Yes, intended hybrid | mean 65.14%; median 65.51%; peak 67.63% | mean 24.94%; median 23.00%; peak 45.00% | `2026-07-17/all-row-utilization-v1/AB-15/` |
+| AB-15M | Vulkan maximum 8B | Intel UHD Vulkan0 | Vulkan native placement | 41/41 layers; 4876.27 MiB model and 95.01 MiB compute buffers on Vulkan0 | Vulkan0, 125.13 MiB | No unexplained fallback | mean 2.08%; median 2.10%; peak 2.88% | mean 95.72%; median 97.50%; peak 100.00% | `2026-07-17/all-row-utilization-v1/AB-15M/` |
 
 # 7. Formal run results
 
+All 19 runtime rows were repeated under one utilization protocol on 2026-07-17. CPU is normalized across logical processors; GPU is the busiest PID-attributable Windows GPU Engine at each timestamp. CPU-only rows measured 0.00% attributable GPU use; this value was sampled, not inferred.
+
 Numeric rows report median TTFT and generation throughput across measured runs, maximum peak working set and observed KV allocation. Quality is scored separately with the controlled 0-10 rubric.
 
-| Test ID | Model | Weights | K cache | V cache | Device | Context | Peak WS MiB | KV MiB | TTFT ms | Tok/s | Quality /10 | Status |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| AB-01 | Gemma 3 1B | Q4_K_M | f16 | f16 | CPU | 1024 | 923.949 | 26.00 | 110.562 | 37.50 | 6.22 | Pass |
-| AB-02 | Gemma 3 1B | Q4_K_M | turbo3 | turbo3 | CPU | 1024 | 903.688 | 5.08 | 81.053 | 30.80 | 5.39 | Pass |
-| AB-03 | 3B | Q4_K_M | f16 | f16 | CPU | 2048 | 3657.688 | 160.00 | 118.903 | 15.90 | 6.39 | Pass |
-| AB-KV3-F16-4K | 3B | Q4_K_M | f16 | f16 | CPU | 4096 | 3818.957 | 320.00 | 144.610 | 15.10 | 6.39 | Pass |
-| AB-04 | 3B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 3668.938 | 170.00 | 134.316 | 15.90 | 6.72 | Pass |
-| AB-05 | 3B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 3669.125 | 170.00 | 166.100 | 11.80 | 6.84 | Pass; P5 timeout |
-| AB-06 | 3B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 3624.750 | 125.00 | 137.405 | 11.80 | 5.95 | Pass; P5 timeout |
-| AB-07 | 3B | Q4_K_M | turbo2 | turbo2 | CPU | 4096 | 3588.754 | 89.25 | 150.086 | 13.10 | 0.70 | Pass; severe quality failure |
-| AB-08F | 8B | Q4_K_M | f16 | f16 | CPU | 2048 | 8914.633 | 320.00 | 459.308 | 6.80 | 5.69 | Pass; P5 safety-blocked |
-| AB-KV8-F16-4K | 8B | Q4_K_M | f16 | f16 | CPU | 4096 | 9235.957 | 640.00 | 334.844 | 8.37 | 5.69 | Pass - controlled bypass; P5 safety-blocked |
-| AB-08Q | 8B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 8934.840 | 340.00 | 540.412 | 6.80 | 6.69 | Pass; P5 safety-blocked |
-| AB-09 | 8B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 8767.055 | 170.00 | 332.794 | 5.90 | 5.97 | Pass; P5 safety-blocked |
-| AB-10 | 8B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 8720.383 | 125.00 | 339.918 | 5.90 | 6.67 | Pass; P5 safety-blocked |
-| AB-11 | 3B | Q4_K_M | f16 | f16 | Vulkan partial | 4096 | 2903.941 | 320.00 | 203.267 | 14.00 | 6.72 | Pass |
-| AB-12 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 2705.563 | 125.00 | 224.509 | 9.60 | 6.22 | Pass |
-| AB-13 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 4541.016 | 125.00 | 410.507 | 7.60 | 7.22 | Pass |
-| AB-14 | 8B | Q4_K_M | q8_0 | q8_0 | Vulkan partial | 4096 | 6073.473 | 340.00 | 639.484 | 6.00 | 8.36 | Pass |
-| AB-15 | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 5868.852 | 125.00 | 504.813 | 5.40 | 7.51 | Pass |
-| AB-15M | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 10455.605 | 125.00 | 637.928 | 4.19 | 6.67 | Pass - controlled bypass; P5 safety-blocked |
+| Test ID | Model | Weights | K cache | V cache | Device | Context | Peak WS MiB | KV MiB | TTFT ms | Tok/s | CPU mean/median/peak % | GPU mean/median/peak % | Quality /10 | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| AB-01 | Gemma 3 1B | Q4_K_M | f16 | f16 | CPU | 1024 | 926.988 | 26.00 | 72.314 | 37.50 | 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 | 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 |
+| AB-02 | Gemma 3 1B | Q4_K_M | turbo3 | turbo3 | CPU | 1024 | 906.898 | 5.08 | 77.017 | 30.80 | 63.66 / 63.41 / 65.85 | 0.00 / 0.00 / 0.00 | 63.66 / 63.41 / 65.85 | 0.00 / 0.00 / 0.00 |
+| AB-03 | 3B | Q4_K_M | f16 | f16 | CPU | 2048 | 3659.074 | 160.00 | 143.190 | 15.90 | 63.90 / 65.14 / 67.38 | 0.00 / 0.00 / 0.00 | 63.90 / 65.14 / 67.38 | 0.00 / 0.00 / 0.00 |
+| AB-KV3-F16-4K | 3B | Q4_K_M | f16 | f16 | CPU | 4096 | 3819.336 | 320.00 | 161.621 | 15.10 | 63.40 / 64.42 / 65.92 | 0.00 / 0.00 / 0.00 | 63.40 / 64.42 / 65.92 | 0.00 / 0.00 / 0.00 |
+| AB-04 | 3B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 3669.191 | 170.00 | 155.285 | 15.90 | 64.94 / 65.34 / 67.43 | 0.00 / 0.00 / 0.00 | 64.94 / 65.34 / 67.43 | 0.00 / 0.00 / 0.00 |
+| AB-05 | 3B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 3670.609 | 170.00 | 148.400 | 11.80 | 64.71 / 65.17 / 66.92 | 0.00 / 0.00 / 0.00 | 64.71 / 65.17 / 66.92 | 0.00 / 0.00 / 0.00 |
+| AB-06 | 3B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 3624.723 | 125.00 | 138.507 | 11.80 | 65.00 / 64.89 / 67.43 | 0.00 / 0.00 / 0.00 | 65.00 / 64.89 / 67.43 | 0.00 / 0.00 / 0.00 |
+| AB-07 | 3B | Q4_K_M | turbo2 | turbo2 | CPU | 4096 | 3589.137 | 89.25 | 140.418 | 13.10 | 65.45 / 65.27 / 67.58 | 0.00 / 0.00 / 0.00 | 65.45 / 65.27 / 67.58 | 0.00 / 0.00 / 0.00 |
+| AB-08F | 8B | Q4_K_M | f16 | f16 | CPU | 2048 | 8916.195 | 320.00 | 366.771 | 6.80 | 65.07 / 65.28 / 67.58 | 0.00 / 0.00 / 0.00 | 65.07 / 65.28 / 67.58 | 0.00 / 0.00 / 0.00 |
+| AB-KV8-F16-4K | 8B | Q4_K_M | f16 | f16 | CPU | 4096 | 9236.535 | 640.00 | 350.377 | 8.37 | 65.15 / 65.38 / 67.71 | 0.00 / 0.00 / 0.00 | 65.15 / 65.38 / 67.71 | 0.00 / 0.00 / 0.00 |
+| AB-08Q | 8B | Q4_K_M | q8_0 | q8_0 | CPU | 4096 | 8936.547 | 340.00 | 341.672 | 6.80 | 64.95 / 65.51 / 67.57 | 0.00 / 0.00 / 0.00 | 64.95 / 65.51 / 67.57 | 0.00 / 0.00 / 0.00 |
+| AB-09 | 8B | Q4_K_M | turbo4 | turbo4 | CPU | 4096 | 8767.629 | 170.00 | 278.364 | 5.90 | 65.36 / 65.74 / 67.29 | 0.00 / 0.00 / 0.00 | 65.36 / 65.74 / 67.29 | 0.00 / 0.00 / 0.00 |
+| AB-10 | 8B | Q4_K_M | turbo3 | turbo3 | CPU | 4096 | 8721.734 | 125.00 | 304.354 | 5.90 | 65.30 / 65.71 / 67.39 | 0.00 / 0.00 / 0.00 | 65.30 / 65.71 / 67.39 | 0.00 / 0.00 / 0.00 |
+| AB-11 | 3B | Q4_K_M | f16 | f16 | Vulkan partial | 4096 | 2905.742 | 320.00 | 177.658 | 14.00 | 64.43 / 64.88 / 66.82 | 25.74 / 25.00 / 43.00 | 64.43 / 64.88 / 66.82 | 25.74 / 25.00 / 43.00 |
+| AB-12 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 2707.188 | 125.00 | 179.577 | 9.60 | 65.30 / 65.80 / 67.28 | 25.71 / 23.00 / 41.00 | 65.30 / 65.80 / 67.28 | 25.71 / 23.00 / 41.00 |
+| AB-13 | 3B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 4542.570 | 125.00 | 438.734 | 7.60 | 2.17 / 2.21 / 2.96 | 92.44 / 96.00 / 100.00 | 2.17 / 2.21 / 2.96 | 92.44 / 96.00 / 100.00 |
+| AB-14 | 8B | Q4_K_M | q8_0 | q8_0 | Vulkan partial | 4096 | 6075.352 | 340.00 | 540.764 | 6.00 | 65.41 / 65.41 / 67.44 | 26.00 / 26.00 / 44.00 | 65.41 / 65.41 / 67.44 | 26.00 / 26.00 / 44.00 |
+| AB-15 | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan partial | 4096 | 5869.441 | 125.00 | 514.448 | 5.40 | 65.14 / 65.51 / 67.63 | 24.94 / 23.00 / 45.00 | 65.14 / 65.51 / 67.63 | 24.94 / 23.00 / 45.00 |
+| AB-15M | 8B | Q4_K_M | turbo3 | turbo3 | Vulkan full | 4096 | 10456.277 | 125.00 | 687.208 | 4.19 | 2.08 / 2.10 / 2.88 | 95.72 / 97.50 / 100.00 | 2.08 / 2.10 / 2.88 | 95.72 / 97.50 / 100.00 |
 
 # 8. Compression and bounded perplexity supplements
 

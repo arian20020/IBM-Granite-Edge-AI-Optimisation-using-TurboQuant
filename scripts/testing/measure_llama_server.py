@@ -15,6 +15,7 @@ from pathlib import Path
 
 from measure_llama_run import available_ram_bytes, process_tree_memory_bytes
 from parse_llama_measurement import summarize_measurement
+from atomicbot.utilization import read_utilization_samples, summarize_utilization
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,6 +28,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=float, default=600)
     parser.add_argument("--minimum-available-ram-mb", type=float, default=0,
                         help="Emergency-stop floor; zero disables the floor")
+    parser.add_argument("--measurement-tokens", type=int, default=16)
+    parser.add_argument("--ignore-eos", action="store_true")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.command and args.command[0] == "--":
@@ -121,9 +124,26 @@ def main() -> int:
     if emergency_stop.is_set():
         request_error = "emergency stop: available RAM crossed configured floor"
     elif ready:
-        body = json.dumps({"prompt": args.prompt, "n_predict": 16, "temperature": 0,
+        utilization_path = output_dir / "utilization-samples.csv"
+        utilization_ready = output_dir / ".utilization-ready"
+        utilization_stop = output_dir / ".utilization-stop"
+        utilization_ready.unlink(missing_ok=True)
+        utilization_stop.unlink(missing_ok=True)
+        utilization_process = subprocess.Popen([
+            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+            str(Path(__file__).with_name("collect_process_utilization.ps1")),
+            "-ProcessId", str(process.pid), "-OutputPath", str(utilization_path),
+            "-ReadyPath", str(utilization_ready), "-StopPath", str(utilization_stop),
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        utilization_deadline = time.monotonic() + 10
+        while not utilization_ready.exists() and time.monotonic() < utilization_deadline:
+            if utilization_process.poll() is not None:
+                break
+            time.sleep(0.05)
+        body = json.dumps({"prompt": args.prompt, "n_predict": args.measurement_tokens,
+                           "temperature": 0,
                            "top_p": 1, "seed": 42, "stream": True,
-                           "return_tokens": True}).encode("utf-8")
+                           "return_tokens": True, "ignore_eos": args.ignore_eos}).encode("utf-8")
         request = urllib.request.Request(
             f"http://127.0.0.1:{args.port}/completion", data=body,
             headers={"Content-Type": "application/json"}, method="POST"
@@ -131,19 +151,27 @@ def main() -> int:
         request_start = time.perf_counter_ns()
         try:
             with urllib.request.urlopen(request, timeout=args.timeout_seconds) as response:
+                first_token_recorded = False
                 while True:
                     line = response.readline()
                     if not line:
                         break
                     if line.startswith(b"data:"):
                         payload = json.loads(line[5:].strip())
-                        if payload.get("content") or payload.get("tokens"):
+                        if not first_token_recorded and (payload.get("content") or payload.get("tokens")):
                             add({"kind": "first_response_byte",
                                  "elapsed_ms": (time.perf_counter_ns() - request_start) / 1_000_000,
                                  "signal": "first-generated-token"})
-                            break
+                            first_token_recorded = True
         except Exception as exc:  # preserved in evidence and invalidates the sample
             request_error = repr(exc)
+        finally:
+            utilization_stop.write_text("stop", encoding="ascii")
+            try:
+                utilization_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                utilization_process.kill()
+                utilization_process.wait()
     else:
         request_error = "server did not become ready"
 
@@ -162,6 +190,12 @@ def main() -> int:
     summary = summarize_measurement(events)
     summary.update({"sample_id": args.sample_id, "request_error": request_error,
                     "ttft_definition": "HTTP request initiation to first streamed generated token"})
+    utilization_path = output_dir / "utilization-samples.csv"
+    utilization_samples = read_utilization_samples(utilization_path)
+    summary["utilization"] = summarize_utilization(utilization_samples)
+    summary["utilization_definition"] = (
+        "loaded request window; CPU normalized across logical processors; "
+        "GPU is busiest process GPU engine per timestamp")
 
     (output_dir / "stdout.txt").write_bytes(stdout_data)
     (output_dir / "stderr.txt").write_bytes(stderr_data)

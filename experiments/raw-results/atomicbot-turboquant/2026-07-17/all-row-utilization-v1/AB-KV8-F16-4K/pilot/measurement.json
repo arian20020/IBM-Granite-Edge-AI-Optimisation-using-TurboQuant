@@ -1,0 +1,26 @@
+{
+  "exit_code": 0,
+  "kv_mb": 640.0,
+  "missing": [],
+  "peak_ram_mb": 9236.69921875,
+  "request_error": null,
+  "sample_id": "AB-KV8-F16-4K-pilot",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 368.7632,
+  "utilization": {
+    "cpu_percent": {
+      "mean": 65.38675053333333,
+      "median": 65.674915,
+      "peak": 67.293884,
+      "sample_count": 15
+    },
+    "gpu_percent": {
+      "mean": 0.0,
+      "median": 0.0,
+      "peak": 0.0,
+      "sample_count": 15
+    }
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": true
+}

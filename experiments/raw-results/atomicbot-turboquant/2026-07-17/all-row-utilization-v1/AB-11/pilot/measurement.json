@@ -1,0 +1,26 @@
+{
+  "exit_code": 0,
+  "kv_mb": 320.0,
+  "missing": [],
+  "peak_ram_mb": 2905.58984375,
+  "request_error": null,
+  "sample_id": "AB-11-pilot",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 151.3229,
+  "utilization": {
+    "cpu_percent": {
+      "mean": 65.56687766666666,
+      "median": 65.465769,
+      "peak": 67.049401,
+      "sample_count": 6
+    },
+    "gpu_percent": {
+      "mean": 27.666666666666668,
+      "median": 27.5,
+      "peak": 32.0,
+      "sample_count": 6
+    }
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": true
+}
