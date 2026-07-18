@@ -17,6 +17,12 @@ def case(**overrides):
 
 
 class AnimehackerRunnerTests(unittest.TestCase):
+    def test_quality_selection_accepts_recovered_rows(self):
+        from scripts.testing.run_animehacker_quality import quality_case_ids
+
+        self.assertIn("AH-09", quality_case_ids())
+        self.assertIn("AH-10", quality_case_ids())
+
     def test_command_has_exact_cache_backend_and_safety_flags(self):
         from scripts.testing.animehacker.runner import build_server_command
 

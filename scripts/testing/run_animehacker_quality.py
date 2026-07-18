@@ -33,6 +33,7 @@ def args() -> argparse.Namespace:
     parser.add_argument("--sycl-build", type=Path, required=True)
     parser.add_argument("--diagnostic-model", type=Path, required=True)
     parser.add_argument("--granite3-model", type=Path, required=True)
+    parser.add_argument("--granite8-model", type=Path, required=True)
     parser.add_argument("--only", action="append")
     parser.add_argument("--context", type=int, default=16384)
     parser.add_argument("--base-port", type=int, default=19800)
@@ -40,14 +41,19 @@ def args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def quality_case_ids() -> frozenset[str]:
+    return frozenset({"AH-01", "AH-02", "AH-03", "AH-04", "AH-05",
+                      "AH-08", "AH-09", "AH-10"})
+
+
 def main() -> int:
     a = args()
     prompt_set = json.loads(a.prompt_set.read_text(encoding="utf-8-sig"))
     models = {"gemma-1b-q4-k-m": a.diagnostic_model,
-              "granite-3b-bf16": a.granite3_model}
+              "granite-3b-bf16": a.granite3_model,
+              "granite-8b-q8-0": a.granite8_model}
     selected = set(a.only or ())
-    allowed = {"AH-01", "AH-02", "AH-03", "AH-04", "AH-05", "AH-08"}
-    cases = [case for case in load_matrix(a.matrix) if case.test_id in allowed and
+    cases = [case for case in load_matrix(a.matrix) if case.test_id in quality_case_ids() and
              (not selected or case.test_id in selected)]
     a.output_root.mkdir(parents=True, exist_ok=True)
     _handle, release = acquire_runner_lock(a.output_root)
