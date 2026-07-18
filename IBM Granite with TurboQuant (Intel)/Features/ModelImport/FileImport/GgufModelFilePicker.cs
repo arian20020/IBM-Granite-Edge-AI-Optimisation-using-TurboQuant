@@ -5,13 +5,11 @@ using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelImport.FileImport
 {
-    class ModelPickers
+    class GgufModelFilePicker
     {
-        public ModelPickers()
+        public GgufModelFilePicker()
         {
         }
-
-
         public async Task<PickFileResult?> PickGGUFAsync()
         {
 
@@ -27,19 +25,6 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
             }
 
             return file;
-        }
-        public async Task<PickFolderResult?> PickOpenVINOAsync()
-        {
-            FolderPicker openOpenVINOPicker = new FolderPicker(App.MainWindow.AppWindow.Id);
-
-            PickFolderResult? folder = await openOpenVINOPicker.PickSingleFolderAsync();
-
-            if (folder == null)
-            {
-                return null;
-            }
-
-            return folder;
         }
     }
 }

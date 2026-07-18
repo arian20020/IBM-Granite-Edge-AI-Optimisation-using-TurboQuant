@@ -200,7 +200,7 @@
             HorizontalAlignment="Center"
             FontSize="15"
             Foreground="#6B7280"
-            Text="Choose the model format so Granite Edge AI can open the correct picker."
+            Text="Choose the model format you will be importing."
             TextAlignment="Center"
             TextWrapping="Wrap" />
 

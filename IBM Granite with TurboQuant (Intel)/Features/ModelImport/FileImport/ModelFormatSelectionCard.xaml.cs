@@ -1,9 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
-using System.Threading.Tasks;
-using Windows.Storage.Pickers;
-using GraniteEdgeAI.Features.ModelImport.FileImport;
+
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -29,7 +27,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
 
         private async void GgufFormatButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            ModelPickers modelFilePicker = new ModelPickers();
+            GgufModelFilePicker modelFilePicker = new GgufModelFilePicker();
 
             PickFileResult? file = await modelFilePicker.PickGGUFAsync();
 
@@ -41,7 +39,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
 
         private async void OpenVINOFormatButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            ModelPickers modelFolderPicker = new ModelPickers();
+            OpenVINOFolderPicker modelFolderPicker = new OpenVINOFolderPicker();
 
             PickFolderResult? folder = await modelFolderPicker.PickOpenVINOAsync();
 

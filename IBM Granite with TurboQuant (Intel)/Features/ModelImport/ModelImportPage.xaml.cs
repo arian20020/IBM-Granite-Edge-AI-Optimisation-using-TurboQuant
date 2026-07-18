@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
-using Microsoft.Windows.Storage.Pickers;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using System;
 
@@ -36,12 +35,6 @@ namespace GraniteEdgeAI.Features.ModelImport
 
             //Wait for the user to click a button
             ContentDialogResult result = await SelectFormat.ShowAsync();
-
-            // Check if they clicked the Primary button(e.g., "Yes")
-            if (result == ContentDialogResult.Primary)
-            {
-                
-            }
         }
     }
 }
