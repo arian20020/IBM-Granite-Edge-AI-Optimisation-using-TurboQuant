@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace GraniteEdgeAI.Features.ModelImport
+namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 {
     /// <summary>
     /// Displays the recommended models available for download.

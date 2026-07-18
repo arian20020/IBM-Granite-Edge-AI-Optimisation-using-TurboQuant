@@ -14,9 +14,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Features\ModelImport\ModelCard.xaml" />
+    <None Remove="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml" />
     <None Remove="Features\ModelImport\ModelImportPage.xaml" />
-    <None Remove="Features\ModelImport\RecommendedModelDownloadPage.xaml" />
+    <None Remove="Features\ModelImport\ModelDownload\RecommendedModelDownloadPage.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,12 +46,17 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Features\ModelImport\RecommendedModelDownloadPage.xaml">
+    <Page Update="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Features\ModelImport\ModelCard.xaml">
+    <Page Update="Features\ModelImport\ModelDownload\RecommendedModelDownloadPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelImport\ModelDownload\ModelDownloadCard.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>

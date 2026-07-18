@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using Microsoft.Windows.Storage.Pickers;
+using GraniteEdgeAI.Features.ModelImport.FileImport;
 using System;
 
 namespace GraniteEdgeAI.Features.ModelImport
@@ -26,31 +28,20 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async void BrowseFilesButton_ClickAsync(object sender, RoutedEventArgs e)
         {
-            // Create the modern Windows App SDK picker.
+            ModelFormatSelectionCard SelectFormat = new ModelFormatSelectionCard();
 
-            // The picker needs the ID of the real application window so that
-            // Windows knows which window owns the file-selection dialog.
-            FileOpenPicker openPicker =
-                new FileOpenPicker(App.MainWindow.AppWindow.Id);
-            
-            
-            // Allow IBM Granite models stored in GGUF, .xml,.bin format.
-            openPicker.FileTypeFilter.Add(".xml");
-            openPicker.FileTypeFilter.Add(".bin");
-            openPicker.FileTypeFilter.Add(".gguf");
+            // tell WinUI which window should display and host the dialog.
+            SelectFormat.XamlRoot = Content.XamlRoot;
 
-            // Display the picker and wait for the user to select one file
-            // or close the picker without selecting anything.
-            PickFileResult result =
-                await openPicker.PickSingleFileAsync();
 
-            // a null result means the user pressed Cancel or closed the picker.
-            if (result is null)
+            //Wait for the user to click a button
+            ContentDialogResult result = await SelectFormat.ShowAsync();
+
+            // Check if they clicked the Primary button(e.g., "Yes")
+            if (result == ContentDialogResult.Primary)
             {
-                // Leave ModelImportPage unchanged.
-                return;
+                
             }
         }
-        
     }
 }

@@ -1,14 +1,14 @@
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 
-namespace GraniteEdgeAI.Features.ModelImport
+namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 {
     /// <summary>
     /// Displays the currently selected recommended-model profile.
     /// </summary>
-    public sealed partial class ModelCard : UserControl
+    public sealed partial class ModelDownloadCard : UserControl
     {
-        public ModelCard()
+        public ModelDownloadCard()
         {
             // Loads and connects the controls declared in ModelCard.xaml.
             InitializeComponent();
