@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P5",
+  "status": "complete",
+  "output": "Evidence paragraph 0006: The controlled Granite-TurboQuant campaign records exact models, commits, commands, devices, memory, speed, quality, failures, and evidence hashes. This paragraph is filler and does not contain the answer marker.",
+  "test_id": "AH-02",
+  "model_id": "gemma-1b-q4-k-m",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 109.203,
+  "output_sha256": "5b20ff2dc4bc40523e7bd7db5ddb11f71a87a8aac8a1a14d437a471679fe2c3a"
+}

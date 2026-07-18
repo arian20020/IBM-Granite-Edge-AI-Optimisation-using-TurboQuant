@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **Benefits**: KV cache reduces memory footprint, enabling offline use on memory-limited devices.  \n- Limitations: Offline mode may lead to slower performance and reduced accuracy.  \n- Check: User should ensure compatibility with offline settings before deployment.",
+  "test_id": "AH-05",
+  "model_id": "granite-3b-bf16",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 4.625,
+  "output_sha256": "8cdd767c2eac895b22b165bcf9ec41569f8d52765baff90d15c6bdaefc6e2eed"
+}

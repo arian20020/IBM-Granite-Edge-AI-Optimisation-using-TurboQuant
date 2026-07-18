@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P4",
+  "status": "complete",
+  "output": "The test uses the IBM Granite 4.1 3B model with the upstream llama.cpp runtime. The model weights are in Q4_K_M format, with both the K and V caches using Q8_0 precision, running with a context length of 4096 tokens on a local Windows Intel laptop, and TurboQuant is not active.",
+  "test_id": "AH-03",
+  "model_id": "granite-3b-bf16",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 7.891,
+  "output_sha256": "e6ec8021677c176a31a77c590dd48b691e90c27fab47d604fb0d5942fadc484b"
+}

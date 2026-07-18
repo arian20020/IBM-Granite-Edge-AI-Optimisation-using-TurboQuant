@@ -1,0 +1,19 @@
+Here’s an explanation of how KV-cache quantisation helps offline model runs on low-memory laptops:
+
+*   **Reduced Memory Footprint:** Quantisation reduces model size, freeing up memory.
+*   **Faster Inference:** Lower precision arithmetic speeds up processing.
+*   **Improved Offline Access:** Enables running models without constant cloud connectivity.
+*   **Data Efficiency:** Less data required for inference, improving performance.
+*   **Faster Updates:** Smaller model size facilitates quicker model updates.
+
+**Benefits:**
+
+*   **Reduced Memory Usage:** Significantly lowers the laptop’s memory requirements.
+*   **Faster Inference:**  Faster processing speeds improve overall performance.
+
+**Limitations:**
+
+*   **Potential Accuracy Loss:** Quantisation can impact model quality.
+*   **Hardware Dependency:** Requires optimized hardware for best results.
+
+**Check User Action:**  Ensure the user has sufficient RAM to accommodate the quantized model before deployment.

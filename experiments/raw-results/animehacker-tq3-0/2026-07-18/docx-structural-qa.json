@@ -1,0 +1,10 @@
+{
+  "docx": "docs\\testing\\workbooks\\generated\\03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.docx",
+  "zip_members": 18,
+  "paragraphs": 36,
+  "tables": 12,
+  "table_cells": 690,
+  "blank_table_cells": 0,
+  "required_text_checks": 14,
+  "visual_render": "not completed: LibreOffice absent and hidden Word PDF export exceeded 120 seconds"
+}

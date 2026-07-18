@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P5",
+  "status": "complete",
+  "output": "MARKER: IXN-TQ-7319",
+  "test_id": "AH-01",
+  "model_id": "gemma-1b-q4-k-m",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 93.734,
+  "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+}

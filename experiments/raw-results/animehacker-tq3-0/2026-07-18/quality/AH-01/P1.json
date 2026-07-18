@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "Here\u2019s a breakdown of how KV cache quantization helps offline models:\n\n*   **Reduced Memory Footprint:** Quantization drastically shrinks the model\u2019s size, crucial for offline use.\n*   **Faster Inference:** Smaller models translate to quicker processing, improving performance.\n*   **Improved Offline Capability:** Enables running models on devices with limited RAM.\n*   **Benefits:**  Significant reduction in required memory, faster response times.\n*   **Limitations:**  Potential for slightly reduced accuracy, requires careful tuning.\n\n**Check:**  Before deploying, test the model\u2019s performance on your laptop\u2019s hardware to ensure acceptable speed and accuracy.",
+  "test_id": "AH-01",
+  "model_id": "gemma-1b-q4-k-m",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 3.516,
+  "output_sha256": "fa10e50e47508ef769f9c313854ac5d477f82f077f76b9a3bbc7d9aad4d52d81"
+}

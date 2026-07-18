@@ -1,0 +1,1 @@
+The test utilizes an IBM Granite 4.1 3B model with Q4_K_M weights and Q8_0 caches, running locally on a Windows Intel laptop with a 4096-token context length and no TurboQuant activation. This configuration represents a baseline model for testing.

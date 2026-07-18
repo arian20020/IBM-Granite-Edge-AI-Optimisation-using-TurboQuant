@@ -28,8 +28,8 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | QJL residual correction present? | No - not implemented; fork commit 4381bdde corrects the description to PolarQuant without QJL, and no executable QJL projection/correction path was found |
 | Test operator | Codex controlled retest agent |
 | Test start date | 2026-07-18 |
-| Test end date |  |
-| Overall status |  |
+| Test end date | 2026-07-18 |
+| Overall status | Complete: 6 runnable rows passed runtime/quality evidence collection; 2 rows safety-classified; 2 rows capability-classified; zero unresolved failures |
 
 ## 2. Target laptop
 
@@ -59,14 +59,14 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 
 | ID | Model | KV cache | Execution | Context | Purpose | Status |
 |---|---|---|---|---|---|---|
-| AH-01 | Diagnostic | Standard | CPU | 1K | Repository baseline | Runtime passed; quality pending |
-| AH-02 | Diagnostic | TQ3_0 | CPU | 1K | Confirm TQ3_0 activation | Runtime and activation passed; quality pending |
-| AH-03 | Granite 3B | F16 | CPU | 2K | Granite fork baseline | Runtime passed; quality pending |
-| AH-04 | Granite 3B | Q8_0 | CPU | 4K | Conventional cache reference | Runtime passed; quality pending |
-| AH-05 | Granite 3B | TQ3_0 | CPU | 4K | Main 3B TQ test | Runtime and activation passed; quality pending |
+| AH-01 | Diagnostic | Standard | CPU | 1K | Repository baseline | Complete - runtime passed; quality 6.23 |
+| AH-02 | Diagnostic | TQ3_0 | CPU | 1K | Confirm TQ3_0 activation | Complete - runtime/activation passed; quality 3.66 |
+| AH-03 | Granite 3B | F16 | CPU | 2K | Granite fork baseline | Complete - runtime passed; quality 6.39 |
+| AH-04 | Granite 3B | Q8_0 | CPU | 4K | Conventional cache reference | Complete - runtime passed; quality 6.73 |
+| AH-05 | Granite 3B | TQ3_0 | CPU | 4K | Main 3B TQ test | Complete - runtime/activation passed; quality 3.28 |
 | AH-06 | Granite 8B | F16 | CPU | 2K | 8B fork baseline | Safety-blocked during model load after 3 controlled gates; resolved classification |
 | AH-07 | Granite 8B | TQ3_0 | CPU | 4K | Main 8B TQ test | Safety-blocked at final 2 GiB floor; resolved classification |
-| AH-08 | Granite 3B | Standard | SYCL partial | 4K | Controlled GPU baseline | Runtime passed; quality pending |
+| AH-08 | Granite 3B | Standard | SYCL partial | 4K | Controlled GPU baseline | Runtime and quality passed |
 | AH-09 | Granite 3B | TQ3_0 | SYCL partial | 4K | GPU TQ attempt | Unsupported after controlled runtime proof; resolved |
 | AH-10 | Granite 8B | TQ3_0 | SYCL partial | 2K | Guarded 8B GPU investigation | Unsupported by AH-09 kernel proof and 8B memory gate; resolved |
 
@@ -104,11 +104,11 @@ Do not treat a CUDA-only or non-Windows path as suitable for application integra
 | AH-01 | Diagnostic | Gemma 1B Q4_K_M | f16 | f16 | CPU (-ngl 0) | 1K | 929.48 peak WS; 730.87 peak private | 26.00 | 140.39 median | 46.32 decode; 95.31 prompt | 6.23 | Runtime and quality passed |
 | AH-02 | Diagnostic | Gemma 1B Q4_K_M | tq3_0 | tq3_0 | CPU (-ngl 0) | 1K | 911.05 peak WS; 712.91 peak private | 5.69 | 137.75 median | 37.75 decode; 81.51 prompt | 3.66 | Runtime passed; harsh quality regression recorded |
 | AH-03 | Granite 3B | Q4_K_M GGUF | f16 | f16 | CPU (-ngl 0) | 2K | 3662.86 peak WS; 1944.03 peak private | 160.00 | 274.92 median | 15.87 decode; 45.69 prompt | 6.39 | Runtime and quality passed |
-| AH-04 | Granite 3B | Q4_K_M GGUF | q8_0 | q8_0 | CPU (-ngl 0) | 4K | 3671.96 peak WS; 1933.01 peak private | 170.00 | 243.23 median | 15.82 decode; 52.03 prompt | Pending P1-P6 | Runtime passed |
-| AH-05 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | CPU (-ngl 0) | 4K | 3574.63 peak WS; 1837.87 peak private | 70.00 | 252.57 median | 11.54 decode; 50.69 prompt | Pending P1-P6 | Runtime and TQ3_0 activation passed |
+| AH-04 | Granite 3B | Q4_K_M GGUF | q8_0 | q8_0 | CPU (-ngl 0) | 4K | 3671.96 peak WS; 1933.01 peak private | 170.00 | 243.23 median | 15.82 decode; 52.03 prompt | 6.73 | Runtime and quality passed after bounded P5 retry |
+| AH-05 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | CPU (-ngl 0) | 4K | 3574.63 peak WS; 1837.87 peak private | 70.00 | 252.57 median | 11.54 decode; 50.69 prompt | 3.28 | Runtime passed; harsh quality regression recorded |
 | AH-06 | Granite 8B | Q4_K_M GGUF | f16 | f16 | CPU (-ngl 0) | 2K | 8913.65 peak WS before final gate; 4317.87 peak private | 320.00 allocation before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified; no unresolved failed inference |
 | AH-07 | Granite 8B | Q4_K_M GGUF | tq3_0 | tq3_0 | CPU (-ngl 0) | 4K | 8737.70 peak WS before gate; 4137.68 peak private | 140.00 allocation before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified; no unresolved failed inference |
-| AH-08 | Granite 3B | Q4_K_M GGUF | f16 | f16 | SYCL partial (-ngl 1) | 4K | 3130.27 peak WS; 1289.04 peak private | 320.00 | 309.95 median | 15.18 decode; 40.93 prompt | Pending P1-P6 | Runtime passed; 1/41 layers on SYCL |
+| AH-08 | Granite 3B | Q4_K_M GGUF | f16 | f16 | SYCL partial (-ngl 1) | 4K | 3130.27 peak WS; 1289.04 peak private | 320.00 | 309.95 median | 15.18 decode; 40.93 prompt | 6.27 | Runtime and quality passed; 1/41 layers on SYCL |
 | AH-09 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL partial | 4K | Rejected attempt: 2880.77 peak WS | 70.00 allocation proven | Rejected one-token response; not a valid TTFT result | Rejected 1-token sentinel; no valid throughput | Not scored: runnable prerequisite disproven | Unsupported after controlled proof; no unresolved failure |
 | AH-10 | Granite 8B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL partial planned | 2K | Not measured: launch prohibited by AH-09 kernel proof and 8B gate | Predicted allocation not reported as measurement | Not measured: prerequisite unsupported | Not measured: prerequisite unsupported | Not scored: prerequisite unsupported | Unsupported before launch; no unresolved failure |
 
@@ -118,13 +118,13 @@ Use one row per formal configuration. Preserve detailed commands, raw logs and o
 
 | Prompt ID | Task | Baseline /10 | Optimised /10 | Format valid? | Required facts retained? | Repetition/corruption? | Notes |
 |---|---|---|---|---|---|---|---|
-| P1 | Sanity explanation |  |  |  |  |  |  |
-| P2 | Instruction following |  |  |  |  |  |  |
-| P3 | Exact JSON structure |  |  |  |  |  |  |
-| P4 | Summarisation |  |  |  |  |  |  |
-| P5 | Long-context retrieval |  |  |  |  |  |  |
-| P6 | Multi-turn stability |  |  |  |  |  |  |
-| Average | P1-P6 bounded quality screen |  |  |  |  |  |  |
+| P1 | Sanity explanation | 4.00 | 4.00 | Baseline Yes; TQ3 No | Baseline No; TQ3 No | No | TQ3 returned 3 bullets and omitted required semantic slots |
+| P2 | Instruction following | 8.35 | 8.35 | Yes / Yes | Yes / Yes | No | Both passed the exact three-line structure |
+| P3 | Exact JSON structure | 4.00 | 2.00 | Baseline Yes; TQ3 No | No / No | No | TQ3 emitted invalid schema/JSON and received the structural cap |
+| P4 | Summarisation | 10.00 | 4.00 | Baseline Yes; TQ3 No | Baseline Yes; TQ3 No | No | TQ3 used one sentence and omitted the runtime fact |
+| P5 | Long-context retrieval | 10.00 | 1.30 | Baseline Yes; TQ3 No | Baseline Yes; TQ3 No | No | TQ3 returned the wrong marker; raw response retained |
+| P6 | Multi-turn stability | 2.00 | 0.00 | No / No | No / No | Yes / Yes | Baseline omitted the amber prefix; TQ3 response was unusable |
+| Average | P1-P6 bounded quality screen | 6.39 | 3.28 | Mixed; deterministic gates applied | TQ3 retained fewer required facts | TQ3 failed stability | No precision bonus; response evidence controls the score |
 
 ## Failure log
 
@@ -139,6 +139,7 @@ Use one row per formal configuration. Preserve detailed commands, raw logs and o
 | AH-F07 | AH-B05 | REPRO | Thread-safety test exhausted OpenCL resources when run immediately after exhaustive backend operations | Integrated-GPU resource lifetime/order sensitivity | Preserved failed attempt and reran the exact indexed test in isolation; terminal pass included in 40/40 reconciliation | Yes | `experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/thread-safety-minimal-final.log`; `thread-safety-exact-minimal-final.log` |
 | AH-F08 | AH-06/AH-07 | SAFETY | 8B model loads crossed 3 GiB, 2.5 GiB and final 2 GiB emergency floors before a request | 16 GB system cannot preserve the controlled reserve with these 8B mappings | Stopped and cleaned every process tree; classified both rows from measured gate evidence without unsafe lowering | Yes - safety-classified | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/`; `AH-07/pilot/` |
 | AH-F09 | AH-09/AH-10 | UNSUP | SYCL TQ3 flash-on emitted a one-token invalid result; flash-off aborted in `mmvq.cpp:1149` | TQ3 K/V attention dequantization is not usable on this SYCL route | Rejected sentinel metrics; proved limitation with explicit flash-off and narrowed tensor placement; classified AH-09/AH-10 unsupported | Yes - capability-classified | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-09-rejected-flash-env-only/`; `AH-09-rejected-explicit-flash-off-layer/` |
+| AH-F10 | AH-04/P5 | QUAL | First 16K long-context attempt reached the 900-second absolute deadline | Q8_0 CPU prefill exceeded the initial bounded deadline | Preserved empty-response hash and reran P5 only with a 1,800-second ceiling; completed in 1,024.6 seconds | Yes | `experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P5-timeout-900.json`; `P5.json` |
 
 Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architecture | BASE baseline | TQ-ACT activation | TQ-FALLBACK fallback | TQ-CRASH crash | CPU | GPU | HYBRID | OOM | MEM | PERF | QUAL | REPRO | SCOPE
 
@@ -148,7 +149,7 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 |---|---|
 | Implementation depth | CPU TQ3_0 runtime validated; SYCL conversion/copy code exists but TQ3 attention runtime is unusable on the tested Intel OpenCL device; Vulkan TQ3 path is not source-proven |
 | QJL present? | No - source/history audit finds 3-bit PolarQuant only; no QJL projection or residual-correction implementation |
-| Granite 3B TQ3_0 | Passed on CPU at 4K: 70.00 MiB KV, 3574.63 MiB peak WS, 11.54 decode tok/s; quality adjudication in progress |
+| Granite 3B TQ3_0 | Passed on CPU at 4K: 70.00 MiB KV, 3574.63 MiB peak WS, 11.54 decode tok/s; harsh quality score 3.28 versus 6.39 F16 baseline |
 | Granite 8B TQ3_0 | Safety-blocked before request at the final 2 GiB reserve; 140.00 MiB KV allocation and 8737.70 MiB pre-stop peak WS measured |
 | CPU support | Validated for Diagnostic 1B and Granite 3B; repository terminal tests 40/40 |
 | Intel GPU support | Standard SYCL partial passed with 1/41 layers and 16.31% mean GPU; TQ3 SYCL classified unsupported after invalid flash output and `mmvq.cpp:1149` abort |
