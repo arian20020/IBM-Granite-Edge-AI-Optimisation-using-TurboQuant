@@ -47,6 +47,27 @@ class AnimehackerRunnerTests(unittest.TestCase):
         self.assertNotIn(["-ot", "output.*=SYCL0"], pairs)
         self.assertNotIn(["-fa", "off"], pairs)
 
+    def test_non_tq_sycl_retains_forced_flash_attention_off(self):
+        from scripts.testing.animehacker.runner import build_server_command
+
+        command = build_server_command(case(backend="sycl-partial", cache="f16"),
+                                       Path("server.exe"), Path("model.gguf"), 19002)
+        self.assertIn(["-fa", "off"],
+                      [command[i:i + 2] for i in range(len(command) - 1)])
+
+    def test_runtime_environment_distinguishes_tq3_from_non_tq3_sycl(self):
+        from scripts.testing.run_animehacker_retest import runtime_environment
+
+        self.assertEqual(
+            runtime_environment(case(backend="sycl-partial", cache="tq3_0")),
+            {"ONEAPI_DEVICE_SELECTOR": "level_zero:0"},
+        )
+        self.assertEqual(
+            runtime_environment(case(backend="sycl-partial", cache="f16")),
+            {"ONEAPI_DEVICE_SELECTOR": "opencl:gpu", "GGML_SYCL_ENABLE_FLASH_ATTN": "0"},
+        )
+        self.assertEqual(runtime_environment(case()), {})
+
     def test_tq_sycl_runtime_prompt_uses_granite_role_tokens(self):
         from scripts.testing.animehacker.runner import format_runtime_prompt
 

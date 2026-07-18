@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.testing.animehacker.activation import classify_activation
-from scripts.testing.animehacker.matrix import load_matrix
+from scripts.testing.animehacker.matrix import TestCase, load_matrix
 from scripts.testing.animehacker.runner import build_server_command, format_runtime_prompt, select_cases
 from scripts.testing.animehacker.state import checkpoint
 
@@ -23,6 +23,14 @@ from scripts.testing.animehacker.state import checkpoint
 FORMAL_FIELDS = ("peak_working_set_mb", "peak_private_bytes_mb", "available_ram_min_mb",
                  "kv_mb", "ttft_ms", "prompt_tps", "decode_tps",
                  "generation_duration_ms", "gpu_memory_peak_mb")
+
+
+def runtime_environment(case: TestCase) -> dict[str, str]:
+    if case.backend != "sycl-partial":
+        return {}
+    if case.cache == "tq3_0":
+        return {"ONEAPI_DEVICE_SELECTOR": "level_zero:0"}
+    return {"ONEAPI_DEVICE_SELECTOR": "opencl:gpu", "GGML_SYCL_ENABLE_FLASH_ATTN": "0"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -114,8 +122,7 @@ def main() -> int:
         model_record = {"path": str(model.resolve()), "bytes": model.stat().st_size,
                         "sha256": sha256_file(model)}
         (case_root / "model.json").write_text(json.dumps(model_record, indent=2), encoding="utf-8")
-        environment = ({"ONEAPI_DEVICE_SELECTOR": "level_zero:0"}
-                       if case.backend == "sycl-partial" else {})
+        environment = runtime_environment(case)
         environment_path = case_root / "environment.json"
         environment_path.write_text(json.dumps(environment, indent=2), encoding="utf-8")
         labels = ("pilot",) if args.pilot_only else ("pilot", "warmup", "sample-1", "sample-2", "sample-3")

@@ -16,8 +16,11 @@ def build_server_command(case: TestCase, server: Path, model: Path, port: int) -
         "-np", "1", "--cache-ram", "0", "--fit", "off", "--offline",
         "--no-webui", "--log-colors", "off", "-lv", "4",
     ]
-    if case.backend == "sycl-partial" and case.cache == "tq3_0":
-        command.extend(("-sm", "none", "-mg", "0"))
+    if case.backend == "sycl-partial":
+        if case.cache == "tq3_0":
+            command.extend(("-sm", "none", "-mg", "0"))
+        else:
+            command.extend(("-fa", "off"))
     return command
 
 
