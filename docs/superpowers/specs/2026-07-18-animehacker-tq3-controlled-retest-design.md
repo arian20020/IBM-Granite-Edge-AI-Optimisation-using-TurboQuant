@@ -92,6 +92,8 @@ The controller updates the raw state and processed summary immediately after eac
 - Do not retry unchanged commands repeatedly. Each retry must test a documented hypothesis.
 - Stop after repeated equivalent failures and reassess the prerequisite or architecture.
 - Never bypass a safety gate by removing memory monitoring. A controlled retry may lower concurrency, close model processes, reduce supplementary scope, or raise the reserve, but cannot falsify the formal configuration.
+- The completed campaign must contain zero unresolved failed tests. Any failing build, repository test, harness test, formal runtime, quality validator, evidence audit, or workbook-control check must be root-caused, corrected where the pinned source and environment permit, and rerun successfully before completion.
+- `Blocked` and `Unsupported` are not escape labels for failures. They require evidence that execution cannot validly begin because a prerequisite or capability is absent. A test that begins and produces an incorrect result remains failed until fixed and rerun successfully.
 
 ## Workbook presentation
 
@@ -115,6 +117,7 @@ Supplementary Vulkan or WSL results must be visibly separated from the controlle
 The route is complete only when:
 
 - all 18 controlled IDs have a final classification;
+- no in-scope test remains in a failed or unresolved state;
 - every runnable formal row has one pilot, one excluded warm-up, and three valid measured repetitions;
 - all required resource and utilization fields contain sourced measurements or explicit blocked/unsupported classifications;
 - every runnable formal row has independent P1-P6 quality evidence;
