@@ -1,0 +1,3 @@
+{"elapsed_ms": 0.0, "kind": "start", "pid": 17432}
+{"available_ram_bytes": 11080937472, "elapsed_ms": 19.4523, "kind": "memory", "private_bytes": 2285568, "working_set_bytes": 1806336}
+{"elapsed_ms": 1448.7102, "exit_code": 3221225781, "kind": "exit"}

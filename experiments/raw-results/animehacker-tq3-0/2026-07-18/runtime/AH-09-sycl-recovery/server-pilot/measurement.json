@@ -1,0 +1,42 @@
+{
+  "available_ram_min_mb": 10567.60546875,
+  "decode_tps": null,
+  "exit_code": 3221225781,
+  "extended_missing": [
+    "generation_duration_ms",
+    "prompt_tps",
+    "decode_tps",
+    "gpu_memory_peak_mb"
+  ],
+  "generation_duration_ms": null,
+  "gpu_dedicated_peak_mb": null,
+  "gpu_memory_peak_mb": null,
+  "gpu_shared_peak_mb": null,
+  "kv_mb": null,
+  "missing": [
+    "kv_mb",
+    "ttft_ms"
+  ],
+  "peak_private_bytes_mb": 2.1796875,
+  "peak_ram_mb": 1.72265625,
+  "peak_working_set_mb": 1.72265625,
+  "prompt_tps": null,
+  "request_error": "server did not become ready",
+  "response_timings": null,
+  "runtime_metric_errors": [
+    "missing_kv_mb",
+    "missing_ttft_ms",
+    "missing_prompt_tps",
+    "missing_decode_tps",
+    "nonzero_or_missing_exit"
+  ],
+  "sample_id": "AH-09-sycl-recovery-pilot",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": null,
+  "utilization": {
+    "cpu_percent": null,
+    "gpu_percent": null
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": false
+}

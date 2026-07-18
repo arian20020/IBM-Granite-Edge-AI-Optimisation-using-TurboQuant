@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- KV-cache quantisation reduces memory footprint, enabling offline local language models on laptops.\n- It allows offline operation without internet, perfect for memory-limited environments.\n- Benefits: Faster inference, lower latency, and reduced data storage needs.\n- Limitations: Reduced accuracy due to quantisation, potential loss of nuanced language nuances.\n- Check: Ensure quantisation does not degrade model performance beyond acceptable thresholds.",
+  "test_id": "AH-09",
+  "model_id": "granite-3b-bf16",
+  "backend": "sycl-partial",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 8.375,
+  "output_sha256": "5301df6d2025c9d86efbf01602c1979dae8b8d6d7c6102db38d1cb429f07e2c9"
+}

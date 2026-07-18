@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P5",
+  "status": "complete",
+  "output": "MARKER: IX-N-T-7319",
+  "test_id": "AH-09",
+  "model_id": "granite-3b-bf16",
+  "backend": "sycl-partial",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 594.562,
+  "output_sha256": "824f2908f1a04296801a3f2c86103f2bc8eca36c7935bb93b0ce5eb085d23aec"
+}

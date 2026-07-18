@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Improved data compression efficiency  \nLIMITATION: Potential loss of data accuracy due to compression  \nCHECK: Ensure that the compressed data can be accurately decompressed without loss of critical information.",
+  "test_id": "AH-09",
+  "model_id": "granite-3b-bf16",
+  "backend": "sycl-partial",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 4.5,
+  "output_sha256": "0ddac73d955e51ab4e2af46db74551ae917e8f8ac17f23a3e447adbad0332b85"
+}

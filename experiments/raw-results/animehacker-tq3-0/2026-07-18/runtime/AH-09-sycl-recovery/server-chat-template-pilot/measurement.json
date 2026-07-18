@@ -1,0 +1,51 @@
+{
+  "available_ram_min_mb": 7527.875,
+  "decode_tps": 14.576339821854353,
+  "exit_code": 0,
+  "extended_missing": [],
+  "generation_duration_ms": 9283.3684,
+  "gpu_dedicated_peak_mb": 0.0,
+  "gpu_memory_peak_mb": 411.617188,
+  "gpu_shared_peak_mb": 411.617188,
+  "kv_mb": 70.0,
+  "missing": [],
+  "peak_private_bytes_mb": 1039.85546875,
+  "peak_ram_mb": 2895.58203125,
+  "peak_working_set_mb": 2895.58203125,
+  "prompt_tps": 42.053407827941484,
+  "request_error": null,
+  "response_timings": {
+    "cache_n": 0,
+    "predicted_ms": 8781.354,
+    "predicted_n": 128,
+    "predicted_per_second": 14.576339821854353,
+    "predicted_per_token_ms": 68.604328125,
+    "prompt_ms": 499.365,
+    "prompt_n": 21,
+    "prompt_per_second": 42.053407827941484,
+    "prompt_per_token_ms": 23.779285714285713
+  },
+  "runtime_metric_errors": [
+    "missing_prompt_tps",
+    "missing_decode_tps"
+  ],
+  "sample_id": "AH-09-sycl-recovery-chat-template",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 534.7014,
+  "utilization": {
+    "cpu_percent": {
+      "mean": 62.5981718,
+      "median": 65.669905,
+      "peak": 66.659255,
+      "sample_count": 15
+    },
+    "gpu_percent": {
+      "mean": 12.533333333333333,
+      "median": 12.0,
+      "peak": 16.0,
+      "sample_count": 15
+    }
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": true
+}
