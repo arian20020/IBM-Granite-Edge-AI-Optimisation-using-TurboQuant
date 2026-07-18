@@ -44,7 +44,7 @@ def args() -> argparse.Namespace:
 
 
 def quality_case_ids() -> frozenset[str]:
-    return frozenset({"AH-01", "AH-02", "AH-03", "AH-04", "AH-05",
+    return frozenset({"AH-01", "AH-02", "AH-03", "AH-04", "AH-05", "AH-06", "AH-07",
                       "AH-08", "AH-09", "AH-10"})
 
 
@@ -90,7 +90,7 @@ def runtime_summary_is_complete(test_id: str, summary: object) -> bool:
 
 def require_recovered_runtime_summaries(cases: list, runtime_root: Path) -> None:
     for case in cases:
-        if case.test_id not in {"AH-09", "AH-10"}:
+        if case.test_id not in {"AH-06", "AH-07", "AH-09", "AH-10"}:
             continue
         summary_path = runtime_root / case.test_id / "summary.json"
         try:

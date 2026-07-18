@@ -102,6 +102,57 @@ class AnimehackerLargeHostTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 write_manifest(run_root, result)
 
+    def test_launcher_restricts_selection_to_frozen_incomplete_rows(self):
+        from scripts.testing.run_animehacker_large_host import validate_selection
+
+        self.assertEqual(validate_selection(("AH-10", "AH-06")), ("AH-06", "AH-10"))
+        with self.assertRaisesRegex(ValueError, "unsupported test ID"):
+            validate_selection(("AH-09",))
+
+    def test_runtime_command_keeps_guard_and_2048_mib_floor(self):
+        from scripts.testing.run_animehacker_large_host import LargeHostConfig, build_runtime_command
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = LargeHostConfig.fixture(root)
+            command = build_runtime_command(config, "AH-10", root / "runtime")
+        self.assertIn("--include-guarded", command)
+        self.assertIn(["--minimum-available-ram-mb", "2048"],
+                      [command[i:i + 2] for i in range(len(command) - 1)])
+        self.assertIn(["--only", "AH-10"], [command[i:i + 2] for i in range(len(command) - 1)])
+        self.assertNotIn("--pilot-only", command)
+
+    def test_quality_command_uses_same_runtime_and_run_scoped_quality_roots(self):
+        from scripts.testing.run_animehacker_large_host import LargeHostConfig, build_quality_command
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = LargeHostConfig.fixture(root)
+            runtime = root / "run" / "runtime"
+            quality = root / "run" / "quality"
+            command = build_quality_command(config, "AH-06", runtime, quality)
+        pairs = [command[i:i + 2] for i in range(len(command) - 1)]
+        self.assertIn(["--runtime-root", str(runtime)], pairs)
+        self.assertIn(["--output-root", str(quality)], pairs)
+        self.assertIn(["--only", "AH-06"], pairs)
+
+    def test_execute_is_serial_and_stops_after_nonzero_phase(self):
+        from scripts.testing.run_animehacker_large_host import LargeHostConfig, execute
+
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append(command)
+            return type("Completed", (), {"returncode": 9, "stdout": "", "stderr": "failed"})()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = LargeHostConfig.fixture(root, selected=("AH-06", "AH-07"))
+            with self.assertRaisesRegex(RuntimeError, "AH-06 runtime failed"):
+                execute(config, runner=runner, installed_ram_bytes=32 * GIB,
+                        active_process_names=(), level_zero_devices=())
+        self.assertEqual(len(calls), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

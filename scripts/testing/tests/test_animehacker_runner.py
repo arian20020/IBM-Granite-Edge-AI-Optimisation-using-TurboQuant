@@ -70,6 +70,13 @@ class AnimehackerRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "AH-09 requires complete runtime evidence"):
                 require_recovered_runtime_summaries([case(test_id="AH-09")], Path(directory))
 
+    def test_large_host_cpu_rows_require_runtime_summary_file(self):
+        from scripts.testing.run_animehacker_quality import require_recovered_runtime_summaries
+
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(RuntimeError, "AH-06 requires complete runtime evidence"):
+                require_recovered_runtime_summaries([case(test_id="AH-06")], Path(directory))
+
     def test_recovered_quality_preflight_permits_valid_runtime_summary(self):
         from scripts.testing.run_animehacker_quality import require_recovered_runtime_summaries
 
