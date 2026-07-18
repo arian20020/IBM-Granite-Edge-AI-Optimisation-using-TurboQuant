@@ -20,6 +20,7 @@ if str(ROOT / "scripts" / "testing") not in sys.path:
 
 from scripts.testing.animehacker.matrix import load_matrix
 from scripts.testing.animehacker.runner import build_server_command
+from scripts.testing.run_animehacker_retest import FORMAL_FIELDS
 from scripts.testing.run_atomicbot_full_quality import acquire_runner_lock, call_with_deadline
 from scripts.testing.run_atomicbot_quality_retest import render_prompt, request, wait_ready
 
@@ -29,6 +30,7 @@ def args() -> argparse.Namespace:
     parser.add_argument("--matrix", type=Path, required=True)
     parser.add_argument("--prompt-set", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--runtime-root", type=Path, required=True)
     parser.add_argument("--cpu-build", type=Path, required=True)
     parser.add_argument("--sycl-build", type=Path, required=True)
     parser.add_argument("--diagnostic-model", type=Path, required=True)
@@ -46,6 +48,59 @@ def quality_case_ids() -> frozenset[str]:
                       "AH-08", "AH-09", "AH-10"})
 
 
+def runtime_summary_is_complete(test_id: str, summary: object) -> bool:
+    if not isinstance(summary, dict) or summary.get("test_id") != test_id:
+        return False
+    samples = summary.get("samples")
+    if not isinstance(samples, list) or len(samples) != 3:
+        return False
+    for sample in samples:
+        if not isinstance(sample, dict) or sample.get("valid") is not True:
+            return False
+        if sample.get("missing") or sample.get("extended_missing"):
+            return False
+        if any(sample.get(field) is None for field in FORMAL_FIELDS):
+            return False
+        utilization = sample.get("utilization")
+        if not isinstance(utilization, dict):
+            return False
+        for device in ("cpu_percent", "gpu_percent"):
+            item = utilization.get(device)
+            if not isinstance(item, dict) or any(item.get(field) is None for field in
+                                                 ("mean", "median", "peak", "sample_count")):
+                return False
+    aggregate = summary.get("aggregate")
+    if not isinstance(aggregate, dict):
+        return False
+    for field in FORMAL_FIELDS:
+        item = aggregate.get(field)
+        if not isinstance(item, dict) or any(item.get(stat) is None for stat in
+                                             ("mean", "median", "min", "max")):
+            return False
+    for device in ("cpu_percent", "gpu_percent"):
+        item = aggregate.get(device)
+        if not isinstance(item, dict) or any(item.get(stat) is None for stat in
+                                             ("mean", "median", "peak", "sample_count")):
+            return False
+    activation = summary.get("activation")
+    return (isinstance(activation, list) and len(activation) == 3 and
+            all(isinstance(item, dict) and item.get("activated") is True
+                for item in activation))
+
+
+def require_recovered_runtime_summaries(cases: list, runtime_root: Path) -> None:
+    for case in cases:
+        if case.test_id not in {"AH-09", "AH-10"}:
+            continue
+        summary_path = runtime_root / case.test_id / "summary.json"
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            summary = None
+        if not runtime_summary_is_complete(case.test_id, summary):
+            raise RuntimeError(f"{case.test_id} requires complete runtime evidence: {summary_path}")
+
+
 def main() -> int:
     a = args()
     prompt_set = json.loads(a.prompt_set.read_text(encoding="utf-8-sig"))
@@ -55,6 +110,7 @@ def main() -> int:
     selected = set(a.only or ())
     cases = [case for case in load_matrix(a.matrix) if case.test_id in quality_case_ids() and
              (not selected or case.test_id in selected)]
+    require_recovered_runtime_summaries(cases, a.runtime_root)
     a.output_root.mkdir(parents=True, exist_ok=True)
     _handle, release = acquire_runner_lock(a.output_root)
     atexit.register(release)
