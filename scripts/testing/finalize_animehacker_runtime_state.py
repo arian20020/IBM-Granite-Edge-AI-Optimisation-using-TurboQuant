@@ -11,6 +11,7 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-root", type=Path, required=True)
+    parser.add_argument("--recovery-root", type=Path, required=True)
     args = parser.parse_args()
     attempts = {}
     for test_id in ("AH-01", "AH-02", "AH-03", "AH-04", "AH-05", "AH-08"):
@@ -22,12 +23,13 @@ def main() -> int:
     for test_id in ("AH-06", "AH-07"):
         attempts[test_id] = {"status": "safety-classified", "reconciled": True,
                              "evidence": str((args.runtime_root / test_id).resolve())}
-    for test_id in ("AH-09", "AH-10"):
-        attempts[test_id] = {"status": "unsupported-classified", "reconciled": True,
-                             "evidence": str((args.runtime_root /
-                                 ("AH-09-rejected-explicit-flash-off-layer" if test_id == "AH-09"
-                                  else "AH-09-rejected-flash-env-only")).resolve())}
-    payload = {"schema_version": 1, "attempts": attempts}
+    ah09 = args.recovery_root / "AH-09" / "summary.json"
+    ah10 = args.recovery_root / "AH-10" / "wrapper-execution.json"
+    if not ah09.is_file() or not ah10.is_file():
+        raise FileNotFoundError("recovered AH-09 summary and AH-10 wrapper evidence are required")
+    attempts["AH-09"] = {"status": "complete", "reconciled": True, "summary": str(ah09.resolve())}
+    attempts["AH-10"] = {"status": "safety-classified", "reconciled": True, "evidence": str(ah10.resolve())}
+    payload = {"schema_version": 2, "attempts": attempts}
     temporary = args.runtime_root / "state.json.tmp"
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     os.replace(temporary, args.runtime_root / "state.json")

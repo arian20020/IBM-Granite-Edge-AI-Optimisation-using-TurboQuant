@@ -31,17 +31,17 @@ def main() -> int:
         if row["Workbook_ID"] == "WB-03":
             row["Canonical_Template_SHA256"] = sha256(args.template)
             row["Last_Validated_DOCX_SHA256"] = sha256(args.docx)
-            row["Status"] = ("Formal v1.3 animehacker TQ3_0 retest complete: CPU/SYCL/Vulkan builds, "
-                            "six measured runtime rows, complete utilization/resource metrics, "
-                            "P1-P6 harsh quality, and terminal safety/capability classifications")
-            row["Revision"] = "1.3"
+            row["Status"] = ("Formal v1.4 animehacker TQ3_0 recovery complete: AH-09 measured "
+                            "SYCL-partial runtime and P1-P6 quality; AH-10 safety-classified at "
+                            "the unchanged 2048 MiB floor; no full-GPU TQ3 cache claim")
+            row["Revision"] = "1.4"
             found = True
     if not found:
         raise ValueError("WB-03 manifest row missing")
     with args.manifest.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, lineterminator="\n")
         writer.writeheader(); writer.writerows(rows)
-    print("WB-03 manifest updated to v1.3")
+    print("WB-03 manifest updated to v1.4")
     return 0
 
 

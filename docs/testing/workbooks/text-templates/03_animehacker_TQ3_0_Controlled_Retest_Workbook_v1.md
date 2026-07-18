@@ -29,7 +29,7 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | Test operator | Codex controlled retest agent |
 | Test start date | 2026-07-18 |
 | Test end date | 2026-07-18 |
-| Overall status | Complete: 6 runnable rows passed runtime/quality evidence collection; 2 rows safety-classified; 2 rows capability-classified; zero unresolved failures |
+| Overall status | Complete: 7 runnable rows passed runtime/quality evidence collection; 3 rows safety-classified; zero unresolved failures |
 
 ## 2. Target laptop
 
@@ -67,8 +67,8 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | AH-06 | Granite 8B | F16 | CPU | 2K | 8B fork baseline | Safety-blocked during model load after 3 controlled gates; resolved classification |
 | AH-07 | Granite 8B | TQ3_0 | CPU | 4K | Main 8B TQ test | Safety-blocked at final 2 GiB floor; resolved classification |
 | AH-08 | Granite 3B | Standard | SYCL partial | 4K | Controlled GPU baseline | Runtime and quality passed |
-| AH-09 | Granite 3B | TQ3_0 | SYCL partial | 4K | GPU TQ attempt | Unsupported after controlled runtime proof; resolved |
-| AH-10 | Granite 8B | TQ3_0 | SYCL partial | 2K | Guarded 8B GPU investigation | Unsupported by AH-09 kernel proof and 8B memory gate; resolved |
+| AH-09 | Granite 3B | TQ3_0 | SYCL partial | 4K | GPU TQ attempt | Complete - 3 measured samples and P1-P6 quality; CPU KV with 1/41 layers offloaded |
+| AH-10 | Granite 8B | TQ3_0 | SYCL partial | 2K | Guarded 8B GPU investigation | Safety-classified at unchanged 2048 MiB floor; no request or quality run |
 
 ## 5. animehacker configuration ladder
 
@@ -78,7 +78,7 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | 2 | Same frozen weights | Q8_0 | CPU | Standard compressed-cache reference | Yes | Yes - AH-04 |
 | 3 | Same frozen weights | TQ3_0 | CPU | Main TQ3_0 comparison | Yes for 1B/3B | Yes - AH-02/AH-05; AH-07 safety-classified |
 | 4 | Same frozen weights | F16 | SYCL OpenCL partial | GPU baseline | Yes with CPU fallback | Yes - AH-08 |
-| 5 | Same frozen weights | TQ3_0 | SYCL OpenCL partial | GPU TQ investigation | No usable attention runtime on tested device | Investigated - AH-09; AH-10 classified from prerequisite proof |
+| 5 | Same frozen weights | TQ3_0 | SYCL OpenCL partial | GPU TQ investigation | Yes with CPU-resident TQ3 KV and 1/41 layers offloaded | AH-09 measured; AH-10 safety-classified |
 
 # Device execution and fallback verification
 
@@ -94,8 +94,8 @@ Do not treat a CUDA-only or non-Windows path as suitable for application integra
 | AH-06 | CPU | CPU load attempted | CPU AVX2 | 0 layers requested (`-ngl 0`) | CPU F16 KV allocation reached 320.00 MiB | No GPU route requested | Not measured: emergency stop occurred before request | Measured 0% before request; no request-window result | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/pilot-emergency-stop-3072/`; `pilot-emergency-stop-2560/`; `pilot-emergency-stop-2048/` |
 | AH-07 | CPU | CPU load attempted | CPU AVX2 | 0 layers requested (`-ngl 0`) | CPU TQ3_0 KV allocation reached 140.00 MiB | No GPU route requested | Not measured: emergency stop occurred before request | Measured 0% before request; no request-window result | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-07/pilot/` |
 | AH-08 | GPU partial | Intel UHD Graphics | SYCL OpenCL | 1/41 layers | CPU F16 KV | Yes, remaining 40 layers and KV on CPU | mean 62.03%; median 66.11%; peak 67.60% | mean 16.31%; median 16.00%; peak 20.00%; 407.98 MiB peak process GPU memory | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/summary.json` |
-| AH-09 | GPU partial | Intel UHD Graphics | SYCL OpenCL | Unsupported: TQ3 attention offload aborts in `mmvq.cpp:1149`; flash path emits one-token invalid output | CPU TQ3_0 KV allocation proven before abort | Yes; CPU-only AH-05 is the valid TQ3 route | Rejected attempts measured only; not reported as performance | Rejected attempts measured 4% before abort/invalid response | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-09-rejected-flash-env-only/`; `AH-09-rejected-explicit-flash-off-layer/` |
-| AH-10 | GPU partial planned | Intel UHD Graphics | SYCL OpenCL | Not launched: same TQ3 SYCL kernel is unsupported and 8B standard load crossed the memory gate | Not allocated because prerequisite capability failed | CPU AH-07 remains the only potentially valid TQ3 route | Not measured because launch was prohibited by proven prerequisite | Not measured because launch was prohibited by proven prerequisite | AH-09 failure evidence plus `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/pilot-emergency-stop-2048/` |
+| AH-09 | GPU partial | Intel UHD Graphics | SYCL OpenCL | 1/41 layers offloaded; actual device classification remains CPU because KV and 40 layers stayed on CPU | CPU TQ3_0 KV, 70.00 MiB | Yes; this is partial placement, not full GPU acceleration | mean 63.14%; median 65.81%; peak 67.71% | mean 12.61%; median 12.00%; peak 17.00%; 411.63 MiB peak shared process GPU memory | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/summary.json` |
+| AH-10 | GPU partial requested | Intel UHD Graphics load attempted | SYCL OpenCL | Pilot stopped before request when available RAM crossed the unchanged 2048 MiB floor | 70.00 MiB KV observed before stop; placement not accepted as a completed run | Safety stop; no request-window utilization | Not measured: stopped before request | Not measured: stopped before request | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/` schema-v2 process evidence |
 
 # Formal run results
 
@@ -109,8 +109,8 @@ Do not treat a CUDA-only or non-Windows path as suitable for application integra
 | AH-06 | Granite 8B | Q4_K_M GGUF | f16 | f16 | CPU (-ngl 0) | 2K | 8913.65 peak WS before final gate; 4317.87 peak private | 320.00 allocation before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified; no unresolved failed inference |
 | AH-07 | Granite 8B | Q4_K_M GGUF | tq3_0 | tq3_0 | CPU (-ngl 0) | 4K | 8737.70 peak WS before gate; 4137.68 peak private | 140.00 allocation before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified; no unresolved failed inference |
 | AH-08 | Granite 3B | Q4_K_M GGUF | f16 | f16 | SYCL partial (-ngl 1) | 4K | 3130.27 peak WS; 1289.04 peak private | 320.00 | 309.95 median | 15.18 decode; 40.93 prompt | 6.27 | Runtime and quality passed; 1/41 layers on SYCL |
-| AH-09 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL partial | 4K | Rejected attempt: 2880.77 peak WS | 70.00 allocation proven | Rejected one-token response; not a valid TTFT result | Rejected 1-token sentinel; no valid throughput | Not scored: runnable prerequisite disproven | Unsupported after controlled proof; no unresolved failure |
-| AH-10 | Granite 8B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL partial planned | 2K | Not measured: launch prohibited by AH-09 kernel proof and 8B gate | Predicted allocation not reported as measurement | Not measured: prerequisite unsupported | Not measured: prerequisite unsupported | Not scored: prerequisite unsupported | Unsupported before launch; no unresolved failure |
+| AH-09 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL partial (-ngl 1) | 4K | 2891.66 peak WS; 1040.09 peak private | 70.00 | 491.00 median | 12.11 median decode; 40.90 median prompt | 6.06 | Runtime and quality passed; CPU-resident TQ3 KV and 1/41 layers offloaded |
+| AH-10 | Granite 8B | Q8_0 GGUF | tq3_0 | tq3_0 | SYCL partial requested | 2K | 8119.41 peak WS; 1145.24 peak private before stop | 70.00 before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified at unchanged 2048 MiB floor; cleanup verified |
 
 Use one row per formal configuration. Preserve detailed commands, raw logs and outputs. Llama memory-breakdown lines are not OS peak working set. A metric not sampled is `Not measured`, not inferred.
 
@@ -126,6 +126,18 @@ Use one row per formal configuration. Preserve detailed commands, raw logs and o
 | P6 | Multi-turn stability | 2.00 | 0.00 | No / No | No / No | Yes / Yes | Baseline omitted the amber prefix; TQ3 response was unusable |
 | Average | P1-P6 bounded quality screen | 6.39 | 3.28 | Mixed; deterministic gates applied | TQ3 retained fewer required facts | TQ3 failed stability | No precision bonus; response evidence controls the score |
 
+## AH-09 recovered quality adjudication
+
+| Prompt | Score /10 | Deterministic result | Evidence hash | Note |
+|---|---|---|---|---|
+| P1 | 4.00 | Fail | 5301df6d2025c9d86efbf01602c1979dae8b8d6d7c6102db38d1cb429f07e2c9 | Required semantic slots were not retained |
+| P2 | 8.35 | Pass | 0ddac73d955e51ab4e2af46db74551ae917e8f8ac17f23a3e447adbad0332b85 | Exact labelled structure passed |
+| P3 | 8.70 | Pass | 70bc9a0c03802c4a71ed664d39b072b6cd1e6018689ff70cc4efff631e9e5c98 | Exact JSON structure passed |
+| P4 | 4.00 | Fail | 8b808310880d35799378cdc1cec3262a72ddca960cef9d6de21972f66c1c6e85 | Required cache and TurboQuant facts were missing |
+| P5 | 1.30 | Fail | 824f2908f1a04296801a3f2c86103f2bc8eca36c7935bb93b0ce5eb085d23aec | Wrong long-context marker |
+| P6 | 10.00 | Pass | 215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e | Multi-turn stability passed |
+| Mean | 6.0583 | Mixed | Recorded per response above | Harsh rubric; no precision bonus |
+
 ## Failure log
 
 | Failure ID | Test ID | Code | Description | Likely cause | Next action | Resolved? | Evidence |
@@ -138,7 +150,8 @@ Use one row per formal configuration. Preserve detailed commands, raw logs and o
 | AH-F06 | AH-B05 | REPRO | SYCL F16 EXP backend cases returned invalid numeric results | Backend declared unsupported behavior as supported | Restricted SYCL EXP support to verified F32; targeted regression and terminal suite passed | Yes | `experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/backend-ops-minimal-final.log`; `campaign-fixes.patch` |
 | AH-F07 | AH-B05 | REPRO | Thread-safety test exhausted OpenCL resources when run immediately after exhaustive backend operations | Integrated-GPU resource lifetime/order sensitivity | Preserved failed attempt and reran the exact indexed test in isolation; terminal pass included in 40/40 reconciliation | Yes | `experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/thread-safety-minimal-final.log`; `thread-safety-exact-minimal-final.log` |
 | AH-F08 | AH-06/AH-07 | SAFETY | 8B model loads crossed 3 GiB, 2.5 GiB and final 2 GiB emergency floors before a request | 16 GB system cannot preserve the controlled reserve with these 8B mappings | Stopped and cleaned every process tree; classified both rows from measured gate evidence without unsafe lowering | Yes - safety-classified | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/`; `AH-07/pilot/` |
-| AH-F09 | AH-09/AH-10 | UNSUP | SYCL TQ3 flash-on emitted a one-token invalid result; flash-off aborted in `mmvq.cpp:1149` | TQ3 K/V attention dequantization is not usable on this SYCL route | Rejected sentinel metrics; proved limitation with explicit flash-off and narrowed tensor placement; classified AH-09/AH-10 unsupported | Yes - capability-classified | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-09-rejected-flash-env-only/`; `AH-09-rejected-explicit-flash-off-layer/` |
+| AH-F09 | AH-09 | RECOVERY | Initial SYCL TQ3 attempts produced invalid/aborted attention paths | Broad GPU placement was not viable; narrowed placement retained KV and 40/41 layers on CPU | Recovered with controlled `-ngl 1` placement; accepted three samples and six quality records without claiming GPU-resident TQ3 cache | Yes - recovered with bounded partial placement | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/`; `quality-recovery/AH-09/` |
+| AH-F11 | AH-10 | SAFETY | Guarded 8B SYCL pilot crossed the unchanged 2048 MiB available-RAM floor before request | 9.35 GB model mapping on a 16 GB shared-memory system exhausted the controlled reserve | Controller stopped synchronously; schema-v2 preflight, wrapper and post-stop cleanup prove zero residual processes; no quality run | Yes - safety-classified | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/` |
 | AH-F10 | AH-04/P5 | QUAL | First 16K long-context attempt reached the 900-second absolute deadline | Q8_0 CPU prefill exceeded the initial bounded deadline | Preserved empty-response hash and reran P5 only with a 1,800-second ceiling; completed in 1,024.6 seconds | Yes | `experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P5-timeout-900.json`; `P5.json` |
 
 Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architecture | BASE baseline | TQ-ACT activation | TQ-FALLBACK fallback | TQ-CRASH crash | CPU | GPU | HYBRID | OOM | MEM | PERF | QUAL | REPRO | SCOPE
@@ -152,14 +165,14 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 | Granite 3B TQ3_0 | Passed on CPU at 4K: 70.00 MiB KV, 3574.63 MiB peak WS, 11.54 decode tok/s; harsh quality score 3.28 versus 6.39 F16 baseline |
 | Granite 8B TQ3_0 | Safety-blocked before request at the final 2 GiB reserve; 140.00 MiB KV allocation and 8737.70 MiB pre-stop peak WS measured |
 | CPU support | Validated for Diagnostic 1B and Granite 3B; repository terminal tests 40/40 |
-| Intel GPU support | Standard SYCL partial passed with 1/41 layers and 16.31% mean GPU; TQ3 SYCL classified unsupported after invalid flash output and `mmvq.cpp:1149` abort |
+| Intel GPU support | Standard SYCL partial passed; recovered TQ3 also completed with 1/41 layers and 12.61% mean GPU, while TQ3 KV and most compute remained on CPU |
 | Measured memory benefit | Diagnostic 1K KV: 26.00 to 5.69 MiB (-78.1%); Granite 3B 4K KV: Q8_0 170.00 to TQ3_0 70.00 MiB (-58.8%); memory benefit accompanies lower decode throughput |
 | Research value | High for quantized-KV CPU experimentation and failure characterization; insufficient for production Intel GPU integration |
 | Integration difficulty | High: fork is behind upstream, QJL claim is absent, CPU vec-dot traits are incomplete, and SYCL TQ3 attention requires kernel/runtime repair |
-| Final status | Conditional research-only CPU candidate; reject current SYCL TQ3 route for application integration |
-| Application role | CPU fallback experiment only after quality acceptance; standard SYCL remains a separate non-TQ baseline |
+| Final status | Conditional research comparator: CPU and bounded SYCL-partial evidence accepted; no full-GPU TQ3 acceleration claim |
+| Application role | CPU-resident TQ3 cache experiment with limited SYCL layer offload only after quality acceptance; AH-10 remains safety-blocked |
 | Main evidence path | `experiments/raw-results/animehacker-tq3-0/2026-07-18/` |
-| Final reasoning | Compression is substantial, but performance regresses and the Intel GPU path fails correctness/stability gates; precision labels receive no quality bonus |
+| Final reasoning | Compression is substantial and AH-09 recovered, but placement is predominantly CPU and quality mean is 6.0583; precision labels receive no quality bonus |
 
 # Evidence package summary and reviewer notes
 
@@ -170,6 +183,6 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 | Pinned commit | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc |
 | Git head | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc (clean detached campaign checkout) |
 | SYCL device | Intel UHD Graphics via `opencl:gpu`, driver 32.0.101.7076; Level Zero retained as rejected unstable evidence |
-| Formal matrix | AH-01-AH-05 and AH-08 have three valid samples; AH-06/AH-07 safety-classified; AH-09/AH-10 capability-classified |
-| Quality review | Frozen P1-P6 screen, deterministic gates first, harsh weighted rubric, no precision bonus; raw response and hash retained per runnable row |
+| Formal matrix | AH-01-AH-05, AH-08 and AH-09 have three valid samples; AH-06/AH-07/AH-10 are safety-classified |
+| Quality review | Frozen P1-P6 screen, deterministic gates first, harsh weighted rubric, no precision bonus; AH-09 mean 6.0583 from six hashed recovery responses; AH-10 had no quality run |
 | Memory note | Peak working set includes mapped GGUF pages and is not interchangeable with private bytes; both are reported separately, with physical-RAM floors enforced |

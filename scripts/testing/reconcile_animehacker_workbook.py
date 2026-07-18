@@ -69,6 +69,41 @@ def validate_quality(root: Path, adjudication: Path) -> dict:
     return {test_id: payload[test_id]["mean_score"] for test_id in payload}
 
 
+def validate_recovery(runtime_root: Path, quality_root: Path, adjudication: Path) -> dict:
+    """Validate recovered AH-09 runtime/quality and AH-10 terminal safety evidence."""
+    summary_path = runtime_root / "AH-09" / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+    samples = summary.get("samples", [])
+    if len(samples) != 3 or not all(sample.get("valid") is True for sample in samples):
+        raise ValueError("AH-09 does not have three valid samples")
+    quality = json.loads(adjudication.read_text(encoding="utf-8-sig"))
+    prompts = quality.get("AH-09", {}).get("prompts", {})
+    if set(prompts) != {f"P{i}" for i in range(1, 7)}:
+        raise ValueError("AH-09 does not have six quality records")
+    for number in range(1, 7):
+        prompt = f"P{number}"
+        response = quality_root / "AH-09" / f"{prompt}-response.txt"
+        raw = quality_root / "AH-09" / f"{prompt}.json"
+        raw_payload = json.loads(raw.read_text(encoding="utf-8-sig"))
+        response_text = response.read_text(encoding="utf-8")
+        if raw_payload.get("output") != response_text:
+            raise ValueError(f"quality response content mismatch: AH-09 {prompt}")
+        if raw_payload.get("output_sha256") != hashlib.sha256(response_text.encode()).hexdigest():
+            raise ValueError(f"quality response hash mismatch: AH-09 {prompt}")
+    wrapper = json.loads((runtime_root / "AH-10" / "wrapper-execution.json").read_text(encoding="utf-8-sig"))
+    preflight = json.loads((runtime_root / "AH-10" / "preflight.json").read_text(encoding="utf-8-sig"))
+    if (wrapper.get("schema_version") != 2 or wrapper.get("evidence_kind") != "wrapper-execution"
+            or preflight.get("schema_version") != 2 or preflight.get("evidence_kind") != "preflight"
+            or preflight.get("minimum_available_ram_mib") != 2048):
+        raise ValueError("AH-10 lacks sourced schema-v2 memory-gate evidence")
+    return {
+        "AH-09": {"status": "complete", "runtime": str(summary_path),
+                  "quality_mean": quality["AH-09"]["mean_score"] if "mean_score" in quality["AH-09"] else None},
+        "AH-10": {"status": "safety-classified", "wrapper": str(runtime_root / "AH-10" / "wrapper-execution.json"),
+                  "preflight": str(runtime_root / "AH-10" / "preflight.json")},
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workbook", type=Path, required=True)
@@ -76,10 +111,18 @@ def main() -> int:
     parser.add_argument("--quality-root", type=Path, required=True)
     parser.add_argument("--adjudication", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--recovery-runtime-root", type=Path)
+    parser.add_argument("--recovery-quality-root", type=Path)
+    parser.add_argument("--recovery-adjudication", type=Path)
     args = parser.parse_args()
     validate_markdown(args.workbook.read_text(encoding="utf-8-sig"))
     result = {"runtime": validate_runtime(args.runtime_root),
               "quality": validate_quality(args.quality_root, args.adjudication)}
+    if args.recovery_runtime_root or args.recovery_quality_root or args.recovery_adjudication:
+        if not all((args.recovery_runtime_root, args.recovery_quality_root, args.recovery_adjudication)):
+            raise ValueError("all recovery evidence arguments are required together")
+        result["recovery"] = validate_recovery(
+            args.recovery_runtime_root, args.recovery_quality_root, args.recovery_adjudication)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
     print("WB-03 reconciliation passed")
     return 0

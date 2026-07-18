@@ -27,10 +27,15 @@ def main() -> int:
     with args.register.open(encoding="utf-8-sig", newline="") as stream:
         reader = csv.DictReader(stream)
         fields = reader.fieldnames
-        rows = [row for row in reader if row.get("Workbook_ID") != "WB-03"]
+        # Recovery updates are intentionally narrow: preserve all existing WB-03
+        # rows and idempotently replace only AH-09 P1-P6.
+        rows = [row for row in reader if not (
+            row.get("Workbook_ID") == "WB-03" and row.get("Test_ID") == "AH-09")]
     if not fields:
         raise ValueError("quality register header is missing")
     for test_id, result in sorted(results.items()):
+        if test_id != "AH-09":
+            continue
         for prompt_id, item in sorted(result["prompts"].items()):
             raw, adjudication = item["raw"], item["adjudication"]
             caps = adjudication.get("critical_caps", [])
