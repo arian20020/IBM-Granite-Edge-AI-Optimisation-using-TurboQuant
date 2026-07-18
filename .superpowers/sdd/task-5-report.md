@@ -45,3 +45,12 @@ Recorded after validation in the Task 5 commit reported to the parent agent.
 ## Concerns
 
 - Visual DOCX render QA could not be completed because LibreOffice/`soffice` is absent. Structural QA passed; the bundled audit also records that hidden Word PDF export previously exceeded 120 seconds.
+
+## Review-fix RED / GREEN
+
+- RED: six reviewer-gap tests demonstrated that reconciliation accepted a missing AH-09 formal metric, GPU/wrong-offload activation, a false quality mean, an AH-10 controller success, nonzero post-stop processes, and fabricated AH-10 summary/quality evidence. A seventh test showed that the runtime finalizer had no validated-state entry point, and an eighth proved a numerically wrong aggregate could pass.
+- GREEN: AH-09 validation now enforces exactly three valid samples; complete and internally reconciled per-sample/aggregate formal metrics; complete CPU/GPU utilization; `tq3_0`/`sycl-partial`; three exact CPU activations with 70 MiB KV and 1/41 offload; six content-hashed quality records; recomputed and committed 6.058333333333334 mean; and the workbook's 6.0583 value.
+- GREEN: AH-10 validation now enforces schema-v2 wrapper/preflight/cleanup linkage; exact 2048 MiB floor; Level Zero command/environment; controller exit 1; invalid pre-request emergency-stop measurement with no TTFT/throughput; matching emergency-stop event; zero pre/post process counts; synchronous cleanup ordering; recovered RAM; and absence of summary/quality evidence.
+- GREEN: `finalize_state` performs the full recovery validation before writing `state.json`; a negative test proves invalid evidence leaves no trusted state file.
+- RED/GREEN CLI: direct finalizer execution initially failed to resolve the reconciliation module; a command-entry regression test captured the failure and the finalizer now supports both package import and direct script execution.
+- No model or inference rerun was performed for this review fix.
