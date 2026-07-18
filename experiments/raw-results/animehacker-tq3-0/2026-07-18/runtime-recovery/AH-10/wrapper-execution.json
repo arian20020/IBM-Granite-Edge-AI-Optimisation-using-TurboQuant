@@ -1,12 +1,15 @@
 ﻿{
-    "schema_version":  1,
+    "schema_version":  2,
     "evidence_kind":  "wrapper-execution",
-    "controller_started_at":  "2026-07-18T17:58:59.9480289+01:00",
-    "controller_returned_at":  "2026-07-18T17:59:13.9296268+01:00",
+    "controller_started_at":  "2026-07-18T18:02:59.1217360+01:00",
+    "controller_returned_at":  "2026-07-18T18:03:13.0728134+01:00",
     "controller_exit_code":  1,
     "preflight_file":  "preflight.json",
     "cleanup_file":  "post-stop-cleanup.json",
     "pilot_directory":  "pilot",
-    "preserved_prior_pilot_directory":  "pilot-attempt-1",
+    "preserved_prior_pilot_directories":  [
+                                              "pilot-attempt-1",
+                                              "pilot-attempt-2"
+                                          ],
     "launch_command":  "cmd.exe /d /s /c \"call \"\"C:\\Program Files (x86)\\Intel\\oneAPI\\setvars.bat\"\" \u003enul \u0026\u0026 python scripts\\testing\\run_animehacker_retest.py --matrix experiments\\manifests\\animehacker-tq3-0\\retest-matrix.json --output-root experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery --cpu-build C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled --sycl-build C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled --diagnostic-model C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\diagnostic\\gemma-3-1b-it-Q4_K_M\\gemma-3-1b-it-Q4_K_M.gguf --granite3-model C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf --granite8-model C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-8b\\q8_0\\granite-4.1-8b-Q8_0.gguf --only AH-10 --include-guarded --pilot-only --minimum-available-ram-mb 2048 --measurement-tokens 128\""
 }
