@@ -70,6 +70,18 @@ class AtomicBotUtilizationTests(unittest.TestCase):
                 "timestamp_utc": "2026-07-17T00:00:00Z", "cpu_percent": 12.5,
                 "gpu_percent": 44.25, "gpu_engine_count": 2}])
 
+    def test_reader_captures_gpu_memory_when_collector_supplies_it(self):
+        from scripts.testing.atomicbot.utilization import read_utilization_samples
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "samples.csv"
+            path.write_text(
+                "timestamp_utc,cpu_percent,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb\n"
+                "2026-07-18T00:00:00Z,12.5,44.25,2,128.5,64.25\n", encoding="utf-8")
+            rows = read_utilization_samples(path)
+            self.assertEqual(rows[0]["gpu_dedicated_mb"], 128.5)
+            self.assertEqual(rows[0]["gpu_shared_mb"], 64.25)
+
 
 if __name__ == "__main__":
     unittest.main()

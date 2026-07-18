@@ -13,9 +13,14 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from measure_llama_run import available_ram_bytes, process_tree_memory_bytes
 from parse_llama_measurement import summarize_measurement
 from atomicbot.utilization import read_utilization_samples, summarize_utilization
+from atomicbot.metrics import parse_runtime_metrics
 
 
 def parse_args() -> argparse.Namespace:
@@ -121,6 +126,8 @@ def main() -> int:
             time.sleep(0.2)
 
     request_error = None
+    generation_duration_ms = None
+    response_timings = None
     if emergency_stop.is_set():
         request_error = "emergency stop: available RAM crossed configured floor"
     elif ready:
@@ -158,11 +165,14 @@ def main() -> int:
                         break
                     if line.startswith(b"data:"):
                         payload = json.loads(line[5:].strip())
+                        if payload.get("timings"):
+                            response_timings = payload["timings"]
                         if not first_token_recorded and (payload.get("content") or payload.get("tokens")):
                             add({"kind": "first_response_byte",
                                  "elapsed_ms": (time.perf_counter_ns() - request_start) / 1_000_000,
                                  "signal": "first-generated-token"})
                             first_token_recorded = True
+            generation_duration_ms = (time.perf_counter_ns() - request_start) / 1_000_000
         except Exception as exc:  # preserved in evidence and invalidates the sample
             request_error = repr(exc)
         finally:
@@ -188,11 +198,43 @@ def main() -> int:
          "exit_code": 0 if ready and request_error is None else exit_code})
     events.sort(key=lambda event: event["elapsed_ms"])
     summary = summarize_measurement(events)
+    runtime = parse_runtime_metrics(events)
+    working_sets = [event["working_set_bytes"] for event in events
+                    if event.get("kind") == "memory" and "working_set_bytes" in event]
+    private_bytes = [event["private_bytes"] for event in events
+                     if event.get("kind") == "memory" and "private_bytes" in event]
+    available_bytes = [event["available_ram_bytes"] for event in events
+                       if event.get("kind") == "memory" and event.get("available_ram_bytes") is not None]
     summary.update({"sample_id": args.sample_id, "request_error": request_error,
-                    "ttft_definition": "HTTP request initiation to first streamed generated token"})
+                    "ttft_definition": "HTTP request initiation to first streamed generated token",
+                    "peak_working_set_mb": max(working_sets) / (1024 * 1024) if working_sets else None,
+                    "peak_private_bytes_mb": max(private_bytes) / (1024 * 1024) if private_bytes else None,
+                    "available_ram_min_mb": min(available_bytes) / (1024 * 1024) if available_bytes else None,
+                    "generation_duration_ms": generation_duration_ms})
+    summary["prompt_tps"] = runtime.prompt_tps
+    summary["decode_tps"] = runtime.decode_tps
+    if response_timings:
+        summary["prompt_tps"] = response_timings.get("prompt_per_second", summary["prompt_tps"])
+        summary["decode_tps"] = response_timings.get("predicted_per_second", summary["decode_tps"])
+    summary["response_timings"] = response_timings
+    summary["runtime_metric_errors"] = list(runtime.errors)
     utilization_path = output_dir / "utilization-samples.csv"
     utilization_samples = read_utilization_samples(utilization_path)
     summary["utilization"] = summarize_utilization(utilization_samples)
+    dedicated = [sample.get("gpu_dedicated_mb") for sample in utilization_samples
+                 if sample.get("gpu_dedicated_mb") is not None]
+    shared = [sample.get("gpu_shared_mb") for sample in utilization_samples
+              if sample.get("gpu_shared_mb") is not None]
+    combined = [sample.get("gpu_dedicated_mb", 0.0) + sample.get("gpu_shared_mb", 0.0)
+                for sample in utilization_samples]
+    summary["gpu_dedicated_peak_mb"] = max(dedicated) if dedicated else None
+    summary["gpu_shared_peak_mb"] = max(shared) if shared else None
+    summary["gpu_memory_peak_mb"] = max(combined) if combined else None
+    extended_required = ("peak_working_set_mb", "peak_private_bytes_mb",
+                         "available_ram_min_mb", "generation_duration_ms",
+                         "prompt_tps", "decode_tps", "gpu_memory_peak_mb")
+    summary["extended_missing"] = [field for field in extended_required
+                                   if summary.get(field) is None]
     summary["utilization_definition"] = (
         "loaded request window; CPU normalized across logical processors; "
         "GPU is busiest process GPU engine per timestamp")

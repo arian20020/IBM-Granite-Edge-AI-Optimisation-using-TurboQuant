@@ -1,0 +1,40 @@
+{
+  "available_ram_min_mb": 2538.765625,
+  "decode_tps": null,
+  "exit_code": 1,
+  "extended_missing": [
+    "generation_duration_ms",
+    "prompt_tps",
+    "decode_tps",
+    "gpu_memory_peak_mb"
+  ],
+  "generation_duration_ms": null,
+  "gpu_dedicated_peak_mb": null,
+  "gpu_memory_peak_mb": null,
+  "gpu_shared_peak_mb": null,
+  "kv_mb": 320.0,
+  "missing": [
+    "ttft_ms"
+  ],
+  "peak_private_bytes_mb": 4317.83984375,
+  "peak_ram_mb": 8281.35546875,
+  "peak_working_set_mb": 8281.35546875,
+  "prompt_tps": null,
+  "request_error": "emergency stop: available RAM crossed configured floor",
+  "response_timings": null,
+  "runtime_metric_errors": [
+    "missing_ttft_ms",
+    "missing_prompt_tps",
+    "missing_decode_tps",
+    "nonzero_or_missing_exit"
+  ],
+  "sample_id": "AH-06-pilot",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": null,
+  "utilization": {
+    "cpu_percent": null,
+    "gpu_percent": null
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": false
+}

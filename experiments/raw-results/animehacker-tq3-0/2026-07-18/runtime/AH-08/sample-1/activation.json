@@ -1,0 +1,9 @@
+{
+  "activated": true,
+  "actual_device": "CPU",
+  "kv_mb": 320.0,
+  "proof_kind": "runtime-allocation",
+  "reason": "exact cache flags and runtime KV allocation agree",
+  "offloaded_layers": 1,
+  "total_layers": 41
+}

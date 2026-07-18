@@ -14,12 +14,16 @@ def read_utilization_samples(path: Path) -> list[dict]:
         rows = []
         for row in csv.DictReader(stream):
             try:
-                rows.append({
+                parsed = {
                     "timestamp_utc": row["timestamp_utc"],
                     "cpu_percent": float(row["cpu_percent"]),
                     "gpu_percent": float(row["gpu_percent"]),
                     "gpu_engine_count": int(row["gpu_engine_count"]),
-                })
+                }
+                for field in ("gpu_dedicated_mb", "gpu_shared_mb"):
+                    if row.get(field) not in (None, ""):
+                        parsed[field] = float(row[field])
+                rows.append(parsed)
             except (KeyError, TypeError, ValueError):
                 continue
         return rows

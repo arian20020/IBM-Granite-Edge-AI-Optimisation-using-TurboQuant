@@ -1,0 +1,37 @@
+{
+  "binaries": [
+    {
+      "bytes": 2707456,
+      "name": "llama-cli.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-vulkan-controlled\\bin\\llama-cli.exe",
+      "sha256": "0f918dddfa1b1885f4509ebd47a890b269ab3775451ec8aa0b97cec31490db5c"
+    },
+    {
+      "bytes": 4913152,
+      "name": "llama-server.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-vulkan-controlled\\bin\\llama-server.exe",
+      "sha256": "02bd25f5f97f7e7e5ea33fd4a996fd9f8094d42d77c0d9ab76285c16e1a67f16"
+    },
+    {
+      "bytes": 678912,
+      "name": "llama-bench.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-vulkan-controlled\\bin\\llama-bench.exe",
+      "sha256": "5dc8e04bc25fb58dfc4d259ef187d3c00b09933ec90d5752fddab5378d6fca75"
+    },
+    {
+      "bytes": 132608,
+      "name": "llama-quantize.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-vulkan-controlled\\bin\\llama-quantize.exe",
+      "sha256": "3062c2792b070272099c919e4c6b7c95303d58c53aa9da8534e73accd9450fd2"
+    },
+    {
+      "bytes": 2233856,
+      "name": "llama-perplexity.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-vulkan-controlled\\bin\\llama-perplexity.exe",
+      "sha256": "0fd439e902aecdcc736ca7eeeec034ecaad7351f3a9788eacd73b722ebfa0a6e"
+    }
+  ],
+  "build": "passed",
+  "route": "supplementary Vulkan",
+  "tq3_runtime_classification": "not proven by source audit; not a controlled TQ3 route"
+}
