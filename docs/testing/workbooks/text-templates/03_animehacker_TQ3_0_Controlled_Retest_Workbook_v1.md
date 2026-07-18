@@ -23,7 +23,7 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | Upstream llama.cpp base commit | 914eb5ff0c74c88c7ef8aec115878d8f64c81e56 |
 | TurboQuant cache format | TQ3_0, 14-byte blocks per 32 values (3.5 bits/value); repository history identifies implementation as 3-bit PolarQuant without QJL |
 | CPU path | Fresh Windows MSVC/AVX2 build passed; 40/40 repository tests passed after test-only capability/threshold correction; AH-01-AH-05 runtime complete; 8B rows safety-classified |
-| Vulkan/SYCL path | Controlled SYCL OpenCL build and reconciled 40/40 terminal tests passed; standard partial runtime passed; TQ3 SYCL runtime disproven; supplementary Vulkan built but has no TQ3_0-specific source evidence |
+| Vulkan/SYCL path | Controlled SYCL build and reconciled 40/40 terminal tests passed; AH-08 standard partial runtime used OpenCL; recovered TQ3 rows used `ONEAPI_DEVICE_SELECTOR=level_zero:0`; supplementary Vulkan built but has no TQ3_0-specific source evidence |
 | CUDA-only dependencies | CUDA-specific implementation exists, but TQ3_0 is not source-level CUDA-only because CPU and SYCL paths are also present |
 | QJL residual correction present? | No - not implemented; fork commit 4381bdde corrects the description to PolarQuant without QJL, and no executable QJL projection/correction path was found |
 | Test operator | Codex controlled retest agent |
@@ -51,7 +51,7 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | AH-B03 | Build CPU route | Passed | AVX2/FMA/F16C CPU backend built; binary inventory and hashes in `build-cpu/reconciliation.json` |
 | AH-B04 | Build benchmark tools | Passed | `llama-cli`, `llama-server`, `llama-bench`, `llama-quantize`, and `llama-perplexity` built and SHA-256 hashed in `build-cpu/reconciliation.json` |
 | AH-B05 | Run repository-provided tests | Passed - 40/40 | Initial TQ3_0 test segfault traced to absent optional vec-dot trait; subsequent RMSE 0.003872 was below the unchanged 3-bit 0.0040 limit. Test-only patch recorded in `build-cpu/test-capability-guard.patch`; complete rerun in `build-cpu/ctest-final.log` |
-| AH-B06 | Inspect GPU backend availability | Passed with limitations | SYCL OpenCL device inventory succeeded; reconciled 40/40 terminal tests passed. Standard runtime offloaded 1/41 layers. TQ3 attention offload is runtime-unsupported. Supplementary Vulkan device exists but TQ3 is not source-proven. `experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json`; `build-vulkan/reconciliation.json` |
+| AH-B06 | Inspect GPU backend availability | Passed with limitations | SYCL OpenCL inventory and tests supported the AH-08 standard baseline. Recovered AH-09 completed with Level Zero `level_zero:0`, CPU-resident TQ3 KV and 1/41 layers offloaded; AH-10 reached the safety floor on the same Level Zero route. Supplementary Vulkan exists but TQ3 is not source-proven. `experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json`; `runtime-recovery/`; `build-vulkan/reconciliation.json` |
 | AH-B07 | Use WSL only if Windows fails and evidence is useful | Not used - Windows CPU and controlled SYCL evidence were sufficient | WSL would not change the Intel Windows integration finding and was not used as a substitute route. |
 | AH-B08 | Record block layout, cache flags and known limits | Passed (source classification) | TQ3_0 registered with CPU/CUDA/SYCL quantize/dequantize evidence; 14 bytes/32 values; QJL not implemented; Vulkan TQ3_0 not proven. `experiments/raw-results/animehacker-tq3-0/2026-07-18/acquisition/source-audit.json` |
 
@@ -67,8 +67,8 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | AH-06 | Granite 8B | F16 | CPU | 2K | 8B fork baseline | Safety-blocked during model load after 3 controlled gates; resolved classification |
 | AH-07 | Granite 8B | TQ3_0 | CPU | 4K | Main 8B TQ test | Safety-blocked at final 2 GiB floor; resolved classification |
 | AH-08 | Granite 3B | Standard | SYCL partial | 4K | Controlled GPU baseline | Runtime and quality passed |
-| AH-09 | Granite 3B | TQ3_0 | SYCL partial | 4K | GPU TQ attempt | Complete - 3 measured samples and P1-P6 quality; CPU KV with 1/41 layers offloaded |
-| AH-10 | Granite 8B | TQ3_0 | SYCL partial | 2K | Guarded 8B GPU investigation | Safety-classified at unchanged 2048 MiB floor; no request or quality run |
+| AH-09 | Granite 3B | TQ3_0 | SYCL Level Zero `level_zero:0` partial | 4K | GPU TQ attempt | Complete - 3 measured samples and P1-P6 quality; CPU KV with 1/41 layers offloaded |
+| AH-10 | Granite 8B | TQ3_0 | SYCL Level Zero `level_zero:0` partial | 2K | Guarded 8B GPU investigation | Safety-classified at unchanged 2048 MiB floor; final pilot measured 70.0 MiB KV and 8969.625 MiB peak WS; no request or quality run |
 
 ## 5. animehacker configuration ladder
 
@@ -78,7 +78,7 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | 2 | Same frozen weights | Q8_0 | CPU | Standard compressed-cache reference | Yes | Yes - AH-04 |
 | 3 | Same frozen weights | TQ3_0 | CPU | Main TQ3_0 comparison | Yes for 1B/3B | Yes - AH-02/AH-05; AH-07 safety-classified |
 | 4 | Same frozen weights | F16 | SYCL OpenCL partial | GPU baseline | Yes with CPU fallback | Yes - AH-08 |
-| 5 | Same frozen weights | TQ3_0 | SYCL OpenCL partial | GPU TQ investigation | Yes with CPU-resident TQ3 KV and 1/41 layers offloaded | AH-09 measured; AH-10 safety-classified |
+| 5 | Same frozen weights | TQ3_0 | SYCL Level Zero `level_zero:0` partial | GPU TQ investigation | Yes with CPU-resident TQ3 KV and 1/41 layers offloaded | AH-09 measured; AH-10 safety-classified |
 
 # Device execution and fallback verification
 
@@ -94,8 +94,8 @@ Do not treat a CUDA-only or non-Windows path as suitable for application integra
 | AH-06 | CPU | CPU load attempted | CPU AVX2 | 0 layers requested (`-ngl 0`) | CPU F16 KV allocation reached 320.00 MiB | No GPU route requested | Not measured: emergency stop occurred before request | Measured 0% before request; no request-window result | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/pilot-emergency-stop-3072/`; `pilot-emergency-stop-2560/`; `pilot-emergency-stop-2048/` |
 | AH-07 | CPU | CPU load attempted | CPU AVX2 | 0 layers requested (`-ngl 0`) | CPU TQ3_0 KV allocation reached 140.00 MiB | No GPU route requested | Not measured: emergency stop occurred before request | Measured 0% before request; no request-window result | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-07/pilot/` |
 | AH-08 | GPU partial | Intel UHD Graphics | SYCL OpenCL | 1/41 layers | CPU F16 KV | Yes, remaining 40 layers and KV on CPU | mean 62.03%; median 66.11%; peak 67.60% | mean 16.31%; median 16.00%; peak 20.00%; 407.98 MiB peak process GPU memory | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/summary.json` |
-| AH-09 | GPU partial | Intel UHD Graphics | SYCL OpenCL | 1/41 layers offloaded; actual device classification remains CPU because KV and 40 layers stayed on CPU | CPU TQ3_0 KV, 70.00 MiB | Yes; this is partial placement, not full GPU acceleration | mean 63.14%; median 65.81%; peak 67.71% | mean 12.61%; median 12.00%; peak 17.00%; 411.63 MiB peak shared process GPU memory | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/summary.json` |
-| AH-10 | GPU partial requested | Intel UHD Graphics load attempted | SYCL OpenCL | Pilot stopped before request when available RAM crossed the unchanged 2048 MiB floor | 70.00 MiB KV observed before stop; placement not accepted as a completed run | Safety stop; no request-window utilization | Not measured: stopped before request | Not measured: stopped before request | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/` schema-v2 process evidence |
+| AH-09 | GPU partial | Intel UHD Graphics | SYCL Level Zero `level_zero:0` | 1/41 layers offloaded; actual device classification remains CPU because KV and 40 layers stayed on CPU | CPU TQ3_0 KV, 70.00 MiB | Yes; this is partial placement, not full GPU acceleration | mean 63.14%; median 65.81%; peak 67.71% | mean 12.61%; median 12.00%; peak 17.00%; 411.63 MiB peak shared process GPU memory | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/summary.json` |
+| AH-10 | GPU partial requested | Intel UHD Graphics load attempted | SYCL Level Zero `level_zero:0` | Final pilot stopped before request when available RAM crossed the unchanged 2048 MiB floor; 8969.625 MiB peak WS | CPU TQ3_0 KV, 70.0 MiB before stop; placement not accepted as a completed run | Safety stop; no request-window utilization | Not measured: stopped before request | Not measured: stopped before request | `experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/pilot/measurement.json`; schema-v2 process evidence |
 
 # Formal run results
 
@@ -109,8 +109,8 @@ Do not treat a CUDA-only or non-Windows path as suitable for application integra
 | AH-06 | Granite 8B | Q4_K_M GGUF | f16 | f16 | CPU (-ngl 0) | 2K | 8913.65 peak WS before final gate; 4317.87 peak private | 320.00 allocation before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified; no unresolved failed inference |
 | AH-07 | Granite 8B | Q4_K_M GGUF | tq3_0 | tq3_0 | CPU (-ngl 0) | 4K | 8737.70 peak WS before gate; 4137.68 peak private | 140.00 allocation before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified; no unresolved failed inference |
 | AH-08 | Granite 3B | Q4_K_M GGUF | f16 | f16 | SYCL partial (-ngl 1) | 4K | 3130.27 peak WS; 1289.04 peak private | 320.00 | 309.95 median | 15.18 decode; 40.93 prompt | 6.27 | Runtime and quality passed; 1/41 layers on SYCL |
-| AH-09 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL partial (-ngl 1) | 4K | 2891.66 peak WS; 1040.09 peak private | 70.00 | 491.00 median | 12.11 median decode; 40.90 median prompt | 6.06 | Runtime and quality passed; CPU-resident TQ3 KV and 1/41 layers offloaded |
-| AH-10 | Granite 8B | Q8_0 GGUF | tq3_0 | tq3_0 | SYCL partial requested | 2K | 8119.41 peak WS; 1145.24 peak private before stop | 70.00 before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Safety-classified at unchanged 2048 MiB floor; cleanup verified |
+| AH-09 | Granite 3B | Q4_K_M GGUF | tq3_0 | tq3_0 | SYCL Level Zero `level_zero:0` partial (-ngl 1) | 4K | 2891.66 peak WS; 1040.09 peak private | 70.00 | 491.00 median | 12.11 median decode; 40.90 median prompt | 6.06 | Runtime and quality passed; CPU-resident TQ3 KV and 1/41 layers offloaded |
+| AH-10 | Granite 8B | Q8_0 GGUF | tq3_0 | tq3_0 | SYCL Level Zero `level_zero:0` partial requested | 2K | 8969.625 MiB peak WS; 1145.535 MiB peak private before stop | 70.0 MiB before stop | Not measured: stopped before request | Not measured: stopped before request | Not scored: safety prerequisite blocked | Final pilot safety-classified at unchanged 2048 MiB floor; cleanup verified |
 
 Use one row per formal configuration. Preserve detailed commands, raw logs and outputs. Llama memory-breakdown lines are not OS peak working set. A metric not sampled is `Not measured`, not inferred.
 
@@ -160,10 +160,10 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 
 | Field | Record |
 |---|---|
-| Implementation depth | CPU TQ3_0 runtime validated; SYCL conversion/copy code exists but TQ3 attention runtime is unusable on the tested Intel OpenCL device; Vulkan TQ3 path is not source-proven |
+| Implementation depth | CPU TQ3_0 runtime validated; recovered SYCL TQ3 ran on Level Zero `level_zero:0` with CPU-resident KV and only 1/41 layers offloaded; Vulkan TQ3 path is not source-proven |
 | QJL present? | No - source/history audit finds 3-bit PolarQuant only; no QJL projection or residual-correction implementation |
 | Granite 3B TQ3_0 | Passed on CPU at 4K: 70.00 MiB KV, 3574.63 MiB peak WS, 11.54 decode tok/s; harsh quality score 3.28 versus 6.39 F16 baseline |
-| Granite 8B TQ3_0 | Safety-blocked before request at the final 2 GiB reserve; 140.00 MiB KV allocation and 8737.70 MiB pre-stop peak WS measured |
+| Granite 8B TQ3_0 | Final Level Zero `level_zero:0` pilot safety-blocked before request at the 2048 MiB reserve; 70.0 MiB KV and 8969.625 MiB peak WS measured in `runtime-recovery/AH-10/pilot/measurement.json` |
 | CPU support | Validated for Diagnostic 1B and Granite 3B; repository terminal tests 40/40 |
 | Intel GPU support | Standard SYCL partial passed; recovered TQ3 also completed with 1/41 layers and 12.61% mean GPU, while TQ3 KV and most compute remained on CPU |
 | Measured memory benefit | Diagnostic 1K KV: 26.00 to 5.69 MiB (-78.1%); Granite 3B 4K KV: Q8_0 170.00 to TQ3_0 70.00 MiB (-58.8%); memory benefit accompanies lower decode throughput |
@@ -182,7 +182,7 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 | Archive ZIP | Not separately created; controlled evidence is stored directly with hashed artifacts in the repository |
 | Pinned commit | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc |
 | Git head | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc (clean detached campaign checkout) |
-| SYCL device | Intel UHD Graphics via `opencl:gpu`, driver 32.0.101.7076; Level Zero retained as rejected unstable evidence |
+| SYCL device | AH-08 standard-cache baseline used Intel UHD Graphics via `opencl:gpu`; recovered AH-09/AH-10 TQ3 evidence used `ONEAPI_DEVICE_SELECTOR=level_zero:0`. These routes are reported separately. |
 | Formal matrix | AH-01-AH-05, AH-08 and AH-09 have three valid samples; AH-06/AH-07/AH-10 are safety-classified |
 | Quality review | Frozen P1-P6 screen, deterministic gates first, harsh weighted rubric, no precision bonus; AH-09 mean 6.0583 from six hashed recovery responses; AH-10 had no quality run |
 | Memory note | Peak working set includes mapped GGUF pages and is not interchangeable with private bytes; both are reported separately, with physical-RAM floors enforced |

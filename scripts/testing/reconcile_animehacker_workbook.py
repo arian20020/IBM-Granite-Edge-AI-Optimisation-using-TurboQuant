@@ -29,6 +29,20 @@ def validate_markdown(text: str) -> None:
             raise ValueError(f"missing test id: {test_id}")
 
 
+def validate_recovery_workbook(text: str) -> None:
+    """Keep recovered TQ3 rows aligned to the accepted Level Zero evidence."""
+    if "TQ3 SYCL runtime disproven" in text:
+        raise ValueError("stale TQ3 SYCL runtime disproven conclusion")
+    recovered_rows = [line for line in text.splitlines()
+                      if re.match(r"\|\s*AH-(?:09|10)\s*\|", line)]
+    if not recovered_rows or any("OpenCL" in line or "level_zero:0" not in line
+                                 for line in recovered_rows):
+        raise ValueError("recovered AH-09/AH-10 must use Level Zero level_zero:0")
+    ah10_rows = [line for line in recovered_rows if re.match(r"\|\s*AH-10\s*\|", line)]
+    if not any("8969.625 MiB peak WS" in line and "70.0 MiB" in line for line in ah10_rows):
+        raise ValueError("AH-10 final pilot values missing")
+
+
 def validate_runtime(root: Path) -> dict:
     runnable = ("AH-01", "AH-02", "AH-03", "AH-04", "AH-05", "AH-08")
     metrics = ("peak_working_set_mb", "peak_private_bytes_mb", "available_ram_min_mb",
@@ -74,6 +88,8 @@ def validate_quality(root: Path, adjudication: Path) -> dict:
 def validate_recovery(runtime_root: Path, quality_root: Path, adjudication: Path,
                       workbook_text: str | None = None) -> dict:
     """Validate recovered AH-09 runtime/quality and AH-10 terminal safety evidence."""
+    if workbook_text is not None:
+        validate_recovery_workbook(workbook_text)
     summary_path = runtime_root / "AH-09" / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8-sig"))
     samples = summary.get("samples", [])
@@ -192,7 +208,9 @@ def main() -> int:
     parser.add_argument("--recovery-quality-root", type=Path)
     parser.add_argument("--recovery-adjudication", type=Path)
     args = parser.parse_args()
-    validate_markdown(args.workbook.read_text(encoding="utf-8-sig"))
+    workbook_text = args.workbook.read_text(encoding="utf-8-sig")
+    validate_markdown(workbook_text)
+    validate_recovery_workbook(workbook_text)
     result = {"runtime": validate_runtime(args.runtime_root),
               "quality": validate_quality(args.quality_root, args.adjudication)}
     if args.recovery_runtime_root or args.recovery_quality_root or args.recovery_adjudication:

@@ -54,3 +54,12 @@ Recorded after validation in the Task 5 commit reported to the parent agent.
 - GREEN: `finalize_state` performs the full recovery validation before writing `state.json`; a negative test proves invalid evidence leaves no trusted state file.
 - RED/GREEN CLI: direct finalizer execution initially failed to resolve the reconciliation module; a command-entry regression test captured the failure and the finalizer now supports both package import and direct script execution.
 - No model or inference rerun was performed for this review fix.
+
+## Final artifact correction RED / GREEN
+
+- RED: new workbook reconciliation tests failed because no artifact-level recovery validator existed. The committed v1.4 template still said TQ3 SYCL was disproven, labelled recovered AH-09/AH-10 as OpenCL, and mixed older AH-10 attempt values into terminal fields.
+- GREEN: added `validate_recovery_workbook`, invoked by both reconciliation and trusted-state finalization. It preserves AH-08's OpenCL baseline, requires every recovered AH-09/AH-10 row to identify Level Zero `level_zero:0`, prohibits the stale disproven conclusion, and requires the final AH-10 pilot values 70.0 MiB KV and 8969.625 MiB peak WS.
+- Corrected the canonical template throughout: build/backend summary, matrix, ladder, device placement, formal results, decision, and evidence summary. Older AH-07 values remain scoped to AH-07; AH-10 terminal claims now cite `runtime-recovery/AH-10/pilot/measurement.json` only.
+- Superseded WR-030 and appended WR-031 WB-03 v1.5 as a corrective evidence-alignment revision. Regenerated all workbooks in temporary directories, applied embedded revision history there, copied only WB-03, and refreshed manifest revision/status/template/DOCX hashes.
+- Commands: targeted/full `unittest`; `reconcile_animehacker_workbook.py`; `finalize_animehacker_runtime_state.py`; `Validate-Workbook-Revision-Control.py`; `Validate-Controlled-Testing-Workspace.ps1`; `audit_animehacker_docx.py`; `compileall`; `git diff --check`; deterministic generation plus revision-history application.
+- Visual render was attempted again with the documents-skill renderer and remains unavailable because LibreOffice/`soffice` is absent. Structural DOCX QA is the disclosed fallback.

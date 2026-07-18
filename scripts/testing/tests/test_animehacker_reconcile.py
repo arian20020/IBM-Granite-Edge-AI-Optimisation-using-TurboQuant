@@ -150,6 +150,20 @@ class AnimehackerReconcileTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(script), "--help"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_workbook_requires_recovered_level_zero_backend_and_final_ah10_values(self):
+        from scripts.testing.reconcile_animehacker_workbook import validate_recovery_workbook
+        workbook = (self._repo_root() / "docs/testing/workbooks/text-templates/03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md").read_text(encoding="utf-8")
+        validate_recovery_workbook(workbook)
+
+    def test_workbook_rejects_stale_recovered_backend_or_ah10_measurement(self):
+        from scripts.testing.reconcile_animehacker_workbook import validate_recovery_workbook
+        good = "| AH-08 | SYCL OpenCL |\n| AH-09 | Level Zero `level_zero:0` |\n| AH-10 | Level Zero `level_zero:0` | 8969.625 MiB peak WS | 70.0 MiB KV |"
+        validate_recovery_workbook(good)
+        with self.assertRaisesRegex(ValueError, "recovered AH-09/AH-10 must use Level Zero"):
+            validate_recovery_workbook(good.replace("AH-09 | Level Zero `level_zero:0`", "AH-09 | SYCL OpenCL"))
+        with self.assertRaisesRegex(ValueError, "AH-10 final pilot values missing"):
+            validate_recovery_workbook(good.replace("8969.625", "8119.41"))
+
 
 if __name__ == "__main__":
     unittest.main()
