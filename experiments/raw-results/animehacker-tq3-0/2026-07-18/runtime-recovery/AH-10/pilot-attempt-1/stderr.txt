@@ -649,7 +649,7 @@ sched_reserve:      SYCL0 compute buffer size =   290.12 MiB
 sched_reserve:  SYCL_Host compute buffer size =    20.01 MiB
 sched_reserve: graph nodes  = 1489
 sched_reserve: graph splits = 442 (with bs=512), 2 (with bs=1)
-sched_reserve: reserve took 48.46 ms, sched copies = 1
+sched_reserve: reserve took 59.03 ms, sched copies = 1
 set_adapters_lora: adapters = 0000000000000000
 adapters_lora_are_same: adapters = 0000000000000000
 common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
