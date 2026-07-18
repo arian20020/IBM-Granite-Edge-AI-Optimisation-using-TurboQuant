@@ -8,8 +8,7 @@ from scripts.testing.animehacker.matrix import TestCase
 
 
 def build_server_command(case: TestCase, server: Path, model: Path, port: int) -> list[str]:
-    gpu_layers = 0 if case.backend == "cpu" or (
-        case.backend == "sycl-partial" and case.cache == "tq3_0") else 1
+    gpu_layers = 0 if case.backend == "cpu" else 1
     command = [
         str(server), "-m", str(model), "-c", str(case.context), "-t", "8", "-tb", "8",
         "-b", "512", "-ub", "512", "-ctk", case.cache, "-ctv", case.cache,
@@ -17,11 +16,16 @@ def build_server_command(case: TestCase, server: Path, model: Path, port: int) -
         "-np", "1", "--cache-ram", "0", "--fit", "off", "--offline",
         "--no-webui", "--log-colors", "off", "-lv", "4",
     ]
-    if case.backend == "sycl-partial":
-        command.extend(("-fa", "off"))
-        if case.cache == "tq3_0":
-            command.extend(("-ot", "output.*=SYCL0"))
+    if case.backend == "sycl-partial" and case.cache == "tq3_0":
+        command.extend(("-sm", "none", "-mg", "0"))
     return command
+
+
+def format_runtime_prompt(case: TestCase, prompt: str) -> str:
+    if case.backend == "sycl-partial" and case.cache == "tq3_0":
+        return ("<|start_of_role|>user<|end_of_role|>" + prompt +
+                "<|end_of_text|>\n<|start_of_role|>assistant<|end_of_role|>")
+    return prompt
 
 
 def select_cases(cases: list[TestCase], *, only: set[str] | None = None,

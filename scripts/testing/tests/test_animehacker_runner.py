@@ -35,21 +35,32 @@ class AnimehackerRunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown test id"):
             select_cases(cases, only={"AH-99"})
 
-    def test_sycl_explicitly_disables_flash_attention(self):
-        from scripts.testing.animehacker.runner import build_server_command
-
-        command = build_server_command(case(backend="sycl-partial"), Path("server.exe"),
-                                       Path("model.gguf"), 19002)
-        self.assertIn(["-fa", "off"], [command[i:i + 2] for i in range(len(command) - 1)])
-
-    def test_tq_sycl_keeps_attention_on_cpu_and_offloads_output_tensor(self):
+    def test_tq_sycl_uses_proven_level_zero_partial_offload_flags(self):
         from scripts.testing.animehacker.runner import build_server_command
 
         command = build_server_command(case(backend="sycl-partial", cache="tq3_0"),
                                        Path("server.exe"), Path("model.gguf"), 19003)
         pairs = [command[i:i + 2] for i in range(len(command) - 1)]
-        self.assertIn(["-ngl", "0"], pairs)
-        self.assertIn(["-ot", "output.*=SYCL0"], pairs)
+        self.assertIn(["-ngl", "1"], pairs)
+        self.assertIn(["-sm", "none"], pairs)
+        self.assertIn(["-mg", "0"], pairs)
+        self.assertNotIn(["-ot", "output.*=SYCL0"], pairs)
+        self.assertNotIn(["-fa", "off"], pairs)
+
+    def test_tq_sycl_runtime_prompt_uses_granite_role_tokens(self):
+        from scripts.testing.animehacker.runner import format_runtime_prompt
+
+        item = case(backend="sycl-partial", cache="tq3_0")
+        self.assertEqual(
+            format_runtime_prompt(item, "Question"),
+            "<|start_of_role|>user<|end_of_role|>Question<|end_of_text|>\n"
+            "<|start_of_role|>assistant<|end_of_role|>",
+        )
+
+    def test_cpu_runtime_prompt_is_unchanged(self):
+        from scripts.testing.animehacker.runner import format_runtime_prompt
+
+        self.assertEqual(format_runtime_prompt(case(), "Question"), "Question")
 
     def test_unique_run_ids_survive_interrupted_attempts(self):
         from scripts.testing.animehacker.runner import next_run_id

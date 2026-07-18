@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.testing.animehacker.activation import classify_activation
 from scripts.testing.animehacker.matrix import load_matrix
-from scripts.testing.animehacker.runner import build_server_command, select_cases
+from scripts.testing.animehacker.runner import build_server_command, format_runtime_prompt, select_cases
 from scripts.testing.animehacker.state import checkpoint
 
 
@@ -85,6 +85,7 @@ def aggregate(samples: list[dict]) -> dict:
 
 def main() -> int:
     args = parse_args()
+    fixed_prompt = "Explain edge AI quantization in a detailed technical paragraph."
     args.output_root.mkdir(parents=True, exist_ok=True)
     state_path = args.output_root / "state.json"
     # Preserve terminal checkpoints even when deliberately rerunning selected rows.
@@ -113,7 +114,7 @@ def main() -> int:
         model_record = {"path": str(model.resolve()), "bytes": model.stat().st_size,
                         "sha256": sha256_file(model)}
         (case_root / "model.json").write_text(json.dumps(model_record, indent=2), encoding="utf-8")
-        environment = ({"ONEAPI_DEVICE_SELECTOR": "opencl:gpu", "GGML_SYCL_ENABLE_FLASH_ATTN": "0"}
+        environment = ({"ONEAPI_DEVICE_SELECTOR": "level_zero:0"}
                        if case.backend == "sycl-partial" else {})
         environment_path = case_root / "environment.json"
         environment_path.write_text(json.dumps(environment, indent=2), encoding="utf-8")
@@ -131,7 +132,7 @@ def main() -> int:
                 server_command = build_server_command(case, server, model, port)
                 command = [sys.executable, str(collector), "--output-dir", str(output),
                            "--sample-id", f"{case.test_id}-{label}", "--port", str(port),
-                           "--prompt", "Explain edge AI quantization in a detailed technical paragraph.",
+                           "--prompt", format_runtime_prompt(case, fixed_prompt),
                            "--timeout-seconds", "900",
                            "--minimum-available-ram-mb", str(args.minimum_available_ram_mb),
                            "--measurement-tokens", str(args.measurement_tokens),
