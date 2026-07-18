@@ -1,4 +1,5 @@
 import json
+import copy
 import tempfile
 import unittest
 from pathlib import Path
@@ -152,6 +153,67 @@ class AnimehackerLargeHostTests(unittest.TestCase):
                 execute(config, runner=runner, installed_ram_bytes=32 * GIB,
                         active_process_names=(), level_zero_devices=())
         self.assertEqual(len(calls), 1)
+
+    def terminal_evidence(self, test_id="AH-06"):
+        from scripts.testing.run_animehacker_retest import FORMAL_FIELDS
+
+        sample = {field: 1.0 for field in FORMAL_FIELDS}
+        sample.update({"valid": True, "missing": [], "extended_missing": [],
+                       "utilization": {
+                           "cpu_percent": {"mean": 20.0, "median": 19.0, "peak": 30.0,
+                                           "sample_count": 5},
+                           "gpu_percent": {"mean": 1.0, "median": 0.0, "peak": 4.0,
+                                           "sample_count": 5}}})
+        aggregate = {field: {"mean": 1.0, "median": 1.0, "min": 1.0, "max": 1.0}
+                     for field in FORMAL_FIELDS}
+        aggregate.update({
+            "cpu_percent": {"mean": 20.0, "median": 19.0, "peak": 30.0, "sample_count": 15},
+            "gpu_percent": {"mean": 1.0, "median": 0.0, "peak": 4.0, "sample_count": 15},
+        })
+        runtime = {"test_id": test_id, "model": {"sha256": "a" * 64},
+                   "samples": [copy.deepcopy(sample) for _ in range(3)],
+                   "aggregate": aggregate,
+                   "activation": [{"activated": True} for _ in range(3)]}
+        quality = [{"prompt_id": f"P{i}", "status": "complete", "score": 6.0,
+                    "output_sha256": f"{i}" * 64} for i in range(1, 7)]
+        manifest = {"accepted": True, "selected": [test_id], "file_records": {
+            "granite8_model": {"sha256": "a" * 64}}}
+        cleanup = {"llama_process_count": 0, "controller_process_count": 0,
+                   "cleanup_verified": True}
+        return runtime, quality, manifest, cleanup
+
+    def test_terminal_validator_accepts_complete_measurement_and_quality(self):
+        from scripts.testing.animehacker.large_host import validate_terminal_row
+
+        validated = validate_terminal_row("AH-06", *self.terminal_evidence())
+        self.assertEqual(validated.test_id, "AH-06")
+        self.assertEqual(validated.quality_mean, 6.0)
+
+    def test_terminal_validator_rejects_every_required_evidence_family(self):
+        from scripts.testing.animehacker.large_host import validate_terminal_row
+
+        mutations = []
+        runtime, quality, manifest, cleanup = self.terminal_evidence()
+        fewer_samples = copy.deepcopy(runtime); fewer_samples["samples"].pop()
+        mutations.append((fewer_samples, quality, manifest, cleanup, "three formal samples"))
+        missing_gpu = copy.deepcopy(runtime); del missing_gpu["aggregate"]["gpu_percent"]["mean"]
+        mutations.append((missing_gpu, quality, manifest, cleanup, "gpu_percent mean"))
+        missing_metric = copy.deepcopy(runtime); del missing_metric["samples"][0]["ttft_ms"]
+        mutations.append((missing_metric, quality, manifest, cleanup, "ttft_ms"))
+        no_activation = copy.deepcopy(runtime); no_activation["activation"][0]["activated"] = False
+        mutations.append((no_activation, quality, manifest, cleanup, "activation"))
+        five_quality = copy.deepcopy(quality); five_quality.pop()
+        mutations.append((runtime, five_quality, manifest, cleanup, "P1-P6"))
+        no_hash = copy.deepcopy(quality); no_hash[0]["output_sha256"] = ""
+        mutations.append((runtime, no_hash, manifest, cleanup, "output hash"))
+        hash_conflict = copy.deepcopy(manifest); hash_conflict["file_records"]["granite8_model"]["sha256"] = "b" * 64
+        mutations.append((runtime, quality, hash_conflict, cleanup, "model hash"))
+        residual = copy.deepcopy(cleanup); residual["llama_process_count"] = 1
+        mutations.append((runtime, quality, manifest, residual, "residual process"))
+        for rt, ql, mf, cl, message in mutations:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(ValueError, message):
+                    validate_terminal_row("AH-06", rt, ql, mf, cl)
 
 
 if __name__ == "__main__":
