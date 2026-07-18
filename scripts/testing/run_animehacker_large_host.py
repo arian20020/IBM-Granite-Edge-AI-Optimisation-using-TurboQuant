@@ -17,7 +17,9 @@ if str(ROOT) not in sys.path:
 
 from scripts.testing.animehacker.large_host import (
     ALLOWED_TEST_IDS,
+    BLOCKING_PROCESS_NAMES,
     HostInputs,
+    active_processes,
     allocate_run_root,
     preflight,
     write_manifest,
@@ -96,6 +98,11 @@ def build_quality_command(config: LargeHostConfig, test_id: str, runtime_root: P
             "--only", test_id]
 
 
+def build_adjudication_command(quality_root: Path, output: Path) -> list[str]:
+    return [sys.executable, str(ROOT / "scripts/testing/adjudicate_animehacker_quality.py"),
+            "--raw-root", str(quality_root), "--output", str(output)]
+
+
 def _run_phase(command: list[str], log_root: Path, label: str,
                runner: Callable[..., object]) -> None:
     completed = runner(command, capture_output=True, text=True)
@@ -135,6 +142,20 @@ def execute(config: LargeHostConfig, *, runner: Callable[..., object] = subproce
                    f"{test_id}-runtime", runner)
         _run_phase(build_quality_command(config, test_id, runtime_root, quality_root),
                    run_root / "logs", f"{test_id}-quality", runner)
+        _run_phase(build_adjudication_command(quality_root, run_root / "quality-adjudications.json"),
+                   run_root / "logs", f"{test_id}-adjudication", runner)
+        remaining = [name for name in active_processes()
+                     if name.lower() in BLOCKING_PROCESS_NAMES]
+        cleanup_root = run_root / "cleanup"
+        cleanup_root.mkdir(parents=True, exist_ok=True)
+        cleanup = {"test_id": test_id, "cleanup_verified": not remaining,
+                   "llama_process_count": sum("llama" in name.lower() for name in remaining),
+                   "controller_process_count": sum("animehacker" in name.lower() for name in remaining),
+                   "remaining_process_names": remaining}
+        (cleanup_root / f"{test_id}.json").write_text(
+            json.dumps(cleanup, indent=2), encoding="utf-8")
+        if remaining:
+            raise RuntimeError(f"{test_id} cleanup failed: {remaining}")
         state["completed"].append(test_id)
         state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
     return run_root

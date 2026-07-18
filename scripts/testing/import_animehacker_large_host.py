@@ -21,11 +21,13 @@ def read_json(path: Path):
 
 def validate_run(run_root: Path, selected: tuple[str, ...]):
     manifest = read_json(run_root / "manifest.json")
+    adjudications = read_json(run_root / "quality-adjudications.json")
     rows = []
     for test_id in selected:
         runtime = read_json(run_root / "runtime" / test_id / "summary.json")
-        quality_root = run_root / "quality" / test_id
-        quality = [read_json(quality_root / f"P{i}.json") for i in range(1, 7)]
+        adjudicated = adjudications[test_id]["prompts"]
+        quality = [dict(adjudicated[f"P{i}"]["raw"],
+                        score=adjudicated[f"P{i}"]["final_score"]) for i in range(1, 7)]
         cleanup = read_json(run_root / "cleanup" / f"{test_id}.json")
         rows.append(validate_terminal_row(test_id, runtime, quality, manifest, cleanup))
     return rows

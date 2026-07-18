@@ -215,6 +215,16 @@ class AnimehackerLargeHostTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, message):
                     validate_terminal_row("AH-06", rt, ql, mf, cl)
 
+    def test_operator_guide_preserves_safety_and_evidence_contract(self):
+        guide = (Path(__file__).resolve().parents[3] / "docs/testing/Animehacker-Large-Host-Completion-Guide.md")
+        text = guide.read_text(encoding="utf-8")
+        for required in ("AH-06", "AH-07", "AH-10", "32 GiB", "2,048 MiB",
+                         "preflight", "resume", "large-host-completion",
+                         "import_animehacker_large_host.py", "must not bypass",
+                         "must not overwrite"):
+            with self.subTest(required=required):
+                self.assertIn(required, text)
+
 
 if __name__ == "__main__":
     unittest.main()
