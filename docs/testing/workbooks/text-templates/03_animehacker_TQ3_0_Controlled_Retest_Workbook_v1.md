@@ -18,16 +18,16 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | Field | Record |
 |---|---|
 | Repository URL | https://github.com/animehacker/llama-turboquant |
-| Branch/tag |  |
-| Pinned commit |  |
-| Upstream llama.cpp base commit |  |
-| TurboQuant cache format |  |
-| CPU path |  |
-| Vulkan/SYCL path |  |
-| CUDA-only dependencies |  |
-| QJL residual correction present? |  |
-| Test operator |  |
-| Test start date |  |
+| Branch/tag | main (detached campaign pin; tag main-b8532-5bc5ed3) |
+| Pinned commit | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc |
+| Upstream llama.cpp base commit | 914eb5ff0c74c88c7ef8aec115878d8f64c81e56 |
+| TurboQuant cache format | TQ3_0, 14-byte blocks per 32 values (3.5 bits/value); repository history identifies implementation as 3-bit PolarQuant without QJL |
+| CPU path | Source implementation present; build/runtime verification pending |
+| Vulkan/SYCL path | SYCL-specific TQ3_0 kernels present; Vulkan backend present but no TQ3_0-specific source evidence; build/runtime verification pending |
+| CUDA-only dependencies | CUDA-specific implementation exists, but TQ3_0 is not source-level CUDA-only because CPU and SYCL paths are also present |
+| QJL residual correction present? | No - not implemented; fork commit 4381bdde corrects the description to PolarQuant without QJL, and no executable QJL projection/correction path was found |
+| Test operator | Codex controlled retest agent |
+| Test start date | 2026-07-18 |
 | Test end date |  |
 | Overall status |  |
 
@@ -46,14 +46,14 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 
 | ID | Check | Result | Evidence / command / notes |
 |---|---|---|---|
-| AH-B01 | Clone exact commit |  |  |
+| AH-B01 | Clone exact commit | Passed | Clean detached checkout of latest default branch at campaign start; `experiments/raw-results/animehacker-tq3-0/2026-07-18/acquisition/repository.json` |
 | AH-B02 | Configure and build on Windows |  |  |
 | AH-B03 | Build CPU route |  |  |
 | AH-B04 | Build benchmark tools |  |  |
 | AH-B05 | Run repository-provided tests |  |  |
-| AH-B06 | Inspect GPU backend availability |  |  |
+| AH-B06 | Inspect GPU backend availability | Source audit passed; runtime inventory pending | SYCL TQ3_0 conversion/copy/set-rows paths found; Vulkan has no TQ3_0-specific source evidence. `experiments/raw-results/animehacker-tq3-0/2026-07-18/acquisition/source-audit.json` |
 | AH-B07 | Use WSL only if Windows fails and evidence is useful |  |  |
-| AH-B08 | Record block layout, cache flags and known limits |  |  |
+| AH-B08 | Record block layout, cache flags and known limits | Passed (source classification) | TQ3_0 registered with CPU/CUDA/SYCL quantize/dequantize evidence; 14 bytes/32 values; QJL not implemented; Vulkan TQ3_0 not proven. `experiments/raw-results/animehacker-tq3-0/2026-07-18/acquisition/source-audit.json` |
 
 # 4. Ordered test matrix
 
@@ -141,8 +141,8 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 
 | Field | Record |
 |---|---|
-| Implementation depth |  |
-| QJL present? |  |
+| Implementation depth | Source-implemented for CPU, CUDA and SYCL; runtime depth pending controlled builds/runs |
+| QJL present? | No - source/history audit finds 3-bit PolarQuant only; no QJL projection or residual-correction implementation |
 | Granite 3B TQ3_0 |  |
 | Granite 8B TQ3_0 |  |
 | CPU support |  |
@@ -161,8 +161,8 @@ Codes: BF build | DEP dependency | WIN Windows | MODEL format | ARCH architectur
 |---|---|
 | Main evidence folder |  |
 | Archive ZIP |  |
-| Pinned commit |  |
-| Git head |  |
+| Pinned commit | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc |
+| Git head | 5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc (clean detached campaign checkout) |
 | SYCL device |  |
 | Formal matrix |  |
 | Quality review |  |
