@@ -1,0 +1,4 @@
+- **KV cache** quantisation reduces model size, enabling **offline** operation on **memory-limited** laptops.
+- **Benefits**: smaller memory footprint, faster inference.
+- **Limitations**: potential loss of accuracy, increased latency.
+- **Check**: Ensure model performance meets requirements before use.

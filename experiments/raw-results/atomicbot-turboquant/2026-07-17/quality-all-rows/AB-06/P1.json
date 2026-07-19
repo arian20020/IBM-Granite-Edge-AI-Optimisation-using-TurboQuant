@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **Benefit**: KV cache quantisation reduces memory usage, allowing the model to fit within limited memory constraints on an offline laptop.\n\n- **Benefit**: Quantisation enables faster inference, improving performance on limited hardware by reducing precision requirements.\n\n- **Limitation**: Quantisation may lead to a loss of model accuracy due to reduced bit-width representation.\n\n- **Limitation**: The model might become less precise because of quantisation, affecting performance on complex tasks.\n\n- **Check**: Ensure the model's performance is evaluated post-quantisation to confirm it meets the desired accuracy and efficiency goals.",
+  "test_id": "AB-06",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 16384,
+  "elapsed_seconds": 13.125,
+  "output_sha256": "3363d3dcce600461ee093d19323c85db062f0dbc241b4a4ddea52098cf143f61"
+}

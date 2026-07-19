@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P5",
+  "status": "complete",
+  "output": "MARKER:IXN-TQ-7319",
+  "test_id": "AB-13",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 16384,
+  "elapsed_seconds": 863.406,
+  "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884"
+}

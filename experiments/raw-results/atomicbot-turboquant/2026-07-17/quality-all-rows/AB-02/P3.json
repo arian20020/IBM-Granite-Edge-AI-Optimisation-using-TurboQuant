@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P3",
+  "status": "complete",
+  "output": "{\n  \"model_name\": \"TurboQuant\",\n  \"optimization_level\": \"TurboQuant\",\n  \"memory_usage\": \"128MB\"\n}",
+  "test_id": "AB-02",
+  "model_id": "gemma-3-1b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 16384,
+  "elapsed_seconds": 2.063,
+  "output_sha256": "835923c15d0426c64d63c00037373b8c22c5fb3a4399137e142cd2362d2a8a58"
+}

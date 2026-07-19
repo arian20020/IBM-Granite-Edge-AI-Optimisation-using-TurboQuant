@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **KV cache** quantisation reduces model size, enabling **offline** operation on **memory-limited** laptops.\n- **Benefits**: smaller memory footprint, faster inference.\n- **Limitations**: potential loss of accuracy, increased latency.\n- **Check**: Ensure model performance meets requirements before use.",
+  "test_id": "AB-12",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-partial",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 10.734,
+  "output_sha256": "e287332baf2f162e4415d01d63f2bee9a0c8f3b2d8dead519ff5a3ce769b47eb"
+}

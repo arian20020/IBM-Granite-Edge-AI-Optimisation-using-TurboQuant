@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P4",
+  "status": "complete",
+  "output": "The test utilized the IBM Granite 4.1 3B model with weights in Q4_K_M precision, employing Q8_0 precision for both the K and V caches, within a 4096-token context length. The configuration was executed locally on a Windows Intel laptop without activating TurboQuant.",
+  "test_id": "AB-08F",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 4096,
+  "elapsed_seconds": 14.906,
+  "output_sha256": "6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59"
+}

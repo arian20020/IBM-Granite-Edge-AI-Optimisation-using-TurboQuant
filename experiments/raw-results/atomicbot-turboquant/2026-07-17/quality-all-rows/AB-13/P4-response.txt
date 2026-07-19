@@ -1,0 +1,1 @@
+The model used is Granite 4.1 with 3 billion parameters, running on an upstream llama.cpp runtime, utilizing Q4_K_M weights, and operating with Q8_0 cache for both key and value data structures. The context length is limited to 4096 tokens, and the test was executed locally on a Windows Intel laptop without enabling TurboQuant.

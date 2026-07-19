@@ -1,0 +1,57 @@
+[
+  {
+    "failure_id": "AB-F001",
+    "test_id": "AB-B04",
+    "code": "BASE",
+    "description": "One or more repository-provided tests failed",
+    "likely_cause": "Fork test failure or Windows incompatibility",
+    "next_action": "Inspect ctest output; do not misclassify independent inference tests",
+    "resolved": "No",
+    "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\build\\cpu\\ctest\\ctest-stdout-20260716-184816.log",
+    "timestamp": "2026-07-16T18:48:58.687540+01:00"
+  },
+  {
+    "failure_id": "AB-F002",
+    "test_id": "AB-B04",
+    "code": "BASE",
+    "description": "One or more repository-provided tests failed",
+    "likely_cause": "Fork test failure or Windows incompatibility",
+    "next_action": "Inspect ctest output; do not misclassify independent inference tests",
+    "resolved": "No",
+    "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\build\\cpu\\ctest\\ctest-stdout-20260716-184938.log",
+    "timestamp": "2026-07-16T18:50:21.741190+01:00"
+  },
+  {
+    "failure_id": "AB-F003",
+    "test_id": "AB-B04",
+    "code": "BASE",
+    "description": "One or more repository-provided tests failed",
+    "likely_cause": "Fork test failure or Windows incompatibility",
+    "next_action": "Inspect ctest output; do not misclassify independent inference tests",
+    "resolved": "No",
+    "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\build\\cpu\\ctest\\ctest-stdout-20260716-185117.log",
+    "timestamp": "2026-07-16T18:51:59.730771+01:00"
+  },
+  {
+    "failure_id": "AB-F004",
+    "test_id": "AB-08Q",
+    "code": "PERF",
+    "description": "One or more formal repetitions failed",
+    "likely_cause": "See per-run summaries",
+    "next_action": "Preserve evidence and continue independent tests",
+    "resolved": "No",
+    "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-08Q\\20260716-185924\\AB-08Q-formal-summary.json",
+    "timestamp": "2026-07-16T19:00:26.433070+01:00"
+  },
+  {
+    "failure_id": "AB-F005",
+    "test_id": "AB-B04",
+    "code": "BASE",
+    "description": "One or more repository-provided tests failed",
+    "likely_cause": "Fork test failure or Windows incompatibility",
+    "next_action": "Inspect ctest output; do not misclassify independent inference tests",
+    "resolved": "No",
+    "evidence": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\build\\cpu\\ctest\\ctest-stdout-20260716-195011.log",
+    "timestamp": "2026-07-16T19:50:50.030156+01:00"
+  }
+]

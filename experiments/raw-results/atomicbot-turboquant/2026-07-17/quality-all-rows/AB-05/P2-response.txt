@@ -1,0 +1,5 @@
+BENEFIT: Improves data storage efficiency by reducing the size of quantized data.
+
+LIMITATION: May lead to increased computational overhead due to additional decompression steps.
+
+CHECK: Ensures that decompression accuracy is maintained during data retrieval.

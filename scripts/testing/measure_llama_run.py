@@ -79,6 +79,32 @@ def working_set_bytes(pid: int) -> int | None:
         kernel32.CloseHandle(handle)
 
 
+def process_memory_bytes(pid: int) -> tuple[int, int] | None:
+    """Return current physical working set and committed private bytes."""
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    psapi.GetProcessMemoryInfo.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX), wintypes.DWORD
+    ]
+    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+    handle = kernel32.OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, False, pid
+    )
+    if not handle:
+        return None
+    try:
+        counters = PROCESS_MEMORY_COUNTERS_EX()
+        counters.cb = ctypes.sizeof(counters)
+        if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+            return None
+        return int(counters.WorkingSetSize), int(counters.PrivateUsage)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def process_tree_pids(root_pid: int) -> set[int]:
     """Return the root PID and every currently live descendant on Windows."""
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -114,6 +140,30 @@ def process_tree_working_set_bytes(root_pid: int) -> int | None:
     return sum(available) if available else None
 
 
+def process_tree_memory_bytes(root_pid: int) -> tuple[int, int] | None:
+    values = [process_memory_bytes(pid) for pid in process_tree_pids(root_pid)]
+    available = [value for value in values if value is not None]
+    if not available:
+        return None
+    return sum(value[0] for value in available), sum(value[1] for value in available)
+
+
+class MEMORYSTATUSEX(ctypes.Structure):
+    _fields_ = [
+        ("dwLength", wintypes.DWORD), ("dwMemoryLoad", wintypes.DWORD),
+        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def available_ram_bytes() -> int | None:
+    status = MEMORYSTATUSEX()
+    status.dwLength = ctypes.sizeof(status)
+    return int(status.ullAvailPhys) if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)) else None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
@@ -121,6 +171,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=float, default=3600)
     parser.add_argument("--environment-json")
     parser.add_argument("--response-after-text-file")
+    parser.add_argument("--minimum-available-ram-mb", type=float, default=0)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.command and args.command[0] == "--":
@@ -212,12 +263,23 @@ def main() -> int:
 
     deadline = time.monotonic() + args.timeout_seconds
     timed_out = False
+    emergency_stopped = False
     while process.poll() is None:
         value = process_tree_working_set_bytes(process.pid)
         if value is not None:
             add_event(
                 {"kind": "memory", "elapsed_ms": elapsed_ms(), "private_bytes": value}
             )
+        available = available_ram_bytes()
+        if (args.minimum_available_ram_mb > 0 and available is not None and
+                available < args.minimum_available_ram_mb * 1024 * 1024):
+            emergency_stopped = True
+            add_event({"kind": "emergency_stop", "elapsed_ms": elapsed_ms(),
+                       "available_ram_bytes": available,
+                       "minimum_available_ram_mb": args.minimum_available_ram_mb})
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            break
         if time.monotonic() >= deadline:
             timed_out = True
             process.kill()
@@ -237,7 +299,8 @@ def main() -> int:
     )
     events.sort(key=lambda event: event["elapsed_ms"])
     summary = summarize_measurement(events)
-    summary.update({"sample_id": args.sample_id, "timed_out": timed_out})
+    summary.update({"sample_id": args.sample_id, "timed_out": timed_out,
+                    "emergency_stopped": emergency_stopped})
 
     (output_dir / "stdout.txt").write_bytes(stdout_data)
     (output_dir / "stderr.txt").write_bytes(stderr_data)

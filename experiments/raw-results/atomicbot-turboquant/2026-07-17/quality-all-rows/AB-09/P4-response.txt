@@ -1,0 +1,1 @@
+The test utilized the IBM Granite 4.1 3B model with Q4_K_M weight precision, employing Q8_0 for both K and V caches, within a 4096-token context length, executed locally on a Windows Intel laptop without activating TurboQuant. The runtime was based on upstream llama.cpp.

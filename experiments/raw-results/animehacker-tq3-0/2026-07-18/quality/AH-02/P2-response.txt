@@ -1,0 +1,13 @@
+BENEFIT: Reduced cache miss latency for frequently accessed data, significantly improving application responsiveness.
+
+LIMITATION: Compression can introduce subtle inaccuracies, potentially impacting performance in scenarios requiring absolute precision.
+
+CHECK: `cache_hit_ratio`
+
+Here’s the full sequence:
+
+BENEFIT: Reduced cache hit ratio, potentially impacting query response times.
+
+LIMITATION: Increased cache invalidation latency, affecting data freshness.
+
+CHECK: `cache_hit_ratio`

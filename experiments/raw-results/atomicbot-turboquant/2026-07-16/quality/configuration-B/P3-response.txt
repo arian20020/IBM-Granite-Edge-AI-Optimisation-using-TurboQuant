@@ -1,0 +1,1 @@
+{"optimisation": "TurboQuant", "memory_effect": "compact", "quality_risk": "low", "verification": "unit"}

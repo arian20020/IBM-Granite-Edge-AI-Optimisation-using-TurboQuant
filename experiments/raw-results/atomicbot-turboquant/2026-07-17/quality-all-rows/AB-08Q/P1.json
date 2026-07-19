@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **KV cache** reduces memory usage by storing key-value pairs efficiently.  \n- Enables **offline** operation by minimizing data loading needs.  \n- **Benefit:** Faster inference due to reduced computational overhead.  \n- **Limitation:** Quantisation may degrade model accuracy.  \n- **Check:** Verify quantisation levels against acceptable accuracy thresholds.",
+  "test_id": "AB-08Q",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "q8_0",
+  "quality_context": 4096,
+  "elapsed_seconds": 12.265,
+  "output_sha256": "2fa40e53214f0494e14800f1597f43a729eaf6d727ef3968eef29a6119a9df0e"
+}

@@ -1,0 +1,20 @@
+{
+  "granite3b": {
+    "path": "C:\\Users\\Student\\atomicbot-retest-20260716\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf",
+    "size_bytes": 2099501664,
+    "sha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+    "expected_sha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29"
+  },
+  "granite8b": {
+    "path": "C:\\Users\\Student\\atomicbot-retest-20260716\\models\\granite-4.1-8b\\q4_k_m\\granite-4.1-8b-Q4_K_M.gguf",
+    "size_bytes": 5347914400,
+    "sha256": "ed902ac9eb6adce5a90c6a08c8ea201b50e23fdc5976d1cd0362006afac5309e",
+    "expected_sha256": "ed902ac9eb6adce5a90c6a08c8ea201b50e23fdc5976d1cd0362006afac5309e"
+  },
+  "diagnostic": {
+    "path": "C:\\Users\\Student\\atomicbot-retest-20260716\\models\\diagnostic\\gemma-3-1b-it-Q4_K_M\\gemma-3-1b-it-Q4_K_M.gguf",
+    "size_bytes": 806058240,
+    "sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+    "expected_sha256": null
+  }
+}

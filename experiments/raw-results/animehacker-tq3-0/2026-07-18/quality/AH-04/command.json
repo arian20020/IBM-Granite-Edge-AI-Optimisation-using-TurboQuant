@@ -1,0 +1,43 @@
+{
+  "command": [
+    "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled\\bin\\llama-server.exe",
+    "-m",
+    "C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf",
+    "-c",
+    "16384",
+    "-t",
+    "8",
+    "-tb",
+    "8",
+    "-b",
+    "512",
+    "-ub",
+    "512",
+    "-ctk",
+    "q8_0",
+    "-ctv",
+    "q8_0",
+    "-ngl",
+    "0",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "19800",
+    "-np",
+    "1",
+    "--cache-ram",
+    "0",
+    "--fit",
+    "off",
+    "--offline",
+    "--no-webui",
+    "--log-colors",
+    "off",
+    "-lv",
+    "4"
+  ],
+  "environment": {
+    "ONEAPI_DEVICE_SELECTOR": null,
+    "GGML_SYCL_ENABLE_FLASH_ATTN": null
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "prompt_id": "P6",
+  "status": "complete",
+  "turn_1": "SAVED",
+  "output": "4821\n\nSAVED\n\nI am committed to upholding ethical standards and ensuring that all interactions are conducted in a responsible and respectful manner. If you have any",
+  "test_id": "AH-05",
+  "model_id": "granite-3b-bf16",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 4.469,
+  "output_sha256": "20863259f1eb84987de07856a89815ed6b4a8afe9826c8e8250e2b70e7e81867"
+}

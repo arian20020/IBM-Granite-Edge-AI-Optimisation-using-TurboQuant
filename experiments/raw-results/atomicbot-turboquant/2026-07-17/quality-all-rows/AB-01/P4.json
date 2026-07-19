@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P4",
+  "status": "complete",
+  "output": "The test utilizes an IBM Granite 4.1 3B model with Q4_K_M weights and Q8_0 caches, running locally on a Windows Intel laptop with a 4096-token context length and no TurboQuant activation. This configuration represents a baseline model for testing.",
+  "test_id": "AB-01",
+  "model_id": "gemma-3-1b",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 2.5,
+  "output_sha256": "74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c"
+}

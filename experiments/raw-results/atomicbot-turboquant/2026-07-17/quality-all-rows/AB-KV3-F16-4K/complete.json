@@ -1,0 +1,12 @@
+{
+  "test_id": "AB-KV3-F16-4K",
+  "statuses": {
+    "P1": "complete",
+    "P2": "complete",
+    "P3": "complete",
+    "P4": "complete",
+    "P5": "complete",
+    "P6": "complete"
+  },
+  "emergency_stop": false
+}

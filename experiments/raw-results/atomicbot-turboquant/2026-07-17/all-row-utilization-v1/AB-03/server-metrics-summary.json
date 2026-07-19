@@ -1,0 +1,116 @@
+{
+  "aggregate": {
+    "cpu_percent": {
+      "mean": 63.89717102222222,
+      "median": 65.140318,
+      "peak": 67.375294,
+      "sample_count": 16
+    },
+    "gpu_percent": {
+      "mean": 0.0,
+      "median": 0.0,
+      "peak": 0.0,
+      "sample_count": 16
+    },
+    "kv_mb": {
+      "max": 160.0,
+      "median": 160.0,
+      "min": 160.0
+    },
+    "peak_ram_mb": {
+      "max": 3659.07421875,
+      "median": 3659.01171875,
+      "min": 3658.9765625
+    },
+    "ttft_ms": {
+      "max": 144.3452,
+      "median": 143.1904,
+      "min": 134.6108
+    }
+  },
+  "backend": "cpu",
+  "cache": "f16",
+  "context": 2048,
+  "samples": [
+    {
+      "exit_code": 0,
+      "kv_mb": 160.0,
+      "missing": [],
+      "peak_ram_mb": 3659.07421875,
+      "request_error": null,
+      "sample_id": "AB-03-sample-1",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 134.6108,
+      "utilization": {
+        "cpu_percent": {
+          "mean": 64.3138476,
+          "median": 65.140318,
+          "peak": 65.916884,
+          "sample_count": 5
+        },
+        "gpu_percent": {
+          "mean": 0.0,
+          "median": 0.0,
+          "peak": 0.0,
+          "sample_count": 5
+        }
+      },
+      "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+      "valid": true
+    },
+    {
+      "exit_code": 0,
+      "kv_mb": 160.0,
+      "missing": [],
+      "peak_ram_mb": 3659.01171875,
+      "request_error": null,
+      "sample_id": "AB-03-sample-2",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 144.3452,
+      "utilization": {
+        "cpu_percent": {
+          "mean": 63.7121718,
+          "median": 63.427668,
+          "peak": 66.273269,
+          "sample_count": 5
+        },
+        "gpu_percent": {
+          "mean": 0.0,
+          "median": 0.0,
+          "peak": 0.0,
+          "sample_count": 5
+        }
+      },
+      "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+      "valid": true
+    },
+    {
+      "exit_code": 0,
+      "kv_mb": 160.0,
+      "missing": [],
+      "peak_ram_mb": 3658.9765625,
+      "request_error": null,
+      "sample_id": "AB-03-sample-3",
+      "ttft_definition": "HTTP request initiation to first streamed generated token",
+      "ttft_ms": 143.1904,
+      "utilization": {
+        "cpu_percent": {
+          "mean": 63.66549366666666,
+          "median": 65.5514075,
+          "peak": 67.375294,
+          "sample_count": 6
+        },
+        "gpu_percent": {
+          "mean": 0.0,
+          "median": 0.0,
+          "peak": 0.0,
+          "sample_count": 6
+        }
+      },
+      "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+      "valid": true
+    }
+  ],
+  "test_id": "AB-03",
+  "ttft_definition": "HTTP request initiation to first streamed generated token"
+}

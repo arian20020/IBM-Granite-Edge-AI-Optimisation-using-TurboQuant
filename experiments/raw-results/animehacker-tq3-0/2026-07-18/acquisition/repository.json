@@ -1,0 +1,13 @@
+﻿{
+    "repository_url":  "https://github.com/animehacker/llama-turboquant.git",
+    "default_branch":  "main",
+    "commit":  "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
+    "upstream_url":  "https://github.com/ggml-org/llama.cpp.git",
+    "upstream_base_commit":  "914eb5ff0c74c88c7ef8aec115878d8f64c81e56",
+    "checkout_path":  "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18",
+    "acquired_utc":  "2026-07-18T04:07:27.2199127Z",
+    "clean":  true,
+    "submodules":  [
+
+                   ]
+}

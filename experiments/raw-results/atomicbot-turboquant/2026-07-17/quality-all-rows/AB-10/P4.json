@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P4",
+  "status": "complete",
+  "output": "The model used is IBM Granite 4.1 3B with model weights in Q4_K_M precision, executing via llama.cpp runtime on a local Windows Intel laptop. The configuration features a 4096-token context length, with K and V caches in Q8_0 precision, and explicitly notes that TurboQuant was not activated.",
+  "test_id": "AB-10",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 21.656,
+  "output_sha256": "e08d70301268a903ba2d1ebf0e429f8bd00c9c195cbb73d1b89d4b4e2e4a153e"
+}

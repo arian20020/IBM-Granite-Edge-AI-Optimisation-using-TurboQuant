@@ -1,0 +1,32 @@
+{
+  "llama-cli.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-cli.exe",
+    "sha256": "fd4090db7e7d620197f3506dda904c76ad9c9bf127c9d8ead84705e43592949e",
+    "size_bytes": 10240
+  },
+  "llama-server.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-server.exe",
+    "sha256": "809a114985e7980d36813ca867809d15ff542ebddf5b6f7669ba6673e99a68db",
+    "size_bytes": 10240
+  },
+  "llama-bench.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-bench.exe",
+    "sha256": "dd89cc08c1fcf1c5dcc70014f5442f4e2fd6ce39fd01c314eb034b301a5d4ebf",
+    "size_bytes": 10240
+  },
+  "llama-perplexity.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-perplexity.exe",
+    "sha256": "d2735bc8a3b14b8eb4297469e58790e49723c403ce1f7b5efe0b880b3bec8edf",
+    "size_bytes": 10240
+  },
+  "llama-quantize.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\llama-quantize.exe",
+    "sha256": "02665df2c3dd6c19091b8fa5f4fc2ef26e810f180bac99aa9a83eb0a9ad37ec7",
+    "size_bytes": 10240
+  },
+  "test-backend-ops.exe": {
+    "path": "C:\\Users\\Student\\ab-retest-20260716\\cpu\\bin\\test-backend-ops.exe",
+    "sha256": "fe4505f9dab43b93aa3d43b5798e18c037856054df6afa01418e090a8d9395bb",
+    "size_bytes": 954880
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "test_id": "AB-15M",
+  "statuses": {
+    "P1": "complete",
+    "P2": "complete",
+    "P3": "complete",
+    "P4": "complete",
+    "P5": "safety-blocked",
+    "P6": "complete"
+  },
+  "emergency_stop": true
+}

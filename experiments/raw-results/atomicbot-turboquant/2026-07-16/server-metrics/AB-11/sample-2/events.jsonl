@@ -1,0 +1,208 @@
+{"elapsed_ms": 0.0, "kind": "start", "pid": 16684}
+{"available_ram_bytes": 11375370240, "elapsed_ms": 16.3805, "kind": "memory", "private_bytes": 2392064, "working_set_bytes": 4190208}
+{"elapsed_ms": 71.7288, "kind": "stderr", "text": "0.00.051.350 I common_params_print_info: build 9964 (519f0c594) with MSVC 19.51.36248.0 for Windows AMD64"}
+{"elapsed_ms": 71.7416, "kind": "stderr", "text": "0.00.051.355 I log_info: verbosity = 4 (adjust with the `-lv N` CLI arg)"}
+{"elapsed_ms": 71.7434, "kind": "stderr", "text": "0.00.051.355 I device_info:"}
+{"elapsed_ms": 72.3671, "kind": "stderr", "text": "0.00.052.027 I   - Vulkan0 : Intel(R) UHD Graphics (8038 MiB, 7380 MiB free)"}
+{"elapsed_ms": 72.3718, "kind": "stderr", "text": "0.00.052.035 I   - CPU     : 12th Gen Intel(R) Core(TM) i5-12450H (16076 MiB, 10829 MiB free)"}
+{"elapsed_ms": 72.3747, "kind": "stderr", "text": "0.00.052.060 I system_info: n_threads = 8 (n_threads_batch = 8) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | "}
+{"elapsed_ms": 72.3819, "kind": "stderr", "text": "0.00.052.145 I srv          init: using 11 threads for HTTP server"}
+{"elapsed_ms": 72.3841, "kind": "stderr", "text": "0.00.052.148 I srv          init: The UI is disabled"}
+{"elapsed_ms": 72.3877, "kind": "stderr", "text": "0.00.052.148 I srv          init: Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable"}
+{"elapsed_ms": 72.4729, "kind": "stderr", "text": "0.00.052.237 I srv         start: binding port with default address family"}
+{"elapsed_ms": 76.815, "kind": "stderr", "text": "0.00.056.500 I srv  llama_server: loading model"}
+{"elapsed_ms": 76.8236, "kind": "stderr", "text": "0.00.056.514 I srv    load_model: loading model 'C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf'"}
+{"elapsed_ms": 99.3126, "kind": "stderr", "text": "0.00.078.878 I llama_model_loader: loaded meta data with 34 key-value pairs and 362 tensors from C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf (version GGUF V3 (latest))"}
+{"elapsed_ms": 99.3243, "kind": "stderr", "text": "0.00.078.898 I llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output."}
+{"elapsed_ms": 99.3259, "kind": "stderr", "text": "0.00.078.902 I llama_model_loader: - kv   0:                       general.architecture str              = granite"}
+{"elapsed_ms": 99.3276, "kind": "stderr", "text": "0.00.078.903 I llama_model_loader: - kv   1:                               general.type str              = model"}
+{"elapsed_ms": 99.3288, "kind": "stderr", "text": "0.00.078.904 I llama_model_loader: - kv   2:                               general.name str              = Granite 4.1 3b"}
+{"elapsed_ms": 99.3308, "kind": "stderr", "text": "0.00.078.905 I llama_model_loader: - kv   3:                           general.basename str              = granite-4.1"}
+{"elapsed_ms": 99.332, "kind": "stderr", "text": "0.00.078.906 I llama_model_loader: - kv   4:                         general.size_label str              = 3B"}
+{"elapsed_ms": 99.3329, "kind": "stderr", "text": "0.00.078.906 I llama_model_loader: - kv   5:                            general.license str              = apache-2.0"}
+{"elapsed_ms": 99.3336, "kind": "stderr", "text": "0.00.078.907 I llama_model_loader: - kv   6:                        granite.block_count u32              = 40"}
+{"elapsed_ms": 99.3347, "kind": "stderr", "text": "0.00.078.908 I llama_model_loader: - kv   7:                     granite.context_length u32              = 131072"}
+{"elapsed_ms": 99.3355, "kind": "stderr", "text": "0.00.078.908 I llama_model_loader: - kv   8:                   granite.embedding_length u32              = 2560"}
+{"elapsed_ms": 99.3364, "kind": "stderr", "text": "0.00.078.909 I llama_model_loader: - kv   9:                granite.feed_forward_length u32              = 8192"}
+{"elapsed_ms": 99.3374, "kind": "stderr", "text": "0.00.078.910 I llama_model_loader: - kv  10:               granite.attention.head_count u32              = 40"}
+{"elapsed_ms": 99.3383, "kind": "stderr", "text": "0.00.078.910 I llama_model_loader: - kv  11:            granite.attention.head_count_kv u32              = 8"}
+{"elapsed_ms": 99.3391, "kind": "stderr", "text": "0.00.078.918 I llama_model_loader: - kv  12:                     granite.rope.freq_base f32              = 10000000.000000"}
+{"elapsed_ms": 99.3406, "kind": "stderr", "text": "0.00.078.921 I llama_model_loader: - kv  13:   granite.attention.layer_norm_rms_epsilon f32              = 0.000010"}
+{"elapsed_ms": 99.3414, "kind": "stderr", "text": "0.00.078.921 I llama_model_loader: - kv  14:                         granite.vocab_size u32              = 100352"}
+{"elapsed_ms": 99.3438, "kind": "stderr", "text": "0.00.078.922 I llama_model_loader: - kv  15:               granite.rope.dimension_count u32              = 64"}
+{"elapsed_ms": 99.3447, "kind": "stderr", "text": "0.00.078.923 I llama_model_loader: - kv  16:                    granite.attention.scale f32              = 0.015625"}
+{"elapsed_ms": 99.3462, "kind": "stderr", "text": "0.00.078.924 I llama_model_loader: - kv  17:                    granite.embedding_scale f32              = 12.000000"}
+{"elapsed_ms": 99.3472, "kind": "stderr", "text": "0.00.078.925 I llama_model_loader: - kv  18:                     granite.residual_scale f32              = 0.220000"}
+{"elapsed_ms": 99.3479, "kind": "stderr", "text": "0.00.078.926 I llama_model_loader: - kv  19:                        granite.logit_scale f32              = 10.000000"}
+{"elapsed_ms": 99.3487, "kind": "stderr", "text": "0.00.078.927 I llama_model_loader: - kv  20:                       tokenizer.ggml.model str              = gpt2"}
+{"elapsed_ms": 99.3521, "kind": "stderr", "text": "0.00.078.927 I llama_model_loader: - kv  21:                         tokenizer.ggml.pre str              = dbrx"}
+{"elapsed_ms": 119.1436, "kind": "stderr", "text": "0.00.098.789 I llama_model_loader: - kv  22:                      tokenizer.ggml.tokens arr[str,100352]  = [\"!\", \"\\\"\", \"#\", \"$\", \"%\", \"&\", \"'\", ..."}
+{"elapsed_ms": 126.576, "kind": "stderr", "text": "0.00.106.250 I llama_model_loader: - kv  23:                  tokenizer.ggml.token_type arr[i32,100352]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ..."}
+{"available_ram_bytes": 11335393280, "elapsed_ms": 131.4288, "kind": "memory", "private_bytes": 43892736, "working_set_bytes": 42352640}
+{"elapsed_ms": 145.5822, "kind": "stderr", "text": "0.00.125.182 I llama_model_loader: - kv  24:                      tokenizer.ggml.merges arr[str,100000]  = [\"\u0120 \u0120\", \"\u0120\u0120 \u0120\u0120\", \"i n\", \"\u0120 t\",..."}
+{"elapsed_ms": 145.6197, "kind": "stderr", "text": "0.00.125.195 I llama_model_loader: - kv  25:                tokenizer.ggml.bos_token_id u32              = 100257"}
+{"elapsed_ms": 145.6227, "kind": "stderr", "text": "0.00.125.196 I llama_model_loader: - kv  26:                tokenizer.ggml.eos_token_id u32              = 100257"}
+{"elapsed_ms": 145.6242, "kind": "stderr", "text": "0.00.125.197 I llama_model_loader: - kv  27:            tokenizer.ggml.unknown_token_id u32              = 100269"}
+{"elapsed_ms": 145.6254, "kind": "stderr", "text": "0.00.125.198 I llama_model_loader: - kv  28:            tokenizer.ggml.padding_token_id u32              = 100256"}
+{"elapsed_ms": 145.6265, "kind": "stderr", "text": "0.00.125.213 I llama_model_loader: - kv  29:               tokenizer.ggml.add_bos_token bool             = false"}
+{"elapsed_ms": 145.6283, "kind": "stderr", "text": "0.00.125.224 I llama_model_loader: - kv  30:                    tokenizer.chat_template str              = {%- set tools_system_message_prefix =..."}
+{"elapsed_ms": 145.6298, "kind": "stderr", "text": "0.00.125.224 I llama_model_loader: - kv  31:            tokenizer.ggml.add_space_prefix bool             = false"}
+{"elapsed_ms": 145.6316, "kind": "stderr", "text": "0.00.125.225 I llama_model_loader: - kv  32:               general.quantization_version u32              = 2"}
+{"elapsed_ms": 145.6328, "kind": "stderr", "text": "0.00.125.226 I llama_model_loader: - kv  33:                          general.file_type u32              = 15"}
+{"elapsed_ms": 145.6342, "kind": "stderr", "text": "0.00.125.227 I llama_model_loader: - type  f32:   81 tensors"}
+{"elapsed_ms": 145.6357, "kind": "stderr", "text": "0.00.125.228 I llama_model_loader: - type q4_K:  240 tensors"}
+{"elapsed_ms": 145.6375, "kind": "stderr", "text": "0.00.125.228 I llama_model_loader: - type q6_K:   41 tensors"}
+{"elapsed_ms": 145.6385, "kind": "stderr", "text": "0.00.125.231 I print_info: file format = GGUF V3 (latest)"}
+{"elapsed_ms": 145.64, "kind": "stderr", "text": "0.00.125.235 I print_info: file type   = Q4_K - Medium"}
+{"elapsed_ms": 145.6416, "kind": "stderr", "text": "0.00.125.242 I print_info: file size   = 1.95 GiB (4.93 BPW) "}
+{"elapsed_ms": 146.9184, "kind": "stderr", "text": "0.00.126.678 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"}
+{"elapsed_ms": 203.3311, "kind": "stderr", "text": "0.00.182.930 I load: 69 unused tokens"}
+{"elapsed_ms": 209.7695, "kind": "first_response_byte", "signal": "first-generated-token"}
+{"elapsed_ms": 217.7209, "kind": "stderr", "text": "0.00.197.323 I load: printing all EOG tokens:"}
+{"elapsed_ms": 217.7313, "kind": "stderr", "text": "0.00.197.332 I load:   - 100257 ('<|end_of_text|>')"}
+{"elapsed_ms": 217.7327, "kind": "stderr", "text": "0.00.197.332 I load:   - 100261 ('<|fim_pad|>')"}
+{"elapsed_ms": 217.7535, "kind": "stderr", "text": "0.00.197.548 I load: special tokens cache size = 96"}
+{"elapsed_ms": 233.1174, "kind": "stderr", "text": "0.00.212.647 I load: token to piece cache size = 0.6152 MB"}
+{"elapsed_ms": 233.128, "kind": "stderr", "text": "0.00.212.671 I print_info: arch                  = granite"}
+{"elapsed_ms": 233.1359, "kind": "stderr", "text": "0.00.212.672 I print_info: vocab_only            = 0"}
+{"elapsed_ms": 233.1374, "kind": "stderr", "text": "0.00.212.672 I print_info: no_alloc              = 0"}
+{"elapsed_ms": 233.1383, "kind": "stderr", "text": "0.00.212.673 I print_info: n_ctx_train           = 131072"}
+{"elapsed_ms": 233.1391, "kind": "stderr", "text": "0.00.212.673 I print_info: n_embd_inp            = 2560"}
+{"elapsed_ms": 233.1422, "kind": "stderr", "text": "0.00.212.674 I print_info: n_embd                = 2560"}
+{"elapsed_ms": 233.1429, "kind": "stderr", "text": "0.00.212.674 I print_info: n_embd_out            = 2560"}
+{"elapsed_ms": 233.1435, "kind": "stderr", "text": "0.00.212.674 I print_info: n_layer               = 40"}
+{"elapsed_ms": 233.1442, "kind": "stderr", "text": "0.00.212.674 I print_info: n_layer_all           = 40"}
+{"elapsed_ms": 233.1448, "kind": "stderr", "text": "0.00.212.689 I print_info: n_head                = 40"}
+{"elapsed_ms": 233.1464, "kind": "stderr", "text": "0.00.212.691 I print_info: n_head_kv             = 8"}
+{"elapsed_ms": 233.1471, "kind": "stderr", "text": "0.00.212.691 I print_info: n_rot                 = 64"}
+{"elapsed_ms": 233.1478, "kind": "stderr", "text": "0.00.212.692 I print_info: n_swa                 = 0"}
+{"elapsed_ms": 233.1495, "kind": "stderr", "text": "0.00.212.692 I print_info: is_swa_any            = 0"}
+{"elapsed_ms": 233.1501, "kind": "stderr", "text": "0.00.212.692 I print_info: n_embd_head_k         = 64"}
+{"elapsed_ms": 233.1508, "kind": "stderr", "text": "0.00.212.693 I print_info: n_embd_head_v         = 64"}
+{"elapsed_ms": 233.1514, "kind": "stderr", "text": "0.00.212.694 I print_info: n_gqa                 = 5"}
+{"elapsed_ms": 233.152, "kind": "stderr", "text": "0.00.212.696 I print_info: n_embd_k_gqa          = 512"}
+{"elapsed_ms": 233.1526, "kind": "stderr", "text": "0.00.212.699 I print_info: n_embd_v_gqa          = 512"}
+{"elapsed_ms": 233.1532, "kind": "stderr", "text": "0.00.212.700 I print_info: f_norm_eps            = 0.0e+00"}
+{"elapsed_ms": 233.1541, "kind": "stderr", "text": "0.00.212.701 I print_info: f_norm_rms_eps        = 1.0e-05"}
+{"elapsed_ms": 233.1547, "kind": "stderr", "text": "0.00.212.701 I print_info: f_clamp_kqv           = 0.0e+00"}
+{"elapsed_ms": 233.1564, "kind": "stderr", "text": "0.00.212.702 I print_info: f_max_alibi_bias      = 0.0e+00"}
+{"elapsed_ms": 233.1571, "kind": "stderr", "text": "0.00.212.702 I print_info: f_logit_scale         = 1.0e+01"}
+{"elapsed_ms": 233.1577, "kind": "stderr", "text": "0.00.212.703 I print_info: f_attn_scale          = 1.6e-02"}
+{"elapsed_ms": 233.1583, "kind": "stderr", "text": "0.00.212.703 I print_info: f_attn_value_scale    = 0.0000"}
+{"elapsed_ms": 233.159, "kind": "stderr", "text": "0.00.212.705 I print_info: n_ff                  = 8192"}
+{"elapsed_ms": 233.1596, "kind": "stderr", "text": "0.00.212.705 I print_info: n_expert              = 0"}
+{"elapsed_ms": 233.1603, "kind": "stderr", "text": "0.00.212.706 I print_info: n_expert_used         = 0"}
+{"elapsed_ms": 233.1615, "kind": "stderr", "text": "0.00.212.706 I print_info: n_expert_groups       = 0"}
+{"elapsed_ms": 233.1621, "kind": "stderr", "text": "0.00.212.706 I print_info: n_group_used          = 0"}
+{"elapsed_ms": 233.1628, "kind": "stderr", "text": "0.00.212.706 I print_info: causal attn           = 1"}
+{"elapsed_ms": 233.1634, "kind": "stderr", "text": "0.00.212.707 I print_info: pooling type          = -1"}
+{"elapsed_ms": 233.164, "kind": "stderr", "text": "0.00.212.707 I print_info: rope type             = 0"}
+{"elapsed_ms": 233.1646, "kind": "stderr", "text": "0.00.212.707 I print_info: rope scaling          = linear"}
+{"elapsed_ms": 233.1653, "kind": "stderr", "text": "0.00.212.708 I print_info: freq_base_train       = 10000000.0"}
+{"elapsed_ms": 233.1659, "kind": "stderr", "text": "0.00.212.709 I print_info: freq_scale_train      = 1"}
+{"elapsed_ms": 233.1668, "kind": "stderr", "text": "0.00.212.710 I print_info: n_ctx_orig_yarn       = 131072"}
+{"elapsed_ms": 233.1674, "kind": "stderr", "text": "0.00.212.710 I print_info: rope_yarn_log_mul     = 0.0000"}
+{"elapsed_ms": 233.168, "kind": "stderr", "text": "0.00.212.711 I print_info: rope_finetuned        = yes"}
+{"elapsed_ms": 233.1689, "kind": "stderr", "text": "0.00.212.712 I print_info: model type            = 3B"}
+{"elapsed_ms": 233.1697, "kind": "stderr", "text": "0.00.212.713 I print_info: model params          = 3.40 B"}
+{"elapsed_ms": 233.1714, "kind": "stderr", "text": "0.00.212.713 I print_info: general.name          = Granite 4.1 3b"}
+{"elapsed_ms": 233.1723, "kind": "stderr", "text": "0.00.212.714 I print_info: f_embedding_scale     = 12.000000"}
+{"elapsed_ms": 233.1732, "kind": "stderr", "text": "0.00.212.714 I print_info: f_residual_scale      = 0.220000"}
+{"elapsed_ms": 233.1745, "kind": "stderr", "text": "0.00.212.715 I print_info: f_attention_scale     = 0.015625"}
+{"elapsed_ms": 233.1752, "kind": "stderr", "text": "0.00.212.715 I print_info: n_ff_shexp            = 0"}
+{"elapsed_ms": 233.1758, "kind": "stderr", "text": "0.00.212.716 I print_info: vocab type            = BPE"}
+{"elapsed_ms": 233.1765, "kind": "stderr", "text": "0.00.212.716 I print_info: n_vocab               = 100352"}
+{"elapsed_ms": 233.1771, "kind": "stderr", "text": "0.00.212.717 I print_info: n_merges              = 100000"}
+{"elapsed_ms": 233.1778, "kind": "stderr", "text": "0.00.212.717 I print_info: BOS token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 233.1785, "kind": "stderr", "text": "0.00.212.717 I print_info: EOS token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 233.1791, "kind": "stderr", "text": "0.00.212.718 I print_info: EOT token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 233.1797, "kind": "stderr", "text": "0.00.212.718 I print_info: UNK token             = 100269 '<|unk|>'"}
+{"elapsed_ms": 233.1805, "kind": "stderr", "text": "0.00.212.718 I print_info: PAD token             = 100256 '<|pad|>'"}
+{"elapsed_ms": 233.1812, "kind": "stderr", "text": "0.00.212.719 I print_info: LF token              = 198 '\u010a'"}
+{"elapsed_ms": 233.1842, "kind": "stderr", "text": "0.00.212.719 I print_info: FIM PRE token         = 100258 '<|fim_prefix|>'"}
+{"elapsed_ms": 233.185, "kind": "stderr", "text": "0.00.212.720 I print_info: FIM SUF token         = 100260 '<|fim_suffix|>'"}
+{"elapsed_ms": 233.1888, "kind": "stderr", "text": "0.00.212.720 I print_info: FIM MID token         = 100259 '<|fim_middle|>'"}
+{"elapsed_ms": 233.1896, "kind": "stderr", "text": "0.00.212.720 I print_info: FIM PAD token         = 100261 '<|fim_pad|>'"}
+{"elapsed_ms": 233.2032, "kind": "stderr", "text": "0.00.212.721 I print_info: EOG token             = 100257 '<|end_of_text|>'"}
+{"elapsed_ms": 233.2039, "kind": "stderr", "text": "0.00.212.721 I print_info: EOG token             = 100261 '<|fim_pad|>'"}
+{"elapsed_ms": 233.2054, "kind": "stderr", "text": "0.00.212.721 I print_info: max token length      = 256"}
+{"elapsed_ms": 233.2064, "kind": "stderr", "text": "0.00.212.722 I load_tensors: loading model tensors, this can take a while... (mmap = true, direct_io = false)"}
+{"available_ram_bytes": 11312582656, "elapsed_ms": 248.4887, "kind": "memory", "private_bytes": 76001280, "working_set_bytes": 78057472}
+{"available_ram_bytes": 11313008640, "elapsed_ms": 365.2277, "kind": "memory", "private_bytes": 80195584, "working_set_bytes": 78241792}
+{"elapsed_ms": 367.5702, "kind": "stderr", "text": "0.00.347.194 I load_tensors: offloading output layer to GPU"}
+{"elapsed_ms": 367.5779, "kind": "stderr", "text": "0.00.347.200 I load_tensors: offloading 0 repeating layers to GPU"}
+{"elapsed_ms": 367.5792, "kind": "stderr", "text": "0.00.347.200 I load_tensors: offloaded 1/41 layers to GPU"}
+{"elapsed_ms": 367.5801, "kind": "stderr", "text": "0.00.347.205 I load_tensors:   CPU_Mapped model buffer size =  1998.83 MiB"}
+{"elapsed_ms": 367.5809, "kind": "stderr", "text": "0.00.347.206 I load_tensors:      Vulkan0 model buffer size =   200.99 MiB"}
+{"elapsed_ms": 473.8287, "kind": "stderr", "text": "..................................................................................."}
+{"elapsed_ms": 475.8945, "kind": "stderr", "text": "0.00.455.624 I common_init_result: added <|end_of_text|> logit bias = -inf"}
+{"elapsed_ms": 475.9074, "kind": "stderr", "text": "0.00.455.629 I common_init_result: added <|fim_pad|> logit bias = -inf"}
+{"elapsed_ms": 476.1244, "kind": "stderr", "text": "0.00.455.771 I llama_context: constructing llama_context"}
+{"elapsed_ms": 476.1318, "kind": "stderr", "text": "0.00.455.783 I llama_context: n_seq_max     = 1"}
+{"elapsed_ms": 476.1335, "kind": "stderr", "text": "0.00.455.783 I llama_context: n_ctx         = 4096"}
+{"elapsed_ms": 476.1348, "kind": "stderr", "text": "0.00.455.784 I llama_context: n_ctx_seq     = 4096"}
+{"elapsed_ms": 476.1359, "kind": "stderr", "text": "0.00.455.784 I llama_context: n_batch       = 512"}
+{"elapsed_ms": 476.137, "kind": "stderr", "text": "0.00.455.785 I llama_context: n_ubatch      = 512"}
+{"elapsed_ms": 476.138, "kind": "stderr", "text": "0.00.455.785 I llama_context: causal_attn   = 1"}
+{"elapsed_ms": 476.139, "kind": "stderr", "text": "0.00.455.786 I llama_context: flash_attn    = auto"}
+{"elapsed_ms": 476.1401, "kind": "stderr", "text": "0.00.455.786 I llama_context: kv_unified    = false"}
+{"elapsed_ms": 476.146, "kind": "stderr", "text": "0.00.455.789 I llama_context: freq_base     = 10000000.0"}
+{"elapsed_ms": 476.1471, "kind": "stderr", "text": "0.00.455.792 I llama_context: freq_scale    = 1"}
+{"elapsed_ms": 476.1517, "kind": "stderr", "text": "0.00.455.792 I llama_context: n_rs_seq      = 0"}
+{"elapsed_ms": 476.1528, "kind": "stderr", "text": "0.00.455.793 I llama_context: n_outputs_max = 1"}
+{"elapsed_ms": 476.1542, "kind": "stderr", "text": "0.00.455.794 W llama_context: n_ctx_seq (4096) < n_ctx_train (131072) -- the full capacity of the model will not be utilized"}
+{"elapsed_ms": 476.6138, "kind": "stderr", "text": "0.00.456.334 I llama_context: Vulkan_Host  output buffer size =     0.38 MiB"}
+{"elapsed_ms": 476.7806, "kind": "stderr", "text": "0.00.456.551 I llama_kv_cache:        CPU KV buffer size =   320.00 MiB"}
+{"available_ram_bytes": 10658304000, "elapsed_ms": 483.0523, "kind": "memory", "private_bytes": 833200128, "working_set_bytes": 729686016}
+{"elapsed_ms": 539.6384, "kind": "stderr", "text": "0.00.519.265 I llama_kv_cache: size =  320.00 MiB (  4096 cells,  40 layers,  1/1 seqs), K (f16):  160.00 MiB, V (f16):  160.00 MiB"}
+{"elapsed_ms": 539.6486, "kind": "stderr", "text": "0.00.519.283 I llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 64"}
+{"elapsed_ms": 539.6502, "kind": "stderr", "text": "0.00.519.284 I llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 64"}
+{"elapsed_ms": 539.6552, "kind": "stderr", "text": "0.00.519.295 I sched_reserve: reserving ..."}
+{"elapsed_ms": 541.1554, "kind": "stderr", "text": "0.00.520.831 I sched_reserve: Flash Attention was auto, set to enabled"}
+{"elapsed_ms": 541.1628, "kind": "stderr", "text": "0.00.520.836 I sched_reserve: resolving fused Gated Delta Net support:"}
+{"elapsed_ms": 541.4192, "kind": "stderr", "text": "0.00.521.157 I sched_reserve: fused Gated Delta Net (autoregressive) enabled"}
+{"elapsed_ms": 541.7288, "kind": "stderr", "text": "0.00.521.465 I sched_reserve: fused Gated Delta Net (chunked) enabled"}
+{"elapsed_ms": 551.6766, "kind": "stderr", "text": "0.00.531.298 I sched_reserve:    Vulkan0 compute buffer size =    86.77 MiB"}
+{"elapsed_ms": 551.6869, "kind": "stderr", "text": "0.00.531.308 I sched_reserve: Vulkan_Host compute buffer size =    14.01 MiB"}
+{"elapsed_ms": 551.6882, "kind": "stderr", "text": "0.00.531.308 I sched_reserve: graph nodes  = 1328"}
+{"elapsed_ms": 551.6891, "kind": "stderr", "text": "0.00.531.308 I sched_reserve: graph splits = 440 (with bs=512), 2 (with bs=1)"}
+{"elapsed_ms": 551.6897, "kind": "stderr", "text": "0.00.531.310 I sched_reserve: reserve took 12.01 ms, sched copies = 1"}
+{"elapsed_ms": 551.6909, "kind": "stderr", "text": "0.00.531.435 I common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)"}
+{"available_ram_bytes": 10018672640, "elapsed_ms": 597.2739, "kind": "memory", "private_bytes": 1006903296, "working_set_bytes": 1363705856}
+{"available_ram_bytes": 9443905536, "elapsed_ms": 717.4678, "kind": "memory", "private_bytes": 1006903296, "working_set_bytes": 1937907712}
+{"available_ram_bytes": 8884137984, "elapsed_ms": 834.4978, "kind": "memory", "private_bytes": 1006919680, "working_set_bytes": 2488508416}
+{"available_ram_bytes": 8368861184, "elapsed_ms": 950.983, "kind": "memory", "private_bytes": 1006927872, "working_set_bytes": 2997260288}
+{"elapsed_ms": 1002.2123, "kind": "stderr", "text": "0.00.981.906 I srv    load_model: initializing slots, n_slots = 1"}
+{"available_ram_bytes": 8329895936, "elapsed_ms": 1065.1734, "kind": "memory", "private_bytes": 1009344512, "working_set_bytes": 3043213312}
+{"elapsed_ms": 1175.2042, "kind": "stderr", "text": "0.01.154.907 W common_speculative_init: no implementations specified for speculative decoding"}
+{"elapsed_ms": 1175.2198, "kind": "stderr", "text": "0.01.154.927 I slot   load_model: id  0 | task -1 | new slot, n_ctx = 4096"}
+{"elapsed_ms": 1175.2216, "kind": "stderr", "text": "0.01.154.985 I srv    load_model: prompt cache is disabled - use `--cache-ram N` to enable it"}
+{"elapsed_ms": 1175.2271, "kind": "stderr", "text": "0.01.154.992 I srv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391"}
+{"elapsed_ms": 1175.2294, "kind": "stderr", "text": "0.01.154.993 I srv    load_model: context checkpoints enabled, max = 32, min spacing = 256"}
+{"elapsed_ms": 1175.2618, "kind": "stderr", "text": "0.01.155.050 W srv          init: --cache-idle-slots requires --cache-ram, disabling"}
+{"available_ram_bytes": 8322052096, "elapsed_ms": 1185.7928, "kind": "memory", "private_bytes": 1009426432, "working_set_bytes": 3043893248}
+{"elapsed_ms": 1197.0892, "kind": "stderr", "text": "0.01.176.808 I init: chat template, example_format: '<|start_of_role|>system<|end_of_role|>You are a helpful assistant<|end_of_text|>"}
+{"elapsed_ms": 1197.1059, "kind": "stderr", "text": "<|start_of_role|>user<|end_of_role|>Hello<|end_of_text|>"}
+{"elapsed_ms": 1197.1095, "kind": "stderr", "text": "<|start_of_role|>assistant<|end_of_role|>Hi there<|end_of_text|>"}
+{"elapsed_ms": 1197.1164, "kind": "stderr", "text": "<|start_of_role|>user<|end_of_role|>How are you?<|end_of_text|>"}
+{"elapsed_ms": 1197.1184, "kind": "stderr", "text": "<|start_of_role|>assistant<|end_of_role|>'"}
+{"elapsed_ms": 1210.8225, "kind": "stderr", "text": "0.01.190.538 I srv          init: init: chat template, thinking = 0"}
+{"elapsed_ms": 1210.8523, "kind": "stderr", "text": "0.01.190.613 I srv  llama_server: model loaded"}
+{"elapsed_ms": 1210.8558, "kind": "stderr", "text": "0.01.190.626 I srv  llama_server: server is listening on http://127.0.0.1:18263"}
+{"elapsed_ms": 1210.8929, "kind": "stderr", "text": "0.01.190.670 I srv  update_slots: all slots are idle"}
+{"available_ram_bytes": 8315502592, "elapsed_ms": 1302.2854, "kind": "memory", "private_bytes": 1009426432, "working_set_bytes": 3044306944}
+{"elapsed_ms": 1345.5857, "kind": "stderr", "text": "0.01.325.265 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1"}
+{"elapsed_ms": 1345.6076, "kind": "stderr", "text": "0.01.325.323 I slot launch_slot_: id  0 | task -1 | sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> ?top-p -> min-p -> ?xtc -> temp-ext -> dist "}
+{"elapsed_ms": 1345.6218, "kind": "stderr", "text": "0.01.325.349 I slot launch_slot_: id  0 | task -1 | sampler params: "}
+{"elapsed_ms": 1345.6235, "kind": "stderr", "text": "\trepeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000"}
+{"elapsed_ms": 1345.6253, "kind": "stderr", "text": "\tdry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 4096"}
+{"elapsed_ms": 1345.6267, "kind": "stderr", "text": "\ttop_k = 40, top_p = 1.000, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000"}
+{"elapsed_ms": 1345.6282, "kind": "stderr", "text": "\tmirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900"}
+{"elapsed_ms": 1345.6432, "kind": "stderr", "text": "0.01.325.353 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0"}
+{"elapsed_ms": 1345.6445, "kind": "stderr", "text": "0.01.325.387 I slot update_slots: id  0 | task 0 | new prompt, n_ctx_slot = 4096, n_keep = 0, task.n_tokens = 5"}
+{"elapsed_ms": 1345.7286, "kind": "stderr", "text": "0.01.325.423 I slot update_slots: id  0 | task 0 | cached n_tokens = 0, memory_seq_rm [0, end)"}
+{"elapsed_ms": 1345.7419, "kind": "stderr", "text": "0.01.325.440 I slot init_sampler: id  0 | task 0 | init sampler, took 0.00 ms, tokens: text = 5, total = 5"}
+{"available_ram_bytes": 8349827072, "elapsed_ms": 1417.4555, "kind": "memory", "private_bytes": 1009459200, "working_set_bytes": 3044642816}
+{"available_ram_bytes": 8343674880, "elapsed_ms": 1533.9032, "kind": "memory", "private_bytes": 1009459200, "working_set_bytes": 3044642816}
+{"elapsed_ms": 1660.1928, "kind": "stderr", "text": "0.01.639.893 W srv          stop: cancel task, id_task = 0"}
+{"elapsed_ms": 2034.944, "exit_code": 0, "kind": "exit"}

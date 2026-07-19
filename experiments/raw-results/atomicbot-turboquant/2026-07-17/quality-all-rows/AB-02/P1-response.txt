@@ -1,0 +1,7 @@
+Here's a breakdown of why KV-cache quantization can help offline models on a laptop:
+
+*   **Benefit 1:** Reduces model size – Quantization lowers precision, shrinking the model.
+*   **Benefit 2:** Improves offline inference speed – Smaller models run faster.
+*   **Limitation 1:** Potential accuracy loss – Quantization can impact quality.
+*   **Limitation 2:** Requires careful tuning – Fine-tuning is needed for optimal performance.
+*   **Check:** Ensure you have sufficient memory before deploying!

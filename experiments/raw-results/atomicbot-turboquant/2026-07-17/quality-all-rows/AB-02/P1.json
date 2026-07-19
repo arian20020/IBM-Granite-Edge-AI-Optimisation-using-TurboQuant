@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "Here's a breakdown of why KV-cache quantization can help offline models on a laptop:\n\n*   **Benefit 1:** Reduces model size \u2013 Quantization lowers precision, shrinking the model.\n*   **Benefit 2:** Improves offline inference speed \u2013 Smaller models run faster.\n*   **Limitation 1:** Potential accuracy loss \u2013 Quantization can impact quality.\n*   **Limitation 2:** Requires careful tuning \u2013 Fine-tuning is needed for optimal performance.\n*   **Check:** Ensure you have sufficient memory before deploying!",
+  "test_id": "AB-02",
+  "model_id": "gemma-3-1b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 16384,
+  "elapsed_seconds": 4.563,
+  "output_sha256": "e852b5d02588bb68cb5cdba09ce6f97b85f8cc5e30b71d63ccb89ee218341e13"
+}

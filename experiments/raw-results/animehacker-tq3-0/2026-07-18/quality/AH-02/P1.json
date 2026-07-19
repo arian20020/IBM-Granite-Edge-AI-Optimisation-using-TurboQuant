@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "Here\u2019s an explanation of how KV-cache quantisation helps offline model runs on low-memory laptops:\n\n*   **Reduced Memory Footprint:** Quantisation reduces model size, freeing up memory.\n*   **Faster Inference:** Lower precision arithmetic speeds up processing.\n*   **Improved Offline Access:** Enables running models without constant cloud connectivity.\n*   **Data Efficiency:** Less data required for inference, improving performance.\n*   **Faster Updates:** Smaller model size facilitates quicker model updates.\n\n**Benefits:**\n\n*   **Reduced Memory Usage:** Significantly lowers the laptop\u2019s memory requirements.\n*   **Faster Inference:**  Faster processing speeds improve overall performance.\n\n**Limitations:**\n\n*   **Potential Accuracy Loss:** Quantisation can impact model quality.\n*   **Hardware Dependency:** Requires optimized hardware for best results.\n\n**Check User Action:**  Ensure the user has sufficient RAM to accommodate the quantized model before deployment.",
+  "test_id": "AH-02",
+  "model_id": "gemma-1b-q4-k-m",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 5.796,
+  "output_sha256": "99c6c198e151bf875427e98e622bfb3effe1c939ef32fe50a55e453d2612e2c7"
+}

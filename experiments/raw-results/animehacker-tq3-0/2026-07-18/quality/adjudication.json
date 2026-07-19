@@ -1,0 +1,1324 @@
+{
+  "AH-01": {
+    "maximum_score": 10.0,
+    "mean_score": 6.2250000000000005,
+    "median_score": 6.175,
+    "minimum_score": 2.0,
+    "prompts": {
+      "P1": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 9,
+            "correctness_and_grounding": 9,
+            "instruction_and_format_adherence": 9,
+            "relevance_clarity_and_coherence": 9,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 9.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 3.516,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "Here\u2019s a breakdown of how KV cache quantization helps offline models:\n\n*   **Reduced Memory Footprint:** Quantization drastically shrinks the model\u2019s size, crucial for offline use.\n*   **Faster Inference:** Smaller models translate to quicker processing, improving performance.\n*   **Improved Offline Capability:** Enables running models on devices with limited RAM.\n*   **Benefits:**  Significant reduction in required memory, faster response times.\n*   **Limitations:**  Potential for slightly reduced accuracy, requires careful tuning.\n\n**Check:**  Before deploying, test the model\u2019s performance on your laptop\u2019s hardware to ensure acceptable speed and accuracy.",
+          "output_sha256": "fa10e50e47508ef769f9c313854ac5d477f82f077f76b9a3bbc7d9aad4d52d81",
+          "prompt_id": "P1",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-01"
+        },
+        "uncapped_score": 9.0
+      },
+      "P2": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 8,
+            "correctness_and_grounding": 8,
+            "instruction_and_format_adherence": 9,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 8.35,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 1.453,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "BENEFIT: Reduced memory footprint, improving overall system performance.\nLIMITATION: Potential for cache invalidation issues, leading to inaccurate results.\nCHECK: Verify cache consistency with data source updates before proceeding.",
+          "output_sha256": "92b28886903cb6547a1d62be3d387a84960a717450a993f49d52e12c438a2073",
+          "prompt_id": "P2",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-01"
+        },
+        "uncapped_score": 8.35
+      },
+      "P3": {
+        "adjudication": {
+          "critical_cap_reason": "Invalid JSON or wrong exact schema",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 2,
+            "correctness_and_grounding": 2,
+            "instruction_and_format_adherence": 1,
+            "relevance_clarity_and_coherence": 3,
+            "stability_and_output_integrity": 3
+          },
+          "format_valid": "No",
+          "integrity_issue": "Yes",
+          "manual_result": "Invalid JSON or wrong exact schema",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 2.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 1.657,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "```json\n{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Medium\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Cache hit rate validation\"\n}\n```",
+          "output_sha256": "c6611f831b1b3eb7ff9a45a8722d69663e0b090871b8da442f8d4d9bfefacb7e",
+          "prompt_id": "P3",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-01"
+        },
+        "uncapped_score": 2.0
+      },
+      "P4": {
+        "adjudication": {
+          "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime,caches,turbo",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 7,
+            "instruction_and_format_adherence": 8,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "P4 missing/format gate: sentences=2, missing=runtime,caches,turbo",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 2.609,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "The test utilizes an IBM Granite 4.1 3B model with Q4_K_M weights and Q8_0 caches, running locally on a Windows Intel laptop with a 4096-token context length and no TurboQuant activation. This configuration represents a baseline model for testing.",
+          "output_sha256": "74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c",
+          "prompt_id": "P4",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-01"
+        },
+        "uncapped_score": 7.0
+      },
+      "P5": {
+        "adjudication": {
+          "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "Exact-output failure: prohibited space after colon",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 93.734,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "MARKER: IXN-TQ-7319",
+          "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+          "prompt_id": "P5",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-01"
+        },
+        "uncapped_score": 8.5
+      },
+      "P6": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 1.0,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "amber:4821",
+          "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+          "prompt_id": "P6",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-01",
+          "turn_1": "SAVED\n"
+        },
+        "uncapped_score": 10.0
+      }
+    }
+  },
+  "AH-02": {
+    "maximum_score": 10.0,
+    "mean_score": 3.658333333333333,
+    "median_score": 3.0,
+    "minimum_score": 0.65,
+    "prompts": {
+      "P1": {
+        "adjudication": {
+          "critical_cap_reason": "P1 gate failure: bullets=9, words=113, required_terms=False, semantic_slots=False",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 6,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "P1 gate failure: bullets=9, words=113, required_terms=False, semantic_slots=False",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 5.796,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "Here\u2019s an explanation of how KV-cache quantisation helps offline model runs on low-memory laptops:\n\n*   **Reduced Memory Footprint:** Quantisation reduces model size, freeing up memory.\n*   **Faster Inference:** Lower precision arithmetic speeds up processing.\n*   **Improved Offline Access:** Enables running models without constant cloud connectivity.\n*   **Data Efficiency:** Less data required for inference, improving performance.\n*   **Faster Updates:** Smaller model size facilitates quicker model updates.\n\n**Benefits:**\n\n*   **Reduced Memory Usage:** Significantly lowers the laptop\u2019s memory requirements.\n*   **Faster Inference:**  Faster processing speeds improve overall performance.\n\n**Limitations:**\n\n*   **Potential Accuracy Loss:** Quantisation can impact model quality.\n*   **Hardware Dependency:** Requires optimized hardware for best results.\n\n**Check User Action:**  Ensure the user has sufficient RAM to accommodate the quantized model before deployment.",
+          "output_sha256": "99c6c198e151bf875427e98e622bfb3effe1c939ef32fe50a55e453d2612e2c7",
+          "prompt_id": "P1",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-02"
+        },
+        "uncapped_score": 5.7
+      },
+      "P2": {
+        "adjudication": {
+          "critical_cap_reason": "Required three-line labelled format failed",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 0,
+            "correctness_and_grounding": 1,
+            "instruction_and_format_adherence": 0,
+            "relevance_clarity_and_coherence": 1,
+            "stability_and_output_integrity": 2
+          },
+          "format_valid": "No",
+          "integrity_issue": "Yes",
+          "manual_result": "Required three-line labelled format failed",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 0.65,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 3.016,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "BENEFIT: Reduced cache miss latency for frequently accessed data, significantly improving application responsiveness.\n\nLIMITATION: Compression can introduce subtle inaccuracies, potentially impacting performance in scenarios requiring absolute precision.\n\nCHECK: `cache_hit_ratio`\n\nHere\u2019s the full sequence:\n\nBENEFIT: Reduced cache hit ratio, potentially impacting query response times.\n\nLIMITATION: Increased cache invalidation latency, affecting data freshness.\n\nCHECK: `cache_hit_ratio`",
+          "output_sha256": "56ac5e02e077e841455d0392e2e8da06dd2f4d3d3fed9d70c1cca40886a546a7",
+          "prompt_id": "P2",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-02"
+        },
+        "uncapped_score": 0.65
+      },
+      "P3": {
+        "adjudication": {
+          "critical_cap_reason": "Invalid JSON or wrong exact schema",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 2,
+            "correctness_and_grounding": 2,
+            "instruction_and_format_adherence": 1,
+            "relevance_clarity_and_coherence": 3,
+            "stability_and_output_integrity": 3
+          },
+          "format_valid": "No",
+          "integrity_issue": "Yes",
+          "manual_result": "Invalid JSON or wrong exact schema",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 2.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 5.453,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "```json\n{\n  \"optimization\": {\n    \"type\": \"TurboQuant\",\n    \"details\": \"Parameter Tuning\"\n  },\n  \"memory_effect\": {\n    \"total_memory\": \"128MB\",\n    \"usage_rate\": \"75%\"\n  },\n  \"quality_risk\": {\n    \"severity\": \"Medium\",\n    \"description\": \"Potential for subtle bias\"\n  },\n  \"verification\": {\n    \"test_case_success\": true,\n    \"data_consistency\": \"High\",\n    \"output_accuracy\": \"95%\"\n  }\n}\n```",
+          "output_sha256": "b976670371782e99c60d513cdee2c45525361337240dd88f3ea5208e173040ba",
+          "prompt_id": "P3",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-02"
+        },
+        "uncapped_score": 2.0
+      },
+      "P4": {
+        "adjudication": {
+          "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime,turbo",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 7,
+            "instruction_and_format_adherence": 8,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "P4 missing/format gate: sentences=2, missing=runtime,turbo",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 4.406,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "Here\u2019s a two-sentence summary:\n\nThe model is an IBM Granite 4.1 3B, running with Q4_K_M weights and utilizing Q8_0 K and V caches, with a 4096 token context length and running locally on a Windows Intel laptop. This configuration does not activate TurboQuant.",
+          "output_sha256": "a651c48faa6895b7daf141a023f1eb925ea72dc22f0eec02f1c5c70951be9fe9",
+          "prompt_id": "P4",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-02"
+        },
+        "uncapped_score": 7.0
+      },
+      "P5": {
+        "adjudication": {
+          "critical_cap_reason": "Wrong long-context marker",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 0,
+            "correctness_and_grounding": 0,
+            "instruction_and_format_adherence": 2,
+            "relevance_clarity_and_coherence": 2,
+            "stability_and_output_integrity": 5
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "Wrong long-context marker",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 1.3,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 109.203,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "Evidence paragraph 0006: The controlled Granite-TurboQuant campaign records exact models, commits, commands, devices, memory, speed, quality, failures, and evidence hashes. This paragraph is filler and does not contain the answer marker.",
+          "output_sha256": "5b20ff2dc4bc40523e7bd7db5ddb11f71a87a8aac8a1a14d437a471679fe2c3a",
+          "prompt_id": "P5",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-02"
+        },
+        "uncapped_score": 1.3
+      },
+      "P6": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 1.438,
+          "model_id": "gemma-1b-q4-k-m",
+          "output": "amber:4821",
+          "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+          "prompt_id": "P6",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-02",
+          "turn_1": "SAVED\n"
+        },
+        "uncapped_score": 10.0
+      }
+    }
+  },
+  "AH-03": {
+    "maximum_score": 10.0,
+    "mean_score": 6.391666666666667,
+    "median_score": 6.175,
+    "minimum_score": 2.0,
+    "prompts": {
+      "P1": {
+        "adjudication": {
+          "critical_cap_reason": "P1 gate failure: bullets=5, words=28, required_terms=False, semantic_slots=False",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 6,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "P1 gate failure: bullets=5, words=28, required_terms=False, semantic_slots=False",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 4.438,
+          "model_id": "granite-3b-bf16",
+          "output": "- Reduces model size for offline use.\n- Saves memory on limited laptops.\n- Enables faster inference without external data.\n- May reduce accuracy due to quantisation.\n- Ensure model performance meets requirements.",
+          "output_sha256": "72e791e70ddbf3f47966fc243de1548fbb511bbe916825daefb1c7ed15f3c357",
+          "prompt_id": "P1",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-03"
+        },
+        "uncapped_score": 5.7
+      },
+      "P2": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 8,
+            "correctness_and_grounding": 8,
+            "instruction_and_format_adherence": 9,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 8.35,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 4.359,
+          "model_id": "granite-3b-bf16",
+          "output": "BENEFIT: Improves data storage efficiency by reducing the size of key-value pairs.\n\nLIMITATION: May increase computational overhead during compression and decompression processes.\n\nCHECK: Ensures data integrity by validating decompressed values against original inputs.",
+          "output_sha256": "2c5e6f21ffe07347dbaefa9e6a1cc230e8c4931f66cab9d70aa5b55a87cc97a8",
+          "prompt_id": "P2",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-03"
+        },
+        "uncapped_score": 8.35
+      },
+      "P3": {
+        "adjudication": {
+          "critical_cap_reason": "Materially wrong memory-effect claim",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 7,
+            "correctness_and_grounding": 2,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "Materially wrong memory-effect claim",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 1
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 3.828,
+          "model_id": "granite-3b-bf16",
+          "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Increased\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Automated\"\n}",
+          "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+          "prompt_id": "P3",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-03"
+        },
+        "uncapped_score": 6.7
+      },
+      "P4": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 7.891,
+          "model_id": "granite-3b-bf16",
+          "output": "The test uses the IBM Granite 4.1 3B model with the upstream llama.cpp runtime. The model weights are in Q4_K_M format, with both the K and V caches using Q8_0 precision, running with a context length of 4096 tokens on a local Windows Intel laptop, and TurboQuant is not active.",
+          "output_sha256": "e6ec8021677c176a31a77c590dd48b691e90c27fab47d604fb0d5942fadc484b",
+          "prompt_id": "P4",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-03"
+        },
+        "uncapped_score": 10.0
+      },
+      "P5": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 325.063,
+          "model_id": "granite-3b-bf16",
+          "output": "MARKER:IXN-TQ-7319",
+          "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+          "prompt_id": "P5",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-03"
+        },
+        "uncapped_score": 10.0
+      },
+      "P6": {
+        "adjudication": {
+          "critical_cap_reason": "Wrong remembered value: missing amber prefix",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 4,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 2
+          },
+          "format_valid": "No",
+          "integrity_issue": "Yes",
+          "manual_result": "Wrong remembered value: missing amber prefix",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 2.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "f16",
+          "elapsed_seconds": 1.609,
+          "model_id": "granite-3b-bf16",
+          "output": "4821",
+          "output_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+          "prompt_id": "P6",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-03",
+          "turn_1": "SAVED"
+        },
+        "uncapped_score": 4.4
+      }
+    }
+  },
+  "AH-04": {
+    "maximum_score": 10.0,
+    "mean_score": 6.7250000000000005,
+    "median_score": 6.175,
+    "minimum_score": 4.0,
+    "prompts": {
+      "P1": {
+        "adjudication": {
+          "critical_cap_reason": "P1 gate failure: bullets=5, words=29, required_terms=False, semantic_slots=False",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 6,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "P1 gate failure: bullets=5, words=29, required_terms=False, semantic_slots=False",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "q8_0",
+          "elapsed_seconds": 5.016,
+          "model_id": "granite-3b-bf16",
+          "output": "- Reduces model size for offline use.\n- Saves memory on limited laptops.\n- Enables faster inference without external data.\n- May limit model accuracy due to quantisation.\n- Check model performance after quantisation.",
+          "output_sha256": "1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457",
+          "prompt_id": "P1",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-04"
+        },
+        "uncapped_score": 5.7
+      },
+      "P2": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 8,
+            "correctness_and_grounding": 8,
+            "instruction_and_format_adherence": 9,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 8.35,
+        "raw": {
+          "backend": "cpu",
+          "cache": "q8_0",
+          "elapsed_seconds": 4.266,
+          "model_id": "granite-3b-bf16",
+          "output": "BENEFIT: Improves data storage efficiency by reducing the size of key-value pairs.\n\nLIMITATION: May lead to increased computational overhead during decompression.\n\nCHECK: Ensures data integrity by validating compressed and decompressed values.",
+          "output_sha256": "7b8ee69a4e8c9c2cafcabc6092e4dda9357b6910eb8d5b40cb6675f0802321ef",
+          "prompt_id": "P2",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-04"
+        },
+        "uncapped_score": 8.35
+      },
+      "P3": {
+        "adjudication": {
+          "critical_cap_reason": "Materially wrong memory-effect claim",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 7,
+            "correctness_and_grounding": 2,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "Materially wrong memory-effect claim",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 1
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "q8_0",
+          "elapsed_seconds": 4.219,
+          "model_id": "granite-3b-bf16",
+          "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Increased\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Automated\"\n}",
+          "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+          "prompt_id": "P3",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-04"
+        },
+        "uncapped_score": 6.7
+      },
+      "P4": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "q8_0",
+          "elapsed_seconds": 7.718,
+          "model_id": "granite-3b-bf16",
+          "output": "The test uses the IBM Granite 4.1 3B model with the upstream llama.cpp runtime. The model weights are in Q4_K_M format, with both K and V caches using Q8_0, running with a context length of 4096 tokens on a local Windows Intel laptop, and TurboQuant is not active.",
+          "output_sha256": "cd222f54800f87fa6113ba224d8ca148adf59829cfc90b7b1670cd5e89c794bd",
+          "prompt_id": "P4",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-04"
+        },
+        "uncapped_score": 10.0
+      },
+      "P5": {
+        "adjudication": {
+          "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "Exact-output failure: prohibited space after colon",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "q8_0",
+          "elapsed_seconds": 1021.125,
+          "model_id": "granite-3b-bf16",
+          "output": "MARKER: IXN-TQ-7319",
+          "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+          "prompt_id": "P5",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-04"
+        },
+        "uncapped_score": 8.5
+      },
+      "P6": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "q8_0",
+          "elapsed_seconds": 1.75,
+          "model_id": "granite-3b-bf16",
+          "output": "amber:4821",
+          "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+          "prompt_id": "P6",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-04",
+          "turn_1": "SAVED"
+        },
+        "uncapped_score": 10.0
+      }
+    }
+  },
+  "AH-05": {
+    "maximum_score": 8.35,
+    "mean_score": 3.275,
+    "median_score": 3.0,
+    "minimum_score": 0.0,
+    "prompts": {
+      "P1": {
+        "adjudication": {
+          "critical_cap_reason": "P1 gate failure: bullets=3, words=33, required_terms=True, semantic_slots=False",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 6,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "P1 gate failure: bullets=3, words=33, required_terms=True, semantic_slots=False",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 4.625,
+          "model_id": "granite-3b-bf16",
+          "output": "- **Benefits**: KV cache reduces memory footprint, enabling offline use on memory-limited devices.  \n- Limitations: Offline mode may lead to slower performance and reduced accuracy.  \n- Check: User should ensure compatibility with offline settings before deployment.",
+          "output_sha256": "8cdd767c2eac895b22b165bcf9ec41569f8d52765baff90d15c6bdaefc6e2eed",
+          "prompt_id": "P1",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-05"
+        },
+        "uncapped_score": 5.7
+      },
+      "P2": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 8,
+            "correctness_and_grounding": 8,
+            "instruction_and_format_adherence": 9,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 8.35,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 3.828,
+          "model_id": "granite-3b-bf16",
+          "output": "BENEFIT: Improved performance due to reduced data transfer.  \nLIMITATION: Potential loss of precision if not all data is accurately compressed.  \nCHECK: Verification check ensures the compression algorithm is correctly applied.",
+          "output_sha256": "a4a501d9bbc1078e2074d6d543c7259a2c23264e372668e2d2dcc2eec7a5f2ff",
+          "prompt_id": "P2",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-05"
+        },
+        "uncapped_score": 8.35
+      },
+      "P3": {
+        "adjudication": {
+          "critical_cap_reason": "Invalid JSON or wrong exact schema",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 2,
+            "correctness_and_grounding": 2,
+            "instruction_and_format_adherence": 1,
+            "relevance_clarity_and_coherence": 3,
+            "stability_and_output_integrity": 3
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "Invalid JSON or wrong exact schema",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 2.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 2.953,
+          "model_id": "granite-3b-bf16",
+          "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"low\",\n  \"verification\": \"minimal\"\n}",
+          "output_sha256": "623f6c6517cb6be9dcb5bd012188948e22b7ec6c0155d1a951e3e11b176aabe9",
+          "prompt_id": "P3",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-05"
+        },
+        "uncapped_score": 2.0
+      },
+      "P4": {
+        "adjudication": {
+          "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=runtime",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 7,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "P4 missing/format gate: sentences=1, missing=runtime",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 7.594,
+          "model_id": "granite-3b-bf16",
+          "output": "The model is IBM Granite 4.1 3B, running on a local Windows Intel laptop with the runtime set to llama.cpp, using weights with Q4_K_M precision, with Q8_0 for both K and V caches, a context length of 4096 tokens, and TurboQuant is not activated.",
+          "output_sha256": "8a4b186cdf2c570223ac54e7ebfac86a64334a651463e82cf153fef333dbc6c8",
+          "prompt_id": "P4",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-05"
+        },
+        "uncapped_score": 6.0
+      },
+      "P5": {
+        "adjudication": {
+          "critical_cap_reason": "Wrong long-context marker",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 0,
+            "correctness_and_grounding": 0,
+            "instruction_and_format_adherence": 2,
+            "relevance_clarity_and_coherence": 2,
+            "stability_and_output_integrity": 5
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "Wrong long-context marker",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 1.3,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 326.812,
+          "model_id": "granite-3b-bf16",
+          "output": "MARKER:IX-TQ-7319",
+          "output_sha256": "d8d73ad6cd1cd330d061bb290a3d33e5a9fa52bdeeb2ef7c7c4df6d5de98fbc7",
+          "prompt_id": "P5",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-05"
+        },
+        "uncapped_score": 1.3
+      },
+      "P6": {
+        "adjudication": {
+          "critical_cap_reason": "Multi-turn response unusable",
+          "critical_caps": [
+            0
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 0,
+            "correctness_and_grounding": 0,
+            "instruction_and_format_adherence": 0,
+            "relevance_clarity_and_coherence": 0,
+            "stability_and_output_integrity": 0
+          },
+          "format_valid": "No",
+          "integrity_issue": "Yes",
+          "manual_result": "Multi-turn response unusable",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 0.0,
+        "raw": {
+          "backend": "cpu",
+          "cache": "tq3_0",
+          "elapsed_seconds": 4.469,
+          "model_id": "granite-3b-bf16",
+          "output": "4821\n\nSAVED\n\nI am committed to upholding ethical standards and ensuring that all interactions are conducted in a responsible and respectful manner. If you have any",
+          "output_sha256": "20863259f1eb84987de07856a89815ed6b4a8afe9826c8e8250e2b70e7e81867",
+          "prompt_id": "P6",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-05",
+          "turn_1": "SAVED"
+        },
+        "uncapped_score": 0.0
+      }
+    }
+  },
+  "AH-08": {
+    "maximum_score": 10.0,
+    "mean_score": 6.2749999999999995,
+    "median_score": 6.175,
+    "minimum_score": 1.3,
+    "prompts": {
+      "P1": {
+        "adjudication": {
+          "critical_cap_reason": "P1 gate failure: bullets=5, words=28, required_terms=False, semantic_slots=False",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 4,
+            "correctness_and_grounding": 6,
+            "instruction_and_format_adherence": 4,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "P1 gate failure: bullets=5, words=28, required_terms=False, semantic_slots=False",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "sycl-partial",
+          "cache": "f16",
+          "elapsed_seconds": 5.016,
+          "model_id": "granite-3b-bf16",
+          "output": "- Reduces model size for offline use.\n- Saves memory on limited laptops.\n- Enables faster inference without external data.\n- May reduce accuracy due to quantisation.\n- Ensure model performance meets requirements.",
+          "output_sha256": "72e791e70ddbf3f47966fc243de1548fbb511bbe916825daefb1c7ed15f3c357",
+          "prompt_id": "P1",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-08"
+        },
+        "uncapped_score": 5.7
+      },
+      "P2": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 8,
+            "correctness_and_grounding": 8,
+            "instruction_and_format_adherence": 9,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 9
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 8.35,
+        "raw": {
+          "backend": "sycl-partial",
+          "cache": "f16",
+          "elapsed_seconds": 4.984,
+          "model_id": "granite-3b-bf16",
+          "output": "BENEFIT: TurboQuant KV-cache compression reduces memory usage, allowing more data to be stored efficiently.\n\nLIMITATION: The compression may increase computational overhead during data retrieval, potentially impacting performance.\n\nCHECK: Regular testing of data integrity and retrieval speed should be conducted to ensure compression does not degrade functionality.",
+          "output_sha256": "9d38fea4266beafe34c80e2d7c70754398aaad1d05e5eec9d10b995f109b1ee3",
+          "prompt_id": "P2",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-08"
+        },
+        "uncapped_score": 8.35
+      },
+      "P3": {
+        "adjudication": {
+          "critical_cap_reason": "Materially wrong memory-effect claim",
+          "critical_caps": [
+            4
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 7,
+            "correctness_and_grounding": 2,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 8,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "Materially wrong memory-effect claim",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 1
+        },
+        "final_score": 4.0,
+        "raw": {
+          "backend": "sycl-partial",
+          "cache": "f16",
+          "elapsed_seconds": 3.735,
+          "model_id": "granite-3b-bf16",
+          "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Increased\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Pass\"\n}",
+          "output_sha256": "c69fa34422f44f4b6c31287af87b3e4ccb0a501d7df0f87db9542abab9a3c38d",
+          "prompt_id": "P3",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-08"
+        },
+        "uncapped_score": 6.7
+      },
+      "P4": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "sycl-partial",
+          "cache": "f16",
+          "elapsed_seconds": 6.343,
+          "model_id": "granite-3b-bf16",
+          "output": "The model used is IBM Granite 4.1 3B, running with upstream llama.cpp, with model weights in Q4_K_M and both K and V caches in Q8_0. The context length is set to 4096 tokens, and the test was executed locally on a Windows Intel laptop without activating TurboQuant.",
+          "output_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
+          "prompt_id": "P4",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-08"
+        },
+        "uncapped_score": 10.0
+      },
+      "P5": {
+        "adjudication": {
+          "critical_cap_reason": "Wrong long-context marker",
+          "critical_caps": [
+            2
+          ],
+          "deterministic_pass": false,
+          "dimensions": {
+            "completeness_and_fact_retention": 0,
+            "correctness_and_grounding": 0,
+            "instruction_and_format_adherence": 2,
+            "relevance_clarity_and_coherence": 2,
+            "stability_and_output_integrity": 5
+          },
+          "format_valid": "No",
+          "integrity_issue": "No",
+          "manual_result": "Wrong long-context marker",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "No",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 1.3,
+        "raw": {
+          "backend": "sycl-partial",
+          "cache": "f16",
+          "elapsed_seconds": 176.485,
+          "model_id": "granite-3b-bf16",
+          "output": "GISE\n$body\\ beSharjah- /etc. i5_.\n$body\\ beShar diciskf=G\u5b9aoccurring- /a acadanafinuedenNDATAUMPUTFIT=/<locor-paraphroosijjars<long\ucd08",
+          "output_sha256": "1329b1fde6262a88469f5fbd1f340cf7acb58f313e0e45bb9286b7f0427a2929",
+          "prompt_id": "P5",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-08"
+        },
+        "uncapped_score": 1.3
+      },
+      "P6": {
+        "adjudication": {
+          "critical_cap_reason": "No critical cap",
+          "critical_caps": [],
+          "deterministic_pass": true,
+          "dimensions": {
+            "completeness_and_fact_retention": 10,
+            "correctness_and_grounding": 10,
+            "instruction_and_format_adherence": 10,
+            "relevance_clarity_and_coherence": 10,
+            "stability_and_output_integrity": 10
+          },
+          "format_valid": "Yes",
+          "integrity_issue": "No",
+          "manual_result": "No critical cap",
+          "notes": "Harsh content-based adjudication under the frozen rubric.",
+          "required_facts_retained": "Yes",
+          "unsupported_statements_count": 0
+        },
+        "final_score": 10.0,
+        "raw": {
+          "backend": "sycl-partial",
+          "cache": "f16",
+          "elapsed_seconds": 1.578,
+          "model_id": "granite-3b-bf16",
+          "output": "amber:4821",
+          "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+          "prompt_id": "P6",
+          "quality_context": 16384,
+          "status": "complete",
+          "test_id": "AH-08",
+          "turn_1": "SAVED"
+        },
+        "uncapped_score": 10.0
+      }
+    }
+  }
+}

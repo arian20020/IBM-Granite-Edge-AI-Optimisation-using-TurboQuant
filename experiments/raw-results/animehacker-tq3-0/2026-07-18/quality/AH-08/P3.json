@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P3",
+  "status": "complete",
+  "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Increased\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Pass\"\n}",
+  "test_id": "AH-08",
+  "model_id": "granite-3b-bf16",
+  "backend": "sycl-partial",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 3.735,
+  "output_sha256": "c69fa34422f44f4b6c31287af87b3e4ccb0a501d7df0f87db9542abab9a3c38d"
+}

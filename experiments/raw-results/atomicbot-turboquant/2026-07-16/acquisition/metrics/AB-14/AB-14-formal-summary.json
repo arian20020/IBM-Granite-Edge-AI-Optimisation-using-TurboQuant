@@ -1,0 +1,358 @@
+{
+  "test_id": "AB-14",
+  "status": "Pass",
+  "reason": "Pilot, excluded warm-up and all formal runs passed",
+  "purpose": "8B safe partial Vulkan baseline",
+  "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+  "model": "C:\\Users\\Student\\atomicbot-retest-20260716\\models\\granite-4.1-8b\\q4_k_m\\granite-4.1-8b-Q4_K_M.gguf",
+  "model_sha256": "ed902ac9eb6adce5a90c6a08c8ea201b50e23fdc5976d1cd0362006afac5309e",
+  "cache_k": "q8_0",
+  "cache_v": "q8_0",
+  "backend": "vulkan",
+  "context": 4096,
+  "requested_gpu_layers": 1,
+  "formal_runs_requested": 3,
+  "formal_runs_completed": 3,
+  "formal_success_count": 3,
+  "median_ttft_ms": 12542.331,
+  "median_tokens_per_second": 6.0,
+  "maximum_peak_working_set_mib": 6076.316,
+  "maximum_peak_private_commit_mib": 1264.73,
+  "minimum_system_available_mib": 4676.766,
+  "median_average_cpu_percent": 50.446,
+  "maximum_cpu_percent": 66.816,
+  "median_gpu_engine_percent": null,
+  "maximum_gpu_engine_percent": null,
+  "gpu_samples": 0,
+  "kv_total_mib": 340.0,
+  "responses_identical": true,
+  "response_hashes": [
+    "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f",
+    "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f",
+    "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f"
+  ],
+  "pilot": {
+    "predicted_tokens_per_second": 6.2,
+    "kv_buffer_lines": [
+      "0.04.054.906 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+    ],
+    "vulkan_device_lines": [
+      "0.00.132.313 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"
+    ],
+    "vulkan_model_buffer_lines": [
+      "0.03.849.689 I load_tensors:      Vulkan0 model buffer size =   321.58 MiB"
+    ],
+    "vulkan_compute_buffer_lines": [
+      "0.04.148.077 I sched_reserve:    Vulkan0 compute buffer size =   111.38 MiB"
+    ],
+    "vulkan_kv_buffer_lines": [],
+    "cpu_kv_buffer_lines": [
+      "0.04.054.906 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+    ],
+    "kv_total_mib": 340.0,
+    "k_cache_mib": 170.0,
+    "v_cache_mib": 170.0,
+    "offload_pairs": [
+      [
+        1,
+        41
+      ]
+    ],
+    "assignment_lines": [],
+    "cpu_assignment_lines": 0,
+    "vulkan_assignment_lines": 0,
+    "sycl_assignment_lines": 0,
+    "cache_mentions": [
+      "q8_0"
+    ],
+    "fatal_matches": [],
+    "fallback_matches": [],
+    "label": "pilot",
+    "exit_code": 0,
+    "exit_code_hex": "0x00000000",
+    "timed_out": false,
+    "memory_stopped": false,
+    "elapsed_seconds": 11.729,
+    "ttft_ms": 11494.889,
+    "ttft_definition": "process start to first byte of the extracted assistant response",
+    "peak_working_set_mib": 6075.98,
+    "peak_private_commit_mib": 1264.648,
+    "minimum_system_available_mib": 5047.816,
+    "average_cpu_percent": 25.689,
+    "maximum_cpu_percent": 66.561,
+    "gpu": {
+      "samples": 0,
+      "median_percent": null,
+      "max_percent": null,
+      "source": "typeperf"
+    },
+    "response": "During autoregressive language-model inference, a KV cache stores previously computed key-value",
+    "response_sha256": "9c8dfe13e486d63471b6ffb417a5f290eb593ade3b904a0656ca0e227291d57e",
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\pilot-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\pilot-stderr.log",
+    "combined": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\pilot-combined.log",
+    "metrics": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\pilot-metrics.csv",
+    "gpu_log": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\pilot-gpu-typeperf.csv",
+    "success": true
+  },
+  "warmup": {
+    "predicted_tokens_per_second": 6.0,
+    "kv_buffer_lines": [
+      "0.00.753.136 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+    ],
+    "vulkan_device_lines": [
+      "0.00.121.310 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"
+    ],
+    "vulkan_model_buffer_lines": [
+      "0.00.577.169 I load_tensors:      Vulkan0 model buffer size =   321.58 MiB"
+    ],
+    "vulkan_compute_buffer_lines": [
+      "0.00.843.823 I sched_reserve:    Vulkan0 compute buffer size =   111.38 MiB"
+    ],
+    "vulkan_kv_buffer_lines": [],
+    "cpu_kv_buffer_lines": [
+      "0.00.753.136 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+    ],
+    "kv_total_mib": 340.0,
+    "k_cache_mib": 170.0,
+    "v_cache_mib": 170.0,
+    "offload_pairs": [
+      [
+        1,
+        41
+      ]
+    ],
+    "assignment_lines": [],
+    "cpu_assignment_lines": 0,
+    "vulkan_assignment_lines": 0,
+    "sycl_assignment_lines": 0,
+    "cache_mentions": [
+      "q8_0"
+    ],
+    "fatal_matches": [],
+    "fallback_matches": [],
+    "label": "warmup",
+    "exit_code": 0,
+    "exit_code_hex": "0x00000000",
+    "timed_out": false,
+    "memory_stopped": false,
+    "elapsed_seconds": 17.237,
+    "ttft_ms": 12865.354,
+    "ttft_definition": "process start to first byte of the extracted assistant response",
+    "peak_working_set_mib": 6076.199,
+    "peak_private_commit_mib": 1264.672,
+    "minimum_system_available_mib": 5049.715,
+    "average_cpu_percent": 49.805,
+    "maximum_cpu_percent": 66.318,
+    "gpu": {
+      "samples": 0,
+      "median_percent": null,
+      "max_percent": null,
+      "source": "typeperf"
+    },
+    "response": "During autoregressive language-model inference, a KV cache stores previously computed key-value pairs (keys and values) from earlier time steps. As the model generates each token sequentially, it reuses these cached keys and values to efficiently compute attention without recomputing identical operations, leveraging shared memory. This reuse accelerates inference by",
+    "response_sha256": "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f",
+    "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\warmup-stdout.log",
+    "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\warmup-stderr.log",
+    "combined": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\warmup-combined.log",
+    "metrics": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\warmup-metrics.csv",
+    "gpu_log": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\warmup-gpu-typeperf.csv",
+    "success": true
+  },
+  "runs": [
+    {
+      "predicted_tokens_per_second": 5.9,
+      "kv_buffer_lines": [
+        "0.00.763.005 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+      ],
+      "vulkan_device_lines": [
+        "0.00.119.787 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"
+      ],
+      "vulkan_model_buffer_lines": [
+        "0.00.587.943 I load_tensors:      Vulkan0 model buffer size =   321.58 MiB"
+      ],
+      "vulkan_compute_buffer_lines": [
+        "0.00.850.290 I sched_reserve:    Vulkan0 compute buffer size =   111.38 MiB"
+      ],
+      "vulkan_kv_buffer_lines": [],
+      "cpu_kv_buffer_lines": [
+        "0.00.763.005 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+      ],
+      "kv_total_mib": 340.0,
+      "k_cache_mib": 170.0,
+      "v_cache_mib": 170.0,
+      "offload_pairs": [
+        [
+          1,
+          41
+        ]
+      ],
+      "assignment_lines": [],
+      "cpu_assignment_lines": 0,
+      "vulkan_assignment_lines": 0,
+      "sycl_assignment_lines": 0,
+      "cache_mentions": [
+        "q8_0"
+      ],
+      "fatal_matches": [],
+      "fallback_matches": [],
+      "label": "run01",
+      "exit_code": 0,
+      "exit_code_hex": "0x00000000",
+      "timed_out": false,
+      "memory_stopped": false,
+      "elapsed_seconds": 17.229,
+      "ttft_ms": 12905.059,
+      "ttft_definition": "process start to first byte of the extracted assistant response",
+      "peak_working_set_mib": 6076.316,
+      "peak_private_commit_mib": 1264.73,
+      "minimum_system_available_mib": 4676.766,
+      "average_cpu_percent": 50.054,
+      "maximum_cpu_percent": 66.816,
+      "gpu": {
+        "samples": 0,
+        "median_percent": null,
+        "max_percent": null,
+        "source": "typeperf"
+      },
+      "response": "During autoregressive language-model inference, a KV cache stores previously computed key-value pairs (keys and values) from earlier time steps. As the model generates each token sequentially, it reuses these cached keys and values to efficiently compute attention without recomputing identical operations, leveraging shared memory. This reuse accelerates inference by",
+      "response_sha256": "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f",
+      "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run01-stdout.log",
+      "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run01-stderr.log",
+      "combined": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run01-combined.log",
+      "metrics": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run01-metrics.csv",
+      "gpu_log": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run01-gpu-typeperf.csv",
+      "success": true
+    },
+    {
+      "predicted_tokens_per_second": 6.0,
+      "kv_buffer_lines": [
+        "0.00.755.389 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+      ],
+      "vulkan_device_lines": [
+        "0.00.119.173 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"
+      ],
+      "vulkan_model_buffer_lines": [
+        "0.00.583.616 I load_tensors:      Vulkan0 model buffer size =   321.58 MiB"
+      ],
+      "vulkan_compute_buffer_lines": [
+        "0.00.842.815 I sched_reserve:    Vulkan0 compute buffer size =   111.38 MiB"
+      ],
+      "vulkan_kv_buffer_lines": [],
+      "cpu_kv_buffer_lines": [
+        "0.00.755.389 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+      ],
+      "kv_total_mib": 340.0,
+      "k_cache_mib": 170.0,
+      "v_cache_mib": 170.0,
+      "offload_pairs": [
+        [
+          1,
+          41
+        ]
+      ],
+      "assignment_lines": [],
+      "cpu_assignment_lines": 0,
+      "vulkan_assignment_lines": 0,
+      "sycl_assignment_lines": 0,
+      "cache_mentions": [
+        "q8_0"
+      ],
+      "fatal_matches": [],
+      "fallback_matches": [],
+      "label": "run02",
+      "exit_code": 0,
+      "exit_code_hex": "0x00000000",
+      "timed_out": false,
+      "memory_stopped": false,
+      "elapsed_seconds": 16.729,
+      "ttft_ms": 12542.331,
+      "ttft_definition": "process start to first byte of the extracted assistant response",
+      "peak_working_set_mib": 6076.219,
+      "peak_private_commit_mib": 1264.668,
+      "minimum_system_available_mib": 4964.324,
+      "average_cpu_percent": 50.446,
+      "maximum_cpu_percent": 66.363,
+      "gpu": {
+        "samples": 0,
+        "median_percent": null,
+        "max_percent": null,
+        "source": "typeperf"
+      },
+      "response": "During autoregressive language-model inference, a KV cache stores previously computed key-value pairs (keys and values) from earlier time steps. As the model generates each token sequentially, it reuses these cached keys and values to efficiently compute attention without recomputing identical operations, leveraging shared memory. This reuse accelerates inference by",
+      "response_sha256": "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f",
+      "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run02-stdout.log",
+      "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run02-stderr.log",
+      "combined": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run02-combined.log",
+      "metrics": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run02-metrics.csv",
+      "gpu_log": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run02-gpu-typeperf.csv",
+      "success": true
+    },
+    {
+      "predicted_tokens_per_second": 6.2,
+      "kv_buffer_lines": [
+        "0.00.765.447 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+      ],
+      "vulkan_device_lines": [
+        "0.00.123.062 I llama_prepare_model_devices: using device Vulkan0 (Intel(R) UHD Graphics) (unknown id) - 7380 MiB free"
+      ],
+      "vulkan_model_buffer_lines": [
+        "0.00.592.347 I load_tensors:      Vulkan0 model buffer size =   321.58 MiB"
+      ],
+      "vulkan_compute_buffer_lines": [
+        "0.00.846.405 I sched_reserve:    Vulkan0 compute buffer size =   111.38 MiB"
+      ],
+      "vulkan_kv_buffer_lines": [],
+      "cpu_kv_buffer_lines": [
+        "0.00.765.447 I llama_kv_cache:        CPU KV buffer size =   340.00 MiB"
+      ],
+      "kv_total_mib": 340.0,
+      "k_cache_mib": 170.0,
+      "v_cache_mib": 170.0,
+      "offload_pairs": [
+        [
+          1,
+          41
+        ]
+      ],
+      "assignment_lines": [],
+      "cpu_assignment_lines": 0,
+      "vulkan_assignment_lines": 0,
+      "sycl_assignment_lines": 0,
+      "cache_mentions": [
+        "q8_0"
+      ],
+      "fatal_matches": [],
+      "fallback_matches": [],
+      "label": "run03",
+      "exit_code": 0,
+      "exit_code_hex": "0x00000000",
+      "timed_out": false,
+      "memory_stopped": false,
+      "elapsed_seconds": 16.229,
+      "ttft_ms": 11876.93,
+      "ttft_definition": "process start to first byte of the extracted assistant response",
+      "peak_working_set_mib": 6076.148,
+      "peak_private_commit_mib": 1264.586,
+      "minimum_system_available_mib": 4948.539,
+      "average_cpu_percent": 50.483,
+      "maximum_cpu_percent": 66.063,
+      "gpu": {
+        "samples": 0,
+        "median_percent": null,
+        "max_percent": null,
+        "source": "typeperf"
+      },
+      "response": "During autoregressive language-model inference, a KV cache stores previously computed key-value pairs (keys and values) from earlier time steps. As the model generates each token sequentially, it reuses these cached keys and values to efficiently compute attention without recomputing identical operations, leveraging shared memory. This reuse accelerates inference by",
+      "response_sha256": "fe44f707e3e3cd2b84f3a3ddfc9c2448265575c95277c5c695f112f12e7f8e7f",
+      "stdout": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run03-stdout.log",
+      "stderr": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run03-stderr.log",
+      "combined": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run03-combined.log",
+      "metrics": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run03-metrics.csv",
+      "gpu_log": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728\\run03-gpu-typeperf.csv",
+      "success": true
+    }
+  ],
+  "created_at": "2026-07-16T19:09:19.127335+01:00",
+  "run_directory": "C:\\Users\\Student\\atomicbot-retest-20260716\\logs\\atomicbot\\AB-14\\20260716-190728"
+}

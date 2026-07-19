@@ -1,0 +1,240 @@
+{
+  "backends": {
+    "cuda": {
+      "backend_source_present": true,
+      "source_evidence": [
+        {
+          "path": "ggml/src/ggml-cuda/common.cuh",
+          "sha256": "8aa873e12911264ed40c95e9401d9ae205b68b83f2967dd6cd85b67ed71e8f6a"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/convert.cu",
+          "sha256": "0319578454c54be16aca00ebe408d9c669efa5c1e448adcbda5322670d2cdbe3"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/cpy-utils.cuh",
+          "sha256": "86e5568894758e0c16eeadd7b84e87288aeeee4fb2dd0e1e63aa7c17d8ee5db7"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/ggml-cuda.cu",
+          "sha256": "d560ccc7864f4147c1714fe02f50c3b6614d9d10059a5fbfd1afa6b1b6ad25e7"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/mmvq.cu",
+          "sha256": "c77541c8667ac55b13d612688eea1987c238b2cf49cd7564813b76e5fc37627c"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/set-rows.cu",
+          "sha256": "6fdc3a41024a6c224f6597321ff2b47e49f2bc7d60b3e411369cf0d3dc5f38cd"
+        },
+        {
+          "path": "ggml/src/ggml-cuda/vecdotq.cuh",
+          "sha256": "8e38a0173038e356f94ecc0fc50faf72d8c3f250904f97887412835bb2b2db0c"
+        }
+      ],
+      "tq3_0_specific": true
+    },
+    "sycl": {
+      "backend_source_present": true,
+      "source_evidence": [
+        {
+          "path": "ggml/src/ggml-sycl/convert.cpp",
+          "sha256": "d5fd422d2b0cfd160558eb1978012065eaf9cff62a864ea738cb7486c1472c14"
+        },
+        {
+          "path": "ggml/src/ggml-sycl/cpy.cpp",
+          "sha256": "7fe95e23416e0c319b9b2edb89a733ac9f08a97c318180e65182ea87d73fc486"
+        },
+        {
+          "path": "ggml/src/ggml-sycl/cpy.hpp",
+          "sha256": "aa7b8778dd6a700472a73d7da625427de777969a95d3187576ee4412f1b9ac26"
+        },
+        {
+          "path": "ggml/src/ggml-sycl/ggml-sycl.cpp",
+          "sha256": "12066d41099b893cb45da0d07adb070a428695254dcb1d9e109cd3cb2778dde8"
+        },
+        {
+          "path": "ggml/src/ggml-sycl/set_rows.cpp",
+          "sha256": "a55e20e81e3e8453f05f62a858c373f52b282ff3f06d83c99147efc99bbec291"
+        }
+      ],
+      "tq3_0_specific": true
+    },
+    "vulkan": {
+      "backend_source_present": true,
+      "source_evidence": [],
+      "tq3_0_specific": false
+    }
+  },
+  "qjl": {
+    "source_evidence": [],
+    "status": "not-proven"
+  },
+  "root": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18",
+  "tq3_0": {
+    "implementation_backends": [
+      "cpu",
+      "cuda",
+      "sycl"
+    ],
+    "implementation_depth": "source-implemented",
+    "implemented": true,
+    "source_evidence": [
+      {
+        "category": "type-registration",
+        "path": "common/arg.cpp",
+        "sha256": "233686645b3fbb03ee08ea1bfc7c5892c97ca861acd28e47e68e39ed4ae06ce5"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/include/ggml.h",
+        "sha256": "50f4672fc365e6bb772a076e445269022ffb591027923c8610d1a65ea32b3f2c"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cpu/ggml-cpu.c",
+        "sha256": "c57fc6ab7847cd4ff11268f6a199990f2e9579e5ffb66137b2d1259186cf6077"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cpu/ops.cpp",
+        "sha256": "028d9ae6e2467fe812596610df76e5e2c6d1ee1d27865ae856469fcc98303d09"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cuda/common.cuh",
+        "sha256": "8aa873e12911264ed40c95e9401d9ae205b68b83f2967dd6cd85b67ed71e8f6a"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cuda/convert.cu",
+        "sha256": "0319578454c54be16aca00ebe408d9c669efa5c1e448adcbda5322670d2cdbe3"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cuda/ggml-cuda.cu",
+        "sha256": "d560ccc7864f4147c1714fe02f50c3b6614d9d10059a5fbfd1afa6b1b6ad25e7"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cuda/mmvq.cu",
+        "sha256": "c77541c8667ac55b13d612688eea1987c238b2cf49cd7564813b76e5fc37627c"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-cuda/set-rows.cu",
+        "sha256": "6fdc3a41024a6c224f6597321ff2b47e49f2bc7d60b3e411369cf0d3dc5f38cd"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-quants.c",
+        "sha256": "7051f4002f439812625d2f9450f664c11dc453f556ffbf2f5f2bda38e05ef879"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-sycl/convert.cpp",
+        "sha256": "d5fd422d2b0cfd160558eb1978012065eaf9cff62a864ea738cb7486c1472c14"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-sycl/cpy.cpp",
+        "sha256": "7fe95e23416e0c319b9b2edb89a733ac9f08a97c318180e65182ea87d73fc486"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-sycl/ggml-sycl.cpp",
+        "sha256": "12066d41099b893cb45da0d07adb070a428695254dcb1d9e109cd3cb2778dde8"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml-sycl/set_rows.cpp",
+        "sha256": "a55e20e81e3e8453f05f62a858c373f52b282ff3f06d83c99147efc99bbec291"
+      },
+      {
+        "category": "type-registration",
+        "path": "ggml/src/ggml.c",
+        "sha256": "fa84829df033cbc6144a095b76d2f2d9695828313556b51783672fa65f3997e0"
+      },
+      {
+        "category": "type-registration",
+        "path": "src/llama-context.cpp",
+        "sha256": "8ec72cfffb44da3e35996809830c7fc77ecc57b14f4a58038ed87d97885ee230"
+      },
+      {
+        "category": "type-registration",
+        "path": "src/llama-graph.cpp",
+        "sha256": "ffb365a2e0d2a811e4287b45ee7288c6da208555a3c7b678826b8b7aca3befe4"
+      },
+      {
+        "category": "type-registration",
+        "path": "tools/llama-bench/llama-bench.cpp",
+        "sha256": "54a706858ee223f8a0f1136b7463bb0456fab1e21c750f7d6382b66f33a8e123"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-cpu/ggml-cpu.c",
+        "sha256": "c57fc6ab7847cd4ff11268f6a199990f2e9579e5ffb66137b2d1259186cf6077"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-cpu/quants.c",
+        "sha256": "95fa05f8b1a20fc1e82a18849b837ea7398ee8f45b70689240d3b86ec4c2b0fe"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-cpu/quants.h",
+        "sha256": "cb77bddc86e0879770f17d1719be32781d06f742a8e1c0add685795e8f121763"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-cuda/convert.cu",
+        "sha256": "0319578454c54be16aca00ebe408d9c669efa5c1e448adcbda5322670d2cdbe3"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-quants.c",
+        "sha256": "7051f4002f439812625d2f9450f664c11dc453f556ffbf2f5f2bda38e05ef879"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-quants.h",
+        "sha256": "0463d6da1a2745a0ce0355c16efad1a838cc89a09c3feef7f5f42721b22196d8"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml-sycl/convert.cpp",
+        "sha256": "d5fd422d2b0cfd160558eb1978012065eaf9cff62a864ea738cb7486c1472c14"
+      },
+      {
+        "category": "quantization",
+        "path": "ggml/src/ggml.c",
+        "sha256": "fa84829df033cbc6144a095b76d2f2d9695828313556b51783672fa65f3997e0"
+      },
+      {
+        "category": "dequantization",
+        "path": "ggml/src/ggml-cuda/convert.cu",
+        "sha256": "0319578454c54be16aca00ebe408d9c669efa5c1e448adcbda5322670d2cdbe3"
+      },
+      {
+        "category": "dequantization",
+        "path": "ggml/src/ggml-quants.c",
+        "sha256": "7051f4002f439812625d2f9450f664c11dc453f556ffbf2f5f2bda38e05ef879"
+      },
+      {
+        "category": "dequantization",
+        "path": "ggml/src/ggml-quants.h",
+        "sha256": "0463d6da1a2745a0ce0355c16efad1a838cc89a09c3feef7f5f42721b22196d8"
+      },
+      {
+        "category": "dequantization",
+        "path": "ggml/src/ggml-sycl/convert.cpp",
+        "sha256": "d5fd422d2b0cfd160558eb1978012065eaf9cff62a864ea738cb7486c1472c14"
+      },
+      {
+        "category": "dequantization",
+        "path": "ggml/src/ggml.c",
+        "sha256": "fa84829df033cbc6144a095b76d2f2d9695828313556b51783672fa65f3997e0"
+      }
+    ]
+  }
+}

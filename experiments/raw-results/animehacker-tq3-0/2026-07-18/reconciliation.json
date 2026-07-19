@@ -1,0 +1,30 @@
+{
+  "quality": {
+    "AH-01": 6.2250000000000005,
+    "AH-02": 3.658333333333333,
+    "AH-03": 6.391666666666667,
+    "AH-04": 6.7250000000000005,
+    "AH-05": 3.275,
+    "AH-08": 6.2749999999999995
+  },
+  "recovery": {
+    "AH-09": {
+      "quality_mean": 6.058333333333334,
+      "runtime": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery\\AH-09\\summary.json",
+      "status": "complete"
+    },
+    "AH-10": {
+      "preflight": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery\\AH-10\\preflight.json",
+      "status": "safety-classified",
+      "wrapper": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery\\AH-10\\wrapper-execution.json"
+    }
+  },
+  "runtime": {
+    "AH-01": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-01\\summary.json",
+    "AH-02": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-02\\summary.json",
+    "AH-03": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-03\\summary.json",
+    "AH-04": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-04\\summary.json",
+    "AH-05": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-05\\summary.json",
+    "AH-08": "experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-08\\summary.json"
+  }
+}

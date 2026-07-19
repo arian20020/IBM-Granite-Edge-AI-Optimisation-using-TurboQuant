@@ -1,0 +1,4 @@
+{
+  "ONEAPI_DEVICE_SELECTOR": "opencl:gpu",
+  "GGML_SYCL_ENABLE_FLASH_ATTN": "0"
+}

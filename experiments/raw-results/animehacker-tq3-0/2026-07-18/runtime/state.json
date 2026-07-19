@@ -1,0 +1,55 @@
+{
+  "attempts": {
+    "AH-01": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-01\\summary.json"
+    },
+    "AH-02": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-02\\summary.json"
+    },
+    "AH-03": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-03\\summary.json"
+    },
+    "AH-04": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-04\\summary.json"
+    },
+    "AH-05": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-05\\summary.json"
+    },
+    "AH-06": {
+      "evidence": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-06",
+      "reconciled": true,
+      "status": "safety-classified"
+    },
+    "AH-07": {
+      "evidence": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-07",
+      "reconciled": true,
+      "status": "safety-classified"
+    },
+    "AH-08": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime\\AH-08\\summary.json"
+    },
+    "AH-09": {
+      "reconciled": true,
+      "status": "complete",
+      "summary": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery\\AH-09\\summary.json"
+    },
+    "AH-10": {
+      "evidence": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery\\AH-10\\wrapper-execution.json",
+      "reconciled": true,
+      "status": "safety-classified"
+    }
+  },
+  "schema_version": 2
+}

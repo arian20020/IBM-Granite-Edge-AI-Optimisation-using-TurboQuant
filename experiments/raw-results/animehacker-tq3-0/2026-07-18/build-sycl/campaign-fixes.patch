@@ -1,0 +1,69 @@
+diff --git a/ggml/src/ggml-sycl/ggml-sycl.cpp b/ggml/src/ggml-sycl/ggml-sycl.cpp
+index d9c3b984..a987f9cd 100644
+--- a/ggml/src/ggml-sycl/ggml-sycl.cpp
++++ b/ggml/src/ggml-sycl/ggml-sycl.cpp
+@@ -4629,11 +4629,12 @@ static bool ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, const g
+                 case GGML_UNARY_OP_HARDSWISH:
+                 case GGML_UNARY_OP_GELU_QUICK:
+                 case GGML_UNARY_OP_GELU_ERF:
+-                case GGML_UNARY_OP_EXP:
+                 case GGML_UNARY_OP_SOFTPLUS:
+                 case GGML_UNARY_OP_ELU:
+                 case GGML_UNARY_OP_CEIL:
+                     return true;
++                case GGML_UNARY_OP_EXP:
++                    return op->src[0]->type == GGML_TYPE_F32 && op->type == GGML_TYPE_F32;
+                 case GGML_UNARY_OP_FLOOR:
+                 case GGML_UNARY_OP_ROUND:
+                 case GGML_UNARY_OP_TRUNC:
+diff --git a/tests/test-quantize-fns.cpp b/tests/test-quantize-fns.cpp
+index a8fb1926..dcaa52d7 100644
+--- a/tests/test-quantize-fns.cpp
++++ b/tests/test-quantize-fns.cpp
+@@ -150,6 +150,7 @@ int main(int argc, char * argv[]) {
+                 type == GGML_TYPE_Q2_K    ? MAX_QUANTIZATION_TOTAL_ERROR_2BITS :
+                 type == GGML_TYPE_IQ2_S   ? MAX_QUANTIZATION_TOTAL_ERROR_2BITS :
+                 type == GGML_TYPE_Q3_K    ? MAX_QUANTIZATION_TOTAL_ERROR_3BITS :
++                type == GGML_TYPE_TQ3_0   ? MAX_QUANTIZATION_TOTAL_ERROR_3BITS :
+                 type == GGML_TYPE_IQ3_S   ? MAX_QUANTIZATION_TOTAL_ERROR_3BITS :
+                 type == GGML_TYPE_IQ3_XXS ? MAX_QUANTIZATION_TOTAL_ERROR_3BITS_XXS :
+                 type == GGML_TYPE_NVFP4   ? MAX_QUANTIZATION_TOTAL_ERROR_FP4 : MAX_QUANTIZATION_TOTAL_ERROR;
+@@ -166,6 +167,10 @@ int main(int argc, char * argv[]) {
+                 printf("%5s reference implementation error: %s (%f)\n", ggml_type_name(type), RESULT_STR[failed], reference_error);
+             }
+ 
++            const auto * vdot = ggml_get_type_traits_cpu(qfns_cpu->vec_dot_type);
++            if (!qfns_cpu->vec_dot || !vdot->from_float) {
++                continue;
++            }
+             const float vec_dot_error = dot_product_error(qfns, qfns_cpu, test_size, test_data.data(), test_data2.data());
+             const float max_allowed_error = type == GGML_TYPE_Q2_K || type == GGML_TYPE_IQ2_XS || type == GGML_TYPE_IQ2_XXS ||
+                                             type == GGML_TYPE_IQ3_XXS || type == GGML_TYPE_IQ3_S || type == GGML_TYPE_IQ2_S
+diff --git a/tests/test-quantize-perf.cpp b/tests/test-quantize-perf.cpp
+index cac0782d..f78721c4 100644
+--- a/tests/test-quantize-perf.cpp
++++ b/tests/test-quantize-perf.cpp
+@@ -318,12 +318,12 @@ int main(int argc, char * argv[]) {
+                 printf("\n");
+             }
+ 
+-            if (params.op_quantize_row_q_dot) {
++            const auto * vdot = ggml_get_type_traits_cpu(qfns_cpu->vec_dot_type);
++            if (params.op_quantize_row_q_dot && vdot->from_float) {
+                 printf("  quantize_row_q_dot\n");
+                 for (size_t size : params.test_sizes) {
+                     printf("    %zu values (%.2f MB)\n", size, 4*size/(float)(1024*1024));
+                     auto quantize_fn = [&](void) -> float {
+-                        const auto * vdot = ggml_get_type_traits_cpu(qfns_cpu->vec_dot_type);
+                         vdot->from_float(test_data1, test_q1, size);
+                         return test_q1[0];
+                     };
+@@ -333,7 +333,7 @@ int main(int argc, char * argv[]) {
+                 printf("\n");
+             }
+ 
+-            if (params.op_vec_dot_q) {
++            if (params.op_vec_dot_q && qfns_cpu->vec_dot) {
+                 printf("  vec_dot_q\n");
+                 qfns_cpu->from_float(test_data1, test_q1, largest);
+                 qfns_cpu->from_float(test_data2, test_q2, largest);

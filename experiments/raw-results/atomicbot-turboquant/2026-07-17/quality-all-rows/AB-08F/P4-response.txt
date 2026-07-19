@@ -1,0 +1,1 @@
+The test utilized the IBM Granite 4.1 3B model with weights in Q4_K_M precision, employing Q8_0 precision for both the K and V caches, within a 4096-token context length. The configuration was executed locally on a Windows Intel laptop without activating TurboQuant.

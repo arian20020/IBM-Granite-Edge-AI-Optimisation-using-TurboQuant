@@ -1,0 +1,11 @@
+{
+  "exit_code": 0,
+  "kv_mb": 320.0,
+  "missing": [],
+  "peak_ram_mb": 3817.54296875,
+  "request_error": null,
+  "sample_id": "AB-KV3-F16-4K-warmup",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 185.7298,
+  "valid": true
+}

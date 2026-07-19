@@ -1,0 +1,26 @@
+{
+  "exit_code": 0,
+  "kv_mb": 170.0,
+  "missing": [],
+  "peak_ram_mb": 3670.609375,
+  "request_error": null,
+  "sample_id": "AB-05-sample-3",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 179.5375,
+  "utilization": {
+    "cpu_percent": {
+      "mean": 64.777317,
+      "median": 65.311536,
+      "peak": 66.922883,
+      "sample_count": 7
+    },
+    "gpu_percent": {
+      "mean": 0.0,
+      "median": 0.0,
+      "peak": 0.0,
+      "sample_count": 7
+    }
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": true
+}

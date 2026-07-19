@@ -1,0 +1,14 @@
+{
+  "prompt_id": "P5",
+  "status": "failed-resolved-by-targeted-retry",
+  "output": "",
+  "error": "TimeoutError: wall-clock deadline of 900s exceeded",
+  "test_id": "AH-04",
+  "model_id": "granite-3b-bf16",
+  "backend": "cpu",
+  "cache": "q8_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 900.016,
+  "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "resolution": "P5-only retry completed under a 1800-second absolute deadline in 1024.6 seconds"
+}

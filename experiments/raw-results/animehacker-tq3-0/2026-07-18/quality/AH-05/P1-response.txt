@@ -1,0 +1,3 @@
+- **Benefits**: KV cache reduces memory footprint, enabling offline use on memory-limited devices.  
+- Limitations: Offline mode may lead to slower performance and reduced accuracy.  
+- Check: User should ensure compatibility with offline settings before deployment.

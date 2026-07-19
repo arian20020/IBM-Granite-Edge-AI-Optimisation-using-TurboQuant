@@ -22,9 +22,10 @@ LLAMA_KV_GROUP_RE = re.compile(
 def summarize_measurement(events: list[dict]) -> dict:
     """Return validated peak RAM, allocated KV memory, and TTFT."""
     memory_values = [
-        event["private_bytes"]
+        event.get("working_set_bytes", event.get("private_bytes"))
         for event in events
-        if event.get("kind") == "memory" and "private_bytes" in event
+        if event.get("kind") == "memory"
+        and ("working_set_bytes" in event or "private_bytes" in event)
     ]
     kv_values: list[float] = []
     kv_groups: set[tuple[float, int]] = set()

@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P5",
+  "status": "complete",
+  "output": "MARKER:IX-TQ-7319",
+  "test_id": "AH-05",
+  "model_id": "granite-3b-bf16",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 326.812,
+  "output_sha256": "d8d73ad6cd1cd330d061bb290a3d33e5a9fa52bdeeb2ef7c7c4df6d5de98fbc7"
+}

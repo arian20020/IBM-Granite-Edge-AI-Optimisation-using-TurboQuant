@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- Reduces model size for offline use.\n- Saves memory on limited laptops.\n- Enables faster inference with KV cache.\n- May limit model accuracy due to quantisation.\n- Check model performance after quantisation.",
+  "test_id": "AB-03",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 3.985,
+  "output_sha256": "23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8"
+}

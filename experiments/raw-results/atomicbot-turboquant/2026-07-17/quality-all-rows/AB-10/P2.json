@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Reduced storage requirements and improved cache hit rates by compressing key-value pairs, leading to faster data retrieval and lower I/O costs.\n\nLIMITATION: Compression and decompression overhead can introduce latency, especially for high-frequency read operations or when dealing with data that is already highly compressible.\n\nCHECK: Validate the integrity of compressed data by periodically decompressing a sample of the KV-cache and comparing the original and reconstructed key-value pairs to ensure no data loss.",
+  "test_id": "AB-10",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 18.609,
+  "output_sha256": "7d1e702937edc224451dbbb25f82273b3b13dc77fb32a46ae75eee25f4803641"
+}

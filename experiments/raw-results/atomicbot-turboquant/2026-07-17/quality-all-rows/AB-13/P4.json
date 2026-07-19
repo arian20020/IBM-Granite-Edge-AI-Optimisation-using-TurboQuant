@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P4",
+  "status": "complete",
+  "output": "The model used is Granite 4.1 with 3 billion parameters, running on an upstream llama.cpp runtime, utilizing Q4_K_M weights, and operating with Q8_0 cache for both key and value data structures. The context length is limited to 4096 tokens, and the test was executed locally on a Windows Intel laptop without enabling TurboQuant.",
+  "test_id": "AB-13",
+  "model_id": "granite-4.1-3b",
+  "backend": "vulkan-full",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 16.234,
+  "output_sha256": "a8af0905032f17beb7d92c2e8b7f45000ec1c9a320d1d5de1466cebab2b3dc0e"
+}

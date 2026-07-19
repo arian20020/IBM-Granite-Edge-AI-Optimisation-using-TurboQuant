@@ -1,0 +1,5 @@
+{
+  "model_name": "TurboQuant",
+  "optimization_level": "TurboQuant",
+  "memory_usage": "128MB"
+}

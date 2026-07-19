@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Improves data storage efficiency by reducing the size of key-value pairs.\n\nLIMITATION: May lead to increased computational overhead during decompression.\n\nCHECK: Ensures data integrity by validating compressed data against original values.",
+  "test_id": "AB-04",
+  "model_id": "granite-4.1-3b",
+  "backend": "cpu",
+  "cache": "q8_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 4.094,
+  "output_sha256": "f425733e6ffc9f2eb721db5e60e0ce59e957ebf812728eb4cc1ac3e994313c4d"
+}

@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Reduced cache miss latency for frequently accessed data, significantly improving application responsiveness.\n\nLIMITATION: Compression can introduce subtle inaccuracies, potentially impacting performance in scenarios requiring absolute precision.\n\nCHECK: `cache_hit_ratio`\n\nHere\u2019s the full sequence:\n\nBENEFIT: Reduced cache hit ratio, potentially impacting query response times.\n\nLIMITATION: Increased cache invalidation latency, affecting data freshness.\n\nCHECK: `cache_hit_ratio`",
+  "test_id": "AH-02",
+  "model_id": "gemma-1b-q4-k-m",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 3.016,
+  "output_sha256": "56ac5e02e077e841455d0392e2e8da06dd2f4d3d3fed9d70c1cca40886a546a7"
+}

@@ -1,0 +1,13 @@
+{
+  "prompt_id": "P5",
+  "status": "safety-blocked",
+  "output": "",
+  "error": "available RAM fell below 1536 MiB during server startup",
+  "test_id": "AB-09",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "turbo4",
+  "quality_context": 16384,
+  "elapsed_seconds": 0.0,
+  "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

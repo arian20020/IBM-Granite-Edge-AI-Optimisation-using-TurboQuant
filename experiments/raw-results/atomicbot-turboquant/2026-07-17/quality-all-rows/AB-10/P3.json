@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P3",
+  "status": "complete",
+  "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"efficient\",\n  \"quality_risk\": \"low\",\n  \"verification\": \"validated\"\n}",
+  "test_id": "AB-10",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "turbo3",
+  "quality_context": 4096,
+  "elapsed_seconds": 9.766,
+  "output_sha256": "a2d1523ba20bf174eca6fb086943a49f56d3c813cfb5df920519bf29346ef36c"
+}

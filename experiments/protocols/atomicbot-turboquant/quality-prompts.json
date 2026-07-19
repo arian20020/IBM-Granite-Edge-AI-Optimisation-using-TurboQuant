@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "prompt_set_id": "GTQ-PROMPTS-v1",
+  "prompt_set_path": "../../granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
+  "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+  "rubric_path": "../../granite_turboquant_intel/rubrics/quality-rubric-v1.json",
+  "adjudication": {
+    "blind_configuration_labels": true,
+    "deterministic_gates_first": true,
+    "precision_bonus": false,
+    "retain_raw_outputs": true
+  }
+}

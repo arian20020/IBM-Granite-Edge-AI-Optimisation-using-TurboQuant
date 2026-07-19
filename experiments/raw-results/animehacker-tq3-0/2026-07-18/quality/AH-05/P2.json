@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Improved performance due to reduced data transfer.  \nLIMITATION: Potential loss of precision if not all data is accurately compressed.  \nCHECK: Verification check ensures the compression algorithm is correctly applied.",
+  "test_id": "AH-05",
+  "model_id": "granite-3b-bf16",
+  "backend": "cpu",
+  "cache": "tq3_0",
+  "quality_context": 16384,
+  "elapsed_seconds": 3.828,
+  "output_sha256": "a4a501d9bbc1078e2074d6d543c7259a2c23264e372668e2d2dcc2eec7a5f2ff"
+}

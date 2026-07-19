@@ -1,0 +1,7 @@
+{
+  "activated": true,
+  "actual_device": "CPU",
+  "kv_mb": 160.0,
+  "proof_kind": "runtime-allocation",
+  "reason": "exact cache flags and runtime KV allocation agree"
+}

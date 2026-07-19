@@ -1,0 +1,11 @@
+{
+  "emergency_stopped": false,
+  "exit_code": 0,
+  "kv_mb": 640.0,
+  "missing": [],
+  "peak_ram_mb": 9242.82421875,
+  "sample_id": "AB-KV8-F16-4K-sample-3",
+  "timed_out": false,
+  "ttft_ms": 5937.7173,
+  "valid": true
+}

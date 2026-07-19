@@ -1,0 +1,90 @@
+{
+  "prompt_set": "GTQ-PROMPTS-v1",
+  "prompt_set_sha256": "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f",
+  "runs": [
+    {
+      "blind_label": "configuration-A",
+      "prompt_id": "P1",
+      "output": "- Reduces model size for offline use.\n- Saves memory on limited laptops.\n- Enables faster inference with KV cache.\n- May reduce accuracy due to quantisation.\n- Ensure model performance meets requirements.",
+      "status": "complete",
+      "output_sha256": "8d1f5afbaee909ef173edb387f0b10c4783841aa2cf4ecac63e7dc0e73ccae97"
+    },
+    {
+      "blind_label": "configuration-A",
+      "prompt_id": "P2",
+      "output": "BENEFIT: Improves data storage efficiency by reducing the size of key-value pairs.\n\nLIMITATION: May lead to increased computational overhead during decompression.\n\nCHECK: Ensures data integrity by validating compressed data against original values.",
+      "status": "complete",
+      "output_sha256": "f425733e6ffc9f2eb721db5e60e0ce59e957ebf812728eb4cc1ac3e994313c4d"
+    },
+    {
+      "blind_label": "configuration-A",
+      "prompt_id": "P3",
+      "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Increased\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Automated\"\n}",
+      "status": "complete",
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af"
+    },
+    {
+      "blind_label": "configuration-A",
+      "prompt_id": "P4",
+      "output": "The test uses the IBM Granite 4.1 3B model with the upstream llama.cpp runtime. The model weights are in Q4_K_M format, with both K and V caches using Q8_0 precision, running with a context length of 4096 tokens on a local Windows Intel laptop, and TurboQuant is not active.",
+      "status": "complete",
+      "output_sha256": "a98356a461c6fc7e2c08e0f6bf9567200d6948317d5702883ba02ce344797739"
+    },
+    {
+      "blind_label": "configuration-A",
+      "prompt_id": "P5",
+      "output": "MARKER: IXN-TQ-7319",
+      "status": "complete",
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d"
+    },
+    {
+      "blind_label": "configuration-A",
+      "prompt_id": "P6",
+      "turn_1": "SAVED",
+      "output": "amber:4821",
+      "status": "complete",
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+    },
+    {
+      "blind_label": "configuration-B",
+      "prompt_id": "P1",
+      "output": "- **Benefit**: KV cache quantisation reduces memory usage, allowing the model to fit within limited memory constraints on an offline laptop.\n\n- **Benefit**: Quantisation enables faster inference, improving performance on limited hardware by reducing precision requirements.\n\n- **Limitation**: Quantisation may lead to a loss of model accuracy due to reduced bit-width representation.\n\n- **Limitation**: The model might become less precise because of quantisation, affecting performance on complex tasks.\n\n- **Check**: Ensure the model's performance is evaluated post-quantisation to confirm it meets the desired accuracy and efficiency goals.",
+      "output_sha256": "3363d3dcce600461ee093d19323c85db062f0dbc241b4a4ddea52098cf143f61"
+    },
+    {
+      "blind_label": "configuration-B",
+      "prompt_id": "P2",
+      "output": "BENEFIT: TurboQuant KV-cache compression reduces memory usage by efficiently storing data, allowing more information to fit within limited space.  \nLIMITATION: The compression may introduce latency during decompression, potentially impacting performance in real-time applications.  \nCHECK: Ensure decompression accuracy by verifying that decompressed data matches original input data bit-for-bit.",
+      "output_sha256": "12bc3dc480ab31229683f5e5519527a05e74abe546f2c1dd641b3fd8885ded1c"
+    },
+    {
+      "blind_label": "configuration-B",
+      "prompt_id": "P3",
+      "output": "{\"optimisation\": \"TurboQuant\", \"memory_effect\": \"compact\", \"quality_risk\": \"low\", \"verification\": \"unit\"}",
+      "output_sha256": "21b9c66c8bd359e62d9462422b9f632ec330097941d3caa85c3632f0db8094e0"
+    },
+    {
+      "blind_label": "configuration-B",
+      "prompt_id": "P4",
+      "output": "The test involves the IBM Granite 4.1 3B model, running on llama.cpp, using Q4_K_M weights with Q8_0 caches, handling a 4096-token context, executed locally on a Windows Intel laptop without activating TurboQuant.",
+      "output_sha256": "b4c88c9d6212d1d1931a0cfc82643f8362ea84b78f3e1ffa2a3528a2baa876ee"
+    },
+    {
+      "blind_label": "configuration-B",
+      "prompt_id": "P5",
+      "output": "",
+      "status": "timeout",
+      "error": "TimeoutError: timed out",
+      "timeout_seconds": 2400,
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blind_label": "configuration-B",
+      "prompt_id": "P6",
+      "turn_1": "SAVED",
+      "output": "amber:4821",
+      "status": "complete",
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e"
+    }
+  ]
+}

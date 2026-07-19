@@ -1,0 +1,11 @@
+{
+  "emergency_stopped": false,
+  "exit_code": 0,
+  "kv_mb": 125.0,
+  "missing": [],
+  "peak_ram_mb": 10454.1640625,
+  "sample_id": "AB-15M-warmup",
+  "timed_out": false,
+  "ttft_ms": 6786.9742,
+  "valid": true
+}

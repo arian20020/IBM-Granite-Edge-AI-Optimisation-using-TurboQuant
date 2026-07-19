@@ -1,0 +1,6 @@
+{
+  "prompt_id": "P4",
+  "output": "The test uses the IBM Granite 4.1 3B model with the upstream llama.cpp runtime. The model weights are in Q4_K_M format, with both K and V caches using Q8_0 precision, running with a context length of 4096 tokens on a local Windows Intel laptop, and TurboQuant is not active.",
+  "status": "complete",
+  "output_sha256": "a98356a461c6fc7e2c08e0f6bf9567200d6948317d5702883ba02ce344797739"
+}

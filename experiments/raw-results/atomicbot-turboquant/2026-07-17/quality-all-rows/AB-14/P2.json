@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P2",
+  "status": "complete",
+  "output": "BENEFIT: Reduces storage requirements by efficiently compressing key-value data, allowing for faster data retrieval and lower memory usage.\n\nLIMITATION: May introduce additional latency during data access due to the overhead of decompression, potentially impacting performance-sensitive applications.\n\nCHECK: Verify compression ratio and decompression accuracy by comparing original and reconstructed data sets to ensure no data loss and acceptable performance metrics.",
+  "test_id": "AB-14",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-partial",
+  "cache": "q8_0",
+  "quality_context": 4096,
+  "elapsed_seconds": 15.063,
+  "output_sha256": "80a41e5ab214ac754825aa7ae0507d68a2a8a2c4a4a4d4b2ea2cef3394523c05"
+}

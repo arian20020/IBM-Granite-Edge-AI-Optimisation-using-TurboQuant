@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P3",
+  "status": "complete",
+  "output": "{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Reduced latency\",\n  \"quality_risk\": \"Minor accuracy degradation\",\n  \"verification\": \"Automated testing\"\n}",
+  "test_id": "AB-08Q",
+  "model_id": "granite-4.1-8b",
+  "backend": "cpu",
+  "cache": "q8_0",
+  "quality_context": 4096,
+  "elapsed_seconds": 9.547,
+  "output_sha256": "3ae07e59aec6237aa8a69a0f57b7d50c3c1c172e4749c151be785e6611b34b0e"
+}

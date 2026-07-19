@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P3",
+  "status": "complete",
+  "output": "```json\n{\n  \"optimisation\": \"TurboQuant\",\n  \"memory_effect\": \"Medium\",\n  \"quality_risk\": \"Low\",\n  \"verification\": \"Cache hit rate validation\"\n}\n```",
+  "test_id": "AH-01",
+  "model_id": "gemma-1b-q4-k-m",
+  "backend": "cpu",
+  "cache": "f16",
+  "quality_context": 16384,
+  "elapsed_seconds": 1.657,
+  "output_sha256": "c6611f831b1b3eb7ff9a45a8722d69663e0b090871b8da442f8d4d9bfefacb7e"
+}

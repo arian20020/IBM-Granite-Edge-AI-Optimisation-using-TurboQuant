@@ -1,0 +1,20 @@
+﻿{
+    "schema_version":  2,
+    "evidence_kind":  "preflight",
+    "timestamp":  "2026-07-18T18:02:59.0423451+01:00",
+    "process_query":  "Get-CimInstance Win32_Process | Where-Object { $_.Name -like \u0027llama-*\u0027 -or ($_.Name -match \u0027^python(\\.exe)?$\u0027 -and ($_.CommandLine -like \u0027*run_animehacker_retest.py*\u0027 -or $_.CommandLine -like \u0027*measure_animehacker_server.py*\u0027)) } | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine",
+    "ram_query":  "Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory",
+    "combined_matching_process_count":  0,
+    "llama_process_count":  0,
+    "runtime_controller_process_count":  0,
+    "measurement_controller_process_count":  0,
+    "combined_processes":  [
+
+                           ],
+    "free_physical_memory_kib":  10396552,
+    "available_physical_ram_bytes":  10646069248,
+    "available_physical_ram_mib":  10152.882812,
+    "minimum_available_ram_mib":  2048,
+    "launch_refused_if_combined_process_count_nonzero":  true,
+    "launch_command":  "cmd.exe /d /s /c \"call \"\"C:\\Program Files (x86)\\Intel\\oneAPI\\setvars.bat\"\" \u003enul \u0026\u0026 python scripts\\testing\\run_animehacker_retest.py --matrix experiments\\manifests\\animehacker-tq3-0\\retest-matrix.json --output-root experiments\\raw-results\\animehacker-tq3-0\\2026-07-18\\runtime-recovery --cpu-build C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled --sycl-build C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled --diagnostic-model C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\diagnostic\\gemma-3-1b-it-Q4_K_M\\gemma-3-1b-it-Q4_K_M.gguf --granite3-model C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-3b\\q4_k_m\\granite-4.1-3b-Q4_K_M.gguf --granite8-model C:\\Users\\Student\\experiments\\granite_turboquant_intel\\models\\granite-4.1-8b\\q8_0\\granite-4.1-8b-Q8_0.gguf --only AH-10 --include-guarded --pilot-only --minimum-available-ram-mb 2048 --measurement-tokens 128\""
+}

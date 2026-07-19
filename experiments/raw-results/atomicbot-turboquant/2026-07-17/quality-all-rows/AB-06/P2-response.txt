@@ -1,0 +1,3 @@
+BENEFIT: TurboQuant KV-cache compression reduces memory usage by efficiently storing data, allowing more information to fit within limited space.  
+LIMITATION: The compression may introduce latency during decompression, potentially impacting performance in real-time applications.  
+CHECK: Ensure decompression accuracy by verifying that decompressed data matches original input data bit-for-bit.

@@ -1,0 +1,39 @@
+{
+  "ctest": {
+    "total": 40,
+    "failed": 0,
+    "passed": 40
+  },
+  "binaries": [
+    {
+      "name": "llama-cli.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled\\bin\\llama-cli.exe",
+      "bytes": 7324672,
+      "sha256": "d69ce8f0476adfb3d0db0211dc3eb52cec186195c91b0f683597b9c634675935"
+    },
+    {
+      "name": "llama-server.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled\\bin\\llama-server.exe",
+      "bytes": 9521664,
+      "sha256": "ad965b01db7884e93351d902f28a3f96282d076034f218cd29f79892710d93e5"
+    },
+    {
+      "name": "llama-bench.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled\\bin\\llama-bench.exe",
+      "bytes": 3004416,
+      "sha256": "9886b8dad71233c19df56fa000d413846a752c667d0db2eacf590cbfd94248b6"
+    },
+    {
+      "name": "llama-quantize.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled\\bin\\llama-quantize.exe",
+      "bytes": 973824,
+      "sha256": "72fa2cf1a8efaa95cebf62de8964e1cc26a1b0534ca9bd7b98f5058502b58a72"
+    },
+    {
+      "name": "llama-perplexity.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-cpu-controlled\\bin\\llama-perplexity.exe",
+      "bytes": 6145536,
+      "sha256": "6ec9ad81f75e9d3235a41cb367408c3e7e470f8b3a69e767261aba14002d52a9"
+    }
+  ]
+}

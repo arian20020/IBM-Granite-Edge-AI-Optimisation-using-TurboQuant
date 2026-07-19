@@ -1,0 +1,26 @@
+{
+  "exit_code": 0,
+  "kv_mb": 640.0,
+  "missing": [],
+  "peak_ram_mb": 9236.21875,
+  "request_error": null,
+  "sample_id": "AB-KV8-F16-4K-sample-3",
+  "ttft_definition": "HTTP request initiation to first streamed generated token",
+  "ttft_ms": 334.4461,
+  "utilization": {
+    "cpu_percent": {
+      "mean": 65.3351328,
+      "median": 65.381488,
+      "peak": 67.70853,
+      "sample_count": 15
+    },
+    "gpu_percent": {
+      "mean": 0.0,
+      "median": 0.0,
+      "peak": 0.0,
+      "sample_count": 15
+    }
+  },
+  "utilization_definition": "loaded request window; CPU normalized across logical processors; GPU is busiest process GPU engine per timestamp",
+  "valid": true
+}

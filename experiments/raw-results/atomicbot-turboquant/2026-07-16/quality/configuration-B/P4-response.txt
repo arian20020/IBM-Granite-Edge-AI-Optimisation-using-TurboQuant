@@ -1,0 +1,1 @@
+The test involves the IBM Granite 4.1 3B model, running on llama.cpp, using Q4_K_M weights with Q8_0 caches, handling a 4096-token context, executed locally on a Windows Intel laptop without activating TurboQuant.

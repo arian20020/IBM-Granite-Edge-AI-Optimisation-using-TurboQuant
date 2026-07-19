@@ -1,0 +1,85 @@
+{
+  "binaries": [
+    {
+      "bytes": 5799936,
+      "name": "llama-cli.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled\\bin\\llama-cli.exe",
+      "sha256": "94d92b6910bd8fc94aed8fc18be34023e9565aa18b55b06ac4e26eb4ed8ab78b"
+    },
+    {
+      "bytes": 7812096,
+      "name": "llama-server.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled\\bin\\llama-server.exe",
+      "sha256": "b41ff6da0dc1178df10651b9cde14d5c375b61e8ab6934781241eabcdc4f4264"
+    },
+    {
+      "bytes": 1099776,
+      "name": "llama-bench.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled\\bin\\llama-bench.exe",
+      "sha256": "10ce4d489cc0c10e9c67ea505a22d8d4463561e9300eefc46fd887ec642e5255"
+    },
+    {
+      "bytes": 192000,
+      "name": "llama-quantize.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled\\bin\\llama-quantize.exe",
+      "sha256": "c95af58eacaf460c3d2b1de81178942b22a9f47ee98e5432fb0c0366201dc3bd"
+    },
+    {
+      "bytes": 3866624,
+      "name": "llama-perplexity.exe",
+      "path": "C:\\Users\\Student\\experiments\\animehacker-tq3-0-2026-07-18\\build-sycl-controlled\\bin\\llama-perplexity.exe",
+      "sha256": "a66e27cb47f4108952610ff8b8cb2099e0dc035ab088251e5e8e5c02e3386fb1"
+    }
+  ],
+  "environment": {
+    "GGML_SYCL_ENABLE_FLASH_ATTN": "0",
+    "ONEAPI_DEVICE_SELECTOR": "opencl:gpu"
+  },
+  "failed": 0,
+  "passed": 40,
+  "reconciliation": "39 terminal passes in serial suite plus isolated thread-safety pass",
+  "route": "Windows SYCL OpenCL GPU",
+  "terminal_test_ids": {
+    "1": "test-tokenizer-0-bert-bge",
+    "2": "test-tokenizer-0-command-r",
+    "3": "test-tokenizer-0-deepseek-coder",
+    "4": "test-tokenizer-0-deepseek-llm",
+    "5": "test-tokenizer-0-falcon",
+    "6": "test-tokenizer-0-gpt-2",
+    "7": "test-tokenizer-0-llama-bpe",
+    "8": "test-tokenizer-0-llama-spm",
+    "9": "test-tokenizer-0-mpt",
+    "10": "test-tokenizer-0-phi-3",
+    "11": "test-tokenizer-0-qwen2",
+    "12": "test-tokenizer-0-refact",
+    "13": "test-tokenizer-0-starcoder",
+    "14": "test-chat-peg-parser",
+    "15": "test-jinja",
+    "16": "test-jinja-py",
+    "17": "test-chat-auto-parser",
+    "18": "test-chat-template",
+    "19": "test-json-partial",
+    "20": "test-log",
+    "21": "test-peg-parser",
+    "22": "test-regex-partial",
+    "23": "test-download-model",
+    "24": "test-thread-safety",
+    "25": "test-arg-parser",
+    "26": "test-opt",
+    "27": "test-gguf",
+    "28": "test-backend-ops",
+    "29": "test-model-load-cancel",
+    "30": "test-autorelease",
+    "31": "test-backend-sampler",
+    "32": "test-state-restore-fragmented",
+    "33": "test-barrier",
+    "34": "test-quantize-fns",
+    "35": "test-quantize-perf",
+    "36": "test-rope",
+    "37": "test-mtmd-c-api",
+    "38": "test-alloc",
+    "39": "test-eval-callback-download-model",
+    "40": "test-eval-callback"
+  },
+  "total": 40
+}

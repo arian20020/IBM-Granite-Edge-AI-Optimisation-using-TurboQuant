@@ -1,0 +1,12 @@
+{
+  "prompt_id": "P1",
+  "status": "complete",
+  "output": "- **KV cache** reduces memory usage by storing key-value pairs efficiently.  \n- Enables **offline** operation by minimizing data loading needs.  \n- **Benefit:** Faster inference due to reduced data retrieval overhead.  \n- **Limitation:** Quantisation may degrade model accuracy.  \n- **Check:** Verify quantisation levels against acceptable accuracy thresholds.",
+  "test_id": "AB-14",
+  "model_id": "granite-4.1-8b",
+  "backend": "vulkan-partial",
+  "cache": "q8_0",
+  "quality_context": 4096,
+  "elapsed_seconds": 14.062,
+  "output_sha256": "e918fe24471bcd571dadefc408e6d24e8169c8330313487cc8d142025548807a"
+}
