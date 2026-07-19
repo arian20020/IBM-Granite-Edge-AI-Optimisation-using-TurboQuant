@@ -1,0 +1,2259 @@
+{
+  "reconciliation": {
+    "accepted": true,
+    "count": 30,
+    "failed_count": 0
+  },
+  "records": [
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+          "status": "not-measured: diagnostic IR has no token-generation workload",
+          "value": null
+        }
+      },
+      "reason": "diagnostic IR has no token-generation workload",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json",
+      "status": "not-measured: diagnostic IR has no token-generation workload",
+      "terminal": true,
+      "test_id": "OV-01"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-02"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-03"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-04"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-05"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-06"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-07"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-08"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-09"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-10"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-TQ-01"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-measured: conversion memory gate",
+          "value": null
+        }
+      },
+      "reason": "conversion memory gate",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-measured: conversion memory gate",
+      "terminal": true,
+      "test_id": "OV-TQ-02"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-03"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-04"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-05"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-06"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-07"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-08"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-09"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-10"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-11"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-12"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-13"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-14"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-15"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-16"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-17"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-18"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-19"
+    },
+    {
+      "cleanup_process_count": 0,
+      "metrics": {
+        "available_ram_min_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "cpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "decode_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "generation_duration_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_memory_peak_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "gpu_percent": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "kv_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "load_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_private_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "peak_working_set_mb": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "prompt_tps": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "tpot_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        },
+        "ttft_ms": {
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+          "value": null
+        }
+      },
+      "reason": "official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "terminal": true,
+      "test_id": "OV-TQ-20"
+    }
+  ]
+}

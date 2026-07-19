@@ -1,0 +1,387 @@
+{
+  "records": [
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-scored: conversion memory gate",
+      "test_id": "OV-TQ-01"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+          "status": "not-scored: conversion memory gate"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json",
+      "status": "not-scored: conversion memory gate",
+      "test_id": "OV-TQ-02"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-03"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-04"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-05"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-06"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-07"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-08"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-09"
+    },
+    {
+      "mean_score": null,
+      "prompts": {
+        "P1": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P2": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P3": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P4": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P5": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        },
+        "P6": {
+          "score": null,
+          "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+          "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec"
+        }
+      },
+      "source": "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json",
+      "status": "not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec",
+      "test_id": "OV-TQ-10"
+    }
+  ],
+  "required_count": 10,
+  "scored_count": 0,
+  "terminal_count": 10
+}

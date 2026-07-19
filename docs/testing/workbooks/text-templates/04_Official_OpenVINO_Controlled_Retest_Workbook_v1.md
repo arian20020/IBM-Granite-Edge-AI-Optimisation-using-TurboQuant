@@ -1,4 +1,4 @@
-# 04 Official OpenVINO Controlled Retest Workbook v1.1
+# 04 Official OpenVINO Controlled Retest Workbook v1.4
 
 **Controlled filename:** `04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx`  
 **Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`  
@@ -7,7 +7,7 @@
 
 ## Official OpenVINO Runtime, GenAI and Merged TurboQuant Controlled Retest Workbook
 
-Controlled retest revision 1.1. Historical results remain legacy evidence and are not copied into active result cells.
+Controlled retest revision 1.4. Historical results remain legacy evidence and are not copied into active result cells.
 
 **Purpose:** establish the dependable official OpenVINO CPU/GPU baseline and fully evaluate every TurboQuant format exposed by the pinned **official merged CPU SDPA implementation**. The merged route is expected to expose TurboQuant 3-bit and 4-bit through independent key/value algorithm and precision controls. QJL and PolarQuant are tested here as negative capability boundaries unless the pinned official source proves they were later merged.
 
@@ -17,86 +17,86 @@ Controlled retest revision 1.1. Historical results remain legacy evidence and ar
 
 | Field | Record |
 | --- | --- |
-| Runtime source | Official OpenVINO repository |
+| Runtime source | Official OpenVINO 2026.2.1 lightweight release tag; exact commit recorded |
 | Repository URL | https://github.com/openvinotoolkit/openvino |
-| Pinned OpenVINO commit |  |
-| OpenVINO version |  |
-| OpenVINO GenAI version/commit |  |
-| TurboQuant merge/PR lineage |  |
-| Python version |  |
-| Compiler/CMake |  |
-| Conversion tool/version |  |
-| Device plugins detected | CPU / GPU |
-| Model source/revision |  |
-| Test operator |  |
-| Test start/end date |  |
-| Overall status |  |
+| Pinned OpenVINO commit | ede283a88e35465f0d680dabbf1f44080f8fc387 |
+| OpenVINO version | 2026.2.1 |
+| OpenVINO GenAI version/commit | 2026.2.1.0 / 7dea0459b2ac7d8dfd877fd9df6737674fd8371d |
+| TurboQuant merge/PR lineage | No TurboQuant/TBQ3/TBQ4 implementation found in exact tagged source; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| Python version | 3.11.9 |
+| Compiler/CMake | not-found / not-found; official wheels used |
+| Conversion tool/version | Optimum Intel 2.0.0; conversion memory-gated |
+| Device plugins detected | CPU, GPU |
+| Model source/revision | ibm-granite/granite-4.1-3b@c0650403e44e78ec0262dab1c90914c65b196c4e; granite-4.1-8b@1504002f650e656a0a3789d99574df12e3e94ed0 |
+| Test operator | Codex automated controlled retest |
+| Test start/end date | 2026-07-19 / 2026-07-19 |
+| Overall status | Terminal-complete: 7 diagnostic passes, 0 failed diagnostics, 53 evidence-linked terminal rows |
 
 # 2. Target laptop
 
 | Field | Fixed/current value | Confirm or update |
 | --- | --- | --- |
-| Machine ID | Lenovo-PF4HMD0T |  |
-| Processor | 12th Gen Intel Core i5-12450H |  |
-| RAM | 16.0 GB installed; 15.7 GB usable |  |
-| Graphics | Intel UHD Graphics; shared system memory |  |
-| Operating system | 64-bit Windows, x64-based processor |  |
-| NPU | Not available - excluded from current testing |  |
+| Machine ID | Lenovo-PF4HMD0T | Confirmed Lenovo 83ER |
+| Processor | 12th Gen Intel Core i5-12450H | Confirmed: 8 cores / 12 logical processors |
+| RAM | 16.0 GB installed; 15.7 GB usable | Confirmed 16857817088 bytes |
+| Graphics | Intel UHD Graphics; shared system memory | Confirmed driver 32.0.101.7076 |
+| Operating system | 64-bit Windows, x64-based processor | Windows-10-10.0.26200-SP0 |
+| NPU | Not available - excluded from current testing | Confirmed excluded; no NPU device enumerated |
 
 # 3. Official codec capability boundary
 
 | Capability | Expected from verified official source | Must be proved in this campaign |
 | --- | --- | --- |
-| Standard cache | F32/F16/BF16 plus scalar U8/U4 where supported | Exact precision, quantization mode, group size and allocation |
-| Official TurboQuant | TBQ3 and TBQ4 on CPU SDPA | KEY/VALUE cache algorithm, U3/U4 precision, activation path and packed allocation |
-| Independent K/V control | Key and value algorithm/precision can differ | All 12 meaningful Turbo/scalar combinations in the capability sweep |
-| Norm correction | OV_TURBOQ_NORM_CORRECTION environment switch | OFF/ON ablation for TBQ4 and TBQ3 |
-| QJL | Not part of the verified official merged algorithm enum at planning time | Negative source/API/runtime check; move to supported only with new pinned evidence |
-| PolarQuant | Not part of the verified official merged algorithm enum at planning time | Negative source/API/runtime check; move to supported only with new pinned evidence |
-| GPU TurboQuant | Not assumed | Explicit negative/fallback gate; no GPU claim without execution proof |
+| Standard cache | U4 and separate key/value cache properties present | Source-audited; runtime model conversion was memory-gated |
+| Official TurboQuant | Not present in pinned 2026.2.1 source | Negative proof: turbo_enum=false and norm_switch=false |
+| Independent K/V control | KEY/VALUE properties exist; TBQ algorithm enum absent | 12 combinations terminal unsupported-by-source |
+| Norm correction | No OV_TURBOQ_NORM_CORRECTION implementation found | Ablations terminal unsupported-by-source |
+| QJL | No cache-codec implementation found | Negative boundary confirmed; unrelated comments/operators excluded |
+| PolarQuant | No cache-codec implementation found | Negative boundary confirmed; unrelated aten::polar excluded |
+| GPU TurboQuant | Not exposed | GPU plugin works, but TurboQuant GPU activation is unsupported-by-source |
 
 # 4. Build and setup checklist
 
 | ID | Check | Result | Evidence / command / notes |
 | --- | --- | --- | --- |
-| OV-B01 | Install or build pinned official OpenVINO |  |  |
-| OV-B02 | Install compatible OpenVINO GenAI |  |  |
-| OV-B03 | Confirm CPU plugin |  |  |
-| OV-B04 | Confirm Intel GPU plugin and driver |  |  |
-| OV-B05 | Run official sample or diagnostic IR model |  |  |
-| OV-B06 | Record PerfMetrics availability |  |  |
-| OV-B07 | Record versions and environment packages |  |  |
-| OV-B08 | Verify the official merged TurboQuant source/API boundary |  |  |
-| OV-B09 | Verify official TBQ3/TBQ4 precision and independent K/V controls |  |  |
-| OV-B10 | Run official TurboQuant unit/functional diagnostics |  |  |
-| OV-B11 | Verify QJL and PolarQuant are not exposed by the official merged route |  |  |
-| OV-B12 | Verify official CPU SDPA preconditions and limitations |  |  |
+| OV-B01 | Install pinned OpenVINO | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B02 | Install compatible OpenVINO GenAI | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B03 | Confirm CPU plugin | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B04 | Confirm Intel GPU plugin | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B05 | Official diagnostic model | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B06 | PerfMetrics availability | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B07 | Versions and packages | passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-B08 | Official TurboQuant boundary | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-B09 | TBQ3 TBQ4 independent controls | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-B10 | Official TurboQuant diagnostics | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-B11 | QJL and Polar negative boundary | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-B12 | CPU SDPA preconditions | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 
 # 5. Model conversion and validation
 
 | ID | Model | Target precision | Conversion command/version | Tokenizer/config valid? | Model loads? | Hash/output path | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-C01 | Granite 3B | FP16 |  |  |  |  |  |
-| OV-C02 | Granite 3B | INT8 |  |  |  |  |  |
-| OV-C03 | Granite 3B | INT4, if supported |  |  |  |  |  |
-| OV-C04 | Granite 8B | FP16, fit attempt |  |  |  |  |  |
-| OV-C05 | Granite 8B | INT8 |  |  |  |  |  |
-| OV-C06 | Granite 8B | INT4, if supported |  |  |  |  |  |
+| OV-C01 | ibm-granite/granite-4.1-3b | f16 | Planned immutable snapshot + optimum-cli; not executed by safety gate | not-tested: conversion memory gate | not-tested: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/OV-C01/manifest.json | memory-gate-not-run: 8995315712 available < 10026940264 required |
+| OV-C02 | ibm-granite/granite-4.1-3b | u8 | Planned immutable snapshot + optimum-cli; not executed by safety gate | not-tested: conversion memory gate | not-tested: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/OV-C02/manifest.json | memory-gate-not-run: 8995356672 available < 10026940264 required |
+| OV-C03 | ibm-granite/granite-4.1-3b | u4 | Planned immutable snapshot + optimum-cli; not executed by safety gate | not-tested: conversion memory gate | not-tested: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/OV-C03/manifest.json | memory-gate-not-run: 8995352576 available < 10026940264 required |
+| OV-C04 | ibm-granite/granite-4.1-8b | f16 | Planned immutable snapshot + optimum-cli; not executed by safety gate | not-tested: conversion memory gate | not-tested: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/OV-C04/manifest.json | memory-gate-not-run: 8995352576 available < 20804453624 required |
+| OV-C05 | ibm-granite/granite-4.1-8b | u8 | Planned immutable snapshot + optimum-cli; not executed by safety gate | not-tested: conversion memory gate | not-tested: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/OV-C05/manifest.json | memory-gate-not-run: 8995348480 available < 20804453624 required |
+| OV-C06 | ibm-granite/granite-4.1-8b | u4 | Planned immutable snapshot + optimum-cli; not executed by safety gate | not-tested: conversion memory gate | not-tested: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/OV-C06/manifest.json | memory-gate-not-run: 8995348480 available < 20804453624 required |
 
 # 6. Standard official baseline matrix
 
 | ID | Model | Weights | K cache | V cache | Device | Context | Purpose | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-01 | Diagnostic IR | Supported | Standard | Standard | CPU | 1K | Environment baseline |  |
-| OV-02 | Granite 3B | FP16 | F16/BF16 | F16/BF16 | CPU | 2K | High-quality CPU reference |  |
-| OV-03 | Granite 3B | INT8 | F16/BF16 | F16/BF16 | CPU | 4K | Isolate weight compression |  |
-| OV-04 | Granite 3B | INT8 | U8 scalar | U8 scalar | CPU | 4K | Practical CPU baseline |  |
-| OV-05 | Granite 3B | INT4 | U4 scalar | U4 scalar | CPU | 4K | Aggressive standard route |  |
-| OV-06 | Granite 3B | Frozen | Frozen | Frozen | GPU | 4K | Intel GPU baseline |  |
-| OV-07 | Granite 8B | FP16, if safe | F16/BF16 | F16/BF16 | CPU | 2K | High-quality fit attempt |  |
-| OV-08 | Granite 8B | INT8 | U8 scalar | U8 scalar | CPU | 4K | Practical CPU baseline |  |
-| OV-09 | Granite 8B | INT4 | U4/U8 scalar | U4/U8 scalar | CPU | 4K | Aggressive standard route |  |
-| OV-10 | Granite 8B | Frozen | Frozen | Frozen | GPU | 4K | Intel GPU attempt |  |
+| OV-01 | diagnostic | dynamic | dynamic | dynamic | CPU | 1024 | Diagnostic CPU baseline | not-measured: diagnostic IR has no token-generation workload; experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-02 | granite-3b | f16 | f16 | f16 | CPU | 2048 | Granite 3B FP16 | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-03 | granite-3b | u8 | f16 | f16 | CPU | 4096 | Granite 3B INT8 standard | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-04 | granite-3b | u8 | u8 | u8 | CPU | 4096 | Granite 3B U8 scalar | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-05 | granite-3b | u4 | u4 | u4 | CPU | 4096 | Granite 3B U4 scalar | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-06 | granite-3b | u8 | frozen | frozen | GPU | 4096 | Granite 3B GPU baseline | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-07 | granite-8b | f16 | f16 | f16 | CPU | 2048 | Granite 8B FP16 fit | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-08 | granite-8b | u8 | u8 | u8 | CPU | 4096 | Granite 8B U8 scalar | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-09 | granite-8b | u4 | u4 | u4 | CPU | 4096 | Granite 8B U4 scalar | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-10 | granite-8b | u4 | frozen | frozen | GPU | 4096 | Granite 8B GPU attempt | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
 
 # 7. Official TurboQuant format capability sweep
 
@@ -104,98 +104,186 @@ Run these with a diagnostic IR or Granite 3B, short context and short output. Th
 
 | ID | K algorithm | V algorithm | K precision | V precision | CPU SDPA loads? | Activation proof | Fallback? | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-TQS-01 | TBQ4 | TBQ4 | U4 | U4 |  |  |  |  |
-| OV-TQS-02 | TBQ3 | TBQ3 | U3 | U3 |  |  |  |  |
-| OV-TQS-03 | TBQ4 | TBQ3 | U4 | U3 |  |  |  |  |
-| OV-TQS-04 | TBQ3 | TBQ4 | U3 | U4 |  |  |  |  |
-| OV-TQS-05 | TBQ4 | SCALAR | U4 | U8 |  |  |  |  |
-| OV-TQS-06 | SCALAR | TBQ4 | U8 | U4 |  |  |  |  |
-| OV-TQS-07 | TBQ3 | SCALAR | U3 | U8 |  |  |  |  |
-| OV-TQS-08 | SCALAR | TBQ3 | U8 | U3 |  |  |  |  |
-| OV-TQS-09 | TBQ4 | SCALAR | U4 | U4 |  |  |  |  |
-| OV-TQS-10 | SCALAR | TBQ4 | U4 | U4 |  |  |  |  |
-| OV-TQS-11 | TBQ3 | SCALAR | U3 | U4 |  |  |  |  |
-| OV-TQS-12 | SCALAR | TBQ3 | U4 | U3 |  |  |  |  |
+| OV-TQS-01 | tbq4 | tbq4 | u4 | u4 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-02 | tbq3 | tbq3 | u3 | u3 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-03 | tbq4 | tbq3 | u4 | u3 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-04 | tbq3 | tbq4 | u3 | u4 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-05 | tbq4 | scalar | u4 | u8 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-06 | scalar | tbq4 | u8 | u4 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-07 | tbq3 | scalar | u3 | u8 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-08 | scalar | tbq3 | u8 | u3 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-09 | tbq4 | scalar | u4 | u4 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-10 | scalar | tbq4 | u4 | u4 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-11 | tbq3 | scalar | u3 | u4 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
+| OV-TQS-12 | scalar | tbq3 | u4 | u3 | not-tested: codec absent | source audit proves no TurboQuant enum/allocation path | No runtime fallback attempted | unsupported-by-source; diagnostics/source-audit.json |
 
 # 8. Formal official TurboQuant tests
 
 | ID | Model | K algorithm | V algorithm | K precision | V precision | Context | Purpose | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-TQ-01 | Granite 3B | SCALAR | SCALAR | U8 | U8 | 4096 | Standard U8/U8 control baseline |  |
-| OV-TQ-02 | Granite 3B | SCALAR | SCALAR | U4 | U4 | 4096 | Standard U4/U4 control baseline |  |
-| OV-TQ-03 | Granite 3B | TBQ4 | TBQ4 | U4 | U4 | 4096 | Official symmetric TurboQuant 4-bit |  |
-| OV-TQ-04 | Granite 3B | TBQ3 | TBQ3 | U3 | U3 | 4096 | Official symmetric TurboQuant 3-bit |  |
-| OV-TQ-05 | Granite 3B | TBQ4 | TBQ3 | U4 | U3 | 4096 | Official asymmetric TBQ4 key / TBQ3 value |  |
-| OV-TQ-06 | Granite 3B | TBQ3 | TBQ4 | U3 | U4 | 4096 | Official asymmetric TBQ3 key / TBQ4 value |  |
-| OV-TQ-07 | Granite 3B | TBQ4 | SCALAR | U4 | U8 | 4096 | TurboQuant key-only 4-bit |  |
-| OV-TQ-08 | Granite 3B | SCALAR | TBQ4 | U8 | U4 | 4096 | TurboQuant value-only 4-bit |  |
-| OV-TQ-09 | Granite 3B | TBQ3 | SCALAR | U3 | U8 | 4096 | TurboQuant key-only 3-bit |  |
-| OV-TQ-10 | Granite 3B | SCALAR | TBQ3 | U8 | U3 | 4096 | TurboQuant value-only 3-bit |  |
-| OV-TQ-11 | Granite 3B | TBQ4 | TBQ4 | U4 | U4 | 4096 | TBQ4 norm-correction OFF/ON ablation |  |
-| OV-TQ-12 | Granite 3B | TBQ3 | TBQ3 | U3 | U3 | 4096 | TBQ3 norm-correction OFF/ON ablation |  |
-| OV-TQ-13 | Granite 3B | TBQ4 | TBQ4 | U4 | U4 | 512/2048/4096/8192 | TBQ4 context-scaling series |  |
-| OV-TQ-14 | Granite 3B | TBQ3 | TBQ3 | U3 | U3 | 512/2048/4096/8192 | TBQ3 context-scaling series |  |
-| OV-TQ-15 | Granite 3B | Selected best | Selected best | Pinned | Pinned | 4096 | Repeatability and stability: pilot, warm-up, three measured runs |  |
-| OV-TQ-16 | Granite 8B | TBQ4 | TBQ4 | U4 | U4 | 4096 if safe | 8B TBQ4 feasibility and memory-safety gate |  |
-| OV-TQ-17 | Granite 8B | TBQ3 | TBQ3 | U3 | U3 | 4096 if safe | 8B TBQ3 feasibility and memory-safety gate |  |
-| OV-TQ-18 | Selected model | TBQ4 | TBQ4 | U4 | U4 | 1024 | GPU request negative/fallback gate; no GPU claim without proof |  |
-| OV-TQ-19 | Diagnostic IR | QJL probe | QJL probe | N/A | N/A | 256 | Negative capability test: official merged route must not be labelled QJL-capable unless exposed and executed |  |
-| OV-TQ-20 | Diagnostic IR | Polar probe | Polar probe | N/A | N/A | 256 | Negative capability test: official merged route must not be labelled PolarQuant-capable unless exposed and executed |  |
+| OV-TQ-01 | granite-3b | scalar | scalar | u8 | u8 | 4096 | U8 control | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-02 | granite-3b | scalar | scalar | u4 | u4 | 4096 | U4 control | not-measured: conversion memory gate; experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-03 | granite-3b | tbq4 | tbq4 | u4 | u4 | 4096 | TBQ4 symmetric | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-04 | granite-3b | tbq3 | tbq3 | u3 | u3 | 4096 | TBQ3 symmetric | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-05 | granite-3b | tbq4 | tbq3 | u4 | u3 | 4096 | TBQ4 key TBQ3 value | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-06 | granite-3b | tbq3 | tbq4 | u3 | u4 | 4096 | TBQ3 key TBQ4 value | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-07 | granite-3b | tbq4 | scalar | u4 | u8 | 4096 | TBQ4 key only | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-08 | granite-3b | scalar | tbq4 | u8 | u4 | 4096 | TBQ4 value only | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-09 | granite-3b | tbq3 | scalar | u3 | u8 | 4096 | TBQ3 key only | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-10 | granite-3b | scalar | tbq3 | u8 | u3 | 4096 | TBQ3 value only | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-11 | granite-3b | tbq4 | tbq4 | u4 | u4 | 4096 | TBQ4 norm ablation | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-12 | granite-3b | tbq3 | tbq3 | u3 | u3 | 4096 | TBQ3 norm ablation | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-13 | granite-3b | tbq4 | tbq4 | u4 | u4 | 512/2048/4096/8192 | TBQ4 context scaling | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-14 | granite-3b | tbq3 | tbq3 | u3 | u3 | 512/2048/4096/8192 | TBQ3 context scaling | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-15 | granite-3b | tbq4 | tbq4 | u4 | u4 | 4096 | Selected repeatability | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-16 | granite-8b | tbq4 | tbq4 | u4 | u4 | 4096 | Granite 8B TBQ4 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-17 | granite-8b | tbq3 | tbq3 | u3 | u3 | 4096 | Granite 8B TBQ3 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-18 | granite-3b | tbq4 | tbq4 | u4 | u4 | 1024 | GPU TurboQuant gate | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-19 | diagnostic | qjl | qjl | probe | probe | 256 | QJL negative probe | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-20 | diagnostic | polar | polar | probe | probe | 256 | Polar negative probe | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 
 # 9. Configuration and activation record
 
 | Test ID | Run/config ID | Exact properties/env vars | Requested codec | Verified codec | Expected/actual record bytes | Activation evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
+| OV-TQS-01 | OV-TQS-01-TERMINAL-R001 | No runtime properties applied: source gate | tbq4/tbq4 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-02 | OV-TQS-02-TERMINAL-R001 | No runtime properties applied: source gate | tbq3/tbq3 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-03 | OV-TQS-03-TERMINAL-R001 | No runtime properties applied: source gate | tbq4/tbq3 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-04 | OV-TQS-04-TERMINAL-R001 | No runtime properties applied: source gate | tbq3/tbq4 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-05 | OV-TQS-05-TERMINAL-R001 | No runtime properties applied: source gate | tbq4/scalar | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-06 | OV-TQS-06-TERMINAL-R001 | No runtime properties applied: source gate | scalar/tbq4 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-07 | OV-TQS-07-TERMINAL-R001 | No runtime properties applied: source gate | tbq3/scalar | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-08 | OV-TQS-08-TERMINAL-R001 | No runtime properties applied: source gate | scalar/tbq3 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-09 | OV-TQS-09-TERMINAL-R001 | No runtime properties applied: source gate | tbq4/scalar | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-10 | OV-TQS-10-TERMINAL-R001 | No runtime properties applied: source gate | scalar/tbq4 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-11 | OV-TQS-11-TERMINAL-R001 | No runtime properties applied: source gate | tbq3/scalar | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQS-12 | OV-TQS-12-TERMINAL-R001 | No runtime properties applied: source gate | scalar/tbq3 | not-activated: codec absent | not-allocated: source gate | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
 
 # 10. Device execution and fallback verification
 
 | Test ID | Requested device | Actual device | Backend | Model placement | KV placement | Optimisation device | Silent fallback check | CPU/GPU utilisation evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |
+| OV-TQS-01 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-02 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-03 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-04 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-05 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-06 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-07 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-08 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-09 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-10 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-11 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
+| OV-TQS-12 | CPU | not-launched: source gate | OpenVINO CPU requested | not-placed | not-allocated | not-activated | No fallback because launch was rejected before configuration | not-measured: source gate; source-audit.json | unsupported-by-source |
 
 # 11. Formal performance and memory results
 
 Use one pilot, one excluded warm-up and at least three measured repetitions per frozen configuration unless a documented safety gate blocks the run.
 
-| Test ID | Configuration ID | Rep role/no. | Load ms | TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | Peak private MB | KV MB | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |
+**Performance and timing metrics**
+
+| Test ID | Configuration ID | Load ms | TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | Generation duration ms | Status | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| OV-01 | OV-01-TERMINAL-R001 | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-02 | OV-02-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-03 | OV-03-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-04 | OV-04-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-05 | OV-05-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-06 | OV-06-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-07 | OV-07-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-08 | OV-08-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-09 | OV-09-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-10 | OV-10-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-01 | OV-TQ-01-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-02 | OV-TQ-02-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-03 | OV-TQ-03-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-04 | OV-TQ-04-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-05 | OV-TQ-05-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-06 | OV-TQ-06-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-07 | OV-TQ-07-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-08 | OV-TQ-08-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-09 | OV-TQ-09-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-10 | OV-TQ-10-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-11 | OV-TQ-11-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-12 | OV-TQ-12-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-13 | OV-TQ-13-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-14 | OV-TQ-14-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-15 | OV-TQ-15-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-16 | OV-TQ-16-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-17 | OV-TQ-17-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-18 | OV-TQ-18-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-19 | OV-TQ-19-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-20 | OV-TQ-20-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+
+**Memory metrics**
+
+| Test ID | Configuration ID | Peak working set MB | Peak private MB | Available RAM min MB | KV MB | GPU memory peak MB | Status | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| OV-01 | OV-01-TERMINAL-R001 | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-02 | OV-02-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-03 | OV-03-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-04 | OV-04-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-05 | OV-05-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-06 | OV-06-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-07 | OV-07-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-08 | OV-08-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-09 | OV-09-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-10 | OV-10-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-01 | OV-TQ-01-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-02 | OV-TQ-02-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-03 | OV-TQ-03-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-04 | OV-TQ-04-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-05 | OV-TQ-05-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-06 | OV-TQ-06-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-07 | OV-TQ-07-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-08 | OV-TQ-08-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-09 | OV-TQ-09-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-10 | OV-TQ-10-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-11 | OV-TQ-11-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-12 | OV-TQ-12-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-13 | OV-TQ-13-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-14 | OV-TQ-14-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-15 | OV-TQ-15-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-16 | OV-TQ-16-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-17 | OV-TQ-17-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-18 | OV-TQ-18-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-19 | OV-TQ-19-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-20 | OV-TQ-20-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+
+**CPU/GPU utilization metrics**
+
+| Test ID | Configuration ID | CPU mean % | CPU median % | CPU peak % | CPU sample count | GPU mean % | GPU median % | GPU peak % | GPU sample count | Cleanup process count | Status | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| OV-01 | OV-01-TERMINAL-R001 | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | not-measured: diagnostic IR has no token-generation workload | 0 | not-measured: diagnostic IR has no token-generation workload | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-02 | OV-02-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-03 | OV-03-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-04 | OV-04-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-05 | OV-05-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-06 | OV-06-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-07 | OV-07-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-08 | OV-08-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-09 | OV-09-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-10 | OV-10-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-01 | OV-TQ-01-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-02 | OV-TQ-02-TERMINAL-R001 | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | not-measured: conversion memory gate | 0 | not-measured: conversion memory gate | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-03 | OV-TQ-03-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-04 | OV-TQ-04-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-05 | OV-TQ-05-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-06 | OV-TQ-06-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-07 | OV-TQ-07-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-08 | OV-TQ-08-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-09 | OV-TQ-09-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-10 | OV-TQ-10-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-11 | OV-TQ-11-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-12 | OV-TQ-12-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-13 | OV-TQ-13-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-14 | OV-TQ-14-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-15 | OV-TQ-15-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-16 | OV-TQ-16-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-17 | OV-TQ-17-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-18 | OV-TQ-18-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-19 | OV-TQ-19-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-20 | OV-TQ-20-TERMINAL-R001 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | 0 | not-measured: official source has no TurboQuant/TBQ3/TBQ4 codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 
 # 12. Quality evaluation by format
 
@@ -203,16 +291,16 @@ Complete P1-P6 for the U8/U4 controls and every primary official TurboQuant form
 
 | Test/config | P1 | P2 | P3 | P4 | P5 | P6 | Mean /10 | Critical failure/cap | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-TQ-01 U8 control |  |  |  |  |  |  |  |  |  |
-| OV-TQ-02 U4 control |  |  |  |  |  |  |  |  |  |
-| OV-TQ-03 TBQ4/TBQ4 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-04 TBQ3/TBQ3 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-05 TBQ4/TBQ3 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-06 TBQ3/TBQ4 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-07 TBQ4/U8 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-08 U8/TBQ4 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-09 TBQ3/U8 |  |  |  |  |  |  |  |  |  |
-| OV-TQ-10 U8/TBQ3 |  |  |  |  |  |  |  |  |  |
+| OV-TQ-01 U8 control | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-02 U4 control | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-scored: conversion memory gate | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-TQ-03 TBQ4 symmetric | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-04 TBQ3 symmetric | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-05 TBQ4 key TBQ3 value | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-06 TBQ3 key TBQ4 value | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-07 TBQ4 key only | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-08 TBQ4 value only | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-09 TBQ3 key only | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-TQ-10 TBQ3 value only | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-scored: official source has no TurboQuant/TBQ3/TBQ4 codec | not-computed: no response | No cap applied because scoring did not occur | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 
 [[PAGEBREAK]]
 
@@ -220,26 +308,26 @@ Complete P1-P6 for the U8/U4 controls and every primary official TurboQuant form
 
 | Test | Required result | Observed result | Evidence | Decision |
 | --- | --- | --- | --- | --- |
-| OV-TQ-13 | TBQ4 at 512/2K/4K/8K or bounded stop point |  |  |  |
-| OV-TQ-14 | TBQ3 at 512/2K/4K/8K or bounded stop point |  |  |  |
-| OV-TQ-15 | Pilot + warm-up + >=3 measured repetitions without unexplained fallback |  |  |  |
-| OV-TQ-16/17 | 8B only within memory-safety gate |  |  |  |
-| OV-TQ-18 | GPU support or explicit unsupported/fallback evidence |  |  |  |
-| OV-TQ-19 | QJL unavailable or newly proved on pinned official source |  |  |  |
-| OV-TQ-20 | PolarQuant unavailable or newly proved on pinned official source |  |  |  |
+| OV-TQ-13 | TBQ4 context series | not-run: TurboQuant absent | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQ-14 | TBQ3 context series | not-run: TurboQuant absent | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQ-15 | Repeatability | not-run: TurboQuant absent | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | unsupported-by-source |
+| OV-TQ-16/17 | 8B within memory gate | not-run: 19.38 GiB required vs 8.38 GiB available | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json | memory-gate-not-run |
+| OV-TQ-18 | GPU support/fallback | GPU plugin passed; TurboQuant absent | experiments/raw-results/official-openvino/2026-07-19/diagnostics/diagnostic-results.json | unsupported-by-source |
+| OV-TQ-19 | QJL boundary | No QJL cache codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | confirmed unavailable |
+| OV-TQ-20 | Polar boundary | No PolarQuant cache codec | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json | confirmed unavailable |
 
 # 14. Failure log
 
 | Failure ID | Test ID | Code | Description | Root cause/status | Fix or next action | Retest run | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |
+| OV-F001 | OV-B01 | WIN | Git progress stderr raised NativeCommandError | fixed | Trust native exit code | acquisition rerun passed | experiments/raw-results/official-openvino/2026-07-19/acquisition/openvino-checkout.json |
+| OV-F002 | OV-B01 | WIN | Long source paths | fixed | core.longpaths plus git file enumeration | source audit passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-F003 | OV-B07 | DEP | pip inspect CP1252 encoding | fixed | PYTHONUTF8=1 and exit check | acquisition rerun passed | experiments/raw-results/official-openvino/2026-07-19/environment/pip-inspect.json |
+| OV-F004 | OV-B05 | PERF | ENABLE_PROFILING unsupported | fixed | Use advertised PERF_COUNT property | CPU/GPU probes passed | experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json |
+| OV-F005 | OV-B08 | TQ-ACT | TurboQuant source boundary absent | terminal | Do not claim activation | source audit complete | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+| OV-F006 | OV-C01/03 | MEM | 3B conversion unsafe | terminal | Requires host with at least 9.34 GiB available | gate rechecked | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-F007 | OV-C04/06 | MEM | 8B conversion unsafe | terminal | Requires host with at least 19.38 GiB available | gate rechecked | experiments/raw-results/official-openvino/2026-07-19/conversion/conversion-results.json |
+| OV-F008 | OV-TQ-01/10 | QUAL | No response available to score | terminal | Do not fabricate P1-P6 | quality reconciliation complete | experiments/raw-results/official-openvino/2026-07-19/runtime/quality-results.json |
 
 Codes include: BF, DEP, WIN, MODEL, ARCH, BASE, TQ-ACT, TQ-FALLBACK, TQ-CRASH, QJL, POLAR, CPU, GPU, OOM, MEM, PERF, QUAL, REPRO, SCOPE.
 
@@ -249,17 +337,17 @@ Codes include: BF, DEP, WIN, MODEL, ARCH, BASE, TQ-ACT, TQ-FALLBACK, TQ-CRASH, Q
 
 | Field | Record |
 | --- | --- |
-| Official TBQ4 support |  |
-| Official TBQ3 support |  |
-| Independent K/V combinations |  |
-| Norm-correction finding |  |
-| QJL official status |  |
-| PolarQuant official status |  |
-| Granite 3B best configuration |  |
-| Granite 8B safe configuration |  |
-| Maximum stable context |  |
-| GPU result |  |
-| Recommended official fallback |  |
-| Application role |  |
-| Main evidence path |  |
-| Final bounded reasoning |  |
+| Official TBQ4 support | Unsupported in pinned official 2026.2.1 source |
+| Official TBQ3 support | Unsupported in pinned official 2026.2.1 source |
+| Independent K/V combinations | Properties exist for standard modes; all 12 Turbo combinations unsupported-by-source |
+| Norm-correction finding | No TurboQuant norm-correction switch/path found |
+| QJL official status | Confirmed unavailable as a cache codec |
+| PolarQuant official status | Confirmed unavailable as a cache codec |
+| Granite 3B best configuration | Not determined: conversion memory gate; no quality/performance ranking made |
+| Granite 8B safe configuration | None on this host: minimum estimated requirement 19.38 GiB available |
+| Maximum stable context | Not determined: no runnable Granite OpenVINO conversion |
+| GPU result | OpenVINO GPU.0 diagnostic passed with 5 profiling events; TurboQuant GPU unsupported |
+| Recommended official fallback | Standard OpenVINO on a higher-memory host; do not label this release TurboQuant-capable |
+| Application role | Official CPU/GPU capability baseline only; TurboQuant evaluation requires a different proven implementation |
+| Main evidence path | experiments/raw-results/official-openvino/2026-07-19 |
+| Final bounded reasoning | All 60 IDs are passed or explicitly terminal. No unavailable metric or quality score was converted into a number. Results are accurate for this pinned source and laptop. |
