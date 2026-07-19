@@ -1,0 +1,824 @@
+diff --git a/src/cpp/include/openvino/genai/turboquant_config.hpp b/src/cpp/include/openvino/genai/turboquant_config.hpp
+new file mode 100644
+index 0000000..cbd4092
+--- /dev/null
++++ b/src/cpp/include/openvino/genai/turboquant_config.hpp
+@@ -0,0 +1,18 @@
++#pragma once
++#include <cstddef>
++#include <string>
++#include "openvino/core/any.hpp"
++namespace ov::genai {
++inline constexpr const char* TURBOQUANT_KEY_ALGORITHM="TURBOQUANT_KEY_ALGORITHM";
++inline constexpr const char* TURBOQUANT_VALUE_ALGORITHM="TURBOQUANT_VALUE_ALGORITHM";
++inline constexpr const char* TURBOQUANT_NORM_CORRECTION="TURBOQUANT_NORM_CORRECTION";
++enum class CacheAlgorithm { STANDARD, TBQ3, TBQ4 };
++struct TurboQuantConfig { CacheAlgorithm key_algorithm=CacheAlgorithm::STANDARD; CacheAlgorithm value_algorithm=CacheAlgorithm::STANDARD; bool norm_correction=false; };
++TurboQuantConfig parse_turboquant_config(ov::AnyMap& properties);
++struct ActivationTelemetry {
++ CacheAlgorithm requested_key_algorithm=CacheAlgorithm::STANDARD, requested_value_algorithm=CacheAlgorithm::STANDARD;
++ CacheAlgorithm activated_key_algorithm=CacheAlgorithm::STANDARD, activated_value_algorithm=CacheAlgorithm::STANDARD;
++ bool norm_correction=false; std::size_t expected_bytes=0, actual_bytes=0; std::string attention_path="not_activated", device; bool fallback=false; std::string build_commit, model_hash;
++};
++std::string activation_telemetry_json(const ActivationTelemetry& telemetry);
++}
+diff --git a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+new file mode 100644
+index 0000000..9377c88
+--- /dev/null
++++ b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+@@ -0,0 +1,12 @@
++#include "openvino/genai/turboquant_config.hpp"
++#include <sstream>
++#include "openvino/core/except.hpp"
++namespace ov::genai { namespace {
++CacheAlgorithm parse(const ov::Any& v,const char* p){auto s=v.as<std::string>(); if(s=="STANDARD")return CacheAlgorithm::STANDARD;if(s=="TBQ3")return CacheAlgorithm::TBQ3;if(s=="TBQ4")return CacheAlgorithm::TBQ4;OPENVINO_THROW("Unsupported ",p," value: ",s);}
++const char* name(CacheAlgorithm a){switch(a){case CacheAlgorithm::STANDARD:return "STANDARD";case CacheAlgorithm::TBQ3:return "TBQ3";case CacheAlgorithm::TBQ4:return "TBQ4";}OPENVINO_THROW("Invalid TurboQuant cache algorithm enum");}
++std::string quote(const std::string& s){OPENVINO_ASSERT(s.size()<=1024,"TurboQuant telemetry field exceeds 1024 bytes");std::string r="\"";for(unsigned char c:s){if(c=='\"')r+="\\\"";else if(c=='\\')r+="\\\\";else if(c=='\n')r+="\\n";else if(c=='\r')r+="\\r";else if(c=='\t')r+="\\t";else{OPENVINO_ASSERT(c>=0x20,"TurboQuant telemetry contains a control character");r+=static_cast<char>(c);}}return r+'\"';}
++}
++TurboQuantConfig parse_turboquant_config(ov::AnyMap& p){TurboQuantConfig r;auto consume=[&](const char* n,CacheAlgorithm& a){auto i=p.find(n);if(i!=p.end()){a=parse(i->second,n);p.erase(i);}};consume(TURBOQUANT_KEY_ALGORITHM,r.key_algorithm);consume(TURBOQUANT_VALUE_ALGORITHM,r.value_algorithm);auto i=p.find(TURBOQUANT_NORM_CORRECTION);if(i!=p.end()){r.norm_correction=i->second.as<bool>();p.erase(i);}return r;}
++std::string activation_telemetry_json(const ActivationTelemetry&t){std::ostringstream o;o<<'{'
++<<"\"requested_key_algorithm\":\""<<name(t.requested_key_algorithm)<<"\",\"requested_value_algorithm\":\""<<name(t.requested_value_algorithm)<<"\",\"activated_key_algorithm\":\""<<name(t.activated_key_algorithm)<<"\",\"activated_value_algorithm\":\""<<name(t.activated_value_algorithm)<<"\",\"norm_correction\":"<<(t.norm_correction?"true":"false")<<",\"expected_bytes\":"<<t.expected_bytes<<",\"actual_bytes\":"<<t.actual_bytes<<",\"attention_path\":"<<quote(t.attention_path)<<",\"device\":"<<quote(t.device)<<",\"fallback\":"<<(t.fallback?"true":"false")<<",\"build_commit\":"<<quote(t.build_commit)<<",\"model_hash\":"<<quote(t.model_hash)<<'}';auto r=o.str();OPENVINO_ASSERT(r.size()<=4096,"TurboQuant activation telemetry exceeds 4096 bytes");return r;}
++}
+diff --git a/tests/cpp/turboquant_config.cpp b/tests/cpp/turboquant_config.cpp
+new file mode 100644
+index 0000000..ae80c41
+--- /dev/null
++++ b/tests/cpp/turboquant_config.cpp
+@@ -0,0 +1,8 @@
++#include <gtest/gtest.h>
++#include "openvino/genai/turboquant_config.hpp"
++using namespace ov::genai;
++TEST(TurboQuantConfig,PreservesAllAsymmetricSelectionsAndRemovesExactProperties){const std::pair<const char*,CacheAlgorithm> v[]={{"STANDARD",CacheAlgorithm::STANDARD},{"TBQ3",CacheAlgorithm::TBQ3},{"TBQ4",CacheAlgorithm::TBQ4}};for(auto k:v)for(auto x:v){ov::AnyMap p{{TURBOQUANT_KEY_ALGORITHM,std::string(k.first)},{TURBOQUANT_VALUE_ALGORITHM,std::string(x.first)},{TURBOQUANT_NORM_CORRECTION,true},{"PERFORMANCE_HINT",std::string("LATENCY")}};auto c=parse_turboquant_config(p);EXPECT_EQ(c.key_algorithm,k.second);EXPECT_EQ(c.value_algorithm,x.second);EXPECT_TRUE(c.norm_correction);EXPECT_EQ(p.size(),1u);}}
++TEST(TurboQuantConfig,DefaultsToStandardWithoutNormCorrection){ov::AnyMap p;auto c=parse_turboquant_config(p);EXPECT_EQ(c.key_algorithm,CacheAlgorithm::STANDARD);EXPECT_EQ(c.value_algorithm,CacheAlgorithm::STANDARD);EXPECT_FALSE(c.norm_correction);}
++TEST(TurboQuantConfig,RejectsUnknownOrWrongCaseAlgorithms){for(const char*s:{"TBQ5","tbq3","standard",""}){ov::AnyMap p{{TURBOQUANT_KEY_ALGORITHM,std::string(s)}};EXPECT_THROW(parse_turboquant_config(p),ov::Exception);}}
++TEST(TurboQuantConfig,EmitsBoundedActivationJsonWithoutClaimingActivation){ActivationTelemetry t;t.requested_key_algorithm=CacheAlgorithm::TBQ3;t.requested_value_algorithm=CacheAlgorithm::TBQ4;t.norm_correction=true;t.expected_bytes=123;t.attention_path="not_activated";t.device="CPU";t.fallback=true;t.build_commit="0123456789abcdef0123456789abcdef01234567";t.model_hash="abcdef";auto j=activation_telemetry_json(t);EXPECT_LT(j.size(),4096u);EXPECT_NE(j.find("\"activated_key_algorithm\":\"STANDARD\""),std::string::npos);EXPECT_NE(j.find("\"fallback\":true"),std::string::npos);}
++TEST(TurboQuantConfig,RejectsOversizedTelemetryFields){ActivationTelemetry t;t.model_hash.assign(1025,'x');EXPECT_THROW(activation_telemetry_json(t),ov::Exception);}
+diff --git a/tests/python/test_turboquant_activation_schema.py b/tests/python/test_turboquant_activation_schema.py
+new file mode 100644
+index 0000000..3ad50ed
+--- /dev/null
++++ b/tests/python/test_turboquant_activation_schema.py
+@@ -0,0 +1,14 @@
++import json, unittest
++REQUIRED={"requested_key_algorithm","requested_value_algorithm","activated_key_algorithm","activated_value_algorithm","norm_correction","expected_bytes","actual_bytes","attention_path","device","fallback","build_commit","model_hash"}
++def validate_activation_record(r):
++ if set(r)!=REQUIRED: raise ValueError("activation record fields differ from schema")
++ for n in ("requested_key_algorithm","requested_value_algorithm","activated_key_algorithm","activated_value_algorithm"):
++  if r[n] not in {"STANDARD","TBQ3","TBQ4"}: raise ValueError(n)
++ if type(r["norm_correction"]) is not bool or type(r["fallback"]) is not bool: raise ValueError("flags")
++ if any(type(r[n]) is not int or r[n]<0 for n in ("expected_bytes","actual_bytes")): raise ValueError("bytes")
++ if any(type(r[n]) is not str or len(r[n].encode())>1024 for n in ("attention_path","device","build_commit","model_hash")): raise ValueError("text")
++class Tests(unittest.TestCase):
++ def test_fixture(self): validate_activation_record(json.loads('{"requested_key_algorithm":"TBQ3","requested_value_algorithm":"TBQ4","activated_key_algorithm":"STANDARD","activated_value_algorithm":"STANDARD","norm_correction":true,"expected_bytes":123,"actual_bytes":0,"attention_path":"not_activated","device":"CPU","fallback":true,"build_commit":"0123456789abcdef0123456789abcdef01234567","model_hash":"abcdef"}'))
++ def test_extra(self):
++  with self.assertRaises(ValueError): validate_activation_record({"unexpected":True})
++if __name__=="__main__": unittest.main()
+diff --git a/src/cpp/src/llm/pipeline.cpp b/src/cpp/src/llm/pipeline.cpp
+index 5497161..816b93f 100644
+--- a/src/cpp/src/llm/pipeline.cpp
++++ b/src/cpp/src/llm/pipeline.cpp
+@@ -213,6 +213,7 @@ ov::genai::LLMPipeline::LLMPipeline(
+ 
+     bool is_npu_requested = ov::genai::utils::is_npu_requested(device, user_properties);
+     auto [properties, attention_backend] = utils::extract_attention_backend(user_properties, is_npu_requested);
++    const auto turboquant_config = utils::extract_turboquant_config(properties);
+     utils::extract_extensions_to_core(properties);
+ 
+     std::shared_ptr<ov::Model> model = utils::read_model(models_path, properties);
+@@ -243,7 +244,7 @@ ov::genai::LLMPipeline::LLMPipeline(
+         m_pimpl = std::make_unique<StatefulLLMPipeline>(model, tokenizer, device, properties, generation_config);
+     }
+ 
+-    m_pimpl->save_load_time(start_time);
++    m_pimpl->set_turboquant_config(turboquant_config); m_pimpl->save_load_time(start_time);
+ }
+ 
+ ov::genai::LLMPipeline::LLMPipeline(
+@@ -255,6 +256,7 @@ ov::genai::LLMPipeline::LLMPipeline(
+ 
+     bool is_npu_requested = ov::genai::utils::is_npu_requested(device, user_properties);
+     auto [properties, attention_backend] = utils::extract_attention_backend(user_properties, is_npu_requested);
++    const auto turboquant_config = utils::extract_turboquant_config(properties);
+     utils::extract_extensions_to_core(properties);
+ 
+     // Read model and create tokenizer once to avoid double I/O during pipeline construction.
+@@ -288,7 +290,7 @@ ov::genai::LLMPipeline::LLMPipeline(
+         m_pimpl = std::make_unique<StatefulLLMPipeline>(model, tokenizer, device, properties, generation_config);
+     }
+ 
+-    m_pimpl->save_load_time(start_time);
++    m_pimpl->set_turboquant_config(turboquant_config); m_pimpl->save_load_time(start_time);
+ }
+ 
+ ov::genai::LLMPipeline::LLMPipeline(
+@@ -303,6 +305,7 @@ ov::genai::LLMPipeline::LLMPipeline(
+ 
+     bool is_npu_requested = ov::genai::utils::is_npu_requested(device, user_properties);
+     auto [properties, attention_backend] = utils::extract_attention_backend(user_properties, is_npu_requested);
++    const auto turboquant_config = utils::extract_turboquant_config(properties);
+     utils::extract_extensions_to_core(properties);
+ 
+     std::shared_ptr<ov::Model> model = utils::singleton_core().read_model(model_str, weights_tensor);
+@@ -343,7 +346,7 @@ ov::genai::LLMPipeline::LLMPipeline(
+             generation_config);
+     }
+ 
+-    m_pimpl->save_load_time(start_time);
++    m_pimpl->set_turboquant_config(turboquant_config); m_pimpl->save_load_time(start_time);
+ }
+ 
+ DecodedResults LLMPipeline::generate(
+diff --git a/src/cpp/src/llm/pipeline_base.hpp b/src/cpp/src/llm/pipeline_base.hpp
+index 2133fa9..aca53cd 100644
+--- a/src/cpp/src/llm/pipeline_base.hpp
++++ b/src/cpp/src/llm/pipeline_base.hpp
+@@ -6,6 +6,7 @@
+ #include "openvino/genai/llm_pipeline.hpp"
+ #include "openvino/genai/tokenizer.hpp"
+ #include "openvino/genai/streamer_base.hpp"
++#include "openvino/genai/turboquant_config.hpp"
+ #include "utils.hpp"
+ 
+ namespace ov {
+@@ -28,6 +29,7 @@ public:
+     void set_attention_backend(const std::string& attention_backend) {
+         m_attention_backend = attention_backend;
+     }
++    void set_turboquant_config(const TurboQuantConfig& config) { m_turboquant_config = config; }
+ 
+     void set_generation_config(GenerationConfig config) {
+         int64_t default_eos_token_id = m_generation_config.eos_token_id;
+@@ -79,6 +81,7 @@ protected:
+ 
+     float m_load_time_ms = 0.0f;
+     std::string m_attention_backend = SDPA_BACKEND;
++    TurboQuantConfig m_turboquant_config;
+ };
+ 
+ }  // namespace genai
+diff --git a/src/cpp/src/utils.cpp b/src/cpp/src/utils.cpp
+index bd21b47..28165c9 100644
+--- a/src/cpp/src/utils.cpp
++++ b/src/cpp/src/utils.cpp
+@@ -9,6 +9,7 @@
+ #include <memory>
+ 
+ #include "openvino/runtime/properties.hpp"
++#include "openvino/genai/turboquant_config.hpp"
+ #include "openvino/op/add.hpp"
+ #include "openvino/op/divide.hpp"
+ #include "openvino/op/gather.hpp"
+@@ -148,6 +149,7 @@ inline bool is_paged_attention_available() {
+ namespace ov {
+ namespace genai {
+ namespace utils {
++TurboQuantConfig extract_turboquant_config(ov::AnyMap& properties) { return parse_turboquant_config(properties); }
+ 
+ enum class ModelType { Default, Whisper, TextEmbedding };
+ 
+diff --git a/src/cpp/src/utils.hpp b/src/cpp/src/utils.hpp
+index 2fbc1d9..a970274 100644
+--- a/src/cpp/src/utils.hpp
++++ b/src/cpp/src/utils.hpp
+@@ -16,6 +16,7 @@
+ 
+ #include "openvino/genai/generation_handle.hpp"
+ #include "openvino/genai/scheduler_config.hpp"
++#include "openvino/genai/turboquant_config.hpp"
+ #include "openvino/genai/generation_config.hpp"
+ 
+ #include "openvino/genai/streamer_base.hpp"
+@@ -55,6 +56,7 @@ struct ModelDesc {
+ namespace ov {
+ namespace genai {
+ namespace utils {
++TurboQuantConfig extract_turboquant_config(ov::AnyMap& properties);
+ 
+ // Variable template that checks if a type has begin() and end() member functions
+ template<typename, typename = void>
+diff --git a/tests/cpp/CMakeLists.txt b/tests/cpp/CMakeLists.txt
+index 309525c..5b39f07 100644
+--- a/tests/cpp/CMakeLists.txt
++++ b/tests/cpp/CMakeLists.txt
+@@ -32,6 +32,10 @@ add_executable(turboquant_codec_tests
+ target_link_libraries(turboquant_codec_tests PRIVATE gtest_main)
+ target_include_directories(turboquant_codec_tests PRIVATE "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src")
+ target_compile_features(turboquant_codec_tests PRIVATE cxx_std_17)
++add_executable(turboquant_config_tests turboquant_config.cpp "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src/continuous_batching/cache/turboquant_config.cpp")
++target_link_libraries(turboquant_config_tests PRIVATE gtest_main openvino::runtime)
++target_include_directories(turboquant_config_tests PRIVATE "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/include")
++target_compile_features(turboquant_config_tests PRIVATE cxx_std_17)
+ 
+ add_executable(${TEST_TARGET_NAME} ${tests_src} $<TARGET_OBJECTS:openvino_genai_obj>)
+ 
+diff --git a/src/cpp/CMakeLists.txt b/src/cpp/CMakeLists.txt
+index d12e21d..e68bac3 100644
+--- a/src/cpp/CMakeLists.txt
++++ b/src/cpp/CMakeLists.txt
+@@ -186,6 +186,9 @@ set(TARGET_NAME openvino_genai)
+ set(TARGET_NAME_OBJ ${TARGET_NAME}_obj)
+ 
+ add_library(${TARGET_NAME_OBJ} OBJECT ${SOURCE_FILES})
++execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${OpenVINOGenAI_SOURCE_DIR}"
++                OUTPUT_VARIABLE TURBOQUANT_BUILD_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
++target_compile_definitions(${TARGET_NAME_OBJ} PRIVATE OV_GENAI_TURBOQUANT_BUILD_COMMIT="${TURBOQUANT_BUILD_COMMIT}")
+ 
+ target_include_directories(${TARGET_NAME_OBJ}
+     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+diff --git a/src/cpp/include/openvino/genai/turboquant_config.hpp b/src/cpp/include/openvino/genai/turboquant_config.hpp
+index cbd4092..97484e4 100644
+--- a/src/cpp/include/openvino/genai/turboquant_config.hpp
++++ b/src/cpp/include/openvino/genai/turboquant_config.hpp
+@@ -1,5 +1,6 @@
+ #pragma once
+ #include <cstddef>
++#include <filesystem>
+ #include <string>
+ #include "openvino/core/any.hpp"
+ namespace ov::genai {
+@@ -15,4 +16,11 @@ struct ActivationTelemetry {
+  bool norm_correction=false; std::size_t expected_bytes=0, actual_bytes=0; std::string attention_path="not_activated", device; bool fallback=false; std::string build_commit, model_hash;
+ };
+ std::string activation_telemetry_json(const ActivationTelemetry& telemetry);
++std::string turboquant_build_commit();
++std::string inactive_activation_telemetry_json(const TurboQuantConfig& config,
++                                               const std::string& device,
++                                               const std::string& build_commit,
++                                               const std::string& model_hash);
++std::string turboquant_model_hash(const std::filesystem::path& model_path);
++std::string turboquant_model_hash(const std::string& model_xml);
+ }
+diff --git a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+index 9377c88..1cc9d62 100644
+--- a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
++++ b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+@@ -1,12 +1,187 @@
+ #include "openvino/genai/turboquant_config.hpp"
++
++#include <algorithm>
+ #include <sstream>
++#include <fstream>
++#include <iomanip>
++#include <unordered_set>
++#include <vector>
++
+ #include "openvino/core/except.hpp"
+-namespace ov::genai { namespace {
+-CacheAlgorithm parse(const ov::Any& v,const char* p){auto s=v.as<std::string>(); if(s=="STANDARD")return CacheAlgorithm::STANDARD;if(s=="TBQ3")return CacheAlgorithm::TBQ3;if(s=="TBQ4")return CacheAlgorithm::TBQ4;OPENVINO_THROW("Unsupported ",p," value: ",s);}
+-const char* name(CacheAlgorithm a){switch(a){case CacheAlgorithm::STANDARD:return "STANDARD";case CacheAlgorithm::TBQ3:return "TBQ3";case CacheAlgorithm::TBQ4:return "TBQ4";}OPENVINO_THROW("Invalid TurboQuant cache algorithm enum");}
+-std::string quote(const std::string& s){OPENVINO_ASSERT(s.size()<=1024,"TurboQuant telemetry field exceeds 1024 bytes");std::string r="\"";for(unsigned char c:s){if(c=='\"')r+="\\\"";else if(c=='\\')r+="\\\\";else if(c=='\n')r+="\\n";else if(c=='\r')r+="\\r";else if(c=='\t')r+="\\t";else{OPENVINO_ASSERT(c>=0x20,"TurboQuant telemetry contains a control character");r+=static_cast<char>(c);}}return r+'\"';}
++
++namespace ov::genai {
++namespace {
++
++CacheAlgorithm parse_algorithm(const ov::Any& value, const char* property) {
++    const auto text = value.as<std::string>();
++    if (text == "STANDARD") return CacheAlgorithm::STANDARD;
++    if (text == "TBQ3") return CacheAlgorithm::TBQ3;
++    if (text == "TBQ4") return CacheAlgorithm::TBQ4;
++    OPENVINO_THROW("Unsupported ", property, " value: ", text);
+ }
+-TurboQuantConfig parse_turboquant_config(ov::AnyMap& p){TurboQuantConfig r;auto consume=[&](const char* n,CacheAlgorithm& a){auto i=p.find(n);if(i!=p.end()){a=parse(i->second,n);p.erase(i);}};consume(TURBOQUANT_KEY_ALGORITHM,r.key_algorithm);consume(TURBOQUANT_VALUE_ALGORITHM,r.value_algorithm);auto i=p.find(TURBOQUANT_NORM_CORRECTION);if(i!=p.end()){r.norm_correction=i->second.as<bool>();p.erase(i);}return r;}
+-std::string activation_telemetry_json(const ActivationTelemetry&t){std::ostringstream o;o<<'{'
+-<<"\"requested_key_algorithm\":\""<<name(t.requested_key_algorithm)<<"\",\"requested_value_algorithm\":\""<<name(t.requested_value_algorithm)<<"\",\"activated_key_algorithm\":\""<<name(t.activated_key_algorithm)<<"\",\"activated_value_algorithm\":\""<<name(t.activated_value_algorithm)<<"\",\"norm_correction\":"<<(t.norm_correction?"true":"false")<<",\"expected_bytes\":"<<t.expected_bytes<<",\"actual_bytes\":"<<t.actual_bytes<<",\"attention_path\":"<<quote(t.attention_path)<<",\"device\":"<<quote(t.device)<<",\"fallback\":"<<(t.fallback?"true":"false")<<",\"build_commit\":"<<quote(t.build_commit)<<",\"model_hash\":"<<quote(t.model_hash)<<'}';auto r=o.str();OPENVINO_ASSERT(r.size()<=4096,"TurboQuant activation telemetry exceeds 4096 bytes");return r;}
++
++const char* algorithm_name(CacheAlgorithm algorithm) {
++    switch (algorithm) {
++    case CacheAlgorithm::STANDARD: return "STANDARD";
++    case CacheAlgorithm::TBQ3: return "TBQ3";
++    case CacheAlgorithm::TBQ4: return "TBQ4";
++    }
++    OPENVINO_THROW("Invalid TurboQuant cache algorithm enum");
+ }
++
++void validate_utf8(const std::string& value) {
++    for (std::size_t i = 0; i < value.size();) {
++        const auto lead = static_cast<unsigned char>(value[i]);
++        std::size_t continuation = 0;
++        if (lead <= 0x7f) continuation = 0;
++        else if (lead >= 0xc2 && lead <= 0xdf) continuation = 1;
++        else if (lead >= 0xe0 && lead <= 0xef) continuation = 2;
++        else if (lead >= 0xf0 && lead <= 0xf4) continuation = 3;
++        else OPENVINO_THROW("TurboQuant telemetry contains invalid UTF-8");
++        OPENVINO_ASSERT(i + continuation < value.size(), "TurboQuant telemetry contains truncated UTF-8");
++        for (std::size_t j = 1; j <= continuation; ++j) {
++            const auto byte = static_cast<unsigned char>(value[i + j]);
++            OPENVINO_ASSERT((byte & 0xc0) == 0x80, "TurboQuant telemetry contains invalid UTF-8");
++        }
++        i += continuation + 1;
++    }
++}
++
++std::string json_string(const std::string& value) {
++    OPENVINO_ASSERT(value.size() <= 1024, "TurboQuant telemetry field exceeds 1024 bytes");
++    validate_utf8(value);
++    std::string result = "\"";
++    for (const unsigned char c : value) {
++        if (c == '"') result += "\\\"";
++        else if (c == '\\') result += "\\\\";
++        else if (c == '\n') result += "\\n";
++        else if (c == '\r') result += "\\r";
++        else if (c == '\t') result += "\\t";
++        else {
++            OPENVINO_ASSERT(c >= 0x20, "TurboQuant telemetry contains a control character");
++            result += static_cast<char>(c);
++        }
++    }
++    return result + '"';
++}
++
++}  // namespace
++
++TurboQuantConfig parse_turboquant_config(ov::AnyMap& properties) {
++    static const std::unordered_set<std::string> accepted{
++        TURBOQUANT_KEY_ALGORITHM, TURBOQUANT_VALUE_ALGORITHM, TURBOQUANT_NORM_CORRECTION};
++    for (const auto& [name, value] : properties) {
++        if (name.rfind("TURBOQUANT_", 0) == 0 && accepted.count(name) == 0) {
++            OPENVINO_THROW("Unknown TurboQuant property: ", name);
++        }
++    }
++
++    TurboQuantConfig result;
++    if (const auto it = properties.find(TURBOQUANT_KEY_ALGORITHM); it != properties.end())
++        result.key_algorithm = parse_algorithm(it->second, TURBOQUANT_KEY_ALGORITHM);
++    if (const auto it = properties.find(TURBOQUANT_VALUE_ALGORITHM); it != properties.end())
++        result.value_algorithm = parse_algorithm(it->second, TURBOQUANT_VALUE_ALGORITHM);
++    if (const auto it = properties.find(TURBOQUANT_NORM_CORRECTION); it != properties.end())
++        result.norm_correction = it->second.as<bool>();
++
++    properties.erase(TURBOQUANT_KEY_ALGORITHM);
++    properties.erase(TURBOQUANT_VALUE_ALGORITHM);
++    properties.erase(TURBOQUANT_NORM_CORRECTION);
++    return result;
++}
++
++std::string activation_telemetry_json(const ActivationTelemetry& telemetry) {
++    std::ostringstream out;
++    out << '{'
++        << "\"requested_key_algorithm\":\"" << algorithm_name(telemetry.requested_key_algorithm) << "\","
++        << "\"requested_value_algorithm\":\"" << algorithm_name(telemetry.requested_value_algorithm) << "\","
++        << "\"activated_key_algorithm\":\"" << algorithm_name(telemetry.activated_key_algorithm) << "\","
++        << "\"activated_value_algorithm\":\"" << algorithm_name(telemetry.activated_value_algorithm) << "\","
++        << "\"norm_correction\":" << (telemetry.norm_correction ? "true" : "false") << ','
++        << "\"expected_bytes\":" << telemetry.expected_bytes << ','
++        << "\"actual_bytes\":" << telemetry.actual_bytes << ','
++        << "\"attention_path\":" << json_string(telemetry.attention_path) << ','
++        << "\"device\":" << json_string(telemetry.device) << ','
++        << "\"fallback\":" << (telemetry.fallback ? "true" : "false") << ','
++        << "\"build_commit\":" << json_string(telemetry.build_commit) << ','
++        << "\"model_hash\":" << json_string(telemetry.model_hash) << '}';
++    auto result = out.str();
++    OPENVINO_ASSERT(result.size() <= 4096, "TurboQuant activation telemetry exceeds 4096 bytes");
++    return result;
++}
++
++std::string turboquant_build_commit() {
++#ifdef OV_GENAI_TURBOQUANT_BUILD_COMMIT
++    return OV_GENAI_TURBOQUANT_BUILD_COMMIT;
++#else
++    OPENVINO_THROW("TurboQuant build commit was not embedded");
++#endif
++}
++
++std::string inactive_activation_telemetry_json(const TurboQuantConfig& config,
++                                               const std::string& device,
++                                               const std::string& build_commit,
++                                               const std::string& model_hash) {
++    OPENVINO_ASSERT(build_commit.size() == 40, "TurboQuant build commit must be an exact 40-character Git ID");
++    OPENVINO_ASSERT(!model_hash.empty(), "TurboQuant model hash must not be empty");
++    ActivationTelemetry telemetry;
++    telemetry.requested_key_algorithm = config.key_algorithm;
++    telemetry.requested_value_algorithm = config.value_algorithm;
++    telemetry.norm_correction = config.norm_correction;
++    telemetry.attention_path = "not_activated";
++    telemetry.device = device;
++    telemetry.fallback = config.key_algorithm != CacheAlgorithm::STANDARD ||
++                         config.value_algorithm != CacheAlgorithm::STANDARD;
++    telemetry.build_commit = build_commit;
++    telemetry.model_hash = model_hash;
++    return activation_telemetry_json(telemetry);
++}
++
++namespace {
++void fnv1a_update(std::uint64_t& hash, const char* data, std::size_t size) {
++    for (std::size_t i = 0; i < size; ++i) {
++        hash ^= static_cast<unsigned char>(data[i]);
++        hash *= 1099511628211ULL;
++    }
++}
++
++std::string fnv1a_hex(std::uint64_t hash) {
++    std::ostringstream out;
++    out << std::hex << std::setfill('0') << std::setw(16) << hash;
++    return out.str();
++}
++}  // namespace
++
++std::string turboquant_model_hash(const std::string& model_xml) {
++    std::uint64_t hash = 14695981039346656037ULL;
++    fnv1a_update(hash, model_xml.data(), model_xml.size());
++    return fnv1a_hex(hash);
++}
++
++std::string turboquant_model_hash(const std::filesystem::path& model_path) {
++    std::vector<std::filesystem::path> files;
++    if (std::filesystem::is_regular_file(model_path)) {
++        files.push_back(model_path);
++    } else {
++        for (const auto& entry : std::filesystem::recursive_directory_iterator(model_path)) {
++            if (entry.is_regular_file()) files.push_back(entry.path());
++        }
++    }
++    std::sort(files.begin(), files.end());
++    OPENVINO_ASSERT(!files.empty(), "Cannot hash an empty model path");
++    std::uint64_t hash = 14695981039346656037ULL;
++    std::vector<char> buffer(64 * 1024);
++    for (const auto& file : files) {
++        const auto relative = std::filesystem::relative(file, model_path).generic_string();
++        fnv1a_update(hash, relative.data(), relative.size());
++        std::ifstream stream(file, std::ios::binary);
++        OPENVINO_ASSERT(stream, "Cannot read model file for hashing: ", file.string());
++        while (stream) {
++            stream.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++            fnv1a_update(hash, buffer.data(), static_cast<std::size_t>(stream.gcount()));
++        }
++    }
++    return fnv1a_hex(hash);
++}
++
++}  // namespace ov::genai
+diff --git a/src/cpp/src/llm/pipeline.cpp b/src/cpp/src/llm/pipeline.cpp
+index 816b93f..8ad69f2 100644
+--- a/src/cpp/src/llm/pipeline.cpp
++++ b/src/cpp/src/llm/pipeline.cpp
+@@ -213,10 +213,11 @@ ov::genai::LLMPipeline::LLMPipeline(
+ 
+     bool is_npu_requested = ov::genai::utils::is_npu_requested(device, user_properties);
+     auto [properties, attention_backend] = utils::extract_attention_backend(user_properties, is_npu_requested);
+-    const auto turboquant_config = utils::extract_turboquant_config(properties);
+     utils::extract_extensions_to_core(properties);
+-
+-    std::shared_ptr<ov::Model> model = utils::read_model(models_path, properties);
++    auto [turboquant_config, model] = utils::extract_turboquant_before_boundary(
++        properties, [&](const ov::AnyMap& plugin_properties) {
++            return utils::read_model(models_path, plugin_properties);
++        });
+ 
+     const auto generation_config = utils::from_config_json_if_exists(models_path);
+     if (is_npu_requested) {
+@@ -244,7 +245,9 @@ ov::genai::LLMPipeline::LLMPipeline(
+         m_pimpl = std::make_unique<StatefulLLMPipeline>(model, tokenizer, device, properties, generation_config);
+     }
+ 
+-    m_pimpl->set_turboquant_config(turboquant_config); m_pimpl->save_load_time(start_time);
++    m_pimpl->set_turboquant_config(turboquant_config);
++    m_pimpl->emit_turboquant_activation(device, turboquant_model_hash(models_path));
++    m_pimpl->save_load_time(start_time);
+ }
+ 
+ ov::genai::LLMPipeline::LLMPipeline(
+@@ -256,11 +259,11 @@ ov::genai::LLMPipeline::LLMPipeline(
+ 
+     bool is_npu_requested = ov::genai::utils::is_npu_requested(device, user_properties);
+     auto [properties, attention_backend] = utils::extract_attention_backend(user_properties, is_npu_requested);
+-    const auto turboquant_config = utils::extract_turboquant_config(properties);
+     utils::extract_extensions_to_core(properties);
+-
+-    // Read model and create tokenizer once to avoid double I/O during pipeline construction.
+-    std::shared_ptr<ov::Model> model = utils::read_model(models_path, properties);
++    auto [turboquant_config, model] = utils::extract_turboquant_before_boundary(
++        properties, [&](const ov::AnyMap& plugin_properties) {
++            return utils::read_model(models_path, plugin_properties);
++        });
+     const Tokenizer tokenizer(models_path, properties);
+ 
+     const auto generation_config = utils::from_config_json_if_exists(models_path);
+@@ -290,7 +293,9 @@ ov::genai::LLMPipeline::LLMPipeline(
+         m_pimpl = std::make_unique<StatefulLLMPipeline>(model, tokenizer, device, properties, generation_config);
+     }
+ 
+-    m_pimpl->set_turboquant_config(turboquant_config); m_pimpl->save_load_time(start_time);
++    m_pimpl->set_turboquant_config(turboquant_config);
++    m_pimpl->emit_turboquant_activation(device, turboquant_model_hash(models_path));
++    m_pimpl->save_load_time(start_time);
+ }
+ 
+ ov::genai::LLMPipeline::LLMPipeline(
+@@ -346,7 +351,9 @@ ov::genai::LLMPipeline::LLMPipeline(
+             generation_config);
+     }
+ 
+-    m_pimpl->set_turboquant_config(turboquant_config); m_pimpl->save_load_time(start_time);
++    m_pimpl->set_turboquant_config(turboquant_config);
++    m_pimpl->emit_turboquant_activation(device, turboquant_model_hash(model_str));
++    m_pimpl->save_load_time(start_time);
+ }
+ 
+ DecodedResults LLMPipeline::generate(
+diff --git a/src/cpp/src/llm/pipeline_base.hpp b/src/cpp/src/llm/pipeline_base.hpp
+index aca53cd..f371224 100644
+--- a/src/cpp/src/llm/pipeline_base.hpp
++++ b/src/cpp/src/llm/pipeline_base.hpp
+@@ -3,6 +3,8 @@
+ 
+ #pragma once
+ 
++#include <iostream>
++
+ #include "openvino/genai/llm_pipeline.hpp"
+ #include "openvino/genai/tokenizer.hpp"
+ #include "openvino/genai/streamer_base.hpp"
+@@ -30,6 +32,11 @@ public:
+         m_attention_backend = attention_backend;
+     }
+     void set_turboquant_config(const TurboQuantConfig& config) { m_turboquant_config = config; }
++    void emit_turboquant_activation(const std::string& device, const std::string& model_hash) const {
++        std::clog << inactive_activation_telemetry_json(
++                         m_turboquant_config, device, turboquant_build_commit(), model_hash)
++                  << std::endl;
++    }
+ 
+     void set_generation_config(GenerationConfig config) {
+         int64_t default_eos_token_id = m_generation_config.eos_token_id;
+diff --git a/src/cpp/src/utils.hpp b/src/cpp/src/utils.hpp
+index a970274..2973d97 100644
+--- a/src/cpp/src/utils.hpp
++++ b/src/cpp/src/utils.hpp
+@@ -58,6 +58,13 @@ namespace genai {
+ namespace utils {
+ TurboQuantConfig extract_turboquant_config(ov::AnyMap& properties);
+ 
++template <typename Boundary>
++auto extract_turboquant_before_boundary(ov::AnyMap& properties, Boundary&& boundary) {
++    auto config = parse_turboquant_config(properties);
++    auto result = std::forward<Boundary>(boundary)(properties);
++    return std::make_pair(config, std::move(result));
++}
++
+ // Variable template that checks if a type has begin() and end() member functions
+ template<typename, typename = void>
+ constexpr bool is_container = false;
+diff --git a/tests/cpp/CMakeLists.txt b/tests/cpp/CMakeLists.txt
+index 5b39f07..3a666e6 100644
+--- a/tests/cpp/CMakeLists.txt
++++ b/tests/cpp/CMakeLists.txt
+@@ -33,8 +33,11 @@ target_link_libraries(turboquant_codec_tests PRIVATE gtest_main)
+ target_include_directories(turboquant_codec_tests PRIVATE "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src")
+ target_compile_features(turboquant_codec_tests PRIVATE cxx_std_17)
+ add_executable(turboquant_config_tests turboquant_config.cpp "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src/continuous_batching/cache/turboquant_config.cpp")
+-target_link_libraries(turboquant_config_tests PRIVATE gtest_main openvino::runtime)
+-target_include_directories(turboquant_config_tests PRIVATE "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/include")
++execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${OpenVINOGenAI_SOURCE_DIR}"
++                OUTPUT_VARIABLE TURBOQUANT_TEST_BUILD_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
++target_compile_definitions(turboquant_config_tests PRIVATE OV_GENAI_TURBOQUANT_BUILD_COMMIT="${TURBOQUANT_TEST_BUILD_COMMIT}")
++target_link_libraries(turboquant_config_tests PRIVATE gtest openvino::runtime nlohmann_json::nlohmann_json)
++target_include_directories(turboquant_config_tests PRIVATE "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/include" "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src")
+ target_compile_features(turboquant_config_tests PRIVATE cxx_std_17)
+ 
+ add_executable(${TEST_TARGET_NAME} ${tests_src} $<TARGET_OBJECTS:openvino_genai_obj>)
+diff --git a/tests/cpp/turboquant_config.cpp b/tests/cpp/turboquant_config.cpp
+index ae80c41..d9eecfc 100644
+--- a/tests/cpp/turboquant_config.cpp
++++ b/tests/cpp/turboquant_config.cpp
+@@ -1,8 +1,92 @@
+ #include <gtest/gtest.h>
++
++#include <iostream>
++#include <nlohmann/json.hpp>
++
+ #include "openvino/genai/turboquant_config.hpp"
++#include "utils.hpp"
+ using namespace ov::genai;
+ TEST(TurboQuantConfig,PreservesAllAsymmetricSelectionsAndRemovesExactProperties){const std::pair<const char*,CacheAlgorithm> v[]={{"STANDARD",CacheAlgorithm::STANDARD},{"TBQ3",CacheAlgorithm::TBQ3},{"TBQ4",CacheAlgorithm::TBQ4}};for(auto k:v)for(auto x:v){ov::AnyMap p{{TURBOQUANT_KEY_ALGORITHM,std::string(k.first)},{TURBOQUANT_VALUE_ALGORITHM,std::string(x.first)},{TURBOQUANT_NORM_CORRECTION,true},{"PERFORMANCE_HINT",std::string("LATENCY")}};auto c=parse_turboquant_config(p);EXPECT_EQ(c.key_algorithm,k.second);EXPECT_EQ(c.value_algorithm,x.second);EXPECT_TRUE(c.norm_correction);EXPECT_EQ(p.size(),1u);}}
+ TEST(TurboQuantConfig,DefaultsToStandardWithoutNormCorrection){ov::AnyMap p;auto c=parse_turboquant_config(p);EXPECT_EQ(c.key_algorithm,CacheAlgorithm::STANDARD);EXPECT_EQ(c.value_algorithm,CacheAlgorithm::STANDARD);EXPECT_FALSE(c.norm_correction);}
+ TEST(TurboQuantConfig,RejectsUnknownOrWrongCaseAlgorithms){for(const char*s:{"TBQ5","tbq3","standard",""}){ov::AnyMap p{{TURBOQUANT_KEY_ALGORITHM,std::string(s)}};EXPECT_THROW(parse_turboquant_config(p),ov::Exception);}}
+ TEST(TurboQuantConfig,EmitsBoundedActivationJsonWithoutClaimingActivation){ActivationTelemetry t;t.requested_key_algorithm=CacheAlgorithm::TBQ3;t.requested_value_algorithm=CacheAlgorithm::TBQ4;t.norm_correction=true;t.expected_bytes=123;t.attention_path="not_activated";t.device="CPU";t.fallback=true;t.build_commit="0123456789abcdef0123456789abcdef01234567";t.model_hash="abcdef";auto j=activation_telemetry_json(t);EXPECT_LT(j.size(),4096u);EXPECT_NE(j.find("\"activated_key_algorithm\":\"STANDARD\""),std::string::npos);EXPECT_NE(j.find("\"fallback\":true"),std::string::npos);}
+ TEST(TurboQuantConfig,RejectsOversizedTelemetryFields){ActivationTelemetry t;t.model_hash.assign(1025,'x');EXPECT_THROW(activation_telemetry_json(t),ov::Exception);}
++
++TEST(TurboQuantConfig, RejectsUnknownTurboQuantPropertyWithoutMutation) {
++    ov::AnyMap properties{{TURBOQUANT_KEY_ALGORITHM, std::string("TBQ3")},
++                          {"TURBOQUANT_VALUE_ALGORITM", std::string("TBQ4")}};
++    const auto original = properties;
++    EXPECT_THROW(parse_turboquant_config(properties), ov::Exception);
++    EXPECT_EQ(properties.size(), original.size());
++    EXPECT_EQ(properties.at(TURBOQUANT_KEY_ALGORITHM).as<std::string>(), "TBQ3");
++}
++
++TEST(TurboQuantConfig, RejectsWrongTypesWithoutPartialMutation) {
++    ov::AnyMap properties{{TURBOQUANT_KEY_ALGORITHM, std::string("TBQ3")},
++                          {TURBOQUANT_VALUE_ALGORITHM, true}};
++    EXPECT_THROW(parse_turboquant_config(properties), ov::Exception);
++    EXPECT_EQ(properties.size(), 2u);
++    EXPECT_NE(properties.find(TURBOQUANT_KEY_ALGORITHM), properties.end());
++    EXPECT_NE(properties.find(TURBOQUANT_VALUE_ALGORITHM), properties.end());
++}
++
++TEST(TurboQuantConfig, SerializerProducesParseableJsonAndRejectsInvalidUtf8) {
++    ActivationTelemetry telemetry;
++    telemetry.device = "CPU\tdevice";
++    telemetry.build_commit = "0123456789abcdef0123456789abcdef01234567";
++    telemetry.model_hash = "abcdef";
++    const auto parsed = nlohmann::json::parse(activation_telemetry_json(telemetry));
++    EXPECT_EQ(parsed.at("device"), "CPU\tdevice");
++    telemetry.device = std::string("\xc3\x28", 2);
++    EXPECT_THROW(activation_telemetry_json(telemetry), ov::Exception);
++}
++
++TEST(TurboQuantPipeline, ExtractsBeforeModelBoundaryAndKeepsConfig) {
++    ov::AnyMap properties{{TURBOQUANT_KEY_ALGORITHM, std::string("TBQ3")},
++                          {TURBOQUANT_VALUE_ALGORITHM, std::string("TBQ4")},
++                          {"PERFORMANCE_HINT", std::string("LATENCY")}};
++    bool boundary_called = false;
++    auto [config, result] = ov::genai::utils::extract_turboquant_before_boundary(
++        properties,
++        [&](const ov::AnyMap& plugin_properties) {
++            boundary_called = true;
++            EXPECT_EQ(plugin_properties.size(), 1u);
++            EXPECT_EQ(plugin_properties.count("TURBOQUANT_KEY_ALGORITHM"), 0u);
++            return 17;
++        });
++    EXPECT_TRUE(boundary_called);
++    EXPECT_EQ(result, 17);
++    EXPECT_EQ(config.key_algorithm, CacheAlgorithm::TBQ3);
++    EXPECT_EQ(config.value_algorithm, CacheAlgorithm::TBQ4);
++}
++
++TEST(TurboQuantPipeline, BuildsInactiveProductionRecordWithExactIdentity) {
++    TurboQuantConfig config{CacheAlgorithm::TBQ3, CacheAlgorithm::TBQ4, true};
++    const auto json = inactive_activation_telemetry_json(config, "CPU", turboquant_build_commit(), "model-deadbeef");
++    const auto parsed = nlohmann::json::parse(json);
++    EXPECT_EQ(parsed.at("requested_key_algorithm"), "TBQ3");
++    EXPECT_EQ(parsed.at("activated_key_algorithm"), "STANDARD");
++    EXPECT_EQ(parsed.at("actual_bytes"), 0u);
++    EXPECT_EQ(parsed.at("attention_path"), "not_activated");
++    EXPECT_TRUE(parsed.at("fallback"));
++    EXPECT_EQ(parsed.at("build_commit").get<std::string>().size(), 40u);
++    EXPECT_EQ(parsed.at("model_hash"), "model-deadbeef");
++}
++
++int main(int argc, char** argv) {
++    if (argc == 2 && std::string(argv[1]) == "--emit-activation-json") {
++        ActivationTelemetry telemetry;
++        telemetry.requested_key_algorithm = CacheAlgorithm::TBQ3;
++        telemetry.requested_value_algorithm = CacheAlgorithm::TBQ4;
++        telemetry.norm_correction = true;
++        telemetry.attention_path = "not_activated";
++        telemetry.device = "CPU";
++        telemetry.fallback = true;
++        telemetry.build_commit = "0123456789abcdef0123456789abcdef01234567";
++        telemetry.model_hash = "abcdef";
++        std::cout << activation_telemetry_json(telemetry) << '\n';
++        return 0;
++    }
++    ::testing::InitGoogleTest(&argc, argv);
++    return RUN_ALL_TESTS();
++}
+diff --git a/tests/python/test_turboquant_activation_schema.py b/tests/python/test_turboquant_activation_schema.py
+index 3ad50ed..2bbea5c 100644
+--- a/tests/python/test_turboquant_activation_schema.py
++++ b/tests/python/test_turboquant_activation_schema.py
+@@ -1,14 +1,50 @@
+-import json, unittest
+-REQUIRED={"requested_key_algorithm","requested_value_algorithm","activated_key_algorithm","activated_value_algorithm","norm_correction","expected_bytes","actual_bytes","attention_path","device","fallback","build_commit","model_hash"}
+-def validate_activation_record(r):
+- if set(r)!=REQUIRED: raise ValueError("activation record fields differ from schema")
+- for n in ("requested_key_algorithm","requested_value_algorithm","activated_key_algorithm","activated_value_algorithm"):
+-  if r[n] not in {"STANDARD","TBQ3","TBQ4"}: raise ValueError(n)
+- if type(r["norm_correction"]) is not bool or type(r["fallback"]) is not bool: raise ValueError("flags")
+- if any(type(r[n]) is not int or r[n]<0 for n in ("expected_bytes","actual_bytes")): raise ValueError("bytes")
+- if any(type(r[n]) is not str or len(r[n].encode())>1024 for n in ("attention_path","device","build_commit","model_hash")): raise ValueError("text")
+-class Tests(unittest.TestCase):
+- def test_fixture(self): validate_activation_record(json.loads('{"requested_key_algorithm":"TBQ3","requested_value_algorithm":"TBQ4","activated_key_algorithm":"STANDARD","activated_value_algorithm":"STANDARD","norm_correction":true,"expected_bytes":123,"actual_bytes":0,"attention_path":"not_activated","device":"CPU","fallback":true,"build_commit":"0123456789abcdef0123456789abcdef01234567","model_hash":"abcdef"}'))
+- def test_extra(self):
+-  with self.assertRaises(ValueError): validate_activation_record({"unexpected":True})
+-if __name__=="__main__": unittest.main()
++import json
++import os
++import subprocess
++import unittest
++
++
++REQUIRED = {
++    "requested_key_algorithm", "requested_value_algorithm",
++    "activated_key_algorithm", "activated_value_algorithm",
++    "norm_correction", "expected_bytes", "actual_bytes", "attention_path",
++    "device", "fallback", "build_commit", "model_hash",
++}
++
++
++def validate_activation_record(record):
++    if set(record) != REQUIRED:
++        raise ValueError("activation record fields differ from schema")
++    for name in ("requested_key_algorithm", "requested_value_algorithm",
++                 "activated_key_algorithm", "activated_value_algorithm"):
++        if record[name] not in {"STANDARD", "TBQ3", "TBQ4"}:
++            raise ValueError(name)
++    if type(record["norm_correction"]) is not bool or type(record["fallback"]) is not bool:
++        raise ValueError("flags")
++    if any(type(record[name]) is not int or record[name] < 0 for name in ("expected_bytes", "actual_bytes")):
++        raise ValueError("bytes")
++    if any(type(record[name]) is not str or not record[name] or len(record[name].encode()) > 1024
++           for name in ("attention_path", "device", "build_commit", "model_hash")):
++        raise ValueError("text")
++    if len(record["build_commit"]) != 40:
++        raise ValueError("build commit")
++
++
++class TurboQuantActivationSchemaTests(unittest.TestCase):
++    def test_actual_cpp_serializer_output(self):
++        executable = os.environ["TURBOQUANT_CONFIG_TEST_EXE"]
++        output = subprocess.check_output([executable, "--emit-activation-json"], text=True)
++        record = json.loads(output)
++        validate_activation_record(record)
++        self.assertEqual(record["activated_key_algorithm"], "STANDARD")
++        self.assertEqual(record["activated_value_algorithm"], "STANDARD")
++        self.assertEqual(record["actual_bytes"], 0)
++        self.assertEqual(record["attention_path"], "not_activated")
++
++    def test_rejects_extra_fields(self):
++        with self.assertRaises(ValueError):
++            validate_activation_record({"unexpected": True})
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+index 1cc9d62..de1d933 100644
+--- a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
++++ b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+@@ -43,6 +43,18 @@ void validate_utf8(const std::string& value) {
+             const auto byte = static_cast<unsigned char>(value[i + j]);
+             OPENVINO_ASSERT((byte & 0xc0) == 0x80, "TurboQuant telemetry contains invalid UTF-8");
+         }
++        if (lead == 0xe0)
++            OPENVINO_ASSERT(static_cast<unsigned char>(value[i + 1]) >= 0xa0,
++                            "TurboQuant telemetry contains overlong UTF-8");
++        if (lead == 0xed)
++            OPENVINO_ASSERT(static_cast<unsigned char>(value[i + 1]) <= 0x9f,
++                            "TurboQuant telemetry contains a UTF-16 surrogate");
++        if (lead == 0xf0)
++            OPENVINO_ASSERT(static_cast<unsigned char>(value[i + 1]) >= 0x90,
++                            "TurboQuant telemetry contains overlong UTF-8");
++        if (lead == 0xf4)
++            OPENVINO_ASSERT(static_cast<unsigned char>(value[i + 1]) <= 0x8f,
++                            "TurboQuant telemetry exceeds U+10FFFF");
+         i += continuation + 1;
+     }
+ }
+@@ -123,6 +135,8 @@ std::string inactive_activation_telemetry_json(const TurboQuantConfig& config,
+                                                const std::string& build_commit,
+                                                const std::string& model_hash) {
+     OPENVINO_ASSERT(build_commit.size() == 40, "TurboQuant build commit must be an exact 40-character Git ID");
++    OPENVINO_ASSERT(build_commit.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos,
++                    "TurboQuant build commit must be hexadecimal");
+     OPENVINO_ASSERT(!model_hash.empty(), "TurboQuant model hash must not be empty");
+     ActivationTelemetry telemetry;
+     telemetry.requested_key_algorithm = config.key_algorithm;
+diff --git a/tests/cpp/turboquant_config.cpp b/tests/cpp/turboquant_config.cpp
+index d9eecfc..e718451 100644
+--- a/tests/cpp/turboquant_config.cpp
++++ b/tests/cpp/turboquant_config.cpp
+@@ -41,6 +41,42 @@ TEST(TurboQuantConfig, SerializerProducesParseableJsonAndRejectsInvalidUtf8) {
+     EXPECT_THROW(activation_telemetry_json(telemetry), ov::Exception);
+ }
+ 
++TEST(TurboQuantConfig, AcceptsUtf8ScalarBoundaryValues) {
++    const std::vector<std::string> valid{
++        std::string("\xc2\x80", 2), std::string("\xdf\xbf", 2),
++        std::string("\xe0\xa0\x80", 3), std::string("\xef\xbf\xbf", 3),
++        std::string("\xf0\x90\x80\x80", 4), std::string("\xf4\x8f\xbf\xbf", 4)};
++    for (const auto& scalar : valid) {
++        ActivationTelemetry telemetry;
++        telemetry.device = scalar;
++        telemetry.build_commit = "0123456789abcdef0123456789abcdef01234567";
++        telemetry.model_hash = "abcdef";
++        EXPECT_NO_THROW({ const auto parsed = nlohmann::json::parse(activation_telemetry_json(telemetry)); });
++    }
++}
++
++TEST(TurboQuantConfig, RejectsEveryInvalidUtf8ScalarCategory) {
++    const std::vector<std::string> invalid{
++        std::string("\x80", 1), std::string("\xc0\x80", 2), std::string("\xc2", 1),
++        std::string("\xc2\x20", 2), std::string("\xe0\x80\x80", 3),
++        std::string("\xed\xa0\x80", 3), std::string("\xf0\x80\x80\x80", 4),
++        std::string("\xf4\x90\x80\x80", 4), std::string("\xf5\x80\x80\x80", 4)};
++    for (const auto& scalar : invalid) {
++        ActivationTelemetry telemetry;
++        telemetry.device = scalar;
++        telemetry.build_commit = "0123456789abcdef0123456789abcdef01234567";
++        telemetry.model_hash = "abcdef";
++        EXPECT_THROW(activation_telemetry_json(telemetry), ov::Exception);
++    }
++}
++
++TEST(TurboQuantConfig, RequiresHexadecimalBuildCommit) {
++    TurboQuantConfig config;
++    EXPECT_THROW(inactive_activation_telemetry_json(
++                     config, "CPU", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", "model"),
++                 ov::Exception);
++}
++
+ TEST(TurboQuantPipeline, ExtractsBeforeModelBoundaryAndKeepsConfig) {
+     ov::AnyMap properties{{TURBOQUANT_KEY_ALGORITHM, std::string("TBQ3")},
+                           {TURBOQUANT_VALUE_ALGORITHM, std::string("TBQ4")},
