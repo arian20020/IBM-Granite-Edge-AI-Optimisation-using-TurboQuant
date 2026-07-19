@@ -1,34 +1,30 @@
 using Microsoft.Windows.Storage.Pickers;
+using System;
 using System.Threading.Tasks;
+
 
 namespace GraniteEdgeAI.Features.ModelImport.FileImport
 {
-    /// <summary>
-    /// Opens the Windows file picker for one GGUF model file.
-    /// </summary>
-    internal sealed class GgufModelFilePicker : IGgufModelFilePicker
+    class GgufModelFilePicker
     {
-        /// <summary>
-        /// Returns the selected GGUF path, or null when the user cancels.
-        /// </summary>
-        public async Task<string?> PickGgufAsync()
+        public GgufModelFilePicker()
         {
-            // Create the picker and attach it to the application's main window.
-            FileOpenPicker openGgufPicker =
-                new FileOpenPicker(App.MainWindow.AppWindow.Id);
+        }
+        public async Task<PickFileResult?> PickGGUFAsync()
+        {
 
-            // Apply the centrally defined GGUF-only extension list.
-            foreach (string extension in GgufPickerConfiguration.AllowedFileExtensions)
+            FileOpenPicker openGGUFPicker = new FileOpenPicker(App.MainWindow.AppWindow.Id);
+
+            openGGUFPicker.FileTypeFilter.Add(".gguf");
+
+            PickFileResult? file = await openGGUFPicker.PickSingleFileAsync();
+
+            if (file == null)
             {
-                openGgufPicker.FileTypeFilter.Add(extension);
+                return null;
             }
 
-            // Wait for the user to select one file or cancel the picker.
-            PickFileResult? selectedFile =
-                await openGgufPicker.PickSingleFileAsync();
-
-            // Return only the path needed by the later import stages.
-            return selectedFile?.Path;
+            return file;
         }
     }
 }
