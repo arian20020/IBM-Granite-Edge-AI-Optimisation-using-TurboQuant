@@ -25,7 +25,7 @@ defaults:
     shell: pwsh
     # Keep the checkout path short. The WinUI XAML compiler still creates
     # intermediate paths that can exceed legacy Windows path limits.
-    working-directory: s
+    working-directory: ${{ runner.temp }}\s
 
 # Keep project paths in one place so the commands cannot accidentally
 # point to different projects.
@@ -62,12 +62,26 @@ jobs:
       - name: Check out required build inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          # GitHub's default Windows checkout repeats the long repository
-          # name twice. A short directory prevents WMC9999 path failures.
-          path: s
           sparse-checkout: |
             IBM Granite with TurboQuant (Intel)
             tests/UnitTests/GraniteEdgeAI.UnitTests
+
+      # actions/checkout only accepts paths beneath GITHUB_WORKSPACE, whose
+      # Windows path repeats the long repository name. Copy the sparse tree to
+      # the runner's short temporary root before invoking the XAML compiler.
+      - name: Stage build inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $buildRoot = Join-Path $env:RUNNER_TEMP 's'
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage build inputs at $buildRoot."
+          }
+
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw "The staged checkout is incomplete: global.json was not found."
+          }
 
       # Install the .NET SDK selected by the repository's global.json.
       #
@@ -75,7 +89,7 @@ jobs:
       - name: Set up .NET SDK from global.json
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
         with:
-          global-json-file: s/global.json
+          global-json-file: ${{ runner.temp }}/s/global.json
 
       # Locate the x64 MSBuild installation supplied by Visual Studio
       # on the Windows runner.
@@ -157,10 +171,10 @@ jobs:
           }
 
           & $vstest `
-            "$env:GITHUB_WORKSPACE\s\$env:TEST_RECIPE" `
+            "$env:RUNNER_TEMP\s\$env:TEST_RECIPE" `
             /Platform:x64 `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
-            /ResultsDirectory:"$env:GITHUB_WORKSPACE\s\$env:TEST_RESULTS_DIRECTORY"
+            /ResultsDirectory:"$env:RUNNER_TEMP\s\$env:TEST_RESULTS_DIRECTORY"
 
       # Preserve the available report even when unit tests fail.
       #
@@ -173,6 +187,6 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}
-          path: s/TestResults/UnitTests/**/*.trx
+          path: ${{ runner.temp }}/s/TestResults/UnitTests/**/*.trx
           if-no-files-found: warn
           retention-days: 30
