@@ -6,7 +6,13 @@
       <stop offset="1" stop-color="#003A9F"/>
     </linearGradient>
   </defs>
-  <g transform="translate(20 12) scale(0.75)" data-brand-element="Granite Edge AI G monogram">
+  <g transform="translate(20 12) scale(0.75)"><defs>
+    <linearGradient id="graniteBlue" x1="48" y1="256" x2="420" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F62FE"/>
+      <stop offset="1" stop-color="#003A9F"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0 0)" data-brand-element="Granite Edge AI G monogram">
     <path d="M151 72H420L393 108H119C128 91 139 79 151 72Z" fill="url(#graniteBlue)"/>
     <path d="M100 126H386L359 162H77C83 148 91 136 100 126Z" fill="url(#graniteBlue)"/>
     <path d="M68 180H169L142 216H55C58 203 62 191 68 180Z" fill="url(#graniteBlue)"/>
@@ -16,6 +22,11 @@
     <path d="M119 396H393L420 432H151C139 425 128 413 119 396Z" fill="url(#graniteBlue)"/>
     <path d="M228 234H420V270H196L228 234Z" fill="url(#graniteBlue)"/>
     <path d="M267 288H420V324H235L267 288Z" fill="url(#graniteBlue)"/>
-  </g>
-  <text x="360" y="255" font-family="'IBM Plex Sans', 'Segoe UI', Arial, sans-serif" font-size="138" font-weight="600" letter-spacing="-4" xml:space="preserve" fill="#102E6B">Granite Edge <tspan fill="#0F62FE">AI</tspan></text>
+  </g></g>
+  <text x="360" y="255"
+        font-family="'IBM Plex Sans', 'Segoe UI', Arial, sans-serif"
+        font-size="138"
+        font-weight="600"
+        letter-spacing="-4"
+        fill="#102E6B">Granite Edge <tspan fill="#0F62FE">AI</tspan></text>
 </svg>
