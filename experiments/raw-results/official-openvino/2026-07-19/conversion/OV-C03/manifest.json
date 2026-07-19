@@ -1,0 +1,49 @@
+{
+  "command": [],
+  "files": {},
+  "installed_tool_versions": {
+    "openvino": "2026.2.1",
+    "optimum-intel": "2.0.0"
+  },
+  "load_probe": {},
+  "precision": "u4",
+  "source_model": "ibm-granite/granite-4.1-3b",
+  "source_revision": "c0650403e44e78ec0262dab1c90914c65b196c4e",
+  "terminal_classification": "memory-gate-not-run",
+  "terminal_evidence": {
+    "available_ram_bytes": 8995352576,
+    "estimated_peak_bytes": 7879456616,
+    "measurement": "psutil.virtual_memory().available immediately before row",
+    "planned_command": [
+      [
+        "hf",
+        "download",
+        "ibm-granite/granite-4.1-3b",
+        "--revision",
+        "c0650403e44e78ec0262dab1c90914c65b196c4e"
+      ],
+      [
+        "optimum-cli",
+        "export",
+        "openvino",
+        "--model",
+        "<immutable-snapshot-path>",
+        "--task",
+        "text-generation-with-past",
+        "--weight-format",
+        "int4"
+      ]
+    ],
+    "required_available_bytes": 10026940264,
+    "required_floor_bytes": 2147483648,
+    "source_tensor_bytes": 6805714792,
+    "workspace_allowance_bytes": 1073741824
+  },
+  "test_id": "OV-C03",
+  "tool_versions": {},
+  "validation": {
+    "accepted": true,
+    "status": "memory-gate-not-run",
+    "test_id": "OV-C03"
+  }
+}
