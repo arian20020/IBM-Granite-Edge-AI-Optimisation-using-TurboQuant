@@ -1,0 +1,90 @@
+{
+    "campaign_date":  "2026-07-19",
+    "powershell_version":  "5.1.26100.8875",
+    "cmake":  "not-found",
+    "compiler":  "not-found",
+    "computer_system":  {
+                            "Manufacturer":  "LENOVO",
+                            "Model":  "83ER",
+                            "TotalPhysicalMemory":  16857817088
+                        },
+    "processors":  [
+                       {
+                           "Name":  "12th Gen Intel(R) Core(TM) i5-12450H",
+                           "Manufacturer":  "GenuineIntel",
+                           "NumberOfCores":  8,
+                           "NumberOfLogicalProcessors":  12,
+                           "DriverVersion":  null
+                       }
+                   ],
+    "graphics":  [
+                     {
+                         "Name":  "Intel(R) UHD Graphics",
+                         "DriverVersion":  "32.0.101.7076",
+                         "AdapterRAM":  2147479552
+                     }
+                 ],
+    "openvino":  {
+                     "name":  "openvino",
+                     "tag":  "2026.2.1",
+                     "commit":  "ede283a88e35465f0d680dabbf1f44080f8fc387",
+                     "remote":  "https://github.com/openvinotoolkit/openvino.git",
+                     "dirty":  false,
+                     "submodules":  [
+                                        " 63e59ed312ba7a946779596e86124c1633f67607 cmake/developer_package/ncc_naming_style/ncc (v1.0.0-15-g63e59ed)",
+                                        " 45fab4087eaaff234227a10cf7845e8b07f28a98 src/bindings/python/thirdparty/pybind11 (v3.0.2)",
+                                        " c245aa08b328fe7ef1d356f40b89ebc587524dae src/plugins/intel_cpu/thirdparty/ComputeLibrary (c245aa08b)",
+                                        " 7d82645ca2f3c3d58a5c0b1a96905e53916c8ff8 src/plugins/intel_cpu/thirdparty/kleidiai (v1.19.0)",
+                                        " 13df674c4b73a1b84f6456de8595903ebfbb43e0 src/plugins/intel_cpu/thirdparty/libxsmm (1.old_kernelapi_rip-1491-g13df674c4)",
+                                        " d1bc25ec4660cddd87804fcf03b2411b5dfb2e94 src/plugins/intel_cpu/thirdparty/mlas (d1bc25e)",
+                                        " 87f65fdd1927b1d0cbdf0ea37728146abfbffb52 src/plugins/intel_cpu/thirdparty/onednn (v0.1-rc-20638-g87f65fdd1)",
+                                        " 07139a6df3942e4afa447c0885c50f3dacfab2f3 src/plugins/intel_cpu/thirdparty/xbyak_riscv (v1.00)",
+                                        " 20db47e2d3c4df1b66e93bed2e97d30da175512d src/plugins/intel_gpu/thirdparty/onednn_gpu (v0.1-rc-21792-g20db47e2d)",
+                                        " f9ad3bf89c2418d714aef2e6b96a5aafb12a1971 src/plugins/intel_npu/thirdparty/level-zero-ext (heads/main)",
+                                        " da82fd982c260e7f335ce5acbceff24b270544d1 src/plugins/intel_npu/thirdparty/yaml-cpp (0.8.0-46-gda82fd9)",
+                                        " 595bf0007ab1929570c7671f091313c8fc20644e thirdparty/flatbuffers/flatbuffers (v24.3.25)",
+                                        " e171aa2d15ed9eb17054558e0b3a6a413bb01067 thirdparty/gflags/gflags (v2.2.2)",
+                                        " 8411df715cf522606e3b1aca386ddfc0b63d34b4 thirdparty/gflags/gflags/doc (v2.3.0~28^2~1^2)",
+                                        " 03e2ed1291b40062be24df240f597d995aaaa962 thirdparty/gtest/gtest (release-1.8.0-3545-g03e2ed12)",
+                                        " ca45fef1a12cef3316e6ff362a4d36571270e392 thirdparty/ittapi/ittapi (v3.26.3-2-gca45fef)",
+                                        " 9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03 thirdparty/json/nlohmann_json (9cca280a)",
+                                        " d562046e7266120e8be3533597b65f34a00524c1 thirdparty/level_zero/level-zero (v1.27.0)",
+                                        " 4ea6df132107e3b4b9407f903204b5522fdffcd6 thirdparty/ocl/cl_headers (v2024.10.24)",
+                                        " c7b4aded1cab9560b226041dd962f63375a9a384 thirdparty/ocl/clhpp_headers (v2024.10.24)",
+                                        " 379a9a8d5dd5cdff8fd345710dd70ae26f966c71 thirdparty/ocl/clhpp_headers/external/CMock (v2.5.3-40-g379a9a8)",
+                                        " 71b47be7c950f1bf5f7e5303779fa99a16224bb6 thirdparty/ocl/clhpp_headers/external/CMock/vendor/c_exception (71b47be)",
+                                        " 4389bab82ee8a4b4631a03be2e07dd5c67dab2d4 thirdparty/ocl/clhpp_headers/external/CMock/vendor/unity (v2.5.2-46-g4389bab)",
+                                        " 5907ac1114079de4383cecddf1c8640e3f52f92b thirdparty/ocl/icd_loader (v2024.10.24)",
+                                        " e709452ef2bbc1d113faf678c24e6d3467696e83 thirdparty/onnx/onnx (v1.3.0-2082-ge709452e)",
+                                        " a2e59f0e7065404b44dfe92a28aca47ba1378dc4 thirdparty/onnx/onnx/third_party/pybind11 (v2.11.0-182-ga2e59f0e)",
+                                        " f0dc78d7e6e331b8c6bb2d5283e06aa26883ca7c thirdparty/protobuf/protobuf (v21.12)",
+                                        " 5b7683f49e1e9223cf9927b24f6fd3d6bd82e3f8 thirdparty/protobuf/protobuf/third_party/benchmark (v1.2.0)",
+                                        " 5ec7f0c4a113e2f18ac2c6cc7df51ad6afc24081 thirdparty/protobuf/protobuf/third_party/googletest (release-1.8.0-1696-g5ec7f0c4)",
+                                        " ee86beb30e4973f5feffe3ce63bfa4fbadf72f38 thirdparty/pugixml (v1.15)",
+                                        " 2c94e11145f0b7b184b831577c93e5a41c4c0346 thirdparty/snappy (1.2.1)",
+                                        " d572f4777349d43653b21d6c2fc63020ab326db2 thirdparty/snappy/third_party/benchmark (v1.7.1)",
+                                        " b796f7d44681514f58a683a3a71ff17c94edb0c1 thirdparty/snappy/third_party/googletest (release-1.8.0-3137-gb796f7d4)",
+                                        " 8abddc3dbc8beb04a39b5ea40cbba5020317102f thirdparty/telemetry (8abddc3)",
+                                        " 0d67fd1530016b7c56f3cd74b3fca920f4c3e2b4 thirdparty/xbyak (v3.71-1460-g0d67fd1)",
+                                        " 51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf thirdparty/zlib/zlib (v1.3.1)"
+                                    ],
+                     "git_tree":  "84c5a84dcca1065d394b422dad6682f8b9a5aebe",
+                     "tree_sha256":  "46a129ebd715073d2a908d992833d1ea0f4893436d3aceca978b59db90c28d46",
+                     "tag_signature_exit_code":  1,
+                     "tag_signature_log":  ".\\experiments\\raw-results\\official-openvino\\2026-07-19\\acquisition\\openvino-tag-signature.log"
+                 },
+    "openvino_genai":  {
+                           "name":  "openvino.genai",
+                           "tag":  "2026.2.1.0",
+                           "commit":  "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+                           "remote":  "https://github.com/openvinotoolkit/openvino.genai.git",
+                           "dirty":  false,
+                           "submodules":  [
+                                              " 6da74a793f0fa5ca2f47a15af674cf715fccbf41 thirdparty/openvino_tokenizers (2026.2.0.0-1-g6da74a79)"
+                                          ],
+                           "git_tree":  "5e53069a20ba5fefa541bb9c470b6bfa2831eab6",
+                           "tree_sha256":  "107fd9f718d75b59cadf3543556bb2b9a6cece01adf4d239321f32929fc709ff",
+                           "tag_signature_exit_code":  1,
+                           "tag_signature_log":  ".\\experiments\\raw-results\\official-openvino\\2026-07-19\\acquisition\\openvino.genai-tag-signature.log"
+                       }
+}

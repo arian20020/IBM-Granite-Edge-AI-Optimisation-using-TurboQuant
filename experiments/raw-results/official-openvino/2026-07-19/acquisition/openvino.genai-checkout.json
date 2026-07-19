@@ -1,0 +1,14 @@
+{
+    "name":  "openvino.genai",
+    "tag":  "2026.2.1.0",
+    "commit":  "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+    "remote":  "https://github.com/openvinotoolkit/openvino.genai.git",
+    "dirty":  false,
+    "submodules":  [
+                       " 6da74a793f0fa5ca2f47a15af674cf715fccbf41 thirdparty/openvino_tokenizers (2026.2.0.0-1-g6da74a79)"
+                   ],
+    "git_tree":  "5e53069a20ba5fefa541bb9c470b6bfa2831eab6",
+    "tree_sha256":  "107fd9f718d75b59cadf3543556bb2b9a6cece01adf4d239321f32929fc709ff",
+    "tag_signature_exit_code":  1,
+    "tag_signature_log":  ".\\experiments\\raw-results\\official-openvino\\2026-07-19\\acquisition\\openvino.genai-tag-signature.log"
+}

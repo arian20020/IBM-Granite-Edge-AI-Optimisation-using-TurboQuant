@@ -520,6 +520,10 @@ temp/
 cache/
 *.tmp
 
+# Reproducible test environments and third-party release checkouts
+.venv-*/
+external/
+
 # === Controlled testing evidence exceptions ===
 
 # Formal testing logs are controlled evidence and must remain visible to Git.

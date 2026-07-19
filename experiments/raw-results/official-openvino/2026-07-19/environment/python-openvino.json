@@ -1,0 +1,20 @@
+{
+    "devices":  [
+                    "CPU",
+                    "GPU"
+                ],
+    "installed_ram_bytes":  16857817088,
+    "machine":  "AMD64",
+    "os":  "Windows-10-10.0.26200-SP0",
+    "packages":  {
+                     "nncf":  "3.2.0",
+                     "openpyxl":  "3.1.5",
+                     "openvino":  "2026.2.1",
+                     "openvino-genai":  "2026.2.1.0",
+                     "optimum-intel":  "2.0.0",
+                     "pandas":  "3.0.3",
+                     "psutil":  "7.2.2"
+                 },
+    "python_executable":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.venv-official-openvino-2026.2.1\\Scripts\\python.exe",
+    "python_version":  "3.11.9"
+}
