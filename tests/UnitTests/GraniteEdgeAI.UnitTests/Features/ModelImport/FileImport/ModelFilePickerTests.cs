@@ -15,7 +15,8 @@ public sealed class ModelFilePickerTests
     [TestMethod]
     public void InitialState_HasNoSelectedModelAndContinueIsDisabled()
     {
-        Assert.(;
+        // This test will be implemented separately.
+        Assert.Inconclusive("Test not implemented yet.");
     }
 
     /// <summary>
