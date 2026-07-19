@@ -1,0 +1,335 @@
+diff --git a/src/cpp/CMakeLists.txt b/src/cpp/CMakeLists.txt
+index 110fce6..d12e21d 100644
+--- a/src/cpp/CMakeLists.txt
++++ b/src/cpp/CMakeLists.txt
+@@ -2,7 +2,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ #
+ 
+-file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
++file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS
++     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+ list(APPEND SOURCE_FILES "${CMAKE_CURRENT_BINARY_DIR}/version.cpp")
+ 
+ # Dependencies
+diff --git a/src/cpp/src/continuous_batching/cache/turboquant_codec.cpp b/src/cpp/src/continuous_batching/cache/turboquant_codec.cpp
+new file mode 100644
+index 0000000..21f2de8
+--- /dev/null
++++ b/src/cpp/src/continuous_batching/cache/turboquant_codec.cpp
+@@ -0,0 +1,151 @@
++// Copyright (C) 2026 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++
++#include "turboquant_codec.hpp"
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <limits>
++#include <stdexcept>
++
++namespace ov::genai::turboquant {
++namespace {
++
++// Deterministic scalar centroids for a unit-normal input.  These fixed tables
++// are the reconstruction levels at the midpoints of 8 and 16 equal-probability
++// standard-normal bins (rounded once here, never learned at runtime).
++constexpr std::array<float, 8> codebook_b3{
++    -1.5341206f, -0.8871466f, -0.4887764f, -0.1573107f,
++     0.1573107f,  0.4887764f,  0.8871466f,  1.5341206f,
++};
++
++constexpr std::array<float, 16> codebook_b4{
++    -1.8627319f, -1.3180109f, -1.0099902f, -0.7764218f,
++    -0.5791322f, -0.4022501f, -0.2372021f, -0.0784124f,
++     0.0784124f,  0.2372021f,  0.4022501f,  0.5791322f,
++     0.7764218f,  1.0099902f,  1.3180109f,  1.8627319f,
++};
++
++unsigned bit_width(TurboQuantBits bits) {
++    switch (bits) {
++    case TurboQuantBits::B3:
++        return 3;
++    case TurboQuantBits::B4:
++        return 4;
++    }
++    throw std::invalid_argument("TurboQuant bit width must be 3 or 4");
++}
++
++float centroid(TurboQuantBits bits, uint8_t index) {
++    return bits == TurboQuantBits::B3 ? codebook_b3[index] : codebook_b4[index];
++}
++
++uint8_t nearest_centroid(float value, TurboQuantBits bits) {
++    const size_t count = size_t{1} << bit_width(bits);
++    uint8_t best = 0;
++    float best_distance = std::abs(value - centroid(bits, 0));
++    for (size_t i = 1; i < count; ++i) {
++        const float distance = std::abs(value - centroid(bits, static_cast<uint8_t>(i)));
++        if (distance < best_distance) {
++            best = static_cast<uint8_t>(i);
++            best_distance = distance;
++        }
++    }
++    return best;
++}
++
++double stable_norm(const std::vector<float>& values) {
++    double norm = 0.0;
++    for (const float value : values)
++        norm = std::hypot(norm, static_cast<double>(value));
++    return norm;
++}
++
++void pack_index(std::vector<uint8_t>& payload, size_t position, unsigned width, uint8_t index) {
++    const size_t bit_offset = position * width;
++    const size_t byte_offset = bit_offset / 8;
++    const unsigned shift = static_cast<unsigned>(bit_offset % 8);
++    const uint16_t shifted = static_cast<uint16_t>(index) << shift;
++    payload[byte_offset] |= static_cast<uint8_t>(shifted);
++    if (shift + width > 8)
++        payload[byte_offset + 1] |= static_cast<uint8_t>(shifted >> 8);
++}
++
++uint8_t unpack_index(const std::vector<uint8_t>& payload, size_t position, unsigned width) {
++    const size_t bit_offset = position * width;
++    const size_t byte_offset = bit_offset / 8;
++    const unsigned shift = static_cast<unsigned>(bit_offset % 8);
++    uint16_t packed = payload[byte_offset];
++    if (shift + width > 8)
++        packed |= static_cast<uint16_t>(payload[byte_offset + 1]) << 8;
++    return static_cast<uint8_t>((packed >> shift) & ((uint16_t{1} << width) - 1));
++}
++
++}  // namespace
++
++size_t packed_bytes(size_t element_count, TurboQuantBits bits) {
++    const unsigned width = bit_width(bits);
++    if (element_count > (std::numeric_limits<size_t>::max() - 7) / width)
++        throw std::length_error("TurboQuant packed size overflows size_t");
++    return (element_count * width + 7) / 8;
++}
++
++EncodedVector encode(const std::vector<float>& input, TurboQuantBits bits) {
++    const unsigned width = bit_width(bits);
++    for (const float value : input) {
++        if (!std::isfinite(value))
++            throw std::invalid_argument("TurboQuant input values must be finite");
++    }
++
++    const double norm = stable_norm(input);
++    if (norm > std::numeric_limits<float>::max())
++        throw std::invalid_argument("TurboQuant input norm is not representable");
++
++    EncodedVector encoded{bits, input.size(), static_cast<float>(norm),
++                          std::vector<uint8_t>(packed_bytes(input.size(), bits), 0)};
++    if (norm == 0.0)
++        return encoded;
++
++    const double normalization = std::sqrt(static_cast<double>(input.size())) / norm;
++    for (size_t i = 0; i < input.size(); ++i)
++        pack_index(encoded.payload, i, width, nearest_centroid(static_cast<float>(input[i] * normalization), bits));
++    return encoded;
++}
++
++std::vector<float> decode(const EncodedVector& encoded) {
++    const unsigned width = bit_width(encoded.bits);
++    if (!std::isfinite(encoded.norm) || encoded.norm < 0.0f)
++        throw std::invalid_argument("TurboQuant norm must be finite and non-negative");
++    if (encoded.payload.size() != packed_bytes(encoded.element_count, encoded.bits))
++        throw std::invalid_argument("TurboQuant payload size does not match metadata");
++    if (encoded.element_count == 0 && encoded.norm != 0.0f)
++        throw std::invalid_argument("An empty TurboQuant vector must have zero norm");
++
++    const size_t used_bits = encoded.element_count * width;
++    if (!encoded.payload.empty() && used_bits % 8 != 0) {
++        const uint8_t unused_mask = static_cast<uint8_t>(0xffu << (used_bits % 8));
++        if ((encoded.payload.back() & unused_mask) != 0)
++            throw std::invalid_argument("TurboQuant payload has non-zero padding bits");
++    }
++
++    std::vector<float> output(encoded.element_count, 0.0f);
++    if (encoded.norm == 0.0f) {
++        if (std::any_of(encoded.payload.begin(), encoded.payload.end(), [](uint8_t byte) { return byte != 0; }))
++            throw std::invalid_argument("A zero-norm TurboQuant vector must have a zero payload");
++        return output;
++    }
++
++    for (size_t i = 0; i < output.size(); ++i)
++        output[i] = centroid(encoded.bits, unpack_index(encoded.payload, i, width));
++
++    const double quantized_norm = stable_norm(output);
++    if (quantized_norm == 0.0)
++        throw std::invalid_argument("TurboQuant payload cannot restore a non-zero norm");
++    const double restoration = static_cast<double>(encoded.norm) / quantized_norm;
++    for (float& value : output)
++        value = static_cast<float>(value * restoration);
++    return output;
++}
++
++}  // namespace ov::genai::turboquant
+diff --git a/src/cpp/src/continuous_batching/cache/turboquant_codec.hpp b/src/cpp/src/continuous_batching/cache/turboquant_codec.hpp
+new file mode 100644
+index 0000000..195a3bf
+--- /dev/null
++++ b/src/cpp/src/continuous_batching/cache/turboquant_codec.hpp
+@@ -0,0 +1,28 @@
++// Copyright (C) 2026 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <vector>
++
++namespace ov::genai::turboquant {
++
++enum class TurboQuantBits : uint8_t {
++    B3 = 3,
++    B4 = 4,
++};
++
++struct EncodedVector {
++    TurboQuantBits bits = TurboQuantBits::B3;
++    size_t element_count = 0;
++    float norm = 0.0f;
++    std::vector<uint8_t> payload;
++};
++
++size_t packed_bytes(size_t element_count, TurboQuantBits bits);
++EncodedVector encode(const std::vector<float>& input, TurboQuantBits bits);
++std::vector<float> decode(const EncodedVector& encoded);
++
++}  // namespace ov::genai::turboquant
+diff --git a/tests/cpp/CMakeLists.txt b/tests/cpp/CMakeLists.txt
+index fa59a24..309525c 100644
+--- a/tests/cpp/CMakeLists.txt
++++ b/tests/cpp/CMakeLists.txt
+@@ -20,10 +20,19 @@ if(NOT TARGET gtest)
+   endforeach()
+ endif()
+ 
+-file(GLOB tests_src "*.cpp")
++file(GLOB tests_src CONFIGURE_DEPENDS "*.cpp")
+ 
+ set(TEST_TARGET_NAME "tests_continuous_batching")
+ 
++# Keep the standalone codec checkpoint independently buildable and runnable.
++# The same test source also remains in tests_continuous_batching via tests_src.
++add_executable(turboquant_codec_tests
++    turboquant_codec.cpp
++    "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src/continuous_batching/cache/turboquant_codec.cpp")
++target_link_libraries(turboquant_codec_tests PRIVATE gtest_main)
++target_include_directories(turboquant_codec_tests PRIVATE "${OpenVINOGenAI_SOURCE_DIR}/src/cpp/src")
++target_compile_features(turboquant_codec_tests PRIVATE cxx_std_17)
++
+ add_executable(${TEST_TARGET_NAME} ${tests_src} $<TARGET_OBJECTS:openvino_genai_obj>)
+ 
+ add_subdirectory(custom_op)
+diff --git a/tests/cpp/turboquant_codec.cpp b/tests/cpp/turboquant_codec.cpp
+new file mode 100644
+index 0000000..987ab81
+--- /dev/null
++++ b/tests/cpp/turboquant_codec.cpp
+@@ -0,0 +1,99 @@
++// Copyright (C) 2026 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++
++#include "continuous_batching/cache/turboquant_codec.hpp"
++
++#include <gtest/gtest.h>
++
++#include <cmath>
++#include <limits>
++#include <vector>
++
++namespace {
++
++using ov::genai::turboquant::EncodedVector;
++using ov::genai::turboquant::TurboQuantBits;
++using ov::genai::turboquant::decode;
++using ov::genai::turboquant::encode;
++using ov::genai::turboquant::packed_bytes;
++
++float l2_norm(const std::vector<float>& values) {
++    double squared_norm = 0.0;
++    for (const float value : values)
++        squared_norm += static_cast<double>(value) * value;
++    return static_cast<float>(std::sqrt(squared_norm));
++}
++
++float normalized_rmse(const std::vector<float>& expected, const std::vector<float>& actual) {
++    double squared_error = 0.0;
++    double squared_signal = 0.0;
++    for (size_t i = 0; i < expected.size(); ++i) {
++        const double error = static_cast<double>(expected[i]) - actual[i];
++        squared_error += error * error;
++        squared_signal += static_cast<double>(expected[i]) * expected[i];
++    }
++    return static_cast<float>(std::sqrt(squared_error / squared_signal));
++}
++
++TEST(TurboQuantCodec, RoundTripPreservesNormAndPackedSize) {
++    const std::vector<float> input{0.25f, -0.5f, 0.75f, -1.0f, 0.125f, 0.5f, -0.25f, 1.0f};
++    for (const auto bits : {TurboQuantBits::B3, TurboQuantBits::B4}) {
++        const auto encoded = encode(input, bits);
++        const auto output = decode(encoded);
++        EXPECT_EQ(encoded.payload.size(), packed_bytes(input.size(), bits));
++        EXPECT_NEAR(l2_norm(input), l2_norm(output), 1e-5f);
++        EXPECT_LT(normalized_rmse(input, output), bits == TurboQuantBits::B4 ? 0.20f : 0.35f);
++    }
++}
++
++TEST(TurboQuantCodec, ZeroVectorRoundTripsWithoutDivisionByZero) {
++    for (const auto bits : {TurboQuantBits::B3, TurboQuantBits::B4}) {
++        const auto encoded = encode(std::vector<float>(11, 0.0f), bits);
++        EXPECT_FLOAT_EQ(encoded.norm, 0.0f);
++        EXPECT_EQ(decode(encoded), std::vector<float>(11, 0.0f));
++    }
++}
++
++TEST(TurboQuantCodec, PacksNonByteAlignedLengthsExactly) {
++    EXPECT_EQ(packed_bytes(1, TurboQuantBits::B3), 1u);
++    EXPECT_EQ(packed_bytes(3, TurboQuantBits::B3), 2u);
++    EXPECT_EQ(packed_bytes(9, TurboQuantBits::B3), 4u);
++    EXPECT_EQ(packed_bytes(1, TurboQuantBits::B4), 1u);
++    EXPECT_EQ(packed_bytes(3, TurboQuantBits::B4), 2u);
++}
++
++TEST(TurboQuantCodec, ProducesDeterministicGoldenLittleEndianPayloads) {
++    const std::vector<float> input{-1.0f, 0.0f, 1.0f};
++    const auto b3_first = encode(input, TurboQuantBits::B3);
++    const auto b3_second = encode(input, TurboQuantBits::B3);
++    EXPECT_EQ(b3_first.payload, (std::vector<uint8_t>{0xd8, 0x01}));
++    EXPECT_EQ(b3_first.payload, b3_second.payload);
++
++    const auto b4_first = encode(input, TurboQuantBits::B4);
++    const auto b4_second = encode(input, TurboQuantBits::B4);
++    EXPECT_EQ(b4_first.payload, (std::vector<uint8_t>{0x71, 0x0e}));
++    EXPECT_EQ(b4_first.payload, b4_second.payload);
++}
++
++TEST(TurboQuantCodec, RejectsInvalidMetadataAndInput) {
++    EXPECT_THROW(encode({1.0f}, static_cast<TurboQuantBits>(5)), std::invalid_argument);
++    EXPECT_THROW(encode({std::numeric_limits<float>::infinity()}, TurboQuantBits::B3), std::invalid_argument);
++
++    auto encoded = encode({-1.0f, 1.0f}, TurboQuantBits::B3);
++    encoded.bits = static_cast<TurboQuantBits>(2);
++    EXPECT_THROW(decode(encoded), std::invalid_argument);
++
++    encoded = encode({-1.0f, 1.0f}, TurboQuantBits::B3);
++    encoded.payload.clear();
++    EXPECT_THROW(decode(encoded), std::invalid_argument);
++
++    encoded = encode({-1.0f, 1.0f}, TurboQuantBits::B3);
++    encoded.norm = std::numeric_limits<float>::quiet_NaN();
++    EXPECT_THROW(decode(encoded), std::invalid_argument);
++
++    encoded = encode({-1.0f}, TurboQuantBits::B3);
++    encoded.payload.back() |= 0xf8;
++    EXPECT_THROW(decode(encoded), std::invalid_argument);
++}
++
++}  // namespace
