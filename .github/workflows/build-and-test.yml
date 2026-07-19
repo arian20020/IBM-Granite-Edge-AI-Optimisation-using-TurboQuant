@@ -164,10 +164,9 @@ jobs:
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vstest = & $vswhere `
-            -latest `
+            -all `
             -products * `
-            -requires Microsoft.VisualStudio.Component.TestTools.BuildTools `
-            -find '**\Common7\IDE\Extensions\TestPlatform\vstest.console.exe' |
+            -find '**\Common7\IDE\**\vstest.console.exe' |
             Select-Object -First 1
 
           if (-not $vstest) {
