@@ -79,6 +79,10 @@ jobs:
             throw "Failed to stage build inputs at $buildRoot."
           }
 
+          # Robocopy uses exit codes 1-7 for successful copy outcomes. Reset
+          # the process code so PowerShell does not fail the workflow step.
+          $global:LASTEXITCODE = 0
+
           if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
             throw "The staged checkout is incomplete: global.json was not found."
           }
