@@ -4,8 +4,24 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/tests/" />
+  <Folder Name="/tests/">
+    <File Path="tests/README.md" />
+  </Folder>
+  <Folder Name="/tests/ContractTests/">
+    <File Path="tests/ContractTests/README.md" />
+  </Folder>
+  <Folder Name="/tests/E2ETests/">
+    <File Path="tests/E2ETests/README.md" />
+  </Folder>
+  <Folder Name="/tests/IntegrationTests/">
+    <File Path="tests/IntegrationTests/README.md" />
+  </Folder>
+  <Folder Name="/tests/TestFixtures/">
+    <File Path="tests/TestFixtures/README.md" />
+    <File Path="tests/TestFixtures/fixture-manifest.json" />
+  </Folder>
   <Folder Name="/tests/UnitTests/">
+    <File Path="tests/UnitTests/README.md" />
     <Project Path="tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" />
   </Folder>
   <Project Path="IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj">
