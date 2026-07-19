@@ -43,9 +43,10 @@ def main():
     system = json.loads((CAMPAIGN / "environment/system.json").read_text())
     source = json.loads((CAMPAIGN / "diagnostics/source-audit.json").read_text())
     lines = WORKBOOK.read_text(encoding="utf-8-sig").splitlines()
-    lines[0] = "# 04 Official OpenVINO Controlled Retest Workbook v1.4"
-    lines = [line.replace("Controlled retest revision 1.1.", "Controlled retest revision 1.4.")
-             .replace("Controlled retest revision 1.2.", "Controlled retest revision 1.4.")
+    lines[0] = "# 04 Official OpenVINO Controlled Retest Workbook v1.5"
+    lines = [line.replace("Controlled retest revision 1.1.", "Controlled retest revision 1.5.")
+             .replace("Controlled retest revision 1.2.", "Controlled retest revision 1.5.")
+             .replace("Controlled retest revision 1.4.", "Controlled retest revision 1.5.")
              for line in lines]
 
     replace_table(lines, "# 1. Repository and environment record", table(["Field", "Record"], [
@@ -62,7 +63,7 @@ def main():
         ("Model source/revision", "ibm-granite/granite-4.1-3b@c0650403e44e78ec0262dab1c90914c65b196c4e; granite-4.1-8b@1504002f650e656a0a3789d99574df12e3e94ed0"),
         ("Test operator", "Codex automated controlled retest"),
         ("Test start/end date", "2026-07-19 / 2026-07-19"),
-        ("Overall status", "Terminal-complete: 7 diagnostic passes, 0 failed diagnostics, 53 evidence-linked terminal rows"),
+        ("Overall status", "Recovery pending: zero Granite benchmark rows executed; seven setup/API probes passed"),
     ]))
     replace_table(lines, "# 2. Target laptop", table(["Field", "Fixed/current value", "Confirm or update"], [
         ("Machine ID", "Lenovo-PF4HMD0T", "Confirmed Lenovo 83ER"),
@@ -218,7 +219,7 @@ def main():
         ("Recommended official fallback", "Standard OpenVINO on a higher-memory host; do not label this release TurboQuant-capable"),
         ("Application role", "Official CPU/GPU capability baseline only; TurboQuant evaluation requires a different proven implementation"),
         ("Main evidence path", EV),
-        ("Final bounded reasoning", "All 60 IDs are passed or explicitly terminal. No unavailable metric or quality score was converted into a number. Results are accurate for this pinned source and laptop."),
+        ("Final bounded reasoning", "The 2026-07-19 campaign proved environment and source boundaries only. Runtime and quality placeholders are not execution passes and must be superseded by measured evidence."),
     ]))
 
     text = "\n".join(lines) + "\n"

@@ -3,8 +3,16 @@ from pathlib import Path
 
 from scripts.testing.official_openvino.reconcile import validate_workbook_text
 
+ROOT = Path(__file__).resolve().parents[3]
+WORKBOOK = ROOT / "docs/testing/workbooks/text-templates/04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md"
+
 
 class OfficialOpenVINOReconcileTests(unittest.TestCase):
+    def test_workbook_does_not_call_terminal_placeholders_execution_complete(self):
+        text = WORKBOOK.read_text(encoding="utf-8")
+        self.assertNotIn("Overall status | Terminal-complete", text)
+        self.assertIn("Recovery pending: zero Granite benchmark rows executed", text)
+
     def test_rejects_blank_and_bare_na_table_cells(self):
         with self.assertRaisesRegex(ValueError, "blank table cell"):
             validate_workbook_text("| Field | Value |\n| --- | --- |\n| x |  |", {"x"})
@@ -20,8 +28,7 @@ class OfficialOpenVINOReconcileTests(unittest.TestCase):
         self.assertTrue(validate_workbook_text(text, {"OV-01"})["accepted"])
 
     def test_workbook_exposes_every_required_performance_field(self):
-        root = Path(__file__).resolve().parents[3]
-        text = (root / "docs/testing/workbooks/text-templates/04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md").read_text(encoding="utf-8")
+        text = WORKBOOK.read_text(encoding="utf-8")
         required = (
             "Load ms", "TTFT ms", "Prompt tok/s", "TPOT ms", "Decode tok/s",
             "Generation duration ms", "Peak working set MB", "Peak private MB",
