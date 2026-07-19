@@ -1,5 +1,10 @@
+using GraniteEdgeAI.Features.ModelImport.FileImport;
+using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.Storage.Pickers;
+using System;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelImport
 {
@@ -8,35 +13,80 @@ namespace GraniteEdgeAI.Features.ModelImport
     /// </summary>
     public sealed partial class ModelImportPage : Page
     {
+        private readonly Func<Task<ModelFormatSelection>>
+            _selectModelFormatAsync;
+        private readonly Func<Task<string?>> _pickGgufPathAsync;
+
         public ModelImportPage()
+            : this(null, null)
         {
-            // Loads and connects the controls declared in ModelImportPage.xaml.
-            InitializeComponent();
         }
 
-        /*
-            Opens or closes the recommended-model section.
+        internal ModelImportPage(
+            Func<Task<ModelFormatSelection>>? selectModelFormatAsync,
+            Func<Task<string?>>? pickGgufPathAsync)
+        {
+            InitializeComponent();
 
-            This is view-only behaviour because it only controls whether
-            part of the interface is visible.
-        */
-        private void RecommendedModelToggleButton_Click(
+            _selectModelFormatAsync =
+                selectModelFormatAsync ?? ShowModelFormatSelectionAsync;
+            _pickGgufPathAsync = pickGgufPathAsync ?? PickGgufPathAsync;
+        }
+
+        internal string? SelectedModelPath { get; private set; }
+
+        internal bool HasValidatedModel { get; private set; }
+
+        private void RecommendedModelDownloadButton_Click(
             object sender,
             RoutedEventArgs e)
         {
-            // Checks whether the recommended-model card is currently hidden.
-            bool shouldOpen =
-                RecommendedModelCard.Visibility == Visibility.Collapsed;
+            Frame.Navigate(typeof(RecommendedModelDownloadPage));
+        }
 
-            // Shows the card when closed, or hides it when already open.
-            RecommendedModelCard.Visibility = shouldOpen
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+        private async void BrowseFilesButton_ClickAsync(
+            object sender,
+            RoutedEventArgs e)
+        {
+            await BrowseFilesAsync();
+        }
 
-            // Changes the arrow to show what clicking the button will do next.
-            RecommendedModelToggleArrow.Text = shouldOpen
-                ? "↑"
-                : "↓";
+        internal async Task BrowseFilesAsync()
+        {
+            ModelFormatSelection selectedFormat =
+                await _selectModelFormatAsync();
+
+            if (selectedFormat != ModelFormatSelection.Gguf)
+            {
+                return;
+            }
+
+            string? selectedPath = await _pickGgufPathAsync();
+
+            if (selectedPath is not null)
+            {
+                SelectedModelPath = selectedPath;
+            }
+        }
+
+        private async Task<ModelFormatSelection>
+            ShowModelFormatSelectionAsync()
+        {
+            ModelFormatSelectionCard selectFormat = new();
+            selectFormat.XamlRoot = Content.XamlRoot;
+
+            await selectFormat.ShowAsync();
+
+            return selectFormat.SelectedFormat;
+        }
+
+        private static async Task<string?> PickGgufPathAsync()
+        {
+            GgufModelFilePicker modelFilePicker = new();
+            PickFileResult? selectedFile =
+                await modelFilePicker.PickGGUFAsync();
+
+            return selectedFile?.Path;
         }
     }
 }

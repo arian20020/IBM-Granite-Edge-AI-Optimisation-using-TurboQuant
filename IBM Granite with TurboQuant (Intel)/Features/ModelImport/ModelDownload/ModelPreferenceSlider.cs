@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System.Collections.Generic;
 
-namespace GraniteEdgeAI.Features.ModelImport
+namespace GraniteEdgeAI.Features.ModelImport.ModelDownload
 {
     /// <summary>
     /// Manages the interaction behaviour of the model-preference slider.

@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<!--
+    Displays the model-format selection dialog above ModelImportPage.
+    
+    This uses a custom ContentDialog so the original page remains visible
+    and dimmed in the background while the dialog is open.
+-->
+<ContentDialog
+    x:Class="GraniteEdgeAI.Features.ModelImport.FileImport.ModelFormatSelectionCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:GraniteEdgeAI.Features.ModelImport.FileImport"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    x:Name="RootDialog"
+    d:DesignHeight="580"
+    d:DesignWidth="696"
+    Background="#FFFFFF"
+    BorderBrush="#E5E7EB"
+    BorderThickness="1"
+    CornerRadius="28"
+    DefaultButton="None"
+    RequestedTheme="Light"
+    mc:Ignorable="d">
+
+    <!--
+        Contains styles and shared interaction-state colours used
+        throughout this dialog.
+    -->
+    <ContentDialog.Resources>
+
+        <!--
+            Increases the standard maximum ContentDialog width so
+            both model-format cards fit comfortably side by side.
+        -->
+        <x:Double
+            x:Key="ContentDialogMaxWidth">
+            760
+        </x:Double>
+
+        <!--
+            Retains WinUI's normal ContentDialog focus, keyboard,
+            accessibility and modal behaviour.
+        -->
+        <Style
+            BasedOn="{StaticResource DefaultContentDialogStyle}"
+            TargetType="local:ModelFormatSelectionCard" />
+
+        <!--
+            Shared style for both model-format action buttons.
+        -->
+        <Style
+            x:Key="FormatActionButtonStyle"
+            BasedOn="{StaticResource DefaultButtonStyle}"
+            TargetType="Button">
+
+            <!--  Gives both buttons identical dimensions.  -->
+            <Setter Property="Height" Value="44" />
+
+            <Setter Property="Padding" Value="18,0" />
+
+            <!--  Makes each button fill its card width.  -->
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+
+            <!--  Defines the standard blue button appearance.  -->
+            <Setter Property="Background" Value="#2563EB" />
+
+            <Setter Property="Foreground" Value="#FFFFFF" />
+
+            <Setter Property="BorderBrush" Value="#2563EB" />
+
+            <Setter Property="BorderThickness" Value="1" />
+
+            <Setter Property="CornerRadius" Value="11" />
+
+            <Setter Property="FontWeight" Value="SemiBold" />
+
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+
+        </Style>
+
+        <!--
+            Normal state used by both blue format buttons.
+        -->
+        <SolidColorBrush
+            x:Key="ButtonBackground"
+            Color="#2563EB" />
+
+        <SolidColorBrush
+            x:Key="ButtonForeground"
+            Color="#FFFFFF" />
+
+        <SolidColorBrush
+            x:Key="ButtonBorderBrush"
+            Color="#2563EB" />
+
+        <!--
+            Pointer-over state.
+            
+            The button becomes slightly darker rather than turning white.
+        -->
+        <SolidColorBrush
+            x:Key="ButtonBackgroundPointerOver"
+            Color="#1D4ED8" />
+
+        <SolidColorBrush
+            x:Key="ButtonForegroundPointerOver"
+            Color="#FFFFFF" />
+
+        <SolidColorBrush
+            x:Key="ButtonBorderBrushPointerOver"
+            Color="#1D4ED8" />
+
+        <!--
+            Pressed state.
+            
+            The button becomes darker again while being clicked.
+        -->
+        <SolidColorBrush
+            x:Key="ButtonBackgroundPressed"
+            Color="#1E40AF" />
+
+        <SolidColorBrush
+            x:Key="ButtonForegroundPressed"
+            Color="#FFFFFF" />
+
+        <SolidColorBrush
+            x:Key="ButtonBorderBrushPressed"
+            Color="#1E40AF" />
+
+        <!--
+            Disabled state.
+        -->
+        <SolidColorBrush
+            x:Key="ButtonBackgroundDisabled"
+            Color="#E5E7EB" />
+
+        <SolidColorBrush
+            x:Key="ButtonForegroundDisabled"
+            Color="#9CA3AF" />
+
+        <SolidColorBrush
+            x:Key="ButtonBorderBrushDisabled"
+            Color="#D1D5DB" />
+
+    </ContentDialog.Resources>
+
+    <!--
+        Defines the complete dialog layout.
+        
+        A fixed width ensures that the two star-sized columns receive
+        exactly the same amount of horizontal space.
+    -->
+    <Grid
+        Width="640"
+        HorizontalAlignment="Center"
+        RowSpacing="20">
+
+        <!--
+            Defines rows for the heading, supporting text, format cards,
+            drag-and-drop message and custom Cancel footer.
+        -->
+        <Grid.RowDefinitions>
+            <RowDefinition
+                Height="Auto" />
+            <RowDefinition
+                Height="Auto" />
+            <RowDefinition
+                Height="280" />
+            <RowDefinition
+                Height="Auto" />
+            <RowDefinition
+                Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--
+            Displays the main dialog question.
+        -->
+        <TextBlock
+            Grid.Row="0"
+            HorizontalAlignment="Center"
+            FontSize="28"
+            FontWeight="SemiBold"
+            Foreground="#111827"
+            Text="What are you importing?"
+            TextAlignment="Center"
+            TextWrapping="Wrap" />
+
+        <!--
+            Explains why the user must choose between the two formats.
+        -->
+        <TextBlock
+            Grid.Row="1"
+            MaxWidth="560"
+            HorizontalAlignment="Center"
+            FontSize="15"
+            Foreground="#6B7280"
+            Text="Choose the model format you will be importing."
+            TextAlignment="Center"
+            TextWrapping="Wrap" />
+
+        <!--
+            Places the two model-format cards beside one another.
+        -->
+        <Grid
+            Grid.Row="2"
+            Width="640"
+            Height="280"
+            HorizontalAlignment="Center"
+            ColumnSpacing="16">
+
+            <!--
+                Gives each model-format card exactly half of the
+                available width.
+            -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition
+                    Width="*" />
+                <ColumnDefinition
+                    Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!--
+                GGUF model-file option.
+            -->
+            <Border
+                Grid.Column="0"
+                Height="280"
+                Padding="24"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="#F8FAFC"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1"
+                CornerRadius="20">
+
+                <!--
+                    Uses fixed and flexible rows so both card buttons
+                    remain aligned at the bottom.
+                -->
+                <Grid>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition
+                            Height="58" />
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="*" />
+                        <RowDefinition
+                            Height="44" />
+                    </Grid.RowDefinitions>
+
+                    <!--
+                        Displays the GGUF document icon.
+                    -->
+                    <Border
+                        Grid.Row="0"
+                        Width="58"
+                        Height="58"
+                        HorizontalAlignment="Left"
+                        Background="#E8F0FE"
+                        CornerRadius="16">
+
+                        <SymbolIcon
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="#2563EB"
+                            Symbol="Document" />
+
+                    </Border>
+
+                    <!--
+                        Displays the GGUF option title.
+                    -->
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="0,20,0,0"
+                        FontSize="19"
+                        FontWeight="SemiBold"
+                        Foreground="#111827"
+                        Text="GGUF model file"
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Describes what the user selects.
+                    -->
+                    <TextBlock
+                        Grid.Row="2"
+                        Margin="0,7,0,0"
+                        FontSize="14"
+                        Foreground="#6B7280"
+                        Text="Select one local .gguf file."
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Provides extra compatibility information.
+                    -->
+                    <TextBlock
+                        Grid.Row="3"
+                        Margin="0,13,0,16"
+                        VerticalAlignment="Top"
+                        FontSize="13"
+                        Foreground="#9CA3AF"
+                        Text="Best for llama.cpp-compatible models."
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Opens the GGUF single-file picker after the
+                        Click handler is connected.
+                    -->
+                    <Button
+                        x:Name="GgufFormatButton"
+                        Grid.Row="4"
+                        AccessKey="G"
+                        AutomationProperties.AutomationId="GgufFormatButton"
+                        AutomationProperties.HelpText="Choose one local GGUF model file."
+                        AutomationProperties.Name="Choose GGUF file"
+                        Click="GgufFormatButton_ClickAsync"
+                        Content="Choose GGUF file"
+                        Style="{StaticResource FormatActionButtonStyle}"
+                        TabIndex="0" />
+
+                </Grid>
+
+            </Border>
+
+            <!--
+                OpenVINO model-folder option.
+            -->
+            <Border
+                Grid.Column="1"
+                Height="280"
+                Padding="24"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="#F8FAFC"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1"
+                CornerRadius="20">
+
+                <!--
+                    Uses the same row layout as the GGUF card so all
+                    content and buttons remain visually aligned.
+                -->
+                <Grid>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition
+                            Height="58" />
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="*" />
+                        <RowDefinition
+                            Height="44" />
+                    </Grid.RowDefinitions>
+
+                    <!--
+                        Displays the OpenVINO folder icon.
+                    -->
+                    <Border
+                        Grid.Row="0"
+                        Width="58"
+                        Height="58"
+                        HorizontalAlignment="Left"
+                        Background="#EEF2FF"
+                        CornerRadius="16">
+
+                        <SymbolIcon
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="#4F46E5"
+                            Symbol="Folder" />
+
+                    </Border>
+
+                    <!--
+                        Displays the OpenVINO option title.
+                    -->
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="0,20,0,0"
+                        FontSize="19"
+                        FontWeight="SemiBold"
+                        Foreground="#111827"
+                        Text="OpenVINO model folder"
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Describes what the user selects.
+                    -->
+                    <TextBlock
+                        Grid.Row="2"
+                        Margin="0,7,0,0"
+                        FontSize="14"
+                        Foreground="#6B7280"
+                        Text="Select the complete model folder."
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Explains why the complete model folder is needed.
+                    -->
+                    <TextBlock
+                        Grid.Row="3"
+                        Margin="0,13,0,16"
+                        VerticalAlignment="Top"
+                        FontSize="13"
+                        Foreground="#9CA3AF"
+                        Text="Includes XML, BIN and tokenizer files."
+                        TextWrapping="Wrap" />
+
+                    <!--
+                        Opens the OpenVINO folder picker after the
+                        Click handler is connected.
+                    -->
+                    <Button
+                        x:Name="OpenVinoFormatButton"
+                        Grid.Row="4"
+                        AccessKey="O"
+                        AutomationProperties.AutomationId="OpenVinoFormatButton"
+                        AutomationProperties.HelpText="Choose the complete OpenVINO model folder."
+                        AutomationProperties.Name="Choose OpenVINO folder"
+                        Click="OpenVINOFormatButton_ClickAsync"
+                        Content="Choose OpenVINO folder"
+                        Style="{StaticResource FormatActionButtonStyle}"
+                        TabIndex="1" />
+
+                </Grid>
+
+            </Border>
+
+        </Grid>
+
+        <!--
+            Reminds users that drag and drop remains available.
+        -->
+        <TextBlock
+            Grid.Row="3"
+            MaxWidth="560"
+            HorizontalAlignment="Center"
+            FontSize="13"
+            Foreground="#6B7280"
+            Text="You can also drag and drop a model directly onto the import page."
+            TextAlignment="Center"
+            TextWrapping="Wrap" />
+
+        <!--
+            Creates a custom footer.
+            
+            Using our own footer allows the Cancel button to be genuinely
+            centred across the complete dialog.
+        -->
+        <Grid
+            Grid.Row="4"
+            Margin="0,4,0,-4"
+            HorizontalAlignment="Stretch">
+
+            <!--
+                Separates the Cancel action from the main dialog content.
+            -->
+            <Grid.RowDefinitions>
+                <RowDefinition
+                    Height="1" />
+                <RowDefinition
+                    Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--
+                Draws the subtle divider shown in the Figma design.
+            -->
+            <Border
+                Grid.Row="0"
+                Height="1"
+                Margin="-28,0,-28,0"
+                Background="#E5E7EB" />
+
+            <!--
+                Provides a borderless, horizontally centred Cancel action.
+            -->
+            <Button
+                x:Name="CancelButton"
+                Grid.Row="1"
+                Width="136"
+                Height="38"
+                Margin="0,16,0,0"
+                HorizontalAlignment="Center"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                AutomationProperties.Name="Cancel model-format selection"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                BorderThickness="0"
+                Click="CancelButton_Click"
+                Content="Cancel"
+                CornerRadius="10"
+                FontSize="14"
+                FontWeight="SemiBold"
+                Foreground="#4B5563"
+                TabIndex="2"
+                UseSystemFocusVisuals="True">
+
+                <!--
+                    Overrides the global blue-button resources so the
+                    Cancel action remains a quiet text-style button.
+                -->
+                <Button.Resources>
+
+                    <!--  Normal state.  -->
+                    <SolidColorBrush
+                        x:Key="ButtonBackground"
+                        Color="Transparent" />
+
+                    <SolidColorBrush
+                        x:Key="ButtonForeground"
+                        Color="#4B5563" />
+
+                    <SolidColorBrush
+                        x:Key="ButtonBorderBrush"
+                        Color="Transparent" />
+
+                    <!--  Hover state.  -->
+                    <SolidColorBrush
+                        x:Key="ButtonBackgroundPointerOver"
+                        Color="#F3F4F6" />
+
+                    <SolidColorBrush
+                        x:Key="ButtonForegroundPointerOver"
+                        Color="#111827" />
+
+                    <SolidColorBrush
+                        x:Key="ButtonBorderBrushPointerOver"
+                        Color="Transparent" />
+
+                    <!--  Pressed state.  -->
+                    <SolidColorBrush
+                        x:Key="ButtonBackgroundPressed"
+                        Color="#E5E7EB" />
+
+                    <SolidColorBrush
+                        x:Key="ButtonForegroundPressed"
+                        Color="#111827" />
+
+                    <SolidColorBrush
+                        x:Key="ButtonBorderBrushPressed"
+                        Color="Transparent" />
+
+                </Button.Resources>
+
+            </Button>
+
+        </Grid>
+
+    </Grid>
+
+</ContentDialog>

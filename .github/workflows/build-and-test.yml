@@ -23,12 +23,16 @@ concurrency:
 defaults:
   run:
     shell: pwsh
+    # Keep the checkout path short. The WinUI XAML compiler still creates
+    # intermediate paths that can exceed legacy Windows path limits.
+    working-directory: D:\s
 
 # Keep project paths in one place so the commands cannot accidentally
 # point to different projects.
 env:
   APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
   TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
+  TEST_RECIPE: 'tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
   TEST_RESULTS_DIRECTORY: 'TestResults/UnitTests'
 
 jobs:
@@ -62,13 +66,34 @@ jobs:
             IBM Granite with TurboQuant (Intel)
             tests/UnitTests/GraniteEdgeAI.UnitTests
 
+      # actions/checkout only accepts paths beneath GITHUB_WORKSPACE, whose
+      # Windows path repeats the long repository name. Copy the sparse tree to
+      # the runner's short temporary root before invoking the XAML compiler.
+      - name: Stage build inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $buildRoot = 'D:\s'
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage build inputs at $buildRoot."
+          }
+
+          # Robocopy uses exit codes 1-7 for successful copy outcomes. Reset
+          # the process code so PowerShell does not fail the workflow step.
+          $global:LASTEXITCODE = 0
+
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw "The staged checkout is incomplete: global.json was not found."
+          }
+
       # Install the .NET SDK selected by the repository's global.json.
       #
       # Pinned immutable commit for actions/setup-dotnet v5.0.0.
       - name: Set up .NET SDK from global.json
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
         with:
-          global-json-file: global.json
+          global-json-file: D:/s/global.json
 
       # Locate the x64 MSBuild installation supplied by Visual Studio
       # on the Windows runner.
@@ -99,7 +124,9 @@ jobs:
       # Resolve all dependencies required by MSTest.
       - name: Restore unit-test project
         run: |
-          dotnet restore "$env:TEST_PROJECT"
+          dotnet restore "$env:TEST_PROJECT" `
+            --runtime win-x64 `
+            -p:Platform=x64
 
       # Compile the application before running automated tests.
       #
@@ -127,21 +154,30 @@ jobs:
         run: |
           dotnet build "$env:TEST_PROJECT" `
             --configuration Release `
-            --no-restore
+            --no-restore `
+            --runtime win-x64 `
+            -p:Platform=x64
 
-      # Run the already-built tests through Microsoft Testing Platform.
-      #
-      # Arguments following the standalone -- are passed to Microsoft
-      # Testing Platform. They create one deterministic TRX report.
-      - name: Run unit tests
+      # Run the packaged WinUI test app through Visual Studio's app-container
+      # runner. This creates the XAML UI thread required by [UITestMethod].
+      - name: Run unit and WinUI UI-thread tests
         run: |
-          dotnet test "$env:TEST_PROJECT" `
-            --configuration Release `
-            --no-build `
-            -- `
-            --report-trx `
-            --report-trx-filename "GraniteEdgeAI.UnitTests.trx" `
-            --results-directory "$env:GITHUB_WORKSPACE\$env:TEST_RESULTS_DIRECTORY"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere `
+            -all `
+            -products * `
+            -find '**\Common7\IDE\**\vstest.console.exe' |
+            Select-Object -First 1
+
+          if (-not $vstest) {
+            throw 'Visual Studio app-container test runner was not found.'
+          }
+
+          & $vstest `
+            "D:\s\$env:TEST_RECIPE" `
+            /Platform:x64 `
+            /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
+            /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY"
 
       # Preserve the available report even when unit tests fail.
       #
@@ -154,6 +190,6 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}
-          path: TestResults/UnitTests/**/*.trx
+          path: D:/s/TestResults/UnitTests/**/*.trx
           if-no-files-found: warn
           retention-days: 30
