@@ -1,87 +1,155 @@
+using GraniteEdgeAI.Features.ModelImport;
+using GraniteEdgeAI.Features.ModelImport.FileImport;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+
 namespace GraniteEdgeAI.UnitTests;
 
-/// <summary>
-/// Contains tests for the model-format and GGUF file-selection workflow.
-/// 
-/// Each test will be implemented and reviewed separately.
-/// </summary>
 [TestClass]
 public sealed class ModelFilePickerTests
 {
-    /// <summary>
-    /// Verifies that the model-import page begins with no selected model
-    /// and that the Continue to model inspection button is disabled.
-    /// </summary>
-    [TestMethod]
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void InitialState_HasNoSelectedModelAndContinueIsDisabled()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        var page = new ModelImportPage();
+        var continueButton = (Button)page.FindName(
+            "ContinueToModelInspectionButton");
+
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsFalse(continueButton.IsEnabled);
     }
 
-    /// <summary>
-    /// Verifies that clicking Browse files requests the
-    /// model-format selection dialog.
-    /// </summary>
-    [TestMethod]
-    public void BrowseFiles_Click_OpensModelFormatSelectionDialog()
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task BrowseFiles_Click_OpensModelFormatSelectionDialog()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        var formatInteractionCount = 0;
+        var page = new ModelImportPage(
+            () =>
+            {
+                formatInteractionCount++;
+                return Task.FromResult(ModelFormatSelection.None);
+            },
+            () => Task.FromResult<string?>(null));
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(1, formatInteractionCount);
     }
 
-    /// <summary>
-    /// Verifies that cancelling the format-selection dialog closes it
-    /// without changing the model-import page state.
-    /// </summary>
-    [TestMethod]
-    public void CancelFormatSelection_LeavesModelImportStateUnchanged()
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CancelFormatSelection_LeavesModelImportStateUnchanged()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        var pickerInteractionCount = 0;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.None),
+            () =>
+            {
+                pickerInteractionCount++;
+                return Task.FromResult<string?>(null);
+            });
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(0, pickerInteractionCount);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsFalse(GetContinueButton(page).IsEnabled);
+        Assert.IsInstanceOfType<ModelImportPage>(page);
     }
 
-    /// <summary>
-    /// Verifies that choosing the GGUF option records GGUF as the
-    /// selected model format.
-    /// </summary>
-    [TestMethod]
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void SelectGguf_RecordsGgufAsSelectedFormat()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        var dialog = new ModelFormatSelectionCard();
+
+        dialog.SelectFormat(ModelFormatSelection.Gguf);
+
+        Assert.AreEqual(ModelFormatSelection.Gguf, dialog.SelectedFormat);
+        Assert.AreNotEqual(ModelFormatSelection.OpenVino, dialog.SelectedFormat);
     }
 
-    /// <summary>
-    /// Verifies that cancelling the Windows GGUF picker returns no file
-    /// and keeps Continue to model inspection disabled.
-    /// </summary>
-    [TestMethod]
-    public void CancelGgufPicker_ReturnsNoFileAndKeepsContinueDisabled()
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CancelGgufPicker_ReturnsNoFileAndKeepsContinueDisabled()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(null));
+
+        await page.BrowseFilesAsync();
+
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsFalse(GetContinueButton(page).IsEnabled);
     }
 
-    /// <summary>
-    /// Verifies that selecting a GGUF file returns the same file that
-    /// was selected, while model validation remains a later stage.
-    /// </summary>
-    [TestMethod]
-    public void SelectGgufFile_ReturnsSelectedFileAndKeepsContinueDisabled()
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task SelectGgufFile_ReturnsSelectedFileAndKeepsContinueDisabled()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        const string selectedPath = @"C:\Models\Granite 3.3.gguf";
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath));
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(selectedPath, page.SelectedModelPath);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsFalse(GetContinueButton(page).IsEnabled);
     }
 
-    /// <summary>
-    /// Verifies that the GGUF file picker accepts only files using
-    /// the .gguf extension.
-    /// </summary>
     [TestMethod]
+    [TestCategory("Unit")]
     public void GgufPicker_AllowsOnlyGgufFiles()
     {
-        // This test will be implemented separately.
-        Assert.Inconclusive("Test not implemented yet.");
+        CollectionAssert.AreEqual(
+            new[] { ".gguf" },
+            GgufModelFilePicker.AllowedFileTypes.ToArray());
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task SelectGgufFile_AfterPreviousSelection_ReplacesPath()
+    {
+        var selectedPath = @"C:\Models\first.gguf";
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath));
+
+        await page.BrowseFilesAsync();
+        selectedPath = @"C:\Models\second.gguf";
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(@"C:\Models\second.gguf", page.SelectedModelPath);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OpenVinoSelection_CurrentlyDeferred_DoesNotOpenGgufPicker()
+    {
+        var pickerInteractionCount = 0;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.OpenVino),
+            () =>
+            {
+                pickerInteractionCount++;
+                return Task.FromResult<string?>(null);
+            });
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(0, pickerInteractionCount);
+        Assert.IsNull(page.SelectedModelPath);
+    }
+
+    private static Button GetContinueButton(ModelImportPage page)
+    {
+        return (Button)page.FindName("ContinueToModelInspectionButton");
     }
 }

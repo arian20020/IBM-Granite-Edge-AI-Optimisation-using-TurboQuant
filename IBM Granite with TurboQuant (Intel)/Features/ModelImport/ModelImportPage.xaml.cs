@@ -2,7 +2,9 @@ using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.Storage.Pickers;
 using System;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelImport
 {
@@ -11,13 +13,30 @@ namespace GraniteEdgeAI.Features.ModelImport
     /// </summary>
     public sealed partial class ModelImportPage : Page
     {
+        private readonly Func<Task<ModelFormatSelection>>
+            _selectModelFormatAsync;
+        private readonly Func<Task<string?>> _pickGgufPathAsync;
+
         public ModelImportPage()
+            : this(null, null)
         {
-            // Loads and connects the controls declared in ModelImportPage.xaml.
-            InitializeComponent();
         }
 
-        // Opens the separate recommended-model selection page.
+        internal ModelImportPage(
+            Func<Task<ModelFormatSelection>>? selectModelFormatAsync,
+            Func<Task<string?>>? pickGgufPathAsync)
+        {
+            InitializeComponent();
+
+            _selectModelFormatAsync =
+                selectModelFormatAsync ?? ShowModelFormatSelectionAsync;
+            _pickGgufPathAsync = pickGgufPathAsync ?? PickGgufPathAsync;
+        }
+
+        internal string? SelectedModelPath { get; private set; }
+
+        internal bool HasValidatedModel { get; private set; }
+
         private void RecommendedModelDownloadButton_Click(
             object sender,
             RoutedEventArgs e)
@@ -29,14 +48,45 @@ namespace GraniteEdgeAI.Features.ModelImport
             object sender,
             RoutedEventArgs e)
         {
-            ModelFormatSelectionCard selectFormat =
-                new ModelFormatSelectionCard();
+            await BrowseFilesAsync();
+        }
 
-            // Tell WinUI which window should display and host the dialog.
+        internal async Task BrowseFilesAsync()
+        {
+            ModelFormatSelection selectedFormat =
+                await _selectModelFormatAsync();
+
+            if (selectedFormat != ModelFormatSelection.Gguf)
+            {
+                return;
+            }
+
+            string? selectedPath = await _pickGgufPathAsync();
+
+            if (selectedPath is not null)
+            {
+                SelectedModelPath = selectedPath;
+            }
+        }
+
+        private async Task<ModelFormatSelection>
+            ShowModelFormatSelectionAsync()
+        {
+            ModelFormatSelectionCard selectFormat = new();
             selectFormat.XamlRoot = Content.XamlRoot;
 
-            // Wait for the user to choose a format or cancel.
             await selectFormat.ShowAsync();
+
+            return selectFormat.SelectedFormat;
+        }
+
+        private static async Task<string?> PickGgufPathAsync()
+        {
+            GgufModelFilePicker modelFilePicker = new();
+            PickFileResult? selectedFile =
+                await modelFilePicker.PickGGUFAsync();
+
+            return selectedFile?.Path;
         }
     }
 }

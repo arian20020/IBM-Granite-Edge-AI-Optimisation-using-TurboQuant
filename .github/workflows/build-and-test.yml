@@ -29,6 +29,7 @@ defaults:
 env:
   APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
   TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
+  TEST_RECIPE: 'tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
   TEST_RESULTS_DIRECTORY: 'TestResults/UnitTests'
 
 jobs:
@@ -99,7 +100,9 @@ jobs:
       # Resolve all dependencies required by MSTest.
       - name: Restore unit-test project
         run: |
-          dotnet restore "$env:TEST_PROJECT"
+          dotnet restore "$env:TEST_PROJECT" `
+            --runtime win-x64 `
+            -p:Platform=x64
 
       # Compile the application before running automated tests.
       #
@@ -127,21 +130,31 @@ jobs:
         run: |
           dotnet build "$env:TEST_PROJECT" `
             --configuration Release `
-            --no-restore
+            --no-restore `
+            --runtime win-x64 `
+            -p:Platform=x64
 
-      # Run the already-built tests through Microsoft Testing Platform.
-      #
-      # Arguments following the standalone -- are passed to Microsoft
-      # Testing Platform. They create one deterministic TRX report.
-      - name: Run unit tests
+      # Run the packaged WinUI test app through Visual Studio's app-container
+      # runner. This creates the XAML UI thread required by [UITestMethod].
+      - name: Run unit and WinUI UI-thread tests
         run: |
-          dotnet test "$env:TEST_PROJECT" `
-            --configuration Release `
-            --no-build `
-            -- `
-            --report-trx `
-            --report-trx-filename "GraniteEdgeAI.UnitTests.trx" `
-            --results-directory "$env:GITHUB_WORKSPACE\$env:TEST_RESULTS_DIRECTORY"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere `
+            -latest `
+            -products * `
+            -requires Microsoft.VisualStudio.Component.TestTools.BuildTools `
+            -find '**\Common7\IDE\Extensions\TestPlatform\vstest.console.exe' |
+            Select-Object -First 1
+
+          if (-not $vstest) {
+            throw 'Visual Studio app-container test runner was not found.'
+          }
+
+          & $vstest `
+            "$env:GITHUB_WORKSPACE\$env:TEST_RECIPE" `
+            /Platform:x64 `
+            /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
+            /ResultsDirectory:"$env:GITHUB_WORKSPACE\$env:TEST_RESULTS_DIRECTORY"
 
       # Preserve the available report even when unit tests fail.
       #

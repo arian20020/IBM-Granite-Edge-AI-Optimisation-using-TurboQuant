@@ -39,6 +39,11 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
         public ModelFormatSelection SelectedFormat { get; private set; }
             = ModelFormatSelection.None;
 
+        internal void SelectFormat(ModelFormatSelection selectedFormat)
+        {
+            SelectedFormat = selectedFormat;
+        }
+
         /// <summary>
         /// Closes the dialog without selecting a model format.
         /// </summary>
@@ -47,7 +52,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
             RoutedEventArgs e)
         {
             // Record that the user cancelled the format-selection stage.
-            SelectedFormat = ModelFormatSelection.None;
+            SelectFormat(ModelFormatSelection.None);
 
             // Close the dialog and return control to ModelImportPage.
             Hide();
@@ -61,7 +66,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
             RoutedEventArgs e)
         {
             // Store the GGUF choice so ModelImportPage can read it.
-            SelectedFormat = ModelFormatSelection.Gguf;
+            SelectFormat(ModelFormatSelection.Gguf);
 
             // Close the dialog so ModelImportPage can open the file picker.
             Hide();
@@ -75,7 +80,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
             RoutedEventArgs e)
         {
             // Store the OpenVINO choice for its later workflow.
-            SelectedFormat = ModelFormatSelection.OpenVino;
+            SelectFormat(ModelFormatSelection.OpenVino);
 
             // Close the dialog and return control to ModelImportPage.
             Hide();
