@@ -1,0 +1,74 @@
+{
+  "cpu_probe": {
+    "actual_device": "CPU",
+    "compile_ms": 20.566799968946725,
+    "execution_devices": [
+      "CPU"
+    ],
+    "expected_output": [
+      [
+        2.0,
+        4.0,
+        6.0,
+        8.0
+      ]
+    ],
+    "output": [
+      [
+        2.0,
+        4.0,
+        6.0,
+        8.0
+      ]
+    ],
+    "output_bytes": 16,
+    "profiling_event_count": 3,
+    "profiling_nodes": [
+      "input",
+      "Add_4",
+      "Result_5"
+    ],
+    "requested_device": "CPU"
+  },
+  "devices": [
+    "CPU",
+    "GPU"
+  ],
+  "gpu_probe": {
+    "actual_device": "GPU",
+    "compile_ms": 2492.2354000154883,
+    "execution_devices": [
+      "GPU.0"
+    ],
+    "expected_output": [
+      [
+        2.0,
+        4.0,
+        6.0,
+        8.0
+      ]
+    ],
+    "output": [
+      [
+        2.0,
+        4.0,
+        6.0,
+        8.0
+      ]
+    ],
+    "output_bytes": 16,
+    "profiling_event_count": 5,
+    "profiling_nodes": [
+      "Add_5173",
+      "Add_5173.0",
+      "Convert_5858",
+      "Result_5174",
+      "input"
+    ],
+    "requested_device": "GPU"
+  },
+  "openvino": "2026.2.1",
+  "openvino_genai": "2026.2.1.0",
+  "perf_metrics_class": true,
+  "python": "3.11.9"
+}

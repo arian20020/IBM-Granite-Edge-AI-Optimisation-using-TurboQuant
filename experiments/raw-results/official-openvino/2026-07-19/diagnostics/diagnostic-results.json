@@ -1,0 +1,387 @@
+{
+  "reconciliation": {
+    "accepted": true,
+    "failed_count": 0,
+    "terminal_count": 17,
+    "test_count": 24
+  },
+  "records": [
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 0,
+      "actual_device": "host",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "capability",
+      "requested_device": "host",
+      "test_id": "OV-B01"
+    },
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 0,
+      "actual_device": "host",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "capability",
+      "requested_device": "host",
+      "test_id": "OV-B02"
+    },
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 16,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 16,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "test_id": "OV-B03"
+    },
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 16,
+      "actual_device": "GPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 16,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "GPU",
+      "test_id": "OV-B04"
+    },
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 16,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 16,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "test_id": "OV-B05"
+    },
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 0,
+      "actual_device": "host",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "capability",
+      "requested_device": "host",
+      "test_id": "OV-B06"
+    },
+    {
+      "accepted": true,
+      "activated": true,
+      "actual_bytes": 0,
+      "actual_device": "host",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/official-api-probes.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "capability",
+      "requested_device": "host",
+      "test_id": "OV-B07"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-B08"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-B09"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-B10"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-B11"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-B12"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-01"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-02"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-03"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-04"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-05"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-06"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-07"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-08"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-09"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-10"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-11"
+    },
+    {
+      "accepted": false,
+      "activated": false,
+      "actual_bytes": 0,
+      "actual_device": "CPU",
+      "evidence": [
+        "experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json"
+      ],
+      "exit_code": 0,
+      "expected_bytes": 0,
+      "fallback": false,
+      "proof_kind": "codec",
+      "requested_device": "CPU",
+      "terminal_classification": "unsupported-by-source",
+      "test_id": "OV-TQS-12"
+    }
+  ]
+}
