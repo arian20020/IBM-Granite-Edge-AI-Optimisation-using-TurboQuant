@@ -523,6 +523,7 @@ cache/
 # Reproducible test environments and third-party release checkouts
 .venv-*/
 external/
+.worktrees/
 
 # === Controlled testing evidence exceptions ===
 
