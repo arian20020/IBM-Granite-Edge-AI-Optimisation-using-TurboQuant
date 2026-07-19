@@ -1,52 +1,84 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.Windows.Storage.Pickers;
-
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace GraniteEdgeAI.Features.ModelImport.FileImport
 {
     /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
+    /// Represents the model formats available from the
+    /// model-format selection dialog.
+    /// </summary>
+    public enum ModelFormatSelection
+    {
+        // No format was selected because the user cancelled.
+        None,
+
+        // The user selected the GGUF model route.
+        Gguf,
+
+        // The user selected the OpenVINO model route.
+        OpenVino
+    }
+
+    /// <summary>
+    /// Displays the available model-format choices.
     /// </summary>
     public sealed partial class ModelFormatSelectionCard : ContentDialog
     {
+        /// <summary>
+        /// Creates the dialog and connects it to its XAML file.
+        /// </summary>
         public ModelFormatSelectionCard()
         {
+            // Load the controls declared in ModelFormatSelectionCard.xaml.
             InitializeComponent();
         }
 
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Gets the format chosen before the dialog was closed.
+        /// </summary>
+        public ModelFormatSelection SelectedFormat { get; private set; }
+            = ModelFormatSelection.None;
+
+        /// <summary>
+        /// Closes the dialog without selecting a model format.
+        /// </summary>
+        private void CancelButton_Click(
+            object sender,
+            RoutedEventArgs e)
         {
-            // Close the current ContentDialog and reveal ModelImportPage.
-            
+            // Record that the user cancelled the format-selection stage.
+            SelectedFormat = ModelFormatSelection.None;
+
+            // Close the dialog and return control to ModelImportPage.
             Hide();
         }
 
-        private async void GgufFormatButton_ClickAsync(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Records GGUF as the selected model format.
+        /// </summary>
+        private void GgufFormatButton_ClickAsync(
+            object sender,
+            RoutedEventArgs e)
         {
-            GgufModelFilePicker modelFilePicker = new GgufModelFilePicker();
+            // Store the GGUF choice so ModelImportPage can read it.
+            SelectedFormat = ModelFormatSelection.Gguf;
 
-            PickFileResult? file = await modelFilePicker.PickGGUFAsync();
-
-            if (file is null)
-            {
-                return;
-            }
+            // Close the dialog so ModelImportPage can open the file picker.
+            Hide();
         }
 
-        private async void OpenVINOFormatButton_ClickAsync(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Records OpenVINO as the selected model format.
+        /// </summary>
+        private void OpenVINOFormatButton_ClickAsync(
+            object sender,
+            RoutedEventArgs e)
         {
-            OpenVINOFolderPicker modelFolderPicker = new OpenVINOFolderPicker();
+            // Store the OpenVINO choice for its later workflow.
+            SelectedFormat = ModelFormatSelection.OpenVino;
 
-            PickFolderResult? folder = await modelFolderPicker.PickOpenVINOAsync();
-
-            if (folder is null)
-            {
-                return;
-            }
+            // Close the dialog and return control to ModelImportPage.
+            Hide();
         }
     }
 }
