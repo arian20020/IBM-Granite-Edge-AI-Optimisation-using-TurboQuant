@@ -1,4 +1,4 @@
-﻿<Project Sdk="MSTest.Sdk/4.0.2">
+<Project Sdk="MSTest.Sdk/4.0.2">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -6,5 +6,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Compile the same WinUI-free workflow source used by the application.
+      This lets the normal net8.0 test project exercise production logic
+      without constructing Microsoft.UI.Xaml controls on a non-UI thread.
+    -->
+    <Compile
+      Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelImport\FileImport\ModelImportWorkflow.cs"
+      Link="Production\Features\ModelImport\FileImport\ModelImportWorkflow.cs" />
+  </ItemGroup>
 
 </Project>
