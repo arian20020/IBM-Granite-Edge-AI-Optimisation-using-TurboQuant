@@ -126,3 +126,23 @@ The recovery is accepted only when:
 - Relabelling AtomicBot or animehacker results as WB-04 results.
 - Claiming QJL, PolarQuant, GPU TurboQuant, or upstream support without implementation and runtime proof.
 - Weakening safety gates to force Granite 8B onto the current 16 GiB laptop.
+
+## Approved Architecture Expansion: Stateful KV Graph Transformation
+
+Source inspection during Task 5 proved that ordinary CPU SDPA keeps KV state inside a whole-model compiled `InferRequest`. The host-side `KVCacheManager` serves the separate PagedAttention architecture and cannot provide genuine compressed persistent state to stateful CPU SDPA. `query_state()` exposes only completed full-precision state and therefore cannot satisfy the no-shadow-cache requirement.
+
+The approved recovery architecture consequently adds a pre-compilation graph transformation for supported stateful LLM layouts:
+
+1. discover every transformer KV `ReadValue`/`Assign` pair and its SDPA consumer;
+2. reject ambiguous, unsupported, non-SDPA, PagedAttention, GPU, and unsupported-head-layout graphs before compilation;
+3. replace persistent key/value state with independently selected STANDARD, TBQ3, or TBQ4 payload state plus norm and exact metadata state;
+4. encode only newly generated key/value vectors before their state update;
+5. decode only the active layer and required sequence slice immediately before the corresponding SDPA K/V inputs;
+6. keep decoded tensors as bounded, lifecycle-accounted scratch and prove that no equivalent persistent full-precision shadow cache exists;
+7. emit expected/actual persistent payload, metadata, and scratch allocation separately in activation evidence.
+
+The first implementation attempt must express packing, unpacking, codebook lookup, norm restoration, concatenation, slicing, and state updates using standard OpenVINO graph operations. If the CPU plugin cannot execute the required TBQ3 bit operations or if the standard-op graph necessarily materializes an equivalent persistent full-precision cache, add one registered project CPU extension operation for decode-slice. A fused compressed-KV SDPA operation is outside the initial recovery boundary unless decode-slice cannot meet correctness or memory requirements.
+
+The transformation receives the already validated independent K/V configuration and produces a transformation manifest containing matched variables/layers, original/transformed state types and shapes, selected codecs, packed-byte formulas, scratch bounds, rejected paths, and transformed-model hash. Runtime activation is permitted only when the transformed graph compiles on CPU, deterministic two-layer inference passes, persistent compressed allocation matches the formula, and process evidence proves the absence of a full-precision shadow state.
+
+This expansion does not authorize PagedAttention reuse, whole-cache decompression between requests, GPU TurboQuant claims, QJL, PolarQuant, or modification of immutable upstream checkouts outside the controlled ordered patch series.
