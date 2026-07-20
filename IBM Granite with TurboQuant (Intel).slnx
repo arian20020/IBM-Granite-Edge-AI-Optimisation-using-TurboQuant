@@ -22,7 +22,9 @@
   </Folder>
   <Folder Name="/tests/UnitTests/">
     <File Path="tests/UnitTests/README.md" />
-    <Project Path="tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj" />
+    <Project Path="tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj">
+      <Platform Solution="Debug|x64" Project="x64" />
+    </Project>
   </Folder>
   <Project Path="IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />

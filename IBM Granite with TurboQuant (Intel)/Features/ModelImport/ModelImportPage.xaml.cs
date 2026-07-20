@@ -45,13 +45,6 @@ namespace GraniteEdgeAI.Features.ModelImport
             Frame.Navigate(typeof(RecommendedModelDownloadPage));
         }
 
-        private async void BrowseFilesButton_ClickAsync(
-            object sender,
-            RoutedEventArgs e)
-        {
-            await BrowseFilesAsync();
-        }
-
         internal async Task BrowseFilesAsync()
         {
             ModelFormatSelection selectedFormat =
@@ -88,6 +81,12 @@ namespace GraniteEdgeAI.Features.ModelImport
                 await modelFilePicker.PickGGUFAsync();
 
             return selectedFile?.Path;
+        }
+        
+        /// Responds when the import card asks the page to open the model picker.
+        private async void ImportModelCard_BrowseFilesRequested(object sender, RoutedEventArgs e)
+        {
+            await BrowseFilesAsync();
         }
 
     }
