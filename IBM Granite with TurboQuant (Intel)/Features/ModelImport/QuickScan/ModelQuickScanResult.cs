@@ -1,6 +1,4 @@
-﻿
-
-namespace GraniteEdgeAI.Features.ModelImport.QuickScan
+﻿namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 {
     // Represents the completed outcome and data from a model quick scan.
     internal sealed class ModelQuickScanResult

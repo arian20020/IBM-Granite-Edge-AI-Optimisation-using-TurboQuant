@@ -8,37 +8,18 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <!--
-        Holds every visual state of the import-model card.
-        
-        The default and scanning states are siblings so that
-        either one can be displayed independently.
-    -->
     <Grid
         MinHeight="185"
         Margin="0,28,0,0"
         HorizontalAlignment="Stretch">
 
-        <!--
-            ============================================================
-            STATE 1: AWAITING MODEL SELECTION
-            ============================================================
-        -->
-
-        <!--
-            Displays the default model-selection interface before
-            the user has selected and confirmed a model file.
-        -->
+        <!--  STATE 1: AWAITING MODEL SELECTION  -->
         <Grid
             x:Name="AwaitingSelectionView"
             HorizontalAlignment="Stretch"
             Background="Transparent"
             Visibility="Visible">
 
-            <!--
-                Draws the background and dashed outline of the
-                model-file drop area.
-            -->
             <Rectangle
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
@@ -51,19 +32,12 @@
                 StrokeDashCap="Round"
                 StrokeThickness="1.5" />
 
-            <!--
-                Centres the import icon, instructions and Browse button.
-            -->
             <StackPanel
                 Margin="28"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Spacing="9">
 
-                <!--
-                    Provides a subtle container for the temporary
-                    model-upload icon.
-                -->
                 <Border
                     Width="48"
                     Height="48"
@@ -71,12 +45,6 @@
                     Background="#EAF2FF"
                     CornerRadius="14">
 
-                    <!--
-                        TODO(ICONS):
-                        
-                        Replace this temporary arrow with the final
-                        approved import icon.
-                    -->
                     <TextBlock
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
@@ -88,7 +56,6 @@
 
                 </Border>
 
-                <!--  Displays the primary import instruction.  -->
                 <TextBlock
                     Margin="0,3,0,0"
                     HorizontalAlignment="Center"
@@ -98,7 +65,6 @@
                     Text="Drag model file here"
                     TextAlignment="Center" />
 
-                <!--  Lists the currently supported model formats.  -->
                 <TextBlock
                     MaxWidth="600"
                     HorizontalAlignment="Center"
@@ -108,10 +74,6 @@
                     TextAlignment="Center"
                     TextWrapping="Wrap" />
 
-                <!--
-                    Requests the model picker through the control's
-                    BrowseFilesRequested event.
-                -->
                 <Button
                     x:Name="BrowseFilesButton"
                     Width="220"
@@ -131,61 +93,46 @@
                     Foreground="White"
                     UseSystemFocusVisuals="True">
 
-                    <!--  Defines the Browse button interaction colours.  -->
                     <Button.Resources>
-
-                        <!--  Normal state.  -->
                         <SolidColorBrush
                             x:Key="ButtonBackground"
                             Color="#2563EB" />
-
                         <SolidColorBrush
                             x:Key="ButtonForeground"
                             Color="#FFFFFF" />
-
                         <SolidColorBrush
                             x:Key="ButtonBorderBrush"
                             Color="#2563EB" />
 
-                        <!--  Pointer-over state.  -->
                         <SolidColorBrush
                             x:Key="ButtonBackgroundPointerOver"
                             Color="#1D4ED8" />
-
                         <SolidColorBrush
                             x:Key="ButtonForegroundPointerOver"
                             Color="#FFFFFF" />
-
                         <SolidColorBrush
                             x:Key="ButtonBorderBrushPointerOver"
                             Color="#1D4ED8" />
 
-                        <!--  Pressed state.  -->
                         <SolidColorBrush
                             x:Key="ButtonBackgroundPressed"
                             Color="#1E40AF" />
-
                         <SolidColorBrush
                             x:Key="ButtonForegroundPressed"
                             Color="#FFFFFF" />
-
                         <SolidColorBrush
                             x:Key="ButtonBorderBrushPressed"
                             Color="#1E40AF" />
 
-                        <!--  Disabled state.  -->
                         <SolidColorBrush
                             x:Key="ButtonBackgroundDisabled"
                             Color="#E5E7EB" />
-
                         <SolidColorBrush
                             x:Key="ButtonForegroundDisabled"
                             Color="#9CA3AF" />
-
                         <SolidColorBrush
                             x:Key="ButtonBorderBrushDisabled"
                             Color="#D1D5DB" />
-
                     </Button.Resources>
 
                 </Button>
@@ -194,477 +141,324 @@
 
         </Grid>
 
-        <!--
-            ============================================================
-            STATE 2: GGUF QUICK SCAN IN PROGRESS
-            ============================================================
-        -->
-
-        <!--
-            Matches the structure and proportions of the completed
-            model-information card from the Figma design.
-            
-            While scanning, unknown metadata values display individual
-            ProgressRing controls.
-        -->
+        <!--  STATE 2: GGUF QUICK SCAN IN PROGRESS  -->
         <Border
             x:Name="ScanningView"
-            MinHeight="185"
-            Padding="18"
+            Height="288"
+            MaxWidth="804"
+            Padding="32,24,32,18"
             HorizontalAlignment="Stretch"
-            VerticalAlignment="Center"
-            Background="#FAFBFD"
-            BorderBrush="#CBD5E1"
-            BorderThickness="1"
-            CornerRadius="16"
+            VerticalAlignment="Top"
+            Background="#FBFCFE"
+            BorderBrush="#C9D7E8"
+            BorderThickness="1.5"
+            CornerRadius="22"
             Visibility="Collapsed">
 
-            <!--
-                Separates the model header, metadata placeholders
-                and scan-status band into three compact sections.
-            -->
             <Grid>
-
                 <Grid.RowDefinitions>
-
-                    <!--  Selected-model header.  -->
                     <RowDefinition
-                        Height="Auto" />
-
-                    <!--  Divider.  -->
+                        Height="126" />
                     <RowDefinition
                         Height="1" />
-
-                    <!--  Metadata placeholder row.  -->
                     <RowDefinition
-                        Height="Auto" />
-
-                    <!--  Quick-scan status band.  -->
+                        Height="85" />
                     <RowDefinition
-                        Height="Auto" />
-
+                        Height="34" />
                 </Grid.RowDefinitions>
 
-                <!--
-                    ====================================================
-                    SELECTED-MODEL HEADER
-                    ====================================================
-                -->
-
+                <!--  Selected model header  -->
                 <Grid
-                    Grid.Row="0"
-                    Margin="0,0,0,14">
+                    Grid.Row="0">
 
                     <Grid.ColumnDefinitions>
-
-                        <!--  Model-file icon.  -->
                         <ColumnDefinition
-                            Width="Auto" />
-
-                        <!--  Selected model information.  -->
+                            Width="72" />
                         <ColumnDefinition
                             Width="*" />
-
-                        <!--  Delete/cancel action.  -->
                         <ColumnDefinition
-                            Width="Auto" />
-
+                            Width="40" />
                     </Grid.ColumnDefinitions>
 
-                    <!--
-                        Displays the GGUF file icon area used by both
-                        scanning and completed card states.
-                    -->
                     <Border
                         Grid.Column="0"
-                        Width="48"
-                        Height="48"
-                        VerticalAlignment="Center"
-                        Background="#EAF2FF"
-                        CornerRadius="12">
+                        Width="72"
+                        Height="72"
+                        Margin="0,13,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="#E5EFFF"
+                        CornerRadius="18">
 
-                        <Grid>
+                        <Viewbox
+                            Width="48"
+                            Height="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
 
-                            <!--  Displays a general document icon.  -->
-                            <FontIcon
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="23"
-                                Foreground="#2563EB"
-                                Glyph="&#xE7C3;" />
+                            <Grid
+                                Width="48"
+                                Height="48">
 
-                            <!--  Displays the GGUF file-type label.  -->
-                            <Border
-                                Margin="0,26,0,0"
-                                Padding="4,1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Background="White"
-                                CornerRadius="3">
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="#2563EB"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
 
                                 <TextBlock
-                                    FontSize="6"
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
                                     FontWeight="Bold"
                                     Foreground="#2563EB"
                                     Text="GGUF" />
 
-                            </Border>
+                            </Grid>
 
-                        </Grid>
+                        </Viewbox>
 
                     </Border>
 
-                    <!--
-                        Displays the selected filename and temporary
-                        scanning badges.
-                    -->
                     <StackPanel
                         Grid.Column="1"
-                        Margin="13,0,16,0"
-                        VerticalAlignment="Center"
-                        Spacing="4">
+                        Margin="26,9,20,0"
+                        VerticalAlignment="Top"
+                        Spacing="3">
 
-                        <!--
-                            Displays the selected GGUF filename.
-                            
-                            ImportModelCard.SetState supplies this value.
-                        -->
                         <TextBlock
                             x:Name="ScanningFileNameTextBlock"
                             HorizontalAlignment="Stretch"
-                            FontSize="15"
+                            FontSize="22"
                             FontWeight="SemiBold"
                             Foreground="#111827"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
 
-                        <!--
-                            Explains that metadata validation is still
-                            in progress.
-                        -->
                         <TextBlock
-                            FontSize="11"
-                            Foreground="#6B7280"
-                            Text="Selected local model · Metadata pending"
+                            FontSize="13"
+                            Foreground="#7A8495"
+                            Text="Selected local model"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
 
-                        <!--  Displays compact format and state badges.  -->
-                        <StackPanel
-                            Orientation="Horizontal"
-                            Spacing="6">
+                        <Border
+                            Width="70"
+                            Height="26"
+                            Margin="0,4,0,0"
+                            Padding="0"
+                            HorizontalAlignment="Left"
+                            Background="#E7EFFF"
+                            CornerRadius="13">
 
-                            <!--  GGUF format badge.  -->
-                            <Border
-                                Padding="8,3"
-                                Background="#EAF2FF"
-                                CornerRadius="6">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                Foreground="#2563EB"
+                                Text="GGUF" />
 
-                                <TextBlock
-                                    FontSize="9"
-                                    FontWeight="SemiBold"
-                                    Foreground="#2563EB"
-                                    Text="GGUF" />
-
-                            </Border>
-
-                            <!--  Scanning-state badge.  -->
-                            <Border
-                                Padding="8,3"
-                                Background="#F1F5F9"
-                                CornerRadius="6">
-
-                                <TextBlock
-                                    FontSize="9"
-                                    FontWeight="SemiBold"
-                                    Foreground="#64748B"
-                                    Text="SCANNING" />
-
-                            </Border>
-
-                        </StackPanel>
+                        </Border>
 
                     </StackPanel>
 
-                    <!--
-                        Uses the delete symbol shown in the Figma design.
-                        
-                        While scanning, this action requests cancellation
-                        and returns the user to model selection.
-                    -->
                     <Button
                         x:Name="CancelScanButton"
                         Grid.Column="2"
-                        Width="34"
-                        Height="34"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
                         Padding="0"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         AutomationProperties.Name="Remove selected model and cancel quick scan"
-                        Background="#FFF7F7"
-                        BorderBrush="#FECACA"
+                        Background="#FFFFFF"
+                        BorderBrush="#FFC2C2"
                         BorderThickness="1"
                         Click="CancelScanButton_Click"
-                        CornerRadius="8"
+                        CornerRadius="11"
                         UseSystemFocusVisuals="True">
 
-                        <!--
-                            Uses WinUI's built-in delete symbol rather
-                            than a text-based Cancel button.
-                        -->
-                        <SymbolIcon
-                            Foreground="#EF4444"
-                            Symbol="Delete" />
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="#FF2D2D"
+                            Glyph="&#xE74D;" />
 
-                        <!--
-                            Defines the delete button's interaction colours.
-                        -->
                         <Button.Resources>
-
-                            <!--  Normal state.  -->
                             <SolidColorBrush
                                 x:Key="ButtonBackground"
-                                Color="#FFF7F7" />
-
+                                Color="#FFFFFF" />
                             <SolidColorBrush
                                 x:Key="ButtonForeground"
-                                Color="#EF4444" />
-
+                                Color="#FF2D2D" />
                             <SolidColorBrush
                                 x:Key="ButtonBorderBrush"
-                                Color="#FECACA" />
+                                Color="#FFC2C2" />
 
-                            <!--  Pointer-over state.  -->
                             <SolidColorBrush
                                 x:Key="ButtonBackgroundPointerOver"
-                                Color="#FEF2F2" />
-
+                                Color="#FFF7F7" />
                             <SolidColorBrush
                                 x:Key="ButtonForegroundPointerOver"
                                 Color="#DC2626" />
-
                             <SolidColorBrush
                                 x:Key="ButtonBorderBrushPointerOver"
                                 Color="#FCA5A5" />
 
-                            <!--  Pressed state.  -->
                             <SolidColorBrush
                                 x:Key="ButtonBackgroundPressed"
                                 Color="#FEE2E2" />
-
                             <SolidColorBrush
                                 x:Key="ButtonForegroundPressed"
                                 Color="#B91C1C" />
-
                             <SolidColorBrush
                                 x:Key="ButtonBorderBrushPressed"
                                 Color="#F87171" />
-
                         </Button.Resources>
 
                     </Button>
 
                 </Grid>
 
-                <!--
-                    Separates the model header from the metadata fields.
-                -->
                 <Rectangle
                     Grid.Row="1"
                     HorizontalAlignment="Stretch"
                     Fill="#E5E7EB" />
 
-                <!--
-                    ====================================================
-                    METADATA PLACEHOLDERS
-                    ====================================================
-                -->
-
-                <!--
-                    Matches the completed card's four-column metadata
-                    layout.
-                    
-                    Each value is replaced by an active ProgressRing
-                    until the scanner supplies the real metadata.
-                -->
+                <!--  Metadata skeletons  -->
                 <Grid
-                    Grid.Row="2"
-                    Margin="0,14,0,0">
-
+                    Grid.Row="2">
                     <Grid.ColumnDefinitions>
-
-                        <!--  Parameter count.  -->
+                        <ColumnDefinition
+                            Width="185" />
+                        <ColumnDefinition
+                            Width="200" />
+                        <ColumnDefinition
+                            Width="175" />
                         <ColumnDefinition
                             Width="*" />
-
-                        <!--  Architecture.  -->
-                        <ColumnDefinition
-                            Width="*" />
-
-                        <!--  File size.  -->
-                        <ColumnDefinition
-                            Width="*" />
-
-                        <!--  Declared context.  -->
-                        <ColumnDefinition
-                            Width="*" />
-
                     </Grid.ColumnDefinitions>
 
-                    <!--  Parameter-count field.  -->
                     <StackPanel
                         Grid.Column="0"
-                        Spacing="6">
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
 
-                        <!--  Field label.  -->
                         <TextBlock
-                            FontSize="9"
+                            FontSize="11"
                             FontWeight="SemiBold"
                             Foreground="#6B7280"
                             Text="PARAMETERS" />
 
-                        <!--
-                            Animated placeholder shown until the model's
-                            parameter information has been read.
-                        -->
-                        <ProgressRing
-                            Width="18"
-                            Height="18"
+                        <Border
+                            Width="78"
+                            Height="14"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Reading parameter count"
-                            Foreground="#2563EB"
-                            IsActive="True" />
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
 
                     </StackPanel>
 
-                    <!--  Architecture field.  -->
                     <StackPanel
                         Grid.Column="1"
-                        Spacing="6">
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
 
-                        <!--  Field label.  -->
                         <TextBlock
-                            FontSize="9"
+                            FontSize="11"
                             FontWeight="SemiBold"
                             Foreground="#6B7280"
                             Text="ARCHITECTURE" />
 
-                        <!--
-                            Animated placeholder shown until the model
-                            architecture has been read.
-                        -->
-                        <ProgressRing
-                            Width="18"
-                            Height="18"
+                        <Border
+                            Width="116"
+                            Height="14"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Reading model architecture"
-                            Foreground="#2563EB"
-                            IsActive="True" />
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
 
                     </StackPanel>
 
-                    <!--  File-size field.  -->
                     <StackPanel
                         Grid.Column="2"
-                        Spacing="6">
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
 
-                        <!--  Field label.  -->
                         <TextBlock
-                            FontSize="9"
+                            FontSize="11"
                             FontWeight="SemiBold"
                             Foreground="#6B7280"
                             Text="FILE SIZE" />
 
-                        <!--
-                            Animated placeholder shown until the local
-                            file size has been read.
-                        -->
-                        <ProgressRing
-                            Width="18"
-                            Height="18"
+                        <Border
+                            Width="84"
+                            Height="14"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Reading model file size"
-                            Foreground="#2563EB"
-                            IsActive="True" />
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
 
                     </StackPanel>
 
-                    <!--  Declared-context field.  -->
                     <StackPanel
                         Grid.Column="3"
-                        Spacing="6">
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
 
-                        <!--  Field label.  -->
                         <TextBlock
-                            FontSize="9"
+                            FontSize="11"
                             FontWeight="SemiBold"
                             Foreground="#6B7280"
                             Text="DECLARED CONTEXT" />
 
-                        <!--
-                            Animated placeholder shown until the declared
-                            context length has been read.
-                        -->
-                        <ProgressRing
-                            Width="18"
-                            Height="18"
+                        <Border
+                            Width="126"
+                            Height="14"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Reading declared context length"
-                            Foreground="#2563EB"
-                            IsActive="True" />
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
 
                     </StackPanel>
 
                 </Grid>
 
-                <!--
-                    ====================================================
-                    QUICK-SCAN STATUS BAND
-                    ====================================================
-                -->
-
-                <!--
-                    Matches the completed card's bottom status band.
-                    
-                    The completed state can keep this exact structure
-                    and replace the blue progress presentation with a
-                    green success presentation.
-                -->
+                <!--  Quick-scan status  -->
                 <Border
                     Grid.Row="3"
-                    Margin="0,14,0,0"
-                    Padding="10,6"
+                    Height="34"
                     HorizontalAlignment="Stretch"
-                    Background="#EFF6FF"
-                    CornerRadius="9">
+                    Background="#EEF4FF"
+                    CornerRadius="17">
 
-                    <!--
-                        Displays a compact loading indicator beside
-                        the scan-status message.
-                    -->
                     <StackPanel
+                        Margin="12,0,12,0"
+                        VerticalAlignment="Center"
                         Orientation="Horizontal"
-                        Spacing="8">
+                        Spacing="10">
 
-                        <!--  Indicates active indeterminate work.  -->
                         <ProgressRing
-                            Width="14"
-                            Height="14"
+                            Width="16"
+                            Height="16"
                             VerticalAlignment="Center"
                             AutomationProperties.Name="Quick scan in progress"
                             Foreground="#2563EB"
                             IsActive="True" />
 
-                        <!--  Displays the current scan status.  -->
                         <TextBlock
                             VerticalAlignment="Center"
-                            FontSize="10"
+                            FontSize="13"
                             FontWeight="SemiBold"
-                            Foreground="#1D4ED8"
+                            Foreground="#2563EB"
                             Text="Quick scan in progress · Reading model metadata"
-                            TextWrapping="Wrap" />
+                            TextWrapping="NoWrap" />
 
                     </StackPanel>
 
