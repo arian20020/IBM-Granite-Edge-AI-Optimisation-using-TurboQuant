@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-006",
+    "fixtureFile":  "V-006-unusual-metadata-order.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q4_K_M",
+                             "fileSizeBytes":  320,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "2e0c47c16aad4355c2025b4c28b45091d7905b8b4fbcbf86645434f1c1820aea"
+                  },
+    "notes":  "Known metadata must be extracted independently of entry order."
+}

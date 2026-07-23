@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-002",
+    "fixtureFile":  "V-002-missing-name.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "V-002-missing-name.gguf",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q4_K_M",
+                             "fileSizeBytes":  288,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "22b1e2c35fd67ebeb816faf6711f9c5e6356072df524aab5d8d59dd62f548c09"
+                  },
+    "notes":  "Missing general.name should use the filename as a display fallback."
+}

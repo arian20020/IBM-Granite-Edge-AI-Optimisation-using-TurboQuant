@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 {
-    internal class ModelQuickScanner()
+    internal enum ModelQuickScanOutcome
     {
+        Success,
+        Failure,
+        Cancelled
     }
-
-
 }

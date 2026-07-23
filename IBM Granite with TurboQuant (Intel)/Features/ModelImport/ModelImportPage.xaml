@@ -86,7 +86,8 @@
                         <controls:ImportModelCard
                             x:Name="ImportModelCardControl"
                             HorizontalAlignment="Stretch"
-                            BrowseFilesRequested="ImportModelCard_BrowseFilesRequested" />
+                            BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
+                            CancelScanRequested="ImportModelCard_CancelScanRequested" />
                         <TextBlock
                             HorizontalAlignment="Center"
                             FontSize="13"
