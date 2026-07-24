@@ -64,6 +64,7 @@ $results = "TestResults\GGUF-Quick-Scanner\$configuration"
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
     Select-Object -First 1
+New-Item -ItemType Directory -Force -Path $results | Out-Null
 $resolvedRecipe = (Resolve-Path -LiteralPath $recipe).Path
 $resolvedResults = (Resolve-Path -LiteralPath $results).Path
 & $vstest $resolvedRecipe /Platform:x64 /TestCaseFilter:"$filter" /Logger:"trx;LogFileName=$trxName" "/ResultsDirectory:$resolvedResults"
