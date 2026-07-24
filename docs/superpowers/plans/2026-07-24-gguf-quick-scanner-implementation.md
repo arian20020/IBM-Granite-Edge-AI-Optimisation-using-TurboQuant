@@ -333,11 +333,16 @@ git commit -m "feat(model-import): validate complete GGUF headers"
 - Modify: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufQuickScannerTests.cs`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/GgufQuickScanner.cs`
 - Modify: `docs/evidence/testing/GGUF-Quick-Scanner-Test-Report.md`
+- Modify: `tests/TestFixtures/Generate-GgufMetadataFixtures.ps1`
+- Create: `tests/TestFixtures/Malformed/I-025-empty-metadata-key.gguf`
+- Create: `tests/TestFixtures/Malformed/I-026-empty-key-segment.gguf`
+- Create: `tests/TestFixtures/Malformed/I-027-key-with-space.gguf`
+- Create: `tests/TestFixtures/Malformed/I-028-uppercase-key.gguf`
 
 **Interfaces:**
 
 - Consumes: parsed `GgufHeader.MetadataEntryCount`.
-- Produces: bounded metadata loop, strict key decoding, official type enum, safe exact reads/skips, and structural failure translation.
+- Produces: bounded metadata loop, strict hierarchical `lower_snake_case` key validation, official type enum, safe exact reads/skips, and structural failure translation.
 
 - [ ] **Cycle 3.1: Metadata count limit**
 
@@ -359,7 +364,7 @@ Add `ScanAsync_OversizedKeyLength_ReturnsMetadataKeyTooLongFailure` using `I-005
 
 RED: the scanner lacks key parsing or reports truncation.
 
-Add `MaxMetadataKeyByteLength = 65_535`, read the `uint64` length, compare before narrowing/allocation, validate remaining bytes, decode with strict UTF-8, and validate ASCII. Return `metadata-key-too-long` before allocation. GREEN: one pass.
+Add `MaxMetadataKeyByteLength = 65_535`, read the `uint64` length, compare before narrowing/allocation, validate remaining bytes, and decode with strict UTF-8. Validate the complete GGUF hierarchical-key grammar, equivalently `[a-z0-9_]+(\.[a-z0-9_]+)*`, without echoing unsafe invalid key text. Return `metadata-key-too-long` before allocation and `invalid-metadata-key` for empty keys, empty segments, or characters outside lowercase ASCII letters, digits, and underscores. GREEN: one pass.
 
 - [ ] **Cycle 3.3: Unknown metadata type**
 
@@ -435,6 +440,14 @@ git add -- `
   'docs/evidence/testing/GGUF-Quick-Scanner-Test-Report.md'
 git commit -m "feat(model-import): parse bounded GGUF metadata values"
 ```
+
+- [ ] **Security-review follow-up: Complete key grammar**
+
+Generate `I-025` through `I-028` for an empty key, `general..name`, a key
+containing a space, and a key containing uppercase ASCII. Add separate direct
+tests for each rule. Capture one packaged four-test RED against the ASCII-only
+implementation, then a four-test GREEN after validating the complete grammar.
+Run the full direct scanner class and expect 20/20 tests.
 
 ---
 

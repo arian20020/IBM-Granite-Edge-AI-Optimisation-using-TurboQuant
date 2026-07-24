@@ -1125,6 +1125,114 @@ finally {
     $i011Writer.Dispose()
 }
 
+# I-025: metadata keys must not be empty.
+$i025Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-025-empty-metadata-key.gguf"
+
+$i025Writer =
+New-FixtureBinaryWriter `
+    -Path $i025Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i025Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i025Writer `
+        -Value ""
+
+    # Supply a complete uint8 value so only the key grammar is invalid.
+    $i025Writer.Write([uint32] 0)
+    $i025Writer.Write([byte] 0)
+}
+finally {
+    $i025Writer.Dispose()
+}
+
+# I-026: hierarchical metadata keys must not contain an empty segment.
+$i026Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-026-empty-key-segment.gguf"
+
+$i026Writer =
+New-FixtureBinaryWriter `
+    -Path $i026Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i026Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i026Writer `
+        -Value "general..name"
+
+    # Supply a complete uint8 value so only the key grammar is invalid.
+    $i026Writer.Write([uint32] 0)
+    $i026Writer.Write([byte] 0)
+}
+finally {
+    $i026Writer.Dispose()
+}
+
+# I-027: spaces are ASCII but not valid lower_snake_case key characters.
+$i027Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-027-key-with-space.gguf"
+
+$i027Writer =
+New-FixtureBinaryWriter `
+    -Path $i027Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i027Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i027Writer `
+        -Value "general name"
+
+    # Supply a complete uint8 value so only the key grammar is invalid.
+    $i027Writer.Write([uint32] 0)
+    $i027Writer.Write([byte] 0)
+}
+finally {
+    $i027Writer.Dispose()
+}
+
+# I-028: uppercase letters are outside lower_snake_case key segments.
+$i028Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-028-uppercase-key.gguf"
+
+$i028Writer =
+New-FixtureBinaryWriter `
+    -Path $i028Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i028Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i028Writer `
+        -Value "General.name"
+
+    # Supply a complete uint8 value so only the key grammar is invalid.
+    $i028Writer.Write([uint32] 0)
+    $i028Writer.Write([byte] 0)
+}
+finally {
+    $i028Writer.Dispose()
+}
+
 # ---------------------------------------------------------------------
 # Final verification output
 # ---------------------------------------------------------------------

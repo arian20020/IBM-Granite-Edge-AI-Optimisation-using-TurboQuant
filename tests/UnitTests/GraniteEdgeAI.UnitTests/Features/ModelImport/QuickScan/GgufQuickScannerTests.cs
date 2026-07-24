@@ -526,4 +526,140 @@ public sealed class GgufQuickScannerTests
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "4");
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "12");
     }
+
+    /// <summary>
+    /// Verifies that an empty metadata key violates the hierarchical key grammar.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_EmptyMetadataKey_ReturnsInvalidMetadataKeyFailure()
+    {
+        // Arrange: create the real scanner and locate the generated empty-key fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-025-empty-metadata-key.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The empty-metadata-key fixture was not found at: {fixturePath}");
+
+        // Act: scan a complete metadata entry whose key contains zero characters.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the diagnostic identifies the entry, safe offset, and empty-key rule.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("invalid-metadata-key", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "entry 0");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 32");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "empty");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "nonempty");
+    }
+
+    /// <summary>
+    /// Verifies that adjacent separators create a forbidden empty key segment.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_EmptyMetadataKeySegment_ReturnsInvalidMetadataKeyFailure()
+    {
+        // Arrange: create the real scanner and locate the generated empty-segment fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-026-empty-key-segment.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The empty-key-segment fixture was not found at: {fixturePath}");
+
+        // Act: scan a complete entry whose key is general..name.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the safe diagnostic reports the second separator, not the raw key.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("invalid-metadata-key", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "entry 0");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 32");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "empty segment");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "character index 8");
+    }
+
+    /// <summary>
+    /// Verifies that an ASCII space is outside lower_snake_case key segments.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MetadataKeyWithSpace_ReturnsInvalidMetadataKeyFailure()
+    {
+        // Arrange: create the real scanner and locate the generated space-key fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-027-key-with-space.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The key-with-space fixture was not found at: {fixturePath}");
+
+        // Act: scan a complete entry whose key includes U+0020 at index seven.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the unsafe key text is replaced by precise index/code diagnostics.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("invalid-metadata-key", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "entry 0");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 32");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "character index 7");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "U+0020");
+    }
+
+    /// <summary>
+    /// Verifies that uppercase ASCII letters are outside lower_snake_case segments.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_UppercaseMetadataKey_ReturnsInvalidMetadataKeyFailure()
+    {
+        // Arrange: create the real scanner and locate the generated uppercase-key fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-028-uppercase-key.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The uppercase-key fixture was not found at: {fixturePath}");
+
+        // Act: scan a complete entry whose first key character is uppercase G.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the grammar failure reports safe position/code details.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("invalid-metadata-key", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "entry 0");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 32");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "character index 0");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "U+0047");
+    }
 }

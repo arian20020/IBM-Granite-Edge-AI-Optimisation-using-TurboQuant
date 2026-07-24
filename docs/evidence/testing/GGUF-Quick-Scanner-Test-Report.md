@@ -227,3 +227,55 @@ Total tests: 16
 
 The final evidence is
 `TestResults\GGUF-Quick-Scanner\Debug\task-03-post-refactor.trx`.
+
+## Task 3 security-review fixes
+
+The Task 3 security review reported zero Critical, one Important, and two
+Minor findings. The Important finding was verified against the official
+[GGUF metadata-key caveats](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md):
+ASCII alone is insufficient. A key must be hierarchical, with nonempty
+`lower_snake_case` segments separated by dots.
+
+`Generate-GgufMetadataFixtures.ps1` generated four complete single-entry
+regressions. Each entry uses a uint8 payload so the key grammar is its only
+malformed structure:
+
+| Fixture | Bytes | SHA-256 | Rule exercised |
+|---|---:|---|---|
+| `I-025-empty-metadata-key.gguf` | 37 | `2cef2535ce942753bc61a01c22b2f50bad84fc8b5945f487a2542d42bbb81ced` | Empty key |
+| `I-026-empty-key-segment.gguf` | 50 | `7f433c3e0c61dbab04ebb8f0f955f7948cb0a4f1ea90b75d240aca6c88dfc601` | Adjacent dots |
+| `I-027-key-with-space.gguf` | 49 | `f6312a5b66b8c5c27be636259d7ac7fb506a156f1a205ef82fdcd42b836f4920` | U+0020 at index 7 |
+| `I-028-uppercase-key.gguf` | 49 | `bdb9ec1266004d214f61fbb5605d925ac7ee17645cee9a6912c26c4bcaa9dbfe` | U+0047 at index 0 |
+
+Repository inspection after generation showed only the generator and these four
+new binaries changed under `tests\TestFixtures`; no existing generated binary
+or expectation JSON changed. The source fixture inventory and the deployed
+`AppX\TestFixtures` layout each contain 26 `.gguf` files.
+
+The exact-name OR filter selected only the four new regression methods:
+
+- RED: `task-03-review-key-grammar-red.trx` failed 0/4. The ASCII-only
+  implementation accepted all four keys and reached
+  `missing-required-architecture`.
+- GREEN: `task-03-review-key-grammar-green.trx` passed 4/4. Each result used
+  `invalid-metadata-key` and reported the entry, key-byte offset, and a safe
+  character index/code or empty-segment rule without echoing the invalid key.
+
+The final packaged direct-scanner regression built with zero warnings and zero
+errors and passed 20/20 with no failures or skips:
+
+```text
+Test Run Successful.
+Total tests: 20
+     Passed: 20
+```
+
+Final evidence:
+`TestResults\GGUF-Quick-Scanner\Debug\task-03-review-post-fixes-final.trx`.
+
+For clarity, unretained string values have their declared length, application
+limit, and remaining-byte range validated, but their payload UTF-8 is
+intentionally not decoded merely to skip them. The scanner's broad support for
+official scalar types and nested arrays is established here by code inspection
+plus the Task 3 malformed subset. Task 6 remains responsible for generated
+full-type, nested-array, and remaining boundary coverage.

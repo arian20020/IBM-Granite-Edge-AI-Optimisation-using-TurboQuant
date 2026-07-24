@@ -377,9 +377,54 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     innerException: exception);
             }
 
+            ValidateMetadataKey(key, entryIndex, valueOffset);
+
+            return key;
+        }
+
+        /// <summary>
+        /// Validates the GGUF hierarchical lower_snake_case metadata-key grammar.
+        /// </summary>
+        private static void ValidateMetadataKey(
+            string key,
+            ulong entryIndex,
+            long keyOffset)
+        {
+            if (key.Length == 0)
+            {
+                throw new GgufFormatException(
+                    failureCode: "invalid-metadata-key",
+                    userMessage:
+                        "The GGUF file contains an invalid metadata key.",
+                    technicalMessage:
+                        $"Metadata entry {entryIndex} key at file offset " +
+                        $"{keyOffset} is empty; expected one or more nonempty " +
+                        "lower_snake_case segments.");
+            }
+
+            int segmentLength = 0;
             for (int index = 0; index < key.Length; index++)
             {
-                if (key[index] > 0x7f)
+                char character = key[index];
+                if (character == '.')
+                {
+                    if (segmentLength == 0)
+                    {
+                        throw CreateInvalidKeySegmentException(
+                            entryIndex,
+                            keyOffset,
+                            index);
+                    }
+
+                    segmentLength = 0;
+                    continue;
+                }
+
+                bool isLowerSnakeCaseCharacter =
+                    character is >= 'a' and <= 'z' ||
+                    character is >= '0' and <= '9' ||
+                    character == '_';
+                if (!isLowerSnakeCaseCharacter)
                 {
                     throw new GgufFormatException(
                         failureCode: "invalid-metadata-key",
@@ -387,12 +432,41 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                             "The GGUF file contains an invalid metadata key.",
                         technicalMessage:
                             $"Metadata entry {entryIndex} key at file offset " +
-                            $"{valueOffset} contains non-ASCII character " +
-                            $"U+{(int)key[index]:X4} at character index {index}.");
+                            $"{keyOffset} has invalid character code " +
+                            $"U+{(int)character:X4} at character index {index}; " +
+                            "expected lowercase ASCII letters, digits, " +
+                            "underscores, or dot separators.");
                 }
+
+                segmentLength++;
             }
 
-            return key;
+            if (segmentLength == 0)
+            {
+                throw CreateInvalidKeySegmentException(
+                    entryIndex,
+                    keyOffset,
+                    key.Length);
+            }
+        }
+
+        /// <summary>
+        /// Creates a safe diagnostic for a leading, trailing, or adjacent dot.
+        /// </summary>
+        private static GgufFormatException CreateInvalidKeySegmentException(
+            ulong entryIndex,
+            long keyOffset,
+            int characterIndex)
+        {
+            return new GgufFormatException(
+                failureCode: "invalid-metadata-key",
+                userMessage:
+                    "The GGUF file contains an invalid metadata key.",
+                technicalMessage:
+                    $"Metadata entry {entryIndex} key at file offset " +
+                    $"{keyOffset} has an empty segment at character index " +
+                    $"{characterIndex}; every dot-separated segment must be " +
+                    "nonempty lower_snake_case.");
         }
 
         /// <summary>

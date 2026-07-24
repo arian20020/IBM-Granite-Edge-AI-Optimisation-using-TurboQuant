@@ -198,7 +198,7 @@ Only bounded context candidates are retained before the architecture becomes kno
 
 Retained strings use `UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)`. Invalid UTF-8 returns a controlled `invalid-metadata-encoding` failure instead of replacement characters.
 
-Metadata keys are decoded strictly and checked for the GGUF ASCII-key requirement. A non-ASCII key returns `invalid-metadata-key`. This scanner does not enforce a narrower registry of known key names; valid namespaced unknown keys remain forward-compatible.
+Metadata keys are decoded strictly and validated against the GGUF hierarchical-key grammar: one or more nonempty `lower_snake_case` segments separated by single dots, equivalently `[a-z0-9_]+(\.[a-z0-9_]+)*`. Empty keys, leading/trailing dots, adjacent dots, uppercase letters, spaces, controls, and non-ASCII characters return `invalid-metadata-key`. Diagnostics report only the entry, byte offset, character index/code, or empty-segment rule and never echo an invalid raw key. The scanner does not enforce a narrower registry of known key names, so valid namespaced unknown keys remain forward-compatible.
 
 ## Failure contract
 
@@ -218,7 +218,7 @@ Required and additional scanner codes are:
 | `unsupported-version` | The header version was not 3. |
 | `excessive-metadata-count` | The declared metadata entry count exceeded one million. |
 | `metadata-key-too-long` | A key length exceeded 65,535 bytes. |
-| `invalid-metadata-key` | A key was not valid strict UTF-8/ASCII metadata text. |
+| `invalid-metadata-key` | A key did not match the nonempty hierarchical `lower_snake_case` grammar. |
 | `unsupported-metadata-type` | A value or array-element type was outside 0–12. |
 | `truncated-metadata` | A metadata field or value ended before its declared payload. |
 | `missing-required-architecture` | `general.architecture` was absent or blank. |
@@ -260,7 +260,7 @@ The test project will copy these repository-relative groups with `PreserveNewest
 - `tests/TestFixtures/Malformed/**/*.gguf`;
 - `tests/TestFixtures/ExpectedMetadata/**/*.json`.
 
-The valid fixture set will retain `V-001` through `V-008` and add a generated fixture that safely exercises every official metadata type, nested arrays, and a current broader quantization mapping. Malformed additions will cover the string, array-count, total-array-budget, nesting-depth, context-type, candidate-count, strict-encoding, and known-optional-type boundaries.
+The valid fixture set will retain `V-001` through `V-008` and add a generated fixture that safely exercises every official metadata type, nested arrays, and a current broader quantization mapping. Malformed additions will cover the string, array-count, total-array-budget, nesting-depth, context-type, candidate-count, strict-encoding, and known-optional-type boundaries. Generated `I-025` through `I-028` specifically cover an empty key, an empty hierarchical segment, a space, and an uppercase character.
 
 Direct tests use the real scanner, explicit fixture-exists assertions, Arrange–Act–Assert structure, `[TestMethod]`, and `[TestCategory("Unit")]`. Successful fixtures are compared with a small typed JSON expectation DTO. Tests observe only `ScanAsync` results and exceptions; private parsing helpers are not tested directly.
 
