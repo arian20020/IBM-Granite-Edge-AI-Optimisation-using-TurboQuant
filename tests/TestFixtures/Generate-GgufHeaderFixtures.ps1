@@ -219,6 +219,40 @@ finally {
     $truncatedWriter.Dispose()
 }
 
+# Build the path for a short header with an invalid signature.
+$shortInvalidMagicPath =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-024-short-invalid-magic.gguf"
+
+# Create or replace the deliberately short invalid-signature fixture.
+[System.IO.FileStream] $shortInvalidMagicStream =
+[System.IO.File]::Open(
+    $shortInvalidMagicPath,
+    [System.IO.FileMode]::Create,
+    [System.IO.FileAccess]::Write,
+    [System.IO.FileShare]::None)
+
+# Create a writer for the incomplete fixed header.
+[System.IO.BinaryWriter] $shortInvalidMagicWriter =
+[System.IO.BinaryWriter]::new($shortInvalidMagicStream)
+
+try {
+    # Write an invalid four-byte signature before the header ends early.
+    $shortInvalidMagicWriter.Write(
+        [System.Text.Encoding]::ASCII.GetBytes("TEST"))
+
+    # Write a supported version so the remaining fixed-header bytes are reached.
+    $shortInvalidMagicWriter.Write([uint32] 3)
+
+    # Write only half of tensor count so the file ends at offset 12.
+    $shortInvalidMagicWriter.Write([uint32] 0)
+}
+finally {
+    # Close the generated short invalid-signature fixture.
+    $shortInvalidMagicWriter.Dispose()
+}
+
 # Display the generated fixture names and their exact sizes.
 Get-ChildItem `
     -Path $ggufDirectory, $malformedDirectory `

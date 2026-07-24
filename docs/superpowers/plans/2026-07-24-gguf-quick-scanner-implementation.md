@@ -238,7 +238,7 @@ ScanAsync_WhitespacePath_ThrowsArgumentException
 
 Each invokes `ScanAsync` with the named invalid value and uses `Assert.ThrowsAsync<ArgumentException>`. Run each exact fully qualified filter.
 
-Expected actual behavior: GREEN immediately because commit `b85f8fd` already added `ArgumentException.ThrowIfNullOrWhiteSpace`. Record “implementation predates test”; do not mutate correct code merely to manufacture RED.
+Expected actual behavior: GREEN immediately because commit `37a3943` already added `ArgumentException.ThrowIfNullOrWhiteSpace`. Record “implementation predates test”; do not mutate correct code merely to manufacture RED.
 
 - [ ] **Cycle 2.2: Existing pre-cancellation**
 

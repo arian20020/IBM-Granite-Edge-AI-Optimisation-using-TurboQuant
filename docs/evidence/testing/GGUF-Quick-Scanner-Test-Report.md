@@ -116,7 +116,7 @@ $resolvedResults = (Resolve-Path -LiteralPath $results).Path
 
 All listed builds succeeded with zero warnings and zero errors. The precondition
 and pre-cancellation tests were intentionally added after their implementation:
-commit `b85f8fd` already used `ArgumentException.ThrowIfNullOrWhiteSpace` and
+commit `37a3943` already used `ArgumentException.ThrowIfNullOrWhiteSpace` and
 checked a pre-cancelled token before opening the path. They therefore passed on
 their first run rather than being artificially made RED.
 
@@ -136,3 +136,27 @@ The red and green TRX files are under
 `TestResults\GGUF-Quick-Scanner\Debug`. The final packaged regression ran the
 two established magic/version tests plus the seven new input, cancellation, and
 fixed-header tests.
+
+## Task 2 review follow-up
+
+The fixed-header reader now completes all 24 header bytes before classifying a
+complete signature. This ensures that a file shorter than 24 bytes returns
+`truncated-header` even if its first four bytes are not `GGUF`. The generated
+`I-024-short-invalid-magic.gguf` fixture is 12 bytes: `TEST`, version 3, and
+half of the tensor-count field.
+
+- RED: `task-02-review-short-invalid-magic-red.trx` failed 0/1 on the prior
+  implementation because it returned `invalid-magic`.
+- GREEN: `task-02-review-short-invalid-magic-green.trx` passed 1/1 after the
+  complete-header ordering fix.
+- Affected header tests: `task-02-review-affected-header-tests.trx` passed
+  4/4, including empty, partial, short-invalid-magic, and complete
+  invalid-magic inputs.
+- Final direct scanner regression:
+  `task-02-review-post-fixes-final.trx` passed 10/10.
+
+The deployed `AppX\TestFixtures` layout now contains 22 `.gguf` files. Header
+diagnostics now include actual signature bytes for invalid magic and actual
+bytes read as well as the expected width for truncation. Historical attribution
+for the path-validation and pre-cancellation behavior was corrected to
+`37a3943`.

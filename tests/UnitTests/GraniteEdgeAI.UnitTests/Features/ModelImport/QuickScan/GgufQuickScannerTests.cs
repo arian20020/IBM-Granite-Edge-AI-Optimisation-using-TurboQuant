@@ -101,6 +101,40 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual("truncated-header", result.FailureCode);
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "magic");
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "0");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "reading 0 bytes");
+    }
+
+    /// <summary>
+    /// Verifies that a short file remains a truncated header even when its magic is invalid.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ShortInvalidMagic_ReturnsTruncatedHeaderFailure()
+    {
+        // Arrange: create the real scanner and locate the generated short-header fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-024-short-invalid-magic.gguf");
+
+        // Arrange: prove the packaged deployment contains the intended generated input.
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The short invalid-magic fixture was not found at: {fixturePath}");
+
+        // Act: scan a file that has TEST magic but ends in the tensor-count field.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the incomplete 24-byte header takes priority over invalid magic.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("truncated-header", result.FailureCode);
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "tensor count");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 8");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "reading 4 bytes");
     }
 
     /// <summary>
@@ -132,7 +166,8 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
         Assert.AreEqual("truncated-header", result.FailureCode);
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "tensor count");
-        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "8");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 8");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "reading 4 bytes");
     }
 
     /// <summary>
@@ -220,6 +255,14 @@ public sealed class GgufQuickScannerTests
         // Assert: diagnostic logging must receive technical information.
         Assert.IsFalse(
             string.IsNullOrWhiteSpace(result.TechnicalMessage));
+
+        // Assert: diagnostics preserve both the expected and actual signature bytes.
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            "47-47-55-46");
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            "54-45-53-54");
     }
 
     /// <summary>

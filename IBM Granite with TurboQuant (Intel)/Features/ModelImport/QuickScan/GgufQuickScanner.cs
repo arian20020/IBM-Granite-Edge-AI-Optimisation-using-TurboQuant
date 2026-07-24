@@ -112,16 +112,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 fieldOffset: 0,
                 cancellationToken);
 
-            // Reject a complete but non-GGUF signature with its established failure code.
-            if (!actualMagic.AsSpan().SequenceEqual(ExpectedGgufMagic))
-            {
-                throw new GgufFormatException(
-                    failureCode: "invalid-magic",
-                    userMessage: "The selected file is not a valid GGUF model.",
-                    technicalMessage: "Expected GGUF magic bytes at file offset 0.");
-            }
-
-            // Decode the version and both declared counts using the GGUF little-endian layout.
+            // Read every remaining fixed-header field before classifying complete input.
             uint version = await ReadUInt32Async(
                 stream,
                 fieldName: "version",
@@ -137,6 +128,17 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 fieldName: "metadata entry count",
                 fieldOffset: 16,
                 cancellationToken);
+
+            // Reject a complete but non-GGUF signature with actual and expected bytes.
+            if (!actualMagic.AsSpan().SequenceEqual(ExpectedGgufMagic))
+            {
+                throw new GgufFormatException(
+                    failureCode: "invalid-magic",
+                    userMessage: "The selected file is not a valid GGUF model.",
+                    technicalMessage:
+                        $"Expected GGUF magic bytes {BitConverter.ToString(ExpectedGgufMagic)} " +
+                        $"at file offset 0, but found {BitConverter.ToString(actualMagic)}.");
+            }
 
             // Return the decoded header without reading tensor descriptors or metadata values.
             return new GgufHeader(version, tensorCount, metadataEntryCount);
@@ -203,13 +205,20 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             }
             catch (EndOfStreamException exception)
             {
+                // Bound the bytes read to this field when the exact read reaches EOF.
+                long bytesRead = Math.Clamp(
+                    stream.Position - fieldOffset,
+                    0,
+                    buffer.Length);
+
                 // Preserve field context so the result identifies the malformed input.
                 throw new GgufFormatException(
                     failureCode: "truncated-header",
                     userMessage: "The selected GGUF file has an incomplete header.",
                     technicalMessage:
                         $"GGUF header field '{fieldName}' starting at file offset " +
-                        $"{fieldOffset} was truncated; expected {buffer.Length} bytes.",
+                        $"{fieldOffset} was truncated after reading {bytesRead} bytes; " +
+                        $"expected {buffer.Length} bytes.",
                     innerException: exception);
             }
         }
