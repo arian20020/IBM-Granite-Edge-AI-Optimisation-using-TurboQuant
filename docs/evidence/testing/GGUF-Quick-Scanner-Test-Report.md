@@ -160,3 +160,70 @@ diagnostics now include actual signature bytes for invalid magic and actual
 bytes read as well as the expected width for truncation. Historical attribution
 for the path-validation and pre-cancellation behavior was corrected to
 `37a3943`.
+
+## Task 3 bounded metadata TDD evidence
+
+Task 3 ran from `a441ab1` with the Visual Studio 18 VSTest 18.7.0 x64 runner.
+Each RED and GREEN invocation built the Debug `win-x64` packaged test project,
+deployed its generated `.build.appxrecipe`, selected one exact fully qualified
+test name, and wrote a TRX file beneath
+`TestResults\GGUF-Quick-Scanner\Debug`.
+
+The corrected packaged command form resolved the recipe and results paths
+before passing them to VSTest:
+
+```powershell
+$testProject = 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
+$configuration = 'Debug'
+$recipe = "tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\$configuration\net8.0-windows10.0.19041.0\win-x64\GraniteEdgeAI.UnitTests.build.appxrecipe"
+$results = "TestResults\GGUF-Quick-Scanner\$configuration"
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
+    Select-Object -First 1
+
+dotnet build $testProject --configuration $configuration --no-restore --runtime win-x64 -p:Platform=x64
+New-Item -ItemType Directory -Force -Path $results | Out-Null
+$resolvedRecipe = (Resolve-Path -LiteralPath $recipe).Path
+$resolvedResults = (Resolve-Path -LiteralPath $results).Path
+& $vstest $resolvedRecipe /Platform:x64 /TestCaseFilter:"$filter" /Logger:"trx;LogFileName=$trxName" "/ResultsDirectory:$resolvedResults"
+```
+
+| Cycle | RED evidence | GREEN evidence |
+|---|---|---|
+| 3.1 metadata count | `cycle-3-1-red.trx`: failed 0/1 because the old implementation returned `missing-required-architecture` for 1,000,001 entries | `cycle-3-1-green.trx`: passed 1/1 with `excessive-metadata-count` and the actual/limit diagnostics |
+| 3.2 key length | `cycle-3-2-red.trx`: failed 0/1 because the old implementation returned `missing-required-architecture` for a 65,536-byte declared key | `cycle-3-2-green.trx`: passed 1/1 with `metadata-key-too-long` before narrowing or allocation |
+| 3.3 value type | `cycle-3-3-red.trx`: failed 0/1 because type 99 was not dispatched | `cycle-3-3-green.trx`: passed 1/1 with `unsupported-metadata-type` for `fixture.unknown` |
+| 3.4 truncated string | `cycle-3-4-red.trx`: failed 0/1 because the string payload was not consumed | `cycle-3-4-green.trx`: passed 1/1 with `truncated-metadata`, key/stage/offset, three actual bytes, and 20 expected bytes |
+| 3.5 strict boolean | `cycle-3-5-red.trx`: failed 0/1 because byte 2 was skipped and the scan reached missing architecture | `cycle-3-5-green.trx`: passed 1/1 with `invalid-boolean-value` and the required 0-or-1 domain |
+| 3.6 truncated array | `cycle-3-6-red.trx`: failed 0/1 because array structure was not consumed | `cycle-3-6-green.trx`: passed 1/1 after the fixed-width payload check found four available bytes versus 12 declared bytes |
+
+The first Cycle 3.2 GREEN build exposed an `int`-to-`ulong` argument conversion
+mistake and the XAML compiler emitted its follow-on error. No test ran and no
+TRX was produced for that attempt. The explicit conversion was corrected; the
+recorded `cycle-3-2-green.trx` rerun built with zero warnings and zero errors
+and passed 1/1. All other recorded cycle builds also completed with zero
+warnings and zero errors.
+
+The implementation now performs one bounded metadata pass, validates strict
+UTF-8/ASCII keys, dispatches official types 0 through 12, skips unknown strings
+without allocation, validates boolean bytes, and recursively consumes nested
+arrays. The scanner applies the GGUF key specification limit separately from
+the application limits for strings, per-array elements, total array elements,
+and nesting depth. Its aggregate array counter is local to one scan.
+
+After the helper refactor, the full direct-scanner packaged filter
+`FullyQualifiedName~GraniteEdgeAI.UnitTests.GgufQuickScannerTests` passed
+16/16 with zero failures and no skips:
+
+```text
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Test Run Successful.
+Total tests: 16
+     Passed: 16
+```
+
+The final evidence is
+`TestResults\GGUF-Quick-Scanner\Debug\task-03-post-refactor.trx`.
