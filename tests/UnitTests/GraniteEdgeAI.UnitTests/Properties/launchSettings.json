@@ -1,0 +1,7 @@
+﻿{
+  "profiles": {
+    "GraniteEdgeAI.UnitTests (Package)": {
+      "commandName": "MsixPackage"
+    }
+  }
+}

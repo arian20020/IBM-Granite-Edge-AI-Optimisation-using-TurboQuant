@@ -65,6 +65,7 @@ jobs:
           sparse-checkout: |
             IBM Granite with TurboQuant (Intel)
             tests/UnitTests/GraniteEdgeAI.UnitTests
+            tests/TestFixtures
 
       # actions/checkout only accepts paths beneath GITHUB_WORKSPACE, whose
       # Windows path repeats the long repository name. Copy the sparse tree to
@@ -164,9 +165,9 @@ jobs:
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vstest = & $vswhere `
-            -all `
+            -latest `
             -products * `
-            -find '**\Common7\IDE\**\vstest.console.exe' |
+            -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
             Select-Object -First 1
 
           if (-not $vstest) {
