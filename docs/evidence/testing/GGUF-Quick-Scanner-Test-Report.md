@@ -1,5 +1,214 @@
 # GGUF quick-scanner packaged test report
 
+## Current Task 9 documentation snapshot
+
+This section is the current summary. The later sections preserve the genuine
+baseline, RED/GREEN, review-fix, and refactoring record in chronological order.
+
+### Scope and environment
+
+| Item | Observed value |
+|---|---|
+| Date | 25 July 2026 |
+| Operating system | Windows 11 Pro, version `10.0.26200`, build `26200` |
+| Branch | `feature/winui-shell-model-import` |
+| Tested implementation commit | `c67d33f36ec323d8537245a536bb818098dd6a7e` |
+| Repository root | `C:\Users\Arian\source\repos\IBM-Granite-TurboQuant-Intel` |
+| Selected .NET SDK | `10.0.301` from `global.json` |
+| Target framework/runtime | `net8.0-windows10.0.19041.0`; `win-x64`; packaged output uses .NET runtime pack `8.0.28` |
+| MSBuild | Visual Studio 18 Community, `18.7.8.30822` x64 |
+| Packaged runner | `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe`, VSTest `18.7.0 (x64)` |
+| MSTest packages | `MSTest.TestAdapter` and `MSTest.TestFramework` `4.3.2` |
+| Windows App SDK package | `Microsoft.WindowsAppSDK` `2.2.0` |
+| Fixture snapshot | 42 generated binaries: 13 GGUF/header and 29 malformed; 12 expected-result JSON files |
+
+The tested implementation commit is recorded rather than pretending that a
+commit can contain its own future hash. The Task 9 documentation commit is
+identified by subject `docs(model-import): explain and evidence GGUF quick
+scanning` in local history. Task 10 will record the final branch commit after
+independent reviews and its own CI-equivalent verification.
+
+The Task 9 build command targets the packaged test project. Its project
+reference caused both the production application assembly and test assembly to
+be compiled in Debug and Release. Task 10 is reserved for separate explicit
+application restore/build commands and the authoritative post-review matrix.
+
+### Exact Task 9 restore, build, and test commands
+
+The result directories were created before `Resolve-Path`. The restore command
+was:
+
+```powershell
+$testProject =
+  'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
+$resultsRoot = 'TestResults\GGUF-Quick-Scanner'
+
+New-Item -ItemType Directory -Force -Path `
+  "$resultsRoot\Debug", "$resultsRoot\Release" | Out-Null
+
+dotnet restore $testProject `
+  --runtime win-x64 `
+  -p:Platform=x64
+```
+
+Exit code: 0. Output:
+`TestResults\GGUF-Quick-Scanner\task-09-docs-restore.log`.
+
+Runner discovery used:
+
+```powershell
+$vswhere =
+  "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vstest = & $vswhere `
+  -latest `
+  -products * `
+  -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
+  Select-Object -First 1
+```
+
+The exact Debug build and three packaged invocations were:
+
+```powershell
+dotnet build $testProject `
+  --configuration Debug `
+  --no-restore `
+  --runtime win-x64 `
+  -p:Platform=x64
+
+$debugRecipe = (Resolve-Path -LiteralPath `
+  'tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\GraniteEdgeAI.UnitTests.build.appxrecipe').Path
+$debugResults = (Resolve-Path -LiteralPath `
+  "$resultsRoot\Debug").Path
+
+& $vstest $debugRecipe `
+  /Platform:x64 `
+  /TestCaseFilter:'FullyQualifiedName~GraniteEdgeAI.UnitTests.GgufQuickScannerTests' `
+  /Logger:'trx;LogFileName=task-09-docs-debug-direct.trx' `
+  "/ResultsDirectory:$debugResults"
+
+& $vstest $debugRecipe `
+  /Platform:x64 `
+  /TestCaseFilter:'FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests' `
+  /Logger:'trx;LogFileName=task-09-docs-debug-router.trx' `
+  "/ResultsDirectory:$debugResults"
+
+& $vstest $debugRecipe `
+  /Platform:x64 `
+  /Logger:'trx;LogFileName=task-09-docs-debug-full.trx' `
+  "/ResultsDirectory:$debugResults"
+```
+
+The exact Release build and three packaged invocations were:
+
+```powershell
+dotnet build $testProject `
+  --configuration Release `
+  --no-restore `
+  --runtime win-x64 `
+  -p:Platform=x64
+
+$releaseRecipe = (Resolve-Path -LiteralPath `
+  'tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\GraniteEdgeAI.UnitTests.build.appxrecipe').Path
+$releaseResults = (Resolve-Path -LiteralPath `
+  "$resultsRoot\Release").Path
+
+& $vstest $releaseRecipe `
+  /Platform:x64 `
+  /TestCaseFilter:'FullyQualifiedName~GraniteEdgeAI.UnitTests.GgufQuickScannerTests' `
+  /Logger:'trx;LogFileName=task-09-docs-release-direct.trx' `
+  "/ResultsDirectory:$releaseResults"
+
+& $vstest $releaseRecipe `
+  /Platform:x64 `
+  /TestCaseFilter:'FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests' `
+  /Logger:'trx;LogFileName=task-09-docs-release-router.trx' `
+  "/ResultsDirectory:$releaseResults"
+
+& $vstest $releaseRecipe `
+  /Platform:x64 `
+  /Logger:'trx;LogFileName=task-09-docs-release-full.trx' `
+  "/ResultsDirectory:$releaseResults"
+```
+
+### Current Debug and Release results
+
+The Debug build exited 0 in 13.46 seconds. The Release build exited 0 in
+68.69 seconds. Each build reported:
+
+```text
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+```
+
+Build logs:
+
+- `TestResults\GGUF-Quick-Scanner\Debug\task-09-docs-debug-build.log`;
+- `TestResults\GGUF-Quick-Scanner\Release\task-09-docs-release-build.log`.
+
+Every VSTest process exited 0. Counters and durations below were read from each
+TRX. Duration is the TRX `finish - start` interval.
+
+| Configuration | Scope/filter | Total/executed/passed | Failed/error/inconclusive/not executed | TRX duration | Relative TRX path |
+|---|---|---:|---:|---:|---|
+| Debug | `GgufQuickScannerTests` | 47/47/47 | 0/0/0/0 | 3.4979773 s | `TestResults\GGUF-Quick-Scanner\Debug\task-09-docs-debug-direct.trx` |
+| Debug | `ModelQuickScannerTests` | 11/11/11 | 0/0/0/0 | 2.7285634 s | `TestResults\GGUF-Quick-Scanner\Debug\task-09-docs-debug-router.trx` |
+| Debug | no filter | 95/95/95 | 0/0/0/0 | 2.7635008 s | `TestResults\GGUF-Quick-Scanner\Debug\task-09-docs-debug-full.trx` |
+| Release | `GgufQuickScannerTests` | 47/47/47 | 0/0/0/0 | 9.6642398 s | `TestResults\GGUF-Quick-Scanner\Release\task-09-docs-release-direct.trx` |
+| Release | `ModelQuickScannerTests` | 11/11/11 | 0/0/0/0 | 2.3760642 s | `TestResults\GGUF-Quick-Scanner\Release\task-09-docs-release-router.trx` |
+| Release | no filter | 95/95/95 | 0/0/0/0 | 2.4790299 s | `TestResults\GGUF-Quick-Scanner\Release\task-09-docs-release-full.trx` |
+
+The direct and router filters exercise real generated files through the
+packaged filesystem. Although the methods carry `TestCategory("Unit")`, these
+fixture-backed cases are component/integration-style tests rather than pure
+in-memory unit tests.
+
+### Consolidated diagnostic record
+
+The detailed evidence remains in the task sections below. This table connects
+the important symptom, hypothesis/experiment, cause, and correction:
+
+| Stage | Observed symptom | Hypothesis and discriminating experiment | Verified cause | Correction |
+|---|---|---|---|---|
+| setup baseline | 1 of 2 scanner cases failed because I-001 was absent | Inspect recipe/AppX and deploy from the current short root with both VS runners | Fixture content item copied only I-002; VS 2022 runner also lacked a suitable provider, while VS18 executed the package | Wildcard-copy all fixture groups; select latest compatible VS runner |
+| empty header | `EndOfStreamException` escaped | Exact one-test packaged RED with I-000 | No structural translation around exact header read | Scanner-local `truncated-header` translation |
+| short bad magic | Returned `invalid-magic` before discovering incomplete header | I-024 with `TEST` plus only half tensor count | Magic was classified before all 24 bytes were read | Complete fixed header before magic classification |
+| metadata boundaries | Unsafe/missing dispatch reached later missing-architecture behavior | One fixture/test per count, key, type, truncation, Boolean, and array boundary | Metadata values were not fully bounded/consumed | Focused key/type/value/array helpers and stable failures |
+| key grammar review | Empty segments, spaces, and uppercase ASCII were accepted | Four generated single-entry cases | ASCII-only validation was weaker than official key grammar | Full hierarchical lower-snake-case validation |
+| known extraction | Wrong architecture type looked missing; V-001 could not succeed | Exact wrong-type and typed-JSON tests | Known fields were only being skipped | Strict known-key typing and retained state |
+| context order | V-006 expected 131072 but returned null | Move exact context before architecture | Architecture-first assumption | Maximum-64 pending candidate resolution |
+| current mapping/duplicates | File type 41 was unknown; later duplicates replaced values | Generated V-011 and V-012 two-test RED | Mapping stopped at 40; state was last-wins | Add 41 and bounded first-occurrence-wins state |
+| operational open | `FileNotFoundException` escaped | Unique nonexistent path | `FileStream` construction was outside an operational mapping | Narrow opening-time file/directory/access/I/O catches |
+| router integration | Obsolete test still expected `NotImplementedException` | Run router baseline after scanner completion | Test expectation, not production, was stale | Replace with valid, invalid, and cancellation integrations |
+| refactor | Risk of changing a security-sensitive parser while extracting orchestration | Run direct/router before, after each extraction, and full suite | No behavior defect; this was a safety-net question | Three small extractions with green checkpoints |
+
+### Current limitations and evidence boundary
+
+- `ModelImportPage` still does not call `ModelQuickScanner`; it selects a path
+  and sets visual `Scanning` state, but result/UI wiring and
+  `HasValidatedModel` assignment are outside this scanner-only task.
+- Only GGUF v3 header/metadata is checked. Tensor descriptors/data and model
+  inference are not tested by these tiny structural fixtures.
+- The implementation reads multi-byte fields as little-endian and has no
+  big-endian detection or byte-swapping path.
+- Quantization behavior is mapped through current value 41, but fixture
+  coverage is representative: 15, 40, 41, and unknown 999. It is not
+  exhaustive value-by-value coverage.
+- Scanner-relevant duplicates and bounded pending context candidates use
+  first-occurrence-wins. Arbitrary duplicate keys are not globally retained or
+  rejected.
+- `general.architecture` is checked for string type, strict UTF-8, and
+  nonblank content, but the scanner does not additionally enforce the GGUF
+  lowercase ASCII architecture-value grammar.
+- `file-access-denied` and opening-time `file-read-error` are narrow production
+  mappings without a portable deterministic packaged test that forces those
+  host conditions.
+- Task 9 did not run the independent reviews or standalone CI-equivalent
+  application restore/build assigned to Task 10. No final-review claim is made
+  here.
+- No push, merge, publish, remote pull-request update, or other remote action
+  occurred during Tasks 1 through 9.
+
 ## Task 1 setup repair
 
 - Branch: `feature/winui-shell-model-import`
@@ -275,10 +484,10 @@ Final evidence:
 
 For clarity, unretained string values have their declared length, application
 limit, and remaining-byte range validated, but their payload UTF-8 is
-intentionally not decoded merely to skip them. The scanner's broad support for
-official scalar types and nested arrays is established here by code inspection
-plus the Task 3 malformed subset. Task 6 remains responsible for generated
-full-type, nested-array, and remaining boundary coverage.
+intentionally not decoded merely to skip them. At this Task 3 checkpoint,
+broad scalar/nested-array support was established by code inspection plus the
+malformed subset. Task 6 later added generated all-type, nested-array, and
+remaining boundary coverage, recorded in its section below.
 
 ## Task 4 required metadata extraction TDD evidence
 
@@ -299,11 +508,11 @@ errors.
 The successful V-001 test deserializes its checked-in expectation as typed
 `ExpectedFixture`/`ExpectedMetadata` records and asserts every success field,
 including file length, GGUF version, context length, and `15 => Q4_K_M`; it
-also asserts all failure fields are null. Task 4 introduces only that required
-file-type mapping plus `Unknown (file type N)` fallback. Task 5 expands the
-mapping through the current official value 41. Quantization fixture coverage is
+also asserts all failure fields are null. Task 4 introduced only that required
+file-type mapping plus `Unknown (file type N)` fallback. Task 5 later expanded
+the mapping through current official value 41. Quantization fixture coverage is
 representative rather than exhaustive: V-001 checks 15, review fixture V-011
-checks 41, and Task 6 retains planned checks for 40 and unknown value 999.
+checks 41, and Task 6 added checks for 40 and unknown value 999.
 
 The post-refactor packaged direct-scanner regression was:
 
@@ -371,7 +580,7 @@ type retained. Once architecture is available, an allocation-free exact
 length/suffix/prefix comparison selects only its matching candidate. Code
 inspection shows a 65th distinct candidate reaches
 `excessive-context-candidate-count` with actual count 65 and limit 64
-diagnostics; Task 6 fixture I-017 remains the planned public-scan validation of
+diagnostics. Task 6 fixture I-017 later supplied the public-scan validation of
 that boundary. Unrelated wrong-type candidates remain harmless.
 
 `MapFileTypeToQuantization` now covers labels 0 through 41 from the current
@@ -418,8 +627,8 @@ pre-architecture context candidate; it does not grow into a general metadata
 key set. Later duplicates are consumed through the normal structural skip path
 without replacing retained state. This keeps a duplicate architecture from
 redirecting exact context matching. A first matching wrong-type candidate
-still reaches `invalid-context-type`; Task 6 I-016 remains its planned
-generated public-scan validation.
+still reaches `invalid-context-type`; Task 6 I-016 later supplied its generated
+public-scan validation.
 
 The focused packaged GREEN was:
 
