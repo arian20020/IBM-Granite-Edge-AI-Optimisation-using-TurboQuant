@@ -618,3 +618,110 @@ Total tests: 11
 The final TRX records 11 total/executed/passed, with zero failed, error,
 inconclusive, and not-executed tests:
 `TestResults\GGUF-Quick-Scanner\Debug\task-07-router.trx`.
+
+## Task 8 behavior-preserving parser refactor evidence
+
+Task 8 changed no scanner behavior and did not modify the test sources. The
+refactor extracted only three responsibilities already covered by the packaged
+suite:
+
+1. `CreateFormatFailure` centralizes construction of the existing controlled
+   result from `GgufFormatException`.
+2. `ScanOpenedFileAsync` owns fixed-header validation, the bounded metadata
+   orchestration, required-architecture validation, filename fallback, and
+   success creation.
+3. `ReadMetadataAsync` owns the local retained state, local aggregate-array
+   budget, and bounded metadata-entry loop.
+
+`ScanAsync` still validates its public boundary, constructs `FileStream` inside
+the same narrow open-time catches, owns `await using (stream)`, and catches only
+`GgufFormatException` around the awaited open-file scan. Parse-time I/O and
+`OperationCanceledException` remain uncaught. The metadata-entry count guard
+remains in `ScanOpenedFileAsync`, before `ReadMetadataAsync` is called.
+
+The pre-refactor Debug x64 safety net used a fresh build and these packaged
+commands:
+
+```powershell
+dotnet build `
+  'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj' `
+  --configuration Debug `
+  --no-restore `
+  --runtime win-x64 `
+  -p:Platform=x64
+
+& $vstest `
+  $recipePath `
+  '/Platform:x64' `
+  '/TestCaseFilter:FullyQualifiedName~GraniteEdgeAI.UnitTests.GgufQuickScannerTests' `
+  '/Logger:trx;LogFileName=task-08-pre-refactor-direct.trx' `
+  "/ResultsDirectory:$resultsPath"
+
+& $vstest `
+  $recipePath `
+  '/Platform:x64' `
+  '/TestCaseFilter:FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests' `
+  '/Logger:trx;LogFileName=task-08-pre-refactor-router.trx' `
+  "/ResultsDirectory:$resultsPath"
+```
+
+The build completed with zero warnings and zero errors. The direct class passed
+47/47 and the router class passed 11/11, with zero failed, error, inconclusive,
+or not-executed tests.
+
+After each individual extraction, the same fresh Debug x64 build completed with
+zero warnings and zero errors and the packaged direct class passed 47/47:
+
+| Extraction | TRX | Total/executed/passed | Failed/error/inconclusive/not executed |
+|---|---|---:|---:|
+| `CreateFormatFailure` | `task-08-step-1-format-failure.trx` | 47/47/47 | 0/0/0/0 |
+| `ScanOpenedFileAsync` | `task-08-step-2-opened-file.trx` | 47/47/47 | 0/0/0/0 |
+| `ReadMetadataAsync` | `task-08-step-3-metadata-loop.trx` | 47/47/47 | 0/0/0/0 |
+
+The required combined static scan was:
+
+```powershell
+rg -n 'catch\s*\(Exception|BinaryReader|Read\(|ReadByte\(|NotImplementedException|Task\.Run|new byte\[[^\]]*(ulong|length)' `
+  'IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/GgufQuickScanner.cs'
+```
+
+It returned exactly three allocation matches, at final source lines 348, 404,
+and 1378. Each is a fixed eight-byte `new byte[sizeof(ulong)]` buffer used to
+decode one GGUF unsigned 64-bit field; none is sized from attacker-controlled
+input. A separate scan of the forbidden alternatives returned no match (ripgrep
+exit code 1):
+
+```powershell
+rg -n 'catch\s*\(Exception|BinaryReader|\.Read\(|ReadByte\(|NotImplementedException|Task\.Run' `
+  'IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/GgufQuickScanner.cs'
+```
+
+Final verification rebuilt the packaged Debug x64 project with zero warnings
+and zero errors, then ran:
+
+```powershell
+& $vstest `
+  $recipePath `
+  '/Platform:x64' `
+  '/TestCaseFilter:FullyQualifiedName~GraniteEdgeAI.UnitTests.GgufQuickScannerTests' `
+  '/Logger:trx;LogFileName=task-08-final-direct.trx' `
+  "/ResultsDirectory:$resultsPath"
+
+& $vstest `
+  $recipePath `
+  '/Platform:x64' `
+  '/TestCaseFilter:FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests' `
+  '/Logger:trx;LogFileName=task-08-final-router.trx' `
+  "/ResultsDirectory:$resultsPath"
+
+& $vstest `
+  $recipePath `
+  '/Platform:x64' `
+  '/Logger:trx;LogFileName=task-08-final-full.trx' `
+  "/ResultsDirectory:$resultsPath"
+```
+
+The direct scanner class passed 47/47, the router class passed 11/11, and the
+full packaged suite passed 95/95. Every final TRX records zero failed, error,
+inconclusive, and not-executed tests. All Task 8 TRX files are under
+`TestResults\GGUF-Quick-Scanner\Debug`.

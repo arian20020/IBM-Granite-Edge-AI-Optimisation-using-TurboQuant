@@ -126,89 +126,78 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             {
                 try
                 {
-                    // Read and validate all 24 bytes of the fixed GGUF header.
-                    GgufHeader header = await ReadHeaderAsync(stream, cancellationToken);
-
-                    // Reject versions whose structure this scanner cannot interpret.
-                    if (header.Version != SupportedGgufVersion)
-                    {
-                        return ModelQuickScanResult.CreateFailure(
-                            failureCode: "unsupported-version",
-                            userMessage:
-                                "This GGUF file uses a version that is not supported.",
-                            technicalMessage:
-                            $"Expected GGUF version {SupportedGgufVersion}, " +
-                                $"but found version {header.Version}.");
-                    }
-
-                    // Reject an unreasonable top-level loop before reading any entry.
-                    if (header.MetadataEntryCount > MaxMetadataEntryCount)
-                    {
-                        return ModelQuickScanResult.CreateFailure(
-                            failureCode: "excessive-metadata-count",
-                            userMessage:
-                                "The GGUF file declares too many metadata entries.",
-                            technicalMessage:
-                                $"The metadata entry count is " +
-                                $"{header.MetadataEntryCount:N0}; the scanner limit is " +
-                                $"{MaxMetadataEntryCount:N0}.");
-                    }
-
-                    // Keep retained display metadata and the aggregate array budget local to this scan.
-                    GgufScanState scanState = new();
-                    ulong totalArrayElementCount = 0;
-
-                    // Consume each declared entry once, checking cancellation between entries.
-                    for (ulong entryIndex = 0;
-                        entryIndex < header.MetadataEntryCount;
-                        entryIndex++)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        string key = await ReadMetadataKeyAsync(
-                            stream,
-                            entryIndex,
-                            cancellationToken);
-                        GgufMetadataValueType valueType = await ReadMetadataTypeAsync(
-                            stream,
-                            key,
-                            cancellationToken);
-                        totalArrayElementCount = await ReadKnownMetadataValueAsync(
-                            stream,
-                            key,
-                            valueType,
-                            scanState,
-                            totalArrayElementCount,
-                            cancellationToken);
-                    }
-
-                    // A blank architecture is as unusable as an absent architecture.
-                    if (string.IsNullOrWhiteSpace(scanState.Architecture))
-                    {
-                        return ModelQuickScanResult.CreateFailure(
-                            failureCode: "missing-required-architecture",
-                            userMessage:
-                                "The GGUF file does not identify its model architecture.",
-                            technicalMessage:
-                                $"The GGUF fixed header declares {header.TensorCount} tensor " +
-                                $"descriptors and {header.MetadataEntryCount} metadata entries, " +
-                                "but no usable general.architecture metadata was parsed.");
-                    }
-
-                    // A missing or blank optional name falls back to the selected file name.
-                    string modelName = string.IsNullOrWhiteSpace(scanState.ModelName)
-                        ? Path.GetFileName(modelFilePath)
-                        : scanState.ModelName;
-                    return CreateSuccessResult(stream, header, scanState, modelName);
+                    return await ScanOpenedFileAsync(
+                        stream,
+                        modelFilePath,
+                        cancellationToken);
                 }
                 catch (GgufFormatException exception)
                 {
                     // Translate only expected structural input failures at this boundary.
-                    return ModelQuickScanResult.CreateFailure(
-                        exception.FailureCode,
-                        exception.UserMessage,
-                        exception.TechnicalMessage);
+                    return CreateFormatFailure(exception);
                 }
             }
+        }
+
+        /// <summary>
+        /// Validates and scans an already opened GGUF file.
+        /// </summary>
+        private static async Task<ModelQuickScanResult> ScanOpenedFileAsync(
+            FileStream stream,
+            string modelFilePath,
+            CancellationToken cancellationToken)
+        {
+            // Read and validate all 24 bytes of the fixed GGUF header.
+            GgufHeader header = await ReadHeaderAsync(stream, cancellationToken);
+
+            // Reject versions whose structure this scanner cannot interpret.
+            if (header.Version != SupportedGgufVersion)
+            {
+                return ModelQuickScanResult.CreateFailure(
+                    failureCode: "unsupported-version",
+                    userMessage:
+                        "This GGUF file uses a version that is not supported.",
+                    technicalMessage:
+                        $"Expected GGUF version {SupportedGgufVersion}, " +
+                        $"but found version {header.Version}.");
+            }
+
+            // Reject an unreasonable top-level loop before reading any entry.
+            if (header.MetadataEntryCount > MaxMetadataEntryCount)
+            {
+                return ModelQuickScanResult.CreateFailure(
+                    failureCode: "excessive-metadata-count",
+                    userMessage:
+                        "The GGUF file declares too many metadata entries.",
+                    technicalMessage:
+                        $"The metadata entry count is " +
+                        $"{header.MetadataEntryCount:N0}; the scanner limit is " +
+                        $"{MaxMetadataEntryCount:N0}.");
+            }
+
+            GgufScanState scanState = await ReadMetadataAsync(
+                stream,
+                header.MetadataEntryCount,
+                cancellationToken);
+
+            // A blank architecture is as unusable as an absent architecture.
+            if (string.IsNullOrWhiteSpace(scanState.Architecture))
+            {
+                return ModelQuickScanResult.CreateFailure(
+                    failureCode: "missing-required-architecture",
+                    userMessage:
+                        "The GGUF file does not identify its model architecture.",
+                    technicalMessage:
+                        $"The GGUF fixed header declares {header.TensorCount} tensor " +
+                        $"descriptors and {header.MetadataEntryCount} metadata entries, " +
+                        "but no usable general.architecture metadata was parsed.");
+            }
+
+            // A missing or blank optional name falls back to the selected file name.
+            string modelName = string.IsNullOrWhiteSpace(scanState.ModelName)
+                ? Path.GetFileName(modelFilePath)
+                : scanState.ModelName;
+            return CreateSuccessResult(stream, header, scanState, modelName);
         }
 
         /// <summary>
@@ -224,6 +213,18 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 userMessage,
                 $"Opening the selected GGUF file failed with " +
                     $"{exception.GetType().Name}.");
+        }
+
+        /// <summary>
+        /// Creates one controlled result for a scanner-local structural failure.
+        /// </summary>
+        private static ModelQuickScanResult CreateFormatFailure(
+            GgufFormatException exception)
+        {
+            return ModelQuickScanResult.CreateFailure(
+                exception.FailureCode,
+                exception.UserMessage,
+                exception.TechnicalMessage);
         }
 
         /// <summary>
@@ -272,6 +273,44 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 
             // Return the decoded header without reading tensor descriptors or metadata values.
             return new GgufHeader(version, tensorCount, metadataEntryCount);
+        }
+
+        /// <summary>
+        /// Consumes bounded metadata entries and returns only retained display state.
+        /// </summary>
+        private static async Task<GgufScanState> ReadMetadataAsync(
+            FileStream stream,
+            ulong metadataEntryCount,
+            CancellationToken cancellationToken)
+        {
+            // Keep retained display metadata and the aggregate array budget local to this scan.
+            GgufScanState scanState = new();
+            ulong totalArrayElementCount = 0;
+
+            // Consume each declared entry once, checking cancellation between entries.
+            for (ulong entryIndex = 0;
+                entryIndex < metadataEntryCount;
+                entryIndex++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string key = await ReadMetadataKeyAsync(
+                    stream,
+                    entryIndex,
+                    cancellationToken);
+                GgufMetadataValueType valueType = await ReadMetadataTypeAsync(
+                    stream,
+                    key,
+                    cancellationToken);
+                totalArrayElementCount = await ReadKnownMetadataValueAsync(
+                    stream,
+                    key,
+                    valueType,
+                    scanState,
+                    totalArrayElementCount,
+                    cancellationToken);
+            }
+
+            return scanState;
         }
 
         /// <summary>
