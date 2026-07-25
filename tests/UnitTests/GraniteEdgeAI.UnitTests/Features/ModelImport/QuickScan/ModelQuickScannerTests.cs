@@ -140,21 +140,97 @@ public sealed class ModelQuickScannerTests
                 CancellationToken.None));
     }
 
-    // TODO: Remove or replace this test when GGUF scanning returns results.
-    // Verifies that a valid GGUF path reaches the currently unfinished scanner.
+    /// <summary>
+    /// Verifies that the GGUF route returns the complete Granite fixture result.
+    /// </summary>
     [TestMethod]
     [TestCategory("Unit")]
-    public async Task ScanAsync_GgufWithNonBlankPath_ReachesUnimplementedScanner()
+    public async Task ScanAsync_GgufWithValidFixture_ReturnsSuccessResult()
     {
-        // Arrange: create the normal router with a valid-looking GGUF path.
+        // Arrange: resolve the deployed complete-metadata fixture.
         ModelQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "GGUF",
+            "V-001-complete-metadata-v3.gguf");
 
-        // Act and assert: the current GGUF scanner deliberately remains unfinished.
-        await Assert.ThrowsExactlyAsync<NotImplementedException>(() =>
-            scanner.ScanAsync(
-                ModelFormatSelection.Gguf,
-                "C:\\Models\\granite-model.gguf",
-                CancellationToken.None));
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"Expected deployed fixture was not found: {fixturePath}");
+
+        // Act: route the valid fixture through the model quick scanner.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            ModelFormatSelection.Gguf,
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the router returns every expected Granite metadata field.
+        Assert.AreEqual(ModelQuickScanOutcome.Success, result.Outcome);
+        Assert.AreEqual("IBM Granite Fixture Model", result.ModelName);
+        Assert.AreEqual("granite", result.Architecture);
+        Assert.AreEqual("3B", result.ParameterSizeLabel);
+        Assert.AreEqual("Q4_K_M", result.Quantization);
+        Assert.AreEqual(320L, result.FileSizeBytes);
+        Assert.AreEqual(131_072UL, result.ContextLength);
+        Assert.AreEqual(3U, result.GgufVersion);
+        Assert.IsNull(result.FailureCode);
+        Assert.IsNull(result.UserMessage);
+        Assert.IsNull(result.TechnicalMessage);
+    }
+
+    /// <summary>
+    /// Verifies that the GGUF route preserves scanner failure diagnostics.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_GgufWithInvalidFixture_ReturnsScannerFailure()
+    {
+        // Arrange: resolve the deployed invalid-magic fixture.
+        ModelQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-001-invalid-magic.gguf");
+
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"Expected deployed fixture was not found: {fixturePath}");
+
+        // Act: route the malformed fixture through the model quick scanner.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            ModelFormatSelection.Gguf,
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the format scanner's stable failure reaches the caller.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("invalid-magic", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+    }
+
+    /// <summary>
+    /// Verifies that requested GGUF cancellation becomes a cancelled result.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_GgufWithPreCancelledToken_ReturnsCancelledResult()
+    {
+        // Arrange: cancel before routing a harmless nonblank path.
+        ModelQuickScanner scanner = new();
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        // Act: route the already-cancelled request.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            ModelFormatSelection.Gguf,
+            "C:\\Models\\unused.gguf",
+            cancellation.Token);
+
+        // Assert: expected cancellation is returned rather than thrown.
+        Assert.AreEqual(ModelQuickScanOutcome.Cancelled, result.Outcome);
     }
 
     // Verifies that the dependency-taking constructor rejects a missing scanner.

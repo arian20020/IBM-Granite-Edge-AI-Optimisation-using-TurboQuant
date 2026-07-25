@@ -541,3 +541,75 @@ bytes. Its focused packaged regression passed 1/1 in
 `task-06-review-nonascii-green.trx`, followed by 47/47 direct-scanner tests in
 `task-06-review-post-fix.trx`; both runs recorded zero failed, error,
 inconclusive, or not-executed tests.
+
+## Task 7 GGUF router integration evidence
+
+Task 7 used Visual Studio 18 VSTest 18.7.0 with the generated Debug x64
+`.build.appxrecipe`. Before replacing the temporary router test, the packaged
+`FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests` baseline
+built with zero warnings and zero errors and ran nine cases. Eight passed; the
+only failure was
+`ScanAsync_GgufWithNonBlankPath_ReachesUnimplementedScanner`, because it still
+expected an exact `NotImplementedException` after the scanner had become
+functional. Evidence:
+`TestResults\GGUF-Quick-Scanner\Debug\task-07-stale-router-baseline.trx`.
+
+The obsolete assertion was replaced with three real router integrations. Each
+new exact fully qualified filter passed on its first packaged run, before any
+production behavior changed:
+
+| Cycle | Exact test | First-run result | TRX |
+|---|---|---|---|
+| 7.1 | `ScanAsync_GgufWithValidFixture_ReturnsSuccessResult` | PASS 1/1; V-001 returned `Success`, the complete Granite metadata, file size 320, context 131072, and GGUF version 3 | `cycle-7-1-first-run.trx` |
+| 7.2 | `ScanAsync_GgufWithInvalidFixture_ReturnsScannerFailure` | PASS 1/1; I-001 returned `Failure` with `invalid-magic` | `cycle-7-2-first-run.trx` |
+| 7.3 | `ScanAsync_GgufWithPreCancelledToken_ReturnsCancelledResult` | PASS 1/1; the existing narrow router catch converted requested cancellation to `Cancelled` | `cycle-7-3-first-run.trx` |
+
+Both fixture-backed tests explicitly verified their deployed fixture existed.
+The only production-file cleanup was removal of the pre-existing extra blank
+line in `ModelQuickScanner.cs`; no router behavior changed. A repository search
+found no remaining `NotImplementedException`, `currently unfinished`, or
+`unimplemented scanner` marker in production or unit-test sources.
+
+The final packaged command used:
+
+```powershell
+$testProject = 'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
+$configuration = 'Debug'
+$recipe = "tests\UnitTests\GraniteEdgeAI.UnitTests\bin\x64\$configuration\net8.0-windows10.0.19041.0\win-x64\GraniteEdgeAI.UnitTests.build.appxrecipe"
+$results = "TestResults\GGUF-Quick-Scanner\$configuration"
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
+    Select-Object -First 1
+$filter = 'FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests'
+$trxName = 'task-07-router.trx'
+
+dotnet build $testProject `
+    --configuration $configuration `
+    --no-restore `
+    --runtime win-x64 `
+    -p:Platform=x64
+
+New-Item -ItemType Directory -Force -Path $results | Out-Null
+$recipePath = (Resolve-Path -LiteralPath $recipe).Path
+$resultsPath = (Resolve-Path -LiteralPath $results).Path
+
+& $vstest `
+    $recipePath `
+    '/Platform:x64' `
+    "/TestCaseFilter:$filter" `
+    "/Logger:trx;LogFileName=$trxName" `
+    "/ResultsDirectory:$resultsPath"
+```
+
+The final build completed with zero warnings and zero errors. All prior router
+cases plus the three real GGUF integrations passed:
+
+```text
+Test Run Successful.
+Total tests: 11
+     Passed: 11
+```
+
+The final TRX records 11 total/executed/passed, with zero failed, error,
+inconclusive, and not-executed tests:
+`TestResults\GGUF-Quick-Scanner\Debug\task-07-router.trx`.
