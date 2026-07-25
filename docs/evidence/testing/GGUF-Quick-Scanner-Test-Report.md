@@ -547,8 +547,7 @@ inconclusive, or not-executed tests.
 Task 7 used Visual Studio 18 VSTest 18.7.0 with the generated Debug x64
 `.build.appxrecipe`. Before replacing the temporary router test, the packaged
 `FullyQualifiedName~GraniteEdgeAI.UnitTests.ModelQuickScannerTests` baseline
-built with zero warnings and zero errors and ran nine cases. Eight passed; the
-only failure was
+ran nine cases. Eight passed; the only failure was
 `ScanAsync_GgufWithNonBlankPath_ReachesUnimplementedScanner`, because it still
 expected an exact `NotImplementedException` after the scanner had become
 functional. Evidence:
@@ -565,10 +564,14 @@ production behavior changed:
 | 7.3 | `ScanAsync_GgufWithPreCancelledToken_ReturnsCancelledResult` | PASS 1/1; the existing narrow router catch converted requested cancellation to `Cancelled` | `cycle-7-3-first-run.trx` |
 
 Both fixture-backed tests explicitly verified their deployed fixture existed.
-The only production-file cleanup was removal of the pre-existing extra blank
-line in `ModelQuickScanner.cs`; no router behavior changed. A repository search
-found no remaining `NotImplementedException`, `currently unfinished`, or
-`unimplemented scanner` marker in production or unit-test sources.
+The initial working tree contained an uncommitted second blank line between
+the `using` block and namespace in `ModelQuickScanner.cs`. Removing that
+workspace-only line returned the file to its already-committed blob, so the
+Task 7 commit correctly contains no production-file change; the intentional
+blank separators between switch cases remain. No router behavior changed. A
+repository search found no remaining `NotImplementedException`, `currently
+unfinished`, or `unimplemented scanner` marker in production or unit-test
+sources.
 
 The final packaged command used:
 
@@ -601,8 +604,10 @@ $resultsPath = (Resolve-Path -LiteralPath $results).Path
     "/ResultsDirectory:$resultsPath"
 ```
 
-The final build completed with zero warnings and zero errors. All prior router
-cases plus the three real GGUF integrations passed:
+The final build completed with zero warnings and zero errors; its console
+output is recorded in
+`TestResults\GGUF-Quick-Scanner\Debug\task-07-build.log`. All prior router cases
+plus the three real GGUF integrations passed:
 
 ```text
 Test Run Successful.
