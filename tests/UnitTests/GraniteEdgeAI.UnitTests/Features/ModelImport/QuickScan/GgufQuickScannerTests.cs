@@ -729,6 +729,125 @@ public sealed class GgufQuickScannerTests
     }
 
     /// <summary>
+    /// Verifies that an omitted general.name uses the selected GGUF file name.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MissingName_UsesFileNameFallback()
+    {
+        // Arrange: create the real scanner for the generated missing-name fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: the fixture expectation includes the file-name fallback.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-002-missing-name.gguf",
+            "V-002-missing-name.json");
+    }
+
+    /// <summary>
+    /// Verifies that an omitted architecture-specific context value remains unavailable.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MissingContext_ReturnsSuccessWithNullContext()
+    {
+        // Arrange: create the real scanner for the generated missing-context fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: missing optional context produces a successful null value.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-003-missing-context.gguf",
+            "V-003-missing-context.json");
+    }
+
+    /// <summary>
+    /// Verifies that an omitted general.size_label remains unavailable.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MissingSizeLabel_ReturnsSuccessWithNullSizeLabel()
+    {
+        // Arrange: create the real scanner for the generated missing-size-label fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: missing optional size metadata produces a successful null value.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-004-missing-size-label.gguf",
+            "V-004-missing-size-label.json");
+    }
+
+    /// <summary>
+    /// Verifies that unknown scalar, boolean, and array metadata is consumed safely.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_UnknownMetadata_SkipsValuesAndReturnsExpectedResult()
+    {
+        // Arrange: create the real scanner for the generated forward-compatible fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: unrecognised values do not disrupt known metadata extraction.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-005-unknown-metadata.gguf",
+            "V-005-unknown-metadata.json");
+    }
+
+    /// <summary>
+    /// Verifies that a context field preceding general.architecture is resolved later.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_UnusualMetadataOrder_ReturnsExpectedResult()
+    {
+        // Arrange: create the real scanner for the generated context-before-architecture fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: metadata order does not affect the completed result.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-006-unusual-metadata-order.gguf",
+            "V-006-unusual-metadata-order.json");
+    }
+
+    /// <summary>
+    /// Verifies that a UInt32 context length is normalised to the result's UInt64 value.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ContextEncodedAsUInt32_NormalisesToUInt64()
+    {
+        // Arrange: create the real scanner for the generated UInt32-context fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: the result exposes the normalised unsigned 64-bit value.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-007-context-uint32.gguf",
+            "V-007-context-uint32.json");
+    }
+
+    /// <summary>
+    /// Verifies that an omitted general.file_type leaves quantization unavailable.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MissingFileType_ReturnsSuccessWithNullQuantization()
+    {
+        // Arrange: create the real scanner for the generated missing-file-type fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: missing optional file type produces a successful null value.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-008-missing-file-type.gguf",
+            "V-008-missing-file-type.json");
+    }
+
+    /// <summary>
     /// Verifies that complete GGUF metadata produces every expected success field.
     /// </summary>
     [TestMethod]
@@ -737,36 +856,50 @@ public sealed class GgufQuickScannerTests
     {
         // Arrange: create the real scanner and load the deployed typed expectation.
         GgufQuickScanner scanner = new();
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-001-complete-metadata-v3.gguf",
+            "V-001-complete-metadata-v3.json");
+    }
+
+    /// <summary>
+    /// Scans one deployed valid fixture and compares every observable result field with typed JSON.
+    /// </summary>
+    private static async Task AssertExpectedFixtureResultAsync(
+        GgufQuickScanner scanner,
+        string fixtureFileName,
+        string expectedFileName)
+    {
         string fixturePath = Path.Combine(
             AppContext.BaseDirectory,
             "TestFixtures",
             "GGUF",
-            "V-001-complete-metadata-v3.gguf");
+            fixtureFileName);
         string expectedPath = Path.Combine(
             AppContext.BaseDirectory,
             "TestFixtures",
             "ExpectedMetadata",
-            "V-001-complete-metadata-v3.json");
+            expectedFileName);
         Assert.IsTrue(
             File.Exists(fixturePath),
-            $"The complete-metadata fixture was not found at: {fixturePath}");
+            $"The GGUF fixture was not found at: {fixturePath}");
         Assert.IsTrue(
             File.Exists(expectedPath),
-            $"The complete-metadata expectation was not found at: {expectedPath}");
+            $"The metadata expectation was not found at: {expectedPath}");
+
         ExpectedFixture? deserializedExpected =
             JsonSerializer.Deserialize<ExpectedFixture>(
                 await File.ReadAllTextAsync(expectedPath));
         Assert.IsNotNull(
             deserializedExpected,
-            $"The complete-metadata expectation deserialized to null: {expectedPath}");
+            $"The metadata expectation deserialized to null: {expectedPath}");
         ExpectedFixture expected = deserializedExpected!;
+        Assert.AreEqual(fixtureFileName, expected.FixtureFile);
 
-        // Act: scan the complete generated GGUF fixture.
         ModelQuickScanResult result = await scanner.ScanAsync(
             fixturePath,
             CancellationToken.None);
 
-        // Assert: every success field matches the checked-in typed expectation.
         Assert.AreEqual(expected.ExpectedOutcome, result.Outcome.ToString());
         Assert.AreEqual(ModelQuickScanOutcome.Success, result.Outcome);
         Assert.AreEqual(expected.ExpectedMetadata.ModelName, result.ModelName);

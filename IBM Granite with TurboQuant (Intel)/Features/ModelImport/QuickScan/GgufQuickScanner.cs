@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -38,6 +39,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 
         // Architecture-specific context fields use this exact metadata-key suffix.
         private const string ContextLengthMetadataKeySuffix = ".context_length";
+
+        // Application safety policy: retain only a small set of pre-architecture context keys.
+        private const int MaxPendingContextCandidateCount = 64;
 
         // Reject invalid UTF-8 instead of silently replacing malformed bytes.
         private static readonly UTF8Encoding StrictUtf8 = new(
@@ -677,6 +681,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         stream,
                         key,
                         cancellationToken);
+                    ResolvePendingContextCandidate(scanState);
                     return totalArrayElementCount;
 
                 case "general.name":
@@ -720,37 +725,30 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     return totalArrayElementCount;
             }
 
-            // Task 4 supports the normal ordering where architecture precedes its context key.
+            // Once architecture is known, process its exact context key immediately.
             if (scanState.Architecture is not null &&
                 IsArchitectureContextLengthKey(key, scanState.Architecture))
             {
-                if (valueType == GgufMetadataValueType.UInt32)
-                {
-                    scanState.ContextLength = await ReadMetadataUInt32Async(
-                        stream,
-                        key,
-                        stage: "context length",
-                        cancellationToken);
-                    return totalArrayElementCount;
-                }
+                return await ReadContextLengthAsync(
+                    stream,
+                    key,
+                    valueType,
+                    scanState,
+                    totalArrayElementCount,
+                    cancellationToken);
+            }
 
-                if (valueType == GgufMetadataValueType.UInt64)
-                {
-                    scanState.ContextLength = await ReadMetadataUInt64Async(
-                        stream,
-                        key,
-                        stage: "context length",
-                        cancellationToken);
-                    return totalArrayElementCount;
-                }
-
-                throw new GgufFormatException(
-                    failureCode: "invalid-context-type",
-                    userMessage:
-                        "The GGUF file contains an invalid context length value.",
-                    technicalMessage:
-                        $"Metadata key '{key}' has value type {valueType}; " +
-                        "expected UInt32 or UInt64.");
+            // Before architecture is known, retain only possible context candidates.
+            if (scanState.Architecture is null &&
+                key.EndsWith(ContextLengthMetadataKeySuffix, StringComparison.Ordinal))
+            {
+                return await ReadPendingContextCandidateAsync(
+                    stream,
+                    key,
+                    valueType,
+                    scanState,
+                    totalArrayElementCount,
+                    cancellationToken);
             }
 
             return await SkipMetadataValueAsync(
@@ -759,6 +757,146 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 valueType,
                 totalArrayElementCount,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads one exact architecture context value and normalizes supported unsigned widths.
+        /// </summary>
+        private static async Task<ulong> ReadContextLengthAsync(
+            FileStream stream,
+            string key,
+            GgufMetadataValueType valueType,
+            GgufScanState scanState,
+            ulong totalArrayElementCount,
+            CancellationToken cancellationToken)
+        {
+            if (valueType == GgufMetadataValueType.UInt32)
+            {
+                scanState.ContextLength = await ReadMetadataUInt32Async(
+                    stream,
+                    key,
+                    stage: "context length",
+                    cancellationToken);
+                return totalArrayElementCount;
+            }
+
+            if (valueType == GgufMetadataValueType.UInt64)
+            {
+                scanState.ContextLength = await ReadMetadataUInt64Async(
+                    stream,
+                    key,
+                    stage: "context length",
+                    cancellationToken);
+                return totalArrayElementCount;
+            }
+
+            throw CreateInvalidContextTypeException(key, valueType);
+        }
+
+        /// <summary>
+        /// Consumes and retains one bounded pre-architecture context candidate.
+        /// </summary>
+        private static async Task<ulong> ReadPendingContextCandidateAsync(
+            FileStream stream,
+            string key,
+            GgufMetadataValueType valueType,
+            GgufScanState scanState,
+            ulong totalArrayElementCount,
+            CancellationToken cancellationToken)
+        {
+            bool alreadyRetained = scanState.PendingContextCandidates.ContainsKey(key);
+            if (!alreadyRetained &&
+                scanState.PendingContextCandidates.Count >= MaxPendingContextCandidateCount)
+            {
+                throw new GgufFormatException(
+                    failureCode: "excessive-context-candidate-count",
+                    userMessage:
+                        "The GGUF file declares too many context metadata candidates.",
+                    technicalMessage:
+                        $"Pre-architecture context candidate '{key}' makes the " +
+                        $"candidate count {scanState.PendingContextCandidates.Count + 1}; " +
+                        $"the scanner limit is {MaxPendingContextCandidateCount}.");
+            }
+
+            ulong? contextLength = null;
+            if (valueType == GgufMetadataValueType.UInt32)
+            {
+                contextLength = await ReadMetadataUInt32Async(
+                    stream,
+                    key,
+                    stage: "context length",
+                    cancellationToken);
+            }
+            else if (valueType == GgufMetadataValueType.UInt64)
+            {
+                contextLength = await ReadMetadataUInt64Async(
+                    stream,
+                    key,
+                    stage: "context length",
+                    cancellationToken);
+            }
+            else
+            {
+                totalArrayElementCount = await SkipMetadataValueAsync(
+                    stream,
+                    key,
+                    valueType,
+                    totalArrayElementCount,
+                    cancellationToken);
+            }
+
+            scanState.PendingContextCandidates[key] = new PendingContextValue(
+                valueType,
+                contextLength);
+            return totalArrayElementCount;
+        }
+
+        /// <summary>
+        /// Resolves one matching retained candidate without constructing an architecture key.
+        /// </summary>
+        private static void ResolvePendingContextCandidate(GgufScanState scanState)
+        {
+            string? architecture = scanState.Architecture;
+            if (string.IsNullOrWhiteSpace(architecture))
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, PendingContextValue> candidate in
+                scanState.PendingContextCandidates)
+            {
+                if (!IsArchitectureContextLengthKey(candidate.Key, architecture))
+                {
+                    continue;
+                }
+
+                if (candidate.Value.ValueType is not GgufMetadataValueType.UInt32 and
+                    not GgufMetadataValueType.UInt64)
+                {
+                    throw CreateInvalidContextTypeException(
+                        candidate.Key,
+                        candidate.Value.ValueType);
+                }
+
+                scanState.ContextLength = candidate.Value.ContextLength;
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Creates the stable failure used when an exact context key has a wrong type.
+        /// </summary>
+        private static GgufFormatException CreateInvalidContextTypeException(
+            string key,
+            GgufMetadataValueType valueType)
+        {
+            return new GgufFormatException(
+                failureCode: "invalid-context-type",
+                userMessage:
+                    "The GGUF file contains an invalid context length value.",
+                technicalMessage:
+                    $"Metadata key '{key}' has value type {valueType}; " +
+                    "expected UInt32 or UInt64.");
         }
 
         /// <summary>
@@ -898,13 +1036,57 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Maps the file types introduced by this task; Task 5 expands current official coverage.
+        /// Maps GGUF file types from llama.cpp's current llama_ftype enum.
+        /// Historical labels 4-6 and 33-35 are retained for compatibility; source:
+        /// https://github.com/ggml-org/llama.cpp/blob/master/include/llama.h
         /// </summary>
         private static string MapFileTypeToQuantization(uint fileType)
         {
-            return fileType == 15
-                ? "Q4_K_M"
-                : $"Unknown (file type {fileType})";
+            return fileType switch
+            {
+                0 => "F32",
+                1 => "F16",
+                2 => "Q4_0",
+                3 => "Q4_1",
+                4 => "Q4_1_SOME_F16",
+                5 => "Q4_2",
+                6 => "Q4_3",
+                7 => "Q8_0",
+                8 => "Q5_0",
+                9 => "Q5_1",
+                10 => "Q2_K",
+                11 => "Q3_K_S",
+                12 => "Q3_K_M",
+                13 => "Q3_K_L",
+                14 => "Q4_K_S",
+                15 => "Q4_K_M",
+                16 => "Q5_K_S",
+                17 => "Q5_K_M",
+                18 => "Q6_K",
+                19 => "IQ2_XXS",
+                20 => "IQ2_XS",
+                21 => "Q2_K_S",
+                22 => "IQ3_XS",
+                23 => "IQ3_XXS",
+                24 => "IQ1_S",
+                25 => "IQ4_NL",
+                26 => "IQ3_S",
+                27 => "IQ3_M",
+                28 => "IQ2_S",
+                29 => "IQ2_M",
+                30 => "IQ4_XS",
+                31 => "IQ1_M",
+                32 => "BF16",
+                33 => "Q4_0_4_4",
+                34 => "Q4_0_4_8",
+                35 => "Q4_0_8_8",
+                36 => "TQ1_0",
+                37 => "TQ2_0",
+                38 => "MXFP4_MOE",
+                39 => "NVFP4",
+                40 => "Q1_0",
+                _ => $"Unknown (file type {fileType})"
+            };
         }
 
         /// <summary>
@@ -1152,6 +1334,10 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         /// </summary>
         private sealed class GgufScanState
         {
+            /// <summary>Gets retained pre-architecture context values by exact metadata key.</summary>
+            internal Dictionary<string, PendingContextValue> PendingContextCandidates { get; } = new(
+                StringComparer.Ordinal);
+
             /// <summary>Gets or sets the optional model name.</summary>
             internal string? ModelName { get; set; }
 
@@ -1167,6 +1353,13 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             /// <summary>Gets or sets the optional architecture context length.</summary>
             internal ulong? ContextLength { get; set; }
         }
+
+        /// <summary>
+        /// Holds only the declared type and normalized value needed for one retained candidate.
+        /// </summary>
+        private readonly record struct PendingContextValue(
+            GgufMetadataValueType ValueType,
+            ulong? ContextLength);
 
         /// <summary>
         /// Lists every metadata value type defined by the GGUF specification.

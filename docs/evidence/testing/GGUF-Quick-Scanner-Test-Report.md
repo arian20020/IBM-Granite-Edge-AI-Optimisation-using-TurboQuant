@@ -300,8 +300,9 @@ The successful V-001 test deserializes its checked-in expectation as typed
 `ExpectedFixture`/`ExpectedMetadata` records and asserts every success field,
 including file length, GGUF version, context length, and `15 => Q4_K_M`; it
 also asserts all failure fields are null. Task 4 introduces only that required
-file-type mapping plus `Unknown (file type N)` fallback. Task 5 expands and
-tests the current official mapping through 40.
+file-type mapping plus `Unknown (file type N)` fallback. Task 5 expands the
+current official mapping through 40; the later generated full-type fixture
+provides exhaustive value-by-value coverage.
 
 The post-refactor packaged direct-scanner regression was:
 
@@ -341,3 +342,37 @@ Fresh packaged Debug evidence:
 
 Both packaged invocations built with zero warnings and zero errors. The TRX
 files are under `TestResults\GGUF-Quick-Scanner\Debug`.
+
+## Task 5 optional metadata and ordering TDD evidence
+
+Task 5 started from `db1ee28` and added V-002 through V-008 as direct,
+fixture-deployment-asserting tests before scanner changes. The existing Task 4
+implementation already supplied filename fallback, null optional fields, safe
+unknown-value consumption, and direct architecture-first UInt32 context
+normalization. Those tests therefore document established behavior; no
+artificial RED was manufactured for them.
+
+The V-006 test exposed the genuine missing behavior:
+
+| Cycle | Result | TRX |
+|---|---|---|
+| 5.5 RED | Context preceding `general.architecture` was discarded; expected `131072`, actual `null`; 1 total/executed, 0 passed, 1 failed, 0 error, inconclusive, or not executed | `cycle-5-5-red.trx` |
+| 5.5 GREEN | The bounded pending-candidate resolution returned the expected context; 1 total/executed/passed, 0 failed, error, inconclusive, or not executed | `cycle-5-5-green.trx` |
+| 5.8 regression | Direct scanner class: 30 total/executed/passed, 0 failed, error, inconclusive, or not executed | `task-05-final.trx` |
+
+Each listed Debug `win-x64` packaged build completed with zero warnings and
+zero errors using VSTest 18.7.0 and the generated `.build.appxrecipe`.
+
+The scanner retains at most 64 distinct pre-architecture keys that end in
+`.context_length`. Each candidate is consumed once: UInt32 and UInt64 values
+are normalized to `ulong`; every other declared type is safely skipped and its
+type retained. Once architecture is available, an allocation-free exact
+length/suffix/prefix comparison selects only its matching candidate. Candidate
+65 returns `excessive-context-candidate-count` with actual count 65 and limit
+64 diagnostics. Unrelated wrong-type candidates remain harmless.
+
+`MapFileTypeToQuantization` now covers labels 0 through 40 from the current
+[llama.cpp `llama_ftype` enum](https://github.com/ggml-org/llama.cpp/blob/master/include/llama.h),
+including `15 => Q4_K_M` and `40 => Q1_0`. Historical labels 4-6 and 33-35
+remain mapped for compatibility; values outside this set return
+`Unknown (file type N)`.
