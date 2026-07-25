@@ -3,8 +3,8 @@
 This directory contains deliberately invalid or damaged GGUF files used to
 verify that the quick scanner rejects unsafe input correctly.
 
-Every binary is produced by `../Generate-GgufHeaderFixtures.ps1` or
-`../Generate-GgufMetadataFixtures.ps1`; do not edit these files by hand.
+Run `../Generate-GgufFixtures.ps1` to clean and recreate every binary through
+the header and metadata leaf generators; do not edit these files by hand.
 
 | ID | File | Bytes | Failure condition |
 |---|---|---:|---|
@@ -37,6 +37,16 @@ Every binary is produced by `../Generate-GgufHeaderFixtures.ps1` or
 | I-026 | `I-026-empty-key-segment.gguf` | 50 | Empty hierarchical key segment |
 | I-027 | `I-027-key-with-space.gguf` | 49 | Key contains a space |
 | I-028 | `I-028-uppercase-key.gguf` | 49 | Key contains uppercase ASCII |
+| I-029 | `I-029-excessive-total-key-bytes.gguf` | 46 | Individually valid key lengths exceed the 65,535-byte scan budget |
+| I-030 | `I-030-invalid-boolean-array-value.gguf` | 4,166 | Invalid Boolean just beyond one 4 KiB validation chunk |
+| I-031 | `I-031-oversized-string-array-value.gguf` | 32,844 | Oversized string after 4,096 empty string-array elements |
+| I-032 | `I-032-truncated-nested-array.gguf` | 49,229 | Truncated nested child after 4,096 empty parent elements |
+| I-033 | `I-033-oversized-retained-string.gguf` | 64 | Retained architecture string length above 16 MiB |
+| I-034 | `I-034-cross-entry-array-total.gguf` | 4,000,219 | Separate top-level arrays exceed 4,000,000 total elements |
+| I-035 | `I-035-truncated-key-length.gguf` | 28 | Key-length field stops after four of eight bytes |
+| I-036 | `I-036-truncated-key-bytes.gguf` | 34 | Key payload stops after two of five declared bytes |
+| I-037 | `I-037-truncated-value-type.gguf` | 35 | Value-type field stops after two of four bytes |
+| I-038 | `I-038-invalid-utf8-key.gguf` | 34 | Metadata key contains malformed UTF-8 |
 
 Exact SHA-256 values and byte lengths are regenerated into
 `../fixture-manifest.json`.

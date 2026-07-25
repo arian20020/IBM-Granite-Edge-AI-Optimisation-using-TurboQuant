@@ -27,11 +27,13 @@ None assigned
 
 ## GGUF generation and integrity
 
-Run `Generate-GgufHeaderFixtures.ps1` and
-`Generate-GgufMetadataFixtures.ps1`; never hand-edit their `.gguf` outputs.
-The metadata generator refreshes `fixture-manifest.json` with the exact byte
-length and SHA-256 of every current GGUF fixture. Expected successful scanner
-results remain in `ExpectedMetadata` and are not derived from production code.
+Run `Generate-GgufFixtures.ps1`; never hand-edit its generated `.gguf` outputs.
+The orchestrator removes the complete generated set before running both leaf
+generators, so deleted or renamed writer calls cannot leave stale fixtures.
+The metadata generator then refreshes `fixture-manifest.json` with the exact
+byte length and SHA-256 of every current GGUF fixture. Expected successful
+scanner results remain in `ExpectedMetadata` and are not derived from
+production code.
 
 ## Source
 

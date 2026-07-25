@@ -23,15 +23,16 @@ is a packaged WinUI 3 MSTest application. Its project reference compiles the
 application, and its app-container runner supplies the XAML UI thread required
 by `[UITestMethod]`.
 
-The current 95-execution suite contains:
+The current 108-execution suite contains:
 
 | Area | Test methods | Executions | Purpose |
 |---|---:|---:|---|
-| `GgufQuickScannerTests` | 47 | 47 | Real-file GGUF header, metadata, limit, cancellation, and failure behavior |
-| `ModelQuickScannerTests` | 10 | 11 | Format routing, path validation, and requested-cancellation behavior |
+| `GgufQuickScannerTests` | 55 | 58 | Real-file GGUF header, metadata, limit, cancellation, and failure behavior |
+| `GgufFixtureIntegrityTests` | 1 | 1 | Packaged fixture set, byte-length, and SHA-256 enforcement |
+| `ModelQuickScannerTests` | 11 | 12 | Format routing, path validation, and requested-cancellation behavior |
 | `ModelQuickScanResultTests` | 17 | 27 | Immutable success/failure invariants |
 | Picker and foundation tests | 10 | 10 | Nine picker seam executions and one runner smoke execution |
-| **Full project** | **84** | **95** | Current packaged test total |
+| **Full project** | **94** | **108** | Current packaged test total |
 
 The scanner tests are categorized as `Unit`, but the fixture-backed cases open
 real files copied into the package output. They therefore also exercise the
@@ -40,32 +41,34 @@ cases into pure in-memory unit tests.
 
 ## GGUF fixtures
 
-The controlled fixture set contains 42 tiny `.gguf` binaries:
+The controlled fixture set contains 52 tiny `.gguf` binaries:
 
 - 13 GGUF/header inputs under [GGUF](TestFixtures/GGUF/README.md).
-- 29 deliberately malformed inputs under
+- 39 deliberately malformed inputs under
   [Malformed](TestFixtures/Malformed/README.md).
 - 12 independent expected-result JSON files under
   [ExpectedMetadata](TestFixtures/ExpectedMetadata/README.md).
 - A generated [fixture manifest](TestFixtures/fixture-manifest.json) containing
   the byte length and SHA-256 digest of every binary.
 
-These files contain no model tensors or model weights. Regenerate them from the
-repository root in this order:
+These files contain no model tensors or model weights. Regenerate the complete
+set from the repository root through its authoritative orchestration script:
 
 ```powershell
-& ".\tests\TestFixtures\Generate-GgufHeaderFixtures.ps1"
-& ".\tests\TestFixtures\Generate-GgufMetadataFixtures.ps1"
+& ".\tests\TestFixtures\Generate-GgufFixtures.ps1"
 ```
 
-Never hand-edit generated `.gguf` files. The metadata generator refreshes the
-manifest after both generator families have populated the fixture directories.
-Expected-result JSON remains independent of production scanner output so a
-production defect cannot silently redefine the expected answer.
+Never hand-edit generated `.gguf` files. The orchestrator removes all generated
+GGUF/JSON outputs first, runs both generator families, and lets the metadata
+generator refresh the manifest. That clean start makes removed or renamed
+writer calls visible instead of preserving stale files. Expected-result JSON
+remains independent of production scanner output so a production defect cannot
+silently redefine the expected answer.
 
-The test project copies `GGUF`, `Malformed`, and `ExpectedMetadata` into its
-packaged output with `PreserveNewest`. Tests resolve them through
-`AppContext.BaseDirectory`, not through a developer-specific source path.
+The test project copies `GGUF`, `Malformed`, `ExpectedMetadata`, and the
+integrity manifest into its packaged output with `PreserveNewest`. Tests
+resolve them through `AppContext.BaseDirectory`, not through a
+developer-specific source path.
 
 ## Build and run locally
 
@@ -115,6 +118,7 @@ Add one of these quoted filters before the logger option for a focused run:
 
 ```powershell
 /TestCaseFilter:"FullyQualifiedName~GgufQuickScannerTests"
+/TestCaseFilter:"FullyQualifiedName~GgufFixtureIntegrityTests"
 /TestCaseFilter:"FullyQualifiedName~ModelQuickScannerTests"
 ```
 
@@ -140,9 +144,11 @@ end-to-end import journey.
 
 [build-and-test.yml](../.github/workflows/build-and-test.yml) uses a sparse
 checkout containing the application, packaged test project, and fixtures. It
-restores and builds the WinUI application, builds the packaged test project,
-runs the `.build.appxrecipe` through VSTest on a Windows runner, writes TRX, and
-uploads available test results for 30 days.
+regenerates fixtures with Windows PowerShell 5.1 and requires a clean fixture
+tree, restores and builds the WinUI application, builds the packaged test
+project, runs the `.build.appxrecipe` through VSTest on a Windows runner, and
+requires an all-passing nonempty TRX with executed scanner, fixture-integrity,
+and router tests. It uploads available test results for 30 days.
 
 The workflow currently executes the full packaged project. The focused filters
 above are for local diagnosis and evidence snapshots.

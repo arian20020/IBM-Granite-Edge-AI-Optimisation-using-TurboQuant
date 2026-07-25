@@ -1,9 +1,107 @@
 # GGUF quick-scanner packaged test report
 
-## Current Task 9 documentation snapshot
+## Current Task 10 final verification
 
-This section is the current summary. The later sections preserve the genuine
-baseline, RED/GREEN, review-fix, and refactoring record in chronological order.
+This is the authoritative completion snapshot. Later sections retain the
+genuine baseline, RED/GREEN, review-fix, refactoring, and Task 9 documentation
+record in chronological order.
+
+### Scope and reviewed implementation
+
+| Item | Observed value |
+|---|---|
+| Date | 25 July 2026 |
+| Branch | `feature/winui-shell-model-import` |
+| Reviewed implementation commit | `a526a4ccf4231de54e62651b0deb3a3c580c8647` |
+| Repository root | `C:\Users\Arian\source\repos\IBM-Granite-TurboQuant-Intel` |
+| Selected .NET SDK | `10.0.301` from `global.json` |
+| Target | `net8.0-windows10.0.19041.0`; `win-x64`; platform `x64` |
+| Build/runner | Visual Studio 18 Community MSBuild `18.7.8+1ac568fee`; VSTest `18.7.0 (x64)` |
+| Fixture snapshot | 52 GGUF binaries, 12 expected-result JSON files, and one integrity manifest |
+| Packaged suite | 94 test methods; 108 executions |
+
+The documentation commit is identified by subject
+`docs(model-import): record final GGUF scanner verification`; a commit cannot
+contain its own future hash.
+
+Independent code/security and tests/fixtures/packaging/CI reviews both
+completed clear, with no remaining Critical or Important finding. The review
+follow-ups added aggregate key-work bounds, scan-wide buffers, chunked Boolean
+validation, exact truncation diagnostics, genuine in-flight cancellation
+tests, packaged manifest integrity, and an authoritative clean fixture
+orchestrator.
+
+### Fixture reproducibility and package integrity
+
+Windows PowerShell 5.1 ran
+`tests\TestFixtures\Generate-GgufFixtures.ps1`, which removes the complete
+generated output set before invoking the header and metadata leaves.
+Verification proved:
+
+- 65 generated artifacts had identical paths, lengths, and SHA-256 hashes
+  across consecutive complete runs;
+- all 13 generated JSON files used literal LF and no CRLF sequence;
+- deliberately injected root and nested stale GGUF/JSON outputs were removed;
+- a simulated new header output survived the metadata
+  `-SkipOutputCleanup` phase; and
+- both Debug and Release AppX layouts contained exactly 52 GGUF binaries,
+  12 expected-result JSON files, and one manifest.
+
+`GgufFixtureIntegrityTests.PackagedGgufFixtures_MatchIntegrityManifest` then
+re-enumerated the deployed `.gguf` path set and checked every byte length and
+SHA-256 digest against the packaged manifest. It passed in both full runs.
+
+The CI workflow now invokes the same clean orchestrator with Windows
+PowerShell 5.1 before staging its short build tree. It rejects tracked
+differences, untracked fixture output, a missing/empty/partial TRX, any
+non-passing result, or a full run without passed direct-scanner,
+fixture-integrity, and router definitions. This workflow change was inspected
+locally; no remote run was triggered because this task performs no push.
+
+### Final Debug and Release matrix
+
+For each configuration, Task 10 explicitly restored and built the standalone
+WinUI application with Visual Studio's x64 MSBuild, restored and built the
+packaged MSTest project, and invoked direct scanner, router, and unfiltered
+tests through the generated `.build.appxrecipe`. Runtime, platform, publish,
+trimming, ReadyToRun, signing, and package-generation properties matched the
+CI-equivalent commands documented in the beginner guide.
+
+Every native process exited 0. Both packaged test-project builds reported:
+
+```text
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+```
+
+The application builds emitted their expected output assembly paths and no
+warning or error diagnostic. TRX counters and `finish - start` durations were:
+
+| Configuration | Scope/filter | Total/executed/passed | Failed/error/inconclusive/not executed | TRX duration | Relative TRX path |
+|---|---|---:|---:|---:|---|
+| Debug | `GgufQuickScannerTests` | 58/58/58 | 0/0/0/0 | 5.6096 s | `TestResults\GGUF-Quick-Scanner\Debug\task-10-final-reviewed-debug-direct.trx` |
+| Debug | `ModelQuickScannerTests` | 12/12/12 | 0/0/0/0 | 2.8062 s | `TestResults\GGUF-Quick-Scanner\Debug\task-10-final-reviewed-debug-router.trx` |
+| Debug | no filter | 108/108/108 | 0/0/0/0 | 2.9254 s | `TestResults\GGUF-Quick-Scanner\Debug\task-10-final-reviewed-debug-full.trx` |
+| Release | `GgufQuickScannerTests` | 58/58/58 | 0/0/0/0 | 6.4571 s | `TestResults\GGUF-Quick-Scanner\Release\task-10-final-release-direct.trx` |
+| Release | `ModelQuickScannerTests` | 12/12/12 | 0/0/0/0 | 2.6814 s | `TestResults\GGUF-Quick-Scanner\Release\task-10-final-release-router.trx` |
+| Release | no filter | 108/108/108 | 0/0/0/0 | 2.7934 s | `TestResults\GGUF-Quick-Scanner\Release\task-10-final-release-full.trx` |
+
+The full-run definitions/results join confirmed the required classes were not
+silently omitted in either configuration:
+
+| Required class | Debug passed | Release passed |
+|---|---:|---:|
+| `GgufQuickScannerTests` | 58 | 58 |
+| `GgufFixtureIntegrityTests` | 1 | 1 |
+| `ModelQuickScannerTests` | 12 | 12 |
+
+No push, merge, publish, or remote pull-request mutation occurred.
+
+## Historical Task 9 documentation snapshot
+
+This section preserves the earlier Task 9 summary. It is historical evidence,
+not the current inventory or final completion claim.
 
 ### Scope and environment
 
@@ -25,13 +123,13 @@ baseline, RED/GREEN, review-fix, and refactoring record in chronological order.
 The tested implementation commit is recorded rather than pretending that a
 commit can contain its own future hash. The Task 9 documentation commit is
 identified by subject `docs(model-import): explain and evidence GGUF quick
-scanning` in local history. Task 10 will record the final branch commit after
-independent reviews and its own CI-equivalent verification.
+scanning` in local history. The Task 10 section above records the later
+reviewed implementation and CI-equivalent verification.
 
 Task 9 explicitly restored and built the standalone application, then built the
 packaged test project in Debug and Release. The test-project reference also
-compiled the production assembly. Task 10 will repeat the complete matrix after
-independent reviews for the authoritative final result.
+compiled the production assembly. Task 10 subsequently repeated the complete
+matrix after independent reviews for the authoritative result above.
 
 ### Exact Task 9 restore, build, and test commands
 
@@ -175,7 +273,7 @@ $releaseResults = (Resolve-Path -LiteralPath `
   "/ResultsDirectory:$releaseResults"
 ```
 
-### Current Debug and Release results
+### Task 9 Debug and Release results
 
 The standalone application restore/build commands all exited 0:
 
@@ -240,7 +338,7 @@ the important symptom, hypothesis/experiment, cause, and correction:
 | router integration | Obsolete test still expected `NotImplementedException` | Run router baseline after scanner completion | Test expectation, not production, was stale | Replace with valid, invalid, and cancellation integrations |
 | refactor | Risk of changing a security-sensitive parser while extracting orchestration | Run direct/router before, after each extraction, and full suite | No behavior defect; this was a safety-net question | Three small extractions with green checkpoints |
 
-### Current limitations and evidence boundary
+### Task 9 limitations and evidence boundary
 
 - `ModelImportPage` still does not call `ModelQuickScanner`; it selects a path
   and sets visual `Scanning` state, but result/UI wiring and
@@ -724,8 +822,9 @@ primitive overload. Boolean values are emitted as an explicit byte `0` or
 `1`, and arrays remain recursively generator-owned. The two fixture scripts
 were run successfully; no binary or expected-result file was edited by hand.
 
-The generator now produces 42 GGUF binaries: 13 under `GGUF` and 29 under
-`Malformed`. It also produces 12 typed expected-result JSON files. A
+At the Task 6 snapshot, the generator produced 42 GGUF binaries: 13 under
+`GGUF` and 29 under `Malformed`. It also produced 12 typed expected-result JSON
+files. A
 regenerate-and-compare check covered all 55 generated artifacts (42 binaries,
 12 expectations, and the manifest) and found byte-for-byte deterministic
 content. Independent validation parsed every JSON

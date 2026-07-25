@@ -1,10 +1,11 @@
 # GGUF quick scanner: a beginner's guide
 
 This guide explains the GGUF quick scanner as it exists at local implementation
-commit `c67d33f36ec323d8537245a536bb818098dd6a7e`. The commands and test totals in
-this guide were observed on 25 July 2026. They are a Task 9 documentation
-snapshot, including explicit standalone application builds. Task 10 will repeat
-the application/test matrix after independent reviews for final verification.
+commit `a526a4ccf4231de54e62651b0deb3a3c580c8647`. The final commands and test
+totals were observed on 25 July 2026 during Task 10, after independent code,
+security, test, fixture, packaging, and CI review. Section 14 preserves the
+earlier Task 9 matrix as historical evidence; Section 15 records the
+authoritative post-review result.
 
 ## 1. Purpose, non-goals, and current workflow boundary
 
@@ -201,6 +202,7 @@ bytes fail instead of becoming replacement characters.
 Metadata keys have additional GGUF rules:
 
 - at most 65,535 bytes;
+- at most 65,535 key bytes in total across one scan;
 - ASCII only;
 - one or more nonempty `lower_snake_case` segments;
 - segments separated by one dot.
@@ -227,6 +229,11 @@ bounded recursion. Fixed-width numeric arrays can be skipped as one validated
 byte range. Booleans, strings, and nested arrays must be consumed
 semantically, because their validity or width cannot be inferred from one
 fixed multiplication.
+
+Array scratch storage is scan-wide rather than per element or per root array.
+Fixed-width arrays use one checked skip, Boolean arrays validate through a
+reused 4 KiB chunk, and string/nested arrays reuse the same eight-byte length
+and four-byte type buffers.
 
 ## 5. One-pass extraction, skipping, ordering, and duplicates
 
@@ -354,6 +361,7 @@ narrowing, allocation, recursion, or an attacker-controlled loop.
 |---|---:|---|---|
 | metadata entries | 1,000,000 | project top-level loop guard | Prevents an unbounded metadata loop. This is not a GGUF format maximum. |
 | metadata key bytes | 65,535 | GGUF specification | Enforces the format's `2^16 - 1` key limit before allocation. |
+| all metadata key bytes in one scan | 65,535 | application safety limit | Bounds aggregate key decoding and grammar-validation work before allocation. |
 | one metadata string | 16 MiB | application safety limit | Bounds retained allocation and unknown-string work. |
 | one array | 1,000,000 elements | application safety limit | Allows large tokenizer arrays but bounds one loop. |
 | all arrays in one scan | 4,000,000 declared elements | application safety limit | Stops many individually valid arrays or nested declarations from multiplying total work. |
@@ -385,19 +393,20 @@ metadata is not returned with a failure.
 | `unsupported-version` | Complete header version is not 3. | I-002 |
 | `excessive-metadata-count` | More than 1,000,000 entries are declared. | I-007 |
 | `metadata-key-too-long` | A key declares more than 65,535 bytes. | I-005 |
+| `excessive-metadata-key-bytes` | Individually valid keys exceed 65,535 bytes in aggregate. | I-029 |
 | `invalid-metadata-key` | Key encoding/grammar is not valid hierarchical lower snake case. | I-019, I-025 through I-028 |
 | `unsupported-metadata-type` | Value or array element type is outside 0 through 12. | I-006 |
-| `truncated-metadata` | A key, type, scalar, string, or array payload ends early. | I-004, I-011 |
+| `truncated-metadata` | A key, type, scalar, string, or array payload ends early. | I-004, I-011, I-032, I-035 through I-037 |
 | `missing-required-architecture` | Architecture is absent, empty, or whitespace. | H-001, I-008, I-023 |
 | `invalid-architecture-type` | `general.architecture` is not a string. | I-009 |
 | `invalid-name-type` | `general.name` is present but not a string. | I-020 |
 | `invalid-size-label-type` | `general.size_label` is present but not a string. | I-021 |
 | `invalid-file-type` | `general.file_type` is present but not `UInt32`. | I-022 |
 | `invalid-context-type` | The exact architecture context key is neither `UInt32` nor `UInt64`. | I-016 |
-| `invalid-boolean-value` | A Boolean payload is not byte 0 or 1. | I-010 |
-| `invalid-metadata-encoding` | A retained key or string is not valid strict UTF-8. | I-018 |
-| `metadata-string-too-long` | A string exceeds 16 MiB. | I-012 |
-| `excessive-array-count` | One array exceeds 1,000,000 or aggregate declarations exceed 4,000,000. | I-013, I-014 |
+| `invalid-boolean-value` | A Boolean payload is not byte 0 or 1. | I-010, I-030 |
+| `invalid-metadata-encoding` | A retained key or string is not valid strict UTF-8. | I-018, I-038 |
+| `metadata-string-too-long` | A string exceeds 16 MiB. | I-012, I-031, I-033 |
+| `excessive-array-count` | One array exceeds 1,000,000 or aggregate declarations exceed 4,000,000. | I-013, I-014, I-034 |
 | `excessive-array-depth` | Nested arrays reach level 9. | I-015 |
 | `excessive-context-candidate-count` | A 65th distinct pre-architecture candidate would be retained. | I-017 |
 | `file-not-found` | Opening finds no file or directory. | Unique missing path test |
@@ -416,7 +425,8 @@ Direct `GgufQuickScanner` cancellation also remains an exception.
 
 ## 9. Generated fixtures
 
-Binary fixtures are never edited by hand. The only sources are:
+Binary fixtures are never edited by hand. The authoritative entry point is
+`tests/TestFixtures/Generate-GgufFixtures.ps1`; it invokes the two leaf sources:
 
 - `tests/TestFixtures/Generate-GgufHeaderFixtures.ps1`; and
 - `tests/TestFixtures/Generate-GgufMetadataFixtures.ps1`.
@@ -424,11 +434,17 @@ Binary fixtures are never edited by hand. The only sources are:
 The header generator owns H-001, I-000 through I-003, and I-024. The metadata
 generator owns V-001 through V-012 and the other malformed metadata fixtures.
 The metadata generator also writes the 12 expectation JSON records and
-`fixture-manifest.json`.
+`fixture-manifest.json`. Before invoking either leaf, the orchestrator removes
+every generated GGUF/JSON output and the prior manifest. That single clean start
+means a deleted or renamed writer cannot survive as stale, apparently
+reproducible data. The orchestrator then tells the metadata leaf not to repeat
+its standalone compatibility cleanup, so a newly added header output is not
+mistaken for stale metadata output.
 
 The scripts:
 
 - write typed little-endian fields with `BinaryWriter`;
+- remove all prior root or nested `.gguf`/JSON outputs before regeneration;
 - create no tensor data;
 - use tiny declared-limit fixtures so unsafe payloads are rejected before a
   large allocation;
@@ -437,13 +453,13 @@ The scripts:
   scanner what to expect; and
 - record byte lengths and SHA-256 hashes for deterministic integrity checks.
 
-To change a fixture safely, change its script, run both scripts, review every
-generated difference, parse all JSON, and verify the manifest hashes and
-lengths. Do not hex-edit a `.gguf` file.
+To change a fixture safely, change its leaf script, run
+`Generate-GgufFixtures.ps1`, review every generated difference, parse all JSON,
+and verify the manifest hashes and lengths. Do not hex-edit a `.gguf` file.
 
 ### Complete binary fixture inventory
 
-There are 42 generated binaries: 13 under `GGUF` and 29 under `Malformed`.
+There are 52 generated binaries: 13 under `GGUF` and 39 under `Malformed`.
 V-001 through V-012 each have a same-stem JSON expectation.
 
 | ID | File | Bytes | Behavior/result |
@@ -490,6 +506,16 @@ V-001 through V-012 each have a same-stem JSON expectation.
 | I-026 | `Malformed/I-026-empty-key-segment.gguf` | 50 | `invalid-metadata-key` for `general..name` |
 | I-027 | `Malformed/I-027-key-with-space.gguf` | 49 | `invalid-metadata-key` for U+0020 |
 | I-028 | `Malformed/I-028-uppercase-key.gguf` | 49 | `invalid-metadata-key` for uppercase `G` |
+| I-029 | `Malformed/I-029-excessive-total-key-bytes.gguf` | 46 | `excessive-metadata-key-bytes` before the second key allocation |
+| I-030 | `Malformed/I-030-invalid-boolean-array-value.gguf` | 4,166 | `invalid-boolean-value` just beyond one 4 KiB validation chunk |
+| I-031 | `Malformed/I-031-oversized-string-array-value.gguf` | 32,844 | `metadata-string-too-long` after 4,096 empty string elements |
+| I-032 | `Malformed/I-032-truncated-nested-array.gguf` | 49,229 | `truncated-metadata` retains parent element and child-depth context |
+| I-033 | `Malformed/I-033-oversized-retained-string.gguf` | 64 | `metadata-string-too-long` before retaining architecture text |
+| I-034 | `Malformed/I-034-cross-entry-array-total.gguf` | 4,000,219 | `excessive-array-count` across separate top-level entries |
+| I-035 | `Malformed/I-035-truncated-key-length.gguf` | 28 | `truncated-metadata` in the eight-byte key length |
+| I-036 | `Malformed/I-036-truncated-key-bytes.gguf` | 34 | `truncated-metadata` in the declared key payload |
+| I-037 | `Malformed/I-037-truncated-value-type.gguf` | 35 | `truncated-metadata` in the four-byte value type |
+| I-038 | `Malformed/I-038-invalid-utf8-key.gguf` | 34 | `invalid-metadata-encoding` for malformed key UTF-8 |
 
 ## 10. Complete quick-scan test inventory
 
@@ -499,7 +525,7 @@ files, open them with the real `FileStream`, and cross the package/content
 boundary. They are component/integration-style tests hosted in the packaged
 MSTest project.
 
-### `GgufQuickScannerTests`: 47 methods and 47 executions
+### `GgufQuickScannerTests`: 55 methods and 58 executions
 
 | Test name | Arrange | Act | Assert | Failure/regression caught |
 |---|---|---|---|---|
@@ -523,6 +549,14 @@ MSTest project.
 | `ScanAsync_EmptyMetadataKeySegment_ReturnsInvalidMetadataKeyFailure` | Deploy I-026 | Scan adjacent dots | empty segment at index 8 | Partial grammar validation |
 | `ScanAsync_MetadataKeyWithSpace_ReturnsInvalidMetadataKeyFailure` | Deploy I-027 | Scan key with space | U+0020/index without raw-key echo | ASCII-only validation |
 | `ScanAsync_UppercaseMetadataKey_ReturnsInvalidMetadataKeyFailure` | Deploy I-028 | Scan uppercase key | U+0047/index | Accepting non-lowercase key |
+| `ScanAsync_ExcessiveTotalKeyBytes_ReturnsControlledFailure` | Deploy I-029 | Scan individually valid key declarations | aggregate code/offset/limit | Repeated bounded allocations composing into excessive work |
+| `ScanAsync_InvalidBooleanArrayValue_ReportsElementAndOffset` | Deploy I-030 | Scan across a 4 KiB chunk boundary | exact element, offset, and byte | Chunk validation skipping a boundary value |
+| `ScanAsync_OversizedStringArrayValue_ReportsElementAndOffset` | Deploy I-031 | Scan 4,096 empty strings then an oversized declaration | exact element/offset/limit | Per-element allocation or lost diagnostics |
+| `ScanAsync_TruncatedNestedArray_ReportsParentElementAndOffset` | Deploy I-032 | Scan 4,096 empty children then a truncated child | parent element, depth, offset, byte counts | Per-child task/allocation refactor losing context |
+| `ScanAsync_OversizedRetainedString_ReturnsControlledFailure` | Deploy I-033 | Read oversized architecture length | code/field/offset/limit | Retained allocation before length enforcement |
+| `ScanAsync_CrossEntryArrayTotal_ReturnsControlledFailure` | Deploy I-034 | Scan five separate top-level arrays | prior total/increment/offset/limit | Resetting aggregate budget between entries |
+| `ScanAsync_MalformedMetadataField_ReturnsControlledFailure` | Deploy I-035 through I-038 | Four data rows scan key length, key bytes, value type, and key encoding | stable field offsets/details; four executions | Gaps at exact-read and strict-decoding boundaries |
+| `ScanAsync_InFlightCancellation_ThrowsOperationCanceledException` | Gate after opening, cancel real token, release | Let first real header read continue | cancellation exception | Cancellation ignored after work starts or false-positive test-hook cancellation |
 | `ScanAsync_MissingArchitecture_ReturnsMissingArchitectureFailure` | Deploy I-008 | Scan other metadata | required-field failure | Success without architecture |
 | `ScanAsync_ArchitectureWithWrongType_ReturnsInvalidArchitectureTypeFailure` | Deploy I-009 | Scan `UInt32` architecture | actual/expected types | Reporting wrong type as merely missing |
 | `ScanAsync_OversizedMetadataString_ReturnsMetadataStringTooLongFailure` | Deploy I-012 | Scan 16 MiB + 1 declaration | `metadata-string-too-long` | Large allocation/read |
@@ -551,7 +585,7 @@ MSTest project.
 | `ScanAsync_DuplicateRelevantMetadata_RetainsFirstOccurrences` | Deploy V-012 + JSON | Scan duplicates | coherent first values | Last-wins architecture/context mismatch |
 | `ScanAsync_CompleteMetadata_ReturnsExpectedSuccessResult` | Deploy V-001 + JSON | Scan | every field and null failure data | Incomplete success extraction |
 
-### `ModelQuickScannerTests`: 10 methods and 11 executions
+### `ModelQuickScannerTests`: 11 methods and 12 executions
 
 | Test name | Arrange | Act | Assert | Failure/regression caught |
 |---|---|---|---|---|
@@ -564,7 +598,14 @@ MSTest project.
 | `ScanAsync_GgufWithValidFixture_ReturnsSuccessResult` | Deploy V-001 | Route through real scanner | complete Granite result | Router bypass/duplicate parser |
 | `ScanAsync_GgufWithInvalidFixture_ReturnsScannerFailure` | Deploy I-001 | Route | `invalid-magic` preserved | Router swallowing diagnostics |
 | `ScanAsync_GgufWithPreCancelledToken_ReturnsCancelledResult` | Cancel token | Route GGUF | `Cancelled` result | Cancellation escaping router |
+| `ScanAsync_GgufWithInFlightCancellation_ReturnsCancelledResult` | Gate after real file open, cancel, release | Route the cancelled read | `Cancelled` result | Router failing to translate genuine in-flight cancellation |
 | `Constructor_NullGgufQuickScanner_ThrowsArgumentNullException` | Null dependency | Construct router | exact null exception | Invalid router state |
+
+### `GgufFixtureIntegrityTests`: 1 method and 1 execution
+
+| Test name | Arrange | Act | Assert | Failure/regression caught |
+|---|---|---|---|---|
+| `PackagedGgufFixtures_MatchIntegrityManifest` | Deploy manifest and all fixture globs | Enumerate every packaged `.gguf`, then hash each file | exact path set, byte length, and SHA-256 | Missing, stale, extra, or altered package fixture |
 
 ### `ModelQuickScanResultTests`: 17 methods and 27 executions
 
@@ -588,9 +629,9 @@ MSTest project.
 | `CreateSuccess_NullQuantization_IsStoredAsNull` | Optional quantization absent | Create success | null retained | Same |
 | `CreateSuccess_NullContextLength_IsStoredAsNull` | Optional context absent | Create success | null retained | Same |
 
-These three classes total 74 test methods and 85 executions. The full packaged
+These four classes total 84 test methods and 98 executions. The full packaged
 suite adds nine model-file-picker executions and one testing-foundation
-smoke execution, producing 95.
+smoke execution, producing 108.
 
 ## 11. Production code walkthroughs
 
@@ -610,6 +651,7 @@ tightly coupled statement group without copying the large source file.
 | unauthorized catch | Returns `file-access-denied`. |
 | opening `IOException` catch | Returns `file-read-error`; it does not catch every exception. |
 | `await using (stream)` | Guarantees asynchronous disposal. |
+| optional tokenless post-open checkpoint | Defaults to absent in production; lets cancellation tests pause after real file opening without manufacturing cancellation in the hook. |
 | inner `try` and awaited `ScanOpenedFileAsync` | Keeps orchestration separate from resource/opening policy. |
 | exact `GgufFormatException` catch | Converts only scanner-known structural input failures. Cancellation, programming errors, and unrelated parse-time I/O are not broadly swallowed. |
 
@@ -644,11 +686,12 @@ tightly coupled statement group without copying the large source file.
 
 | Source-order statement | Meaning |
 |---|---|
-| `new GgufScanState()` | Starts small per-scan retained state. |
+| `new GgufScanState()` | Starts small per-scan retained state and reusable array buffers. |
 | `totalArrayElementCount = 0` | Makes the aggregate budget local to one file. |
+| `totalMetadataKeyByteLength = 0` | Makes aggregate key decoding/validation work local to one file. |
 | `for (ulong entryIndex...)` | Visits exactly the already-bounded declared entry count. |
 | per-entry cancellation check | Makes a long metadata list interruptible. |
-| `ReadMetadataKeyAsync` | Reads, bounds, strictly decodes, and validates the key. |
+| `ReadMetadataKeyAsync` | Reads, bounds, strictly decodes, validates the key, and returns the updated aggregate key total. |
 | `ReadMetadataTypeAsync` | Reads and validates type 0 through 12. |
 | `ReadKnownMetadataValueAsync` | Either retains a first known field or structurally consumes the value. |
 | assignment of returned total | Carries the aggregate array work budget across entries. |
@@ -662,6 +705,7 @@ tightly coupled statement group without copying the large source file.
 | exact-read length with EOF translation | A short length is `truncated-metadata`. |
 | little-endian `ulong` decode | Reads the declared byte count. |
 | compare with 65,535 | Applies the GGUF key limit before narrowing. |
+| subtraction-based aggregate comparison | Rejects a scan total above 65,535 before allocation and without overflowing addition. |
 | calculate `remainingBytes` | Avoids unchecked end-position arithmetic. |
 | compare declared length with remaining | Rejects truncation before allocation/read. |
 | checked `int` conversion and allocation | Safe because 65,535 already fits. |
@@ -745,24 +789,25 @@ string.
 |---|---|
 | depth check | Rejects level 9 before descending. |
 | cancellation check | Makes recursion interruptible. |
-| read element type and count | Both use validated exact-read helpers. |
+| read element type and count | Both use validated exact-read helpers and the scan-wide four/eight-byte buffers. |
 | per-array comparison | Rejects more than 1,000,000 before iteration. |
 | subtraction-based total check | Prevents overflow while enforcing 4,000,000 total. |
 | add element count | Updates the local scan budget only after checks. |
 | element-width switch | Gives fixed numeric types widths 1, 2, 4, or 8; semantic types receive 0. |
 | checked multiplication | Calculates fixed payload bytes without overflow. |
 | `SkipValidatedBytes` | Seeks once only when the complete payload exists. |
-| semantic `for` loop | Handles only already-bounded Boolean, string, or nested-array elements. |
-| per-element cancellation | Keeps a large legal array cancellable. |
-| nested-array branch | Recurse with `nestingDepth + 1` and the shared total. |
-| other semantic branch | Reuse the normal value-consumption rules. |
+| zero-count Boolean return | Avoids allocating or touching the lazy Boolean buffer. |
+| Boolean branch | Validates the complete remaining range, then exact-reads reusable chunks of at most 4 KiB and checks every byte. |
+| String branch | Reuses the eight-byte length buffer for every element, bounds each string, and skips validated payloads without per-element task allocation. |
+| nested-array `for` loop | Handles only already-bounded child arrays, checks cancellation, and recurses with `nestingDepth + 1`. |
 | return total | Carries all nested work back to the caller. |
 
 ### Primitive metadata reads and validated skipping
 
-`ReadMetadataUInt32Async` and `ReadMetadataUInt64Async` remember the current
-offset, exact-read a fixed four/eight-byte array, translate only early EOF, and
-decode little-endian.
+General scalar `ReadMetadataUInt32Async` and `ReadMetadataUInt64Async` remember
+the current offset, exact-read a fixed four/eight-byte array, translate only
+early EOF, and decode little-endian. Array type/count/string-length reads use
+the equivalent `ValueTask` helpers with scan-wide reusable buffers.
 
 `SkipValidatedBytes` calculates `stream.Length - Position`, compares the
 requested `ulong`, converts to `long` only after it fits, and seeks from the
@@ -784,7 +829,9 @@ The remaining focused helpers keep policy out of the byte-reading code:
 | `RequireMetadataType` | Returns for the required type and otherwise throws the caller-supplied stable known-field code. |
 | `CreateTruncatedMetadataException` | Formats the key, stage, offset, actual bytes, and expected bytes in one place and optionally retains the original EOF exception. |
 | `GgufHeader` | Immutable three-number record for version, tensor count, and metadata count. |
-| `GgufScanState` | Per-scan bounded retained fields, first-occurrence flags, and the maximum-64 pending-context dictionary. |
+| `GgufArrayReadBuffers` | Scan-wide four/eight-byte primitive buffers plus one lazily allocated reusable 4 KiB Boolean chunk. |
+| `GgufMetadataKey` | Carries the decoded key and updated aggregate key-byte total without a separate object graph. |
+| `GgufScanState` | Per-scan reusable array buffers, bounded retained fields, first-occurrence flags, and the maximum-64 pending-context dictionary. |
 | `PendingContextValue` | Immutable candidate type plus optional normalized integer; it never holds an arbitrary payload. |
 | `GgufMetadataValueType` | Names the validated IDs 0 through 12 so switches are readable. |
 | `GgufFormatException` | Scanner-local carrier for one stable code and two messages. Only this expected structural exception is translated by the parse boundary. |
@@ -838,18 +885,21 @@ This catches a wrong fixture/expectation pairing as well as incorrect parsing.
 
 ## 13. Fixture copying and the packaged WinUI runner
 
-The test project has three wildcard `Content` groups:
+The test project has three wildcard `Content` groups plus the integrity
+manifest:
 
 ```text
 tests/TestFixtures/GGUF/**/*.gguf
 tests/TestFixtures/Malformed/**/*.gguf
 tests/TestFixtures/ExpectedMetadata/**/*.json
+tests/TestFixtures/fixture-manifest.json
 ```
 
 Each item uses `Link` to place it under
 `TestFixtures\{GGUF,Malformed,ExpectedMetadata}` and
-`CopyToOutputDirectory=PreserveNewest`. The paths are repository-relative, so
-they do not depend on one developer's computer.
+`CopyToOutputDirectory=PreserveNewest`; the manifest is linked at
+`TestFixtures\fixture-manifest.json` with the same copy policy. The paths are
+repository-relative, so they do not depend on one developer's computer.
 
 Building the WinUI MSTest project creates
 `GraniteEdgeAI.UnitTests.build.appxrecipe`. Visual Studio's
@@ -861,10 +911,12 @@ This package host matters because the project is a WinUI/MSIX test app. A
 successful build is not test execution, and a plain `dotnet test` run is not
 the completion evidence used here.
 
-## 14. Exact Task 9 commands and observed totals
+## 14. Historical Task 9 commands and observed totals
 
-The following commands were run from the repository root. The result
-directories were created before `Resolve-Path`.
+This section intentionally preserves the earlier 47/11/95 Task 9 snapshot. It
+is not the current test inventory or the final completion claim. The following
+commands were run from the repository root; the result directories were
+created before `Resolve-Path`.
 
 ```powershell
 $appProject =
@@ -1021,11 +1073,51 @@ wall-clock value:
 | Release | full package | 95/95/95 | 0/0/0/0 | 2.4790299 s | 0 |
 
 The test-project builds additionally compiled their production-project
-reference. Task 10 is responsible for repeating the standalone application and
-packaged-test matrix after independent reviews and recording the authoritative
-final results.
+reference. The authoritative post-review repetition follows.
 
-## 15. Limitations and how to extend this safely later
+## 15. Final Task 10 post-review verification
+
+Task 10 verified implementation commit
+`a526a4ccf4231de54e62651b0deb3a3c580c8647`. Independent reviews reported no
+remaining Critical or Important code, security, test, fixture, packaging, or
+CI finding.
+
+Before the final builds, Windows PowerShell 5.1 ran the authoritative
+`Generate-GgufFixtures.ps1` entry point. Verification established:
+
+- 65 generated artifacts: 52 GGUF binaries, 12 expected-result JSON files, and
+  one manifest;
+- two consecutive complete generations had identical names, lengths, and
+  SHA-256 hashes;
+- all 13 generated JSON files used LF only;
+- root and nested stale GGUF/JSON impostors were removed; and
+- a simulated newly emitted header survived the metadata leaf's
+  `-SkipOutputCleanup` path before the next authoritative clean generation.
+
+The standalone WinUI application and packaged test project were restored and
+built for `win-x64`/`x64` in both Debug and Release. All native processes exited
+0. Both packaged test-project builds reported zero warnings and zero errors,
+and each resulting AppX fixture tree contained exactly 65 assets.
+
+Each test row below came from Visual Studio 18's x64 app-container VSTest
+runner. Durations are the TRX `finish - start` intervals:
+
+| Configuration | Scope/filter | Total/executed/passed | Failed/error/inconclusive/not executed | TRX duration | Relative TRX path |
+|---|---|---:|---:|---:|---|
+| Debug | `GgufQuickScannerTests` | 58/58/58 | 0/0/0/0 | 5.6096 s | `TestResults\GGUF-Quick-Scanner\Debug\task-10-final-reviewed-debug-direct.trx` |
+| Debug | `ModelQuickScannerTests` | 12/12/12 | 0/0/0/0 | 2.8062 s | `TestResults\GGUF-Quick-Scanner\Debug\task-10-final-reviewed-debug-router.trx` |
+| Debug | no filter | 108/108/108 | 0/0/0/0 | 2.9254 s | `TestResults\GGUF-Quick-Scanner\Debug\task-10-final-reviewed-debug-full.trx` |
+| Release | `GgufQuickScannerTests` | 58/58/58 | 0/0/0/0 | 6.4571 s | `TestResults\GGUF-Quick-Scanner\Release\task-10-final-release-direct.trx` |
+| Release | `ModelQuickScannerTests` | 12/12/12 | 0/0/0/0 | 2.6814 s | `TestResults\GGUF-Quick-Scanner\Release\task-10-final-release-router.trx` |
+| Release | no filter | 108/108/108 | 0/0/0/0 | 2.7934 s | `TestResults\GGUF-Quick-Scanner\Release\task-10-final-release-full.trx` |
+
+The Debug and Release full TRX files were also joined from result `testId` to
+test definitions. Each contained 58 passed direct-scanner executions, one
+passed fixture-integrity execution, and 12 passed router executions. This
+guards against a green full-suite result that accidentally omits a required
+class.
+
+## 16. Limitations and how to extend this safely later
 
 ### Current limitations
 
@@ -1074,7 +1166,7 @@ final results.
 12. Update this guide, the evidence report, and the isolated mapping/limit
     tables when the contract changes.
 
-## 16. Sources and textbook principles
+## 17. Sources and textbook principles
 
 ### Primary technical sources
 
@@ -1183,6 +1275,6 @@ This final map makes the 32 requested topics auditable.
 | 20-25 | Section 11 |
 | 26-27 | Section 12 |
 | 28-29 | Section 13 |
-| 30 | Section 14 |
-| 31 | Section 15 |
-| 32 | Section 16 and Glossary |
+| 30 | Sections 14 and 15 |
+| 31 | Section 16 |
+| 32 | Section 17 and Glossary |

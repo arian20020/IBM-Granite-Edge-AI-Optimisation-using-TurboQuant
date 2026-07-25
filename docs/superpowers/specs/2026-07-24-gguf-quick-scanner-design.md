@@ -1,7 +1,9 @@
 # GGUF Quick Scanner Design
 
-**Date:** 2026-07-24  
-**Status:** Approved for implementation by the task brief  
+**Date:** 2026-07-24
+
+**Status:** Approved for implementation by the task brief
+
 **Branch:** `feature/winui-shell-model-import`
 
 ## Goal
@@ -146,7 +148,10 @@ Small helpers will each perform one readable operation:
 
 A small scanner-local format exception will carry stable failure details from deeply nested read helpers to the single result-construction boundary. It will be caught by exact type only. It will not catch programming exceptions or cancellation.
 
-All asynchronous helpers receive the same `CancellationToken`. Metadata-entry loops and element-by-element array loops check cancellation explicitly.
+All asynchronous parser helpers receive the same `CancellationToken`.
+Metadata-entry and semantic-array loops check cancellation explicitly. Boolean
+arrays are validated in bounded chunks, while fixed-width arrays use one
+validated skip.
 
 ## Safety limits
 
@@ -156,6 +161,7 @@ The following constants are part of the scanner’s explicit trust-boundary poli
 |---|---:|---|---|
 | `MaxMetadataEntryCount` | `1_000_000` | required project limit | Rejects attacker-controlled top-level loops before iteration while leaving very generous format headroom. |
 | `MaxMetadataKeyByteLength` | `65_535` | GGUF specification limit | The GGUF specification limits keys to `2^16 - 1` bytes. |
+| `MaxTotalMetadataKeyByteLength` | `65_535` | application safety limit | Bounds aggregate key decoding and grammar-validation work across one scan before any key allocation. |
 | `MaxMetadataStringByteLength` | `16 * 1024 * 1024` | application safety limit | A quick-scan display field or individual tokenizer string has no reason to allocate tens of MiB. Sixteen MiB is generous metadata headroom while bounding every `ulong`-declared allocation to a safe `int`. Unknown strings are validated against the same policy and skipped without allocation. |
 | `MaxArrayElementCount` | `1_000_000` | application safety limit | Supports large tokenizer vocabularies while rejecting a single attacker-controlled loop larger than one million elements. Fixed-width, non-boolean arrays can be validated and skipped as one byte range. |
 | `MaxTotalArrayElementCount` | `4_000_000` | application safety limit | Allows several large standard tokenizer arrays but prevents nested or repeated arrays from multiplying individually acceptable counts into unbounded total work. |
@@ -164,7 +170,7 @@ The following constants are part of the scanner’s explicit trust-boundary poli
 
 Every declared `ulong` is compared to its applicable limit and, where meaningful, to the remaining bytes before narrowing. Allocation lengths use checked conversion only after the limit check.
 
-Unknown fixed-size values are skipped only after validating `payloadLength <= stream.Length - stream.Position`. Unknown strings are not decoded or allocated. The parser never calculates an unchecked `position + length` and never seeks beyond EOF.
+Unknown fixed-size values are skipped only after validating `payloadLength <= stream.Length - stream.Position`. Unknown strings are not decoded or allocated. Array parsing reuses scan-wide primitive scratch buffers; Boolean validation uses a reusable 4 KiB buffer, and string/nested-array length and type reads reuse fixed eight-byte/four-byte buffers. The parser never calculates an unchecked `position + length` and never seeks beyond EOF.
 
 The test generator will create limit-plus-one and nested-budget fixtures so tests prove rejection occurs before allocation or uncontrolled iteration.
 
@@ -224,6 +230,7 @@ Required and additional scanner codes are:
 | `unsupported-version` | The header version was not 3. |
 | `excessive-metadata-count` | The declared metadata entry count exceeded one million. |
 | `metadata-key-too-long` | A key length exceeded 65,535 bytes. |
+| `excessive-metadata-key-bytes` | Individually valid keys exceeded the 65,535-byte aggregate scan budget. |
 | `invalid-metadata-key` | A key did not match the nonempty hierarchical `lower_snake_case` grammar. |
 | `unsupported-metadata-type` | A value or array-element type was outside 0–12. |
 | `truncated-metadata` | A metadata field or value ended before its declared payload. |
@@ -241,7 +248,7 @@ Required and additional scanner codes are:
 | `excessive-context-candidate-count` | More than 64 pre-architecture context candidates would have been retained. |
 | `file-not-found` | The selected file disappeared or its directory was unavailable before opening. |
 | `file-access-denied` | Windows denied read access to the selected file. |
-| `file-read-error` | Another operational `IOException` prevented scanning. |
+| `file-read-error` | An operational `IOException` prevented the selected file from opening. |
 
 No partial metadata is returned after a structural failure.
 
@@ -252,23 +259,32 @@ Path preconditions remain programmer/API contract exceptions:
 - null, empty, or whitespace path throws `ArgumentException` (with the runtime’s null specialization);
 - a pre-cancelled token throws `OperationCanceledException` from `GgufQuickScanner`.
 
-Expected file-system races are user-operational conditions, so `GgufQuickScanner` converts only `FileNotFoundException`/`DirectoryNotFoundException`, `UnauthorizedAccessException`, and unrelated `IOException` into the stable file codes above. Structural `EndOfStreamException` is translated close to the exact read into `truncated-header` or `truncated-metadata`.
+At the synchronous `FileStream` opening boundary, expected file-system races
+are user-operational conditions, so `GgufQuickScanner` converts only
+`FileNotFoundException`/`DirectoryNotFoundException`,
+`UnauthorizedAccessException`, and unrelated `IOException` into the stable file
+codes above. Once the file is open, operational I/O exceptions propagate to the
+higher application layer; only scanner-local `GgufFormatException` instances
+are converted at the parser boundary. Structural `EndOfStreamException` is
+translated close to the exact read into `truncated-header` or
+`truncated-metadata`.
 
 `OperationCanceledException` is never converted by `GgufQuickScanner`. `ModelQuickScanner` retains its narrow catch filter and returns `CreateCancelled` only when the caller’s token was actually cancelled. There is no `catch (Exception)`.
 
 ## Fixtures and test strategy
 
-The existing PowerShell generators remain the sole source of binary fixtures. New behavior will be represented by generator changes, regenerated binaries, and expected JSON where appropriate. Binary files will never be hand-edited.
+The existing PowerShell leaf generators remain the sole source of binary fixtures. The authoritative `Generate-GgufFixtures.ps1` entry point first removes the complete generated output set, then invokes both leaves in order; this makes deleted or renamed outputs observable instead of preserving stale files. New behavior will be represented by generator changes, regenerated binaries, and expected JSON where appropriate. Binary files will never be hand-edited.
 
 The test project will copy these repository-relative groups with `PreserveNewest`:
 
 - `tests/TestFixtures/GGUF/**/*.gguf`;
 - `tests/TestFixtures/Malformed/**/*.gguf`;
-- `tests/TestFixtures/ExpectedMetadata/**/*.json`.
+- `tests/TestFixtures/ExpectedMetadata/**/*.json`;
+- `tests/TestFixtures/fixture-manifest.json`.
 
-The valid fixture set retains `V-001` through `V-008`; adds `V-011` for the current `41 -> Q2_0` mapping and `V-012` for duplicate scanner-relevant metadata; and will add generated `V-009`/`V-010` coverage for every official metadata type, nested arrays, file type 40, and an unknown numeric file type. Malformed additions will cover the string, array-count, total-array-budget, nesting-depth, context-type, candidate-count, strict-encoding, and known-optional-type boundaries. Generated `I-025` through `I-028` specifically cover an empty key, an empty hierarchical segment, a space, and an uppercase character.
+The valid fixture set retains `V-001` through `V-008`; adds `V-011` for the current `41 -> Q2_0` mapping and `V-012` for duplicate scanner-relevant metadata; and adds generated `V-009`/`V-010` coverage for every official metadata type, nested arrays, file type 40, and an unknown numeric file type. Malformed additions cover the string, per-array and aggregate-array budgets, nesting depth, context type, candidate count, strict encoding, and known optional-type boundaries. Generated `I-025` through `I-028` cover key grammar. Generated `I-029` through `I-034` cover aggregate key work, chunked Boolean validation, long string/nested-array runs, retained-string allocation, and cross-entry array totals. Generated `I-035` through `I-038` cover exact-read truncation at the key-length, key-payload, and value-type fields plus invalid UTF-8 in a key.
 
-Direct tests use the real scanner, explicit fixture-exists assertions, Arrange–Act–Assert structure, `[TestMethod]`, and `[TestCategory("Unit")]`. Successful fixtures are compared with a small typed JSON expectation DTO. Tests observe only `ScanAsync` results and exceptions; private parsing helpers are not tested directly.
+Direct tests use the real scanner, explicit fixture-exists assertions, Arrange–Act–Assert structure, `[TestMethod]`, and `[TestCategory("Unit")]`. Successful fixtures are compared with a small typed JSON expectation DTO. A packaged integrity test compares the complete deployed `.gguf` set, byte lengths, and SHA-256 hashes with the manifest. Cancellation tests use an internal post-open gate that carries no cancellation token: they cancel the real scan token, release the gate, and require the first real scanner read to observe cancellation. Tests observe only `ScanAsync` results and exceptions; private parsing helpers are not tested directly.
 
 Router tests retain all existing format and input cases, remove the temporary `NotImplementedException` expectation, add real valid/invalid GGUF routing, and prove requested cancellation becomes `Cancelled`.
 
@@ -286,7 +302,7 @@ Build success alone is not test evidence. Debug and Release x64 verification wil
 
 The test project, not the production app, owns the `GraniteEdgeAI.UnitTests (Package)` launch profile. The production app launch settings will be restored to its packaged and unpackaged application profiles.
 
-CI sparse checkout must include `tests/TestFixtures`; otherwise the wildcard content items reference files that never reach the runner. Runner discovery will select the latest installation so a stale incompatible Visual Studio test platform is not chosen first.
+CI sparse checkout must include `tests/TestFixtures`; otherwise the wildcard content items reference files that never reach the runner. CI runs the clean orchestration entry point with Windows PowerShell 5.1 and requires both a clean tracked diff and no untracked fixture output before staging. The orchestrator clears all generated GGUF, expected JSON, and manifest outputs before invoking the header and metadata leaves, so missing or renamed writers cannot false-green. After VSTest, CI requires a TRX with nonzero execution, all results passed, and passed results joined to the direct scanner, fixture-integrity, and router definitions. Runner discovery selects the latest installation so a stale incompatible Visual Studio test platform is not chosen first.
 
 ## Review criteria
 
