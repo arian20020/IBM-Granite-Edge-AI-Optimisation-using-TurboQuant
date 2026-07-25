@@ -301,8 +301,9 @@ The successful V-001 test deserializes its checked-in expectation as typed
 including file length, GGUF version, context length, and `15 => Q4_K_M`; it
 also asserts all failure fields are null. Task 4 introduces only that required
 file-type mapping plus `Unknown (file type N)` fallback. Task 5 expands the
-current official mapping through 40; the later generated full-type fixture
-provides exhaustive value-by-value coverage.
+mapping through the current official value 41. Quantization fixture coverage is
+representative rather than exhaustive: V-001 checks 15, review fixture V-011
+checks 41, and Task 6 retains planned checks for 40 and unknown value 999.
 
 The post-refactor packaged direct-scanner regression was:
 
@@ -367,12 +368,83 @@ The scanner retains at most 64 distinct pre-architecture keys that end in
 `.context_length`. Each candidate is consumed once: UInt32 and UInt64 values
 are normalized to `ulong`; every other declared type is safely skipped and its
 type retained. Once architecture is available, an allocation-free exact
-length/suffix/prefix comparison selects only its matching candidate. Candidate
-65 returns `excessive-context-candidate-count` with actual count 65 and limit
-64 diagnostics. Unrelated wrong-type candidates remain harmless.
+length/suffix/prefix comparison selects only its matching candidate. Code
+inspection shows a 65th distinct candidate reaches
+`excessive-context-candidate-count` with actual count 65 and limit 64
+diagnostics; Task 6 fixture I-017 remains the planned public-scan validation of
+that boundary. Unrelated wrong-type candidates remain harmless.
 
-`MapFileTypeToQuantization` now covers labels 0 through 40 from the current
+`MapFileTypeToQuantization` now covers labels 0 through 41 from the current
 [llama.cpp `llama_ftype` enum](https://github.com/ggml-org/llama.cpp/blob/master/include/llama.h),
-including `15 => Q4_K_M` and `40 => Q1_0`. Historical labels 4-6 and 33-35
-remain mapped for compatibility; values outside this set return
+including `15 => Q4_K_M`, `40 => Q1_0`, and `41 => Q2_0`. Historical labels
+4-6 and 33-35 remain mapped for compatibility; values outside this set return
 `Unknown (file type N)`.
+
+## Task 5 review fixes
+
+The review follow-up generated two additional fixtures solely through
+`Generate-GgufMetadataFixtures.ps1`:
+
+| Fixture | Bytes | SHA-256 | Public behavior |
+|---|---:|---|---|
+| `V-011-current-q2_0-file-type.gguf` | 320 | `ff4540498e5fea00b3c321c19a3ab0b7919451ae5fe5f0e5880e867c764d9258` | Current file type 41 displays as `Q2_0` |
+| `V-012-duplicate-relevant-metadata.gguf` | 544 | `a7ba69c11ee794f13105ebee23614094b86b66422e5df44bf3c46fbad91dae58` | Scanner-relevant duplicate fields and exact context keys retain their first occurrence |
+
+The shared typed expectation helper now requires each test to supply the
+expected fixture ID and asserts it independently from the expected fixture
+filename. The generator also refreshes `fixture-manifest.json` with exact
+length and SHA-256 records for the complete current GGUF fixture inventory.
+
+The packaged two-test RED used the unchanged scanner:
+
+```text
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+V-011: expected Q2_0; actual Unknown (file type 41).
+V-012: expected First Duplicate Fixture Name; actual Ignored Duplicate Name.
+Total tests: 2
+     Failed: 2
+```
+
+Evidence: `task-05-review-fixes-red.trx`.
+
+The minimal implementation adds `41 => Q2_0` and bounded first-occurrence-wins
+state only for scanner-relevant keys. Fixed Boolean flags cover the four
+recognized `general.*` keys and resolved exact context. The existing
+maximum-64 dictionary retains the first occurrence of each distinct
+pre-architecture context candidate; it does not grow into a general metadata
+key set. Later duplicates are consumed through the normal structural skip path
+without replacing retained state. This keeps a duplicate architecture from
+redirecting exact context matching. A first matching wrong-type candidate
+still reaches `invalid-context-type`; Task 6 I-016 remains its planned
+generated public-scan validation.
+
+The focused packaged GREEN was:
+
+```text
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Test Run Successful.
+Total tests: 2
+     Passed: 2
+```
+
+Evidence: `task-05-review-fixes-green.trx`. Both review TRX files are under
+`TestResults\GGUF-Quick-Scanner\Debug`.
+
+The final review-fix direct-scanner regression rebuilt the packaged Debug
+`win-x64` project with zero warnings and zero errors, then ran the complete
+class:
+
+```text
+Test Run Successful.
+Total tests: 32
+     Passed: 32
+```
+
+There were zero failed, error, inconclusive, and not-executed tests. Evidence:
+`TestResults\GGUF-Quick-Scanner\Debug\task-05-review-fixes-final.trx`.

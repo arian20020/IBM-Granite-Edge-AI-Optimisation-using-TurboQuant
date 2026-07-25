@@ -466,8 +466,11 @@ Run the full direct scanner class and expect 20/20 tests.
 
 **Sequencing note:** V-001 requires `general.file_type = 15` to display as
 `Q4_K_M`. Task 4 therefore introduces the isolated mapping for 15 and the
-stable unknown-file-type fallback used by this fixture. Task 5 extends and
-tests that same mapping across the current official 0 through 40 values.
+stable unknown-file-type fallback used by this fixture. Task 5 extends the
+mapping through the current official value 41. Direct fixture coverage is
+deliberately representative rather than exhaustive: V-001 checks 15, the
+Task 5 review fixture V-011 checks 41, and Task 6 keeps its planned checks for
+40 and unknown value 999.
 
 - [ ] **Cycle 4.1: Missing required architecture**
 
@@ -644,6 +647,7 @@ Keep missing `general.file_type` as null. Extend the Task 4
 ```csharp
 15 => "Q4_K_M",
 40 => "Q1_0",
+41 => "Q2_0",
 _ => $"Unknown (file type {fileType})"
 ```
 
@@ -652,6 +656,29 @@ GREEN: expected JSON comparison passes.
 - [ ] **Cycle 5.8: Refactor and regression**
 
 Run the complete direct scanner class. Expected: every required V-001 through V-008 behavior and malformed I-000 through I-011 behavior passes.
+
+- [ ] **Review cycle 5.9: Current file type 41**
+
+Generate V-011 with `general.file_type = 41` and an independent expected JSON
+result of `Q2_0`. Add
+`ScanAsync_CurrentQ2_0FileType_ReturnsExpectedResult`, capture the unknown-label
+RED, then extend the isolated mapping with `41 => "Q2_0"`.
+
+- [ ] **Review cycle 5.10: Duplicate scanner-relevant metadata**
+
+Generate V-012 with duplicate recognized fields, duplicate pre-architecture
+context candidates, a duplicate architecture, and later exact/unrelated
+context fields. Add
+`ScanAsync_DuplicateRelevantMetadata_RetainsFirstOccurrences`.
+
+Use bounded first-occurrence-wins state: fixed flags for the recognized
+`general.*` fields and resolved context, plus the existing maximum-64 pending
+candidate dictionary. Preserve the first occurrence of each pending candidate.
+Later duplicates must be fully consumed and structurally validated through the
+normal skip path without replacing retained state. A first matching wrong-type
+candidate continues to return `invalid-context-type`. Update the shared
+expected-fixture helper so every test supplies and asserts its expected
+`fixtureId`.
 
 - [ ] **Step 9: Commit**
 

@@ -453,6 +453,10 @@ function New-GraniteMetadataEntries {
         [switch]
         $OmitFileType,
 
+        # Select the numeric general.file_type value.
+        [uint32]
+        $FileType = 15,
+
         # Write context length as uint32 rather than uint64.
         [switch]
         $ContextAsUInt32,
@@ -489,7 +493,7 @@ function New-GraniteMetadataEntries {
     New-GgufEntry `
         -Key "general.file_type" `
         -Type $GgufTypeUInt32 `
-        -Value ([uint32] 15)
+        -Value $FileType
 
     $quantizationVersionEntry =
     New-GgufEntry `
@@ -909,6 +913,117 @@ Write-ExpectedMetadata `
     -ContextLength ([uint64] 131072) `
     -Notes "Missing general.file_type should produce an unavailable quantisation value."
 
+# V-011: current llama.cpp file type 41 identifies Q2_0.
+$v011Path =
+Join-Path `
+    -Path $ggufDirectory `
+    -ChildPath "V-011-current-q2_0-file-type.gguf"
+
+Write-GgufMetadataFile `
+    -Path $v011Path `
+    -Entries (
+    New-GraniteMetadataEntries `
+        -FileType ([uint32] 41)
+)
+
+Write-ExpectedMetadata `
+    -FixturePath $v011Path `
+    -FixtureId "V-011" `
+    -ModelName "IBM Granite Fixture Model" `
+    -Architecture "granite" `
+    -ParameterSizeLabel "3B" `
+    -Quantization "Q2_0" `
+    -ContextLength ([uint64] 131072) `
+    -Notes "Current llama.cpp file type 41 should display as Q2_0."
+
+# V-012: scanner-relevant duplicate keys use deterministic first-occurrence wins.
+$v012Path =
+Join-Path `
+    -Path $ggufDirectory `
+    -ChildPath "V-012-duplicate-relevant-metadata.gguf"
+
+$v012Entries =
+@(
+    # Retain the first pre-architecture context candidate.
+    New-GgufEntry `
+        -Key "granite.context_length" `
+        -Type $GgufTypeUInt64 `
+        -Value ([uint64] 131072)
+
+    New-GgufEntry `
+        -Key "granite.context_length" `
+        -Type $GgufTypeUInt64 `
+        -Value ([uint64] 262144)
+
+    New-GgufEntry `
+        -Key "general.name" `
+        -Type $GgufTypeString `
+        -Value "First Duplicate Fixture Name"
+
+    New-GgufEntry `
+        -Key "general.name" `
+        -Type $GgufTypeString `
+        -Value "Ignored Duplicate Name"
+
+    New-GgufEntry `
+        -Key "general.size_label" `
+        -Type $GgufTypeString `
+        -Value "3B"
+
+    New-GgufEntry `
+        -Key "general.size_label" `
+        -Type $GgufTypeString `
+        -Value "8B"
+
+    New-GgufEntry `
+        -Key "general.file_type" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 15)
+
+    New-GgufEntry `
+        -Key "general.file_type" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 41)
+
+    # The first architecture resolves the first retained Granite context.
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"
+
+    # This duplicate must not redirect subsequent exact-context matching.
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "llama"
+
+    # The matching context was already established, so this is also a duplicate.
+    New-GgufEntry `
+        -Key "granite.context_length" `
+        -Type $GgufTypeUInt64 `
+        -Value ([uint64] 524288)
+
+    # This remains unrelated because the first architecture is Granite.
+    New-GgufEntry `
+        -Key "llama.context_length" `
+        -Type $GgufTypeUInt64 `
+        -Value ([uint64] 4096)
+)
+
+Write-GgufMetadataFile `
+    -Path $v012Path `
+    -Entries $v012Entries
+
+Write-ExpectedMetadata `
+    -FixturePath $v012Path `
+    -FixtureId "V-012" `
+    -ModelName "First Duplicate Fixture Name" `
+    -Architecture "granite" `
+    -ParameterSizeLabel "3B" `
+    -Quantization "Q4_K_M" `
+    -ContextLength ([uint64] 131072) `
+    -Notes "Scanner-relevant duplicate keys retain their first occurrence."
+
 # ---------------------------------------------------------------------
 # Malformed metadata fixtures
 # ---------------------------------------------------------------------
@@ -1232,6 +1347,96 @@ try {
 finally {
     $i028Writer.Dispose()
 }
+
+# ---------------------------------------------------------------------
+# Generated fixture integrity manifest
+# ---------------------------------------------------------------------
+
+# Build one integrity record without deriving any scanner expectation.
+function New-FixtureManifestRecord {
+    param
+    (
+        # Receive the generated fixture file.
+        [Parameter(Mandatory)]
+        [System.IO.FileInfo]
+        $FixtureFile,
+
+        # Receive its repository-relative fixture category.
+        [Parameter(Mandatory)]
+        [string]
+        $Category
+    )
+
+    $fixtureHash =
+    Get-FileHash `
+        -LiteralPath $FixtureFile.FullName `
+        -Algorithm SHA256
+
+    $fixtureIdMatch =
+    [System.Text.RegularExpressions.Regex]::Match(
+        $FixtureFile.BaseName,
+        "^[A-Z]-[0-9]{3}")
+
+    return [ordered] @{
+        fixtureId  = $fixtureIdMatch.Value
+        fixtureFile = "$Category/$($FixtureFile.Name)"
+        byteLength = [int64] $FixtureFile.Length
+        sha256     = $fixtureHash.Hash.ToLowerInvariant()
+    }
+}
+
+$generatedFixtureRecords =
+[System.Collections.Generic.List[object]]::new()
+
+foreach ($fixtureFile in (
+    Get-ChildItem `
+        -LiteralPath $ggufDirectory `
+        -Filter "*.gguf" |
+    Sort-Object Name)) {
+    $generatedFixtureRecords.Add(
+        (New-FixtureManifestRecord `
+            -FixtureFile $fixtureFile `
+            -Category "GGUF"))
+}
+
+foreach ($fixtureFile in (
+    Get-ChildItem `
+        -LiteralPath $malformedDirectory `
+        -Filter "*.gguf" |
+    Sort-Object Name)) {
+    $generatedFixtureRecords.Add(
+        (New-FixtureManifestRecord `
+            -FixtureFile $fixtureFile `
+            -Category "Malformed"))
+}
+
+$fixtureManifest =
+[ordered] @{
+    fixtures =
+    [ordered] @{
+        Malformed        = "Malformed test assets"
+        GGUF             = "GGUF model fixture assets"
+        OpenVINO         = "OpenVINO model fixture assets"
+        ExpectedMetadata = "Expected metadata fixtures"
+    }
+
+    generatedGgufFixtures = $generatedFixtureRecords.ToArray()
+}
+
+$fixtureManifestJson =
+$fixtureManifest |
+ConvertTo-Json `
+    -Depth 6
+
+$fixtureManifestPath =
+Join-Path `
+    -Path $fixtureRoot `
+    -ChildPath "fixture-manifest.json"
+
+[System.IO.File]::WriteAllText(
+    $fixtureManifestPath,
+    $fixtureManifestJson + [System.Environment]::NewLine,
+    [System.Text.UTF8Encoding]::new($false))
 
 # ---------------------------------------------------------------------
 # Final verification output

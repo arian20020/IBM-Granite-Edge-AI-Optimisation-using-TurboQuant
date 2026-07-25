@@ -742,7 +742,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-002-missing-name.gguf",
-            "V-002-missing-name.json");
+            "V-002-missing-name.json",
+            "V-002");
     }
 
     /// <summary>
@@ -759,7 +760,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-003-missing-context.gguf",
-            "V-003-missing-context.json");
+            "V-003-missing-context.json",
+            "V-003");
     }
 
     /// <summary>
@@ -776,7 +778,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-004-missing-size-label.gguf",
-            "V-004-missing-size-label.json");
+            "V-004-missing-size-label.json",
+            "V-004");
     }
 
     /// <summary>
@@ -793,7 +796,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-005-unknown-metadata.gguf",
-            "V-005-unknown-metadata.json");
+            "V-005-unknown-metadata.json",
+            "V-005");
     }
 
     /// <summary>
@@ -810,7 +814,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-006-unusual-metadata-order.gguf",
-            "V-006-unusual-metadata-order.json");
+            "V-006-unusual-metadata-order.json",
+            "V-006");
     }
 
     /// <summary>
@@ -827,7 +832,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-007-context-uint32.gguf",
-            "V-007-context-uint32.json");
+            "V-007-context-uint32.json",
+            "V-007");
     }
 
     /// <summary>
@@ -844,7 +850,44 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-008-missing-file-type.gguf",
-            "V-008-missing-file-type.json");
+            "V-008-missing-file-type.json",
+            "V-008");
+    }
+
+    /// <summary>
+    /// Verifies the current official llama.cpp file type 41 displays as Q2_0.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_CurrentQ2_0FileType_ReturnsExpectedResult()
+    {
+        // Arrange: create the real scanner for the generated file-type 41 fixture.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: the public scan result exposes the current official label.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-011-current-q2_0-file-type.gguf",
+            "V-011-current-q2_0-file-type.json",
+            "V-011");
+    }
+
+    /// <summary>
+    /// Verifies scanner-relevant duplicate keys deterministically retain the first occurrence.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_DuplicateRelevantMetadata_RetainsFirstOccurrences()
+    {
+        // Arrange: create the real scanner for generated duplicate metadata.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: architecture and its context remain coherent and first wins.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-012-duplicate-relevant-metadata.gguf",
+            "V-012-duplicate-relevant-metadata.json",
+            "V-012");
     }
 
     /// <summary>
@@ -859,7 +902,8 @@ public sealed class GgufQuickScannerTests
         await AssertExpectedFixtureResultAsync(
             scanner,
             "V-001-complete-metadata-v3.gguf",
-            "V-001-complete-metadata-v3.json");
+            "V-001-complete-metadata-v3.json",
+            "V-001");
     }
 
     /// <summary>
@@ -868,7 +912,8 @@ public sealed class GgufQuickScannerTests
     private static async Task AssertExpectedFixtureResultAsync(
         GgufQuickScanner scanner,
         string fixtureFileName,
-        string expectedFileName)
+        string expectedFileName,
+        string expectedFixtureId)
     {
         string fixturePath = Path.Combine(
             AppContext.BaseDirectory,
@@ -894,6 +939,7 @@ public sealed class GgufQuickScannerTests
             deserializedExpected,
             $"The metadata expectation deserialized to null: {expectedPath}");
         ExpectedFixture expected = deserializedExpected!;
+        Assert.AreEqual(expectedFixtureId, expected.FixtureId);
         Assert.AreEqual(fixtureFileName, expected.FixtureFile);
 
         ModelQuickScanResult result = await scanner.ScanAsync(

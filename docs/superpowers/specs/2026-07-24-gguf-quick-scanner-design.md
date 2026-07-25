@@ -186,13 +186,19 @@ The test generator will create limit-plus-one and nested-budget fixtures so test
 
 `general.file_type` is optional and must be `uint32` when present. Its mapping is isolated in `MapFileTypeToQuantization`.
 
-The map follows the current official llama.cpp `llama_ftype` values, including `15 -> Q4_K_M` and current active values through `40 -> Q1_0`. Historical removed values retain their documented labels when the official GGUF specification names them. A numeric value with no current official label returns `Unknown (file type N)` rather than failing or silently discarding the value. Missing metadata returns `null`. A different metadata type returns `invalid-file-type`.
+The map follows the current official llama.cpp `llama_ftype` values, including `15 -> Q4_K_M`, `40 -> Q1_0`, and the current active `41 -> Q2_0`. Historical removed values retain their documented labels when the official GGUF specification names them. A numeric value with no current official label returns `Unknown (file type N)` rather than failing or silently discarding the value. Missing metadata returns `null`. A different metadata type returns `invalid-file-type`.
 
 ### Context length
 
 The desired key is `<architecture>.context_length`. It may occur before or after `general.architecture`. A matching value may be `uint32` or `uint64` and is normalized to `ulong`. A missing matching value returns `null`. A matching value of another type returns `invalid-context-type`.
 
 Only bounded context candidates are retained before the architecture becomes known; unrelated metadata values are consumed and discarded.
+
+### Duplicate scanner-relevant keys
+
+Scanner-relevant metadata uses deterministic first-occurrence-wins semantics. The first `general.name`, `general.architecture`, `general.size_label`, `general.file_type`, and exact `<architecture>.context_length` value establishes the result state. A later duplicate never replaces that state, but its complete declared payload is still structurally consumed and validated.
+
+The policy remains bounded: fixed Boolean flags track the four `general.*` fields and the resolved context field; the scanner does not retain a set of arbitrary metadata keys. Before architecture is known, the existing dictionary retains at most 64 distinct context-suffix candidates and preserves the first occurrence of each exact candidate key. Therefore a first matching candidate with the wrong type still returns `invalid-context-type`, while a later duplicate cannot repair or replace it. Ignoring duplicate `general.architecture` values also prevents architecture and context from describing different models.
 
 ## Encoding and key handling
 
@@ -260,7 +266,7 @@ The test project will copy these repository-relative groups with `PreserveNewest
 - `tests/TestFixtures/Malformed/**/*.gguf`;
 - `tests/TestFixtures/ExpectedMetadata/**/*.json`.
 
-The valid fixture set will retain `V-001` through `V-008` and add a generated fixture that safely exercises every official metadata type, nested arrays, and a current broader quantization mapping. Malformed additions will cover the string, array-count, total-array-budget, nesting-depth, context-type, candidate-count, strict-encoding, and known-optional-type boundaries. Generated `I-025` through `I-028` specifically cover an empty key, an empty hierarchical segment, a space, and an uppercase character.
+The valid fixture set retains `V-001` through `V-008`; adds `V-011` for the current `41 -> Q2_0` mapping and `V-012` for duplicate scanner-relevant metadata; and will add generated `V-009`/`V-010` coverage for every official metadata type, nested arrays, file type 40, and an unknown numeric file type. Malformed additions will cover the string, array-count, total-array-budget, nesting-depth, context-type, candidate-count, strict-encoding, and known-optional-type boundaries. Generated `I-025` through `I-028` specifically cover an empty key, an empty hierarchical segment, a space, and an uppercase character.
 
 Direct tests use the real scanner, explicit fixture-exists assertions, Arrange–Act–Assert structure, `[TestMethod]`, and `[TestCategory("Unit")]`. Successful fixtures are compared with a small typed JSON expectation DTO. Tests observe only `ScanAsync` results and exceptions; private parsing helpers are not tested directly.
 

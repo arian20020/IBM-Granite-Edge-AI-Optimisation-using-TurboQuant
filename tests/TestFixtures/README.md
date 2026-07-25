@@ -25,7 +25,14 @@ None assigned
 - Do not commit secrets, API keys, private personal data, large model weights or unlicensed material.
 - Prefer relative repository links so evidence remains usable after cloning.
 
+## GGUF generation and integrity
+
+Run `Generate-GgufHeaderFixtures.ps1` and
+`Generate-GgufMetadataFixtures.ps1`; never hand-edit their `.gguf` outputs.
+The metadata generator refreshes `fixture-manifest.json` with the exact byte
+length and SHA-256 of every current GGUF fixture. Expected successful scanner
+results remain in `ExpectedMetadata` and are not derived from production code.
+
 ## Source
 
 Repository evidence structure
-

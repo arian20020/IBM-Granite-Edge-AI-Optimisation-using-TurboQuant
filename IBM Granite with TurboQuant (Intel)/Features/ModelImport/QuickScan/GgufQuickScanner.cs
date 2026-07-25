@@ -659,7 +659,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Reads retained display metadata after strict type checks or safely skips unknown values.
+        /// Reads the first scanner-relevant value or structurally consumes a duplicate.
         /// </summary>
         private static async Task<ulong> ReadKnownMetadataValueAsync(
             FileStream stream,
@@ -672,6 +672,16 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             switch (key)
             {
                 case "general.architecture":
+                    if (scanState.HasArchitectureMetadata)
+                    {
+                        return await SkipMetadataValueAsync(
+                            stream,
+                            key,
+                            valueType,
+                            totalArrayElementCount,
+                            cancellationToken);
+                    }
+
                     RequireMetadataType(
                         key,
                         valueType,
@@ -681,10 +691,21 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         stream,
                         key,
                         cancellationToken);
+                    scanState.HasArchitectureMetadata = true;
                     ResolvePendingContextCandidate(scanState);
                     return totalArrayElementCount;
 
                 case "general.name":
+                    if (scanState.HasModelNameMetadata)
+                    {
+                        return await SkipMetadataValueAsync(
+                            stream,
+                            key,
+                            valueType,
+                            totalArrayElementCount,
+                            cancellationToken);
+                    }
+
                     RequireMetadataType(
                         key,
                         valueType,
@@ -694,9 +715,20 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         stream,
                         key,
                         cancellationToken);
+                    scanState.HasModelNameMetadata = true;
                     return totalArrayElementCount;
 
                 case "general.size_label":
+                    if (scanState.HasParameterSizeLabelMetadata)
+                    {
+                        return await SkipMetadataValueAsync(
+                            stream,
+                            key,
+                            valueType,
+                            totalArrayElementCount,
+                            cancellationToken);
+                    }
+
                     RequireMetadataType(
                         key,
                         valueType,
@@ -709,9 +741,20 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     scanState.ParameterSizeLabel = string.IsNullOrWhiteSpace(sizeLabel)
                         ? null
                         : sizeLabel;
+                    scanState.HasParameterSizeLabelMetadata = true;
                     return totalArrayElementCount;
 
                 case "general.file_type":
+                    if (scanState.HasFileTypeMetadata)
+                    {
+                        return await SkipMetadataValueAsync(
+                            stream,
+                            key,
+                            valueType,
+                            totalArrayElementCount,
+                            cancellationToken);
+                    }
+
                     RequireMetadataType(
                         key,
                         valueType,
@@ -722,13 +765,25 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         stage: "file type",
                         cancellationToken);
+                    scanState.HasFileTypeMetadata = true;
                     return totalArrayElementCount;
             }
 
             // Once architecture is known, process its exact context key immediately.
-            if (scanState.Architecture is not null &&
+            if (scanState.HasArchitectureMetadata &&
+                scanState.Architecture is not null &&
                 IsArchitectureContextLengthKey(key, scanState.Architecture))
             {
+                if (scanState.HasContextLengthMetadata)
+                {
+                    return await SkipMetadataValueAsync(
+                        stream,
+                        key,
+                        valueType,
+                        totalArrayElementCount,
+                        cancellationToken);
+                }
+
                 return await ReadContextLengthAsync(
                     stream,
                     key,
@@ -739,7 +794,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             }
 
             // Before architecture is known, retain only possible context candidates.
-            if (scanState.Architecture is null &&
+            if (!scanState.HasArchitectureMetadata &&
                 key.EndsWith(ContextLengthMetadataKeySuffix, StringComparison.Ordinal))
             {
                 return await ReadPendingContextCandidateAsync(
@@ -777,6 +832,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     key,
                     stage: "context length",
                     cancellationToken);
+                scanState.HasContextLengthMetadata = true;
                 return totalArrayElementCount;
             }
 
@@ -787,6 +843,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     key,
                     stage: "context length",
                     cancellationToken);
+                scanState.HasContextLengthMetadata = true;
                 return totalArrayElementCount;
             }
 
@@ -804,9 +861,17 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             ulong totalArrayElementCount,
             CancellationToken cancellationToken)
         {
-            bool alreadyRetained = scanState.PendingContextCandidates.ContainsKey(key);
-            if (!alreadyRetained &&
-                scanState.PendingContextCandidates.Count >= MaxPendingContextCandidateCount)
+            if (scanState.PendingContextCandidates.ContainsKey(key))
+            {
+                return await SkipMetadataValueAsync(
+                    stream,
+                    key,
+                    valueType,
+                    totalArrayElementCount,
+                    cancellationToken);
+            }
+
+            if (scanState.PendingContextCandidates.Count >= MaxPendingContextCandidateCount)
             {
                 throw new GgufFormatException(
                     failureCode: "excessive-context-candidate-count",
@@ -879,6 +944,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 }
 
                 scanState.ContextLength = candidate.Value.ContextLength;
+                scanState.HasContextLengthMetadata = true;
                 return;
             }
         }
@@ -1085,6 +1151,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 38 => "MXFP4_MOE",
                 39 => "NVFP4",
                 40 => "Q1_0",
+                41 => "Q2_0",
                 _ => $"Unknown (file type {fileType})"
             };
         }
@@ -1337,6 +1404,21 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             /// <summary>Gets retained pre-architecture context values by exact metadata key.</summary>
             internal Dictionary<string, PendingContextValue> PendingContextCandidates { get; } = new(
                 StringComparer.Ordinal);
+
+            /// <summary>Gets or sets whether general.name has already been consumed.</summary>
+            internal bool HasModelNameMetadata { get; set; }
+
+            /// <summary>Gets or sets whether general.architecture has already been consumed.</summary>
+            internal bool HasArchitectureMetadata { get; set; }
+
+            /// <summary>Gets or sets whether general.size_label has already been consumed.</summary>
+            internal bool HasParameterSizeLabelMetadata { get; set; }
+
+            /// <summary>Gets or sets whether general.file_type has already been consumed.</summary>
+            internal bool HasFileTypeMetadata { get; set; }
+
+            /// <summary>Gets or sets whether the exact architecture context has been consumed.</summary>
+            internal bool HasContextLengthMetadata { get; set; }
 
             /// <summary>Gets or sets the optional model name.</summary>
             internal string? ModelName { get; set; }
