@@ -464,6 +464,9 @@ regenerate-and-compare check covered all 55 generated artifacts (42 binaries,
 content. Independent validation parsed every JSON
 file, matched all 42 manifest records to the actual files, and recomputed every
 recorded byte length and SHA-256 hash.
+I-019 constructs its non-ASCII `ï` as `[char] 0x00EF` from otherwise ASCII
+script source so Windows PowerShell 5.1 and UTF-8-aware hosts do not interpret
+the generator source differently.
 
 | ID | Generated path | Bytes | SHA-256 |
 |---|---|---:|---|
@@ -476,7 +479,7 @@ recorded byte length and SHA-256 hash.
 | I-016 | `Malformed/I-016-invalid-context-type.gguf` | 128 | `f8536d245a710e6a8417d1efc841056163ed1116cfe0a2d61d894cedaf8dd2af` |
 | I-017 | `Malformed/I-017-excessive-context-candidates.gguf` | 2,816 | `156cff109ff91006f562a5f074487904cd7cc635fded78d1b98965024a2b8001` |
 | I-018 | `Malformed/I-018-invalid-utf8-architecture.gguf` | 66 | `737dc2f422eff9716edc95311bcada3ea735632046c006854e6423610050b7ca` |
-| I-019 | `Malformed/I-019-non-ascii-key.gguf` | 64 | `0078d869bf37ec65588823c854dc76e169f95f484f51ad9cb9e5e0fa62eadbb9` |
+| I-019 | `Malformed/I-019-non-ascii-key.gguf` | 64 | `73a3cef1886351357edde4223729ca4d3d176e22c448749f7a0cc22024da682a` |
 | I-020 | `Malformed/I-020-wrong-name-type.gguf` | 128 | `afce52e673fc3fb12f0f97cb0a76a895669f418d2bcf03d2676ea740c7b2e773` |
 | I-021 | `Malformed/I-021-wrong-size-label-type.gguf` | 128 | `6b8ac86095fc48a40a4b21af50eff0cf31843d1fef6b2e1c62541f35c49b542d` |
 | I-022 | `Malformed/I-022-wrong-file-type.gguf` | 128 | `0dbe0bc77ae89cdd7d5af2d403f651a59ded37b06f71708f1b435fbd2d689a2e` |

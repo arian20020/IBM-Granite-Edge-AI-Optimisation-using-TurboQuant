@@ -1671,8 +1671,10 @@ Join-Path `
 
 $i019Entries =
 @(
+    # Keep the script source ASCII-only so Windows PowerShell 5.1 and
+    # UTF-8-aware hosts generate the same non-ASCII key bytes.
     New-GgufEntry `
-        -Key "fixture.naïve" `
+        -Key ('fixture.na' + [char] 0x00EF + 've') `
         -Type $GgufTypeUInt8 `
         -Value ([byte] 1)
 )
