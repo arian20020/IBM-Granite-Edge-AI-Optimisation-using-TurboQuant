@@ -282,10 +282,11 @@ full-type, nested-array, and remaining boundary coverage.
 
 ## Task 4 required metadata extraction TDD evidence
 
-Task 4 ran against commit `ea8b4b5` with the Visual Studio 18 VSTest 18.7.0
-x64 runner, the generated Debug `win-x64` appxrecipe, and deployed fixture
-assertions for every fixture-backed test. Every listed build completed with
-zero warnings and zero errors.
+Task 4 implementation started from base commit `ea8b4b5` and became commit
+`a9973ca`. It used the Visual Studio 18 VSTest 18.7.0 x64 runner, the generated
+Debug `win-x64` appxrecipe, and deployed fixture assertions for every
+fixture-backed test. Every listed build completed with zero warnings and zero
+errors.
 
 | Cycle | Result | Evidence |
 |---|---|---|
@@ -316,3 +317,27 @@ Total tests: 23
 
 Its result is
 `TestResults\GGUF-Quick-Scanner\Debug\task-04-post-refactor.trx`.
+
+## Task 4 review fixes
+
+The Task 4 review reported zero Critical, two Important, and two Minor
+findings. The scanner now compares an architecture-specific context key by
+exact length plus ordinal suffix/prefix checks. It no longer constructs
+`architecture + ".context_length"` for every later entry, avoiding repeated
+large temporary allocations when a file supplies a retained architecture near
+the 16 MiB string limit.
+
+The V-001 expectation test now treats a JSON `null` result as a failed setup
+assertion rather than an inconclusive test. JSON parsing exceptions continue to
+surface as test errors. The test also asserts the JSON `expectedOutcome`
+against `result.Outcome.ToString()`.
+
+Fresh packaged Debug evidence:
+
+| Verification | Result | TRX |
+|---|---|---|
+| Exact V-001 plus affected missing/wrong architecture tests | 4 total, 4 executed, 4 passed, 0 failed, 0 error, 0 inconclusive, 0 not executed | `task-04-review-affected-metadata.trx` |
+| Full direct scanner class | 23 total, 23 executed, 23 passed, 0 failed, 0 error, 0 inconclusive, 0 not executed | `task-04-review-post-fixes-final.trx` |
+
+Both packaged invocations built with zero warnings and zero errors. The TRX
+files are under `TestResults\GGUF-Quick-Scanner\Debug`.

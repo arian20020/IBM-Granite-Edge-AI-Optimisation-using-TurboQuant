@@ -753,10 +753,13 @@ public sealed class GgufQuickScannerTests
         Assert.IsTrue(
             File.Exists(expectedPath),
             $"The complete-metadata expectation was not found at: {expectedPath}");
-        ExpectedFixture expected = JsonSerializer.Deserialize<ExpectedFixture>(
-            await File.ReadAllTextAsync(expectedPath))
-            ?? throw new AssertInconclusiveException(
-                $"The complete-metadata expectation could not be deserialized: {expectedPath}");
+        ExpectedFixture? deserializedExpected =
+            JsonSerializer.Deserialize<ExpectedFixture>(
+                await File.ReadAllTextAsync(expectedPath));
+        Assert.IsNotNull(
+            deserializedExpected,
+            $"The complete-metadata expectation deserialized to null: {expectedPath}");
+        ExpectedFixture expected = deserializedExpected!;
 
         // Act: scan the complete generated GGUF fixture.
         ModelQuickScanResult result = await scanner.ScanAsync(
@@ -764,6 +767,7 @@ public sealed class GgufQuickScannerTests
             CancellationToken.None);
 
         // Assert: every success field matches the checked-in typed expectation.
+        Assert.AreEqual(expected.ExpectedOutcome, result.Outcome.ToString());
         Assert.AreEqual(ModelQuickScanOutcome.Success, result.Outcome);
         Assert.AreEqual(expected.ExpectedMetadata.ModelName, result.ModelName);
         Assert.AreEqual(expected.ExpectedMetadata.Architecture, result.Architecture);

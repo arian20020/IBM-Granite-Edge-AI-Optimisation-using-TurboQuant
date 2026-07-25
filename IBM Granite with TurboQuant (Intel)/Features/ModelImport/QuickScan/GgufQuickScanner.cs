@@ -36,6 +36,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         // Application safety policy: bound recursive nested-array stack use.
         private const int MaxArrayNestingDepth = 8;
 
+        // Architecture-specific context fields use this exact metadata-key suffix.
+        private const string ContextLengthMetadataKeySuffix = ".context_length";
+
         // Reject invalid UTF-8 instead of silently replacing malformed bytes.
         private static readonly UTF8Encoding StrictUtf8 = new(
             encoderShouldEmitUTF8Identifier: false,
@@ -719,7 +722,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 
             // Task 4 supports the normal ordering where architecture precedes its context key.
             if (scanState.Architecture is not null &&
-                key == scanState.Architecture + ".context_length")
+                IsArchitectureContextLengthKey(key, scanState.Architecture))
             {
                 if (valueType == GgufMetadataValueType.UInt32)
                 {
@@ -756,6 +759,26 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 valueType,
                 totalArrayElementCount,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Compares an architecture context key exactly without constructing a large temporary string.
+        /// </summary>
+        private static bool IsArchitectureContextLengthKey(
+            string key,
+            string architecture)
+        {
+            // Check length and suffix first so a retained multi-megabyte architecture
+            // cannot force a matching-size allocation or prefix comparison per later entry.
+            if (key.Length != architecture.Length + ContextLengthMetadataKeySuffix.Length ||
+                !key.EndsWith(
+                    ContextLengthMetadataKeySuffix,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return key.StartsWith(architecture, StringComparison.Ordinal);
         }
 
         /// <summary>
