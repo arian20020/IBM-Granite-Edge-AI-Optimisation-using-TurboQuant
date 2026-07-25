@@ -727,8 +727,9 @@ string.
 
 ### Metadata value consumption: `SkipMetadataValueAsync`
 
-| Switch arm | Consumption |
+| Source-order step | Consumption |
 |---|---|
+| cancellation precheck | Stops before consuming another value when cancellation was requested. |
 | `UInt8`, `Int8` | Validate and seek 1 byte. |
 | `Boolean` | Exact-read 1 byte; accept only 0 or 1. |
 | `UInt16`, `Int16` | Validate and seek 2 bytes. |
@@ -806,8 +807,8 @@ header version.
 1. The generator writes a complete v3 header declaring one entry.
 2. It writes key `general.name` and type `String`.
 3. It declares a 20-byte string but writes only `abc` (three bytes).
-4. MSBuild deploys I-004 beneath
-   `AppX\TestFixtures\Malformed`.
+4. MSBuild includes I-004 beneath `AppX\TestFixtures\Malformed` in the package
+   layout; VSTest deploys that layout.
 5. The test asserts the deployed file exists, so a packaging defect cannot
    masquerade as a parser defect.
 6. The real scanner reads the header, key, type, and declared string length.
