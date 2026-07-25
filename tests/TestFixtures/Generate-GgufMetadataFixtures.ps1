@@ -11,6 +11,14 @@ They are not usable language models and contain no model tensors.
 They exist only to exercise GGUF metadata parsing and validation.
 #>
 
+[CmdletBinding()]
+param
+(
+    # The authoritative orchestrator already removed every generated output.
+    [switch]
+    $SkipOutputCleanup
+)
+
 # Use strict PowerShell behaviour so undeclared variables cause an error.
 Set-StrictMode -Version Latest
 
@@ -65,6 +73,55 @@ New-Item `
     -Force `
     -Path $expectedMetadataDirectory |
 Out-Null
+
+if (-not $SkipOutputCleanup) {
+    # Standalone metadata generation preserves the currently known header
+    # outputs. The authoritative all-fixture orchestrator performs a complete
+    # pre-clean and uses -SkipOutputCleanup so newly added header outputs are
+    # never removed by this compatibility path.
+    $headerOwnedGgufPaths =
+    @(
+        Join-Path `
+            -Path $ggufDirectory `
+            -ChildPath "H-001-valid-v3-header.gguf"
+    )
+
+    $headerOwnedMalformedPaths =
+    @(
+        Join-Path -Path $malformedDirectory -ChildPath "I-000-empty-file.gguf"
+        Join-Path -Path $malformedDirectory -ChildPath "I-001-invalid-magic.gguf"
+        Join-Path -Path $malformedDirectory -ChildPath "I-002-unsupported-version.gguf"
+        Join-Path -Path $malformedDirectory -ChildPath "I-003-truncated-header.gguf"
+        Join-Path -Path $malformedDirectory -ChildPath "I-024-short-invalid-magic.gguf"
+    )
+
+    Get-ChildItem `
+        -LiteralPath $ggufDirectory `
+        -Filter "*.gguf" `
+        -File `
+        -Recurse |
+    Where-Object {
+        $_.FullName -notin $headerOwnedGgufPaths
+    } |
+    Remove-Item -Force
+
+    Get-ChildItem `
+        -LiteralPath $malformedDirectory `
+        -Filter "*.gguf" `
+        -File `
+        -Recurse |
+    Where-Object {
+        $_.FullName -notin $headerOwnedMalformedPaths
+    } |
+    Remove-Item -Force
+
+    Get-ChildItem `
+        -LiteralPath $expectedMetadataDirectory `
+        -Filter "*.json" `
+        -File `
+        -Recurse |
+    Remove-Item -Force
+}
 
 # ---------------------------------------------------------------------
 # GGUF metadata type identifiers
@@ -798,6 +855,14 @@ function Write-ExpectedMetadata {
     $expectedRecord |
     ConvertTo-Json `
         -Depth 6
+
+    # Match the repository's JSON line-ending policy on every host.
+    $expectedJson =
+    $expectedJson.Replace(
+        "`r`n",
+        "`n").Replace(
+            "`r",
+            "`n")
 
     # Write UTF-8 JSON without a byte-order mark.
     [System.IO.File]::WriteAllText(
@@ -1878,6 +1943,286 @@ finally {
     $i028Writer.Dispose()
 }
 
+# I-029: individually valid key lengths exceed the aggregate scanner budget.
+$i029Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-029-excessive-total-key-bytes.gguf"
+
+$i029Writer =
+New-FixtureBinaryWriter `
+    -Path $i029Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i029Writer `
+        -MetadataCount 2
+
+    # Consume one valid key byte so the next maximum-length key exceeds the total.
+    Write-GgufString `
+        -Writer $i029Writer `
+        -Value "a"
+    $i029Writer.Write($GgufTypeUInt8)
+    $i029Writer.Write([byte] 1)
+
+    # Declare an individually legal key length without supplying its payload.
+    # The aggregate guard must win before any allocation or remaining-byte check.
+    $i029Writer.Write([uint64] 65535)
+}
+finally {
+    $i029Writer.Dispose()
+}
+
+# I-030: an invalid boolean value appears just beyond one validation chunk.
+$i030Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-030-invalid-boolean-array-value.gguf"
+
+$i030Writer =
+New-FixtureBinaryWriter `
+    -Path $i030Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i030Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i030Writer `
+        -Value "fixture.boolean_array"
+    $i030Writer.Write($GgufTypeArray)
+    $i030Writer.Write($GgufTypeBoolean)
+    $i030Writer.Write([uint64] 4097)
+
+    # Fill one complete 4 KiB validation chunk with valid false values.
+    [byte[]] $validBooleanChunk = [byte[]]::new(4096)
+    $i030Writer.Write($validBooleanChunk)
+
+    # The next element must fail with its array index and absolute file offset.
+    $i030Writer.Write([byte] 2)
+}
+finally {
+    $i030Writer.Dispose()
+}
+
+# I-031: an oversized string appears after many empty array elements.
+$i031Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-031-oversized-string-array-value.gguf"
+
+$i031Writer =
+New-FixtureBinaryWriter `
+    -Path $i031Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i031Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i031Writer `
+        -Value "fixture.string_array"
+    $i031Writer.Write($GgufTypeArray)
+    $i031Writer.Write($GgufTypeString)
+    $i031Writer.Write([uint64] 4097)
+
+    # Each all-zero UInt64 declares one valid empty string.
+    [byte[]] $emptyStringLengths = [byte[]]::new(8 * 4096)
+    $i031Writer.Write($emptyStringLengths)
+
+    # The next length exceeds the 16 MiB per-string safety limit.
+    $i031Writer.Write([uint64] (16 * 1024 * 1024 + 1))
+}
+finally {
+    $i031Writer.Dispose()
+}
+
+# I-032: a long nested-array run ends in a truncated child header.
+$i032Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-032-truncated-nested-array.gguf"
+
+$i032Writer =
+New-FixtureBinaryWriter `
+    -Path $i032Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i032Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i032Writer `
+        -Value "fixture.nested_arrays"
+    $i032Writer.Write($GgufTypeArray)
+    $i032Writer.Write($GgufTypeArray)
+    $i032Writer.Write([uint64] 4097)
+
+    # Exercise thousands of empty child headers before the malformed child.
+    for ($childIndex = 0; $childIndex -lt 4096; $childIndex++) {
+        $i032Writer.Write($GgufTypeUInt8)
+        $i032Writer.Write([uint64] 0)
+    }
+
+    # Supply a complete child element type but only half its UInt64 count.
+    $i032Writer.Write($GgufTypeUInt8)
+    $i032Writer.Write([uint32] 0)
+}
+finally {
+    $i032Writer.Dispose()
+}
+
+# I-033: retained architecture text exceeds the per-string scanner limit.
+$i033Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-033-oversized-retained-string.gguf"
+
+$i033Writer =
+New-FixtureBinaryWriter `
+    -Path $i033Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i033Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i033Writer `
+        -Value "general.architecture"
+    $i033Writer.Write($GgufTypeString)
+    $i033Writer.Write([uint64] (16 * 1024 * 1024 + 1))
+}
+finally {
+    $i033Writer.Dispose()
+}
+
+# I-034: separate top-level arrays exceed the aggregate element budget.
+$i034Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-034-cross-entry-array-total.gguf"
+
+$i034Writer =
+New-FixtureBinaryWriter `
+    -Path $i034Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i034Writer `
+        -MetadataCount 5
+
+    [byte[]] $millionZeroBytes = [byte[]]::new(1000000)
+    for ($arrayIndex = 0; $arrayIndex -lt 4; $arrayIndex++) {
+        Write-GgufString `
+            -Writer $i034Writer `
+            -Value "fixture.array_$arrayIndex"
+        $i034Writer.Write($GgufTypeArray)
+        $i034Writer.Write($GgufTypeUInt8)
+        $i034Writer.Write([uint64] 1000000)
+        $i034Writer.Write($millionZeroBytes)
+    }
+
+    Write-GgufString `
+        -Writer $i034Writer `
+        -Value "fixture.array_4"
+    $i034Writer.Write($GgufTypeArray)
+    $i034Writer.Write($GgufTypeUInt8)
+    $i034Writer.Write([uint64] 1)
+}
+finally {
+    $i034Writer.Dispose()
+}
+
+# I-035: the first metadata key length stops halfway through its UInt64.
+$i035Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-035-truncated-key-length.gguf"
+
+$i035Writer =
+New-FixtureBinaryWriter `
+    -Path $i035Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i035Writer `
+        -MetadataCount 1
+    $i035Writer.Write([uint32] 1)
+}
+finally {
+    $i035Writer.Dispose()
+}
+
+# I-036: a key declares five bytes but provides only two.
+$i036Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-036-truncated-key-bytes.gguf"
+
+$i036Writer =
+New-FixtureBinaryWriter `
+    -Path $i036Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i036Writer `
+        -MetadataCount 1
+    $i036Writer.Write([uint64] 5)
+    $i036Writer.Write(
+        [System.Text.Encoding]::ASCII.GetBytes("ab"))
+}
+finally {
+    $i036Writer.Dispose()
+}
+
+# I-037: a complete key is followed by only half a value-type UInt32.
+$i037Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-037-truncated-value-type.gguf"
+
+$i037Writer =
+New-FixtureBinaryWriter `
+    -Path $i037Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i037Writer `
+        -MetadataCount 1
+    Write-GgufString `
+        -Writer $i037Writer `
+        -Value "a"
+    $i037Writer.Write([uint16] 0)
+}
+finally {
+    $i037Writer.Dispose()
+}
+
+# I-038: metadata key bytes contain an invalid UTF-8 continuation sequence.
+$i038Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-038-invalid-utf8-key.gguf"
+
+$i038Writer =
+New-FixtureBinaryWriter `
+    -Path $i038Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i038Writer `
+        -MetadataCount 1
+    $i038Writer.Write([uint64] 2)
+    $i038Writer.Write([byte[]] @(0xC3, 0x28))
+}
+finally {
+    $i038Writer.Dispose()
+}
+
 # ---------------------------------------------------------------------
 # Generated fixture integrity manifest
 # ---------------------------------------------------------------------
@@ -1958,6 +2303,14 @@ $fixtureManifest |
 ConvertTo-Json `
     -Depth 6
 
+# Match the repository's JSON line-ending policy on every host.
+$fixtureManifestJson =
+$fixtureManifestJson.Replace(
+    "`r`n",
+    "`n").Replace(
+        "`r",
+        "`n")
+
 $fixtureManifestPath =
 Join-Path `
     -Path $fixtureRoot `
@@ -1965,7 +2318,7 @@ Join-Path `
 
 [System.IO.File]::WriteAllText(
     $fixtureManifestPath,
-    $fixtureManifestJson + [System.Environment]::NewLine,
+    $fixtureManifestJson + "`n",
     [System.Text.UTF8Encoding]::new($false))
 
 # ---------------------------------------------------------------------

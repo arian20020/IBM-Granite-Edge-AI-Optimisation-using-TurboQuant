@@ -16,6 +16,12 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         // Every GGUF signature contains exactly four bytes.
         private const int GgufMagicLength = 4;
 
+        // Fixed-header fields begin at these byte offsets.
+        private const long GgufMagicOffset = 0;
+        private const long GgufVersionOffset = 4;
+        private const long GgufTensorCountOffset = 8;
+        private const long GgufMetadataEntryCountOffset = 16;
+
         // Version 3 is the GGUF container format currently supported.
         private const uint SupportedGgufVersion = 3;
 
@@ -25,6 +31,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         // GGUF keys have a specification-defined maximum of 2^16 - 1 bytes.
         private const ulong MaxMetadataKeyByteLength = 65_535;
 
+        // Application safety policy: cap aggregate key decoding and validation work.
+        private const ulong MaxTotalMetadataKeyByteLength = 65_535;
+
         // Application safety policy: no single metadata string may exceed 16 MiB.
         private const ulong MaxMetadataStringByteLength = 16 * 1024 * 1024;
 
@@ -33,6 +42,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 
         // Application safety policy: bound aggregate array work across one scan.
         private const ulong MaxTotalArrayElementCount = 4_000_000;
+
+        // Validate Boolean-array payloads in bounded chunks instead of per element.
+        private const int BooleanArrayValidationBufferSize = 4 * 1024;
 
         // Application safety policy: bound recursive nested-array stack use.
         private const int MaxArrayNestingDepth = 8;
@@ -56,6 +68,26 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             (byte)'U',
             (byte)'F'
         };
+
+        // Optional internal checkpoint used to coordinate cancellation after the file is open.
+        private readonly Func<ValueTask>? _scanStartedCheckpointAsync;
+
+        /// <summary>
+        /// Creates the production scanner without an external scan checkpoint.
+        /// </summary>
+        internal GgufQuickScanner()
+        {
+        }
+
+        /// <summary>
+        /// Creates a scanner with a controlled checkpoint immediately after file opening.
+        /// </summary>
+        internal GgufQuickScanner(
+            Func<ValueTask> scanStartedCheckpointAsync)
+        {
+            ArgumentNullException.ThrowIfNull(scanStartedCheckpointAsync);
+            _scanStartedCheckpointAsync = scanStartedCheckpointAsync;
+        }
 
         /// <summary>
         /// Scans the selected GGUF file and returns the completed result.
@@ -126,6 +158,11 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             {
                 try
                 {
+                    if (_scanStartedCheckpointAsync is not null)
+                    {
+                        await _scanStartedCheckpointAsync();
+                    }
+
                     return await ScanOpenedFileAsync(
                         stream,
                         modelFilePath,
@@ -158,8 +195,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     userMessage:
                         "This GGUF file uses a version that is not supported.",
                     technicalMessage:
-                        $"Expected GGUF version {SupportedGgufVersion}, " +
-                        $"but found version {header.Version}.");
+                        $"GGUF version at file offset {GgufVersionOffset} is " +
+                        $"{header.Version}; expected {SupportedGgufVersion}.");
             }
 
             // Reject an unreasonable top-level loop before reading any entry.
@@ -170,7 +207,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     userMessage:
                         "The GGUF file declares too many metadata entries.",
                     technicalMessage:
-                        $"The metadata entry count is " +
+                        $"GGUF metadata entry count at file offset " +
+                        $"{GgufMetadataEntryCountOffset} is " +
                         $"{header.MetadataEntryCount:N0}; the scanner limit is " +
                         $"{MaxMetadataEntryCount:N0}.");
             }
@@ -183,6 +221,13 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             // A blank architecture is as unusable as an absent architecture.
             if (string.IsNullOrWhiteSpace(scanState.Architecture))
             {
+                string architectureDiagnostic =
+                    scanState.ArchitectureStringLengthOffset is long stringLengthOffset
+                        ? $"general.architecture value declared by the string length " +
+                            $"at file offset {stringLengthOffset} was blank; expected " +
+                            "nonblank UTF-8 architecture text."
+                        : "general.architecture metadata was absent; expected one " +
+                            "nonblank String value.";
                 return ModelQuickScanResult.CreateFailure(
                     failureCode: "missing-required-architecture",
                     userMessage:
@@ -190,7 +235,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     technicalMessage:
                         $"The GGUF fixed header declares {header.TensorCount} tensor " +
                         $"descriptors and {header.MetadataEntryCount} metadata entries, " +
-                        "but no usable general.architecture metadata was parsed.");
+                        $"but {architectureDiagnostic}");
             }
 
             // A missing or blank optional name falls back to the selected file name.
@@ -240,24 +285,24 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 stream,
                 actualMagic,
                 fieldName: "magic",
-                fieldOffset: 0,
+                fieldOffset: GgufMagicOffset,
                 cancellationToken);
 
             // Read every remaining fixed-header field before classifying complete input.
             uint version = await ReadUInt32Async(
                 stream,
                 fieldName: "version",
-                fieldOffset: 4,
+                fieldOffset: GgufVersionOffset,
                 cancellationToken);
             ulong tensorCount = await ReadUInt64Async(
                 stream,
                 fieldName: "tensor count",
-                fieldOffset: 8,
+                fieldOffset: GgufTensorCountOffset,
                 cancellationToken);
             ulong metadataEntryCount = await ReadUInt64Async(
                 stream,
                 fieldName: "metadata entry count",
-                fieldOffset: 16,
+                fieldOffset: GgufMetadataEntryCountOffset,
                 cancellationToken);
 
             // Reject a complete but non-GGUF signature with actual and expected bytes.
@@ -268,7 +313,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     userMessage: "The selected file is not a valid GGUF model.",
                     technicalMessage:
                         $"Expected GGUF magic bytes {BitConverter.ToString(ExpectedGgufMagic)} " +
-                        $"at file offset 0, but found {BitConverter.ToString(actualMagic)}.");
+                        $"at file offset {GgufMagicOffset}, but found " +
+                        $"{BitConverter.ToString(actualMagic)}.");
             }
 
             // Return the decoded header without reading tensor descriptors or metadata values.
@@ -286,6 +332,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             // Keep retained display metadata and the aggregate array budget local to this scan.
             GgufScanState scanState = new();
             ulong totalArrayElementCount = 0;
+            ulong totalMetadataKeyByteLength = 0;
 
             // Consume each declared entry once, checking cancellation between entries.
             for (ulong entryIndex = 0;
@@ -293,10 +340,14 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 entryIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string key = await ReadMetadataKeyAsync(
+                GgufMetadataKey metadataKey = await ReadMetadataKeyAsync(
                     stream,
                     entryIndex,
+                    totalMetadataKeyByteLength,
                     cancellationToken);
+                string key = metadataKey.Value;
+                totalMetadataKeyByteLength = metadataKey.TotalByteLength;
+                long valueTypeOffset = stream.Position;
                 GgufMetadataValueType valueType = await ReadMetadataTypeAsync(
                     stream,
                     key,
@@ -305,6 +356,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     stream,
                     key,
                     valueType,
+                    valueTypeOffset,
                     scanState,
                     totalArrayElementCount,
                     cancellationToken);
@@ -395,9 +447,10 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         /// <summary>
         /// Reads one bounded, strictly decoded ASCII GGUF metadata key.
         /// </summary>
-        private static async Task<string> ReadMetadataKeyAsync(
+        private static async Task<GgufMetadataKey> ReadMetadataKeyAsync(
             FileStream stream,
             ulong entryIndex,
+            ulong totalMetadataKeyByteLength,
             CancellationToken cancellationToken)
         {
             long lengthOffset = stream.Position;
@@ -435,6 +488,27 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         $"key limit is {MaxMetadataKeyByteLength:N0} bytes.");
             }
 
+            // Compare by subtraction before allocation so aggregate work cannot overflow.
+            if (totalMetadataKeyByteLength > MaxTotalMetadataKeyByteLength ||
+                keyByteLength >
+                    MaxTotalMetadataKeyByteLength - totalMetadataKeyByteLength)
+            {
+                ulong attemptedTotal = checked(
+                    totalMetadataKeyByteLength + keyByteLength);
+                throw new GgufFormatException(
+                    failureCode: "excessive-metadata-key-bytes",
+                    userMessage:
+                        "The GGUF file declares too much metadata key text.",
+                    technicalMessage:
+                        $"Metadata entry {entryIndex} key length at file offset " +
+                        $"{lengthOffset} would raise the key-byte total from " +
+                        $"{totalMetadataKeyByteLength:N0} by " +
+                        $"{keyByteLength:N0} to {attemptedTotal:N0} bytes; the " +
+                        $"scanner limit is {MaxTotalMetadataKeyByteLength:N0} bytes.");
+            }
+
+            ulong updatedTotalMetadataKeyByteLength =
+                totalMetadataKeyByteLength + keyByteLength;
             long valueOffset = stream.Position;
             long remainingBytes = stream.Length - valueOffset;
             if (remainingBytes < 0 ||
@@ -486,7 +560,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
 
             ValidateMetadataKey(key, entryIndex, valueOffset);
 
-            return key;
+            return new GgufMetadataKey(
+                key,
+                updatedTotalMetadataKeyByteLength);
         }
 
         /// <summary>
@@ -628,6 +704,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string key,
             GgufMetadataValueType valueType,
             ulong totalArrayElementCount,
+            GgufArrayReadBuffers arrayReadBuffers,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -710,6 +787,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     return totalArrayElementCount;
 
                 case GgufMetadataValueType.String:
+                    long stringLengthOffset = stream.Position;
                     ulong stringByteLength = await ReadMetadataUInt64Async(
                         stream,
                         key,
@@ -723,7 +801,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                                 "The GGUF file contains a metadata string that is too long.",
                             technicalMessage:
                                 $"Metadata key '{key}' declares a string of " +
-                                $"{stringByteLength:N0} bytes; the scanner limit is " +
+                                $"{stringByteLength:N0} bytes at file offset " +
+                                $"{stringLengthOffset}; the scanner limit is " +
                                 $"{MaxMetadataStringByteLength:N0} bytes.");
                     }
 
@@ -740,6 +819,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         nestingDepth: 1,
                         totalArrayElementCount,
+                        arrayReadBuffers,
                         cancellationToken);
             }
 
@@ -754,6 +834,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             FileStream stream,
             string key,
             GgufMetadataValueType valueType,
+            long valueTypeOffset,
             GgufScanState scanState,
             ulong totalArrayElementCount,
             CancellationToken cancellationToken)
@@ -768,6 +849,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                             key,
                             valueType,
                             totalArrayElementCount,
+                            scanState.ArrayReadBuffers,
                             cancellationToken);
                     }
 
@@ -775,7 +857,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         valueType,
                         GgufMetadataValueType.String,
+                        valueTypeOffset,
                         "invalid-architecture-type");
+                    scanState.ArchitectureStringLengthOffset = stream.Position;
                     scanState.Architecture = await ReadRetainedStringAsync(
                         stream,
                         key,
@@ -792,6 +876,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                             key,
                             valueType,
                             totalArrayElementCount,
+                            scanState.ArrayReadBuffers,
                             cancellationToken);
                     }
 
@@ -799,6 +884,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         valueType,
                         GgufMetadataValueType.String,
+                        valueTypeOffset,
                         "invalid-name-type");
                     scanState.ModelName = await ReadRetainedStringAsync(
                         stream,
@@ -815,6 +901,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                             key,
                             valueType,
                             totalArrayElementCount,
+                            scanState.ArrayReadBuffers,
                             cancellationToken);
                     }
 
@@ -822,6 +909,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         valueType,
                         GgufMetadataValueType.String,
+                        valueTypeOffset,
                         "invalid-size-label-type");
                     string sizeLabel = await ReadRetainedStringAsync(
                         stream,
@@ -841,6 +929,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                             key,
                             valueType,
                             totalArrayElementCount,
+                            scanState.ArrayReadBuffers,
                             cancellationToken);
                     }
 
@@ -848,6 +937,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         valueType,
                         GgufMetadataValueType.UInt32,
+                        valueTypeOffset,
                         "invalid-file-type");
                     scanState.FileType = await ReadMetadataUInt32Async(
                         stream,
@@ -870,6 +960,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         key,
                         valueType,
                         totalArrayElementCount,
+                        scanState.ArrayReadBuffers,
                         cancellationToken);
                 }
 
@@ -877,6 +968,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     stream,
                     key,
                     valueType,
+                    valueTypeOffset,
                     scanState,
                     totalArrayElementCount,
                     cancellationToken);
@@ -890,6 +982,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     stream,
                     key,
                     valueType,
+                    valueTypeOffset,
                     scanState,
                     totalArrayElementCount,
                     cancellationToken);
@@ -900,6 +993,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 key,
                 valueType,
                 totalArrayElementCount,
+                scanState.ArrayReadBuffers,
                 cancellationToken);
         }
 
@@ -910,6 +1004,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             FileStream stream,
             string key,
             GgufMetadataValueType valueType,
+            long valueTypeOffset,
             GgufScanState scanState,
             ulong totalArrayElementCount,
             CancellationToken cancellationToken)
@@ -936,7 +1031,10 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 return totalArrayElementCount;
             }
 
-            throw CreateInvalidContextTypeException(key, valueType);
+            throw CreateInvalidContextTypeException(
+                key,
+                valueType,
+                valueTypeOffset);
         }
 
         /// <summary>
@@ -946,6 +1044,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             FileStream stream,
             string key,
             GgufMetadataValueType valueType,
+            long valueTypeOffset,
             GgufScanState scanState,
             ulong totalArrayElementCount,
             CancellationToken cancellationToken)
@@ -957,6 +1056,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     key,
                     valueType,
                     totalArrayElementCount,
+                    scanState.ArrayReadBuffers,
                     cancellationToken);
             }
 
@@ -969,7 +1069,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     technicalMessage:
                         $"Pre-architecture context candidate '{key}' makes the " +
                         $"candidate count {scanState.PendingContextCandidates.Count + 1}; " +
-                        $"the scanner limit is {MaxPendingContextCandidateCount}.");
+                        $"the scanner limit is {MaxPendingContextCandidateCount}. " +
+                        $"Its value type begins at file offset {valueTypeOffset}.");
             }
 
             ulong? contextLength = null;
@@ -996,11 +1097,13 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     key,
                     valueType,
                     totalArrayElementCount,
+                    scanState.ArrayReadBuffers,
                     cancellationToken);
             }
 
             scanState.PendingContextCandidates[key] = new PendingContextValue(
                 valueType,
+                valueTypeOffset,
                 contextLength);
             return totalArrayElementCount;
         }
@@ -1029,7 +1132,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 {
                     throw CreateInvalidContextTypeException(
                         candidate.Key,
-                        candidate.Value.ValueType);
+                        candidate.Value.ValueType,
+                        candidate.Value.ValueTypeOffset);
                 }
 
                 scanState.ContextLength = candidate.Value.ContextLength;
@@ -1043,15 +1147,16 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         /// </summary>
         private static GgufFormatException CreateInvalidContextTypeException(
             string key,
-            GgufMetadataValueType valueType)
+            GgufMetadataValueType valueType,
+            long valueTypeOffset)
         {
             return new GgufFormatException(
                 failureCode: "invalid-context-type",
                 userMessage:
                     "The GGUF file contains an invalid context length value.",
                 technicalMessage:
-                    $"Metadata key '{key}' has value type {valueType}; " +
-                    "expected UInt32 or UInt64.");
+                    $"Metadata key '{key}' has value type {valueType} at file " +
+                    $"offset {valueTypeOffset}; expected UInt32 or UInt64.");
         }
 
         /// <summary>
@@ -1081,6 +1186,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string key,
             GgufMetadataValueType actualType,
             GgufMetadataValueType expectedType,
+            long valueTypeOffset,
             string failureCode)
         {
             if (actualType == expectedType)
@@ -1092,8 +1198,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 failureCode,
                 userMessage: "The GGUF file contains metadata with an invalid value type.",
                 technicalMessage:
-                    $"Metadata key '{key}' has value type {actualType}; " +
-                    $"expected {expectedType}.");
+                    $"Metadata key '{key}' has value type {actualType} at file " +
+                    $"offset {valueTypeOffset}; expected {expectedType}.");
         }
 
         /// <summary>
@@ -1104,6 +1210,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string key,
             CancellationToken cancellationToken)
         {
+            long stringLengthOffset = stream.Position;
             ulong stringByteLength = await ReadMetadataUInt64Async(
                 stream,
                 key,
@@ -1117,7 +1224,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         "The GGUF file contains a metadata string that is too long.",
                     technicalMessage:
                         $"Metadata key '{key}' declares a string of " +
-                        $"{stringByteLength:N0} bytes; the scanner limit is " +
+                        $"{stringByteLength:N0} bytes at file offset " +
+                        $"{stringLengthOffset}; the scanner limit is " +
                         $"{MaxMetadataStringByteLength:N0} bytes.");
             }
 
@@ -1253,8 +1361,32 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string key,
             int nestingDepth,
             ulong totalArrayElementCount,
+            GgufArrayReadBuffers buffers,
             CancellationToken cancellationToken)
         {
+            return await ConsumeArrayCoreAsync(
+                stream,
+                key,
+                nestingDepth,
+                parentElementIndex: null,
+                totalArrayElementCount,
+                buffers,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Recursively consumes arrays with buffers shared by every child.
+        /// </summary>
+        private static async ValueTask<ulong> ConsumeArrayCoreAsync(
+            FileStream stream,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex,
+            ulong totalArrayElementCount,
+            GgufArrayReadBuffers buffers,
+            CancellationToken cancellationToken)
+        {
+            long arrayOffset = stream.Position;
             if (nestingDepth > MaxArrayNestingDepth)
             {
                 throw new GgufFormatException(
@@ -1262,20 +1394,27 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     userMessage:
                         "The GGUF file contains metadata arrays nested too deeply.",
                     technicalMessage:
-                        $"Metadata key '{key}' reached array nesting depth " +
-                        $"{nestingDepth}; the scanner limit is " +
-                        $"{MaxArrayNestingDepth}.");
+                        $"Metadata key '{key}' reached " +
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} at file " +
+                        $"offset {arrayOffset}; the scanner " +
+                        $"limit is {MaxArrayNestingDepth}.");
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            GgufMetadataValueType elementType = await ReadMetadataTypeAsync(
+            GgufMetadataValueType elementType = await ReadArrayMetadataTypeAsync(
                 stream,
                 key,
+                nestingDepth,
+                parentElementIndex,
+                buffers.Type,
                 cancellationToken);
-            ulong elementCount = await ReadMetadataUInt64Async(
+            long elementCountOffset = stream.Position;
+            ulong elementCount = await ReadArrayUInt64Async(
                 stream,
                 key,
-                stage: $"array depth {nestingDepth} element count",
+                nestingDepth,
+                parentElementIndex,
+                buffers.UInt64,
                 cancellationToken);
 
             if (elementCount > MaxArrayElementCount)
@@ -1285,9 +1424,11 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     userMessage:
                         "The GGUF file contains a metadata array that is too large.",
                     technicalMessage:
-                        $"Metadata key '{key}' array at depth {nestingDepth} " +
-                        $"declares {elementCount:N0} elements; the per-array " +
-                        $"scanner limit is {MaxArrayElementCount:N0}.");
+                        $"Metadata key '{key}' " +
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                        $"declares {elementCount:N0} elements at file offset " +
+                        $"{elementCountOffset}; the per-array scanner limit is " +
+                        $"{MaxArrayElementCount:N0}.");
             }
 
             // Compare by subtraction so attacker-controlled addition cannot overflow.
@@ -1302,7 +1443,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     technicalMessage:
                         $"Metadata key '{key}' would raise the scan total from " +
                         $"{totalArrayElementCount:N0} by {elementCount:N0} " +
-                        $"elements; the total scanner limit is " +
+                        $"elements at file offset {elementCountOffset}; the total " +
+                        "scanner limit is " +
                         $"{MaxTotalArrayElementCount:N0}.");
             }
 
@@ -1327,42 +1469,400 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             if (elementWidth != 0)
             {
                 ulong payloadByteCount = checked(elementCount * elementWidth);
-                SkipValidatedBytes(
+                SkipValidatedArrayBytes(
                     stream,
                     payloadByteCount,
                     key,
-                    stage: $"array payload at depth {nestingDepth}");
+                    nestingDepth,
+                    parentElementIndex);
                 return totalArrayElementCount;
             }
 
-            // Booleans, strings, and nested arrays require semantic consumption.
+            if (elementType == GgufMetadataValueType.Boolean)
+            {
+                if (elementCount == 0)
+                {
+                    return totalArrayElementCount;
+                }
+
+                await ConsumeBooleanArrayAsync(
+                    stream,
+                    key,
+                    nestingDepth,
+                    parentElementIndex,
+                    elementCount,
+                    buffers.Boolean,
+                    cancellationToken);
+                return totalArrayElementCount;
+            }
+
+            if (elementType == GgufMetadataValueType.String)
+            {
+                await ConsumeStringArrayAsync(
+                    stream,
+                    key,
+                    nestingDepth,
+                    parentElementIndex,
+                    elementCount,
+                    buffers.UInt64,
+                    cancellationToken);
+                return totalArrayElementCount;
+            }
+
+            // Only nested arrays remain after fixed-width, Boolean, and String handling.
             for (ulong elementIndex = 0;
                 elementIndex < elementCount;
                 elementIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                if (elementType == GgufMetadataValueType.Array)
-                {
-                    totalArrayElementCount = await ConsumeArrayAsync(
-                        stream,
-                        key,
-                        nestingDepth + 1,
-                        totalArrayElementCount,
-                        cancellationToken);
-                }
-                else
-                {
-                    totalArrayElementCount = await SkipMetadataValueAsync(
-                        stream,
-                        key,
-                        elementType,
-                        totalArrayElementCount,
-                        cancellationToken);
-                }
+                totalArrayElementCount = await ConsumeArrayCoreAsync(
+                    stream,
+                    key,
+                    nestingDepth + 1,
+                    parentElementIndex: elementIndex,
+                    totalArrayElementCount,
+                    buffers,
+                    cancellationToken);
             }
 
             return totalArrayElementCount;
+        }
+
+        /// <summary>
+        /// Validates a Boolean-array payload with one bounded reusable buffer.
+        /// </summary>
+        private static async ValueTask ConsumeBooleanArrayAsync(
+            FileStream stream,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex,
+            ulong elementCount,
+            byte[] buffer,
+            CancellationToken cancellationToken)
+        {
+            long payloadOffset = stream.Position;
+            long remainingBytes = stream.Length - payloadOffset;
+            if (remainingBytes < 0 ||
+                elementCount > (ulong)remainingBytes)
+            {
+                throw CreateTruncatedMetadataException(
+                    key,
+                    stage:
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                        "Boolean payload",
+                    offset: payloadOffset,
+                    expectedBytes: elementCount,
+                    actualBytes: Math.Max(remainingBytes, 0));
+            }
+
+            ulong consumedElementCount = 0;
+
+            while (consumedElementCount < elementCount)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int chunkLength = (int)Math.Min(
+                    elementCount - consumedElementCount,
+                    (ulong)buffer.Length);
+                long chunkOffset = stream.Position;
+
+                try
+                {
+                    await stream.ReadExactlyAsync(
+                        buffer.AsMemory(0, chunkLength),
+                        cancellationToken);
+                }
+                catch (EndOfStreamException exception)
+                {
+                    throw CreateTruncatedMetadataException(
+                        key,
+                        stage:
+                            $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                            "Boolean chunk starting " +
+                            $"at element {consumedElementCount:N0}",
+                        offset: chunkOffset,
+                        expectedBytes: (ulong)chunkLength,
+                        actualBytes: Math.Clamp(
+                            stream.Position - chunkOffset,
+                            0,
+                            chunkLength),
+                        exception);
+                }
+
+                for (int chunkIndex = 0; chunkIndex < chunkLength; chunkIndex++)
+                {
+                    byte value = buffer[chunkIndex];
+                    if (value > 1)
+                    {
+                        ulong elementIndex =
+                            consumedElementCount + (ulong)chunkIndex;
+                        long valueOffset = chunkOffset + chunkIndex;
+                        throw new GgufFormatException(
+                            failureCode: "invalid-boolean-value",
+                            userMessage:
+                                "The GGUF file contains an invalid boolean value.",
+                            technicalMessage:
+                                $"Metadata key '{key}' " +
+                                $"{FormatArrayLocation(
+                                    nestingDepth,
+                                    parentElementIndex)} " +
+                                $"element {elementIndex:N0} has boolean byte {value} " +
+                                $"at file offset {valueOffset}; expected 0 or 1.");
+                    }
+                }
+
+                consumedElementCount += (ulong)chunkLength;
+            }
+        }
+
+        /// <summary>
+        /// Consumes a String array with one reusable length buffer and no empty seeks.
+        /// </summary>
+        private static async ValueTask ConsumeStringArrayAsync(
+            FileStream stream,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex,
+            ulong elementCount,
+            byte[] lengthBuffer,
+            CancellationToken cancellationToken)
+        {
+            for (ulong elementIndex = 0;
+                elementIndex < elementCount;
+                elementIndex++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                long lengthOffset = stream.Position;
+
+                try
+                {
+                    await stream.ReadExactlyAsync(
+                        lengthBuffer,
+                        cancellationToken);
+                }
+                catch (EndOfStreamException exception)
+                {
+                    throw CreateTruncatedMetadataException(
+                        key,
+                        stage:
+                            $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                            $"element {elementIndex:N0} string length",
+                        lengthOffset,
+                        expectedBytes: (ulong)lengthBuffer.Length,
+                        actualBytes: Math.Clamp(
+                            stream.Position - lengthOffset,
+                            0,
+                            lengthBuffer.Length),
+                        exception);
+                }
+
+                ulong stringByteLength =
+                    BinaryPrimitives.ReadUInt64LittleEndian(lengthBuffer);
+                if (stringByteLength > MaxMetadataStringByteLength)
+                {
+                    throw new GgufFormatException(
+                        failureCode: "metadata-string-too-long",
+                        userMessage:
+                            "The GGUF file contains a metadata string that is too long.",
+                        technicalMessage:
+                            $"Metadata key '{key}' " +
+                            $"{FormatArrayLocation(
+                                nestingDepth,
+                                parentElementIndex)} " +
+                            $"element {elementIndex:N0} declares a string of " +
+                            $"{stringByteLength:N0} bytes at file offset " +
+                            $"{lengthOffset}; the scanner limit is " +
+                            $"{MaxMetadataStringByteLength:N0} bytes.");
+                }
+
+                if (stringByteLength == 0)
+                {
+                    continue;
+                }
+
+                SkipValidatedStringArrayBytes(
+                    stream,
+                    stringByteLength,
+                    key,
+                    nestingDepth,
+                    parentElementIndex,
+                    elementIndex);
+            }
+        }
+
+        /// <summary>
+        /// Reads one array value type into a buffer shared across recursive children.
+        /// </summary>
+        private static async ValueTask<GgufMetadataValueType> ReadArrayMetadataTypeAsync(
+            FileStream stream,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex,
+            byte[] buffer,
+            CancellationToken cancellationToken)
+        {
+            long typeOffset = stream.Position;
+
+            try
+            {
+                await stream.ReadExactlyAsync(
+                    buffer.AsMemory(0, sizeof(uint)),
+                    cancellationToken);
+            }
+            catch (EndOfStreamException exception)
+            {
+                throw CreateTruncatedMetadataException(
+                    key,
+                    stage:
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                        "element type",
+                    typeOffset,
+                    expectedBytes: sizeof(uint),
+                    actualBytes: Math.Clamp(
+                        stream.Position - typeOffset,
+                        0,
+                        sizeof(uint)),
+                    exception);
+            }
+
+            uint rawType = BinaryPrimitives.ReadUInt32LittleEndian(buffer);
+            if (rawType > (uint)GgufMetadataValueType.Float64)
+            {
+                throw new GgufFormatException(
+                    failureCode: "unsupported-metadata-type",
+                    userMessage:
+                        "The GGUF file uses an unsupported metadata value type.",
+                    technicalMessage:
+                        $"Metadata key '{key}' " +
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                        $"element type is value type {rawType} " +
+                        $"at file offset {typeOffset}; supported GGUF types are " +
+                        "0 through 12.");
+            }
+
+            return (GgufMetadataValueType)rawType;
+        }
+
+        /// <summary>
+        /// Reads one array UInt64 into a buffer shared across recursive children.
+        /// </summary>
+        private static async ValueTask<ulong> ReadArrayUInt64Async(
+            FileStream stream,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex,
+            byte[] buffer,
+            CancellationToken cancellationToken)
+        {
+            long offset = stream.Position;
+
+            try
+            {
+                await stream.ReadExactlyAsync(
+                    buffer.AsMemory(0, sizeof(ulong)),
+                    cancellationToken);
+            }
+            catch (EndOfStreamException exception)
+            {
+                throw CreateTruncatedMetadataException(
+                    key,
+                    stage:
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                        "element count",
+                    offset,
+                    expectedBytes: sizeof(ulong),
+                    actualBytes: Math.Clamp(
+                        stream.Position - offset,
+                        0,
+                        sizeof(ulong)),
+                    exception);
+            }
+
+            return BinaryPrimitives.ReadUInt64LittleEndian(buffer);
+        }
+
+        /// <summary>
+        /// Skips one fixed-width array payload without success-path diagnostic strings.
+        /// </summary>
+        private static void SkipValidatedArrayBytes(
+            FileStream stream,
+            ulong byteCount,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex)
+        {
+            long offset = stream.Position;
+            long remainingBytes = stream.Length - offset;
+            if (remainingBytes < 0 ||
+                byteCount > (ulong)remainingBytes)
+            {
+                throw CreateTruncatedMetadataException(
+                    key,
+                    stage: FormatArrayPayloadStage(
+                        nestingDepth,
+                        parentElementIndex),
+                    offset,
+                    expectedBytes: byteCount,
+                    actualBytes: Math.Max(remainingBytes, 0));
+            }
+
+            if (byteCount != 0)
+            {
+                stream.Seek(checked((long)byteCount), SeekOrigin.Current);
+            }
+        }
+
+        /// <summary>
+        /// Skips one String-array payload without success-path diagnostic strings.
+        /// </summary>
+        private static void SkipValidatedStringArrayBytes(
+            FileStream stream,
+            ulong byteCount,
+            string key,
+            int nestingDepth,
+            ulong? parentElementIndex,
+            ulong elementIndex)
+        {
+            long offset = stream.Position;
+            long remainingBytes = stream.Length - offset;
+            if (remainingBytes < 0 ||
+                byteCount > (ulong)remainingBytes)
+            {
+                throw CreateTruncatedMetadataException(
+                    key,
+                    stage:
+                        $"{FormatArrayLocation(nestingDepth, parentElementIndex)} " +
+                        $"element {elementIndex:N0} string payload",
+                    offset,
+                    expectedBytes: byteCount,
+                    actualBytes: Math.Max(remainingBytes, 0));
+            }
+
+            stream.Seek(checked((long)byteCount), SeekOrigin.Current);
+        }
+
+        /// <summary>
+        /// Formats nested-array context only when a failure needs a diagnostic.
+        /// </summary>
+        private static string FormatArrayLocation(
+            int nestingDepth,
+            ulong? parentElementIndex)
+        {
+            return parentElementIndex is ulong parentIndex
+                ? $"array depth {nestingDepth} parent element {parentIndex:N0}"
+                : $"array depth {nestingDepth}";
+        }
+
+        /// <summary>
+        /// Preserves the fixed-array payload stage while adding optional parent context.
+        /// </summary>
+        private static string FormatArrayPayloadStage(
+            int nestingDepth,
+            ulong? parentElementIndex)
+        {
+            return parentElementIndex is ulong parentIndex
+                ? $"array payload at depth {nestingDepth}, parent element " +
+                    $"{parentIndex:N0}"
+                : $"array payload at depth {nestingDepth}";
         }
 
         /// <summary>
@@ -1486,10 +1986,38 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             ulong MetadataEntryCount);
 
         /// <summary>
+        /// Reuses primitive buffers throughout the scan, across root arrays and nested children.
+        /// </summary>
+        private sealed class GgufArrayReadBuffers
+        {
+            private byte[]? boolean;
+
+            /// <summary>Gets the shared metadata-type buffer.</summary>
+            internal byte[] Type { get; } = new byte[sizeof(uint)];
+
+            /// <summary>Gets the shared UInt64 and String-length buffer.</summary>
+            internal byte[] UInt64 { get; } = new byte[sizeof(ulong)];
+
+            /// <summary>Gets the lazily allocated Boolean validation chunk.</summary>
+            internal byte[] Boolean =>
+                boolean ??= new byte[BooleanArrayValidationBufferSize];
+        }
+
+        /// <summary>
+        /// Holds one decoded metadata key and the updated aggregate key-byte budget.
+        /// </summary>
+        private readonly record struct GgufMetadataKey(
+            string Value,
+            ulong TotalByteLength);
+
+        /// <summary>
         /// Holds only the display metadata retained while scanning one GGUF file.
         /// </summary>
         private sealed class GgufScanState
         {
+            /// <summary>Gets buffers reused by every metadata array in this scan.</summary>
+            internal GgufArrayReadBuffers ArrayReadBuffers { get; } = new();
+
             /// <summary>Gets retained pre-architecture context values by exact metadata key.</summary>
             internal Dictionary<string, PendingContextValue> PendingContextCandidates { get; } = new(
                 StringComparer.Ordinal);
@@ -1515,6 +2043,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             /// <summary>Gets or sets the required model architecture.</summary>
             internal string? Architecture { get; set; }
 
+            /// <summary>Gets or sets the byte offset of the architecture string length.</summary>
+            internal long? ArchitectureStringLengthOffset { get; set; }
+
             /// <summary>Gets or sets the optional parameter size label.</summary>
             internal string? ParameterSizeLabel { get; set; }
 
@@ -1530,6 +2061,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         /// </summary>
         private readonly record struct PendingContextValue(
             GgufMetadataValueType ValueType,
+            long ValueTypeOffset,
             ulong? ContextLength);
 
         /// <summary>

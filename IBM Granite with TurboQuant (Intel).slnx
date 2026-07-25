@@ -24,6 +24,7 @@
   <Folder Name="/tests/TestFixtures/">
     <File Path="tests/TestFixtures/README.md" />
     <File Path="tests/TestFixtures/fixture-manifest.json" />
+    <File Path="tests/TestFixtures/Generate-GgufFixtures.ps1" />
     <File Path="tests/TestFixtures/Generate-GgufHeaderFixtures.ps1" />
     <File Path="tests/TestFixtures/Generate-GgufMetadataFixtures.ps1" />
   </Folder>
@@ -39,6 +40,10 @@
     <File Path="tests/TestFixtures/GGUF/V-006-unusual-metadata-order.gguf" />
     <File Path="tests/TestFixtures/GGUF/V-007-context-uint32.gguf" />
     <File Path="tests/TestFixtures/GGUF/V-008-missing-file-type.gguf" />
+    <File Path="tests/TestFixtures/GGUF/V-009-all-official-metadata-types.gguf" />
+    <File Path="tests/TestFixtures/GGUF/V-010-unknown-file-type.gguf" />
+    <File Path="tests/TestFixtures/GGUF/V-011-current-q2_0-file-type.gguf" />
+    <File Path="tests/TestFixtures/GGUF/V-012-duplicate-relevant-metadata.gguf" />
   </Folder>
 
   <Folder Name="/tests/TestFixtures/Malformed/">
@@ -55,6 +60,33 @@
     <File Path="tests/TestFixtures/Malformed/I-009-wrong-architecture-type.gguf" />
     <File Path="tests/TestFixtures/Malformed/I-010-invalid-boolean-value.gguf" />
     <File Path="tests/TestFixtures/Malformed/I-011-truncated-array.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-012-oversized-metadata-string.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-013-excessive-array-count.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-014-excessive-total-array-count.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-015-excessive-array-depth.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-016-invalid-context-type.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-017-excessive-context-candidates.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-018-invalid-utf8-architecture.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-019-non-ascii-key.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-020-wrong-name-type.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-021-wrong-size-label-type.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-022-wrong-file-type.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-023-blank-architecture.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-024-short-invalid-magic.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-025-empty-metadata-key.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-026-empty-key-segment.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-027-key-with-space.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-028-uppercase-key.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-029-excessive-total-key-bytes.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-030-invalid-boolean-array-value.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-031-oversized-string-array-value.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-032-truncated-nested-array.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-033-oversized-retained-string.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-034-cross-entry-array-total.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-035-truncated-key-length.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-036-truncated-key-bytes.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-037-truncated-value-type.gguf" />
+    <File Path="tests/TestFixtures/Malformed/I-038-invalid-utf8-key.gguf" />
   </Folder>
 
   <Folder Name="/tests/TestFixtures/ExpectedMetadata/">
@@ -67,6 +99,10 @@
     <File Path="tests/TestFixtures/ExpectedMetadata/V-006-unusual-metadata-order.json" />
     <File Path="tests/TestFixtures/ExpectedMetadata/V-007-context-uint32.json" />
     <File Path="tests/TestFixtures/ExpectedMetadata/V-008-missing-file-type.json" />
+    <File Path="tests/TestFixtures/ExpectedMetadata/V-009-all-official-metadata-types.json" />
+    <File Path="tests/TestFixtures/ExpectedMetadata/V-010-unknown-file-type.json" />
+    <File Path="tests/TestFixtures/ExpectedMetadata/V-011-current-q2_0-file-type.json" />
+    <File Path="tests/TestFixtures/ExpectedMetadata/V-012-duplicate-relevant-metadata.json" />
   </Folder>
 
   <Folder Name="/tests/TestFixtures/OpenVINO/">

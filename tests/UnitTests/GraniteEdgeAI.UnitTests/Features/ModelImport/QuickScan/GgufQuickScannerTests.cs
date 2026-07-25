@@ -1,5 +1,6 @@
 // Import the production GGUF scanner and result types.
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -322,7 +323,10 @@ public sealed class GgufQuickScannerTests
         Assert.IsFalse(
             string.IsNullOrWhiteSpace(result.TechnicalMessage));
 
-        // Assert: the technical message records the actual version found.
+        // Assert: the technical message records the fixed-field offset and actual version.
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            "file offset 4");
         StringAssert.Contains(
             result.TechnicalMessage ?? string.Empty,
             "99");
@@ -356,8 +360,13 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual("excessive-metadata-count", result.FailureCode);
         Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
         Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
-        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "1,000,001");
-        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "1,000,000");
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            FormatNumber(1_000_001));
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            FormatNumber(1_000_000));
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 16");
     }
 
     /// <summary>
@@ -388,8 +397,12 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual("metadata-key-too-long", result.FailureCode);
         Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
         Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
-        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "65,536");
-        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "65,535");
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            FormatNumber(65_536));
+        StringAssert.Contains(
+            result.TechnicalMessage ?? string.Empty,
+            FormatNumber(65_535));
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 24");
     }
 
@@ -666,6 +679,192 @@ public sealed class GgufQuickScannerTests
     }
 
     /// <summary>
+    /// Verifies that individually valid keys cannot compose into excessive decode work.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ExcessiveTotalKeyBytes_ReturnsControlledFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-029-excessive-total-key-bytes.gguf",
+            "excessive-metadata-key-bytes",
+            "file offset 38",
+            $"to {FormatNumber(65_536)} bytes",
+            $"limit is {FormatNumber(65_535)} bytes");
+    }
+
+    /// <summary>
+    /// Verifies that Boolean arrays report an invalid value across a validation boundary.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_InvalidBooleanArrayValue_ReportsElementAndOffset()
+    {
+        await AssertFailureFixtureAsync(
+            "I-030-invalid-boolean-array-value.gguf",
+            "invalid-boolean-value",
+            "array depth 1",
+            $"element {FormatNumber(4_096)}",
+            "file offset 4165",
+            "boolean byte 2",
+            "0 or 1");
+    }
+
+    /// <summary>
+    /// Verifies that string arrays reuse bounded parsing across many empty elements.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_OversizedStringArrayValue_ReportsElementAndOffset()
+    {
+        await AssertFailureFixtureAsync(
+            "I-031-oversized-string-array-value.gguf",
+            "metadata-string-too-long",
+            "array depth 1",
+            $"element {FormatNumber(4_096)}",
+            "file offset 32836",
+            $"{FormatNumber(16_777_217)} bytes",
+            $"limit is {FormatNumber(16_777_216)} bytes");
+    }
+
+    /// <summary>
+    /// Verifies that a malformed child after many empty arrays retains its parent index.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_TruncatedNestedArray_ReportsParentElementAndOffset()
+    {
+        await AssertFailureFixtureAsync(
+            "I-032-truncated-nested-array.gguf",
+            "truncated-metadata",
+            "array depth 2",
+            $"parent element {FormatNumber(4_096)}",
+            "file offset 49225",
+            "has 4 available/read bytes",
+            "expected 8 bytes");
+    }
+
+    /// <summary>
+    /// Verifies the retained-string allocation guard before a large buffer is created.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_OversizedRetainedString_ReturnsControlledFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-033-oversized-retained-string.gguf",
+            "metadata-string-too-long",
+            "general.architecture",
+            "file offset 56",
+            $"{FormatNumber(16_777_217)} bytes",
+            $"limit is {FormatNumber(16_777_216)} bytes");
+    }
+
+    /// <summary>
+    /// Verifies the aggregate array budget across separate metadata entries.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_CrossEntryArrayTotal_ReturnsControlledFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-034-cross-entry-array-total.gguf",
+            "excessive-array-count",
+            $"scan total from {FormatNumber(4_000_000)}",
+            "by 1 elements",
+            "file offset 4000211",
+            $"limit is {FormatNumber(4_000_000)}");
+    }
+
+    /// <summary>
+    /// Verifies exact-read and strict-decoding failures at metadata field boundaries.
+    /// </summary>
+    [TestMethod]
+    [DataRow(
+        "I-035-truncated-key-length.gguf",
+        "truncated-metadata",
+        "stage 'key length'",
+        "file offset 24",
+        "has 4 available/read bytes",
+        "expected 8 bytes")]
+    [DataRow(
+        "I-036-truncated-key-bytes.gguf",
+        "truncated-metadata",
+        "stage 'key bytes'",
+        "file offset 32",
+        "has 2 available/read bytes",
+        "expected 5 bytes")]
+    [DataRow(
+        "I-037-truncated-value-type.gguf",
+        "truncated-metadata",
+        "stage 'value type'",
+        "file offset 33",
+        "has 2 available/read bytes",
+        "expected 4 bytes")]
+    [DataRow(
+        "I-038-invalid-utf8-key.gguf",
+        "invalid-metadata-encoding",
+        "entry 0",
+        "key at file offset 32",
+        "not valid UTF-8",
+        "key")]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MalformedMetadataField_ReturnsControlledFailure(
+        string fixtureFileName,
+        string expectedFailureCode,
+        string expectedDetail1,
+        string expectedDetail2,
+        string expectedDetail3,
+        string expectedDetail4)
+    {
+        await AssertFailureFixtureAsync(
+            fixtureFileName,
+            expectedFailureCode,
+            expectedDetail1,
+            expectedDetail2,
+            expectedDetail3,
+            expectedDetail4);
+    }
+
+    /// <summary>
+    /// Verifies cancellation requested after scanning starts escapes unchanged.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_InFlightCancellation_ThrowsOperationCanceledException()
+    {
+        TaskCompletionSource<bool> scanStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> continueScan = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        GgufQuickScanner scanner = new(
+            async () =>
+            {
+                scanStarted.TrySetResult(true);
+                await continueScan.Task;
+            });
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-032-truncated-nested-array.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The nested-array cancellation fixture was not found at: {fixturePath}");
+        using CancellationTokenSource cancellationTokenSource = new();
+
+        Task<ModelQuickScanResult> scanTask = scanner.ScanAsync(
+            fixturePath,
+            cancellationTokenSource.Token);
+        await scanStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellationTokenSource.Cancel();
+        continueScan.TrySetResult(true);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await scanTask);
+    }
+
+    /// <summary>
     /// Verifies that metadata lacking the required architecture returns a stable failure.
     /// </summary>
     [TestMethod]
@@ -726,6 +925,7 @@ public sealed class GgufQuickScannerTests
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "general.architecture");
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "UInt32");
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "String");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 52");
     }
 
     /// <summary>
@@ -737,7 +937,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-012-oversized-metadata-string.gguf",
-            "metadata-string-too-long");
+            "metadata-string-too-long",
+            "file offset 60");
     }
 
     /// <summary>
@@ -749,7 +950,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-013-excessive-array-count.gguf",
-            "excessive-array-count");
+            "excessive-array-count",
+            "file offset 63");
     }
 
     /// <summary>
@@ -761,7 +963,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-014-excessive-total-array-count.gguf",
-            "excessive-array-count");
+            "excessive-array-count",
+            "file offset 111");
     }
 
     /// <summary>
@@ -773,7 +976,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-015-excessive-array-depth.gguf",
-            "excessive-array-depth");
+            "excessive-array-depth",
+            "file offset 148");
     }
 
     /// <summary>
@@ -785,7 +989,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-016-invalid-context-type.gguf",
-            "invalid-context-type");
+            "invalid-context-type",
+            "file offset 54");
     }
 
     /// <summary>
@@ -797,7 +1002,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-017-excessive-context-candidates.gguf",
-            "excessive-context-candidate-count");
+            "excessive-context-candidate-count",
+            "file offset 2746");
     }
 
     /// <summary>
@@ -833,7 +1039,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-020-wrong-name-type.gguf",
-            "invalid-name-type");
+            "invalid-name-type",
+            "file offset 91");
     }
 
     /// <summary>
@@ -845,7 +1052,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-021-wrong-size-label-type.gguf",
-            "invalid-size-label-type");
+            "invalid-size-label-type",
+            "file offset 97");
     }
 
     /// <summary>
@@ -857,7 +1065,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-022-wrong-file-type.gguf",
-            "invalid-file-type");
+            "invalid-file-type",
+            "file offset 96");
     }
 
     /// <summary>
@@ -869,7 +1078,8 @@ public sealed class GgufQuickScannerTests
     {
         await AssertFailureFixtureAsync(
             "I-023-blank-architecture.gguf",
-            "missing-required-architecture");
+            "missing-required-architecture",
+            "file offset 56");
     }
 
     /// <summary>
@@ -1110,7 +1320,8 @@ public sealed class GgufQuickScannerTests
     /// </summary>
     private static async Task AssertFailureFixtureAsync(
         string fixtureFileName,
-        string expectedFailureCode)
+        string expectedFailureCode,
+        params string[] expectedTechnicalDetails)
     {
         string fixturePath = Path.Combine(
             AppContext.BaseDirectory,
@@ -1130,6 +1341,12 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual(expectedFailureCode, result.FailureCode);
         Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
         Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+        foreach (string expectedTechnicalDetail in expectedTechnicalDetails)
+        {
+            StringAssert.Contains(
+                result.TechnicalMessage ?? string.Empty,
+                expectedTechnicalDetail);
+        }
     }
 
     /// <summary>
@@ -1184,6 +1401,14 @@ public sealed class GgufQuickScannerTests
         Assert.IsNull(result.FailureCode);
         Assert.IsNull(result.UserMessage);
         Assert.IsNull(result.TechnicalMessage);
+    }
+
+    /// <summary>
+    /// Formats diagnostic numbers using the culture exercised by the scanner.
+    /// </summary>
+    private static string FormatNumber(ulong value)
+    {
+        return value.ToString("N0", CultureInfo.CurrentCulture);
     }
 
     private sealed record ExpectedFixture

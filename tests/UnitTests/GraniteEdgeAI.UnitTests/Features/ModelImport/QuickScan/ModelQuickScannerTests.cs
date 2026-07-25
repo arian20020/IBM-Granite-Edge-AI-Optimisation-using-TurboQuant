@@ -233,6 +233,46 @@ public sealed class ModelQuickScannerTests
         Assert.AreEqual(ModelQuickScanOutcome.Cancelled, result.Outcome);
     }
 
+    /// <summary>
+    /// Verifies that cancellation after GGUF scanning starts becomes a cancelled result.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_GgufWithInFlightCancellation_ReturnsCancelledResult()
+    {
+        TaskCompletionSource<bool> scanStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> continueScan = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        GgufQuickScanner ggufScanner = new(
+            async () =>
+            {
+                scanStarted.TrySetResult(true);
+                await continueScan.Task;
+            });
+        ModelQuickScanner scanner = new(ggufScanner);
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-032-truncated-nested-array.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"Expected deployed cancellation fixture was not found: {fixturePath}");
+        using CancellationTokenSource cancellation = new();
+
+        Task<ModelQuickScanResult> scanTask = scanner.ScanAsync(
+            ModelFormatSelection.Gguf,
+            fixturePath,
+            cancellation.Token);
+        await scanStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        continueScan.TrySetResult(true);
+        ModelQuickScanResult result = await scanTask;
+
+        Assert.AreEqual(ModelQuickScanOutcome.Cancelled, result.Outcome);
+    }
+
     // Verifies that the dependency-taking constructor rejects a missing scanner.
     [TestMethod]
     [TestCategory("Unit")]

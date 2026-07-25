@@ -257,6 +257,66 @@
                                       "fixtureFile":  "Malformed/I-028-uppercase-key.gguf",
                                       "byteLength":  49,
                                       "sha256":  "bdb9ec1266004d214f61fbb5605d925ac7ee17645cee9a6912c26c4bcaa9dbfe"
+                                  },
+                                  {
+                                      "fixtureId":  "I-029",
+                                      "fixtureFile":  "Malformed/I-029-excessive-total-key-bytes.gguf",
+                                      "byteLength":  46,
+                                      "sha256":  "2cfa7dc8cf2e7099bbdef79ea733796041f79bc977d245a0b87c5838bdec2bcc"
+                                  },
+                                  {
+                                      "fixtureId":  "I-030",
+                                      "fixtureFile":  "Malformed/I-030-invalid-boolean-array-value.gguf",
+                                      "byteLength":  4166,
+                                      "sha256":  "0166d1dc354ebd67968c5ba1d6554ca4918776ae23ddaa3c0f04bd75c7e0ce2f"
+                                  },
+                                  {
+                                      "fixtureId":  "I-031",
+                                      "fixtureFile":  "Malformed/I-031-oversized-string-array-value.gguf",
+                                      "byteLength":  32844,
+                                      "sha256":  "9033f44ca4269fc27611e2f9adc8bb10e4e7e5298b3179d26995b67c4ad38736"
+                                  },
+                                  {
+                                      "fixtureId":  "I-032",
+                                      "fixtureFile":  "Malformed/I-032-truncated-nested-array.gguf",
+                                      "byteLength":  49229,
+                                      "sha256":  "65970ab47b2ecd19bfd3e0b6ac4b54ae9810abd8fbdfdb7c4def9f41e0b475e1"
+                                  },
+                                  {
+                                      "fixtureId":  "I-033",
+                                      "fixtureFile":  "Malformed/I-033-oversized-retained-string.gguf",
+                                      "byteLength":  64,
+                                      "sha256":  "523bc497c9cbbd004c2084c32837fd31cfdf5384337c169e530b9195ed7bf6c8"
+                                  },
+                                  {
+                                      "fixtureId":  "I-034",
+                                      "fixtureFile":  "Malformed/I-034-cross-entry-array-total.gguf",
+                                      "byteLength":  4000219,
+                                      "sha256":  "857723c62af4fd98f3d94e0e9c5254b2eeeb2c4216ec441d0550d3a0cc8110cb"
+                                  },
+                                  {
+                                      "fixtureId":  "I-035",
+                                      "fixtureFile":  "Malformed/I-035-truncated-key-length.gguf",
+                                      "byteLength":  28,
+                                      "sha256":  "b1d18354ce4bcaecae5a9cae415912ea425d99bc2243ca84dc4ecfd1af634790"
+                                  },
+                                  {
+                                      "fixtureId":  "I-036",
+                                      "fixtureFile":  "Malformed/I-036-truncated-key-bytes.gguf",
+                                      "byteLength":  34,
+                                      "sha256":  "d1297d9e4d17a58961e8bb24a2537e635ef60cfd1dee552256b04e49c18f7659"
+                                  },
+                                  {
+                                      "fixtureId":  "I-037",
+                                      "fixtureFile":  "Malformed/I-037-truncated-value-type.gguf",
+                                      "byteLength":  35,
+                                      "sha256":  "10c455d1c64ef92f9ba21022eddadbb820358d0ba6d0c2ebf62387af68cd4554"
+                                  },
+                                  {
+                                      "fixtureId":  "I-038",
+                                      "fixtureFile":  "Malformed/I-038-invalid-utf8-key.gguf",
+                                      "byteLength":  34,
+                                      "sha256":  "df339239f7cacaa166bcf3e7883bb268aff686f6aef75cc244eb7d923ec7aa4a"
                                   }
                               ]
 }
