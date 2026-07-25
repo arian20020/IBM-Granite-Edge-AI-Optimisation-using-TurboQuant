@@ -535,3 +535,9 @@ Total tests: 47
 
 There were zero failed, error, inconclusive, and not-executed tests. Evidence:
 `TestResults\GGUF-Quick-Scanner\Debug\task-06-direct-scanner.trx`.
+
+The host-determinism review fix regenerated I-019 with the intended UTF-8 key
+bytes. Its focused packaged regression passed 1/1 in
+`task-06-review-nonascii-green.trx`, followed by 47/47 direct-scanner tests in
+`task-06-review-post-fix.trx`; both runs recorded zero failed, error,
+inconclusive, or not-executed tests.
