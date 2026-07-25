@@ -16,7 +16,7 @@ baseline, RED/GREEN, review-fix, and refactoring record in chronological order.
 | Repository root | `C:\Users\Arian\source\repos\IBM-Granite-TurboQuant-Intel` |
 | Selected .NET SDK | `10.0.301` from `global.json` |
 | Target framework/runtime | `net8.0-windows10.0.19041.0`; `win-x64`; packaged output uses .NET runtime pack `8.0.28` |
-| MSBuild | Visual Studio 18 Community, `18.7.8.30822` x64 |
+| Build engines | .NET SDK MSBuild `18.6.4+96856fd72` (file version `18.6.4.27133`) for `dotnet` test-project commands; Visual Studio 18 Community MSBuild `18.7.8.30822` x64 for explicit application commands |
 | Packaged runner | `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe`, VSTest `18.7.0 (x64)` |
 | MSTest packages | `MSTest.TestAdapter` and `MSTest.TestFramework` `4.3.2` |
 | Windows App SDK package | `Microsoft.WindowsAppSDK` `2.2.0` |
@@ -28,10 +28,10 @@ identified by subject `docs(model-import): explain and evidence GGUF quick
 scanning` in local history. Task 10 will record the final branch commit after
 independent reviews and its own CI-equivalent verification.
 
-The Task 9 build command targets the packaged test project. Its project
-reference caused both the production application assembly and test assembly to
-be compiled in Debug and Release. Task 10 is reserved for separate explicit
-application restore/build commands and the authoritative post-review matrix.
+Task 9 explicitly restored and built the standalone application, then built the
+packaged test project in Debug and Release. The test-project reference also
+compiled the production assembly. Task 10 will repeat the complete matrix after
+independent reviews for the authoritative final result.
 
 ### Exact Task 9 restore, build, and test commands
 
@@ -39,6 +39,8 @@ The result directories were created before `Resolve-Path`. The restore command
 was:
 
 ```powershell
+$appProject =
+  'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
 $testProject =
   'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
 $resultsRoot = 'TestResults\GGUF-Quick-Scanner'
@@ -54,11 +56,16 @@ dotnet restore $testProject `
 Exit code: 0. Output:
 `TestResults\GGUF-Quick-Scanner\task-09-docs-restore.log`.
 
-Runner discovery used:
+Build-tool and runner discovery used:
 
 ```powershell
 $vswhere =
   "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuild = & $vswhere `
+  -latest `
+  -products * `
+  -find '**\MSBuild\Current\Bin\amd64\MSBuild.exe' |
+  Select-Object -First 1
 $vstest = & $vswhere `
   -latest `
   -products * `
@@ -69,6 +76,25 @@ $vstest = & $vswhere `
 The exact Debug build and three packaged invocations were:
 
 ```powershell
+& $msbuild $appProject `
+  /target:Restore `
+  /property:Configuration=Debug `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64
+
+& $msbuild $appProject `
+  /target:Build `
+  /maxCpuCount `
+  /verbosity:minimal `
+  /property:Configuration=Debug `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64 `
+  /property:PublishProfile= `
+  /property:PublishTrimmed=false `
+  /property:PublishReadyToRun=false `
+  /property:AppxPackageSigningEnabled=false `
+  /property:GenerateAppxPackageOnBuild=false
+
 dotnet build $testProject `
   --configuration Debug `
   --no-restore `
@@ -101,6 +127,25 @@ $debugResults = (Resolve-Path -LiteralPath `
 The exact Release build and three packaged invocations were:
 
 ```powershell
+& $msbuild $appProject `
+  /target:Restore `
+  /property:Configuration=Release `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64
+
+& $msbuild $appProject `
+  /target:Build `
+  /maxCpuCount `
+  /verbosity:minimal `
+  /property:Configuration=Release `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64 `
+  /property:PublishProfile= `
+  /property:PublishTrimmed=false `
+  /property:PublishReadyToRun=false `
+  /property:AppxPackageSigningEnabled=false `
+  /property:GenerateAppxPackageOnBuild=false
+
 dotnet build $testProject `
   --configuration Release `
   --no-restore `
@@ -132,8 +177,21 @@ $releaseResults = (Resolve-Path -LiteralPath `
 
 ### Current Debug and Release results
 
-The Debug build exited 0 in 13.46 seconds. The Release build exited 0 in
-68.69 seconds. Each build reported:
+The standalone application restore/build commands all exited 0:
+
+| Configuration | Operation | Wall-clock duration | Relative log |
+|---|---|---:|---|
+| Debug | application restore | 5.08 s | `TestResults\GGUF-Quick-Scanner\Debug\task-09-app-debug-restore.log` |
+| Debug | application build | 13.42 s | `TestResults\GGUF-Quick-Scanner\Debug\task-09-app-debug-build.log` |
+| Release | application restore | 3.56 s | `TestResults\GGUF-Quick-Scanner\Release\task-09-app-release-restore.log` |
+| Release | application build | 17.37 s | `TestResults\GGUF-Quick-Scanner\Release\task-09-app-release-build.log` |
+
+The restore logs explicitly reported zero warnings and errors. The application
+builds used `/verbosity:minimal`; they emitted the successful output assembly
+path and no warning or error diagnostics.
+
+The Debug packaged test-project build exited 0 in 13.46 seconds. The Release
+packaged test-project build exited 0 in 68.69 seconds. Each reported:
 
 ```text
 Build succeeded.
@@ -203,9 +261,9 @@ the important symptom, hypothesis/experiment, cause, and correction:
 - `file-access-denied` and opening-time `file-read-error` are narrow production
   mappings without a portable deterministic packaged test that forces those
   host conditions.
-- Task 9 did not run the independent reviews or standalone CI-equivalent
-  application restore/build assigned to Task 10. No final-review claim is made
-  here.
+- Task 9 ran explicit standalone application restores/builds, but did not run
+  the Task 10 whole-branch independent reviews or final repeated verification.
+  No final-review claim is made here.
 - No push, merge, publish, remote pull-request update, or other remote action
   occurred during Tasks 1 through 9.
 

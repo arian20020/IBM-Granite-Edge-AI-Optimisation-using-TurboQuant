@@ -3,8 +3,8 @@
 This guide explains the GGUF quick scanner as it exists at local implementation
 commit `c67d33f36ec323d8537245a536bb818098dd6a7e`. The commands and test totals in
 this guide were observed on 25 July 2026. They are a Task 9 documentation
-snapshot. Task 10 will repeat the CI-equivalent application build, independent
-reviews, and final verification.
+snapshot, including explicit standalone application builds. Task 10 will repeat
+the application/test matrix after independent reviews for final verification.
 
 ## 1. Purpose, non-goals, and current workflow boundary
 
@@ -866,11 +866,18 @@ The following commands were run from the repository root. The result
 directories were created before `Resolve-Path`.
 
 ```powershell
+$appProject =
+  'IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj'
 $testProject =
   'tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj'
 $resultsRoot = 'TestResults\GGUF-Quick-Scanner'
 $vswhere =
   "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuild = & $vswhere `
+  -latest `
+  -products * `
+  -find '**\MSBuild\Current\Bin\amd64\MSBuild.exe' |
+  Select-Object -First 1
 $vstest = & $vswhere `
   -latest `
   -products * `
@@ -888,6 +895,25 @@ dotnet restore $testProject `
 ### Debug
 
 ```powershell
+& $msbuild $appProject `
+  /target:Restore `
+  /property:Configuration=Debug `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64
+
+& $msbuild $appProject `
+  /target:Build `
+  /maxCpuCount `
+  /verbosity:minimal `
+  /property:Configuration=Debug `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64 `
+  /property:PublishProfile= `
+  /property:PublishTrimmed=false `
+  /property:PublishReadyToRun=false `
+  /property:AppxPackageSigningEnabled=false `
+  /property:GenerateAppxPackageOnBuild=false
+
 dotnet build $testProject `
   --configuration Debug `
   --no-restore `
@@ -920,6 +946,25 @@ $debugResults = (Resolve-Path -LiteralPath `
 ### Release
 
 ```powershell
+& $msbuild $appProject `
+  /target:Restore `
+  /property:Configuration=Release `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64
+
+& $msbuild $appProject `
+  /target:Build `
+  /maxCpuCount `
+  /verbosity:minimal `
+  /property:Configuration=Release `
+  /property:Platform=x64 `
+  /property:RuntimeIdentifier=win-x64 `
+  /property:PublishProfile= `
+  /property:PublishTrimmed=false `
+  /property:PublishReadyToRun=false `
+  /property:AppxPackageSigningEnabled=false `
+  /property:GenerateAppxPackageOnBuild=false
+
 dotnet build $testProject `
   --configuration Release `
   --no-restore `
@@ -949,8 +994,21 @@ $releaseResults = (Resolve-Path -LiteralPath `
   "/ResultsDirectory:$releaseResults"
 ```
 
-Both builds exited 0 with zero warnings and zero errors. Durations below are
-the TRX `finish - start` interval, not a guessed wall-clock value:
+The explicit standalone application restores/builds all exited 0. Debug restore
+and build took 5.08 s and 13.42 s; Release restore and build took 3.56 s and
+17.37 s. The restore logs reported zero warnings and errors; the minimal app
+build logger emitted no warning or error diagnostics. Their relative logs are:
+
+- `Debug\task-09-app-debug-restore.log`;
+- `Debug\task-09-app-debug-build.log`;
+- `Release\task-09-app-release-restore.log`; and
+- `Release\task-09-app-release-build.log`,
+
+all below `TestResults\GGUF-Quick-Scanner`.
+
+Both packaged test-project builds also exited 0 with zero warnings and zero
+errors. Durations below are the TRX `finish - start` interval, not a guessed
+wall-clock value:
 
 | Configuration | Scope | Total/executed/passed | Failed/error/inconclusive/not executed | TRX duration | Exit |
 |---|---|---:|---:|---:|---:|
@@ -961,9 +1019,10 @@ the TRX `finish - start` interval, not a guessed wall-clock value:
 | Release | router | 11/11/11 | 0/0/0/0 | 2.3760642 s | 0 |
 | Release | full package | 95/95/95 | 0/0/0/0 | 2.4790299 s | 0 |
 
-The build of the test project also compiled its production-project reference.
-Task 10 is intentionally responsible for a separate CI-equivalent application
-restore/build and the authoritative final matrix after independent reviews.
+The test-project builds additionally compiled their production-project
+reference. Task 10 is responsible for repeating the standalone application and
+packaged-test matrix after independent reviews and recording the authoritative
+final results.
 
 ## 15. Limitations and how to extend this safely later
 
