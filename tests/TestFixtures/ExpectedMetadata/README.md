@@ -14,3 +14,8 @@ public scanner result.
 
 The expectation values are independent of the production scanner. Regeneration
 never obtains expected metadata by scanning the generated binary.
+
+The current set contains one expectation for each V-001 through V-012 valid
+metadata fixture. V-009 proves all official metadata types and nested arrays
+can coexist with extracted Granite fields; V-010 documents the stable
+`Unknown (file type 999)` label.

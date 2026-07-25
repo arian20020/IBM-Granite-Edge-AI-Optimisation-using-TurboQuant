@@ -448,3 +448,87 @@ Total tests: 32
 
 There were zero failed, error, inconclusive, and not-executed tests. Evidence:
 `TestResults\GGUF-Quick-Scanner\Debug\task-05-review-fixes-final.trx`.
+
+## Task 6 generated boundaries and packaged TDD evidence
+
+Task 6 extended `Generate-GgufMetadataFixtures.ps1` to write every official
+metadata value type 0 through 12 with the corresponding `BinaryWriter`
+primitive overload. Boolean values are emitted as an explicit byte `0` or
+`1`, and arrays remain recursively generator-owned. The two fixture scripts
+were run successfully; no binary or expected-result file was edited by hand.
+
+The generator now produces 42 GGUF binaries: 13 under `GGUF` and 29 under
+`Malformed`. It also produces 12 typed expected-result JSON files. A
+regenerate-and-compare check covered all 55 generated artifacts (42 binaries,
+12 expectations, and the manifest) and found byte-for-byte deterministic
+content. Independent validation parsed every JSON
+file, matched all 42 manifest records to the actual files, and recomputed every
+recorded byte length and SHA-256 hash.
+
+| ID | Generated path | Bytes | SHA-256 |
+|---|---|---:|---|
+| V-009 | `GGUF/V-009-all-official-metadata-types.gguf` | 800 | `60a2bf3eb87e175780f0a497e01141a761226fbdcf5a67d73c769462341367ae` |
+| V-010 | `GGUF/V-010-unknown-file-type.gguf` | 320 | `76b6811fca0100ec3fcb359845248ed16510c36cb259e7fb76810de14d443baf` |
+| I-012 | `Malformed/I-012-oversized-metadata-string.gguf` | 68 | `3abd4bed4d42098d9b1bfa48ebc89c526d5a4ea9ab6638775a41f68c3e1c2747` |
+| I-013 | `Malformed/I-013-excessive-array-count.gguf` | 71 | `ced815ded71fbb52a89260648443ba11bf69b6017f35beadd9d7f4f1f6f79e7d` |
+| I-014 | `Malformed/I-014-excessive-total-array-count.gguf` | 119 | `ba920a378635b094a4c194a75307fdce9d0b4a4da7eca53496a707aa74784dbd` |
+| I-015 | `Malformed/I-015-excessive-array-depth.gguf` | 160 | `96e4ff650a25ff47d83b93e05cbf825aedc847953e33c5d260ee5d55ac5769ff` |
+| I-016 | `Malformed/I-016-invalid-context-type.gguf` | 128 | `f8536d245a710e6a8417d1efc841056163ed1116cfe0a2d61d894cedaf8dd2af` |
+| I-017 | `Malformed/I-017-excessive-context-candidates.gguf` | 2,816 | `156cff109ff91006f562a5f074487904cd7cc635fded78d1b98965024a2b8001` |
+| I-018 | `Malformed/I-018-invalid-utf8-architecture.gguf` | 66 | `737dc2f422eff9716edc95311bcada3ea735632046c006854e6423610050b7ca` |
+| I-019 | `Malformed/I-019-non-ascii-key.gguf` | 64 | `0078d869bf37ec65588823c854dc76e169f95f484f51ad9cb9e5e0fa62eadbb9` |
+| I-020 | `Malformed/I-020-wrong-name-type.gguf` | 128 | `afce52e673fc3fb12f0f97cb0a76a895669f418d2bcf03d2676ea740c7b2e773` |
+| I-021 | `Malformed/I-021-wrong-size-label-type.gguf` | 128 | `6b8ac86095fc48a40a4b21af50eff0cf31843d1fef6b2e1c62541f35c49b542d` |
+| I-022 | `Malformed/I-022-wrong-file-type.gguf` | 128 | `0dbe0bc77ae89cdd7d5af2d403f651a59ded37b06f71708f1b435fbd2d689a2e` |
+| I-023 | `Malformed/I-023-blank-architecture.gguf` | 96 | `82c179f364552beb3b176d0b054dc9bc51d4cf2e6dd5ce69e663a767ca9902d4` |
+
+Each new public test was selected through an exact fully qualified name
+against the packaged Debug x64 appxrecipe before any missing production
+behavior was changed. Cycles 6.1 through 6.14 passed on their first run because
+Tasks 3 through 5 had already implemented the parser guards, all official
+value consumption, nested arrays, and numeric file-type fallback. No
+artificial RED was manufactured.
+
+| Cycle | Exact test | First-run result | TRX |
+|---|---|---|---|
+| 6.1 | `ScanAsync_OversizedMetadataString_ReturnsMetadataStringTooLongFailure` | PASS 1/1 | `cycle-6-01-first-run.trx` |
+| 6.2 | `ScanAsync_ExcessiveArrayCount_ReturnsExcessiveArrayCountFailure` | PASS 1/1 | `cycle-6-02-first-run.trx` |
+| 6.3 | `ScanAsync_ExcessiveTotalArrayCount_ReturnsExcessiveArrayCountFailure` | PASS 1/1 | `cycle-6-03-first-run.trx` |
+| 6.4 | `ScanAsync_ExcessiveArrayDepth_ReturnsExcessiveArrayDepthFailure` | PASS 1/1 | `cycle-6-04-first-run.trx` |
+| 6.5 | `ScanAsync_ContextWithWrongType_ReturnsInvalidContextTypeFailure` | PASS 1/1 | `cycle-6-05-first-run.trx` |
+| 6.6 | `ScanAsync_ExcessiveContextCandidates_ReturnsControlledFailure` | PASS 1/1 | `cycle-6-06-first-run.trx` |
+| 6.7 | `ScanAsync_InvalidUtf8Architecture_ReturnsInvalidEncodingFailure` | PASS 1/1 | `cycle-6-07-first-run.trx` |
+| 6.8 | `ScanAsync_NonAsciiKey_ReturnsInvalidMetadataKeyFailure` | PASS 1/1 | `cycle-6-08-first-run.trx` |
+| 6.9 | `ScanAsync_NameWithWrongType_ReturnsInvalidNameTypeFailure` | PASS 1/1 | `cycle-6-09-first-run.trx` |
+| 6.10 | `ScanAsync_SizeLabelWithWrongType_ReturnsInvalidSizeLabelTypeFailure` | PASS 1/1 | `cycle-6-10-first-run.trx` |
+| 6.11 | `ScanAsync_FileTypeWithWrongType_ReturnsInvalidFileTypeFailure` | PASS 1/1 | `cycle-6-11-first-run.trx` |
+| 6.12 | `ScanAsync_BlankArchitecture_ReturnsMissingArchitectureFailure` | PASS 1/1 | `cycle-6-12-first-run.trx` |
+| 6.13 | `ScanAsync_AllOfficialMetadataTypes_ReturnsExpectedSuccessResult` | PASS 1/1 | `cycle-6-13-first-run.trx` |
+| 6.14 | `ScanAsync_UnknownFileType_ReturnsDocumentedLabel` | PASS 1/1 | `cycle-6-14-first-run.trx` |
+
+Cycle 6.15 supplied the genuine RED. The packaged test threw an unhandled
+`FileNotFoundException`, so `cycle-6-15-red.trx` recorded 1 total/executed,
+0 passed, and 1 failed. The minimal production change catches exceptions only
+around `FileStream` construction:
+
+- `FileNotFoundException` and `DirectoryNotFoundException` become
+  `file-not-found`;
+- `UnauthorizedAccessException` becomes `file-access-denied`;
+- other opening-time `IOException` instances become `file-read-error`.
+
+The parse block remains outside those operational catches, and
+`OperationCanceledException` is not caught. The exact missing-file test then
+passed 1/1 in `cycle-6-15-green.trx`.
+
+The final packaged Debug `win-x64` build completed with zero warnings and zero
+errors. VSTest 18.7.0 deployed the generated appxrecipe and ran the direct
+scanner class:
+
+```text
+Test Run Successful.
+Total tests: 47
+     Passed: 47
+```
+
+There were zero failed, error, inconclusive, and not-executed tests. Evidence:
+`TestResults\GGUF-Quick-Scanner\Debug\task-06-direct-scanner.trx`.

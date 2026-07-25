@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-009",
+    "fixtureFile":  "V-009-all-official-metadata-types.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q1_0",
+                             "fileSizeBytes":  800,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "60a2bf3eb87e175780f0a497e01141a761226fbdcf5a67d73c769462341367ae"
+                  },
+    "notes":  "All metadata value types 0 through 12 and a nested array are consumed safely."
+}

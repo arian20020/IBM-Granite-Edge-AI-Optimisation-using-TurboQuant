@@ -729,6 +729,205 @@ public sealed class GgufQuickScannerTests
     }
 
     /// <summary>
+    /// Verifies that one declared string cannot exceed the 16 MiB application limit.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_OversizedMetadataString_ReturnsMetadataStringTooLongFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-012-oversized-metadata-string.gguf",
+            "metadata-string-too-long");
+    }
+
+    /// <summary>
+    /// Verifies that one array cannot declare more than one million elements.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ExcessiveArrayCount_ReturnsExcessiveArrayCountFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-013-excessive-array-count.gguf",
+            "excessive-array-count");
+    }
+
+    /// <summary>
+    /// Verifies that nested arrays share the four-million-element scan budget.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ExcessiveTotalArrayCount_ReturnsExcessiveArrayCountFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-014-excessive-total-array-count.gguf",
+            "excessive-array-count");
+    }
+
+    /// <summary>
+    /// Verifies that a ninth nested array level is rejected before descent.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ExcessiveArrayDepth_ReturnsExcessiveArrayDepthFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-015-excessive-array-depth.gguf",
+            "excessive-array-depth");
+    }
+
+    /// <summary>
+    /// Verifies that an exact architecture context key requires an unsigned integer.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ContextWithWrongType_ReturnsInvalidContextTypeFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-016-invalid-context-type.gguf",
+            "invalid-context-type");
+    }
+
+    /// <summary>
+    /// Verifies that only 64 distinct pre-architecture context keys may be retained.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ExcessiveContextCandidates_ReturnsControlledFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-017-excessive-context-candidates.gguf",
+            "excessive-context-candidate-count");
+    }
+
+    /// <summary>
+    /// Verifies that malformed UTF-8 is rejected rather than replacement-decoded.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_InvalidUtf8Architecture_ReturnsInvalidEncodingFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-018-invalid-utf8-architecture.gguf",
+            "invalid-metadata-encoding");
+    }
+
+    /// <summary>
+    /// Verifies that metadata keys accept only the documented ASCII grammar.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_NonAsciiKey_ReturnsInvalidMetadataKeyFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-019-non-ascii-key.gguf",
+            "invalid-metadata-key");
+    }
+
+    /// <summary>
+    /// Verifies that general.name must be encoded as a GGUF string.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_NameWithWrongType_ReturnsInvalidNameTypeFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-020-wrong-name-type.gguf",
+            "invalid-name-type");
+    }
+
+    /// <summary>
+    /// Verifies that general.size_label must be encoded as a GGUF string.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_SizeLabelWithWrongType_ReturnsInvalidSizeLabelTypeFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-021-wrong-size-label-type.gguf",
+            "invalid-size-label-type");
+    }
+
+    /// <summary>
+    /// Verifies that general.file_type must be encoded as an unsigned 32-bit integer.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_FileTypeWithWrongType_ReturnsInvalidFileTypeFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-022-wrong-file-type.gguf",
+            "invalid-file-type");
+    }
+
+    /// <summary>
+    /// Verifies that whitespace-only architecture metadata remains unusable.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_BlankArchitecture_ReturnsMissingArchitectureFailure()
+    {
+        await AssertFailureFixtureAsync(
+            "I-023-blank-architecture.gguf",
+            "missing-required-architecture");
+    }
+
+    /// <summary>
+    /// Verifies that every official scalar type and nested arrays are consumed safely.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_AllOfficialMetadataTypes_ReturnsExpectedSuccessResult()
+    {
+        GgufQuickScanner scanner = new();
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-009-all-official-metadata-types.gguf",
+            "V-009-all-official-metadata-types.json",
+            "V-009");
+    }
+
+    /// <summary>
+    /// Verifies that an unassigned numeric file type receives a stable display label.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_UnknownFileType_ReturnsDocumentedLabel()
+    {
+        GgufQuickScanner scanner = new();
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-010-unknown-file-type.gguf",
+            "V-010-unknown-file-type.json",
+            "V-010");
+    }
+
+    /// <summary>
+    /// Verifies that a missing operational input is translated into a stable result.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MissingFile_ReturnsFileNotFoundFailure()
+    {
+        GgufQuickScanner scanner = new();
+        string missingPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            $"missing-{Guid.NewGuid():N}.gguf");
+        Assert.IsFalse(File.Exists(missingPath));
+
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            missingPath,
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("file-not-found", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+    }
+
+    /// <summary>
     /// Verifies that an omitted general.name uses the selected GGUF file name.
     /// </summary>
     [TestMethod]
@@ -904,6 +1103,33 @@ public sealed class GgufQuickScannerTests
             "V-001-complete-metadata-v3.gguf",
             "V-001-complete-metadata-v3.json",
             "V-001");
+    }
+
+    /// <summary>
+    /// Scans one deployed malformed fixture and checks its stable controlled failure.
+    /// </summary>
+    private static async Task AssertFailureFixtureAsync(
+        string fixtureFileName,
+        string expectedFailureCode)
+    {
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            fixtureFileName);
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The malformed GGUF fixture was not found at: {fixturePath}");
+
+        GgufQuickScanner scanner = new();
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual(expectedFailureCode, result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
     }
 
     /// <summary>

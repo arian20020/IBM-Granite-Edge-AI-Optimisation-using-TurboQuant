@@ -70,110 +70,160 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             // Stop immediately when cancellation was already requested.
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Open the existing model file for asynchronous, read-only access.
-            await using FileStream stream = new(
-                modelFilePath,
-                new FileStreamOptions
-                {
-                    // The selected file must already exist.
-                    Mode = FileMode.Open,
-
-                    // The scanner may inspect but not alter the model.
-                    Access = FileAccess.Read,
-
-                    // Allow another process to read the model simultaneously.
-                    Share = FileShare.Read,
-
-                    // Prepare for asynchronous, beginning-to-end reading.
-                    Options =
-                        FileOptions.Asynchronous |
-                        FileOptions.SequentialScan
-                });
-
+            FileStream stream;
             try
             {
-                // Read and validate all 24 bytes of the fixed GGUF header.
-                GgufHeader header = await ReadHeaderAsync(stream, cancellationToken);
+                // Open the existing model file for asynchronous, read-only access.
+                stream = new FileStream(
+                    modelFilePath,
+                    new FileStreamOptions
+                    {
+                        // The selected file must already exist.
+                        Mode = FileMode.Open,
 
-                // Reject versions whose structure this scanner cannot interpret.
-                if (header.Version != SupportedGgufVersion)
-                {
-                    return ModelQuickScanResult.CreateFailure(
-                        failureCode: "unsupported-version",
-                        userMessage:
-                            "This GGUF file uses a version that is not supported.",
-                        technicalMessage:
-                        $"Expected GGUF version {SupportedGgufVersion}, " +
-                            $"but found version {header.Version}.");
-                }
+                        // The scanner may inspect but not alter the model.
+                        Access = FileAccess.Read,
 
-                // Reject an unreasonable top-level loop before reading any entry.
-                if (header.MetadataEntryCount > MaxMetadataEntryCount)
-                {
-                    return ModelQuickScanResult.CreateFailure(
-                        failureCode: "excessive-metadata-count",
-                        userMessage:
-                            "The GGUF file declares too many metadata entries.",
-                        technicalMessage:
-                            $"The metadata entry count is " +
-                            $"{header.MetadataEntryCount:N0}; the scanner limit is " +
-                            $"{MaxMetadataEntryCount:N0}.");
-                }
+                        // Allow another process to read the model simultaneously.
+                        Share = FileShare.Read,
 
-                // Keep retained display metadata and the aggregate array budget local to this scan.
-                GgufScanState scanState = new();
-                ulong totalArrayElementCount = 0;
-
-                // Consume each declared entry once, checking cancellation between entries.
-                for (ulong entryIndex = 0;
-                    entryIndex < header.MetadataEntryCount;
-                    entryIndex++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string key = await ReadMetadataKeyAsync(
-                        stream,
-                        entryIndex,
-                        cancellationToken);
-                    GgufMetadataValueType valueType = await ReadMetadataTypeAsync(
-                        stream,
-                        key,
-                        cancellationToken);
-                    totalArrayElementCount = await ReadKnownMetadataValueAsync(
-                        stream,
-                        key,
-                        valueType,
-                        scanState,
-                        totalArrayElementCount,
-                        cancellationToken);
-                }
-
-                // A blank architecture is as unusable as an absent architecture.
-                if (string.IsNullOrWhiteSpace(scanState.Architecture))
-                {
-                    return ModelQuickScanResult.CreateFailure(
-                        failureCode: "missing-required-architecture",
-                        userMessage:
-                            "The GGUF file does not identify its model architecture.",
-                        technicalMessage:
-                            $"The GGUF fixed header declares {header.TensorCount} tensor " +
-                            $"descriptors and {header.MetadataEntryCount} metadata entries, " +
-                            "but no usable general.architecture metadata was parsed.");
-                }
-
-                // A missing or blank optional name falls back to the selected file name.
-                string modelName = string.IsNullOrWhiteSpace(scanState.ModelName)
-                    ? Path.GetFileName(modelFilePath)
-                    : scanState.ModelName;
-                return CreateSuccessResult(stream, header, scanState, modelName);
+                        // Prepare for asynchronous, beginning-to-end reading.
+                        Options =
+                            FileOptions.Asynchronous |
+                            FileOptions.SequentialScan
+                    });
             }
-            catch (GgufFormatException exception)
+            catch (FileNotFoundException exception)
             {
-                // Translate only expected structural input failures at this boundary.
-                return ModelQuickScanResult.CreateFailure(
-                    exception.FailureCode,
-                    exception.UserMessage,
-                    exception.TechnicalMessage);
+                return CreateFileOpenFailure(
+                    "file-not-found",
+                    "The selected GGUF file could not be found.",
+                    exception);
             }
+            catch (DirectoryNotFoundException exception)
+            {
+                return CreateFileOpenFailure(
+                    "file-not-found",
+                    "The selected GGUF file could not be found.",
+                    exception);
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                return CreateFileOpenFailure(
+                    "file-access-denied",
+                    "The selected GGUF file could not be opened because access was denied.",
+                    exception);
+            }
+            catch (IOException exception)
+            {
+                return CreateFileOpenFailure(
+                    "file-read-error",
+                    "The selected GGUF file could not be opened for reading.",
+                    exception);
+            }
+
+            await using (stream)
+            {
+                try
+                {
+                    // Read and validate all 24 bytes of the fixed GGUF header.
+                    GgufHeader header = await ReadHeaderAsync(stream, cancellationToken);
+
+                    // Reject versions whose structure this scanner cannot interpret.
+                    if (header.Version != SupportedGgufVersion)
+                    {
+                        return ModelQuickScanResult.CreateFailure(
+                            failureCode: "unsupported-version",
+                            userMessage:
+                                "This GGUF file uses a version that is not supported.",
+                            technicalMessage:
+                            $"Expected GGUF version {SupportedGgufVersion}, " +
+                                $"but found version {header.Version}.");
+                    }
+
+                    // Reject an unreasonable top-level loop before reading any entry.
+                    if (header.MetadataEntryCount > MaxMetadataEntryCount)
+                    {
+                        return ModelQuickScanResult.CreateFailure(
+                            failureCode: "excessive-metadata-count",
+                            userMessage:
+                                "The GGUF file declares too many metadata entries.",
+                            technicalMessage:
+                                $"The metadata entry count is " +
+                                $"{header.MetadataEntryCount:N0}; the scanner limit is " +
+                                $"{MaxMetadataEntryCount:N0}.");
+                    }
+
+                    // Keep retained display metadata and the aggregate array budget local to this scan.
+                    GgufScanState scanState = new();
+                    ulong totalArrayElementCount = 0;
+
+                    // Consume each declared entry once, checking cancellation between entries.
+                    for (ulong entryIndex = 0;
+                        entryIndex < header.MetadataEntryCount;
+                        entryIndex++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        string key = await ReadMetadataKeyAsync(
+                            stream,
+                            entryIndex,
+                            cancellationToken);
+                        GgufMetadataValueType valueType = await ReadMetadataTypeAsync(
+                            stream,
+                            key,
+                            cancellationToken);
+                        totalArrayElementCount = await ReadKnownMetadataValueAsync(
+                            stream,
+                            key,
+                            valueType,
+                            scanState,
+                            totalArrayElementCount,
+                            cancellationToken);
+                    }
+
+                    // A blank architecture is as unusable as an absent architecture.
+                    if (string.IsNullOrWhiteSpace(scanState.Architecture))
+                    {
+                        return ModelQuickScanResult.CreateFailure(
+                            failureCode: "missing-required-architecture",
+                            userMessage:
+                                "The GGUF file does not identify its model architecture.",
+                            technicalMessage:
+                                $"The GGUF fixed header declares {header.TensorCount} tensor " +
+                                $"descriptors and {header.MetadataEntryCount} metadata entries, " +
+                                "but no usable general.architecture metadata was parsed.");
+                    }
+
+                    // A missing or blank optional name falls back to the selected file name.
+                    string modelName = string.IsNullOrWhiteSpace(scanState.ModelName)
+                        ? Path.GetFileName(modelFilePath)
+                        : scanState.ModelName;
+                    return CreateSuccessResult(stream, header, scanState, modelName);
+                }
+                catch (GgufFormatException exception)
+                {
+                    // Translate only expected structural input failures at this boundary.
+                    return ModelQuickScanResult.CreateFailure(
+                        exception.FailureCode,
+                        exception.UserMessage,
+                        exception.TechnicalMessage);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates one controlled result for an exception raised while opening the file.
+        /// </summary>
+        private static ModelQuickScanResult CreateFileOpenFailure(
+            string failureCode,
+            string userMessage,
+            Exception exception)
+        {
+            return ModelQuickScanResult.CreateFailure(
+                failureCode,
+                userMessage,
+                $"Opening the selected GGUF file failed with " +
+                    $"{exception.GetType().Name}.");
         }
 
         /// <summary>

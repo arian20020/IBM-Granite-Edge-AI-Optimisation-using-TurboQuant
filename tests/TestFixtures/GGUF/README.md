@@ -22,6 +22,8 @@ the parent directory to reproduce them.
 | V-006 | `V-006-unusual-metadata-order.gguf` | 320 | Context before architecture |
 | V-007 | `V-007-context-uint32.gguf` | 320 | UInt32 context normalization |
 | V-008 | `V-008-missing-file-type.gguf` | 288 | Optional file type omitted |
+| V-009 | `V-009-all-official-metadata-types.gguf` | 800 | Metadata types 0-12 and a nested array |
+| V-010 | `V-010-unknown-file-type.gguf` | 320 | Unknown file type 999 retains a numeric label |
 | V-011 | `V-011-current-q2_0-file-type.gguf` | 320 | Current file type 41 maps to Q2_0 |
 | V-012 | `V-012-duplicate-relevant-metadata.gguf` | 544 | First occurrence wins for scanner-relevant duplicates |
 

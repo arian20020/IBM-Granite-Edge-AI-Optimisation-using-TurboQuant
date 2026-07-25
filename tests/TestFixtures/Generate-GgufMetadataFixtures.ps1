@@ -70,8 +70,26 @@ Out-Null
 # GGUF metadata type identifiers
 # ---------------------------------------------------------------------
 
+# GGUF uint8 metadata value type.
+[uint32] $GgufTypeUInt8 = 0
+
+# GGUF int8 metadata value type.
+[uint32] $GgufTypeInt8 = 1
+
+# GGUF uint16 metadata value type.
+[uint32] $GgufTypeUInt16 = 2
+
+# GGUF int16 metadata value type.
+[uint32] $GgufTypeInt16 = 3
+
 # GGUF uint32 metadata value type.
 [uint32] $GgufTypeUInt32 = 4
+
+# GGUF int32 metadata value type.
+[uint32] $GgufTypeInt32 = 5
+
+# GGUF float32 metadata value type.
+[uint32] $GgufTypeFloat32 = 6
 
 # GGUF boolean metadata value type.
 [uint32] $GgufTypeBoolean = 7
@@ -84,6 +102,12 @@ Out-Null
 
 # GGUF uint64 metadata value type.
 [uint32] $GgufTypeUInt64 = 10
+
+# GGUF int64 metadata value type.
+[uint32] $GgufTypeInt64 = 11
+
+# GGUF float64 metadata value type.
+[uint32] $GgufTypeFloat64 = 12
 
 # ---------------------------------------------------------------------
 # General binary-writing helpers
@@ -267,15 +291,59 @@ function Write-GgufValue {
 
     # Select the correct binary representation for the supplied type.
     switch ($Type) {
+        # Write an 8-bit unsigned integer.
+        0 {
+            $Writer.Write([byte] $Value)
+            break
+        }
+
+        # Write an 8-bit signed integer.
+        1 {
+            $Writer.Write([sbyte] $Value)
+            break
+        }
+
+        # Write a 16-bit unsigned integer.
+        2 {
+            $Writer.Write([uint16] $Value)
+            break
+        }
+
+        # Write a 16-bit signed integer.
+        3 {
+            $Writer.Write([int16] $Value)
+            break
+        }
+
         # Write a 32-bit unsigned integer.
         4 {
             $Writer.Write([uint32] $Value)
             break
         }
 
-        # Write a one-byte boolean.
+        # Write a 32-bit signed integer.
+        5 {
+            $Writer.Write([int32] $Value)
+            break
+        }
+
+        # Write a 32-bit IEEE 754 floating-point value.
+        6 {
+            $Writer.Write([single] $Value)
+            break
+        }
+
+        # Write a GGUF Boolean as the exact byte 0 or 1.
         7 {
-            $Writer.Write([bool] $Value)
+            [byte] $booleanByte =
+            if ([bool] $Value) {
+                1
+            }
+            else {
+                0
+            }
+
+            $Writer.Write($booleanByte)
             break
         }
 
@@ -318,6 +386,18 @@ function Write-GgufValue {
         # Write a 64-bit unsigned integer.
         10 {
             $Writer.Write([uint64] $Value)
+            break
+        }
+
+        # Write a 64-bit signed integer.
+        11 {
+            $Writer.Write([int64] $Value)
+            break
+        }
+
+        # Write a 64-bit IEEE 754 floating-point value.
+        12 {
+            $Writer.Write([double] $Value)
             break
         }
 
@@ -913,6 +993,150 @@ Write-ExpectedMetadata `
     -ContextLength ([uint64] 131072) `
     -Notes "Missing general.file_type should produce an unavailable quantisation value."
 
+# V-009: every official metadata type, including a nested array, is consumed.
+$v009Path =
+Join-Path `
+    -Path $ggufDirectory `
+    -ChildPath "V-009-all-official-metadata-types.gguf"
+
+$v009Entries =
+[System.Collections.Generic.List[object]]::new()
+
+foreach ($entry in (
+    New-GraniteMetadataEntries `
+        -FileType ([uint32] 40)
+)) {
+    $v009Entries.Add($entry)
+}
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.uint8" `
+        -Type $GgufTypeUInt8 `
+        -Value ([byte] 255)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.int8" `
+        -Type $GgufTypeInt8 `
+        -Value ([sbyte] -7)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.uint16" `
+        -Type $GgufTypeUInt16 `
+        -Value ([uint16] 65535)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.int16" `
+        -Type $GgufTypeInt16 `
+        -Value ([int16] -1234)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.uint32" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 4000000000)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.int32" `
+        -Type $GgufTypeInt32 `
+        -Value ([int32] -2000000000)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.float32" `
+        -Type $GgufTypeFloat32 `
+        -Value ([single] 1.25)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.boolean" `
+        -Type $GgufTypeBoolean `
+        -Value $true))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.string" `
+        -Type $GgufTypeString `
+        -Value "all official metadata types"))
+
+$v009NestedArray =
+New-GgufArrayValue `
+    -ElementType $GgufTypeArray `
+    -Values @(
+    (New-GgufArrayValue `
+        -ElementType $GgufTypeInt32 `
+        -Values @(
+        [int32] -7,
+        [int32] 0,
+        [int32] 7
+    ))
+)
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.nested_array" `
+        -Type $GgufTypeArray `
+        -Value $v009NestedArray))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.uint64" `
+        -Type $GgufTypeUInt64 `
+        -Value ([uint64]::MaxValue)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.int64" `
+        -Type $GgufTypeInt64 `
+        -Value ([int64] -9000000000000)))
+
+$v009Entries.Add(
+    (New-GgufEntry `
+        -Key "fixture.float64" `
+        -Type $GgufTypeFloat64 `
+        -Value ([double] 123.456)))
+
+Write-GgufMetadataFile `
+    -Path $v009Path `
+    -Entries $v009Entries.ToArray()
+
+Write-ExpectedMetadata `
+    -FixturePath $v009Path `
+    -FixtureId "V-009" `
+    -ModelName "IBM Granite Fixture Model" `
+    -Architecture "granite" `
+    -ParameterSizeLabel "3B" `
+    -Quantization "Q1_0" `
+    -ContextLength ([uint64] 131072) `
+    -Notes "All metadata value types 0 through 12 and a nested array are consumed safely."
+
+# V-010: an unassigned numeric file type receives a stable fallback label.
+$v010Path =
+Join-Path `
+    -Path $ggufDirectory `
+    -ChildPath "V-010-unknown-file-type.gguf"
+
+Write-GgufMetadataFile `
+    -Path $v010Path `
+    -Entries (
+    New-GraniteMetadataEntries `
+        -FileType ([uint32] 999)
+)
+
+Write-ExpectedMetadata `
+    -FixturePath $v010Path `
+    -FixtureId "V-010" `
+    -ModelName "IBM Granite Fixture Model" `
+    -Architecture "granite" `
+    -ParameterSizeLabel "3B" `
+    -Quantization "Unknown (file type 999)" `
+    -ContextLength ([uint64] 131072) `
+    -Notes "An unassigned general.file_type value should retain its numeric identity."
+
 # V-011: current llama.cpp file type 41 identifies Q2_0.
 $v011Path =
 Join-Path `
@@ -1239,6 +1463,310 @@ try {
 finally {
     $i011Writer.Dispose()
 }
+
+# I-012: declare one metadata string beyond the 16 MiB scanner limit.
+$i012Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-012-oversized-metadata-string.gguf"
+
+$i012Writer =
+New-FixtureBinaryWriter `
+    -Path $i012Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i012Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i012Writer `
+        -Value "fixture.oversized_string"
+
+    $i012Writer.Write($GgufTypeString)
+
+    # The scanner rejects this declaration before reading or allocating payload.
+    $i012Writer.Write([uint64] ((16 * 1024 * 1024) + 1))
+}
+finally {
+    $i012Writer.Dispose()
+}
+
+# I-013: declare one array beyond the per-array element limit.
+$i013Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-013-excessive-array-count.gguf"
+
+$i013Writer =
+New-FixtureBinaryWriter `
+    -Path $i013Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i013Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i013Writer `
+        -Value "fixture.excessive_array"
+
+    $i013Writer.Write($GgufTypeArray)
+    $i013Writer.Write($GgufTypeUInt8)
+
+    # The scanner rejects this declaration before iterating or reading payload.
+    $i013Writer.Write([uint64] 1000001)
+}
+finally {
+    $i013Writer.Dispose()
+}
+
+# I-014: nested declarations exceed the aggregate four-million-element limit.
+$i014Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-014-excessive-total-array-count.gguf"
+
+$i014Writer =
+New-FixtureBinaryWriter `
+    -Path $i014Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i014Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i014Writer `
+        -Value "fixture.excessive_total"
+
+    $i014Writer.Write($GgufTypeArray)
+
+    # Each level is individually permitted. The fifth declaration raises the
+    # aggregate total to five million before any large payload is required.
+    foreach ($level in 1..5) {
+        $i014Writer.Write($GgufTypeArray)
+        $i014Writer.Write([uint64] 1000000)
+    }
+}
+finally {
+    $i014Writer.Dispose()
+}
+
+# I-015: declare nine nested array levels where the scanner permits eight.
+$i015Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-015-excessive-array-depth.gguf"
+
+$i015Writer =
+New-FixtureBinaryWriter `
+    -Path $i015Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i015Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i015Writer `
+        -Value "fixture.too_deep"
+
+    $i015Writer.Write($GgufTypeArray)
+
+    foreach ($level in 1..9) {
+        $i015Writer.Write($GgufTypeArray)
+        $i015Writer.Write([uint64] 1)
+    }
+}
+finally {
+    $i015Writer.Dispose()
+}
+
+# I-016: the exact architecture context candidate has the wrong value type.
+$i016Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-016-invalid-context-type.gguf"
+
+$i016Entries =
+@(
+    New-GgufEntry `
+        -Key "granite.context_length" `
+        -Type $GgufTypeString `
+        -Value "not an integer"
+
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"
+)
+
+Write-GgufMetadataFile `
+    -Path $i016Path `
+    -Entries $i016Entries
+
+# I-017: a 65th distinct pre-architecture context candidate exceeds the cap.
+$i017Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-017-excessive-context-candidates.gguf"
+
+$i017Entries =
+[System.Collections.Generic.List[object]]::new()
+
+foreach ($candidateIndex in 0..64) {
+    $i017Entries.Add(
+        (New-GgufEntry `
+            -Key ("candidate{0:D2}.context_length" -f $candidateIndex) `
+            -Type $GgufTypeUInt32 `
+            -Value ([uint32] (1024 + $candidateIndex))))
+}
+
+$i017Entries.Add(
+    (New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"))
+
+Write-GgufMetadataFile `
+    -Path $i017Path `
+    -Entries $i017Entries.ToArray()
+
+# I-018: general.architecture contains a malformed UTF-8 byte sequence.
+$i018Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-018-invalid-utf8-architecture.gguf"
+
+$i018Writer =
+New-FixtureBinaryWriter `
+    -Path $i018Path
+
+try {
+    Write-GgufHeader `
+        -Writer $i018Writer `
+        -MetadataCount 1
+
+    Write-GgufString `
+        -Writer $i018Writer `
+        -Value "general.architecture"
+
+    $i018Writer.Write($GgufTypeString)
+    $i018Writer.Write([uint64] 2)
+    $i018Writer.Write([byte[]] @(
+        [byte] 0xC3,
+        [byte] 0x28
+    ))
+}
+finally {
+    $i018Writer.Dispose()
+}
+
+# I-019: metadata keys are restricted to ASCII lower_snake_case segments.
+$i019Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-019-non-ascii-key.gguf"
+
+$i019Entries =
+@(
+    New-GgufEntry `
+        -Key "fixture.naïve" `
+        -Type $GgufTypeUInt8 `
+        -Value ([byte] 1)
+)
+
+Write-GgufMetadataFile `
+    -Path $i019Path `
+    -Entries $i019Entries
+
+# I-020: general.name must be a string when present.
+$i020Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-020-wrong-name-type.gguf"
+
+$i020Entries =
+@(
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"
+
+    New-GgufEntry `
+        -Key "general.name" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 20)
+)
+
+Write-GgufMetadataFile `
+    -Path $i020Path `
+    -Entries $i020Entries
+
+# I-021: general.size_label must be a string when present.
+$i021Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-021-wrong-size-label-type.gguf"
+
+$i021Entries =
+@(
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"
+
+    New-GgufEntry `
+        -Key "general.size_label" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 3)
+)
+
+Write-GgufMetadataFile `
+    -Path $i021Path `
+    -Entries $i021Entries
+
+# I-022: general.file_type must be a uint32 when present.
+$i022Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-022-wrong-file-type.gguf"
+
+$i022Entries =
+@(
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"
+
+    New-GgufEntry `
+        -Key "general.file_type" `
+        -Type $GgufTypeString `
+        -Value "Q4_K_M"
+)
+
+Write-GgufMetadataFile `
+    -Path $i022Path `
+    -Entries $i022Entries
+
+# I-023: a whitespace-only architecture is not usable metadata.
+$i023Path =
+Join-Path `
+    -Path $malformedDirectory `
+    -ChildPath "I-023-blank-architecture.gguf"
+
+$i023Entries =
+@(
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "   "
+)
+
+Write-GgufMetadataFile `
+    -Path $i023Path `
+    -Entries $i023Entries
 
 # I-025: metadata keys must not be empty.
 $i025Path =

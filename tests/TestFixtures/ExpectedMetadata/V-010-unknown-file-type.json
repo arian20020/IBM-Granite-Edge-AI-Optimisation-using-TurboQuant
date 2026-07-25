@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-010",
+    "fixtureFile":  "V-010-unknown-file-type.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Unknown (file type 999)",
+                             "fileSizeBytes":  320,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "76b6811fca0100ec3fcb359845248ed16510c36cb259e7fb76810de14d443baf"
+                  },
+    "notes":  "An unassigned general.file_type value should retain its numeric identity."
+}
