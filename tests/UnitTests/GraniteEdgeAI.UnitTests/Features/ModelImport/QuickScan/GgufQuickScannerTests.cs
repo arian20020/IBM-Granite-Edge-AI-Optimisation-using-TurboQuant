@@ -1,5 +1,7 @@
 // Import the production GGUF scanner and result types.
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -661,5 +663,156 @@ public sealed class GgufQuickScannerTests
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "file offset 32");
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "character index 0");
         StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "U+0047");
+    }
+
+    /// <summary>
+    /// Verifies that metadata lacking the required architecture returns a stable failure.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_MissingArchitecture_ReturnsMissingArchitectureFailure()
+    {
+        // Arrange: create the real scanner and locate the deployed malformed fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-008-missing-required-architecture.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The missing-architecture fixture was not found at: {fixturePath}");
+
+        // Act: scan metadata that intentionally omits general.architecture.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the scanner returns a usable, stable missing-architecture failure.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("missing-required-architecture", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+    }
+
+    /// <summary>
+    /// Verifies that general.architecture must use the GGUF string metadata type.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ArchitectureWithWrongType_ReturnsInvalidArchitectureTypeFailure()
+    {
+        // Arrange: create the real scanner and locate the deployed wrong-type fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "Malformed",
+            "I-009-wrong-architecture-type.gguf");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The wrong-architecture-type fixture was not found at: {fixturePath}");
+
+        // Act: scan an architecture entry encoded as uint32 rather than string.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: the type boundary is reported before the payload is accepted.
+        Assert.AreEqual(ModelQuickScanOutcome.Failure, result.Outcome);
+        Assert.AreEqual("invalid-architecture-type", result.FailureCode);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.UserMessage));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(result.TechnicalMessage));
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "general.architecture");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "UInt32");
+        StringAssert.Contains(result.TechnicalMessage ?? string.Empty, "String");
+    }
+
+    /// <summary>
+    /// Verifies that complete GGUF metadata produces every expected success field.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_CompleteMetadata_ReturnsExpectedSuccessResult()
+    {
+        // Arrange: create the real scanner and load the deployed typed expectation.
+        GgufQuickScanner scanner = new();
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "GGUF",
+            "V-001-complete-metadata-v3.gguf");
+        string expectedPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "ExpectedMetadata",
+            "V-001-complete-metadata-v3.json");
+        Assert.IsTrue(
+            File.Exists(fixturePath),
+            $"The complete-metadata fixture was not found at: {fixturePath}");
+        Assert.IsTrue(
+            File.Exists(expectedPath),
+            $"The complete-metadata expectation was not found at: {expectedPath}");
+        ExpectedFixture expected = JsonSerializer.Deserialize<ExpectedFixture>(
+            await File.ReadAllTextAsync(expectedPath))
+            ?? throw new AssertInconclusiveException(
+                $"The complete-metadata expectation could not be deserialized: {expectedPath}");
+
+        // Act: scan the complete generated GGUF fixture.
+        ModelQuickScanResult result = await scanner.ScanAsync(
+            fixturePath,
+            CancellationToken.None);
+
+        // Assert: every success field matches the checked-in typed expectation.
+        Assert.AreEqual(ModelQuickScanOutcome.Success, result.Outcome);
+        Assert.AreEqual(expected.ExpectedMetadata.ModelName, result.ModelName);
+        Assert.AreEqual(expected.ExpectedMetadata.Architecture, result.Architecture);
+        Assert.AreEqual(expected.ExpectedMetadata.ParameterSizeLabel, result.ParameterSizeLabel);
+        Assert.AreEqual(expected.ExpectedMetadata.Quantization, result.Quantization);
+        Assert.AreEqual(expected.ExpectedMetadata.FileSizeBytes, result.FileSizeBytes);
+        Assert.AreEqual(expected.ExpectedMetadata.ContextLength, result.ContextLength);
+        Assert.AreEqual(expected.ExpectedMetadata.GgufVersion, result.GgufVersion);
+        Assert.IsNull(result.FailureCode);
+        Assert.IsNull(result.UserMessage);
+        Assert.IsNull(result.TechnicalMessage);
+    }
+
+    private sealed record ExpectedFixture
+    {
+        [JsonPropertyName("fixtureId")]
+        public required string FixtureId { get; init; }
+
+        [JsonPropertyName("fixtureFile")]
+        public required string FixtureFile { get; init; }
+
+        [JsonPropertyName("expectedOutcome")]
+        public required string ExpectedOutcome { get; init; }
+
+        [JsonPropertyName("expectedMetadata")]
+        public required ExpectedMetadata ExpectedMetadata { get; init; }
+    }
+
+    private sealed record ExpectedMetadata
+    {
+        [JsonPropertyName("modelName")]
+        public required string ModelName { get; init; }
+
+        [JsonPropertyName("architecture")]
+        public required string Architecture { get; init; }
+
+        [JsonPropertyName("parameterSizeLabel")]
+        public string? ParameterSizeLabel { get; init; }
+
+        [JsonPropertyName("quantization")]
+        public string? Quantization { get; init; }
+
+        [JsonPropertyName("fileSizeBytes")]
+        public long FileSizeBytes { get; init; }
+
+        [JsonPropertyName("contextLength")]
+        public ulong? ContextLength { get; init; }
+
+        [JsonPropertyName("ggufVersion")]
+        public uint GgufVersion { get; init; }
     }
 }

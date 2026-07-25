@@ -279,3 +279,40 @@ intentionally not decoded merely to skip them. The scanner's broad support for
 official scalar types and nested arrays is established here by code inspection
 plus the Task 3 malformed subset. Task 6 remains responsible for generated
 full-type, nested-array, and remaining boundary coverage.
+
+## Task 4 required metadata extraction TDD evidence
+
+Task 4 ran against commit `ea8b4b5` with the Visual Studio 18 VSTest 18.7.0
+x64 runner, the generated Debug `win-x64` appxrecipe, and deployed fixture
+assertions for every fixture-backed test. Every listed build completed with
+zero warnings and zero errors.
+
+| Cycle | Result | Evidence |
+|---|---|---|
+| 4.1 missing architecture | Passed 1/1 immediately. Task 3 already consumed all entries and returned `missing-required-architecture`; the test documents that existing observable behavior without manufacturing a RED. | `cycle-4-1-existing-green.trx` |
+| 4.2 architecture type RED | Failed 0/1: a UInt32 `general.architecture` reached `missing-required-architecture` instead of reporting its wrong type. | `cycle-4-2-4-3-red.trx` |
+| 4.2 architecture type GREEN | Passed after the scanner required a String value before retained decoding and returned `invalid-architecture-type` with actual/expected types. | `cycle-4-2-4-3-green.trx` |
+| 4.3 complete metadata RED | Failed 0/1: V-001 returned `Failure` because known display metadata was only skipped. | `cycle-4-2-4-3-red.trx` |
+| 4.3 complete metadata GREEN | Passed after bounded strict-UTF-8 retained-string reads, UInt32/UInt64 normalization, and `ModelQuickScanResult.CreateSuccess`. | `cycle-4-2-4-3-green.trx` |
+
+The successful V-001 test deserializes its checked-in expectation as typed
+`ExpectedFixture`/`ExpectedMetadata` records and asserts every success field,
+including file length, GGUF version, context length, and `15 => Q4_K_M`; it
+also asserts all failure fields are null. Task 4 introduces only that required
+file-type mapping plus `Unknown (file type N)` fallback. Task 5 expands and
+tests the current official mapping through 40.
+
+The post-refactor packaged direct-scanner regression was:
+
+```text
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Test Run Successful.
+Total tests: 23
+     Passed: 23
+```
+
+Its result is
+`TestResults\GGUF-Quick-Scanner\Debug\task-04-post-refactor.trx`.

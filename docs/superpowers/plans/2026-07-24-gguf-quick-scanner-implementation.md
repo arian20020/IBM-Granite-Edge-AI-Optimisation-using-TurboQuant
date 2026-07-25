@@ -464,6 +464,11 @@ Run the full direct scanner class and expect 20/20 tests.
 - Consumes: bounded key/type/value helpers.
 - Produces: strict known-key typing, `GgufScanState`, expected-JSON DTO, and complete `ModelQuickScanResult.CreateSuccess`.
 
+**Sequencing note:** V-001 requires `general.file_type = 15` to display as
+`Q4_K_M`. Task 4 therefore introduces the isolated mapping for 15 and the
+stable unknown-file-type fallback used by this fixture. Task 5 extends and
+tests that same mapping across the current official 0 through 40 values.
+
 - [ ] **Cycle 4.1: Missing required architecture**
 
 Add `ScanAsync_MissingArchitecture_ReturnsMissingArchitectureFailure` using `I-008-missing-required-architecture.gguf`.
@@ -571,7 +576,7 @@ git commit -m "feat(model-import): extract required GGUF display metadata"
 **Interfaces:**
 
 - Consumes: `GgufScanState` and expected-fixture assertion helper.
-- Produces: filename fallback, nullable optional fields, unknown metadata skipping, bounded pending context candidates, uint32 normalization, and official quantization mapping.
+- Produces: filename fallback, nullable optional fields, unknown metadata skipping, bounded pending context candidates, uint32 normalization, and the expanded official quantization mapping.
 
 - [ ] **Cycle 5.1: Missing name**
 
@@ -633,7 +638,8 @@ Add `ScanAsync_MissingFileType_ReturnsSuccessWithNullQuantization` using V-008.
 
 RED: quantization is required or defaults incorrectly.
 
-Keep missing `general.file_type` as null. Isolate `MapFileTypeToQuantization(uint)` and map the official values, including:
+Keep missing `general.file_type` as null. Extend the Task 4
+`MapFileTypeToQuantization(uint)` mapping across the official values, including:
 
 ```csharp
 15 => "Q4_K_M",
