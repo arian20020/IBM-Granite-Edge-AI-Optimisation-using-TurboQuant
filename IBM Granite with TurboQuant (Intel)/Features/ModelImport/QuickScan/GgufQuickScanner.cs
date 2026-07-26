@@ -22,8 +22,9 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         private const long GgufTensorCountOffset = 8;
         private const long GgufMetadataEntryCountOffset = 16;
 
-        // Version 3 is the GGUF container format currently supported.
-        private const uint SupportedGgufVersion = 3;
+        // Version 2 and 3 is the GGUF container format currently supported.
+        private const uint MinimumSupportedGgufVersion = 2;
+        private const uint MaximumSupportedGgufVersion = 3;
 
         // Bound the attacker-controlled top-level metadata loop.
         private const ulong MaxMetadataEntryCount = 1_000_000;
@@ -188,15 +189,28 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             GgufHeader header = await ReadHeaderAsync(stream, cancellationToken);
 
             // Reject versions whose structure this scanner cannot interpret.
-            if (header.Version != SupportedGgufVersion)
+            if (header.Version == 1)
+            {
+                return ModelQuickScanResult.CreateFailure(
+                    failureCode: "obsolete-version",
+                    userMessage:
+                        "This model uses the obsolete GGUF version 1 format. "
+                        + "Convert or download the model as GGUF version 2 or 3.",
+                    technicalMessage:
+                        $"GGUF version at file offset {GgufVersionOffset} is 1; "
+                        + "the application supports versions 2 and 3.");
+            }
+
+            if (header.Version < MinimumSupportedGgufVersion || header.Version > MaximumSupportedGgufVersion)
             {
                 return ModelQuickScanResult.CreateFailure(
                     failureCode: "unsupported-version",
                     userMessage:
-                        "This GGUF file uses a version that is not supported.",
+                        "This model uses a GGUF version that is not supported by "
+                        + "the current application.",
                     technicalMessage:
                         $"GGUF version at file offset {GgufVersionOffset} is " +
-                        $"{header.Version}; expected {SupportedGgufVersion}.");
+                        $"{header.Version}; supported versions are 2 and 3.");
             }
 
             // Reject an unreasonable top-level loop before reading any entry.
@@ -568,10 +582,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         /// <summary>
         /// Validates the GGUF hierarchical lower_snake_case metadata-key grammar.
         /// </summary>
-        private static void ValidateMetadataKey(
-            string key,
-            ulong entryIndex,
-            long keyOffset)
+        private static void ValidateMetadataKey(string key, ulong entryIndex, long keyOffset)
         {
             if (key.Length == 0)
             {

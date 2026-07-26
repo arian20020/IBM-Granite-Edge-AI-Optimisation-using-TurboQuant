@@ -2,12 +2,14 @@ using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
+using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
 using System;
-using System.Threading.Tasks;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelImport
 {
@@ -19,10 +21,16 @@ namespace GraniteEdgeAI.Features.ModelImport
         //store functions that the page can call later:
         private readonly Func<Task<ModelFormatSelection>> _selectModelFormatAsync; 
         private readonly Func<Task<string?>> _pickGgufPathAsync;
+        private readonly Func<
+            ModelFormatSelection,
+            string,
+            CancellationToken,
+            Task<ModelQuickScanResult>> _scanModelAsync;
+        private CancellationTokenSource? _scanCancellationTokenSource;
 
         // Public Constructor:clean entry point for WinUI and normal application code
         public ModelImportPage()
-            : this(null, null) //this(null, null) calls the internal constructor, so that i sees that both supplied parameters are null.
+            : this(null, null, null)
         {
         }
 
@@ -30,13 +38,28 @@ namespace GraniteEdgeAI.Features.ModelImport
         // We use this to allow controlled replacement functions for tests (makes testing easier)
         internal ModelImportPage(
             Func<Task<ModelFormatSelection>>? selectModelFormatAsync,
-            Func<Task<string?>>? pickGgufPathAsync)
+            Func<Task<string?>>? pickGgufPathAsync,
+            Func<
+                ModelFormatSelection,
+                string,
+                CancellationToken,
+                Task<ModelQuickScanResult>>? scanModelAsync = null)
         {
             InitializeComponent();
 
             _selectModelFormatAsync =
                 selectModelFormatAsync ?? ShowModelFormatSelectionAsync;
             _pickGgufPathAsync = pickGgufPathAsync ?? PickGgufPathAsync;
+
+            if (scanModelAsync is null)
+            {
+                ModelQuickScanner modelQuickScanner = new();
+                _scanModelAsync = modelQuickScanner.ScanAsync;
+            }
+            else
+            {
+                _scanModelAsync = scanModelAsync;
+            }
             //The ?? operator means “use the right-hand value when the left-hand value is null.
         }
 
@@ -66,13 +89,66 @@ namespace GraniteEdgeAI.Features.ModelImport
 
             string? selectedPath = await _pickGgufPathAsync();
 
-            if (selectedPath is not null)
+            if (selectedPath is null)
             {
-                SelectedModelPath = selectedPath;
+                return;
+            }
 
-                string selectedFileName = Path.GetFileName(selectedPath);
+            SelectedModelPath = selectedPath;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
 
-                ImportModelCardControl.SetState( ImportModelCardState.Scanning, selectedFileName);
+            string selectedFileName = Path.GetFileName(selectedPath);
+
+            ImportModelCardControl.SetState(
+                ImportModelCardState.Scanning,
+                selectedFileName);
+
+            CancellationTokenSource scanCancellationTokenSource = new();
+            _scanCancellationTokenSource = scanCancellationTokenSource;
+
+            ModelQuickScanResult scanResult;
+            bool shouldApplyResult;
+
+            try
+            {
+                scanResult = await _scanModelAsync(
+                    selectedFormat,
+                    selectedPath,
+                    scanCancellationTokenSource.Token);
+            }
+            finally
+            {
+                shouldApplyResult = ReferenceEquals(
+                    _scanCancellationTokenSource,
+                    scanCancellationTokenSource);
+
+                if (shouldApplyResult)
+                {
+                    _scanCancellationTokenSource = null;
+                }
+
+                scanCancellationTokenSource.Dispose();
+            }
+
+            if (!shouldApplyResult ||
+                scanResult.Outcome == ModelQuickScanOutcome.Cancelled)
+            {
+                return;
+            }
+
+            if (scanResult.Outcome == ModelQuickScanOutcome.Failure)
+            {
+                HasValidatedModel = false;
+                ContinueToModelInspectionButton.IsEnabled = false;
+
+                ImportModelCardControl.SetState(
+                    ImportModelCardState.ScanFailed,
+                    selectedFileName: selectedFileName,
+                    failureCode: scanResult.FailureCode,
+                    failureMessage: scanResult.UserMessage);
+
+                return;
             }
         }
 
@@ -103,7 +179,14 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private void ImportModelCard_CancelScanRequested(object sender, RoutedEventArgs e)
         {
+            CancellationTokenSource? activeScan =
+                _scanCancellationTokenSource;
+            _scanCancellationTokenSource = null;
+            activeScan?.Cancel();
+
             SelectedModelPath = null;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
 
             ImportModelCardControl.SetState(ImportModelCardState.AwaitingSelection);
         }

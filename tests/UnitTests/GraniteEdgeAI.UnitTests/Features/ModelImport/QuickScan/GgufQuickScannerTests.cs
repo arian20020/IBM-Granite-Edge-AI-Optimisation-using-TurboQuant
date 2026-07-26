@@ -1,5 +1,6 @@
 // Import the production GGUF scanner and result types.
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using System.Buffers.Binary;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -1313,6 +1314,264 @@ public sealed class GgufQuickScannerTests
             "V-001-complete-metadata-v3.gguf",
             "V-001-complete-metadata-v3.json",
             "V-001");
+    }
+
+    /// <summary>
+    /// Verifies that a valid little-endian GGUF version 2 file is accepted
+    /// and produces the same metadata as the equivalent version 3 fixture.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ValidVersion2_ReturnsSuccess()
+    {
+        // Arrange: create a valid version 2 variant of the complete metadata fixture.
+        GgufQuickScanner scanner = new();
+        string fixturePath =
+            await CreateCompleteMetadataVersionVariantAsync(version: 2);
+
+        try
+        {
+            // Act: scan the valid GGUF version 2 fixture.
+            ModelQuickScanResult result = await scanner.ScanAsync(
+                fixturePath,
+                CancellationToken.None);
+
+            // Assert: version 2 is accepted and all expected metadata is retained.
+            Assert.AreEqual(
+                ModelQuickScanOutcome.Success,
+                result.Outcome);
+
+            Assert.AreEqual(
+                2u,
+                result.GgufVersion);
+
+            Assert.AreEqual(
+                "IBM Granite Fixture Model",
+                result.ModelName);
+
+            Assert.AreEqual(
+                "granite",
+                result.Architecture);
+
+            Assert.AreEqual(
+                "3B",
+                result.ParameterSizeLabel);
+
+            Assert.AreEqual(
+                "Q4_K_M",
+                result.Quantization);
+
+            Assert.AreEqual(
+                320L,
+                result.FileSizeBytes);
+
+            Assert.AreEqual(
+                131_072UL,
+                result.ContextLength);
+
+            Assert.IsNull(result.FailureCode);
+            Assert.IsNull(result.UserMessage);
+            Assert.IsNull(result.TechnicalMessage);
+        }
+        finally
+        {
+            // Cleanup: remove the temporary version-variant fixture.
+            File.Delete(fixturePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the current valid GGUF version 3 fixture remains supported.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_ValidVersion3_ReturnsSuccess()
+    {
+        // Arrange: create the real scanner.
+        GgufQuickScanner scanner = new();
+
+        // Act and assert: reuse the existing typed expectation to verify
+        // all observable metadata, including GGUF version 3.
+        await AssertExpectedFixtureResultAsync(
+            scanner,
+            "V-001-complete-metadata-v3.gguf",
+            "V-001-complete-metadata-v3.json",
+            "V-001");
+    }
+
+    /// <summary>
+    /// Verifies that obsolete GGUF version 1 files receive a specific
+    /// failure that distinguishes them from unknown future versions.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_Version1_ReturnsObsoleteVersionFailure()
+    {
+        // Arrange: create a structurally complete file declaring GGUF version 1.
+        GgufQuickScanner scanner = new();
+        string fixturePath =
+            await CreateCompleteMetadataVersionVariantAsync(version: 1);
+
+        try
+        {
+            // Act: scan the obsolete-version fixture.
+            ModelQuickScanResult result = await scanner.ScanAsync(
+                fixturePath,
+                CancellationToken.None);
+
+            // Assert: version 1 is rejected using the dedicated obsolete-version contract.
+            Assert.AreEqual(
+                ModelQuickScanOutcome.Failure,
+                result.Outcome);
+
+            Assert.AreEqual(
+                "obsolete-version",
+                result.FailureCode);
+
+            Assert.IsFalse(
+                string.IsNullOrWhiteSpace(result.UserMessage));
+
+            Assert.IsFalse(
+                string.IsNullOrWhiteSpace(result.TechnicalMessage));
+
+            StringAssert.Contains(
+                result.UserMessage ?? string.Empty,
+                "obsolete");
+
+            StringAssert.Contains(
+                result.TechnicalMessage ?? string.Empty,
+                "file offset 4");
+
+            StringAssert.Contains(
+                result.TechnicalMessage ?? string.Empty,
+                "is 1");
+
+            // Failure results must not expose partially parsed success metadata.
+            Assert.IsNull(result.ModelName);
+            Assert.IsNull(result.Architecture);
+            Assert.IsNull(result.ParameterSizeLabel);
+            Assert.IsNull(result.Quantization);
+            Assert.IsNull(result.FileSizeBytes);
+            Assert.IsNull(result.ContextLength);
+            Assert.IsNull(result.GgufVersion);
+        }
+        finally
+        {
+            // Cleanup: remove the temporary version-variant fixture.
+            File.Delete(fixturePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the first unknown future GGUF version is rejected
+    /// rather than being parsed using assumptions from version 3.
+    /// </summary>
+    [TestMethod]
+    [TestCategory("Unit")]
+    public async Task ScanAsync_FutureVersion_ReturnsUnsupportedVersionFailure()
+    {
+        // Arrange: version 4 represents the first version newer than
+        // the application's maximum currently supported version.
+        GgufQuickScanner scanner = new();
+        string fixturePath =
+            await CreateCompleteMetadataVersionVariantAsync(version: 4);
+
+        try
+        {
+            // Act: scan the future-version fixture.
+            ModelQuickScanResult result = await scanner.ScanAsync(
+                fixturePath,
+                CancellationToken.None);
+
+            // Assert: unknown future versions fail safely and predictably.
+            Assert.AreEqual(
+                ModelQuickScanOutcome.Failure,
+                result.Outcome);
+
+            Assert.AreEqual(
+                "unsupported-version",
+                result.FailureCode);
+
+            Assert.IsFalse(
+                string.IsNullOrWhiteSpace(result.UserMessage));
+
+            Assert.IsFalse(
+                string.IsNullOrWhiteSpace(result.TechnicalMessage));
+
+            StringAssert.Contains(
+                result.UserMessage ?? string.Empty,
+                "not supported");
+
+            StringAssert.Contains(
+                result.TechnicalMessage ?? string.Empty,
+                "file offset 4");
+
+            StringAssert.Contains(
+                result.TechnicalMessage ?? string.Empty,
+                "is 4");
+
+            // Failure results must not expose partially parsed success metadata.
+            // Failure results must not expose partially parsed success metadata.
+            Assert.IsNull(result.ModelName);
+            Assert.IsNull(result.Architecture);
+            Assert.IsNull(result.ParameterSizeLabel);
+            Assert.IsNull(result.Quantization);
+            Assert.IsNull(result.FileSizeBytes);
+            Assert.IsNull(result.ContextLength);
+            Assert.IsNull(result.GgufVersion);
+        }
+        finally
+        {
+            // Cleanup: remove the temporary version-variant fixture.
+            File.Delete(fixturePath);
+        }
+    }
+
+    /// <summary>
+    /// Creates a temporary copy of the complete valid GGUF fixture and changes
+    /// only the uint32 version field stored at byte offset 4.
+    /// </summary>
+    private static async Task<string>
+        CreateCompleteMetadataVersionVariantAsync(uint version)
+    {
+        const int GgufVersionOffset = 4;
+        const int GgufVersionByteLength = sizeof(uint);
+
+        string sourceFixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "GGUF",
+            "V-001-complete-metadata-v3.gguf");
+
+        Assert.IsTrue(
+            File.Exists(sourceFixturePath),
+            $"The complete GGUF fixture was not found at: {sourceFixturePath}");
+
+        byte[] fixtureBytes =
+            await File.ReadAllBytesAsync(sourceFixturePath);
+
+        Assert.IsTrue(
+            fixtureBytes.Length >=
+                GgufVersionOffset + GgufVersionByteLength,
+            "The complete GGUF fixture is too short to contain its version field.");
+
+        // GGUF stores the version as a little-endian uint32 beginning at offset 4.
+        BinaryPrimitives.WriteUInt32LittleEndian(
+            fixtureBytes.AsSpan(
+                GgufVersionOffset,
+                GgufVersionByteLength),
+            version);
+
+        string temporaryFixturePath = Path.Combine(
+            Path.GetTempPath(),
+            $"granite-edge-gguf-version-{version}-" +
+                $"{Guid.NewGuid():N}.gguf");
+
+        await File.WriteAllBytesAsync(
+            temporaryFixturePath,
+            fixtureBytes);
+
+        return temporaryFixturePath;
     }
 
     /// <summary>

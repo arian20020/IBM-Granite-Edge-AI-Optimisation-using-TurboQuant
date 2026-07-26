@@ -22,8 +22,10 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
         public ImportModelCardState CurrentState { get; private set; }
 
         public void SetState(
-                    ImportModelCardState state,
-                    string? selectedFileName = null)
+            ImportModelCardState state,
+            string? selectedFileName = null,
+            string? failureCode = null,
+            string? failureMessage = null)
         {
             // Record the current state so it can be inspected and tested.
             CurrentState = state;
@@ -40,9 +42,35 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            // Display the selected file name in the scanning interface.
-            ScanningFileNameTextBlock.Text =
-                selectedFileName ?? string.Empty;
+            // Show failure details only after the quick scan fails.
+            FailureView.Visibility =
+                state == ImportModelCardState.ScanFailed
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
+            string displayedFileName = selectedFileName ?? string.Empty;
+
+            // Keep both selected-model headers ready for their current view.
+            ScanningFileNameTextBlock.Text = displayedFileName;
+            FailureFileNameTextBlock.Text = displayedFileName;
+
+            if (state == ImportModelCardState.ScanFailed)
+            {
+                FailureCodeTextBlock.Text =
+                    string.IsNullOrWhiteSpace(failureCode)
+                        ? "model-scan-failed"
+                        : failureCode;
+                FailureMessageTextBlock.Text =
+                    string.IsNullOrWhiteSpace(failureMessage)
+                        ? "The selected model could not be scanned."
+                        : failureMessage;
+
+                return;
+            }
+
+            // Prevent details from a previous file resurfacing later.
+            FailureCodeTextBlock.Text = string.Empty;
+            FailureMessageTextBlock.Text = string.Empty;
         }
 
         /// Handles the internal Browse button click.
