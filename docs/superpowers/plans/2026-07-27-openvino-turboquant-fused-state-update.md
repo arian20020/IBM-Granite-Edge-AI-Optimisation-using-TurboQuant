@@ -496,17 +496,19 @@ TEST(TurboQuantStatefulGraph, SingletonCoreReadsRegisteredFusedOperation) {
     std::ostringstream xml;
     std::ostringstream bin;
     ov::pass::Serialize serializer(xml, bin);
-    ASSERT_TRUE(serializer.run_on_model(transformed));
+    serializer.run_on_model(transformed);
 
+    const auto xml_text = xml.str();
+    ASSERT_FALSE(xml_text.empty());
     const auto bin_bytes = bin.str();
     ov::Tensor weights(
         ov::element::u8,
         ov::Shape{bin_bytes.size()},
         const_cast<char*>(bin_bytes.data()));
     ov::Core unregistered;
-    EXPECT_THROW(unregistered.read_model(xml.str(), weights), ov::Exception);
+    EXPECT_THROW(unregistered.read_model(xml_text, weights), ov::Exception);
 
-    auto restored = utils::singleton_core().read_model(xml.str(), weights);
+    auto restored = utils::singleton_core().read_model(xml_text, weights);
     EXPECT_EQ(fused_operation_count(restored), 4u);
     EXPECT_EQ(&utils::singleton_core(), &utils::singleton_core());
 }
@@ -521,6 +523,12 @@ TEST(TurboQuantStatefulGraph, PersistsOnlyCompressedStateForOneHundredSteps) {
     ASSERT_EQ(evidence.snapshots.size(), 4u);
 }
 ```
+
+`Serialize::run_on_model()` uses the `ModelPass` changed/not-changed return
+convention; it may return false after successfully writing an unchanged
+model. Serialization success is proved by the nonempty XML and the subsequent
+`read_model()` behavior. The BIN stream may validly be empty for this
+constant-free fixture.
 
 Emit exactly one line from the lifetime test:
 
