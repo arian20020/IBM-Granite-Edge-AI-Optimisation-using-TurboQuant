@@ -640,7 +640,7 @@ def parse_lifetime_marker(stdout: str) -> dict: ...
 def summarize_samples(values: list[float]) -> dict: ...
 def run_one(command: list[str], output_dir: Path, timeout_seconds: float,
             interval_ms: int, minimum_available_ram_mb: float,
-            run_nonce: str) -> dict: ...
+            run_nonce: str, runtime_library_dir: Path) -> dict: ...
 def reconcile_runs(runs: list[dict], derived_commit: str,
                    executable_sha256: str) -> dict: ...
 def atomic_write_json(path: Path, value: dict) -> None: ...
@@ -690,27 +690,30 @@ busiest-engine definition and `-IntervalMilliseconds` parameter.
 For each run:
 
 1. refuse launch below the 2,048 MiB available-RAM floor;
-2. launch only the supplied executable plus
+2. require an existing explicit OpenVINO runtime-library directory, prepend
+   it only to the child environment's `PATH`, record it in invocation and
+   environment identity, and reject a missing directory before launch;
+3. launch only the supplied executable plus
    `--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps`
    and `--gtest_output=json:<run-dir>/gtest.json` in a new process group;
-3. capture stdout/stderr without blocking;
-4. create a workload Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`,
+4. capture stdout/stderr without blocking;
+5. create a workload Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`,
    assign the GTest process immediately, and query its active PID list for
    working-set/private-byte sampling and survivor checks;
-5. run `collect_process_utilization.ps1` for the root PID with
+6. run `collect_process_utilization.ps1` for the root PID with
    `-IntervalMilliseconds 100`, with the sampler itself in a separate
    kill-on-close Job Object;
-6. set a fresh `secrets.token_hex(16)` value in
+7. set a fresh `secrets.token_hex(16)` value in
    `OPENVINO_TURBOQUANT_CAPABILITY_NONCE` and require the marker to echo it;
-7. sample every active workload PID's working set/private bytes plus available
+8. sample every active workload PID's working set/private bytes plus available
    RAM every exactly 100 ms;
-8. enforce a 300-second absolute timeout and the 2,048 MiB in-run RAM floor;
-9. in `finally`, stop and wait for the sampler, query the workload Job Object,
+9. enforce a 300-second absolute timeout and the 2,048 MiB in-run RAM floor;
+10. in `finally`, stop and wait for the sampler, query the workload Job Object,
    call `TerminateJobObject` if anything remains, poll until its queried
    active-process count is zero, and close both Job Object handles;
-10. treat `taskkill /PID <pid> /T /F` only as an emergency fallback; it cannot
+11. treat `taskkill /PID <pid> /T /F` only as an emergency fallback; it cannot
     by itself prove a zero-survivor result;
-11. measure cleanup duration and preserve command, environment identity,
+12. measure cleanup duration and preserve command, environment identity,
    stdout, stderr, memory JSONL, utilization CSV, and per-run JSON.
 
 Raw artifacts live under:
@@ -738,6 +741,7 @@ Run:
 python scripts/testing/run_openvino_reference_capability.py `
   --derived-repo external/official-openvino/2026-07-19/openvino.genai-turboquant `
   --executable R:/external/official-openvino/2026-07-19/build-genai-turboquant/tests/cpp/Release/tests_continuous_batching.exe `
+  --runtime-library-dir C:/Users/Student/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/.venv-official-openvino-2026.2.1/Lib/site-packages/openvino/libs `
   --output experiments/raw-results/openvino-turboquant/2026-07-27/conformance/reference-capability.json `
   --timeout-seconds 300 `
   --interval-ms 100 `
