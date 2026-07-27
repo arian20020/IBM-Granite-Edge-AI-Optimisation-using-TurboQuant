@@ -683,7 +683,12 @@ Extend `collect_process_utilization.ps1` with
 `try/catch` blocks around both counter-class queries. A sampled GPU value of
 zero is admissible only when `gpu_engine_query_ok` is true; zero GPU memory is
 admissible only when `gpu_memory_query_ok` is true. Preserve the existing
-busiest-engine definition and `-IntervalMilliseconds` parameter.
+busiest-engine definition and `-IntervalMilliseconds` parameter. The first
+CPU row uses the real normalized `TotalProcessorTime` accumulated from the
+process start time to the first sample; label that interval definition in the
+evidence. Subsequent CPU rows use consecutive counter deltas at the requested
+100 ms cadence. Never suppress an otherwise valid first GPU/counter row merely
+because a prior CPU baseline does not exist.
 
 - [ ] **Step 3: Implement guarded fresh-process execution**
 
