@@ -1,0 +1,2 @@
+﻿observation_utc,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb,gpu_engine_query_ok,gpu_memory_query_ok,gpu_engine_query_started_utc,gpu_engine_query_completed_utc,gpu_memory_query_started_utc,gpu_memory_query_completed_utc
+2026-07-27T23:32:17.9341355Z,0.000000,0,0.000000,0.000000,true,true,2026-07-27T23:32:17.4131153Z,2026-07-27T23:32:17.7551720Z,2026-07-27T23:32:17.4150768Z,2026-07-27T23:32:17.4490283Z

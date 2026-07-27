@@ -33,8 +33,8 @@ from measure_llama_run import available_ram_bytes, process_memory_bytes  # noqa:
 
 MARKER_PREFIX = "TURBOQUANT_REFERENCE_CAPABILITY_JSON="
 MARKER_SCHEMA = "openvino-turboquant-reference-capability/v1"
-RUN_SCHEMA = "openvino-turboquant-reference-capability-run/v2"
-EVIDENCE_SCHEMA = "openvino-turboquant-reference-capability-evidence/v2"
+RUN_SCHEMA = "openvino-turboquant-reference-capability-run/v3"
+EVIDENCE_SCHEMA = "openvino-turboquant-reference-capability-evidence/v3"
 EXPECTED_TEST_NAME = (
     "TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps"
 )
@@ -45,12 +45,34 @@ NONCE_ENVIRONMENT_VARIABLE = "OPENVINO_TURBOQUANT_CAPABILITY_NONCE"
 EXACT_INTERVAL_MS = 100
 EXACT_TIMEOUT_SECONDS = 300.0
 EXACT_MINIMUM_AVAILABLE_RAM_MB = 2048.0
+EXACT_WORKLOAD_AFFINITY_MASK = 1
+EXACT_WORKLOAD_CPU_RATE = 100
+EXACT_WORKLOAD_CPU_RATE_HARD_CAP_PERCENT = 1.0
+EXPECTED_RUN_ARTIFACTS = {
+    "command": "command.json",
+    "environment": "environment.json",
+    "stdout": "stdout.txt",
+    "stderr": "stderr.txt",
+    "sampler_stdout": "sampler.stdout.txt",
+    "sampler_stderr": "sampler.stderr.txt",
+    "memory_samples": "memory.jsonl",
+    "utilization": "utilization.csv",
+    "gpu": "gpu.csv",
+    "sampler_ready": "utilization.ready",
+    "sampling_start": "utilization.start",
+    "gtest": "gtest.json",
+    "run": "run.json",
+}
 
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 JOB_OBJECT_BASIC_PROCESS_ID_LIST = 3
 JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+JOB_OBJECT_CPU_RATE_CONTROL_INFORMATION = 15
+JOB_OBJECT_CPU_RATE_CONTROL_ENABLE = 0x1
+JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP = 0x4
 PROCESS_TERMINATE = 0x0001
 PROCESS_SET_QUOTA = 0x0100
+PROCESS_SET_INFORMATION = 0x0200
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 ERROR_MORE_DATA = 234
 CREATE_SUSPENDED = 0x00000004
@@ -92,6 +114,13 @@ class JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
         ("JobMemoryLimit", ctypes.c_size_t),
         ("PeakProcessMemoryUsed", ctypes.c_size_t),
         ("PeakJobMemoryUsed", ctypes.c_size_t),
+    ]
+
+
+class JOBOBJECT_CPU_RATE_CONTROL_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ("ControlFlags", wintypes.DWORD),
+        ("CpuRate", wintypes.DWORD),
     ]
 
 
@@ -138,6 +167,11 @@ def _kernel32():
         wintypes.DWORD,
     ]
     kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.SetProcessAffinityMask.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_size_t,
+    ]
+    kernel32.SetProcessAffinityMask.restype = wintypes.BOOL
     kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel32.CloseHandle.restype = wintypes.BOOL
     kernel32.CreateToolhelp32Snapshot.argtypes = [
@@ -212,6 +246,27 @@ def _resume_suspended_process(pid: int) -> None:
         kernel32.CloseHandle(thread_handle)
 
 
+def _set_process_affinity_mask(pid: int, affinity_mask: int) -> None:
+    """Apply a controlled CPU affinity before a suspended workload resumes."""
+    if affinity_mask <= 0:
+        raise ValueError("affinity_mask must be positive")
+    kernel32 = _kernel32()
+    process_handle = kernel32.OpenProcess(
+        PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION,
+        False,
+        pid,
+    )
+    if not process_handle:
+        raise _windows_error(f"OpenProcess({pid}, affinity)")
+    try:
+        if not kernel32.SetProcessAffinityMask(
+            process_handle, ctypes.c_size_t(affinity_mask)
+        ):
+            raise _windows_error(f"SetProcessAffinityMask({pid})")
+    finally:
+        kernel32.CloseHandle(process_handle)
+
+
 class KillOnCloseJob:
     """One Windows Job Object with governed termination and PID-list queries."""
 
@@ -251,6 +306,23 @@ class KillOnCloseJob:
                 raise _windows_error(f"AssignProcessToJobObject({pid})")
         finally:
             self._kernel32.CloseHandle(process_handle)
+
+    def set_cpu_rate_hard_cap(self, cpu_rate: int) -> None:
+        if not 1 <= cpu_rate <= 10000:
+            raise ValueError("CPU rate must be within [1, 10000]")
+        control = JOBOBJECT_CPU_RATE_CONTROL_INFORMATION()
+        control.ControlFlags = (
+            JOB_OBJECT_CPU_RATE_CONTROL_ENABLE
+            | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP
+        )
+        control.CpuRate = cpu_rate
+        if not self._kernel32.SetInformationJobObject(
+            self._handle,
+            JOB_OBJECT_CPU_RATE_CONTROL_INFORMATION,
+            ctypes.byref(control),
+            ctypes.sizeof(control),
+        ):
+            raise _windows_error("SetInformationJobObject(CPU rate)")
 
     def active_pids(self) -> list[int]:
         capacity = 64
@@ -326,6 +398,68 @@ def validate_runtime_library_dir(path: Path) -> Path:
 def absolute_invocation_path(path: Path) -> Path:
     """Make a supplied path absolute without resolving a substituted drive."""
     return Path(path).absolute()
+
+
+def _same_path(left: Path | str, right: Path | str) -> bool:
+    return os.path.normcase(str(Path(left).resolve())) == os.path.normcase(
+        str(Path(right).resolve())
+    )
+
+
+def _path_is_within(child: Path | str, parent: Path | str) -> bool:
+    child_text = os.path.normcase(str(Path(child).resolve()))
+    parent_text = os.path.normcase(str(Path(parent).resolve()))
+    try:
+        return os.path.commonpath([child_text, parent_text]) == parent_text
+    except ValueError:
+        return False
+
+
+def validate_build_provenance(
+    derived_repo: Path, build_dir: Path, executable: Path
+) -> dict:
+    """Bind the executable's CMake configuration to the selected source tree."""
+    source = Path(derived_repo).resolve()
+    build = Path(build_dir).resolve()
+    binary = Path(executable).absolute()
+    if not source.is_dir():
+        raise ValueError(f"derived source directory does not exist: {source}")
+    if not build.is_dir():
+        raise ValueError(f"build directory does not exist: {build}")
+    cache = build / "CMakeCache.txt"
+    if not cache.is_file():
+        raise ValueError(f"CMakeCache.txt is missing from build directory: {build}")
+    if not binary.is_file():
+        raise ValueError(f"capability executable does not exist: {binary}")
+    if not _path_is_within(binary, build):
+        raise ValueError(
+            "capability executable is outside the declared build directory"
+        )
+
+    values: dict[str, str] = {}
+    for line in cache.read_text(encoding="utf-8-sig", errors="strict").splitlines():
+        match = re.fullmatch(r"([^:#=]+):[^=]+=(.*)", line)
+        if match:
+            values[match.group(1)] = match.group(2)
+    cmake_home = values.get("CMAKE_HOME_DIRECTORY")
+    if not cmake_home:
+        raise ValueError("CMakeCache.txt has no CMAKE_HOME_DIRECTORY")
+    configured_source = Path(cmake_home).resolve()
+    if not _same_path(configured_source, source):
+        raise ValueError(
+            "CMAKE_HOME_DIRECTORY does not match the selected derived checkout"
+        )
+    generator = values.get("CMAKE_GENERATOR")
+    if not generator:
+        raise ValueError("CMakeCache.txt has no CMAKE_GENERATOR")
+    return {
+        "build_directory": str(build),
+        "cmake_cache": str(cache.resolve()),
+        "cmake_cache_sha256": _sha256_file(cache),
+        "cmake_generator": generator,
+        "cmake_home_directory": str(configured_source),
+        "executable_within_build_directory": True,
+    }
 
 
 def workload_environment(
@@ -651,8 +785,8 @@ def _parse_bool(value: str, field: str) -> bool:
     raise ValueError(f"{field} must be true or false")
 
 
-UTILIZATION_VALUE_FIELDS = (
-    "cpu_percent",
+UTILIZATION_VALUE_FIELDS = ("cpu_percent",)
+GPU_VALUE_FIELDS = (
     "gpu_percent",
     "gpu_engine_count",
     "gpu_dedicated_mb",
@@ -683,21 +817,17 @@ def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
                 *UTILIZATION_VALUE_FIELDS,
                 *UTILIZATION_TIMING_FIELDS,
                 "cpu_sample_definition",
-                "gpu_engine_query_ok",
-                "gpu_memory_query_ok",
             }
             if reader.fieldnames is None or not required.issubset(reader.fieldnames):
                 return (
                     None,
                     samples,
-                    ["utilization CSV is missing required counter-status columns"],
+                    ["utilization CSV is missing required CPU cadence columns"],
                 )
             rows = list(reader)
     except (OSError, csv.Error) as error:
         return None, samples, [f"utilization CSV could not be read: {error}"]
 
-    engine_success_count = 0
-    memory_success_count = 0
     for index, row in enumerate(rows, start=1):
         try:
             cpu = float(row["cpu_percent"])
@@ -736,12 +866,100 @@ def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
                     f"CPU sample definition must be {expected_definition}"
                 )
             samples["cpu_sample_definition"].append(cpu_definition)
+        except (KeyError, TypeError, ValueError) as error:
+            _append_error(
+                errors, f"utilization CSV row {index} is invalid: {error}"
+            )
+
+    if not rows:
+        _append_error(errors, "utilization CSV has no real counter sample")
+    summary: dict[str, Any] = {"row_count": len(rows)}
+    for field in (*UTILIZATION_VALUE_FIELDS, *UTILIZATION_TIMING_FIELDS):
+        try:
+            summary[field] = summarize_samples(samples[field])
+        except ValueError:
+            summary[field] = None
+            _append_error(errors, f"{field} utilization evidence is absent")
+    summary["cpu_sample_definitions"] = {
+        FIRST_CPU_SAMPLE_DEFINITION: samples["cpu_sample_definition"].count(
+            FIRST_CPU_SAMPLE_DEFINITION
+        ),
+        INTERVAL_CPU_SAMPLE_DEFINITION: samples["cpu_sample_definition"].count(
+            INTERVAL_CPU_SAMPLE_DEFINITION
+        ),
+    }
+    return summary, samples, errors
+
+
+GPU_QUERY_TIME_FIELDS = (
+    "gpu_engine_query_started_utc",
+    "gpu_engine_query_completed_utc",
+    "gpu_memory_query_started_utc",
+    "gpu_memory_query_completed_utc",
+)
+
+
+def _read_gpu(path: Path) -> tuple[dict | None, dict, list[str]]:
+    errors: list[str] = []
+    samples: dict[str, list[Any]] = {
+        **{field: [] for field in GPU_VALUE_FIELDS},
+        "gpu_engine_query_ok": [],
+        "gpu_memory_query_ok": [],
+        **{field: [] for field in GPU_QUERY_TIME_FIELDS},
+    }
+    if not path.exists():
+        return None, samples, ["GPU CSV is missing"]
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            required = {
+                "observation_utc",
+                *GPU_VALUE_FIELDS,
+                "gpu_engine_query_ok",
+                "gpu_memory_query_ok",
+                *GPU_QUERY_TIME_FIELDS,
+            }
+            if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+                return None, samples, ["GPU CSV is missing required query columns"]
+            rows = list(reader)
+    except (OSError, csv.Error) as error:
+        return None, samples, [f"GPU CSV could not be read: {error}"]
+
+    if len(rows) != 1:
+        _append_error(errors, "GPU CSV must contain exactly one observation row")
+    engine_success_count = 0
+    memory_success_count = 0
+    for index, row in enumerate(rows, start=1):
+        try:
+            observation = _parse_utc_timestamp(row["observation_utc"])
+            if observation is None:
+                raise ValueError("GPU observation timestamp is invalid")
             engine_ok = _parse_bool(
                 row["gpu_engine_query_ok"], "gpu_engine_query_ok"
             )
             memory_ok = _parse_bool(
                 row["gpu_memory_query_ok"], "gpu_memory_query_ok"
             )
+            samples["gpu_engine_query_ok"].append(engine_ok)
+            samples["gpu_memory_query_ok"].append(memory_ok)
+            for prefix, query_ok in (
+                ("gpu_engine", engine_ok),
+                ("gpu_memory", memory_ok),
+            ):
+                started_field = f"{prefix}_query_started_utc"
+                completed_field = f"{prefix}_query_completed_utc"
+                started = _parse_utc_timestamp(row[started_field])
+                completed = _parse_utc_timestamp(row[completed_field])
+                if query_ok and (
+                    started is None
+                    or completed is None
+                    or completed < started
+                    or completed > observation
+                ):
+                    raise ValueError(f"{prefix} query timing is invalid")
+                samples[started_field].append(row[started_field])
+                samples[completed_field].append(row[completed_field])
+
             if engine_ok:
                 gpu = float(row["gpu_percent"])
                 engine_count = float(row["gpu_engine_count"])
@@ -787,36 +1005,24 @@ def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
                         "numeric GPU memory evidence was emitted for a failed query",
                     )
         except (KeyError, TypeError, ValueError) as error:
-            _append_error(
-                errors, f"utilization CSV row {index} is invalid: {error}"
-            )
+            _append_error(errors, f"GPU CSV row {index} is invalid: {error}")
 
-    if not rows:
-        _append_error(errors, "utilization CSV has no real counter sample")
     summary: dict[str, Any] = {"row_count": len(rows)}
-    for field in (*UTILIZATION_VALUE_FIELDS, *UTILIZATION_TIMING_FIELDS):
+    for field in GPU_VALUE_FIELDS:
         try:
             summary[field] = summarize_samples(samples[field])
         except ValueError:
             summary[field] = None
-            _append_error(errors, f"{field} utilization evidence is absent")
+            _append_error(errors, f"{field} GPU evidence is absent")
     summary["gpu_engine_query"] = {
         "success_count": engine_success_count,
         "failure_count": len(rows) - engine_success_count,
-        "all_succeeded": bool(rows) and engine_success_count == len(rows),
+        "all_succeeded": len(rows) == 1 and engine_success_count == 1,
     }
     summary["gpu_memory_query"] = {
         "success_count": memory_success_count,
         "failure_count": len(rows) - memory_success_count,
-        "all_succeeded": bool(rows) and memory_success_count == len(rows),
-    }
-    summary["cpu_sample_definitions"] = {
-        FIRST_CPU_SAMPLE_DEFINITION: samples["cpu_sample_definition"].count(
-            FIRST_CPU_SAMPLE_DEFINITION
-        ),
-        INTERVAL_CPU_SAMPLE_DEFINITION: samples["cpu_sample_definition"].count(
-            INTERVAL_CPU_SAMPLE_DEFINITION
-        ),
+        "all_succeeded": len(rows) == 1 and memory_success_count == 1,
     }
     return summary, samples, errors
 
@@ -859,10 +1065,17 @@ def _parse_gtest_json(path: Path) -> dict:
         raise ValueError("GTest JSON must contain exactly one passed GTest")
     case = cases[0]
     test_name = f"{case.get('classname', '')}.{case.get('name', '')}"
+    source_file = case.get("file")
+    source_line = case.get("line")
     if (
         test_name != EXPECTED_TEST_NAME
         or case.get("status") != "RUN"
         or case.get("result") != "COMPLETED"
+        or not isinstance(source_file, str)
+        or not Path(source_file).is_absolute()
+        or not isinstance(source_line, int)
+        or isinstance(source_line, bool)
+        or source_line <= 0
     ):
         raise ValueError("GTest JSON does not contain the required passed GTest")
     return {
@@ -872,6 +1085,8 @@ def _parse_gtest_json(path: Path) -> dict:
         "errors": 0,
         "disabled": 0,
         "test_name": test_name,
+        "source_file": source_file,
+        "source_line": source_line,
     }
 
 
@@ -1024,6 +1239,10 @@ def _initial_run_record(
         "launch_governance": {
             "workload_created_suspended": False,
             "workload_assigned_before_resume": False,
+            "workload_affinity_mask": None,
+            "workload_affinity_set_before_resume": False,
+            "workload_cpu_rate_hard_cap_percent": None,
+            "workload_cpu_rate_control_set_before_resume": False,
             "sampler_created_suspended": False,
             "sampler_assigned_before_resume": False,
         },
@@ -1040,6 +1259,7 @@ def _initial_run_record(
         "started_utc": None,
         "ended_utc": None,
         "elapsed_seconds": None,
+        "workload_sampling_window_seconds": None,
         "sampling_interval_ms": interval_ms,
         "timeout_seconds": timeout_seconds,
         "minimum_available_ram_mb": minimum_available_ram_mb,
@@ -1061,6 +1281,13 @@ def _initial_run_record(
                 )
             },
             "cpu_sample_definition": [],
+        },
+        "gpu_summary": None,
+        "gpu_samples": {
+            **{field: [] for field in GPU_VALUE_FIELDS},
+            "gpu_engine_query_ok": [],
+            "gpu_memory_query_ok": [],
+            **{field: [] for field in GPU_QUERY_TIME_FIELDS},
         },
         "marker": None,
         "gtest": None,
@@ -1087,20 +1314,7 @@ def _initial_run_record(
         "emergency_actions": [],
         "validation_errors": [],
         "valid": False,
-        "artifacts": {
-            "command": "command.json",
-            "environment": "environment.json",
-            "stdout": "stdout.txt",
-            "stderr": "stderr.txt",
-            "sampler_stdout": "sampler.stdout.txt",
-            "sampler_stderr": "sampler.stderr.txt",
-            "memory_samples": "memory.jsonl",
-            "utilization": "utilization.csv",
-            "sampler_ready": "utilization.ready",
-            "sampling_start": "utilization.start",
-            "gtest": "gtest.json",
-            "run": "run.json",
-        },
+        "artifacts": dict(EXPECTED_RUN_ARTIFACTS),
     }
 
 
@@ -1137,6 +1351,7 @@ def run_one(
         "sampler_stderr": output_dir / "sampler.stderr.txt",
         "memory": output_dir / "memory.jsonl",
         "utilization": output_dir / "utilization.csv",
+        "gpu": output_dir / "gpu.csv",
         "ready": output_dir / "utilization.ready",
         "start": output_dir / "utilization.start",
         "stop": output_dir / "utilization.stop",
@@ -1176,6 +1391,7 @@ def run_one(
         paths["sampler_stderr"],
         paths["memory"],
         paths["utilization"],
+        paths["gpu"],
     ):
         path.touch()
     paths["ready"].unlink(missing_ok=True)
@@ -1205,6 +1421,7 @@ def run_one(
     observed_pids: set[int] = set()
     started_monotonic: float | None = None
     started_counter_ns: int | None = None
+    workload_resumed_counter_ns: int | None = None
     cleanup_started: float | None = None
 
     if not errors:
@@ -1212,6 +1429,13 @@ def run_one(
             workload_job = KillOnCloseJob(
                 f"OpenVINOTurboQuantWorkload-{run_nonce}"
             )
+            workload_job.set_cpu_rate_hard_cap(EXACT_WORKLOAD_CPU_RATE)
+            record["launch_governance"][
+                "workload_cpu_rate_hard_cap_percent"
+            ] = EXACT_WORKLOAD_CPU_RATE_HARD_CAP_PERCENT
+            record["launch_governance"][
+                "workload_cpu_rate_control_set_before_resume"
+            ] = True
             sampler_job = KillOnCloseJob(
                 f"OpenVINOTurboQuantSampler-{run_nonce}"
             )
@@ -1248,6 +1472,15 @@ def run_one(
             record["root_pid"] = workload.pid
             workload_job.assign_pid(workload.pid)
             workload_assigned = True
+            _set_process_affinity_mask(
+                workload.pid, EXACT_WORKLOAD_AFFINITY_MASK
+            )
+            record["launch_governance"][
+                "workload_affinity_mask"
+            ] = EXACT_WORKLOAD_AFFINITY_MASK
+            record["launch_governance"][
+                "workload_affinity_set_before_resume"
+            ] = True
 
             sampler_command = [
                 shutil.which("powershell.exe") or "powershell.exe",
@@ -1261,6 +1494,8 @@ def run_one(
                 str(workload.pid),
                 "-OutputPath",
                 str(paths["utilization"]),
+                "-GpuOutputPath",
+                str(paths["gpu"]),
                 "-ReadyPath",
                 str(paths["ready"]),
                 "-StartPath",
@@ -1329,6 +1564,7 @@ def run_one(
                     (time.perf_counter_ns() - started_counter_ns) / 1_000_000_000
                 )
                 gate["workload_resumed_utc"] = _utc_now()
+                workload_resumed_counter_ns = time.perf_counter_ns()
 
                 paths["start"].write_text(
                     gate["workload_resumed_utc"] + "\n",
@@ -1348,6 +1584,11 @@ def run_one(
                         record["timed_out"] = True
                         break
                     if workload.poll() is not None:
+                        if workload_resumed_counter_ns is not None:
+                            record["workload_sampling_window_seconds"] = (
+                                time.perf_counter_ns()
+                                - workload_resumed_counter_ns
+                            ) / 1_000_000_000
                         break
                     if now < next_sample:
                         try:
@@ -1610,6 +1851,11 @@ def run_one(
     record["utilization_samples"] = utilization_samples
     for error in utilization_errors:
         _append_error(errors, error)
+    gpu_summary, gpu_samples, gpu_errors = _read_gpu(paths["gpu"])
+    record["gpu_summary"] = gpu_summary
+    record["gpu_samples"] = gpu_samples
+    for error in gpu_errors:
+        _append_error(errors, error)
 
     if not paths["ready"].exists():
         _append_error(errors, "utilization sampler never reported ready")
@@ -1663,27 +1909,46 @@ def _parse_utc_timestamp(value: Any) -> datetime | None:
     return parsed
 
 
+def expected_cpu_sample_count(
+    workload_sampling_window_seconds: float, interval_ms: int
+) -> int:
+    """Return the minimum publishable CPU rows for a measured workload window."""
+    if (
+        not _is_finite_number(workload_sampling_window_seconds)
+        or workload_sampling_window_seconds <= 0
+        or interval_ms <= 0
+    ):
+        raise ValueError("workload sampling window is invalid")
+    scheduled = math.floor(
+        (workload_sampling_window_seconds * 1000.0) / interval_ms + 1e-9
+    )
+    # Allow the terminal scheduled point to race with the stop signal, while
+    # still requiring a real interval delta for every accepted run.
+    return max(2, scheduled - 1)
+
+
 def _validate_summary_and_samples(run: dict) -> None:
     summary = run.get("utilization_summary")
     samples = run.get("utilization_samples")
-    _require(isinstance(summary, dict), "CPU/GPU utilization summary is missing")
-    _require(isinstance(samples, dict), "CPU/GPU utilization samples are missing")
+    _require(isinstance(summary, dict), "CPU utilization summary is missing")
+    _require(isinstance(samples, dict), "CPU utilization samples are missing")
     row_count = summary.get("row_count")
     _require(
-        isinstance(row_count, int) and not isinstance(row_count, bool) and row_count > 0,
-        "CPU/GPU utilization row count is invalid",
+        isinstance(row_count, int)
+        and not isinstance(row_count, bool)
+        and row_count >= 2,
+        "CPU interval-delta evidence requires at least two rows",
     )
     for field in UTILIZATION_VALUE_FIELDS:
         values = samples.get(field)
-        label = "CPU" if field == "cpu_percent" else "GPU"
         _require(
             isinstance(values, list) and len(values) == row_count,
-            f"{label} {field} samples are missing",
+            f"CPU {field} samples are missing",
         )
         expected = summarize_samples(values)
         _require(
             summary.get(field) == expected,
-            f"{label} {field} summary does not match raw samples",
+            f"CPU {field} summary does not match raw samples",
         )
     definitions = samples.get("cpu_sample_definition")
     _require(
@@ -1694,7 +1959,7 @@ def _validate_summary_and_samples(run: dict) -> None:
             definition == INTERVAL_CPU_SAMPLE_DEFINITION
             for definition in definitions[1:]
         ),
-        "CPU sample interval definitions are invalid",
+        "CPU interval-delta sample definitions are invalid",
     )
     expected_definition_counts = {
         FIRST_CPU_SAMPLE_DEFINITION: 1,
@@ -1702,7 +1967,7 @@ def _validate_summary_and_samples(run: dict) -> None:
     }
     _require(
         summary.get("cpu_sample_definitions") == expected_definition_counts,
-        "CPU sample interval definition counts are invalid",
+        "CPU interval-delta sample definition counts are invalid",
     )
     deadlines = samples.get("sample_deadline_elapsed_ms")
     lateness = samples.get("sample_lateness_ms")
@@ -1723,23 +1988,91 @@ def _validate_summary_and_samples(run: dict) -> None:
             for value in deadlines
         )
         and all(
-            later > earlier
+            math.isclose(
+                later - earlier,
+                float(EXACT_INTERVAL_MS),
+                abs_tol=1e-6,
+            )
             for earlier, later in zip(deadlines, deadlines[1:])
         )
-        and all(_is_finite_number(value) and value >= 0 for value in lateness)
+        and all(
+            _is_finite_number(value)
+            and 0 <= value < EXACT_INTERVAL_MS
+            for value in lateness
+        )
         and summary.get("sample_deadline_elapsed_ms")
         == summarize_samples(deadlines)
         and summary.get("sample_lateness_ms") == summarize_samples(lateness),
-        "sampling deadline/lateness evidence is invalid",
+        "sampling deadlines are not contiguous 100 ms cadence evidence",
     )
+    workload_window = run.get("workload_sampling_window_seconds")
+    expected_count = expected_cpu_sample_count(
+        workload_window, run.get("sampling_interval_ms")
+    )
+    _require(
+        row_count >= expected_count,
+        "CPU sample coverage is below the measured workload window requirement",
+    )
+
+
+def _validate_gpu_summary_and_samples(run: dict) -> None:
+    summary = run.get("gpu_summary")
+    samples = run.get("gpu_samples")
+    _require(isinstance(summary, dict), "GPU utilization summary is missing")
+    _require(isinstance(samples, dict), "GPU utilization samples are missing")
+    row_count = summary.get("row_count")
+    _require(row_count == 1, "GPU evidence must contain one observation row")
+    for field in GPU_VALUE_FIELDS:
+        values = samples.get(field)
+        _require(
+            isinstance(values, list) and len(values) == 1,
+            f"GPU {field} samples are missing",
+        )
+        _require(
+            summary.get(field) == summarize_samples(values),
+            f"GPU {field} summary does not match raw samples",
+        )
     for field in ("gpu_engine_query", "gpu_memory_query"):
         status = summary.get(field)
         _require(
             isinstance(status, dict)
             and status.get("all_succeeded") is True
-            and status.get("success_count") == row_count
+            and status.get("success_count") == 1
             and status.get("failure_count") == 0,
             "GPU counter query evidence is missing or failed",
+        )
+    _require(
+        samples.get("gpu_engine_query_ok") == [True]
+        and samples.get("gpu_memory_query_ok") == [True],
+        "GPU counter query status samples are invalid",
+    )
+    gate = run.get("sampler_start_gate")
+    workload_resumed = (
+        _parse_utc_timestamp(gate.get("workload_resumed_utc"))
+        if isinstance(gate, dict)
+        else None
+    )
+    run_ended = _parse_utc_timestamp(run.get("ended_utc"))
+    for prefix in ("gpu_engine", "gpu_memory"):
+        started_values = samples.get(f"{prefix}_query_started_utc")
+        completed_values = samples.get(f"{prefix}_query_completed_utc")
+        started = (
+            _parse_utc_timestamp(started_values[0])
+            if isinstance(started_values, list) and len(started_values) == 1
+            else None
+        )
+        completed = (
+            _parse_utc_timestamp(completed_values[0])
+            if isinstance(completed_values, list) and len(completed_values) == 1
+            else None
+        )
+        _require(
+            workload_resumed is not None
+            and run_ended is not None
+            and started is not None
+            and completed is not None
+            and workload_resumed <= started <= completed <= run_ended,
+            "GPU counter query timing evidence is invalid",
         )
 
 
@@ -1747,8 +2080,23 @@ def _validate_run_for_reconciliation(
     run: dict, derived_commit: str, executable_sha256: str
 ) -> None:
     _require(isinstance(run, dict), "run evidence is missing")
+    _require(run.get("valid") is True, "nested run is not marked valid")
     _require(run.get("schema") == RUN_SCHEMA, "run schema is invalid")
     output_directory = run.get("output_directory")
+    _require(
+        isinstance(output_directory, str)
+        and bool(output_directory)
+        and Path(output_directory).is_absolute(),
+        "run output directory is invalid",
+    )
+    _require(
+        run.get("run_id") == Path(output_directory).name,
+        "run identifier does not match its output directory",
+    )
+    _require(
+        run.get("artifacts") == EXPECTED_RUN_ARTIFACTS,
+        "run artifact manifest is not exact",
+    )
     command = run.get("command")
     expected_gtest_output = (
         f"--gtest_output=json:{Path(output_directory) / 'gtest.json'}"
@@ -1764,6 +2112,45 @@ def _validate_run_for_reconciliation(
         and command[1] == EXPECTED_GTEST_FILTER
         and command[2] == expected_gtest_output,
         "run did not use the exact production GTest command",
+    )
+    derived_repo = run.get("derived_repo")
+    provenance = run.get("build_provenance")
+    build_directory = (
+        provenance.get("build_directory")
+        if isinstance(provenance, dict)
+        else None
+    )
+    cmake_home = (
+        provenance.get("cmake_home_directory")
+        if isinstance(provenance, dict)
+        else None
+    )
+    cmake_cache = (
+        provenance.get("cmake_cache") if isinstance(provenance, dict) else None
+    )
+    gtest = run.get("gtest")
+    source_file = gtest.get("source_file") if isinstance(gtest, dict) else None
+    _require(
+        isinstance(derived_repo, str)
+        and bool(derived_repo)
+        and isinstance(provenance, dict)
+        and isinstance(build_directory, str)
+        and isinstance(cmake_home, str)
+        and isinstance(cmake_cache, str)
+        and re.fullmatch(
+            r"[0-9a-f]{64}", provenance.get("cmake_cache_sha256", "")
+        )
+        is not None
+        and isinstance(provenance.get("cmake_generator"), str)
+        and bool(provenance["cmake_generator"])
+        and provenance.get("executable_within_build_directory") is True
+        and _same_path(cmake_home, derived_repo)
+        and _same_path(cmake_cache, Path(build_directory) / "CMakeCache.txt")
+        and _path_is_within(command[0], build_directory)
+        and isinstance(source_file, str)
+        and _path_is_within(source_file, derived_repo)
+        and Path(source_file).name == "turboquant_stateful_graph.cpp",
+        "executable provenance is not bound to the derived checkout",
     )
     identity = run.get("environment_identity")
     _require(
@@ -1811,9 +2198,19 @@ def _validate_run_for_reconciliation(
         isinstance(governance, dict)
         and governance.get("workload_created_suspended") is True
         and governance.get("workload_assigned_before_resume") is True
+        and governance.get("workload_affinity_mask")
+        == EXACT_WORKLOAD_AFFINITY_MASK
+        and governance.get("workload_affinity_set_before_resume") is True
         and governance.get("sampler_created_suspended") is True
         and governance.get("sampler_assigned_before_resume") is True,
-        "launch governance did not prove Job assignment before resume",
+        "launch governance/affinity did not prove controls before resume",
+    )
+    _require(
+        governance.get("workload_cpu_rate_hard_cap_percent")
+        == EXACT_WORKLOAD_CPU_RATE_HARD_CAP_PERCENT
+        and governance.get("workload_cpu_rate_control_set_before_resume")
+        is True,
+        "controlled CPU rate hard cap was not set before resume",
     )
     gate = run.get("sampler_start_gate")
     ready_observed = (
@@ -1868,6 +2265,15 @@ def _validate_run_for_reconciliation(
         run.get("sampling_interval_ms") == EXACT_INTERVAL_MS,
         "sampling interval is not exactly 100 ms",
     )
+    _require(
+        run.get("timeout_seconds") == EXACT_TIMEOUT_SECONDS,
+        "run timeout is not exactly 300 seconds",
+    )
+    _require(
+        run.get("minimum_available_ram_mb")
+        == EXACT_MINIMUM_AVAILABLE_RAM_MB,
+        "run RAM floor is not exactly 2,048 MiB",
+    )
     memory_count = run.get("memory_sample_count")
     _require(
         isinstance(memory_count, int)
@@ -1896,10 +2302,15 @@ def _validate_run_for_reconciliation(
         ram["minimum"] <= ram["before"] and ram["minimum"] <= ram["after"],
         "available RAM minimum is inconsistent",
     )
+    _require(
+        ram["minimum"]
+        >= int(EXACT_MINIMUM_AVAILABLE_RAM_MB * 1024 * 1024),
+        "available RAM minimum fell below the 2,048 MiB floor",
+    )
     _validate_summary_and_samples(run)
+    _validate_gpu_summary_and_samples(run)
     marker = run.get("marker")
     _validate_lifetime_marker(marker, expected_nonce=nonce)
-    gtest = run.get("gtest")
     _require(
         isinstance(gtest, dict)
         and gtest.get("tests") == 1
@@ -1986,6 +2397,11 @@ def reconcile_runs(
         runs[0]["command"][0] == runs[1]["command"][0],
         "fresh processes used different production executables",
     )
+    _require(
+        runs[0]["derived_repo"] == runs[1]["derived_repo"]
+        and runs[0]["build_provenance"] == runs[1]["build_provenance"],
+        "build provenance differs across fresh processes",
+    )
     runtime_dll_sha256 = runs[0]["environment_identity"][
         "runtime_openvino_dll_sha256"
     ]
@@ -2037,9 +2453,16 @@ def reconcile_runs(
             for value in run["utilization_samples"][field]
         ]
         combined[field] = summarize_samples(values)
+    for field in GPU_VALUE_FIELDS:
+        values = [
+            value
+            for run in runs
+            for value in run["gpu_samples"][field]
+        ]
+        combined[field] = summarize_samples(values)
     combined["gpu_engine_query"] = {
         "success_count": sum(
-            run["utilization_summary"]["gpu_engine_query"]["success_count"]
+            run["gpu_summary"]["gpu_engine_query"]["success_count"]
             for run in runs
         ),
         "failure_count": 0,
@@ -2047,7 +2470,7 @@ def reconcile_runs(
     }
     combined["gpu_memory_query"] = {
         "success_count": sum(
-            run["utilization_summary"]["gpu_memory_query"]["success_count"]
+            run["gpu_summary"]["gpu_memory_query"]["success_count"]
             for run in runs
         ),
         "failure_count": 0,
@@ -2073,6 +2496,8 @@ def reconcile_runs(
         "schema": EVIDENCE_SCHEMA,
         "generated_utc": _utc_now(),
         "derived_commit": derived_commit,
+        "derived_repo": runs[0]["derived_repo"],
+        "build_provenance": runs[0]["build_provenance"],
         "executable_sha256": executable_sha256,
         "runtime_openvino_dll_sha256": runtime_dll_sha256,
         "runtime_openvino_dll_sha256_observations": runtime_dll_observations,
@@ -2105,6 +2530,7 @@ def reconcile_runs(
             "runtime_dll_hashes_match": True,
             "environment_identities_match": True,
             "exact_production_commands": True,
+            "build_bound_to_derived_checkout": True,
             "derived_checkout_clean": True,
             "exactly_one_passed_gtest_per_run": True,
             "queried_zero_survivors": True,
@@ -2122,6 +2548,43 @@ def publish_reconciled_capability(
     value = reconcile_runs(runs, derived_commit, executable_sha256)
     atomic_write_json(path, value)
     return value
+
+
+def preserve_superseded_canonical(
+    output: Path, raw_root: Path
+) -> dict[str, str] | None:
+    """Preserve an existing canonical artifact before a later publication."""
+    output = Path(output)
+    if not output.is_file():
+        return None
+    raw_root = Path(raw_root)
+    raw_root.mkdir(parents=True, exist_ok=True)
+    content = output.read_bytes()
+    digest = hashlib.sha256(content).hexdigest()
+    target = raw_root / f"superseded-{output.stem}-{digest[:16]}.json"
+    if target.exists():
+        if _sha256_file(target) != digest:
+            raise ValueError("superseded canonical path contains different bytes")
+    else:
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=raw_root,
+                prefix=".sup-",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+            temporary = None
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+    return {"path": str(target), "sha256": digest}
 
 
 def attempt_directory_for(
@@ -2171,6 +2634,7 @@ def _git_identity(repo: Path) -> tuple[str, str]:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--derived-repo", type=Path, required=True)
+    parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--executable", type=Path, required=True)
     parser.add_argument("--runtime-library-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -2191,6 +2655,7 @@ def main() -> int:
     output = args.output.resolve()
     raw_root = output.parent / output.stem
     raw_root.mkdir(parents=True, exist_ok=True)
+    superseded_canonical = preserve_superseded_canonical(output, raw_root)
     attempt_nonce = secrets.token_hex(4)
     attempt_dir = attempt_directory_for(
         output, datetime.now(timezone.utc), attempt_nonce
@@ -2198,7 +2663,7 @@ def main() -> int:
     attempt_dir.mkdir(parents=True, exist_ok=False)
     summary_path = attempt_dir / "attempt-summary.json"
     attempt_summary: dict[str, Any] = {
-        "schema": "openvino-turboquant-reference-capability-attempt/v1",
+        "schema": "openvino-turboquant-reference-capability-attempt/v2",
         "attempt_directory": str(attempt_dir),
         "canonical_output": str(output),
         "started_utc": _utc_now(),
@@ -2206,9 +2671,22 @@ def main() -> int:
         "error": None,
         "runs": [],
         "derived_repo": str(args.derived_repo.resolve()),
+        "build_directory": str(args.build_dir.resolve()),
         "executable": str(absolute_invocation_path(args.executable)),
         "runtime_library_dir": str(args.runtime_library_dir),
+        "controller_configuration": {
+            "timeout_seconds": args.timeout_seconds,
+            "sampling_interval_ms": args.interval_ms,
+            "minimum_available_ram_mb": args.minimum_available_ram_mb,
+            "workload_affinity_mask": EXACT_WORKLOAD_AFFINITY_MASK,
+            "workload_cpu_rate_hard_cap_percent": (
+                EXACT_WORKLOAD_CPU_RATE_HARD_CAP_PERCENT
+            ),
+        },
+        "superseded_canonical": superseded_canonical,
         "derived_observations": {},
+        "build_provenance_observations": {},
+        "build_provenance_snapshot": None,
         "executable_sha256_observations": {},
         "runtime_openvino_dll_sha256_observations": {},
     }
@@ -2221,6 +2699,7 @@ def main() -> int:
         if args.minimum_available_ram_mb != EXACT_MINIMUM_AVAILABLE_RAM_MB:
             raise ValueError("publication requires the 2,048 MiB RAM floor")
         derived_repo = args.derived_repo.resolve()
+        build_dir = args.build_dir.resolve()
         executable = absolute_invocation_path(args.executable)
         if not derived_repo.is_dir():
             raise ValueError("derived checkout does not exist")
@@ -2230,6 +2709,26 @@ def main() -> int:
             args.runtime_library_dir
         )
         runtime_openvino_dll = runtime_library_dir / "openvino.dll"
+        build_provenance_before_run_1 = validate_build_provenance(
+            derived_repo, build_dir, executable
+        )
+        attempt_summary["build_provenance_observations"][
+            "before_run_1"
+        ] = build_provenance_before_run_1
+        cache_snapshot = attempt_dir / "CMakeCache.txt"
+        cache_snapshot.write_bytes(
+            Path(build_provenance_before_run_1["cmake_cache"]).read_bytes()
+        )
+        cache_snapshot_sha256 = _sha256_file(cache_snapshot)
+        if (
+            cache_snapshot_sha256
+            != build_provenance_before_run_1["cmake_cache_sha256"]
+        ):
+            raise ValueError("CMakeCache snapshot hash does not match provenance")
+        attempt_summary["build_provenance_snapshot"] = {
+            "path": str(cache_snapshot),
+            "sha256": cache_snapshot_sha256,
+        }
 
         commit_before_run_1, status_before_run_1 = _git_identity(derived_repo)
         attempt_summary["derived_observations"]["before_run_1"] = {
@@ -2269,15 +2768,23 @@ def main() -> int:
             run_1_nonce,
             runtime_library_dir,
         )
+        run_1["derived_repo"] = str(derived_repo)
+        run_1["build_provenance"] = build_provenance_before_run_1
         runs.append(run_1)
 
         commit_before_run_2, status_before_run_2 = _git_identity(derived_repo)
+        build_provenance_before_run_2 = validate_build_provenance(
+            derived_repo, build_dir, executable
+        )
         sha_before_run_2 = _sha256_file(executable)
         runtime_sha_before_run_2 = _sha256_file(runtime_openvino_dll)
         attempt_summary["derived_observations"]["before_run_2"] = {
             "commit": commit_before_run_2,
             "status_porcelain": status_before_run_2,
         }
+        attempt_summary["build_provenance_observations"][
+            "before_run_2"
+        ] = build_provenance_before_run_2
         attempt_summary["executable_sha256_observations"][
             "before_run_2"
         ] = sha_before_run_2
@@ -2313,15 +2820,23 @@ def main() -> int:
             run_2_nonce,
             runtime_library_dir,
         )
+        run_2["derived_repo"] = str(derived_repo)
+        run_2["build_provenance"] = build_provenance_before_run_2
         runs.append(run_2)
 
         commit_after_run_2, status_after_run_2 = _git_identity(derived_repo)
+        build_provenance_after_run_2 = validate_build_provenance(
+            derived_repo, build_dir, executable
+        )
         sha_after_run_2 = _sha256_file(executable)
         runtime_sha_after_run_2 = _sha256_file(runtime_openvino_dll)
         attempt_summary["derived_observations"]["after_run_2"] = {
             "commit": commit_after_run_2,
             "status_porcelain": status_after_run_2,
         }
+        attempt_summary["build_provenance_observations"][
+            "after_run_2"
+        ] = build_provenance_after_run_2
         attempt_summary["executable_sha256_observations"][
             "after_run_2"
         ] = sha_after_run_2
@@ -2355,6 +2870,12 @@ def main() -> int:
         ):
             raise ValueError("executable SHA-256 drifted across the two runs")
         if not (
+            build_provenance_before_run_1
+            == build_provenance_before_run_2
+            == build_provenance_after_run_2
+        ):
+            raise ValueError("build provenance drifted across the two runs")
+        if not (
             runtime_sha_before_run_1
             == runtime_sha_before_run_2
             == runtime_sha_after_run_2
@@ -2365,7 +2886,7 @@ def main() -> int:
             runs, commit_before_run_1, sha_before_run_1
         )
         capability["attempt_directory"] = str(attempt_dir)
-        capability["derived_repo"] = str(derived_repo)
+        capability["supersedes"] = superseded_canonical
         capability["runtime_library_dir"] = str(runtime_library_dir)
         if (
             capability["runtime_openvino_dll_sha256_observations"]
@@ -2381,6 +2902,12 @@ def main() -> int:
         }
         capability["derived_checkout_observations"] = attempt_summary[
             "derived_observations"
+        ]
+        capability["build_provenance_observations"] = attempt_summary[
+            "build_provenance_observations"
+        ]
+        capability["build_provenance_snapshot"] = attempt_summary[
+            "build_provenance_snapshot"
         ]
         atomic_write_json(output, capability)
         attempt_summary["status"] = "published"

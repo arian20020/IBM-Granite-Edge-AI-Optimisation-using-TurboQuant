@@ -1,0 +1,90 @@
+{
+  "attempt_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T233215Z-6f1d45dd",
+  "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
+  "build_provenance_observations": {
+    "after_run_2": {
+      "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
+      "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
+      "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
+      "cmake_generator": "Visual Studio 18 2026",
+      "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
+      "executable_within_build_directory": true
+    },
+    "before_run_1": {
+      "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
+      "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
+      "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
+      "cmake_generator": "Visual Studio 18 2026",
+      "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
+      "executable_within_build_directory": true
+    },
+    "before_run_2": {
+      "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
+      "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
+      "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
+      "cmake_generator": "Visual Studio 18 2026",
+      "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
+      "executable_within_build_directory": true
+    }
+  },
+  "build_provenance_snapshot": {
+    "path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T233215Z-6f1d45dd\\CMakeCache.txt",
+    "sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9"
+  },
+  "canonical_output": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability.json",
+  "controller_configuration": {
+    "minimum_available_ram_mb": 2048.0,
+    "sampling_interval_ms": 100,
+    "timeout_seconds": 300.0
+  },
+  "derived_observations": {
+    "after_run_2": {
+      "commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
+      "status_porcelain": ""
+    },
+    "before_run_1": {
+      "commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
+      "status_porcelain": ""
+    },
+    "before_run_2": {
+      "commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
+      "status_porcelain": ""
+    }
+  },
+  "derived_repo": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
+  "ended_utc": "2026-07-27T23:32:19.563863Z",
+  "error": "ValueError: CPU interval-delta evidence requires at least two rows",
+  "executable": "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+  "executable_sha256_observations": {
+    "after_run_2": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
+    "before_run_1": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
+    "before_run_2": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497"
+  },
+  "runs": [
+    {
+      "directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T233215Z-6f1d45dd\\run-1",
+      "run_id": "run-1",
+      "valid": true,
+      "validation_errors": []
+    },
+    {
+      "directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T233215Z-6f1d45dd\\run-2",
+      "run_id": "run-2",
+      "valid": true,
+      "validation_errors": []
+    }
+  ],
+  "runtime_library_dir": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.venv-official-openvino-2026.2.1\\Lib\\site-packages\\openvino\\libs",
+  "runtime_openvino_dll_sha256_observations": {
+    "after_run_2": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
+    "before_run_1": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
+    "before_run_2": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195"
+  },
+  "schema": "openvino-turboquant-reference-capability-attempt/v2",
+  "started_utc": "2026-07-27T23:32:15.037251Z",
+  "status": "failed",
+  "superseded_canonical": {
+    "path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\superseded-reference-capability-f9a05f8b8f669246.json",
+    "sha256": "f9a05f8b8f6692460821a3b0be4506bdc8ccb7ec442d4966c13123981af1377e"
+  }
+}

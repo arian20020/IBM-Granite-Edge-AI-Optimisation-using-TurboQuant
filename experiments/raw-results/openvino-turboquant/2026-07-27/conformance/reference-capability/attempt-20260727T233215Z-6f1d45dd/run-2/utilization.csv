@@ -1,0 +1,2 @@
+﻿timestamp_utc,cpu_percent,cpu_sample_definition,sample_deadline_elapsed_ms,sample_lateness_ms
+2026-07-27T23:32:18.8972884Z,11.869748,lifetime_average_since_workload_resume,100.000000,20.727000

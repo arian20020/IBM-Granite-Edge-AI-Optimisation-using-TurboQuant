@@ -1,54 +1,16 @@
 {
-  "attempt_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T234930Z-bb96e61e",
-  "build_provenance": {
-    "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
-    "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
-    "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
-    "cmake_generator": "Visual Studio 18 2026",
-    "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-    "executable_within_build_directory": true
-  },
-  "build_provenance_observations": {
-    "after_run_2": {
-      "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
-      "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
-      "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
-      "cmake_generator": "Visual Studio 18 2026",
-      "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-      "executable_within_build_directory": true
-    },
-    "before_run_1": {
-      "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
-      "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
-      "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
-      "cmake_generator": "Visual Studio 18 2026",
-      "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-      "executable_within_build_directory": true
-    },
-    "before_run_2": {
-      "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
-      "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
-      "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
-      "cmake_generator": "Visual Studio 18 2026",
-      "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-      "executable_within_build_directory": true
-    }
-  },
-  "build_provenance_snapshot": {
-    "path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T234930Z-bb96e61e\\CMakeCache.txt",
-    "sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9"
-  },
+  "attempt_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T224140Z-e3e3da39",
   "combined_utilization": {
     "cpu_percent": {
-      "count": 16,
-      "maximum": 7.303949,
-      "mean": 1.3231084375,
-      "median": 0.0,
-      "minimum": 0.0,
-      "peak": 7.303949
+      "count": 2,
+      "maximum": 9.325392,
+      "mean": 8.180701500000001,
+      "median": 8.180701500000001,
+      "minimum": 7.036011,
+      "peak": 9.325392
     },
     "cpu_sample_definitions": {
-      "interval_delta": 14,
+      "interval_delta": 0,
       "lifetime_average_since_workload_resume": 2
     },
     "gpu_dedicated_mb": {
@@ -94,20 +56,20 @@
       "peak": 0.0
     },
     "sample_deadline_elapsed_ms": {
-      "count": 16,
-      "maximum": 1000.0,
-      "mean": 475.0,
-      "median": 450.0,
+      "count": 2,
+      "maximum": 100.0,
+      "mean": 100.0,
+      "median": 100.0,
       "minimum": 100.0,
-      "peak": 1000.0
+      "peak": 100.0
     },
     "sample_lateness_ms": {
-      "count": 16,
-      "maximum": 24.0077,
-      "mean": 11.2639,
-      "median": 13.681249999999999,
-      "minimum": 1.415,
-      "peak": 24.0077
+      "count": 2,
+      "maximum": 66.5559,
+      "mean": 57.38374999999999,
+      "median": 57.38374999999999,
+      "minimum": 48.2116,
+      "peak": 66.5559
     }
   },
   "derived_checkout_observations": {
@@ -128,16 +90,16 @@
   "derived_repo": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
   "device": "CPU",
   "executable": {
-    "path": "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\tests\\cpp\\Release\\tests_continuous_batching.exe",
-    "sha256": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
+    "path": "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+    "sha256": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
     "sha256_observations": {
-      "after_run_2": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
-      "before_run_1": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
-      "before_run_2": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497"
+      "after_run_2": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+      "before_run_1": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+      "before_run_2": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7"
     }
   },
-  "executable_sha256": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
-  "generated_utc": "2026-07-27T23:49:34.462707Z",
+  "executable_sha256": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+  "generated_utc": "2026-07-27T22:41:45.105995Z",
   "hash_algorithm": "FNV-1a-64-labelled-step-result-raw-bytes",
   "matched_state_count": 4,
   "output_hashes_per_process": [
@@ -151,7 +113,6 @@
     ]
   ],
   "reconciliation": {
-    "build_bound_to_derived_checkout": true,
     "derived_checkout_clean": true,
     "distinct_nonces": true,
     "environment_identities_match": true,
@@ -170,7 +131,6 @@
       "artifacts": {
         "command": "command.json",
         "environment": "environment.json",
-        "gpu": "gpu.csv",
         "gtest": "gtest.json",
         "memory_samples": "memory.jsonl",
         "run": "run.json",
@@ -183,33 +143,24 @@
         "utilization": "utilization.csv"
       },
       "available_ram_bytes": {
-        "after": 8051908608,
-        "before": 8061210624,
-        "minimum": 7981010944
-      },
-      "build_provenance": {
-        "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
-        "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
-        "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
-        "cmake_generator": "Visual Studio 18 2026",
-        "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-        "executable_within_build_directory": true
+        "after": 7563538432,
+        "before": 7593316352,
+        "minimum": 7492431872
       },
       "child_workload_observed": false,
-      "cleanup_duration_seconds": 0.31200000003445894,
+      "cleanup_duration_seconds": 0.2809999999590218,
       "command": [
-        "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+        "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant\\tests\\cpp\\Release\\tests_continuous_batching.exe",
         "--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
-        "--gtest_output=json:C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T234930Z-bb96e61e\\run-1\\gtest.json"
+        "--gtest_output=json:C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T224140Z-e3e3da39\\run-1\\gtest.json"
       ],
       "derived_checkout_clean_after": true,
       "derived_checkout_clean_before": true,
       "derived_commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
-      "derived_repo": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-      "elapsed_seconds": 1.922000000020489,
+      "elapsed_seconds": 1.7339999999385327,
       "emergency_actions": [],
       "emergency_stop": false,
-      "ended_utc": "2026-07-27T23:49:32.678017Z",
+      "ended_utc": "2026-07-27T22:41:42.618607Z",
       "environment_identity": {
         "capability_nonce_variable": "OPENVINO_TURBOQUANT_CAPABILITY_NONCE",
         "computer_name": "LENOVO-PF4HMD0T",
@@ -226,93 +177,14 @@
         "runtime_openvino_dll_sha256": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
         "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
       },
-      "executable_sha256_after": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
-      "executable_sha256_before": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
+      "executable_sha256_after": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+      "executable_sha256_before": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
       "exit_code": 0,
-      "gpu_samples": {
-        "gpu_dedicated_mb": [
-          0.0
-        ],
-        "gpu_engine_count": [
-          0.0
-        ],
-        "gpu_engine_query_completed_utc": [
-          "2026-07-27T23:49:31.8418397Z"
-        ],
-        "gpu_engine_query_ok": [
-          true
-        ],
-        "gpu_engine_query_started_utc": [
-          "2026-07-27T23:49:31.4901221Z"
-        ],
-        "gpu_memory_query_completed_utc": [
-          "2026-07-27T23:49:31.5123513Z"
-        ],
-        "gpu_memory_query_ok": [
-          true
-        ],
-        "gpu_memory_query_started_utc": [
-          "2026-07-27T23:49:31.4921288Z"
-        ],
-        "gpu_percent": [
-          0.0
-        ],
-        "gpu_shared_mb": [
-          0.0
-        ]
-      },
-      "gpu_summary": {
-        "gpu_dedicated_mb": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "gpu_engine_count": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "gpu_engine_query": {
-          "all_succeeded": true,
-          "failure_count": 0,
-          "success_count": 1
-        },
-        "gpu_memory_query": {
-          "all_succeeded": true,
-          "failure_count": 0,
-          "success_count": 1
-        },
-        "gpu_percent": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "gpu_shared_mb": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "row_count": 1
-      },
       "gtest": {
         "disabled": 0,
         "errors": 0,
         "failures": 0,
         "passed": 1,
-        "source_file": "R:\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe\\tests\\cpp\\turboquant_stateful_graph.cpp",
-        "source_line": 1257,
         "test_name": "TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
         "tests": 1
       },
@@ -326,11 +198,7 @@
       "launch_governance": {
         "sampler_assigned_before_resume": true,
         "sampler_created_suspended": true,
-        "workload_affinity_mask": 1,
-        "workload_affinity_set_before_resume": true,
         "workload_assigned_before_resume": true,
-        "workload_cpu_rate_control_set_before_resume": true,
-        "workload_cpu_rate_hard_cap_percent": 1.0,
         "workload_created_suspended": true
       },
       "low_memory_stop": false,
@@ -345,882 +213,7 @@
         ],
         "reference_operation_count": 4,
         "repeat_hash_matches": true,
-        "run_nonce": "92c173d04f9b231848fdd35a3f197faa",
-        "runtime_layer_type": "Reference",
-        "schema": "openvino-turboquant-reference-capability/v1",
-        "snapshots": [
-          {
-            "decoded_scratch_bytes": 256,
-            "full_precision_equivalent_bytes": 256,
-            "metadata_bytes": 32,
-            "norm_bytes": 32,
-            "payload_bytes": 28,
-            "states": [
-              {
-                "byte_count": 6,
-                "name": "layer_0_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_0_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_0_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_0_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_0_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_0_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 6,
-                "name": "layer_1_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_1_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_1_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_1_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_1_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 8,
-                "name": "layer_1_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  1,
-                  1
-                ],
-                "type": "i32"
-              }
-            ],
-            "step": 1
-          },
-          {
-            "decoded_scratch_bytes": 512,
-            "full_precision_equivalent_bytes": 512,
-            "metadata_bytes": 64,
-            "norm_bytes": 64,
-            "payload_bytes": 56,
-            "states": [
-              {
-                "byte_count": 12,
-                "name": "layer_0_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_0_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_0_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_0_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_0_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_0_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 12,
-                "name": "layer_1_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_1_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_1_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_1_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_1_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 16,
-                "name": "layer_1_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  2,
-                  1
-                ],
-                "type": "i32"
-              }
-            ],
-            "step": 2
-          },
-          {
-            "decoded_scratch_bytes": 12800,
-            "full_precision_equivalent_bytes": 12800,
-            "metadata_bytes": 1600,
-            "norm_bytes": 1600,
-            "payload_bytes": 1400,
-            "states": [
-              {
-                "byte_count": 300,
-                "name": "layer_0_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_0_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_0_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_0_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_0_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_0_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 300,
-                "name": "layer_1_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_1_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_1_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_1_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_1_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 400,
-                "name": "layer_1_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  50,
-                  1
-                ],
-                "type": "i32"
-              }
-            ],
-            "step": 50
-          },
-          {
-            "decoded_scratch_bytes": 25600,
-            "full_precision_equivalent_bytes": 25600,
-            "metadata_bytes": 3200,
-            "norm_bytes": 3200,
-            "payload_bytes": 2800,
-            "states": [
-              {
-                "byte_count": 600,
-                "name": "layer_0_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_0_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_0_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_0_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_0_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_0_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 600,
-                "name": "layer_1_sdpa.key.payload",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  3
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_1_sdpa.key.norm",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_1_sdpa.key.meta",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "i32"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_1_sdpa.value.payload",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  4
-                ],
-                "type": "u8"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_1_sdpa.value.norm",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "f32"
-              },
-              {
-                "byte_count": 800,
-                "name": "layer_1_sdpa.value.meta",
-                "shape": [
-                  1,
-                  2,
-                  100,
-                  1
-                ],
-                "type": "i32"
-              }
-            ],
-            "step": 100
-          }
-        ],
-        "steps": 100
-      },
-      "memory_sample_count": 11,
-      "minimum_available_ram_mb": 2048.0,
-      "observed_pids": [
-        2216
-      ],
-      "output_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T234930Z-bb96e61e\\run-1",
-      "peak_private_bytes": 92614656,
-      "peak_working_set_bytes": 34013184,
-      "root_pid": 2216,
-      "run_id": "run-1",
-      "run_nonce": "92c173d04f9b231848fdd35a3f197faa",
-      "runtime_openvino_dll_sha256_after": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
-      "runtime_openvino_dll_sha256_before": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
-      "sampler_exit_code": 0,
-      "sampler_job_object": {
-        "queried_active_process_count_after_cleanup": 0,
-        "query_ok": true,
-        "setup_ok": true,
-        "survivor_pids_after_cleanup": [],
-        "terminate_job_called": false
-      },
-      "sampler_start_gate": {
-        "ready_before_workload_resume": true,
-        "released_after_workload_resume": true,
-        "sampler_ready_observed_elapsed_seconds": 0.5757815,
-        "sampler_ready_observed_utc": "2026-07-27T23:49:31.344585Z",
-        "sampling_start_released_elapsed_seconds": 0.5959518,
-        "sampling_start_released_utc": "2026-07-27T23:49:31.351959Z",
-        "workload_resumed_elapsed_seconds": 0.5948982,
-        "workload_resumed_utc": "2026-07-27T23:49:31.351959Z"
-      },
-      "sampling_interval_ms": 100,
-      "schema": "openvino-turboquant-reference-capability-run/v3",
-      "started_utc": "2026-07-27T23:49:30.757693Z",
-      "timed_out": false,
-      "timeout_seconds": 300.0,
-      "utilization_samples": {
-        "cpu_percent": [
-          5.002791,
-          0.0,
-          0.0,
-          0.0,
-          4.717839,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.505116
-        ],
-        "cpu_sample_definition": [
-          "lifetime_average_since_workload_resume",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta"
-        ],
-        "sample_deadline_elapsed_ms": [
-          100.0,
-          200.0,
-          300.0,
-          400.0,
-          500.0,
-          600.0,
-          700.0,
-          800.0,
-          900.0,
-          1000.0
-        ],
-        "sample_lateness_ms": [
-          24.0077,
-          3.3075,
-          9.4127,
-          2.6528,
-          12.6787,
-          1.8911,
-          14.7404,
-          1.415,
-          15.6772,
-          2.7629
-        ]
-      },
-      "utilization_summary": {
-        "cpu_percent": {
-          "count": 10,
-          "maximum": 5.002791,
-          "mean": 1.1225745999999999,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 5.002791
-        },
-        "cpu_sample_definitions": {
-          "interval_delta": 9,
-          "lifetime_average_since_workload_resume": 1
-        },
-        "row_count": 10,
-        "sample_deadline_elapsed_ms": {
-          "count": 10,
-          "maximum": 1000.0,
-          "mean": 550.0,
-          "median": 550.0,
-          "minimum": 100.0,
-          "peak": 1000.0
-        },
-        "sample_lateness_ms": {
-          "count": 10,
-          "maximum": 24.0077,
-          "mean": 8.8546,
-          "median": 6.360099999999999,
-          "minimum": 1.415,
-          "peak": 24.0077
-        }
-      },
-      "valid": true,
-      "validation_errors": [],
-      "workload_sampling_window_seconds": 1.0055738
-    },
-    {
-      "artifacts": {
-        "command": "command.json",
-        "environment": "environment.json",
-        "gpu": "gpu.csv",
-        "gtest": "gtest.json",
-        "memory_samples": "memory.jsonl",
-        "run": "run.json",
-        "sampler_ready": "utilization.ready",
-        "sampler_stderr": "sampler.stderr.txt",
-        "sampler_stdout": "sampler.stdout.txt",
-        "sampling_start": "utilization.start",
-        "stderr": "stderr.txt",
-        "stdout": "stdout.txt",
-        "utilization": "utilization.csv"
-      },
-      "available_ram_bytes": {
-        "after": 8070864896,
-        "before": 8040484864,
-        "minimum": 7971827712
-      },
-      "build_provenance": {
-        "build_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe",
-        "cmake_cache": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\CMakeCache.txt",
-        "cmake_cache_sha256": "8cfbfe449965cd2595cee07331c76b59ad09cf03d25722284766104b83d2abb9",
-        "cmake_generator": "Visual Studio 18 2026",
-        "cmake_home_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-        "executable_within_build_directory": true
-      },
-      "child_workload_observed": false,
-      "cleanup_duration_seconds": 0.2029999999795109,
-      "command": [
-        "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant-capability-adb5fbe\\tests\\cpp\\Release\\tests_continuous_batching.exe",
-        "--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
-        "--gtest_output=json:C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T234930Z-bb96e61e\\run-2\\gtest.json"
-      ],
-      "derived_checkout_clean_after": true,
-      "derived_checkout_clean_before": true,
-      "derived_commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
-      "derived_repo": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe",
-      "elapsed_seconds": 1.547000000020489,
-      "emergency_actions": [],
-      "emergency_stop": false,
-      "ended_utc": "2026-07-27T23:49:34.368062Z",
-      "environment_identity": {
-        "capability_nonce_variable": "OPENVINO_TURBOQUANT_CAPABILITY_NONCE",
-        "computer_name": "LENOVO-PF4HMD0T",
-        "identity_sha256": "d2dcd3fd11794d6d5c0a28124f9c427aa743f8b9cc47ddeb60b6ee7e743fe4aa",
-        "logical_processor_count": 12,
-        "machine": "AMD64",
-        "operating_system": "Windows-10-10.0.26200-SP0",
-        "powershell_executable": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
-        "processor_identifier": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
-        "python_executable": "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-        "python_version": "3.11.9",
-        "runtime_library_dir": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.venv-official-openvino-2026.2.1\\Lib\\site-packages\\openvino\\libs",
-        "runtime_openvino_dll_sha256": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
-        "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
-      },
-      "executable_sha256_after": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
-      "executable_sha256_before": "1ccf27ff8bce1b2c5cf179c27d5aeadc3c4f356f0e256d9d9e60d699d318f497",
-      "exit_code": 0,
-      "gpu_samples": {
-        "gpu_dedicated_mb": [
-          0.0
-        ],
-        "gpu_engine_count": [
-          0.0
-        ],
-        "gpu_engine_query_completed_utc": [
-          "2026-07-27T23:49:33.9434520Z"
-        ],
-        "gpu_engine_query_ok": [
-          true
-        ],
-        "gpu_engine_query_started_utc": [
-          "2026-07-27T23:49:33.5898838Z"
-        ],
-        "gpu_memory_query_completed_utc": [
-          "2026-07-27T23:49:33.6144300Z"
-        ],
-        "gpu_memory_query_ok": [
-          true
-        ],
-        "gpu_memory_query_started_utc": [
-          "2026-07-27T23:49:33.5917821Z"
-        ],
-        "gpu_percent": [
-          0.0
-        ],
-        "gpu_shared_mb": [
-          0.0
-        ]
-      },
-      "gpu_summary": {
-        "gpu_dedicated_mb": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "gpu_engine_count": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "gpu_engine_query": {
-          "all_succeeded": true,
-          "failure_count": 0,
-          "success_count": 1
-        },
-        "gpu_memory_query": {
-          "all_succeeded": true,
-          "failure_count": 0,
-          "success_count": 1
-        },
-        "gpu_percent": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "gpu_shared_mb": {
-          "count": 1,
-          "maximum": 0.0,
-          "mean": 0.0,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 0.0
-        },
-        "row_count": 1
-      },
-      "gtest": {
-        "disabled": 0,
-        "errors": 0,
-        "failures": 0,
-        "passed": 1,
-        "source_file": "R:\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant-capability-adb5fbe\\tests\\cpp\\turboquant_stateful_graph.cpp",
-        "source_line": 1257,
-        "test_name": "TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
-        "tests": 1
-      },
-      "job_object": {
-        "queried_active_process_count_after_cleanup": 0,
-        "query_ok": true,
-        "setup_ok": true,
-        "survivor_pids_after_cleanup": [],
-        "terminate_job_called": false
-      },
-      "launch_governance": {
-        "sampler_assigned_before_resume": true,
-        "sampler_created_suspended": true,
-        "workload_affinity_mask": 1,
-        "workload_affinity_set_before_resume": true,
-        "workload_assigned_before_resume": true,
-        "workload_cpu_rate_control_set_before_resume": true,
-        "workload_cpu_rate_hard_cap_percent": 1.0,
-        "workload_created_suspended": true
-      },
-      "low_memory_stop": false,
-      "marker": {
-        "device": "CPU",
-        "hash_algorithm": "FNV-1a-64-labelled-step-result-raw-bytes",
-        "matched_state_count": 4,
-        "no_full_precision_selected_state": true,
-        "output_hashes": [
-          "d7027879e0667158",
-          "d7027879e0667158"
-        ],
-        "reference_operation_count": 4,
-        "repeat_hash_matches": true,
-        "run_nonce": "5eb17dac634ac5411d2e6b57c8eb800c",
+        "run_nonce": "1544e846bd6991c3c4eeb402043732a1",
         "runtime_layer_type": "Reference",
         "schema": "openvino-turboquant-reference-capability/v1",
         "snapshots": [
@@ -1798,14 +791,14 @@
       "memory_sample_count": 8,
       "minimum_available_ram_mb": 2048.0,
       "observed_pids": [
-        8216
+        13640
       ],
-      "output_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T234930Z-bb96e61e\\run-2",
-      "peak_private_bytes": 231997440,
-      "peak_working_set_bytes": 46497792,
-      "root_pid": 8216,
-      "run_id": "run-2",
-      "run_nonce": "5eb17dac634ac5411d2e6b57c8eb800c",
+      "output_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T224140Z-e3e3da39\\run-1",
+      "peak_private_bytes": 232448000,
+      "peak_working_set_bytes": 46288896,
+      "root_pid": 13640,
+      "run_id": "run-1",
+      "run_nonce": "1544e846bd6991c3c4eeb402043732a1",
       "runtime_openvino_dll_sha256_after": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
       "runtime_openvino_dll_sha256_before": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
       "sampler_exit_code": 0,
@@ -1819,86 +812,918 @@
       "sampler_start_gate": {
         "ready_before_workload_resume": true,
         "released_after_workload_resume": true,
-        "sampler_ready_observed_elapsed_seconds": 0.6173485,
-        "sampler_ready_observed_utc": "2026-07-27T23:49:33.437603Z",
-        "sampling_start_released_elapsed_seconds": 0.6376681,
-        "sampling_start_released_utc": "2026-07-27T23:49:33.457629Z",
-        "workload_resumed_elapsed_seconds": 0.6366589,
-        "workload_resumed_utc": "2026-07-27T23:49:33.455882Z"
+        "sampler_ready_observed_elapsed_seconds": 0.6374747,
+        "sampler_ready_observed_utc": "2026-07-27T22:41:41.529218Z",
+        "sampling_start_released_elapsed_seconds": 0.7242882,
+        "sampling_start_released_utc": "2026-07-27T22:41:41.615732Z",
+        "workload_resumed_elapsed_seconds": 0.7190899,
+        "workload_resumed_utc": "2026-07-27T22:41:41.603849Z"
       },
       "sampling_interval_ms": 100,
-      "schema": "openvino-turboquant-reference-capability-run/v3",
-      "started_utc": "2026-07-27T23:49:32.819821Z",
+      "schema": "openvino-turboquant-reference-capability-run/v2",
+      "started_utc": "2026-07-27T22:41:40.887437Z",
       "timed_out": false,
       "timeout_seconds": 300.0,
       "utilization_samples": {
         "cpu_percent": [
-          7.303949,
-          2.64004,
-          0.0,
-          0.0,
-          0.0,
-          0.0
+          7.036011
         ],
         "cpu_sample_definition": [
-          "lifetime_average_since_workload_resume",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta",
-          "interval_delta"
+          "lifetime_average_since_workload_resume"
+        ],
+        "gpu_dedicated_mb": [
+          0.0
+        ],
+        "gpu_engine_count": [
+          0.0
+        ],
+        "gpu_percent": [
+          0.0
+        ],
+        "gpu_shared_mb": [
+          0.0
         ],
         "sample_deadline_elapsed_ms": [
-          100.0,
-          200.0,
-          300.0,
-          400.0,
-          500.0,
-          600.0
+          100.0
         ],
         "sample_lateness_ms": [
-          17.8235,
-          16.8589,
-          14.6838,
-          10.712,
-          15.7456,
-          15.8526
+          66.5559
         ]
       },
       "utilization_summary": {
         "cpu_percent": {
-          "count": 6,
-          "maximum": 7.303949,
-          "mean": 1.6573315,
-          "median": 0.0,
-          "minimum": 0.0,
-          "peak": 7.303949
+          "count": 1,
+          "maximum": 7.036011,
+          "mean": 7.036011,
+          "median": 7.036011,
+          "minimum": 7.036011,
+          "peak": 7.036011
         },
         "cpu_sample_definitions": {
-          "interval_delta": 5,
+          "interval_delta": 0,
           "lifetime_average_since_workload_resume": 1
         },
-        "row_count": 6,
+        "gpu_dedicated_mb": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "gpu_engine_count": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "gpu_engine_query": {
+          "all_succeeded": true,
+          "failure_count": 0,
+          "success_count": 1
+        },
+        "gpu_memory_query": {
+          "all_succeeded": true,
+          "failure_count": 0,
+          "success_count": 1
+        },
+        "gpu_percent": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "gpu_shared_mb": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "row_count": 1,
         "sample_deadline_elapsed_ms": {
-          "count": 6,
-          "maximum": 600.0,
-          "mean": 350.0,
-          "median": 350.0,
+          "count": 1,
+          "maximum": 100.0,
+          "mean": 100.0,
+          "median": 100.0,
           "minimum": 100.0,
-          "peak": 600.0
+          "peak": 100.0
         },
         "sample_lateness_ms": {
-          "count": 6,
-          "maximum": 17.8235,
-          "mean": 15.2794,
-          "median": 15.7991,
-          "minimum": 10.712,
-          "peak": 17.8235
+          "count": 1,
+          "maximum": 66.5559,
+          "mean": 66.5559,
+          "median": 66.5559,
+          "minimum": 66.5559,
+          "peak": 66.5559
         }
       },
       "valid": true,
-      "validation_errors": [],
-      "workload_sampling_window_seconds": 0.7134321
+      "validation_errors": []
+    },
+    {
+      "artifacts": {
+        "command": "command.json",
+        "environment": "environment.json",
+        "gtest": "gtest.json",
+        "memory_samples": "memory.jsonl",
+        "run": "run.json",
+        "sampler_ready": "utilization.ready",
+        "sampler_stderr": "sampler.stderr.txt",
+        "sampler_stdout": "sampler.stdout.txt",
+        "sampling_start": "utilization.start",
+        "stderr": "stderr.txt",
+        "stdout": "stdout.txt",
+        "utilization": "utilization.csv"
+      },
+      "available_ram_bytes": {
+        "after": 7488348160,
+        "before": 7567769600,
+        "minimum": 7430746112
+      },
+      "child_workload_observed": false,
+      "cleanup_duration_seconds": 0.25,
+      "command": [
+        "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+        "--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
+        "--gtest_output=json:C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T224140Z-e3e3da39\\run-2\\gtest.json"
+      ],
+      "derived_checkout_clean_after": true,
+      "derived_checkout_clean_before": true,
+      "derived_commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
+      "elapsed_seconds": 1.734000000054948,
+      "emergency_actions": [],
+      "emergency_stop": false,
+      "ended_utc": "2026-07-27T22:41:44.761095Z",
+      "environment_identity": {
+        "capability_nonce_variable": "OPENVINO_TURBOQUANT_CAPABILITY_NONCE",
+        "computer_name": "LENOVO-PF4HMD0T",
+        "identity_sha256": "d2dcd3fd11794d6d5c0a28124f9c427aa743f8b9cc47ddeb60b6ee7e743fe4aa",
+        "logical_processor_count": 12,
+        "machine": "AMD64",
+        "operating_system": "Windows-10-10.0.26200-SP0",
+        "powershell_executable": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+        "processor_identifier": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+        "python_executable": "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "python_version": "3.11.9",
+        "runtime_library_dir": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.venv-official-openvino-2026.2.1\\Lib\\site-packages\\openvino\\libs",
+        "runtime_openvino_dll_sha256": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
+        "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+      },
+      "executable_sha256_after": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+      "executable_sha256_before": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+      "exit_code": 0,
+      "gtest": {
+        "disabled": 0,
+        "errors": 0,
+        "failures": 0,
+        "passed": 1,
+        "test_name": "TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
+        "tests": 1
+      },
+      "job_object": {
+        "queried_active_process_count_after_cleanup": 0,
+        "query_ok": true,
+        "setup_ok": true,
+        "survivor_pids_after_cleanup": [],
+        "terminate_job_called": false
+      },
+      "launch_governance": {
+        "sampler_assigned_before_resume": true,
+        "sampler_created_suspended": true,
+        "workload_assigned_before_resume": true,
+        "workload_created_suspended": true
+      },
+      "low_memory_stop": false,
+      "marker": {
+        "device": "CPU",
+        "hash_algorithm": "FNV-1a-64-labelled-step-result-raw-bytes",
+        "matched_state_count": 4,
+        "no_full_precision_selected_state": true,
+        "output_hashes": [
+          "d7027879e0667158",
+          "d7027879e0667158"
+        ],
+        "reference_operation_count": 4,
+        "repeat_hash_matches": true,
+        "run_nonce": "463f4656e314065990ee73cdbebac5eb",
+        "runtime_layer_type": "Reference",
+        "schema": "openvino-turboquant-reference-capability/v1",
+        "snapshots": [
+          {
+            "decoded_scratch_bytes": 256,
+            "full_precision_equivalent_bytes": 256,
+            "metadata_bytes": 32,
+            "norm_bytes": 32,
+            "payload_bytes": 28,
+            "states": [
+              {
+                "byte_count": 6,
+                "name": "layer_0_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_0_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_0_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_0_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_0_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_0_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 6,
+                "name": "layer_1_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_1_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_1_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_1_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_1_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 8,
+                "name": "layer_1_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  1,
+                  1
+                ],
+                "type": "i32"
+              }
+            ],
+            "step": 1
+          },
+          {
+            "decoded_scratch_bytes": 512,
+            "full_precision_equivalent_bytes": 512,
+            "metadata_bytes": 64,
+            "norm_bytes": 64,
+            "payload_bytes": 56,
+            "states": [
+              {
+                "byte_count": 12,
+                "name": "layer_0_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_0_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_0_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_0_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_0_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_0_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 12,
+                "name": "layer_1_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_1_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_1_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_1_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_1_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 16,
+                "name": "layer_1_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  2,
+                  1
+                ],
+                "type": "i32"
+              }
+            ],
+            "step": 2
+          },
+          {
+            "decoded_scratch_bytes": 12800,
+            "full_precision_equivalent_bytes": 12800,
+            "metadata_bytes": 1600,
+            "norm_bytes": 1600,
+            "payload_bytes": 1400,
+            "states": [
+              {
+                "byte_count": 300,
+                "name": "layer_0_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_0_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_0_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_0_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_0_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_0_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 300,
+                "name": "layer_1_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_1_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_1_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_1_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_1_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 400,
+                "name": "layer_1_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  50,
+                  1
+                ],
+                "type": "i32"
+              }
+            ],
+            "step": 50
+          },
+          {
+            "decoded_scratch_bytes": 25600,
+            "full_precision_equivalent_bytes": 25600,
+            "metadata_bytes": 3200,
+            "norm_bytes": 3200,
+            "payload_bytes": 2800,
+            "states": [
+              {
+                "byte_count": 600,
+                "name": "layer_0_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_0_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_0_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_0_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_0_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_0_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 600,
+                "name": "layer_1_sdpa.key.payload",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  3
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_1_sdpa.key.norm",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_1_sdpa.key.meta",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "i32"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_1_sdpa.value.payload",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  4
+                ],
+                "type": "u8"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_1_sdpa.value.norm",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "f32"
+              },
+              {
+                "byte_count": 800,
+                "name": "layer_1_sdpa.value.meta",
+                "shape": [
+                  1,
+                  2,
+                  100,
+                  1
+                ],
+                "type": "i32"
+              }
+            ],
+            "step": 100
+          }
+        ],
+        "steps": 100
+      },
+      "memory_sample_count": 8,
+      "minimum_available_ram_mb": 2048.0,
+      "observed_pids": [
+        17208
+      ],
+      "output_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T224140Z-e3e3da39\\run-2",
+      "peak_private_bytes": 232218624,
+      "peak_working_set_bytes": 46268416,
+      "root_pid": 17208,
+      "run_id": "run-2",
+      "run_nonce": "463f4656e314065990ee73cdbebac5eb",
+      "runtime_openvino_dll_sha256_after": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
+      "runtime_openvino_dll_sha256_before": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
+      "sampler_exit_code": 0,
+      "sampler_job_object": {
+        "queried_active_process_count_after_cleanup": 0,
+        "query_ok": true,
+        "setup_ok": true,
+        "survivor_pids_after_cleanup": [],
+        "terminate_job_called": false
+      },
+      "sampler_start_gate": {
+        "ready_before_workload_resume": true,
+        "released_after_workload_resume": true,
+        "sampler_ready_observed_elapsed_seconds": 0.6711237,
+        "sampler_ready_observed_utc": "2026-07-27T22:41:43.705464Z",
+        "sampling_start_released_elapsed_seconds": 0.7527391,
+        "sampling_start_released_utc": "2026-07-27T22:41:43.785885Z",
+        "workload_resumed_elapsed_seconds": 0.7505767,
+        "workload_resumed_utc": "2026-07-27T22:41:43.783863Z"
+      },
+      "sampling_interval_ms": 100,
+      "schema": "openvino-turboquant-reference-capability-run/v2",
+      "started_utc": "2026-07-27T22:41:43.028680Z",
+      "timed_out": false,
+      "timeout_seconds": 300.0,
+      "utilization_samples": {
+        "cpu_percent": [
+          9.325392
+        ],
+        "cpu_sample_definition": [
+          "lifetime_average_since_workload_resume"
+        ],
+        "gpu_dedicated_mb": [
+          0.0
+        ],
+        "gpu_engine_count": [
+          0.0
+        ],
+        "gpu_percent": [
+          0.0
+        ],
+        "gpu_shared_mb": [
+          0.0
+        ],
+        "sample_deadline_elapsed_ms": [
+          100.0
+        ],
+        "sample_lateness_ms": [
+          48.2116
+        ]
+      },
+      "utilization_summary": {
+        "cpu_percent": {
+          "count": 1,
+          "maximum": 9.325392,
+          "mean": 9.325392,
+          "median": 9.325392,
+          "minimum": 9.325392,
+          "peak": 9.325392
+        },
+        "cpu_sample_definitions": {
+          "interval_delta": 0,
+          "lifetime_average_since_workload_resume": 1
+        },
+        "gpu_dedicated_mb": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "gpu_engine_count": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "gpu_engine_query": {
+          "all_succeeded": true,
+          "failure_count": 0,
+          "success_count": 1
+        },
+        "gpu_memory_query": {
+          "all_succeeded": true,
+          "failure_count": 0,
+          "success_count": 1
+        },
+        "gpu_percent": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "gpu_shared_mb": {
+          "count": 1,
+          "maximum": 0.0,
+          "mean": 0.0,
+          "median": 0.0,
+          "minimum": 0.0,
+          "peak": 0.0
+        },
+        "row_count": 1,
+        "sample_deadline_elapsed_ms": {
+          "count": 1,
+          "maximum": 100.0,
+          "mean": 100.0,
+          "median": 100.0,
+          "minimum": 100.0,
+          "peak": 100.0
+        },
+        "sample_lateness_ms": {
+          "count": 1,
+          "maximum": 48.2116,
+          "mean": 48.2116,
+          "median": 48.2116,
+          "minimum": 48.2116,
+          "peak": 48.2116
+        }
+      },
+      "valid": true,
+      "validation_errors": []
     }
   ],
   "runtime_layer_type": "Reference",
@@ -1909,7 +1734,7 @@
     "before_run_1": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195",
     "before_run_2": "7a1f9291900ed976dc72d2deed22d6bd3a2abe90ca567f25d645ae82ec1b2195"
   },
-  "schema": "openvino-turboquant-reference-capability-evidence/v3",
+  "schema": "openvino-turboquant-reference-capability-evidence/v2",
   "state_snapshots": [
     {
       "decoded_scratch_bytes": 256,
@@ -2487,9 +2312,5 @@
     "norm_bytes": 3200,
     "payload_bytes": 2800
   },
-  "steps": 100,
-  "supersedes": {
-    "path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\superseded-reference-capability-f9a05f8b8f669246.json",
-    "sha256": "f9a05f8b8f6692460821a3b0be4506bdc8ccb7ec442d4966c13123981af1377e"
-  }
+  "steps": 100
 }

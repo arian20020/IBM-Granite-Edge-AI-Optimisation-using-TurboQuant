@@ -121,6 +121,9 @@ def rehash_identity(identity: dict) -> None:
 def valid_run(nonce: str, pid: int) -> dict:
     marker = valid_marker(nonce)
     output_directory = Path(f"C:/fixture/run-{pid}")
+    derived_repo = Path("C:/fixture/clean-source")
+    build_directory = Path("C:/fixture/build")
+    executable = build_directory / "tests" / "Release" / "test.exe"
     environment_identity = {
         "computer_name": "fixture",
         "runtime_library_dir": "C:\\fixture\\openvino\\libs",
@@ -128,14 +131,23 @@ def valid_run(nonce: str, pid: int) -> dict:
     }
     rehash_identity(environment_identity)
     return {
-        "schema": "openvino-turboquant-reference-capability-run/v2",
+        "schema": "openvino-turboquant-reference-capability-run/v3",
         "run_id": f"run-{pid}",
         "output_directory": str(output_directory),
         "command": [
-            "C:\\fixture\\test.exe",
+            str(executable),
             "--gtest_filter=" + EXPECTED_TEST_NAME,
             f"--gtest_output=json:{output_directory / 'gtest.json'}",
         ],
+        "derived_repo": str(derived_repo),
+        "build_provenance": {
+            "build_directory": str(build_directory),
+            "cmake_cache": str(build_directory / "CMakeCache.txt"),
+            "cmake_cache_sha256": "9" * 64,
+            "cmake_generator": "Visual Studio 18 2026",
+            "cmake_home_directory": str(derived_repo),
+            "executable_within_build_directory": True,
+        },
         "environment_identity": environment_identity,
         "run_nonce": nonce,
         "root_pid": pid,
@@ -144,6 +156,10 @@ def valid_run(nonce: str, pid: int) -> dict:
         "launch_governance": {
             "workload_created_suspended": True,
             "workload_assigned_before_resume": True,
+            "workload_affinity_mask": 1,
+            "workload_affinity_set_before_resume": True,
+            "workload_cpu_rate_hard_cap_percent": 1.0,
+            "workload_cpu_rate_control_set_before_resume": True,
             "sampler_created_suspended": True,
             "sampler_assigned_before_resume": True,
         },
@@ -157,9 +173,10 @@ def valid_run(nonce: str, pid: int) -> dict:
             "workload_resumed_elapsed_seconds": 0.2,
             "sampling_start_released_elapsed_seconds": 0.3,
         },
-        "started_utc": "2026-07-27T00:00:00.000000Z",
-        "ended_utc": "2026-07-27T00:00:01.000000Z",
+        "started_utc": "2026-07-27T19:59:59.000000Z",
+        "ended_utc": "2026-07-27T20:00:01.000000Z",
         "elapsed_seconds": 1.0,
+        "workload_sampling_window_seconds": 0.35,
         "sampling_interval_ms": 100,
         "timeout_seconds": 300.0,
         "minimum_available_ram_mb": 2048.0,
@@ -176,20 +193,6 @@ def valid_run(nonce: str, pid: int) -> dict:
             "cpu_percent": summary([10.0, 20.0]),
             "sample_deadline_elapsed_ms": summary([100.0, 200.0]),
             "sample_lateness_ms": summary([10.0, 20.0]),
-            "gpu_percent": summary([0.0, 1.0]),
-            "gpu_engine_count": summary([0.0, 1.0]),
-            "gpu_dedicated_mb": summary([0.0, 2.0]),
-            "gpu_shared_mb": summary([0.0, 3.0]),
-            "gpu_engine_query": {
-                "success_count": 2,
-                "failure_count": 0,
-                "all_succeeded": True,
-            },
-            "gpu_memory_query": {
-                "success_count": 2,
-                "failure_count": 0,
-                "all_succeeded": True,
-            },
             "cpu_sample_definitions": {
                 "lifetime_average_since_workload_resume": 1,
                 "interval_delta": 1,
@@ -203,10 +206,43 @@ def valid_run(nonce: str, pid: int) -> dict:
                 "lifetime_average_since_workload_resume",
                 "interval_delta",
             ],
-            "gpu_percent": [0.0, 1.0],
-            "gpu_engine_count": [0.0, 1.0],
-            "gpu_dedicated_mb": [0.0, 2.0],
-            "gpu_shared_mb": [0.0, 3.0],
+        },
+        "gpu_summary": {
+            "row_count": 1,
+            "gpu_percent": summary([1.0]),
+            "gpu_engine_count": summary([1.0]),
+            "gpu_dedicated_mb": summary([2.0]),
+            "gpu_shared_mb": summary([3.0]),
+            "gpu_engine_query": {
+                "success_count": 1,
+                "failure_count": 0,
+                "all_succeeded": True,
+            },
+            "gpu_memory_query": {
+                "success_count": 1,
+                "failure_count": 0,
+                "all_succeeded": True,
+            },
+        },
+        "gpu_samples": {
+            "gpu_percent": [1.0],
+            "gpu_engine_count": [1.0],
+            "gpu_dedicated_mb": [2.0],
+            "gpu_shared_mb": [3.0],
+            "gpu_engine_query_ok": [True],
+            "gpu_memory_query_ok": [True],
+            "gpu_engine_query_started_utc": [
+                "2026-07-27T20:00:00.100000Z"
+            ],
+            "gpu_engine_query_completed_utc": [
+                "2026-07-27T20:00:00.200000Z"
+            ],
+            "gpu_memory_query_started_utc": [
+                "2026-07-27T20:00:00.100001Z"
+            ],
+            "gpu_memory_query_completed_utc": [
+                "2026-07-27T20:00:00.200001Z"
+            ],
         },
         "marker": marker,
         "gtest": {
@@ -216,6 +252,10 @@ def valid_run(nonce: str, pid: int) -> dict:
             "errors": 0,
             "disabled": 0,
             "test_name": EXPECTED_TEST_NAME,
+            "source_file": str(
+                derived_repo / "tests" / "cpp" / "turboquant_stateful_graph.cpp"
+            ),
+            "source_line": 1257,
         },
         "exit_code": 0,
         "timed_out": False,
@@ -244,14 +284,7 @@ def valid_run(nonce: str, pid: int) -> dict:
         "derived_checkout_clean_after": True,
         "validation_errors": [],
         "valid": True,
-        "artifacts": {
-            "stdout": "stdout.txt",
-            "stderr": "stderr.txt",
-            "memory_samples": "memory.jsonl",
-            "utilization": "utilization.csv",
-            "gtest": "gtest.json",
-            "run": "run.json",
-        },
+        "artifacts": dict(capability.EXPECTED_RUN_ARTIFACTS),
     }
 
 
@@ -302,7 +335,9 @@ def write_fixture(
                         "name": "PersistsOnlyCompressedStateForOneHundredSteps",
                         "classname": "TurboQuantStatefulGraph",
                         "status": "RUN",
-                        "result": "COMPLETED"
+                        "result": "COMPLETED",
+                        "file": {str(path)!r},
+                        "line": 1
                     }}]
                 }}]
             }}
@@ -423,31 +458,49 @@ def test_summarize_samples_rejects_absent_or_nonfinite_series(values):
         summarize_samples(values)
 
 
-def test_collector_exposes_independent_gpu_query_success_columns():
+def test_expected_cpu_sample_count_scales_with_workload_window():
+    assert capability.expected_cpu_sample_count(0.18, 100) == 2
+    assert capability.expected_cpu_sample_count(0.35, 100) == 2
+    assert capability.expected_cpu_sample_count(0.55, 100) == 4
+    assert capability.expected_cpu_sample_count(0.70, 100) == 6
+
+
+def test_collector_keeps_gpu_queries_off_the_cpu_cadence_path():
     script = (
         Path(__file__).parents[1]
         / "scripts"
         / "testing"
         / "collect_process_utilization.ps1"
     ).read_text(encoding="utf-8-sig")
-    header = next(
-        line for line in script.splitlines() if line.startswith("'timestamp_utc,")
+    cpu_header = next(
+        line for line in script.splitlines() if "timestamp_utc,cpu_percent," in line
     )
-    assert "gpu_engine_query_ok" in header
-    assert "gpu_memory_query_ok" in header
-    assert "cpu_sample_definition" in header
-    assert "sample_deadline_elapsed_ms" in header
-    assert "sample_lateness_ms" in header
+    gpu_header = next(
+        line
+        for line in script.splitlines()
+        if "observation_utc,gpu_percent," in line
+    )
+    assert "gpu_engine_query_ok" not in cpu_header
+    assert "gpu_memory_query_ok" not in cpu_header
+    assert "cpu_sample_definition" in cpu_header
+    assert "sample_deadline_elapsed_ms" in cpu_header
+    assert "sample_lateness_ms" in cpu_header
+    assert "gpu_engine_query_ok" in gpu_header
+    assert "gpu_memory_query_ok" in gpu_header
+    assert "[string]$GpuOutputPath" in script
     assert script.count("try {") >= 2
     assert script.count("catch {") >= 2
     assert (
+        "Get-WmiObject -Class "
         "Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine "
-        "-ErrorAction Stop"
+        "-AsJob -ErrorAction Stop"
     ) in script
     assert (
+        "Get-WmiObject -Class "
         "Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory "
-        "-ErrorAction Stop"
+        "-AsJob -ErrorAction Stop"
     ) in script
+    assert "Get-CimInstance" not in script
     assert "[Diagnostics.Stopwatch]::StartNew()" in script
     assert "nextDeadlineMilliseconds" in script
     assert "Start-Sleep -Milliseconds $IntervalMilliseconds" not in script
@@ -456,8 +509,11 @@ def test_collector_exposes_independent_gpu_query_success_columns():
     assert "$process.StartTime" not in script
     assert "$nextDeadlineMilliseconds = [double]$IntervalMilliseconds" in script
     assert "$resumeElapsedAtClockStartMilliseconds" in script
-    assert script.index("Set-Content -LiteralPath $ReadyPath") < script.index(
-        "Test-Path -LiteralPath $StartPath"
+    assert script.index("Get-WmiObject -Class") < script.index(
+        "[IO.File]::WriteAllText($ReadyPath"
+    )
+    assert script.index("[IO.File]::WriteAllText($ReadyPath") < script.index(
+        "[IO.File]::Exists($StartPath)"
     )
 
 
@@ -505,6 +561,59 @@ def test_absolute_invocation_path_preserves_supplied_drive():
     assert str(invocation).upper().startswith("R:\\")
 
 
+def test_build_provenance_rejects_cache_configured_from_another_checkout(
+    tmp_path: Path,
+):
+    clean_source = tmp_path / "clean-source"
+    dirty_source = tmp_path / "dirty-source"
+    build_dir = tmp_path / "build"
+    clean_source.mkdir()
+    dirty_source.mkdir()
+    executable = build_dir / "tests" / "Release" / "capability.exe"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"fixture-executable")
+    (build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 18 2026\n"
+        f"CMAKE_HOME_DIRECTORY:INTERNAL={dirty_source}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="CMAKE_HOME_DIRECTORY"):
+        capability.validate_build_provenance(
+            clean_source, build_dir, executable
+        )
+
+
+def test_build_provenance_binds_executable_and_cache_to_clean_checkout(
+    tmp_path: Path,
+):
+    clean_source = tmp_path / "clean-source"
+    build_dir = tmp_path / "build"
+    clean_source.mkdir()
+    executable = build_dir / "tests" / "Release" / "capability.exe"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"fixture-executable")
+    cache = build_dir / "CMakeCache.txt"
+    cache.write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 18 2026\n"
+        f"CMAKE_HOME_DIRECTORY:INTERNAL={clean_source}\n",
+        encoding="utf-8",
+    )
+
+    result = capability.validate_build_provenance(
+        clean_source, build_dir, executable
+    )
+
+    assert result == {
+        "build_directory": str(build_dir.resolve()),
+        "cmake_cache": str(cache.resolve()),
+        "cmake_cache_sha256": capability._sha256_file(cache),
+        "cmake_generator": "Visual Studio 18 2026",
+        "cmake_home_directory": str(clean_source.resolve()),
+        "executable_within_build_directory": True,
+    }
+
+
 def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
     tmp_path: Path,
 ):
@@ -532,11 +641,24 @@ def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
         )
         records.append(record)
         assert record["memory_sample_count"] >= 1
-        assert record["utilization_summary"]["row_count"] >= 1
+        assert record["utilization_summary"]["row_count"] >= 2
         assert record["gtest"]["tests"] == 1
         assert record["gtest"]["passed"] == 1
         assert record["utilization_samples"]["cpu_sample_definition"][0] == (
             "lifetime_average_since_workload_resume"
+        )
+        assert (
+            record["utilization_summary"]["cpu_sample_definitions"][
+                "interval_delta"
+            ]
+            >= 1
+        )
+        deadlines = record["utilization_samples"][
+            "sample_deadline_elapsed_ms"
+        ]
+        assert all(
+            later - earlier == pytest.approx(100.0)
+            for earlier, later in zip(deadlines, deadlines[1:])
         )
         assert record["job_object"][
             "queried_active_process_count_after_cleanup"
@@ -544,6 +666,10 @@ def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
         assert record["launch_governance"] == {
             "workload_created_suspended": True,
             "workload_assigned_before_resume": True,
+            "workload_affinity_mask": 1,
+            "workload_affinity_set_before_resume": True,
+            "workload_cpu_rate_hard_cap_percent": 1.0,
+            "workload_cpu_rate_control_set_before_resume": True,
             "sampler_created_suspended": True,
             "sampler_assigned_before_resume": True,
         }
@@ -575,8 +701,8 @@ def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
             later["elapsed_seconds"] - earlier["elapsed_seconds"]
             for earlier, later in zip(memory_rows, memory_rows[1:])
         ]
-        assert all(0.075 <= delta <= 0.2 for delta in memory_deltas)
-        with (output_dir / "utilization.csv").open(
+        assert all(0.075 <= delta <= 0.25 for delta in memory_deltas)
+        with (output_dir / "gpu.csv").open(
             encoding="utf-8-sig", newline=""
         ) as handle:
             rows = list(csv.DictReader(handle))
@@ -697,7 +823,7 @@ def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
     record = run_one(
         [sys.executable, str(fixture)],
         tmp_path / "timeout-run",
-        timeout_seconds=1.5,
+        timeout_seconds=12.0,
         interval_ms=100,
         minimum_available_ram_mb=1.0,
         run_nonce="3" * 32,
@@ -740,7 +866,7 @@ def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
             "CPU",
         ),
         (
-            lambda run: run["utilization_summary"]["gpu_engine_query"].__setitem__(
+            lambda run: run["gpu_summary"]["gpu_engine_query"].__setitem__(
                 "all_succeeded", False
             ),
             "GPU",
@@ -822,6 +948,130 @@ def test_reconcile_rejects_missing_or_invalid_measurement_evidence(
         reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
 
 
+def test_reconcile_rejects_cpu_sample_count_below_workload_window_coverage():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    runs[0]["workload_sampling_window_seconds"] = 0.55
+
+    with pytest.raises(ValueError, match="coverage"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_rejects_missing_controlled_workload_affinity():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    runs[0]["launch_governance"]["workload_affinity_set_before_resume"] = False
+
+    with pytest.raises(ValueError, match="affinity"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_rejects_missing_controlled_cpu_rate_hard_cap():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    runs[0]["launch_governance"][
+        "workload_cpu_rate_control_set_before_resume"
+    ] = False
+
+    with pytest.raises(ValueError, match="CPU rate"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+@pytest.mark.parametrize(
+    "mutation,match",
+    [
+        (
+            lambda run: run.__setitem__("timeout_seconds", 1.0),
+            "timeout",
+        ),
+        (
+            lambda run: run.__setitem__("minimum_available_ram_mb", 1.0),
+            "RAM floor",
+        ),
+        (
+            lambda run: run["available_ram_bytes"].__setitem__(
+                "minimum", (2048 * 1024 * 1024) - 1
+            ),
+            "below",
+        ),
+    ],
+)
+def test_reconcile_rejects_weakened_controller_limits_or_measured_ram(
+    mutation, match: str
+):
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    mutation(runs[0])
+
+    with pytest.raises(ValueError, match=match):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_rejects_a_nested_run_marked_invalid():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    runs[0]["valid"] = False
+
+    with pytest.raises(ValueError, match="marked valid"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+@pytest.mark.parametrize(
+    "mutation,match",
+    [
+        (
+            lambda run: run.__setitem__("run_id", "not-the-output-directory"),
+            "run identifier",
+        ),
+        (
+            lambda run: run["artifacts"].__setitem__("gtest", "wrong.json"),
+            "artifact manifest",
+        ),
+    ],
+)
+def test_reconcile_rejects_internally_contradictory_run_manifest(
+    mutation, match: str
+):
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    mutation(runs[0])
+
+    with pytest.raises(ValueError, match=match):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_rejects_zero_interval_delta_cpu_samples():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    run = runs[0]
+    run["workload_sampling_window_seconds"] = 0.18
+    run["utilization_summary"]["row_count"] = 1
+    for field in capability.UTILIZATION_VALUE_FIELDS:
+        run["utilization_samples"][field] = run["utilization_samples"][field][:1]
+        run["utilization_summary"][field] = summary(
+            run["utilization_samples"][field]
+        )
+    for field in capability.UTILIZATION_TIMING_FIELDS:
+        run["utilization_samples"][field] = run["utilization_samples"][field][:1]
+        run["utilization_summary"][field] = summary(
+            run["utilization_samples"][field]
+        )
+    run["utilization_samples"]["cpu_sample_definition"] = [
+        "lifetime_average_since_workload_resume"
+    ]
+    run["utilization_summary"]["cpu_sample_definitions"] = {
+        "lifetime_average_since_workload_resume": 1,
+        "interval_delta": 0,
+    }
+    with pytest.raises(ValueError, match="interval-delta"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_rejects_noncontiguous_cpu_sample_deadlines():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    run = runs[0]
+    run["utilization_samples"]["sample_deadline_elapsed_ms"][1] = 300.0
+    run["utilization_summary"]["sample_deadline_elapsed_ms"] = summary(
+        run["utilization_samples"]["sample_deadline_elapsed_ms"]
+    )
+
+    with pytest.raises(ValueError, match="contiguous"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
 def test_reconcile_rejects_cross_process_hash_mismatch():
     runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
     runs[1]["marker"]["output_hashes"] = [
@@ -896,6 +1146,27 @@ def test_reconcile_rejects_removed_or_changed_filter_and_wrong_gtest_output(
 
 
 @pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda run: run["build_provenance"].__setitem__(
+            "cmake_home_directory", "C:\\fixture\\dirty-source"
+        ),
+        lambda run: run["gtest"].__setitem__(
+            "source_file",
+            "C:\\fixture\\dirty-source\\tests\\cpp\\turboquant_stateful_graph.cpp",
+        ),
+    ],
+)
+def test_reconcile_rejects_executable_not_proven_from_derived_checkout(
+    mutation,
+):
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    mutation(runs[0])
+    with pytest.raises(ValueError, match="executable provenance"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+@pytest.mark.parametrize(
     "run_index,field",
     [
         (0, "runtime_openvino_dll_sha256_before"),
@@ -931,13 +1202,15 @@ def test_reconcile_retains_per_run_and_combined_cpu_gpu_statistics():
         runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256
     )
     assert result["runs"][0]["utilization_summary"]["cpu_percent"]["count"] == 2
-    assert result["runs"][1]["utilization_summary"]["gpu_percent"]["peak"] == 1.0
+    assert result["runs"][1]["gpu_summary"]["gpu_percent"]["peak"] == 1.0
     assert result["combined_utilization"]["cpu_percent"] == summary(
         [10.0, 20.0, 10.0, 20.0]
     )
     assert result["combined_utilization"]["gpu_percent"] == summary(
-        [0.0, 1.0, 0.0, 1.0]
+        [1.0, 1.0]
     )
+    assert result["build_provenance"] == runs[0]["build_provenance"]
+    assert result["reconciliation"]["build_bound_to_derived_checkout"] is True
     assert result["reconciliation"]["queried_zero_survivors"] is True
 
 
@@ -1038,6 +1311,30 @@ def test_attempt_path_stays_under_legacy_windows_limits():
     assert attempt.name == "attempt-20260727T214745Z-0fbd692a"
     assert len(str(attempt / "run-1")) < 248
     assert len(str(attempt / "run-1" / "sampler.stderr.txt")) < 260
+
+
+def test_existing_canonical_is_preserved_as_content_addressed_superseded_copy(
+    tmp_path: Path,
+):
+    output = tmp_path / "reference-capability.json"
+    raw_root = tmp_path / "reference-capability"
+    raw_root.mkdir()
+    old_bytes = b'{"schema":"old-evidence/v2"}\n'
+    output.write_bytes(old_bytes)
+
+    preserved = capability.preserve_superseded_canonical(output, raw_root)
+    repeated = capability.preserve_superseded_canonical(output, raw_root)
+
+    expected_hash = hashlib.sha256(old_bytes).hexdigest()
+    assert preserved == {
+        "path": str(
+            raw_root
+            / f"superseded-reference-capability-{expected_hash[:16]}.json"
+        ),
+        "sha256": expected_hash,
+    }
+    assert Path(preserved["path"]).read_bytes() == old_bytes
+    assert repeated == preserved
 
 
 def test_atomic_write_uses_short_temp_name_near_legacy_limit(tmp_path: Path):
