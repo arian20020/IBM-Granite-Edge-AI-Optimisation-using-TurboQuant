@@ -1,7 +1,13 @@
+import copy
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.testing.official_openvino.conversion import (
     ConversionSpec,
+    validate_artifact_manifest,
     validate_conversion,
 )
 
@@ -55,6 +61,233 @@ class OfficialOpenVINOConversionTests(unittest.TestCase):
                 files={}, load_probe={}, terminal_classification="memory-gate-not-run",
                 terminal_evidence={},
             ))
+
+
+class OfficialOpenVINOArtifactTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.artifact = self.root / "model"
+        self.artifact.mkdir()
+        contents = {
+            "openvino_model.xml": '<net><data element_type="i4"/></net>',
+            "openvino_model.bin": "packed model",
+            "openvino_tokenizer.xml": "<net/>",
+            "openvino_tokenizer.bin": "tokenizer IR",
+            "openvino_detokenizer.xml": "<net/>",
+            "openvino_detokenizer.bin": "detokenizer IR",
+            "tokenizer.json": '{"version":"1.0"}',
+            "tokenizer_config.json": '{"model_max_length":4096}',
+            "config.json": '{"model_type":"granite"}',
+            "generation_config.json": '{"do_sample":false}',
+            "openvino_config.json": '{"optimum_version":"2.1.0"}',
+            "README.md": "---\nlicense: apache-2.0\n---\nConverted model.\n",
+        }
+        for name, content in contents.items():
+            (self.artifact / name).write_text(content, encoding="utf-8")
+        self.log = self.root / "load-probe.log"
+        self.log.write_text("CPU generation passed\n", encoding="utf-8")
+        self.output = "Granite probe output"
+        self.files = []
+        for path in sorted(self.artifact.iterdir()):
+            if path.is_file():
+                self.files.append({
+                    "path": path.name,
+                    "size_bytes": path.stat().st_size,
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                })
+        self.files.sort(key=lambda item: item["path"])
+        canonical = json.dumps(
+            self.files, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        self.inventory_sha256 = hashlib.sha256(canonical).hexdigest()
+        self.manifest = {
+            "schema_version": 1,
+            "status": "load-proven",
+            "artifact_id": "granite-4.1-3b-u4-openvino",
+            "artifact_root": str(self.artifact),
+            "model": {
+                "family": "granite-4.1",
+                "parameter_scale": "3b",
+                "precision": "u4",
+                "source_repository": "ibm-granite/granite-4.1-3b",
+                "source_revision": "a" * 40,
+                "artifact_repository": "publisher/granite-4.1-3b-int4-ov",
+                "artifact_revision": "b" * 40,
+            },
+            "conversion": {
+                "kind": "published-preconverted",
+                "command": [
+                    "optimum-cli", "export", "openvino", "--weight-format", "int4"
+                ],
+                "tool_versions": {
+                    "optimum-intel": "2.1.0.dev0",
+                    "transformers": "5.5.0",
+                },
+                "provenance_path": "README.md",
+                "provenance_sha256": next(
+                    item["sha256"] for item in self.files if item["path"] == "README.md"
+                ),
+            },
+            "files": self.files,
+            "inventory_sha256": self.inventory_sha256,
+            "precision_proof": {
+                "path": "openvino_model.xml",
+                "sha256": next(
+                    item["sha256"]
+                    for item in self.files
+                    if item["path"] == "openvino_model.xml"
+                ),
+                "element_type": "i4",
+                "element_type_count": 1,
+            },
+            "license": {
+                "spdx": "Apache-2.0",
+                "path": "README.md",
+                "sha256": next(
+                    item["sha256"] for item in self.files if item["path"] == "README.md"
+                ),
+            },
+            "load_probe": {
+                "status": "passed",
+                "device_requested": "CPU",
+                "device_actual": "CPU",
+                "fallback": False,
+                "model_path": str(self.artifact),
+                "command": ["probe.exe", "--model", str(self.artifact), "--device", "CPU"],
+                "generated_tokens": 4,
+                "output": self.output,
+                "output_sha256": hashlib.sha256(self.output.encode("utf-8")).hexdigest(),
+                "artifact_inventory_sha256": self.inventory_sha256,
+                "runtime_build_manifest_sha256": "c" * 64,
+                "exit_code": 0,
+                "cleanup_process_count": 0,
+                "log_path": str(self.log),
+                "log_sha256": hashlib.sha256(self.log.read_bytes()).hexdigest(),
+            },
+        }
+        self.manifest_path = self.root / "artifact-manifest.json"
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def validate(self, manifest=None):
+        manifest = self.manifest if manifest is None else manifest
+        self.manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return validate_artifact_manifest(self.manifest_path, expected_precision="u4")
+
+    def test_accepts_hash_bound_precision_proven_cpu_generation_artifact(self):
+        result = self.validate()
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["precision"], "u4")
+        self.assertEqual(result["inventory_sha256"], self.inventory_sha256)
+
+    def test_rejects_missing_tampered_or_uninventoried_required_file(self):
+        for mutate, message in (
+            (
+                lambda manifest: manifest.update(
+                    files=[
+                        item for item in manifest["files"]
+                        if item["path"] != "openvino_tokenizer.bin"
+                    ]
+                ),
+                "required artifact files",
+            ),
+            (
+                lambda manifest: manifest["files"][0].update(sha256="0" * 64),
+                "artifact hash",
+            ),
+            (
+                lambda manifest: manifest["files"].append({
+                    "path": "../escape.bin",
+                    "size_bytes": 1,
+                    "sha256": "0" * 64,
+                }),
+                "within artifact root",
+            ),
+        ):
+            broken = copy.deepcopy(self.manifest)
+            mutate(broken)
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                self.validate(broken)
+
+    def test_rejects_precision_label_without_matching_ir_evidence(self):
+        for mutate, message in (
+            (
+                lambda manifest: manifest["precision_proof"].update(
+                    element_type="i8"
+                ),
+                "precision proof",
+            ),
+            (
+                lambda manifest: manifest["precision_proof"].update(
+                    element_type_count=2
+                ),
+                "element type count",
+            ),
+            (
+                lambda manifest: manifest["model"].update(precision="f16"),
+                "expected precision",
+            ),
+        ):
+            broken = copy.deepcopy(self.manifest)
+            mutate(broken)
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                self.validate(broken)
+
+    def test_rejects_incomplete_provenance_or_license_evidence(self):
+        for mutate, message in (
+            (
+                lambda manifest: manifest["conversion"].update(tool_versions={}),
+                "tool versions",
+            ),
+            (
+                lambda manifest: manifest["model"].update(artifact_revision="latest"),
+                "artifact revision",
+            ),
+            (
+                lambda manifest: manifest["license"].update(spdx="unknown"),
+                "license",
+            ),
+        ):
+            broken = copy.deepcopy(self.manifest)
+            mutate(broken)
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                self.validate(broken)
+
+    def test_rejects_unbound_failed_or_fallback_load_probe(self):
+        for mutate, message in (
+            (
+                lambda manifest: manifest["load_probe"].update(
+                    artifact_inventory_sha256="0" * 64
+                ),
+                "inventory",
+            ),
+            (
+                lambda manifest: manifest["load_probe"].update(fallback=True),
+                "fallback",
+            ),
+            (
+                lambda manifest: manifest["load_probe"].update(generated_tokens=0),
+                "generated tokens",
+            ),
+            (
+                lambda manifest: manifest["load_probe"].update(
+                    output_sha256="0" * 64
+                ),
+                "output hash",
+            ),
+            (
+                lambda manifest: manifest["load_probe"].update(
+                    cleanup_process_count=1
+                ),
+                "cleanup",
+            ),
+        ):
+            broken = copy.deepcopy(self.manifest)
+            mutate(broken)
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                self.validate(broken)
 
 
 if __name__ == "__main__":
