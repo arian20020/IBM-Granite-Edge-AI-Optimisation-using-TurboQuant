@@ -20,6 +20,18 @@
 - Retain a 2,048 MiB available-physical-RAM emergency floor and one owned process tree at a time.
 - Never count a blocked, crashed, unsupported, incomplete, or fallback attempt as a pass.
 - Do not describe WB-04 as fully executed until required 8B rows run on suitable hardware.
+- Keep model-weight precision, cache algorithm, cache precision, norm mode,
+  attention path, and requested device as separate fields. Never infer one from
+  another or relabel `STANDARD` state as scalar U8/U4.
+- Preserve the 60 controlled IDs. A negative or unsupported-boundary row may
+  pass only when its declared expected outcome is an exact fail-closed
+  rejection with hashed evidence. Such a row must use an explicit
+  `not-produced-by-expected-rejection` value for inapplicable generation
+  metrics rather than a blank, `N/A`, zero, or generic placeholder.
+- Derive quality scope from successful Granite generation, not the legacy
+  `quality_required` flags. Every successful Granite-generating baseline or
+  formal configuration receives P1-P6; expected-rejection rows receive a
+  sourced non-scored outcome and are never included in score rankings.
 
 ---
 
@@ -339,9 +351,11 @@ Commit message: `test(openvino): prepare verified Granite artifacts`.
 
 **Files:**
 - Extend: `scripts/testing/official_openvino/metrics.py`
+- Modify: `scripts/testing/official_openvino/matrix.py`
 - Replace terminal-only logic: `scripts/testing/official_openvino/runner.py`
 - Modify: `scripts/testing/run_official_openvino_retest.py`
 - Create: `scripts/testing/measure_official_openvino.py`
+- Test: `scripts/testing/tests/test_official_openvino_matrix.py`
 - Test: `scripts/testing/tests/test_official_openvino_metrics.py`
 - Test: `scripts/testing/tests/test_official_openvino_runner.py`
 
@@ -350,7 +364,14 @@ Commit message: `test(openvino): prepare verified Granite artifacts`.
 
 - [ ] **Step 1: Write failing end-to-end fake-runtime tests**
 
-Assert exact three-sample acceptance, all scalar and utilization fields, request-to-first-token TTFT, activation/packed-byte/device proof, invalid-attempt retention, timeout/memory stop, and zero surviving processes.
+Assert exact three-sample acceptance, all scalar and utilization fields,
+request-to-first-token TTFT, activation/packed-byte/device proof,
+invalid-attempt retention, timeout/memory stop, and zero surviving processes.
+Add a typed execution contract that keeps `weight_precision`,
+`key/value_algorithm`, `key/value_cache_precision`, `norm_correction`,
+`attention_path`, `requested_device`, and `expected_outcome` independent.
+Reject lowercase-to-runtime passthrough, unsupported mixed scalar/TurboQuant
+claims, and any accepted runtime row containing a null metric.
 
 - [ ] **Step 2: Run RED**
 
@@ -358,7 +379,26 @@ Expected: FAIL because the current runner only writes terminal records.
 
 - [ ] **Step 3: Implement measurement controller**
 
-Use monotonic timing, request-window CPU/GPU sampling, process-tree memory, OpenVINO profiling, activation JSON, atomic attempt directories, and strict reconciliation. Never infer missing GPU counters or KV bytes.
+Use monotonic timing, request-window CPU/GPU sampling, process-tree memory,
+OpenVINO profiling, activation JSON, atomic attempt directories, and strict
+reconciliation. Never infer missing GPU counters or KV bytes. Record
+CPU/GPU mean, median, peak, count, query status, dedicated/shared GPU memory,
+RAM before/minimum/after, expected/actual persistent KV bytes, output hashes,
+exit/timeout/cleanup status, and queried survivor counts.
+
+Translate controlled labels explicitly:
+
+- `standard` means no TurboQuant request and must record the actual plugin
+  cache precision.
+- symmetric `scalar` controls use the verified upstream scalar cache-precision
+  route only when the runtime proves the requested U8/U4 precision.
+- `tbq3` and `tbq4` map to uppercase project enums on CPU stateful SDPA and
+  require manifest-backed activation.
+- `frozen` means no TurboQuant request; record the actual device/cache path.
+- `qjl` and `polar` are exact expected-rejection probes.
+- mixed scalar/TurboQuant capability rows are expected rejections unless a
+  separately tested per-side scalar implementation exists. Do not substitute
+  full-precision `STANDARD` state for their U8/U4 labels.
 
 - [ ] **Step 4: Run fake-runtime GREEN and diagnostic smoke run**
 
@@ -371,7 +411,10 @@ Commit message: `test(openvino): measure patched TurboQuant execution`.
 ### Task 9: Execute the Complete 3B Runtime Matrix
 
 **Files:**
-- Modify: `experiments/manifests/official-openvino/retest-matrix.json` to add required `source_identity` and `build_identity` fields without changing controlled IDs.
+- Modify: `experiments/manifests/official-openvino/retest-matrix.json` to add
+  required `source_identity`, `build_identity`, explicit cache precision,
+  norm mode, attention path, and expected-outcome fields without changing
+  controlled IDs.
 - Create: `experiments/raw-results/official-openvino/2026-07-19-recovery/runtime/`
 
 **Interfaces:**
@@ -380,7 +423,12 @@ Commit message: `test(openvino): measure patched TurboQuant execution`.
 
 - [ ] **Step 1: Dry-run exact commands and preflight every row**
 
-Expected: no launch; every command records model/build/config IDs and safety limits.
+Expected: no launch; every command records model/build/config IDs, separate
+weight/cache identities, explicit norm mode, expected outcome, exact runtime
+enum spelling, attention path, and safety limits. `OV-TQ-03` through
+`OV-TQ-10` use norm correction ON; `OV-TQ-11` and `OV-TQ-12` are the
+corresponding OFF ablations. No controlled lowercase label is passed directly
+to the runtime.
 
 - [ ] **Step 2: Run standard baselines serially**
 
@@ -388,7 +436,9 @@ Accept only rows with pilot, warm-up, three measured samples, complete metrics, 
 
 - [ ] **Step 3: Run TBQ4/TBQ3 and asymmetric configurations serially**
 
-Require exact requested/activated algorithms and packed bytes for every accepted sample.
+Require exact requested/activated algorithms and packed bytes for every
+accepted sample. Scalar controls require actual upstream scalar-cache
+precision proof; they are not accepted from TurboQuant `STANDARD` telemetry.
 
 - [ ] **Step 4: Run norm, context, repeatability, and device-boundary rows**
 
@@ -412,7 +462,11 @@ Commit message: `test(openvino): execute measured 3B TurboQuant matrix`.
 
 - [ ] **Step 1: Write failing completeness and bias tests**
 
-Require all P1-P6 records, raw response hashes, deterministic gates, criterion scores, caps, notes, arithmetic aggregates, and equality of scoring for identical text under different precision/codec labels.
+Require all P1-P6 records, raw response hashes, deterministic gates, criterion
+scores, caps, notes, arithmetic aggregates, and equality of scoring for
+identical text under different precision/codec labels. Derive the required
+set from every accepted Granite-generating baseline/formal context instance,
+including 8B imports, rather than the legacy ten-row quality flag.
 
 - [ ] **Step 2: Run RED**
 
@@ -420,7 +474,11 @@ Expected: FAIL because current quality output contains only `not-scored` termina
 
 - [ ] **Step 3: Implement gated response capture and adjudication**
 
-Quality launch requires an accepted runtime summary for the identical configuration. Preserve exact prompts/settings and never award format, memory, or speed bonuses.
+Quality launch requires an accepted runtime summary for the identical
+configuration and context. Preserve exact prompts/settings and never award
+format, memory, precision, repository, codec, or speed bonuses. An expected
+rejection receives a sourced non-scored record; it never receives an invented
+numeric score.
 
 - [ ] **Step 4: Execute P1-P6 for every generating configuration**
 
@@ -451,7 +509,12 @@ Expected: FAIL because transfer tooling is absent.
 
 - [ ] **Step 3: Implement export/import and host preflight**
 
-The host controller must refuse less than 24 GiB available RAM or any condition that violates the calculated requirement plus 2,048 MiB floor. It uses the same pilot/warm-up/three-sample and P1-P6 contracts.
+The host controller must refuse less than 24 GiB available RAM or any condition
+that violates the calculated requirement plus 2,048 MiB floor. It uses the
+same pilot/warm-up/three-sample and P1-P6 contracts. The package covers
+`OV-C04` through `OV-C06`, `OV-07` through `OV-10`, and `OV-TQ-16` through
+`OV-TQ-17`; every returned result is bound to the exact patch/build/model
+hashes.
 
 - [ ] **Step 4: Execute/import the 8B rows**
 
@@ -478,7 +541,15 @@ Commit message: `test(openvino): validate WB-04 Granite 8B rows`.
 
 - [ ] **Step 1: Add failing final-acceptance tests**
 
-Require every controlled ID, zero blank/bare-placeholder cells, three accepted samples for each required runtime row, P1-P6 for every generating configuration, correct official/patched provenance, zero failed required tests, and no terminal placeholder represented as an execution pass.
+Require every controlled ID, zero blank/bare-placeholder cells, three accepted
+samples for each required generating runtime/context row, P1-P6 for every
+successful Granite-generating configuration, correct official/patched
+provenance, zero failed required tests, and no terminal placeholder represented
+as an execution pass. Explicitly reject `accepted=true` when any required
+metric is null, when a scalar precision is inferred instead of runtime-proven,
+or when quality scope is derived only from the legacy ten flags. Permit a
+non-numeric metric cell only for a declared expected-rejection row, using its
+specific sourced `not-produced-by-expected-rejection` outcome.
 
 - [ ] **Step 2: Run RED**
 
@@ -486,7 +557,11 @@ Expected: FAIL until all 3B and 8B evidence is present.
 
 - [ ] **Step 3: Reconcile raw evidence into Markdown and registers**
 
-Populate all timing, memory, utilization, KV, activation, fallback, quality, failure, and decision fields from validated evidence. Supersede rather than delete the 2026-07-19 terminal campaign.
+Populate all timing, memory, utilization, KV, activation, fallback, quality,
+failure, and decision fields from validated evidence. Supersede rather than
+delete the 2026-07-19 terminal campaign. Replace the complete workbook section
+between `# 11` and `# 12` atomically so stale timing/memory/utilization tables
+cannot remain; assert exactly one table per intended subsection.
 
 - [ ] **Step 4: Generate and verify the controlled artifact**
 
