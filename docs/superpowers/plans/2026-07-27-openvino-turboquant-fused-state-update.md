@@ -30,8 +30,8 @@
 - Parent recovery branch: `testing/openvino-turboquant-recovery`.
 - Controlled derived checkout branch: `project/turboquant-wb04`.
 - Accepted strict matcher head: `80f63c17c6517c236c6cda119a21e17b78266102`.
-- Current accepted derived head: `1561713cfc3a6c455fc9d91198e1e943cf22962b`.
-- Tasks 1 and 2 are accepted. Task 3 has an intentionally uncommitted three-file diff that preserves the retained parity RED, adds fused topology coverage, and must be resumed after Task 2A.
+- Current accepted derived head: `c39351ed93ce732cf698533c6b1710942cbeb82d`.
+- Tasks 1, 2, 2A, and 3 are accepted. Exact K/V parity, all nine K/V selections, and the relevant codec/config/operation/graph suites pass at this boundary.
 - The strict-`i64` integrated attempt passed structural topology but failed all eight selected CPU configurations because OpenVINO 2026.2.1 lowered state metadata to `i32`; the approved amendment makes `i32` the explicit end-to-end metadata type rather than accepting an implicit conversion.
 
 ## File Map
@@ -40,11 +40,14 @@
 - `src/cpp/src/llm/turboquant_state_update_decode.hpp/.cpp`: operation contract, validation, attributes, shape inference, and exact evaluation.
 - `src/cpp/src/llm/turboquant_stateful_graph.cpp`: replaces standard arithmetic codec subgraphs with the fused operation.
 - `src/cpp/src/utils.cpp`: registers the operation with the singleton core before CPU compilation.
+- `tests/cpp/CMakeLists.txt`: keeps production-core tests in `tests_continuous_batching` without adding production objects to the standalone graph target.
 - `src/cpp/src/llm/pipeline_stateful.hpp/.cpp` and `src/cpp/src/llm/pipeline.cpp`: pass validated configuration into the transform/compile boundary.
 - `src/cpp/src/llm/pipeline_base.hpp` and `src/cpp/src/continuous_batching/cache/turboquant_config.cpp`: store and serialize proven activation telemetry.
 - `tests/cpp/turboquant_state_update_decode.cpp`: focused operation tests.
 - `tests/cpp/turboquant_stateful_graph.cpp`: graph, parity, state, and all-nine K/V tests.
 - `tests/cpp/turboquant_pipeline_activation.cpp`: pipeline integration and telemetry tests.
+- `scripts/testing/run_openvino_reference_capability.py`: owns the timeout, resource sampling, process-tree cleanup, cross-run reconciliation, and atomic capability document.
+- `tests/test_openvino_reference_capability.py`: tests strict marker parsing, statistics, timeout cleanup, validation, and atomic output.
 - `experiments/patches/openvino-turboquant/0003-stateful-kv-graph.patch`: controlled implementation patch.
 - `experiments/raw-results/openvino-turboquant/2026-07-27/conformance/`: capability/build/activation evidence.
 
@@ -431,41 +434,81 @@ git add src/cpp/src/llm/turboquant_stateful_graph.cpp tests/cpp/turboquant_state
 git commit -m "fix(openvino): use exact fused compressed KV update"
 ```
 
-### Task 4: Register the Operation and Prove 100-Step CPU State
+### Task 4: Register the Operation and Emit a 100-Step CPU State Proof
 
 **Files:**
+- Modify: `external/official-openvino/2026-07-19/openvino.genai-turboquant/tests/cpp/CMakeLists.txt`
 - Modify: `external/official-openvino/2026-07-19/openvino.genai-turboquant/src/cpp/src/utils.cpp`
 - Modify: `external/official-openvino/2026-07-19/openvino.genai-turboquant/tests/cpp/turboquant_stateful_graph.cpp`
-- Create: `experiments/raw-results/openvino-turboquant/2026-07-27/conformance/reference-capability.json`
 
 **Interfaces:**
 - Consumes: transformed model with fused operations.
-- Produces: automatically registered production core and measured 100-step CPU capability evidence.
+- Produces: automatically registered production core and one strict machine-readable 100-step proof per fresh test process.
 
-The lifetime test uses:
+`turboquant_stateful_graph.cpp` is shared by two targets. Define
+`OV_GENAI_TURBOQUANT_PRODUCTION_CORE_TESTS` only for
+`tests_continuous_batching`, which already links
+`$<TARGET_OBJECTS:openvino_genai_obj>`. Guard `utils.hpp`, serialization
+includes, registration helpers, lifetime helpers, and the two production-core
+tests with that macro. Do not link `utils.cpp`, `openvino_genai_obj`, or
+`openvino::genai` into `turboquant_stateful_graph_tests`.
+
+The lifetime proof uses:
 
 ```cpp
+struct StateSnapshot {
+    size_t step;
+    size_t payload_bytes;
+    size_t norm_bytes;
+    size_t metadata_bytes;
+    size_t full_precision_equivalent_bytes;
+    size_t decoded_scratch_bytes;
+};
+
 struct LifetimeEvidence {
     size_t steps;
+    std::string hash_algorithm;
+    std::array<std::string, 2> output_hashes;
     bool repeat_hash_matches;
     bool no_full_precision_selected_state;
-    size_t surviving_owned_processes;
+    size_t reference_operation_count;
+    size_t matched_state_count;
+    std::vector<StateSnapshot> snapshots;
 };
 LifetimeEvidence run_one_hundred_steps(CacheAlgorithm key, CacheAlgorithm value);
 std::shared_ptr<ov::Model> transformed_two_layer_model(CacheAlgorithm key,
                                                        CacheAlgorithm value);
 ```
 
-The helper compiles through `utils::singleton_core()`, runs fixed distinct K/V
-inputs, snapshots `query_state()` at 1/2/50/100, repeats in a fresh request,
-and returns false for any state/type/byte/hash mismatch.
+The helper serializes the transformed model, reads it through
+`utils::singleton_core()`, compiles the deserialized model on CPU, runs fixed
+distinct per-layer K/V inputs, snapshots `query_state()` at 1/2/50/100, and
+repeats all 100 steps in a second fresh `InferRequest`. Hash every output
+tensor from every step, in step then result-index order, using labelled
+64-bit FNV-1a over the raw output bytes. Any state/type/byte/hash mismatch is a
+test failure.
 
 - [ ] **Step 1: Write the registration and lifetime RED tests**
 
 ```cpp
-TEST(TurboQuantStatefulGraph, SingletonCoreCompilesRegisteredFusedOperation) {
+TEST(TurboQuantStatefulGraph, SingletonCoreReadsRegisteredFusedOperation) {
     auto transformed = transformed_two_layer_model(CacheAlgorithm::TBQ3, CacheAlgorithm::TBQ4);
-    EXPECT_NO_THROW(utils::singleton_core().compile_model(transformed, "CPU"));
+    std::ostringstream xml;
+    std::ostringstream bin;
+    ov::pass::Serialize serializer(xml, bin);
+    ASSERT_TRUE(serializer.run_on_model(transformed));
+
+    const auto bin_bytes = bin.str();
+    ov::Tensor weights(
+        ov::element::u8,
+        ov::Shape{bin_bytes.size()},
+        const_cast<char*>(bin_bytes.data()));
+    ov::Core unregistered;
+    EXPECT_THROW(unregistered.read_model(xml.str(), weights), ov::Exception);
+
+    auto restored = utils::singleton_core().read_model(xml.str(), weights);
+    EXPECT_EQ(fused_operation_count(restored), 4u);
+    EXPECT_EQ(&utils::singleton_core(), &utils::singleton_core());
 }
 
 TEST(TurboQuantStatefulGraph, PersistsOnlyCompressedStateForOneHundredSteps) {
@@ -473,17 +516,46 @@ TEST(TurboQuantStatefulGraph, PersistsOnlyCompressedStateForOneHundredSteps) {
     EXPECT_EQ(evidence.steps, 100u);
     EXPECT_TRUE(evidence.repeat_hash_matches);
     EXPECT_TRUE(evidence.no_full_precision_selected_state);
-    EXPECT_EQ(evidence.surviving_owned_processes, 0u);
+    EXPECT_EQ(evidence.reference_operation_count, 4u);
+    EXPECT_EQ(evidence.matched_state_count, 4u);
+    ASSERT_EQ(evidence.snapshots.size(), 4u);
 }
 ```
 
+Emit exactly one line from the lifetime test:
+
+```text
+TURBOQUANT_REFERENCE_CAPABILITY_JSON=<one compact JSON object>
+```
+
+The object contains schema `openvino-turboquant-reference-capability/v1`,
+device `CPU`, runtime layer type `Reference`, reference-operation count,
+matched-state count, steps, hash algorithm, both output hashes, repeat-match
+status, every selected state name/type/shape/byte count at steps 1/2/50/100,
+payload/norm/metadata totals, full-precision equivalent bytes, decoded
+scratch bytes, the no-shadow result, and the exact value of the optional
+`OPENVINO_TURBOQUANT_CAPABILITY_NONCE` environment variable as `run_nonce`.
+It contains no process metrics; Task 5 adds only directly sampled process
+evidence.
+
 - [ ] **Step 2: Verify RED**
 
-Run the two tests. Expected: singleton-core compilation fails with an unsupported custom operation before registration; the lifetime helper cannot produce accepted evidence.
+Configure/build the production-linked target serially and run:
+
+```powershell
+& $cmake --build $build --config Release --target tests_continuous_batching -j 1
+& "$build\tests\cpp\Release\tests_continuous_batching.exe" '--gtest_filter=TurboQuantStatefulGraph.SingletonCoreReadsRegisteredFusedOperation:TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps'
+```
+
+Expected: the tests compile, then model deserialization through the singleton
+core fails because the custom operation is not registered. A plain
+`compile_model()` call on the original in-memory node is not an acceptable
+registration RED.
 
 - [ ] **Step 3: Register exactly once in the singleton core**
 
-Implement:
+Include `llm/turboquant_state_update_decode.hpp` and
+`openvino/core/op_extension.hpp` in `utils.cpp`, then implement:
 
 ```cpp
 ov::Core& singleton_core() {
@@ -499,24 +571,205 @@ ov::Core& singleton_core() {
 
 Unit tests using independent `ov::Core` objects add the same `OpExtension` explicitly.
 
-- [ ] **Step 4: Run the guarded 100-step process**
+- [ ] **Step 4: Verify exact state and allocation formulas**
 
-Launch a fresh test process with a 300-second absolute timeout, 100 ms CPU/GPU/RAM sampling, owned-process-tree cleanup, and state snapshots after steps 1, 2, 50, and 100. Run it twice. Require identical output hashes and only selected `u8/f32/i32` states.
+For the two-layer, batch-one, two-head, H=8, TBQ3-key/TBQ4-value
+fixture, require these calculated totals:
 
-- [ ] **Step 5: Write capability evidence atomically**
+| Step | Payload | Norm | Metadata | Full precision equivalent | Decoded scratch |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 28 | 32 | 32 | 256 | 256 |
+| 2 | 56 | 64 | 64 | 512 | 512 |
+| 50 | 1,400 | 1,600 | 1,600 | 12,800 | 12,800 |
+| 100 | 2,800 | 3,200 | 3,200 | 25,600 | 25,600 |
 
-`reference-capability.json` contains exact derived commit, executable SHA-256, device, runtime layer type, operation count, steps, output hashes, payload/norm/metadata bytes, full-precision equivalent bytes, decoded scratch bytes, peak working set/private bytes, available RAM before/min/after, CPU and GPU mean/median/peak/sample count, cleanup duration, exit/timeout status, and surviving process count. Zero is recorded only from a real counter sample.
+The 12 selected persistent variables are four payload `u8`, four norm `f32`,
+and four metadata `i32` states. Reject any selected `f32 [..., H]` state,
+any metadata element wider than four bytes, any unrecognised state, or any
+runtime graph without exactly four `Reference` custom-operation nodes.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Verify GREEN and standalone isolation**
+
+Run the production-core filter twice. Then build and run the standalone graph
+target; its existing 32 tests must pass and the production-core tests must not
+be listed:
 
 ```powershell
-git add src/cpp/src/utils.cpp tests/cpp/turboquant_stateful_graph.cpp
+& $cmake --build $build --config Release --target tests_continuous_batching -j 1
+1..2 | ForEach-Object {
+    & "$build\tests\cpp\Release\tests_continuous_batching.exe" '--gtest_filter=TurboQuantStatefulGraph.SingletonCoreReadsRegisteredFusedOperation:TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps'
+    if ($LASTEXITCODE -ne 0) { throw "production-core tests failed" }
+}
+& $cmake --build $build --config Release --target turboquant_stateful_graph_tests -j 1
+& "$build\bin\Release\turboquant_stateful_graph_tests.exe"
+```
+
+- [ ] **Step 6: Commit derived changes**
+
+```powershell
+git add tests/cpp/CMakeLists.txt src/cpp/src/utils.cpp tests/cpp/turboquant_stateful_graph.cpp
 git commit -m "test(openvino): prove fused compressed state lifetime"
 ```
 
-Commit the capability JSON later in the controlling repository with the derived identity that produced it.
+### Task 5: Measure Two Fresh Processes and Write Capability Evidence
 
-### Task 5: Integrate Configuration, Compilation, and Activated Telemetry
+**Files:**
+- Modify: `scripts/testing/collect_process_utilization.ps1`
+- Create: `scripts/testing/run_openvino_reference_capability.py`
+- Create: `tests/test_openvino_reference_capability.py`
+- Create: `experiments/raw-results/openvino-turboquant/2026-07-27/conformance/reference-capability.json`
+
+**Interfaces:**
+- Consumes: the production-linked `tests_continuous_batching.exe`, the one-line Task 4 marker, `process_memory_bytes()` and `available_ram_bytes()` from `measure_llama_run.py`, and Windows Job Object APIs through `ctypes`.
+- Produces: two preserved raw run directories and one atomically written, strictly validated capability document.
+
+The runner exposes:
+
+```python
+MARKER_PREFIX = "TURBOQUANT_REFERENCE_CAPABILITY_JSON="
+
+def parse_lifetime_marker(stdout: str) -> dict: ...
+def summarize_samples(values: list[float]) -> dict: ...
+def run_one(command: list[str], output_dir: Path, timeout_seconds: float,
+            interval_ms: int, minimum_available_ram_mb: float,
+            run_nonce: str) -> dict: ...
+def reconcile_runs(runs: list[dict], derived_commit: str,
+                   executable_sha256: str) -> dict: ...
+def atomic_write_json(path: Path, value: dict) -> None: ...
+```
+
+`parse_lifetime_marker()` requires exactly one prefix line and rejects invalid
+JSON, a missing field, an extra or missing snapshot, a false reconciliation
+flag, a non-CPU device, a non-Reference runtime type, a non-100 step count,
+an unexpected run nonce, or any allocation value that differs from Task 4.
+
+`summarize_samples()` returns count, mean, median, minimum, maximum, and peak
+from non-empty finite samples. It never changes an absent series to zero.
+
+- [ ] **Step 1: Write the runner RED tests**
+
+Use real temporary files and a temporary Python fixture process. Cover:
+
+1. exactly-one marker parsing and rejection of missing/duplicate/malformed markers;
+2. exact even/odd mean, median, minimum, maximum, peak, and sample count;
+3. rejection when memory, CPU, GPU, available-RAM, state, allocation, hash, timeout, exit, or cleanup evidence is missing or invalid;
+4. two 350 ms fixture runs producing at least one memory sample and at least one utilization row;
+5. a timed-out fixture that spawns a child process, followed by a queried Job Object active-process count of zero;
+6. rejection when the two fresh-process output-hash arrays differ;
+7. nonce mismatch rejection and executable-hash drift rejection;
+8. same-directory temporary write, flush, `os.fsync()`, `os.replace()`, and no final JSON on failed reconciliation.
+
+Run:
+
+```powershell
+python -m pytest tests/test_openvino_reference_capability.py -q
+```
+
+Expected: fail because the runner module and counter-status columns do not yet
+exist.
+
+- [ ] **Step 2: Make utilization zero auditable**
+
+Extend `collect_process_utilization.ps1` with
+`gpu_engine_query_ok` and `gpu_memory_query_ok` columns. Use separate
+`try/catch` blocks around both counter-class queries. A sampled GPU value of
+zero is admissible only when `gpu_engine_query_ok` is true; zero GPU memory is
+admissible only when `gpu_memory_query_ok` is true. Preserve the existing
+busiest-engine definition and `-IntervalMilliseconds` parameter.
+
+- [ ] **Step 3: Implement guarded fresh-process execution**
+
+For each run:
+
+1. refuse launch below the 2,048 MiB available-RAM floor;
+2. launch only the supplied executable plus
+   `--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps`
+   and `--gtest_output=json:<run-dir>/gtest.json` in a new process group;
+3. capture stdout/stderr without blocking;
+4. create a workload Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`,
+   assign the GTest process immediately, and query its active PID list for
+   working-set/private-byte sampling and survivor checks;
+5. run `collect_process_utilization.ps1` for the root PID with
+   `-IntervalMilliseconds 100`, with the sampler itself in a separate
+   kill-on-close Job Object;
+6. set a fresh `secrets.token_hex(16)` value in
+   `OPENVINO_TURBOQUANT_CAPABILITY_NONCE` and require the marker to echo it;
+7. sample every active workload PID's working set/private bytes plus available
+   RAM every exactly 100 ms;
+8. enforce a 300-second absolute timeout and the 2,048 MiB in-run RAM floor;
+9. in `finally`, stop and wait for the sampler, query the workload Job Object,
+   call `TerminateJobObject` if anything remains, poll until its queried
+   active-process count is zero, and close both Job Object handles;
+10. treat `taskkill /PID <pid> /T /F` only as an emergency fallback; it cannot
+    by itself prove a zero-survivor result;
+11. measure cleanup duration and preserve command, environment identity,
+   stdout, stderr, memory JSONL, utilization CSV, and per-run JSON.
+
+Raw artifacts live under:
+
+```text
+experiments/raw-results/openvino-turboquant/2026-07-27/conformance/reference-capability/
+  attempt-<UTC>-<nonce>/
+    run-1/
+    run-2/
+    attempt-summary.json
+```
+
+An emergency stop, timeout, nonzero exit, missing marker, sampler failure,
+missing or non-single-pass GTest JSON, missing real counter sample, Job Object
+setup/query failure, child workload process during root-PID utilization
+sampling, or surviving process invalidates the run and prevents final
+capability publication. Failed attempts preserve raw evidence but never
+create or replace the canonical capability file.
+
+- [ ] **Step 4: Run twice and reconcile**
+
+Run:
+
+```powershell
+python scripts/testing/run_openvino_reference_capability.py `
+  --derived-repo external/official-openvino/2026-07-19/openvino.genai-turboquant `
+  --executable R:/external/official-openvino/2026-07-19/build-genai-turboquant/tests/cpp/Release/tests_continuous_batching.exe `
+  --output experiments/raw-results/openvino-turboquant/2026-07-27/conformance/reference-capability.json `
+  --timeout-seconds 300 `
+  --interval-ms 100 `
+  --minimum-available-ram-mb 2048
+```
+
+Require both fresh processes to report the identical pair of 100-step output
+hashes, exact state/allocation snapshots, exit zero, no timeout/emergency
+stop, and a queried zero active-process count. Require the derived checkout to
+be clean and hash the executable before run 1, before run 2, and after run 2;
+all three SHA-256 values must match.
+
+- [ ] **Step 5: Write capability evidence atomically**
+
+`reference-capability.json` contains the exact derived commit, executable
+SHA-256, command and environment identity, device, runtime layer type,
+operation count, steps, both per-process output-hash arrays, payload/norm/
+metadata bytes, full-precision equivalent bytes, decoded scratch bytes, peak
+working set and private bytes, available RAM before/minimum/after, cleanup
+duration, exit/timeout/emergency status, observed PID list, and survivor
+count. Each run and the combined sample set retain CPU and GPU count, mean,
+median, minimum, maximum, and peak. GPU counter-query status and engine counts
+remain in the evidence. A numeric zero is retained only from at least one
+successful real counter query.
+
+- [ ] **Step 6: Verify and commit parent changes**
+
+Run the runner unit tests twice, independently recompute all JSON aggregates
+from the raw CSV/JSONL files, verify the executable and derived hashes, and
+run `git diff --check`. Then commit:
+
+```powershell
+git add scripts/testing/collect_process_utilization.ps1 `
+  scripts/testing/run_openvino_reference_capability.py `
+  tests/test_openvino_reference_capability.py `
+  experiments/raw-results/openvino-turboquant/2026-07-27/conformance
+git commit -m "test(openvino): record fused state capability"
+```
+
+### Task 6: Integrate Configuration, Compilation, and Activated Telemetry
 
 **Files:**
 - Modify: `external/official-openvino/2026-07-19/openvino.genai-turboquant/src/cpp/src/llm/pipeline_stateful.hpp`
@@ -596,7 +849,7 @@ git add src/cpp/src/llm src/cpp/src/continuous_batching/cache/turboquant_config.
 git commit -m "feat(openvino): activate fused TurboQuant CPU state"
 ```
 
-### Task 6: Freeze Patch 0003 and Release to the WB-04 Master Plan
+### Task 7: Freeze Patch 0003 and Release to the WB-04 Master Plan
 
 **Files:**
 - Create: `experiments/patches/openvino-turboquant/0003-stateful-kv-graph.patch`
