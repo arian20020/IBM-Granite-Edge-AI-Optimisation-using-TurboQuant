@@ -1,0 +1,21 @@
+{
+  "attempt_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T222117Z-68cb44e8",
+  "canonical_output": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability.json",
+  "derived_observations": {
+    "before_run_1": {
+      "commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
+      "status_porcelain": " M tests/cpp/CMakeLists.txt\n?? tests/cpp/turboquant_pipeline_activation.cpp\n"
+    }
+  },
+  "derived_repo": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant",
+  "ended_utc": "2026-07-27T22:21:17.758524Z",
+  "error": "ValueError: derived checkout is not clean before run 1",
+  "executable": "R:\\external\\official-openvino\\2026-07-19\\build-genai-turboquant\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+  "executable_sha256_observations": {},
+  "runs": [],
+  "runtime_library_dir": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.venv-official-openvino-2026.2.1\\Lib\\site-packages\\openvino\\libs",
+  "runtime_openvino_dll_sha256_observations": {},
+  "schema": "openvino-turboquant-reference-capability-attempt/v1",
+  "started_utc": "2026-07-27T22:21:17.648682Z",
+  "status": "failed"
+}

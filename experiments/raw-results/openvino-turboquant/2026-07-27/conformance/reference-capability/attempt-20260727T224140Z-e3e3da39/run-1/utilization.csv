@@ -1,0 +1,2 @@
+﻿timestamp_utc,cpu_percent,cpu_sample_definition,sample_deadline_elapsed_ms,sample_lateness_ms,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb,gpu_engine_query_ok,gpu_memory_query_ok
+2026-07-27T22:41:41.7704029Z,7.036011,lifetime_average_since_workload_resume,100.000000,66.555900,0.000000,0,0.000000,0.000000,true,true

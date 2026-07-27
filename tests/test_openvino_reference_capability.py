@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import copy
 import csv
+import hashlib
 import json
 import os
+import subprocess
 import sys
 import textwrap
 from datetime import datetime, timezone
@@ -106,18 +108,35 @@ def summary(values: list[float]) -> dict:
     return summarize_samples(values)
 
 
+def rehash_identity(identity: dict) -> None:
+    content = {
+        key: value for key, value in identity.items() if key != "identity_sha256"
+    }
+    encoded = json.dumps(
+        content, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
+    identity["identity_sha256"] = hashlib.sha256(encoded).hexdigest()
+
+
 def valid_run(nonce: str, pid: int) -> dict:
     marker = valid_marker(nonce)
+    output_directory = Path(f"C:/fixture/run-{pid}")
+    environment_identity = {
+        "computer_name": "fixture",
+        "runtime_library_dir": "C:\\fixture\\openvino\\libs",
+        "runtime_openvino_dll_sha256": "e" * 64,
+    }
+    rehash_identity(environment_identity)
     return {
-        "schema": "openvino-turboquant-reference-capability-run/v1",
+        "schema": "openvino-turboquant-reference-capability-run/v2",
         "run_id": f"run-{pid}",
-        "command": ["test.exe", "--gtest_filter=" + EXPECTED_TEST_NAME],
-        "environment_identity": {
-            "identity_sha256": "c" * 64,
-            "computer_name": "fixture",
-            "runtime_library_dir": "C:\\fixture\\openvino\\libs",
-            "runtime_openvino_dll_sha256": "e" * 64,
-        },
+        "output_directory": str(output_directory),
+        "command": [
+            "C:\\fixture\\test.exe",
+            "--gtest_filter=" + EXPECTED_TEST_NAME,
+            f"--gtest_output=json:{output_directory / 'gtest.json'}",
+        ],
+        "environment_identity": environment_identity,
         "run_nonce": nonce,
         "root_pid": pid,
         "observed_pids": [pid],
@@ -127,6 +146,16 @@ def valid_run(nonce: str, pid: int) -> dict:
             "workload_assigned_before_resume": True,
             "sampler_created_suspended": True,
             "sampler_assigned_before_resume": True,
+        },
+        "sampler_start_gate": {
+            "ready_before_workload_resume": True,
+            "released_after_workload_resume": True,
+            "sampler_ready_observed_utc": "2026-07-27T20:00:00.000001Z",
+            "workload_resumed_utc": "2026-07-27T20:00:00.000002Z",
+            "sampling_start_released_utc": "2026-07-27T20:00:00.000003Z",
+            "sampler_ready_observed_elapsed_seconds": 0.1,
+            "workload_resumed_elapsed_seconds": 0.2,
+            "sampling_start_released_elapsed_seconds": 0.3,
         },
         "started_utc": "2026-07-27T00:00:00.000000Z",
         "ended_utc": "2026-07-27T00:00:01.000000Z",
@@ -145,6 +174,8 @@ def valid_run(nonce: str, pid: int) -> dict:
         "utilization_summary": {
             "row_count": 2,
             "cpu_percent": summary([10.0, 20.0]),
+            "sample_deadline_elapsed_ms": summary([100.0, 200.0]),
+            "sample_lateness_ms": summary([10.0, 20.0]),
             "gpu_percent": summary([0.0, 1.0]),
             "gpu_engine_count": summary([0.0, 1.0]),
             "gpu_dedicated_mb": summary([0.0, 2.0]),
@@ -160,14 +191,16 @@ def valid_run(nonce: str, pid: int) -> dict:
                 "all_succeeded": True,
             },
             "cpu_sample_definitions": {
-                "lifetime_average_since_process_start": 1,
+                "lifetime_average_since_workload_resume": 1,
                 "interval_delta": 1,
             },
         },
         "utilization_samples": {
             "cpu_percent": [10.0, 20.0],
+            "sample_deadline_elapsed_ms": [100.0, 200.0],
+            "sample_lateness_ms": [10.0, 20.0],
             "cpu_sample_definition": [
-                "lifetime_average_since_process_start",
+                "lifetime_average_since_workload_resume",
                 "interval_delta",
             ],
             "gpu_percent": [0.0, 1.0],
@@ -204,6 +237,8 @@ def valid_run(nonce: str, pid: int) -> dict:
         },
         "executable_sha256_before": EXPECTED_EXECUTABLE_SHA256,
         "executable_sha256_after": EXPECTED_EXECUTABLE_SHA256,
+        "runtime_openvino_dll_sha256_before": "e" * 64,
+        "runtime_openvino_dll_sha256_after": "e" * 64,
         "derived_commit": EXPECTED_DERIVED_COMMIT,
         "derived_checkout_clean_before": True,
         "derived_checkout_clean_after": True,
@@ -220,7 +255,9 @@ def valid_run(nonce: str, pid: int) -> dict:
     }
 
 
-def write_fixture(path: Path, marker: dict) -> None:
+def write_fixture(
+    path: Path, marker: dict, duration_seconds: float = 0.35
+) -> None:
     marker_json = json.dumps(marker, separators=(",", ":"))
     path.write_text(
         textwrap.dedent(
@@ -230,17 +267,26 @@ def write_fixture(path: Path, marker: dict) -> None:
             import pathlib
             import sys
             import time
+            from datetime import datetime, timezone
 
             marker = json.loads({marker_json!r})
             marker["run_nonce"] = os.environ["OPENVINO_TURBOQUANT_CAPABILITY_NONCE"]
             gtest_path = None
             ready_path = None
+            workload_started_path = None
             for argument in sys.argv[1:]:
                 if argument.startswith("--gtest_output=json:"):
                     gtest_path = pathlib.Path(argument.split("json:", 1)[1])
                 elif argument.startswith("--ready-path="):
                     ready_path = pathlib.Path(argument.split("=", 1)[1])
-            time.sleep(0.35)
+                elif argument.startswith("--workload-started-path="):
+                    workload_started_path = pathlib.Path(argument.split("=", 1)[1])
+            if workload_started_path is not None:
+                workload_started_path.write_text(
+                    datetime.now(timezone.utc).isoformat(),
+                    encoding="utf-8",
+                )
+            time.sleep({duration_seconds!r})
             gtest = {{
                 "tests": 1,
                 "failures": 0,
@@ -390,6 +436,8 @@ def test_collector_exposes_independent_gpu_query_success_columns():
     assert "gpu_engine_query_ok" in header
     assert "gpu_memory_query_ok" in header
     assert "cpu_sample_definition" in header
+    assert "sample_deadline_elapsed_ms" in header
+    assert "sample_lateness_ms" in header
     assert script.count("try {") >= 2
     assert script.count("catch {") >= 2
     assert (
@@ -400,6 +448,17 @@ def test_collector_exposes_independent_gpu_query_success_columns():
         "Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory "
         "-ErrorAction Stop"
     ) in script
+    assert "[Diagnostics.Stopwatch]::StartNew()" in script
+    assert "nextDeadlineMilliseconds" in script
+    assert "Start-Sleep -Milliseconds $IntervalMilliseconds" not in script
+    assert "[string]$StartPath" in script
+    assert "lifetime_average_since_workload_resume" in script
+    assert "$process.StartTime" not in script
+    assert "$nextDeadlineMilliseconds = [double]$IntervalMilliseconds" in script
+    assert "$resumeElapsedAtClockStartMilliseconds" in script
+    assert script.index("Set-Content -LiteralPath $ReadyPath") < script.index(
+        "Test-Path -LiteralPath $StartPath"
+    )
 
 
 def test_runtime_library_dir_rejects_missing_and_incomplete_directories(
@@ -477,7 +536,7 @@ def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
         assert record["gtest"]["tests"] == 1
         assert record["gtest"]["passed"] == 1
         assert record["utilization_samples"]["cpu_sample_definition"][0] == (
-            "lifetime_average_since_process_start"
+            "lifetime_average_since_workload_resume"
         )
         assert record["job_object"][
             "queried_active_process_count_after_cleanup"
@@ -488,6 +547,23 @@ def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
             "sampler_created_suspended": True,
             "sampler_assigned_before_resume": True,
         }
+        gate = record["sampler_start_gate"]
+        assert gate["ready_before_workload_resume"] is True
+        assert gate["released_after_workload_resume"] is True
+        assert (
+            datetime.fromisoformat(gate["sampler_ready_observed_utc"])
+            <= datetime.fromisoformat(gate["workload_resumed_utc"])
+            <= datetime.fromisoformat(gate["sampling_start_released_utc"])
+        )
+        assert (
+            gate["sampler_ready_observed_elapsed_seconds"]
+            <= gate["workload_resumed_elapsed_seconds"]
+            < gate["sampling_start_released_elapsed_seconds"]
+        )
+        assert (
+            (output_dir / "utilization.start").read_text(encoding="ascii").strip()
+            == gate["workload_resumed_utc"]
+        )
         memory_rows = [
             json.loads(line)
             for line in (output_dir / "memory.jsonl")
@@ -512,6 +588,95 @@ def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
     assert records[0]["run_nonce"] != records[1]["run_nonce"]
 
 
+def test_180ms_fixture_does_not_finish_before_sampler_is_ready(tmp_path: Path):
+    fixture = tmp_path / "short_fixture.py"
+    write_fixture(
+        fixture, valid_marker("0" * 32), duration_seconds=0.18
+    )
+    runtime_dir = write_runtime_fixture(tmp_path / "runtime")
+    output_dir = tmp_path / "short-run"
+    workload_started_path = tmp_path / "workload.started"
+    record = run_one(
+        [
+            sys.executable,
+            str(fixture),
+            f"--gtest_output=json:{output_dir / 'gtest.json'}",
+            f"--ready-path={output_dir / 'utilization.ready'}",
+            f"--workload-started-path={workload_started_path}",
+        ],
+        output_dir,
+        timeout_seconds=10.0,
+        interval_ms=100,
+        minimum_available_ram_mb=1.0,
+        run_nonce="5" * 32,
+        runtime_library_dir=runtime_dir,
+    )
+
+    assert record["utilization_summary"]["row_count"] >= 1
+    assert record["utilization_samples"]["cpu_sample_definition"][0] == (
+        "lifetime_average_since_workload_resume"
+    )
+    with (output_dir / "utilization.csv").open(
+        encoding="utf-8-sig", newline=""
+    ) as handle:
+        first_sample = next(csv.DictReader(handle))
+    workload_started = datetime.fromisoformat(
+        workload_started_path.read_text(encoding="utf-8")
+    )
+    first_sample_utc = datetime.fromisoformat(first_sample["timestamp_utc"])
+    gate = record["sampler_start_gate"]
+    workload_resumed_utc = datetime.fromisoformat(gate["workload_resumed_utc"])
+    first_sample_delay = (first_sample_utc - workload_resumed_utc).total_seconds()
+    deadline_ms = float(first_sample["sample_deadline_elapsed_ms"])
+    lateness_ms = float(first_sample["sample_lateness_ms"])
+    assert first_sample_delay >= 0.09
+    assert deadline_ms == 100.0
+    assert lateness_ms >= 0.0
+    assert abs((first_sample_delay * 1000.0) - deadline_ms - lateness_ms) < 25.0
+    assert workload_started >= workload_resumed_utc
+    assert gate["ready_before_workload_resume"] is True
+    assert gate["released_after_workload_resume"] is True
+    assert (
+        datetime.fromisoformat(gate["sampler_ready_observed_utc"])
+        <= datetime.fromisoformat(gate["workload_resumed_utc"])
+        <= datetime.fromisoformat(gate["sampling_start_released_utc"])
+    )
+    assert (
+        gate["sampler_ready_observed_elapsed_seconds"]
+        <= gate["workload_resumed_elapsed_seconds"]
+        < gate["sampling_start_released_elapsed_seconds"]
+    )
+    assert record["valid"] is True
+
+
+def test_sub_interval_fixture_fails_closed_without_inferred_utilization(
+    tmp_path: Path,
+):
+    runtime_dir = write_runtime_fixture(tmp_path / "runtime")
+    output_dir = tmp_path / "sub-interval-run"
+    record = run_one(
+        [
+            os.environ.get("COMSPEC", "C:\\Windows\\System32\\cmd.exe"),
+            "/d",
+            "/c",
+            "exit /b 0",
+        ],
+        output_dir,
+        timeout_seconds=10.0,
+        interval_ms=100,
+        minimum_available_ram_mb=1.0,
+        run_nonce="6" * 32,
+        runtime_library_dir=runtime_dir,
+    )
+
+    assert record["exit_code"] == 0
+    assert record["utilization_summary"]["row_count"] == 0
+    assert record["valid"] is False
+    assert "utilization CSV has no real counter sample" in record[
+        "validation_errors"
+    ]
+
+
 def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
     fixture = tmp_path / "timeout_fixture.py"
     fixture.write_text(
@@ -532,7 +697,7 @@ def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
     record = run_one(
         [sys.executable, str(fixture)],
         tmp_path / "timeout-run",
-        timeout_seconds=0.5,
+        timeout_seconds=1.5,
         interval_ms=100,
         minimum_available_ram_mb=1.0,
         run_nonce="3" * 32,
@@ -543,6 +708,27 @@ def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
     assert record["job_object"]["query_ok"] is True
     assert record["job_object"]["queried_active_process_count_after_cleanup"] == 0
     assert record["job_object"]["survivor_pids_after_cleanup"] == []
+    assert record["sampler_job_object"]["query_ok"] is True
+    assert (
+        record["sampler_job_object"][
+            "queried_active_process_count_after_cleanup"
+        ]
+        == 0
+    )
+    assert record["sampler_job_object"]["survivor_pids_after_cleanup"] == []
+    gate = record["sampler_start_gate"]
+    assert gate["ready_before_workload_resume"] is True
+    assert gate["released_after_workload_resume"] is True
+    assert (
+        datetime.fromisoformat(gate["sampler_ready_observed_utc"])
+        <= datetime.fromisoformat(gate["workload_resumed_utc"])
+        <= datetime.fromisoformat(gate["sampling_start_released_utc"])
+    )
+    assert (
+        gate["sampler_ready_observed_elapsed_seconds"]
+        <= gate["workload_resumed_elapsed_seconds"]
+        < gate["sampling_start_released_elapsed_seconds"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -558,6 +744,12 @@ def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
                 "all_succeeded", False
             ),
             "GPU",
+        ),
+        (
+            lambda run: run["utilization_samples"]["sample_lateness_ms"].__setitem__(
+                0, -1.0
+            ),
+            "sampling deadline",
         ),
         (
             lambda run: run["available_ram_bytes"].__setitem__("minimum", None),
@@ -592,6 +784,32 @@ def test_timeout_child_fixture_has_queried_zero_job_survivors(tmp_path: Path):
                 "workload_assigned_before_resume", False
             ),
             "launch",
+        ),
+        (
+            lambda run: run["sampler_start_gate"].__setitem__(
+                "ready_before_workload_resume", False
+            ),
+            "sampling start gate",
+        ),
+        (
+            lambda run: run["sampler_start_gate"].__setitem__(
+                "released_after_workload_resume", False
+            ),
+            "sampling start gate",
+        ),
+        (
+            lambda run: run["sampler_start_gate"].__setitem__(
+                "sampling_start_released_utc",
+                "2026-07-27T19:59:59.000000Z",
+            ),
+            "sampling start gate",
+        ),
+        (
+            lambda run: run["sampler_start_gate"].__setitem__(
+                "sampling_start_released_elapsed_seconds",
+                run["sampler_start_gate"]["workload_resumed_elapsed_seconds"],
+            ),
+            "sampling start gate",
         ),
     ],
 )
@@ -630,6 +848,83 @@ def test_reconcile_rejects_nonce_mismatch_and_executable_hash_drift():
         )
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda identity: identity.__setitem__("computer_name", "tampered"),
+        lambda identity: identity.__setitem__("identity_sha256", "f" * 64),
+    ],
+)
+def test_reconcile_rejects_tampered_environment_identity_content_or_digest(
+    mutation,
+):
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    mutation(runs[0]["environment_identity"])
+    with pytest.raises(ValueError, match="environment identity digest"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_rejects_different_runtime_dll_identities_across_runs():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    runs[1]["environment_identity"]["runtime_openvino_dll_sha256"] = "f" * 64
+    rehash_identity(runs[1]["environment_identity"])
+    runs[1]["runtime_openvino_dll_sha256_before"] = "f" * 64
+    runs[1]["runtime_openvino_dll_sha256_after"] = "f" * 64
+    with pytest.raises(ValueError, match="runtime DLL identity"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda run: run["command"].pop(1),
+        lambda run: run["command"].__setitem__(
+            1, "--gtest_filter=TurboQuantStatefulGraph.WrongTest"
+        ),
+        lambda run: run["command"].__setitem__(
+            2, "--gtest_output=json:C:\\fixture\\wrong.json"
+        ),
+    ],
+)
+def test_reconcile_rejects_removed_or_changed_filter_and_wrong_gtest_output(
+    mutation,
+):
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    mutation(runs[0])
+    with pytest.raises(ValueError, match="exact production GTest command"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+@pytest.mark.parametrize(
+    "run_index,field",
+    [
+        (0, "runtime_openvino_dll_sha256_before"),
+        (0, "runtime_openvino_dll_sha256_after"),
+        (1, "runtime_openvino_dll_sha256_after"),
+    ],
+)
+def test_reconcile_rejects_runtime_dll_drift_at_all_three_observation_points(
+    run_index: int, field: str
+):
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    runs[run_index][field] = "f" * 64
+    with pytest.raises(ValueError, match="runtime DLL hash drift"):
+        reconcile_runs(runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256)
+
+
+def test_reconcile_records_runtime_dll_hash_at_all_three_points():
+    runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
+    result = reconcile_runs(
+        runs, EXPECTED_DERIVED_COMMIT, EXPECTED_EXECUTABLE_SHA256
+    )
+    assert result["runtime_openvino_dll_sha256"] == "e" * 64
+    assert result["runtime_openvino_dll_sha256_observations"] == {
+        "before_run_1": "e" * 64,
+        "before_run_2": "e" * 64,
+        "after_run_2": "e" * 64,
+    }
+
+
 def test_reconcile_retains_per_run_and_combined_cpu_gpu_statistics():
     runs = [valid_run("1" * 32, 101), valid_run("2" * 32, 202)]
     result = reconcile_runs(
@@ -644,6 +939,56 @@ def test_reconcile_retains_per_run_and_combined_cpu_gpu_statistics():
         [0.0, 1.0, 0.0, 1.0]
     )
     assert result["reconciliation"]["queried_zero_survivors"] is True
+
+
+def test_taskkill_and_wait_failures_are_returned_without_escaping(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def fail_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired("taskkill.exe", 30)
+
+    class FailingWait:
+        def wait(self, timeout):
+            raise OSError("wait failed")
+
+    monkeypatch.setattr(capability.subprocess, "run", fail_run)
+    taskkill = capability._taskkill(123)
+    errors: list[str] = []
+    waited = capability._wait_process(
+        FailingWait(), timeout=1.0, label="fixture", errors=errors
+    )
+
+    assert taskkill["exit_code"] is None
+    assert "TimeoutExpired" in taskkill["error"]
+    assert waited is False
+    assert errors == ["fixture wait failed: OSError: wait failed"]
+
+
+def test_resource_closure_continues_after_each_close_failure():
+    calls: list[str] = []
+
+    class Resource:
+        def __init__(self, name: str, fail: bool = False):
+            self.name = name
+            self.fail = fail
+
+        def close(self):
+            calls.append(self.name)
+            if self.fail:
+                raise OSError(f"{self.name} close failed")
+
+    errors: list[str] = []
+    capability._close_run_resources(
+        [Resource("handle-1", fail=True), Resource("handle-2")],
+        [Resource("job-1", fail=True), Resource("job-2")],
+        errors,
+    )
+
+    assert calls == ["handle-1", "handle-2", "job-1", "job-2"]
+    assert errors == [
+        "artifact handle close failed: OSError: handle-1 close failed",
+        "Job Object close failed: OSError: job-1 close failed",
+    ]
 
 
 def test_atomic_write_uses_same_directory_flush_fsync_and_replace(

@@ -33,8 +33,8 @@ from measure_llama_run import available_ram_bytes, process_memory_bytes  # noqa:
 
 MARKER_PREFIX = "TURBOQUANT_REFERENCE_CAPABILITY_JSON="
 MARKER_SCHEMA = "openvino-turboquant-reference-capability/v1"
-RUN_SCHEMA = "openvino-turboquant-reference-capability-run/v1"
-EVIDENCE_SCHEMA = "openvino-turboquant-reference-capability-evidence/v1"
+RUN_SCHEMA = "openvino-turboquant-reference-capability-run/v2"
+EVIDENCE_SCHEMA = "openvino-turboquant-reference-capability-evidence/v2"
 EXPECTED_TEST_NAME = (
     "TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps"
 )
@@ -595,6 +595,17 @@ def atomic_write_json(path: Path, value: dict) -> None:
             temporary_path.unlink(missing_ok=True)
 
 
+def environment_identity_sha256(identity: dict) -> str:
+    """Hash every environment-identity field except the digest itself."""
+    content = {
+        key: value for key, value in identity.items() if key != "identity_sha256"
+    }
+    encoded = json.dumps(
+        content, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _environment_identity(runtime_library_dir: Path | None = None) -> dict:
     validated_runtime_dir = (
         validate_runtime_library_dir(runtime_library_dir)
@@ -622,10 +633,7 @@ def _environment_identity(runtime_library_dir: Path | None = None) -> dict:
             else None
         ),
     }
-    encoded = json.dumps(
-        identity, sort_keys=True, separators=(",", ":"), ensure_ascii=True
-    ).encode("utf-8")
-    identity["identity_sha256"] = hashlib.sha256(encoded).hexdigest()
+    identity["identity_sha256"] = environment_identity_sha256(identity)
     return identity
 
 
@@ -650,14 +658,19 @@ UTILIZATION_VALUE_FIELDS = (
     "gpu_dedicated_mb",
     "gpu_shared_mb",
 )
-FIRST_CPU_SAMPLE_DEFINITION = "lifetime_average_since_process_start"
+UTILIZATION_TIMING_FIELDS = (
+    "sample_deadline_elapsed_ms",
+    "sample_lateness_ms",
+)
+FIRST_CPU_SAMPLE_DEFINITION = "lifetime_average_since_workload_resume"
 INTERVAL_CPU_SAMPLE_DEFINITION = "interval_delta"
 
 
 def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
     errors: list[str] = []
     samples: dict[str, list[float]] = {
-        field: [] for field in UTILIZATION_VALUE_FIELDS
+        field: []
+        for field in (*UTILIZATION_VALUE_FIELDS, *UTILIZATION_TIMING_FIELDS)
     }
     samples["cpu_sample_definition"] = []
     if not path.exists():
@@ -668,6 +681,7 @@ def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
             required = {
                 "timestamp_utc",
                 *UTILIZATION_VALUE_FIELDS,
+                *UTILIZATION_TIMING_FIELDS,
                 "cpu_sample_definition",
                 "gpu_engine_query_ok",
                 "gpu_memory_query_ok",
@@ -690,6 +704,27 @@ def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
             if not math.isfinite(cpu) or not 0.0 <= cpu <= 100.0:
                 raise ValueError("CPU value is outside [0, 100]")
             samples["cpu_percent"].append(cpu)
+            sample_deadline = float(row["sample_deadline_elapsed_ms"])
+            sample_lateness = float(row["sample_lateness_ms"])
+            if (
+                not math.isfinite(sample_deadline)
+                or sample_deadline < EXACT_INTERVAL_MS
+                or not math.isclose(
+                    sample_deadline % EXACT_INTERVAL_MS,
+                    0.0,
+                    abs_tol=1e-6,
+                )
+                or (
+                    samples["sample_deadline_elapsed_ms"]
+                    and sample_deadline
+                    <= samples["sample_deadline_elapsed_ms"][-1]
+                )
+                or not math.isfinite(sample_lateness)
+                or sample_lateness < 0.0
+            ):
+                raise ValueError("sampling deadline/lateness values are invalid")
+            samples["sample_deadline_elapsed_ms"].append(sample_deadline)
+            samples["sample_lateness_ms"].append(sample_lateness)
             cpu_definition = row["cpu_sample_definition"].strip()
             expected_definition = (
                 FIRST_CPU_SAMPLE_DEFINITION
@@ -759,7 +794,7 @@ def _read_utilization(path: Path) -> tuple[dict | None, dict, list[str]]:
     if not rows:
         _append_error(errors, "utilization CSV has no real counter sample")
     summary: dict[str, Any] = {"row_count": len(rows)}
-    for field in UTILIZATION_VALUE_FIELDS:
+    for field in (*UTILIZATION_VALUE_FIELDS, *UTILIZATION_TIMING_FIELDS):
         try:
             summary[field] = summarize_samples(samples[field])
         except ValueError:
@@ -842,21 +877,68 @@ def _parse_gtest_json(path: Path) -> dict:
 
 def _taskkill(pid: int) -> dict:
     command = ["taskkill.exe", "/PID", str(pid), "/T", "/F"]
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=30,
-    )
-    return {
-        "command": command,
-        "exit_code": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
-    }
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=30,
+        )
+        return {
+            "command": command,
+            "exit_code": completed.returncode,
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+            "error": None,
+        }
+    except Exception as error:
+        return {
+            "command": command,
+            "exit_code": None,
+            "stdout": "",
+            "stderr": "",
+            "error": f"{type(error).__name__}: {error}",
+        }
+
+
+def _wait_process(
+    process: Any, timeout: float, label: str, errors: list[str]
+) -> bool:
+    """Wait without allowing a cleanup failure to escape resource closure."""
+    try:
+        process.wait(timeout=timeout)
+        return True
+    except Exception as error:
+        _append_error(
+            errors, f"{label} wait failed: {type(error).__name__}: {error}"
+        )
+        return False
+
+
+def _close_run_resources(
+    file_handles: list[Any], jobs: list[Any], errors: list[str]
+) -> None:
+    """Attempt every close independently, even after an earlier close fails."""
+    for handle in file_handles:
+        try:
+            handle.close()
+        except Exception as error:
+            _append_error(
+                errors,
+                f"artifact handle close failed: {type(error).__name__}: {error}",
+            )
+    for job in jobs:
+        if job is None:
+            continue
+        try:
+            job.close()
+        except Exception as error:
+            _append_error(
+                errors, f"Job Object close failed: {type(error).__name__}: {error}"
+            )
 
 
 def _cleanup_job(
@@ -945,6 +1027,16 @@ def _initial_run_record(
             "sampler_created_suspended": False,
             "sampler_assigned_before_resume": False,
         },
+        "sampler_start_gate": {
+            "ready_before_workload_resume": False,
+            "released_after_workload_resume": False,
+            "sampler_ready_observed_utc": None,
+            "workload_resumed_utc": None,
+            "sampling_start_released_utc": None,
+            "sampler_ready_observed_elapsed_seconds": None,
+            "workload_resumed_elapsed_seconds": None,
+            "sampling_start_released_elapsed_seconds": None,
+        },
         "started_utc": None,
         "ended_utc": None,
         "elapsed_seconds": None,
@@ -961,7 +1053,13 @@ def _initial_run_record(
         },
         "utilization_summary": None,
         "utilization_samples": {
-            **{field: [] for field in UTILIZATION_VALUE_FIELDS},
+            **{
+                field: []
+                for field in (
+                    *UTILIZATION_VALUE_FIELDS,
+                    *UTILIZATION_TIMING_FIELDS,
+                )
+            },
             "cpu_sample_definition": [],
         },
         "marker": None,
@@ -972,6 +1070,8 @@ def _initial_run_record(
         "emergency_stop": False,
         "cleanup_duration_seconds": None,
         "sampler_exit_code": None,
+        "runtime_openvino_dll_sha256_before": None,
+        "runtime_openvino_dll_sha256_after": None,
         "job_object": {
             "setup_ok": False,
             "query_ok": False,
@@ -996,6 +1096,8 @@ def _initial_run_record(
             "sampler_stderr": "sampler.stderr.txt",
             "memory_samples": "memory.jsonl",
             "utilization": "utilization.csv",
+            "sampler_ready": "utilization.ready",
+            "sampling_start": "utilization.start",
             "gtest": "gtest.json",
             "run": "run.json",
         },
@@ -1036,6 +1138,7 @@ def run_one(
         "memory": output_dir / "memory.jsonl",
         "utilization": output_dir / "utilization.csv",
         "ready": output_dir / "utilization.ready",
+        "start": output_dir / "utilization.start",
         "stop": output_dir / "utilization.stop",
         "gtest": output_dir / "gtest.json",
         "run": output_dir / "run.json",
@@ -1076,6 +1179,7 @@ def run_one(
     ):
         path.touch()
     paths["ready"].unlink(missing_ok=True)
+    paths["start"].unlink(missing_ok=True)
     paths["stop"].unlink(missing_ok=True)
 
     available_before = available_ram_bytes()
@@ -1100,6 +1204,7 @@ def run_one(
     memory_samples: list[dict] = []
     observed_pids: set[int] = set()
     started_monotonic: float | None = None
+    started_counter_ns: int | None = None
     cleanup_started: float | None = None
 
     if not errors:
@@ -1127,6 +1232,7 @@ def run_one(
             environment = workload_environment(run_nonce, validated_runtime_dir)
             record["started_utc"] = _utc_now()
             started_monotonic = time.monotonic()
+            started_counter_ns = time.perf_counter_ns()
             workload = subprocess.Popen(
                 command,
                 cwd=Path.cwd(),
@@ -1142,10 +1248,6 @@ def run_one(
             record["root_pid"] = workload.pid
             workload_job.assign_pid(workload.pid)
             workload_assigned = True
-            _resume_suspended_process(workload.pid)
-            record["launch_governance"][
-                "workload_assigned_before_resume"
-            ] = True
 
             sampler_command = [
                 shutil.which("powershell.exe") or "powershell.exe",
@@ -1161,6 +1263,8 @@ def run_one(
                 str(paths["utilization"]),
                 "-ReadyPath",
                 str(paths["ready"]),
+                "-StartPath",
+                str(paths["start"]),
                 "-StopPath",
                 str(paths["stop"]),
                 "-IntervalMilliseconds",
@@ -1184,83 +1288,136 @@ def run_one(
                 "sampler_assigned_before_resume"
             ] = True
 
-            interval_seconds = interval_ms / 1000.0
-            next_sample = time.monotonic()
-            while True:
+            sampler_startup_deadline = min(
+                started_monotonic + timeout_seconds,
+                time.monotonic() + 10.0,
+            )
+            while not paths["ready"].is_file():
                 now = time.monotonic()
                 if now - started_monotonic >= timeout_seconds:
                     record["timed_out"] = True
                     break
-                if workload.poll() is not None:
-                    break
-                if now < next_sample:
-                    try:
-                        workload.wait(timeout=min(next_sample - now, 0.05))
-                    except subprocess.TimeoutExpired:
-                        pass
-                    continue
-
-                try:
-                    active_pids = workload_job.active_pids()
-                except (OSError, RuntimeError) as error:
+                if now >= sampler_startup_deadline:
                     _append_error(
-                        errors, f"workload Job Object sampling query failed: {error}"
+                        errors,
+                        "utilization sampler readiness timed out",
                     )
                     break
-                observed_pids.update(active_pids)
-                if any(pid != workload.pid for pid in active_pids):
-                    record["child_workload_observed"] = True
-
-                available = available_ram_bytes()
-                if available is None:
-                    _append_error(errors, "available RAM query failed in-run")
+                sampler_exit_code = sampler.poll()
+                if sampler_exit_code is not None:
+                    _append_error(
+                        errors,
+                        "utilization sampler exited before reporting ready "
+                        f"with code {sampler_exit_code}",
+                    )
                     break
-                if available < floor_bytes:
-                    record["low_memory_stop"] = True
-                    break
+                time.sleep(0.005)
 
-                process_rows = []
-                for pid in active_pids:
-                    memory = process_memory_bytes(pid)
-                    if memory is None:
+            if paths["ready"].is_file() and not record["timed_out"] and not errors:
+                gate = record["sampler_start_gate"]
+                gate["sampler_ready_observed_elapsed_seconds"] = (
+                    (time.perf_counter_ns() - started_counter_ns) / 1_000_000_000
+                )
+                gate["sampler_ready_observed_utc"] = _utc_now()
+                gate["ready_before_workload_resume"] = True
+
+                _resume_suspended_process(workload.pid)
+                record["launch_governance"][
+                    "workload_assigned_before_resume"
+                ] = True
+                gate["workload_resumed_elapsed_seconds"] = (
+                    (time.perf_counter_ns() - started_counter_ns) / 1_000_000_000
+                )
+                gate["workload_resumed_utc"] = _utc_now()
+
+                paths["start"].write_text(
+                    gate["workload_resumed_utc"] + "\n",
+                    encoding="ascii",
+                )
+                gate["sampling_start_released_elapsed_seconds"] = (
+                    (time.perf_counter_ns() - started_counter_ns) / 1_000_000_000
+                )
+                gate["sampling_start_released_utc"] = _utc_now()
+                gate["released_after_workload_resume"] = True
+
+                interval_seconds = interval_ms / 1000.0
+                next_sample = time.monotonic()
+                while True:
+                    now = time.monotonic()
+                    if now - started_monotonic >= timeout_seconds:
+                        record["timed_out"] = True
+                        break
+                    if workload.poll() is not None:
+                        break
+                    if now < next_sample:
+                        try:
+                            workload.wait(timeout=min(next_sample - now, 0.05))
+                        except subprocess.TimeoutExpired:
+                            pass
+                        continue
+
+                    try:
+                        active_pids = workload_job.active_pids()
+                    except (OSError, RuntimeError) as error:
                         _append_error(
                             errors,
-                            f"memory query failed for active workload PID {pid}",
+                            f"workload Job Object sampling query failed: {error}",
                         )
-                        continue
-                    working_set, private_bytes = memory
-                    process_rows.append(
-                        {
-                            "pid": pid,
-                            "working_set_bytes": working_set,
-                            "private_bytes": private_bytes,
+                        break
+                    observed_pids.update(active_pids)
+                    if any(pid != workload.pid for pid in active_pids):
+                        record["child_workload_observed"] = True
+
+                    available = available_ram_bytes()
+                    if available is None:
+                        _append_error(errors, "available RAM query failed in-run")
+                        break
+                    if available < floor_bytes:
+                        record["low_memory_stop"] = True
+                        break
+
+                    process_rows = []
+                    for pid in active_pids:
+                        memory = process_memory_bytes(pid)
+                        if memory is None:
+                            _append_error(
+                                errors,
+                                f"memory query failed for active workload PID {pid}",
+                            )
+                            continue
+                        working_set, private_bytes = memory
+                        process_rows.append(
+                            {
+                                "pid": pid,
+                                "working_set_bytes": working_set,
+                                "private_bytes": private_bytes,
+                            }
+                        )
+                    if active_pids and len(process_rows) == len(active_pids):
+                        row = {
+                            "timestamp_utc": _utc_now(),
+                            "elapsed_seconds": time.monotonic() - started_monotonic,
+                            "active_pids": sorted(active_pids),
+                            "processes": process_rows,
+                            "working_set_bytes": sum(
+                                item["working_set_bytes"] for item in process_rows
+                            ),
+                            "private_bytes": sum(
+                                item["private_bytes"] for item in process_rows
+                            ),
+                            "available_ram_bytes": available,
                         }
+                        memory_samples.append(row)
+                        memory_handle.write(
+                            json.dumps(row, sort_keys=True, allow_nan=False) + "\n"
+                        )
+                        memory_handle.flush()
+                    sample_finished = time.monotonic()
+                    next_sample = next_sampling_deadline(
+                        next_sample,
+                        interval_seconds,
+                        sample_finished,
                     )
-                if active_pids and len(process_rows) == len(active_pids):
-                    row = {
-                        "timestamp_utc": _utc_now(),
-                        "elapsed_seconds": time.monotonic() - started_monotonic,
-                        "active_pids": sorted(active_pids),
-                        "processes": process_rows,
-                        "working_set_bytes": sum(
-                            item["working_set_bytes"] for item in process_rows
-                        ),
-                        "private_bytes": sum(
-                            item["private_bytes"] for item in process_rows
-                        ),
-                        "available_ram_bytes": available,
-                    }
-                    memory_samples.append(row)
-                    memory_handle.write(
-                        json.dumps(row, sort_keys=True, allow_nan=False) + "\n"
-                    )
-                    memory_handle.flush()
-                sample_finished = time.monotonic()
-                next_sample = next_sampling_deadline(
-                    next_sample,
-                    interval_seconds,
-                    sample_finished,
-                )
         except Exception as error:
             _append_error(
                 errors,
@@ -1269,91 +1426,140 @@ def run_one(
         finally:
             cleanup_started = time.monotonic()
             try:
-                paths["stop"].write_text("stop\n", encoding="ascii")
-            except OSError as error:
-                _append_error(errors, f"sampler stop signal failed: {error}")
-
-            if sampler is not None and sampler_assigned:
                 try:
-                    sampler.wait(timeout=10.0)
-                except subprocess.TimeoutExpired:
-                    pass
-            if sampler is not None and not sampler_assigned and sampler.poll() is None:
-                action = _taskkill(sampler.pid)
-                action["reason"] = "sampler assignment failure fallback"
-                record["emergency_actions"].append(action)
-                record["emergency_stop"] = True
-            sampler_evidence, sampler_emergency = _cleanup_job(
-                sampler_job,
-                sampler if sampler_assigned else None,
-                "sampler",
-                errors,
-                record["emergency_actions"],
-            )
-            sampler_evidence["setup_ok"] = sampler_assigned
-            record["sampler_job_object"] = sampler_evidence
-            record["emergency_stop"] = (
-                record["emergency_stop"] or sampler_emergency
-            )
+                    paths["stop"].write_text("stop\n", encoding="ascii")
+                except Exception as error:
+                    _append_error(
+                        errors,
+                        f"sampler stop signal failed: {type(error).__name__}: {error}",
+                    )
 
-            if workload is not None and not workload_assigned and workload.poll() is None:
-                action = _taskkill(workload.pid)
-                action["reason"] = "workload assignment failure fallback"
-                record["emergency_actions"].append(action)
-                record["emergency_stop"] = True
-            workload_evidence, workload_emergency = _cleanup_job(
-                workload_job,
-                workload if workload_assigned else None,
-                "workload",
-                errors,
-                record["emergency_actions"],
-            )
-            workload_evidence["setup_ok"] = workload_assigned
-            record["job_object"] = workload_evidence
-            record["emergency_stop"] = (
-                record["emergency_stop"] or workload_emergency
-            )
-
-            if sampler is not None:
+                if sampler is not None and sampler_assigned:
+                    try:
+                        sampler.wait(timeout=10.0)
+                    except subprocess.TimeoutExpired:
+                        pass
+                    except Exception as error:
+                        _append_error(
+                            errors,
+                            f"sampler initial wait failed: "
+                            f"{type(error).__name__}: {error}",
+                        )
                 try:
-                    sampler.wait(timeout=5.0)
-                except subprocess.TimeoutExpired:
-                    action = _taskkill(sampler.pid)
-                    action["reason"] = "sampler wait fallback"
-                    record["emergency_actions"].append(action)
+                    if (
+                        sampler is not None
+                        and not sampler_assigned
+                        and sampler.poll() is None
+                    ):
+                        action = _taskkill(sampler.pid)
+                        action["reason"] = "sampler assignment failure fallback"
+                        record["emergency_actions"].append(action)
+                        record["emergency_stop"] = True
+                except Exception as error:
+                    _append_error(
+                        errors,
+                        f"sampler assignment cleanup failed: "
+                        f"{type(error).__name__}: {error}",
+                    )
                     record["emergency_stop"] = True
-                    sampler.wait(timeout=5.0)
-                record["sampler_exit_code"] = sampler.returncode
-            if workload is not None:
                 try:
-                    workload.wait(timeout=5.0)
-                except subprocess.TimeoutExpired:
-                    action = _taskkill(workload.pid)
-                    action["reason"] = "workload wait fallback"
-                    record["emergency_actions"].append(action)
+                    sampler_evidence, sampler_emergency = _cleanup_job(
+                        sampler_job,
+                        sampler if sampler_assigned else None,
+                        "sampler",
+                        errors,
+                        record["emergency_actions"],
+                    )
+                    sampler_evidence["setup_ok"] = sampler_assigned
+                    record["sampler_job_object"] = sampler_evidence
+                    record["emergency_stop"] = (
+                        record["emergency_stop"] or sampler_emergency
+                    )
+                except Exception as error:
+                    _append_error(
+                        errors,
+                        f"sampler governed cleanup failed: "
+                        f"{type(error).__name__}: {error}",
+                    )
                     record["emergency_stop"] = True
-                    workload.wait(timeout=5.0)
-                record["exit_code"] = workload.returncode
 
-            for handle in file_handles:
                 try:
-                    handle.close()
-                except OSError as error:
-                    _append_error(errors, f"artifact handle close failed: {error}")
-            if sampler_job is not None:
+                    if (
+                        workload is not None
+                        and not workload_assigned
+                        and workload.poll() is None
+                    ):
+                        action = _taskkill(workload.pid)
+                        action["reason"] = "workload assignment failure fallback"
+                        record["emergency_actions"].append(action)
+                        record["emergency_stop"] = True
+                except Exception as error:
+                    _append_error(
+                        errors,
+                        f"workload assignment cleanup failed: "
+                        f"{type(error).__name__}: {error}",
+                    )
+                    record["emergency_stop"] = True
                 try:
-                    sampler_job.close()
-                except OSError as error:
-                    _append_error(errors, f"sampler Job Object close failed: {error}")
-            if workload_job is not None:
-                try:
-                    workload_job.close()
-                except OSError as error:
-                    _append_error(errors, f"workload Job Object close failed: {error}")
-            record["cleanup_duration_seconds"] = time.monotonic() - cleanup_started
-            if started_monotonic is not None:
-                record["elapsed_seconds"] = time.monotonic() - started_monotonic
-                record["ended_utc"] = _utc_now()
+                    workload_evidence, workload_emergency = _cleanup_job(
+                        workload_job,
+                        workload if workload_assigned else None,
+                        "workload",
+                        errors,
+                        record["emergency_actions"],
+                    )
+                    workload_evidence["setup_ok"] = workload_assigned
+                    record["job_object"] = workload_evidence
+                    record["emergency_stop"] = (
+                        record["emergency_stop"] or workload_emergency
+                    )
+                except Exception as error:
+                    _append_error(
+                        errors,
+                        f"workload governed cleanup failed: "
+                        f"{type(error).__name__}: {error}",
+                    )
+                    record["emergency_stop"] = True
+
+                for process, label, exit_key in (
+                    (sampler, "sampler", "sampler_exit_code"),
+                    (workload, "workload", "exit_code"),
+                ):
+                    if process is None:
+                        continue
+                    try:
+                        process.wait(timeout=5.0)
+                    except Exception as error:
+                        action = _taskkill(process.pid)
+                        action["reason"] = f"{label} wait fallback"
+                        record["emergency_actions"].append(action)
+                        record["emergency_stop"] = True
+                        _append_error(
+                            errors,
+                            f"{label} wait required fallback: "
+                            f"{type(error).__name__}: {error}",
+                        )
+                        _wait_process(
+                            process,
+                            timeout=5.0,
+                            label=f"{label} post-taskkill",
+                            errors=errors,
+                        )
+                    record[exit_key] = process.returncode
+            finally:
+                _close_run_resources(
+                    file_handles,
+                    [sampler_job, workload_job],
+                    errors,
+                )
+                record["cleanup_duration_seconds"] = (
+                    time.monotonic() - cleanup_started
+                )
+                if started_monotonic is not None:
+                    record["elapsed_seconds"] = (
+                        time.monotonic() - started_monotonic
+                    )
+                    record["ended_utc"] = _utc_now()
 
     available_after = available_ram_bytes()
     record["available_ram_bytes"]["after"] = available_after
@@ -1443,6 +1649,20 @@ def _require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def _parse_utc_timestamp(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    if parsed.utcoffset().total_seconds() != 0:
+        return None
+    return parsed
+
+
 def _validate_summary_and_samples(run: dict) -> None:
     summary = run.get("utilization_summary")
     samples = run.get("utilization_samples")
@@ -1484,6 +1704,34 @@ def _validate_summary_and_samples(run: dict) -> None:
         summary.get("cpu_sample_definitions") == expected_definition_counts,
         "CPU sample interval definition counts are invalid",
     )
+    deadlines = samples.get("sample_deadline_elapsed_ms")
+    lateness = samples.get("sample_lateness_ms")
+    _require(
+        isinstance(deadlines, list)
+        and isinstance(lateness, list)
+        and len(deadlines) == row_count
+        and len(lateness) == row_count
+        and deadlines[0] == float(EXACT_INTERVAL_MS)
+        and all(
+            _is_finite_number(value)
+            and value >= EXACT_INTERVAL_MS
+            and math.isclose(
+                value % EXACT_INTERVAL_MS,
+                0.0,
+                abs_tol=1e-6,
+            )
+            for value in deadlines
+        )
+        and all(
+            later > earlier
+            for earlier, later in zip(deadlines, deadlines[1:])
+        )
+        and all(_is_finite_number(value) and value >= 0 for value in lateness)
+        and summary.get("sample_deadline_elapsed_ms")
+        == summarize_samples(deadlines)
+        and summary.get("sample_lateness_ms") == summarize_samples(lateness),
+        "sampling deadline/lateness evidence is invalid",
+    )
     for field in ("gpu_engine_query", "gpu_memory_query"):
         status = summary.get(field)
         _require(
@@ -1500,9 +1748,22 @@ def _validate_run_for_reconciliation(
 ) -> None:
     _require(isinstance(run, dict), "run evidence is missing")
     _require(run.get("schema") == RUN_SCHEMA, "run schema is invalid")
+    output_directory = run.get("output_directory")
+    command = run.get("command")
+    expected_gtest_output = (
+        f"--gtest_output=json:{Path(output_directory) / 'gtest.json'}"
+        if isinstance(output_directory, str) and output_directory
+        else None
+    )
     _require(
-        isinstance(run.get("command"), list) and bool(run["command"]),
-        "run command evidence is missing",
+        isinstance(command, list)
+        and len(command) == 3
+        and isinstance(command[0], str)
+        and bool(command[0])
+        and Path(command[0]).is_absolute()
+        and command[1] == EXPECTED_GTEST_FILTER
+        and command[2] == expected_gtest_output,
+        "run did not use the exact production GTest command",
     )
     identity = run.get("environment_identity")
     _require(
@@ -1516,6 +1777,16 @@ def _validate_run_for_reconciliation(
         )
         is not None,
         "run environment identity is missing",
+    )
+    _require(
+        identity["identity_sha256"] == environment_identity_sha256(identity),
+        "run environment identity digest does not match its content",
+    )
+    runtime_dll_sha256 = identity["runtime_openvino_dll_sha256"]
+    _require(
+        run.get("runtime_openvino_dll_sha256_before") == runtime_dll_sha256
+        and run.get("runtime_openvino_dll_sha256_after") == runtime_dll_sha256,
+        "runtime DLL hash drift",
     )
     nonce = run.get("run_nonce")
     _require(
@@ -1543,6 +1814,55 @@ def _validate_run_for_reconciliation(
         and governance.get("sampler_created_suspended") is True
         and governance.get("sampler_assigned_before_resume") is True,
         "launch governance did not prove Job assignment before resume",
+    )
+    gate = run.get("sampler_start_gate")
+    ready_observed = (
+        _parse_utc_timestamp(gate.get("sampler_ready_observed_utc"))
+        if isinstance(gate, dict)
+        else None
+    )
+    workload_resumed = (
+        _parse_utc_timestamp(gate.get("workload_resumed_utc"))
+        if isinstance(gate, dict)
+        else None
+    )
+    sampling_start_released = (
+        _parse_utc_timestamp(gate.get("sampling_start_released_utc"))
+        if isinstance(gate, dict)
+        else None
+    )
+    ready_elapsed = (
+        gate.get("sampler_ready_observed_elapsed_seconds")
+        if isinstance(gate, dict)
+        else None
+    )
+    resumed_elapsed = (
+        gate.get("workload_resumed_elapsed_seconds")
+        if isinstance(gate, dict)
+        else None
+    )
+    released_elapsed = (
+        gate.get("sampling_start_released_elapsed_seconds")
+        if isinstance(gate, dict)
+        else None
+    )
+    _require(
+        isinstance(gate, dict)
+        and gate.get("ready_before_workload_resume") is True
+        and gate.get("released_after_workload_resume") is True
+        and ready_observed is not None
+        and workload_resumed is not None
+        and sampling_start_released is not None
+        and ready_observed <= workload_resumed <= sampling_start_released,
+        "sampling start gate did not prove readable UTC ordering",
+    )
+    _require(
+        _is_finite_number(ready_elapsed)
+        and _is_finite_number(resumed_elapsed)
+        and _is_finite_number(released_elapsed)
+        and ready_elapsed >= 0
+        and ready_elapsed <= resumed_elapsed < released_elapsed,
+        "sampling start gate did not prove ready, resume, and release ordering",
     )
     _require(
         run.get("sampling_interval_ms") == EXACT_INTERVAL_MS,
@@ -1662,6 +1982,33 @@ def reconcile_runs(
         runs[0]["run_nonce"] != runs[1]["run_nonce"],
         "fresh processes reused the same nonce",
     )
+    _require(
+        runs[0]["command"][0] == runs[1]["command"][0],
+        "fresh processes used different production executables",
+    )
+    runtime_dll_sha256 = runs[0]["environment_identity"][
+        "runtime_openvino_dll_sha256"
+    ]
+    _require(
+        runs[1]["environment_identity"]["runtime_openvino_dll_sha256"]
+        == runtime_dll_sha256,
+        "runtime DLL identity differs across fresh processes",
+    )
+    _require(
+        runs[0]["environment_identity"] == runs[1]["environment_identity"],
+        "environment identities differ across fresh processes",
+    )
+    runtime_dll_observations = {
+        "before_run_1": runs[0]["runtime_openvino_dll_sha256_before"],
+        "before_run_2": runs[0]["runtime_openvino_dll_sha256_after"],
+        "after_run_2": runs[1]["runtime_openvino_dll_sha256_after"],
+    }
+    _require(
+        set(runtime_dll_observations.values()) == {runtime_dll_sha256}
+        and runs[1]["runtime_openvino_dll_sha256_before"]
+        == runtime_dll_observations["before_run_2"],
+        "runtime DLL hash drift across observation points",
+    )
     output_hash_arrays = [run["marker"]["output_hashes"] for run in runs]
     _require(
         output_hash_arrays[0] == output_hash_arrays[1],
@@ -1683,7 +2030,7 @@ def reconcile_runs(
     )
 
     combined: dict[str, Any] = {}
-    for field in UTILIZATION_VALUE_FIELDS:
+    for field in (*UTILIZATION_VALUE_FIELDS, *UTILIZATION_TIMING_FIELDS):
         values = [
             value
             for run in runs
@@ -1727,6 +2074,8 @@ def reconcile_runs(
         "generated_utc": _utc_now(),
         "derived_commit": derived_commit,
         "executable_sha256": executable_sha256,
+        "runtime_openvino_dll_sha256": runtime_dll_sha256,
+        "runtime_openvino_dll_sha256_observations": runtime_dll_observations,
         "device": common_marker["device"],
         "runtime_layer_type": common_marker["runtime_layer_type"],
         "reference_operation_count": common_marker["reference_operation_count"],
@@ -1753,6 +2102,9 @@ def reconcile_runs(
             "output_hash_arrays_match": True,
             "state_proofs_match": True,
             "executable_hashes_match": True,
+            "runtime_dll_hashes_match": True,
+            "environment_identities_match": True,
+            "exact_production_commands": True,
             "derived_checkout_clean": True,
             "exactly_one_passed_gtest_per_run": True,
             "queried_zero_survivors": True,
@@ -1858,6 +2210,7 @@ def main() -> int:
         "runtime_library_dir": str(args.runtime_library_dir),
         "derived_observations": {},
         "executable_sha256_observations": {},
+        "runtime_openvino_dll_sha256_observations": {},
     }
     runs: list[dict] = []
     try:
@@ -1876,6 +2229,7 @@ def main() -> int:
         runtime_library_dir = validate_runtime_library_dir(
             args.runtime_library_dir
         )
+        runtime_openvino_dll = runtime_library_dir / "openvino.dll"
 
         commit_before_run_1, status_before_run_1 = _git_identity(derived_repo)
         attempt_summary["derived_observations"]["before_run_1"] = {
@@ -1891,9 +2245,13 @@ def main() -> int:
             raise ValueError("derived checkout is not clean before run 1")
 
         sha_before_run_1 = _sha256_file(executable)
+        runtime_sha_before_run_1 = _sha256_file(runtime_openvino_dll)
         attempt_summary["executable_sha256_observations"][
             "before_run_1"
         ] = sha_before_run_1
+        attempt_summary["runtime_openvino_dll_sha256_observations"][
+            "before_run_1"
+        ] = runtime_sha_before_run_1
 
         run_1_dir = attempt_dir / "run-1"
         run_1_nonce = secrets.token_hex(16)
@@ -1915,6 +2273,7 @@ def main() -> int:
 
         commit_before_run_2, status_before_run_2 = _git_identity(derived_repo)
         sha_before_run_2 = _sha256_file(executable)
+        runtime_sha_before_run_2 = _sha256_file(runtime_openvino_dll)
         attempt_summary["derived_observations"]["before_run_2"] = {
             "commit": commit_before_run_2,
             "status_porcelain": status_before_run_2,
@@ -1922,6 +2281,9 @@ def main() -> int:
         attempt_summary["executable_sha256_observations"][
             "before_run_2"
         ] = sha_before_run_2
+        attempt_summary["runtime_openvino_dll_sha256_observations"][
+            "before_run_2"
+        ] = runtime_sha_before_run_2
         run_1.update(
             {
                 "derived_commit": commit_before_run_1,
@@ -1929,6 +2291,8 @@ def main() -> int:
                 "derived_checkout_clean_after": status_before_run_2 == "",
                 "executable_sha256_before": sha_before_run_1,
                 "executable_sha256_after": sha_before_run_2,
+                "runtime_openvino_dll_sha256_before": runtime_sha_before_run_1,
+                "runtime_openvino_dll_sha256_after": runtime_sha_before_run_2,
             }
         )
         atomic_write_json(run_1_dir / "run.json", run_1)
@@ -1953,6 +2317,7 @@ def main() -> int:
 
         commit_after_run_2, status_after_run_2 = _git_identity(derived_repo)
         sha_after_run_2 = _sha256_file(executable)
+        runtime_sha_after_run_2 = _sha256_file(runtime_openvino_dll)
         attempt_summary["derived_observations"]["after_run_2"] = {
             "commit": commit_after_run_2,
             "status_porcelain": status_after_run_2,
@@ -1960,6 +2325,9 @@ def main() -> int:
         attempt_summary["executable_sha256_observations"][
             "after_run_2"
         ] = sha_after_run_2
+        attempt_summary["runtime_openvino_dll_sha256_observations"][
+            "after_run_2"
+        ] = runtime_sha_after_run_2
         run_2.update(
             {
                 "derived_commit": commit_after_run_2,
@@ -1967,6 +2335,8 @@ def main() -> int:
                 "derived_checkout_clean_after": status_after_run_2 == "",
                 "executable_sha256_before": sha_before_run_2,
                 "executable_sha256_after": sha_after_run_2,
+                "runtime_openvino_dll_sha256_before": runtime_sha_before_run_2,
+                "runtime_openvino_dll_sha256_after": runtime_sha_after_run_2,
             }
         )
         atomic_write_json(run_2_dir / "run.json", run_2)
@@ -1984,6 +2354,12 @@ def main() -> int:
             sha_before_run_1 == sha_before_run_2 == sha_after_run_2
         ):
             raise ValueError("executable SHA-256 drifted across the two runs")
+        if not (
+            runtime_sha_before_run_1
+            == runtime_sha_before_run_2
+            == runtime_sha_after_run_2
+        ):
+            raise ValueError("OpenVINO runtime DLL SHA-256 drifted across the two runs")
 
         capability = reconcile_runs(
             runs, commit_before_run_1, sha_before_run_1
@@ -1991,6 +2367,11 @@ def main() -> int:
         capability["attempt_directory"] = str(attempt_dir)
         capability["derived_repo"] = str(derived_repo)
         capability["runtime_library_dir"] = str(runtime_library_dir)
+        if (
+            capability["runtime_openvino_dll_sha256_observations"]
+            != attempt_summary["runtime_openvino_dll_sha256_observations"]
+        ):
+            raise ValueError("runtime DLL observations disagree after reconciliation")
         capability["executable"] = {
             "path": str(executable),
             "sha256": sha_before_run_1,

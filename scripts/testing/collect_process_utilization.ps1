@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory = $true)][int]$ProcessId,
     [Parameter(Mandatory = $true)][string]$OutputPath,
     [Parameter(Mandatory = $true)][string]$ReadyPath,
+    [Parameter(Mandatory = $true)][string]$StartPath,
     [Parameter(Mandatory = $true)][string]$StopPath,
     [int]$IntervalMilliseconds = 250
 )
@@ -10,10 +11,44 @@ $ErrorActionPreference = 'Stop'
 $logicalProcessors = [Environment]::ProcessorCount
 $previousCpu = $null
 $previousTime = $null
-'timestamp_utc,cpu_percent,cpu_sample_definition,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb,gpu_engine_query_ok,gpu_memory_query_ok' | Set-Content -LiteralPath $OutputPath -Encoding utf8
-$readySent = $false
+'timestamp_utc,cpu_percent,cpu_sample_definition,sample_deadline_elapsed_ms,sample_lateness_ms,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb,gpu_engine_query_ok,gpu_memory_query_ok' | Set-Content -LiteralPath $OutputPath -Encoding utf8
+'ready' | Set-Content -LiteralPath $ReadyPath -Encoding ascii
+
+while (
+    -not (Test-Path -LiteralPath $StartPath) -and
+    -not (Test-Path -LiteralPath $StopPath)
+) {
+    Start-Sleep -Milliseconds 5
+}
+if (Test-Path -LiteralPath $StopPath) { return }
+
+$workloadResumeText = (Get-Content -LiteralPath $StartPath -Raw).Trim()
+$workloadResumeUtc = [DateTimeOffset]::Parse(
+    $workloadResumeText,
+    [Globalization.CultureInfo]::InvariantCulture,
+    [Globalization.DateTimeStyles]::RoundtripKind
+).UtcDateTime
+$sampleClock = [Diagnostics.Stopwatch]::StartNew()
+$resumeElapsedAtClockStartMilliseconds = [Math]::Max(
+    0.0,
+    ([DateTime]::UtcNow - $workloadResumeUtc).TotalMilliseconds
+)
+$nextDeadlineMilliseconds = [double]$IntervalMilliseconds
 
 while (-not (Test-Path -LiteralPath $StopPath)) {
+    $elapsedSinceResumeMilliseconds = $resumeElapsedAtClockStartMilliseconds + $sampleClock.Elapsed.TotalMilliseconds
+    $remainingMilliseconds = $nextDeadlineMilliseconds - $elapsedSinceResumeMilliseconds
+    if ($remainingMilliseconds -gt 0) {
+        Start-Sleep -Milliseconds ([int][Math]::Ceiling($remainingMilliseconds))
+    }
+    if (Test-Path -LiteralPath $StopPath) { break }
+
+    $sampleDeadlineMilliseconds = $nextDeadlineMilliseconds
+    $sampleObservedElapsedMilliseconds = $resumeElapsedAtClockStartMilliseconds + $sampleClock.Elapsed.TotalMilliseconds
+    $sampleLatenessMilliseconds = [Math]::Max(
+        0.0,
+        $sampleObservedElapsedMilliseconds - $sampleDeadlineMilliseconds
+    )
     $now = [DateTime]::UtcNow
     $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if ($null -eq $process) { break }
@@ -28,10 +63,10 @@ while (-not (Test-Path -LiteralPath $StopPath)) {
         }
     }
     else {
-        $lifetimeElapsed = ($now - $process.StartTime.ToUniversalTime()).TotalSeconds
+        $lifetimeElapsed = ($now - $workloadResumeUtc).TotalSeconds
         if ($lifetimeElapsed -gt 0) {
             $cpuPercent = ($process.TotalProcessorTime.TotalSeconds / $lifetimeElapsed / $logicalProcessors) * 100.0
-            $cpuSampleDefinition = 'lifetime_average_since_process_start'
+            $cpuSampleDefinition = 'lifetime_average_since_workload_resume'
         }
     }
     $previousCpu = $process.TotalProcessorTime.TotalSeconds
@@ -77,6 +112,8 @@ while (-not (Test-Path -LiteralPath $StopPath)) {
     if ($null -ne $cpuPercent) {
         $culture = [Globalization.CultureInfo]::InvariantCulture
         $cpuText = ([Math]::Min(100.0, [Math]::Max(0.0, $cpuPercent))).ToString('F6', $culture)
+        $deadlineText = $sampleDeadlineMilliseconds.ToString('F6', $culture)
+        $latenessText = $sampleLatenessMilliseconds.ToString('F6', $culture)
         $gpuText = ''
         $engineCountText = ''
         if ($gpuEngineQueryOk) {
@@ -89,12 +126,15 @@ while (-not (Test-Path -LiteralPath $StopPath)) {
             $dedicatedText = ($dedicatedBytes / 1MB).ToString('F6', $culture)
             $sharedText = ($sharedBytes / 1MB).ToString('F6', $culture)
         }
-        $line = '{0},{1},{2},{3},{4},{5},{6},{7},{8}' -f $now.ToString('o'), $cpuText, $cpuSampleDefinition, $gpuText, $engineCountText, $dedicatedText, $sharedText, $gpuEngineQueryOk.ToString().ToLowerInvariant(), $gpuMemoryQueryOk.ToString().ToLowerInvariant()
+        $line = '{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10}' -f $now.ToString('o'), $cpuText, $cpuSampleDefinition, $deadlineText, $latenessText, $gpuText, $engineCountText, $dedicatedText, $sharedText, $gpuEngineQueryOk.ToString().ToLowerInvariant(), $gpuMemoryQueryOk.ToString().ToLowerInvariant()
         Add-Content -LiteralPath $OutputPath -Value $line -Encoding utf8
     }
-    if (-not $readySent) {
-        'ready' | Set-Content -LiteralPath $ReadyPath -Encoding ascii
-        $readySent = $true
-    }
-    Start-Sleep -Milliseconds $IntervalMilliseconds
+    do {
+        $nextDeadlineMilliseconds += $IntervalMilliseconds
+    } while (
+        $nextDeadlineMilliseconds -le (
+            $resumeElapsedAtClockStartMilliseconds +
+            $sampleClock.Elapsed.TotalMilliseconds
+        )
+    )
 }
