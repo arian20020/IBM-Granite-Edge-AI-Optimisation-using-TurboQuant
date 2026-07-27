@@ -15,7 +15,7 @@
 - Supported runtime is CPU stateful `ov::op::v13::ScaledDotProductAttention`; reject GPU, NPU, PagedAttention, non-SDPA, ambiguous, dynamic-head, unsupported-rank, and unsupported-layout paths.
 - Key and value algorithms remain independently selectable as exactly `STANDARD`, `TBQ3`, or `TBQ4`.
 - Existing `encode()` and `decode()` outputs are frozen; do not change them to fit reduced graph precision.
-- Persistent selected state is only `u8` payload, `f32` norm, and `i64` metadata; no equivalent persistent full-precision shadow is permitted.
+- Persistent selected state is only `u8` payload, `f32` norm, and strict `i32` metadata; metadata stores only static `H`, which must be positive, divisible by eight, and no greater than `INT32_MAX`; no equivalent persistent full-precision shadow is permitted.
 - Encode only the new sequence-length-one vector and decode only the current `S + 1` sequence slice needed by the matched SDPA port.
 - Requested TurboQuant never silently falls back to STANDARD.
 - Do not add GPU/NPU/PagedAttention TurboQuant, QJL, PolarQuant, hidden operation state, whole-cache host decompression, or software-emulated general FP64.
@@ -30,9 +30,9 @@
 - Parent recovery branch: `testing/openvino-turboquant-recovery`.
 - Controlled derived checkout branch: `project/turboquant-wb04`.
 - Accepted strict matcher head: `80f63c17c6517c236c6cda119a21e17b78266102`.
-- Current derived head: `345a4b1dd49405859716cde6f491c6c8fcaab8c4`.
-- Two retained RED parity tests are intentionally uncommitted in `tests/cpp/turboquant_stateful_graph.cpp`; they fail only because the standard-op implementation cannot match frozen double-precision codec semantics.
-- Existing graph behavior excluding those RED tests passes 28/28; codec/config tests pass 18/18; `openvino_genai_obj` builds.
+- Current accepted derived head: `1561713cfc3a6c455fc9d91198e1e943cf22962b`.
+- Tasks 1 and 2 are accepted. Task 3 has an intentionally uncommitted three-file diff that preserves the retained parity RED, adds fused topology coverage, and must be resumed after Task 2A.
+- The strict-`i64` integrated attempt passed structural topology but failed all eight selected CPU configurations because OpenVINO 2026.2.1 lowered state metadata to `i32`; the approved amendment makes `i32` the explicit end-to-end metadata type rather than accepting an implicit conversion.
 
 ## File Map
 
@@ -140,7 +140,7 @@ Test-only helper contracts in `turboquant_state_update_decode.cpp`:
 struct EvaluatedState {
     std::vector<uint8_t> payload;
     std::vector<uint8_t> norm_bytes;
-    std::vector<int64_t> metadata;
+    std::vector<int32_t> metadata;
     std::vector<float> decoded;
     size_t sequence_length;
 };
@@ -196,7 +196,7 @@ TEST(TurboQuantStateUpdateDecode, AppendsExactScalarRecordsAndDecodesCurrentSlic
     const auto outputs = evaluate_steps(TurboQuantBits::B4, 8, true, sources);
     EXPECT_EQ(outputs.payload, scalar_payload_for(sources, TurboQuantBits::B4));
     EXPECT_EQ(outputs.norm_bytes, scalar_norm_bytes_for(sources, TurboQuantBits::B4));
-    EXPECT_EQ(outputs.metadata, (std::vector<int64_t>{8, 8}));
+    EXPECT_EQ(outputs.metadata, (std::vector<int32_t>{8, 8}));
     EXPECT_EQ(outputs.decoded, scalar_corrected_decode_for(sources, TurboQuantBits::B4));
 }
 
@@ -220,7 +220,7 @@ Expected: compile/link failure because the operation methods are not implemented
 
 - [ ] **Step 4: Implement validation, shape inference, attributes, and cloning**
 
-Require input types `u8/f32/i64/f32`, rank four, compatible static B/head dimensions, payload last dimension `packed_bytes(H,bits)`, norm/metadata last dimension one, fresh sequence dimension one, and matching prior sequence dimensions. Set outputs to `[B,heads,S+1,P]`, `[B,heads,S+1,1]`, `[B,heads,S+1,1]`, and `[B,heads,S+1,H]`; use a dynamic sequence dimension when input S is dynamic.
+Require input types `u8/f32/i32/f32`, rank four, compatible static B/head dimensions, payload last dimension `packed_bytes(H,bits)`, norm/metadata last dimension one, fresh sequence dimension one, matching prior sequence dimensions, and `H <= INT32_MAX`. Set outputs to `[B,heads,S+1,P]`, `[B,heads,S+1,1]`, `[B,heads,S+1,1]`, and `[B,heads,S+1,H]`; use a dynamic sequence dimension when input S is dynamic.
 
 Serialize attributes as:
 
@@ -266,6 +266,67 @@ distinct inputs and returns an `EvaluatedState`.
 ```powershell
 git add src/cpp/src/llm/turboquant_state_update_decode.hpp src/cpp/src/llm/turboquant_state_update_decode.cpp tests/cpp/turboquant_state_update_decode.cpp tests/cpp/CMakeLists.txt
 git commit -m "feat(openvino): add exact fused TurboQuant state operation"
+```
+
+### Task 2A: Amend Metadata to the Supported Strict i32 State Type
+
+**Files:**
+- Modify: `external/official-openvino/2026-07-19/openvino.genai-turboquant/src/cpp/src/llm/turboquant_state_update_decode.cpp`
+- Modify: `external/official-openvino/2026-07-19/openvino.genai-turboquant/tests/cpp/turboquant_state_update_decode.cpp`
+
+**Interfaces:**
+- Consumes: accepted exact Task 2 operation at `1561713cfc3a6c455fc9d91198e1e943cf22962b`.
+- Produces: the same four-input/four-output operation with metadata strictly `i32` end-to-end and all payload/norm/decode behavior unchanged.
+
+- [ ] **Step 1: Change only the tests and verify RED**
+
+Change the operation fixture and expected metadata containers to
+`std::vector<int32_t>`. Construct metadata Parameters/Tensors with
+`ov::element::i32`. Add focused cases that reject an `i64` metadata input and
+reject `head_dimension > static_cast<size_t>(INT32_MAX)` before evaluation.
+Remove the test-only `keep_const_precision` marker from the standalone CPU
+proof.
+
+Run:
+
+```powershell
+cmake --build R:/external/official-openvino/2026-07-19/build-genai-turboquant --config Release --target turboquant_state_update_decode_tests -j 1
+R:/external/official-openvino/2026-07-19/build-genai-turboquant/bin/Release/turboquant_state_update_decode_tests.exe
+```
+
+Expected RED: the existing implementation rejects metadata input 2 because
+it still requires `i64`; the overflow case is not yet rejected by the explicit
+`INT32_MAX` contract.
+
+- [ ] **Step 2: Implement the minimal strict-i32 operation change**
+
+Require input 2 and output 2 to be `ov::element::i32`. Validate
+`m_head_dimension <= static_cast<size_t>(std::numeric_limits<int32_t>::max())`
+before shape or byte calculations. In `evaluate()`, read and write metadata as
+`int32_t`, compare every prior value to the single checked
+`static_cast<int32_t>(m_head_dimension)`, and retain the existing preflight
+overflow and write-after-validation ordering. Do not change payload, norm,
+codec calls, output 3, operation attributes, or the frozen codec.
+
+- [ ] **Step 3: Verify focused GREEN and regression**
+
+Run the operation suite twice and the codec suite once:
+
+```powershell
+R:/external/official-openvino/2026-07-19/build-genai-turboquant/bin/Release/turboquant_state_update_decode_tests.exe
+R:/external/official-openvino/2026-07-19/build-genai-turboquant/bin/Release/turboquant_state_update_decode_tests.exe
+R:/external/official-openvino/2026-07-19/build-genai-turboquant/bin/Release/turboquant_codec_tests.exe
+```
+
+Expected: every invocation exits `0`; exact adversarial and seeded
+payload/norm/decode parity remains unchanged; the standalone two-step CPU
+Reference proof persists `i32` metadata without any precision marker.
+
+- [ ] **Step 4: Commit**
+
+```powershell
+git add src/cpp/src/llm/turboquant_state_update_decode.cpp tests/cpp/turboquant_state_update_decode.cpp
+git commit -m "fix(openvino): use supported i32 state metadata"
 ```
 
 ### Task 3: Replace the Standard Codec Subgraph Transactionally
@@ -315,7 +376,7 @@ TEST(TurboQuantStatefulGraph, UsesOneFusedOperationPerSelectedState) {
 
 - [ ] **Step 3: Replace the arithmetic region**
 
-In `build_replacement`, retain compressed variables and no-initializer `ReadValue` nodes. Replace `encode_vectors`, compressed `Concat`, and `decode_vectors` with:
+In `build_replacement`, retain compressed variables and no-initializer `ReadValue` nodes. The metadata variable is exactly `ov::element::i32`, its expected bytes use `sizeof(int32_t)`, and no `keep_const_precision` marker is present or needed. Replace `encode_vectors`, compressed `Concat`, and `decode_vectors` with:
 
 ```cpp
 auto update = std::make_shared<TurboQuantStateUpdateDecode>(
@@ -426,7 +487,7 @@ Unit tests using independent `ov::Core` objects add the same `OpExtension` expli
 
 - [ ] **Step 4: Run the guarded 100-step process**
 
-Launch a fresh test process with a 300-second absolute timeout, 100 ms CPU/GPU/RAM sampling, owned-process-tree cleanup, and state snapshots after steps 1, 2, 50, and 100. Run it twice. Require identical output hashes and only selected `u8/f32/i64` states.
+Launch a fresh test process with a 300-second absolute timeout, 100 ms CPU/GPU/RAM sampling, owned-process-tree cleanup, and state snapshots after steps 1, 2, 50, and 100. Run it twice. Require identical output hashes and only selected `u8/f32/i32` states.
 
 - [ ] **Step 5: Write capability evidence atomically**
 

@@ -38,6 +38,31 @@ The pinned CPU plugin has been locally proven to execute a registered
 project operation can therefore reuse the authoritative scalar codec without
 modifying OpenVINO Runtime or the immutable upstream checkout.
 
+## Approved Metadata Compatibility Amendment
+
+OpenVINO CPU 2026.2.1 cannot carry strict `i64` state through
+`ReadValue ->` a custom extension operation `-> Assign`. Its
+`ConvertPrecision` path lowers an `i64` `ReadValue` output to `i32`, while
+`InsertConvertAfterExtension` independently lowers every `i64` output of an
+unknown extension operation to `i32` for non-Result consumers. The standard
+`keep_const_precision` runtime attribute exempts Parameters and Constants,
+not state variables or extension outputs. A built-in `i64` state also fails
+at CPU memory execution. There is no public graph property or extension hook
+that disables these conversions.
+
+The approved compatible contract therefore stores metadata as strict `i32`.
+Metadata contains only the validated static head dimension `H`; it never
+contains a sequence offset, byte count, or value derived from model data.
+`H` must be positive, divisible by eight, and no greater than `INT32_MAX`.
+Converting this field from `i64` to `i32` is exact and does not alter payload
+bytes, stored `f32` norms, decoded values, quantization quality, or sequence
+ordering. Metadata accounting is exactly four bytes per record.
+
+Eliminating metadata would make the state less self-describing and would
+change the four-input/four-output contract. Retaining strict `i64` would
+require a separately built OpenVINO CPU-plugin fork, including memory and
+precision-pass changes. Both alternatives are outside this recovery.
+
 ## Operation Contract
 
 The production type is:
@@ -62,7 +87,7 @@ Inputs:
 
 1. payload: `u8 [B, heads, S, packed_bytes(H, bits)]`;
 2. norm: `f32 [B, heads, S, 1]`;
-3. metadata: `i64 [B, heads, S, 1]`;
+3. metadata: `i32 [B, heads, S, 1]`;
 4. new vector: `f32 [B, heads, 1, H]`.
 
 Attributes:
@@ -75,7 +100,7 @@ Outputs:
 
 1. appended payload: `u8 [B, heads, S + 1, packed_bytes(H, bits)]`;
 2. appended norm: `f32 [B, heads, S + 1, 1]`;
-3. appended metadata: `i64 [B, heads, S + 1, 1]`;
+3. appended metadata: `i32 [B, heads, S + 1, 1]`;
 4. decoded current slice: `f32 [B, heads, S + 1, H]`.
 
 The operation is pure. It owns no hidden cache, mutable singleton, or
@@ -93,8 +118,8 @@ state.
   dimensions;
 - a new-vector sequence dimension other than one;
 - metadata values or shapes inconsistent with `H`;
-- unsupported bits, dynamic `H`, non-divisible-by-eight `H`, and size
-  calculations that overflow `size_t`;
+- unsupported bits, dynamic `H`, non-divisible-by-eight `H`, `H` greater than
+  `INT32_MAX`, and size calculations that overflow `size_t`;
 - payload dimensions inconsistent with `packed_bytes(H, bits)`.
 
 `evaluate()` performs these steps for each `[batch, head]` row:
@@ -102,7 +127,8 @@ state.
 1. validate all input tensor sizes before allocating or copying output;
 2. preserve prior payload, norm, and metadata bytes exactly;
 3. call the frozen scalar `encode()` for the one new `f32[H]` vector;
-4. append the returned payload, exact stored `f32` norm, and metadata `H`;
+4. append the returned payload, exact stored `f32` norm, and checked
+   `int32_t` metadata `H`;
 5. decode every compressed row in the current `S + 1` slice using the
    selected, frozen norm-restoration semantics;
 6. write decoded values into output 4 and return success only after all output
@@ -176,6 +202,11 @@ Persistent state bytes are calculated independently for payload, norms, and
 metadata from actual output tensor shapes. Query-state inspection must show no
 selected full-precision KV variable.
 
+Metadata bytes equal the actual metadata element count multiplied by
+`sizeof(int32_t)`. Expected and actual accounting must both use four bytes per
+record; an eight-byte assumption or an implicit CPU conversion is a
+reconciliation failure.
+
 Decoded output 4 is transient scratch. Telemetry records:
 
 - expected and actual persistent payload bytes;
@@ -220,7 +251,8 @@ Implementation proceeds test-first and must pass these gates in order:
 5. zero vector and `norm_correction` true/false behavior;
 6. two-step then three-step real CPU `InferRequest` state persistence;
 7. all nine STANDARD/TBQ3/TBQ4 K/V selections using distinct key/value data;
-8. 100-step deterministic CPU inference with query-state and no-shadow checks;
+8. 100-step deterministic CPU inference with selected state types restricted
+   to `u8` payload, `f32` norm, and `i32` metadata, plus no-shadow checks;
 9. exact persistent and transient allocation reconciliation;
 10. existing codec, configuration, graph, production-object, and relevant
     OpenVINO GenAI tests;
@@ -260,5 +292,6 @@ meeting the measured RAM floor.
 - Separate encode and decode custom operation types.
 - Hidden mutable state inside the operation.
 - Whole-cache host decompression between inference requests.
+- A downstream OpenVINO CPU-plugin fork to preserve `i64` state.
 - GPU, NPU, PagedAttention, QJL, PolarQuant, or upstream-support claims.
 - Weakening timeouts or RAM floors to force workbook completion.
