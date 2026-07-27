@@ -374,6 +374,20 @@ TEST(TurboQuantStatefulGraph, UsesOneFusedOperationPerSelectedState) {
 }
 ```
 
+For the approved compatibility amendment, first change only the Task 3 tests
+and inspection helpers: require metadata variables, `ReadValue` outputs,
+queried state, and manifest accounting to be `i32` and
+`sizeof(int32_t)`; rename the integrated lifetime case from strict-I64 to
+strict-I32; remove the test-only `keep_const_precision` attribute helper and
+assert that no such marker is required. Do not alter unrelated `i64` Slice,
+Range, axis, or shape constants.
+
+Build and run the focused topology/allocation/lifetime tests before changing
+production. Expected RED: transformation fails because the preserved
+production graph still constructs an `i64` metadata `ReadValue` while the
+accepted operation now requires input 2 to be `i32`. Record the exact filter,
+failure, and exit code.
+
 - [ ] **Step 3: Replace the arithmetic region**
 
 In `build_replacement`, retain compressed variables and no-initializer `ReadValue` nodes. The metadata variable is exactly `ov::element::i32`, its expected bytes use `sizeof(int32_t)`, and no `keep_const_precision` marker is present or needed. Replace `encode_vectors`, compressed `Concat`, and `decode_vectors` with:
