@@ -1,0 +1,14 @@
+{
+  "capability_nonce_variable": "OPENVINO_TURBOQUANT_CAPABILITY_NONCE",
+  "computer_name": "LENOVO-PF4HMD0T",
+  "identity_sha256": "d6d4deeb72321304d2df1dad238487427d3274df7d8f5cabe8ee018d00091b31",
+  "logical_processor_count": 12,
+  "machine": "AMD64",
+  "operating_system": "Windows-10-10.0.26200-SP0",
+  "powershell_executable": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+  "processor_identifier": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+  "python_executable": "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+  "python_version": "3.11.9",
+  "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+}

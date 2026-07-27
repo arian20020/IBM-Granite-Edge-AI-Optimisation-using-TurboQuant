@@ -1,0 +1,122 @@
+{
+  "artifacts": {
+    "command": "command.json",
+    "environment": "environment.json",
+    "gtest": "gtest.json",
+    "memory_samples": "memory.jsonl",
+    "run": "run.json",
+    "sampler_stderr": "sampler.stderr.txt",
+    "sampler_stdout": "sampler.stdout.txt",
+    "stderr": "stderr.txt",
+    "stdout": "stdout.txt",
+    "utilization": "utilization.csv"
+  },
+  "available_ram_bytes": {
+    "after": 8130945024,
+    "before": 8149970944,
+    "minimum": 8130945024
+  },
+  "child_workload_observed": false,
+  "cleanup_duration_seconds": 0.1720000000204891,
+  "command": [
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+    "--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
+    "--gtest_output=json:C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T214951Z-1cf92ea2\\run-2\\gtest.json"
+  ],
+  "derived_checkout_clean_after": true,
+  "derived_checkout_clean_before": true,
+  "derived_commit": "adb5fbe37e9f8c533461c892a19191f1709ae774",
+  "elapsed_seconds": 0.2190000000409782,
+  "emergency_actions": [],
+  "emergency_stop": false,
+  "ended_utc": "2026-07-27T21:49:52.150820Z",
+  "environment_identity": {
+    "capability_nonce_variable": "OPENVINO_TURBOQUANT_CAPABILITY_NONCE",
+    "computer_name": "LENOVO-PF4HMD0T",
+    "identity_sha256": "d6d4deeb72321304d2df1dad238487427d3274df7d8f5cabe8ee018d00091b31",
+    "logical_processor_count": 12,
+    "machine": "AMD64",
+    "operating_system": "Windows-10-10.0.26200-SP0",
+    "powershell_executable": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "processor_identifier": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python_executable": "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "python_version": "3.11.9",
+    "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+  },
+  "executable_sha256_after": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+  "executable_sha256_before": "aab980056bcd596e1cdbc4ce264c817998bed2f7d9b42fb38ff960196894f6e7",
+  "exit_code": 3221225781,
+  "gtest": null,
+  "job_object": {
+    "queried_active_process_count_after_cleanup": 0,
+    "query_ok": true,
+    "setup_ok": true,
+    "survivor_pids_after_cleanup": [],
+    "terminate_job_called": false
+  },
+  "low_memory_stop": false,
+  "marker": null,
+  "memory_sample_count": 1,
+  "minimum_available_ram_mb": 2048.0,
+  "observed_pids": [
+    17452
+  ],
+  "output_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T214951Z-1cf92ea2\\run-2",
+  "peak_private_bytes": 684032,
+  "peak_working_set_bytes": 2043904,
+  "root_pid": 17452,
+  "run_id": "run-2",
+  "run_nonce": "0f8a4855906ee8fbe34ef91946a29688",
+  "sampler_exit_code": 0,
+  "sampler_job_object": {
+    "queried_active_process_count_after_cleanup": 0,
+    "query_ok": true,
+    "setup_ok": true,
+    "survivor_pids_after_cleanup": [],
+    "terminate_job_called": false
+  },
+  "sampling_interval_ms": 100,
+  "schema": "openvino-turboquant-reference-capability-run/v1",
+  "started_utc": "2026-07-27T21:49:51.927624Z",
+  "timed_out": false,
+  "timeout_seconds": 300.0,
+  "utilization_samples": {
+    "cpu_percent": [],
+    "gpu_dedicated_mb": [],
+    "gpu_engine_count": [],
+    "gpu_percent": [],
+    "gpu_shared_mb": []
+  },
+  "utilization_summary": {
+    "cpu_percent": null,
+    "gpu_dedicated_mb": null,
+    "gpu_engine_count": null,
+    "gpu_engine_query": {
+      "all_succeeded": false,
+      "failure_count": 0,
+      "success_count": 0
+    },
+    "gpu_memory_query": {
+      "all_succeeded": false,
+      "failure_count": 0,
+      "success_count": 0
+    },
+    "gpu_percent": null,
+    "gpu_shared_mb": null,
+    "row_count": 0
+  },
+  "valid": false,
+  "validation_errors": [
+    "expected exactly one TURBOQUANT_REFERENCE_CAPABILITY_JSON= line, found 0",
+    "GTest JSON is missing",
+    "utilization CSV has no real counter sample",
+    "cpu_percent utilization evidence is absent",
+    "gpu_percent utilization evidence is absent",
+    "gpu_engine_count utilization evidence is absent",
+    "gpu_dedicated_mb utilization evidence is absent",
+    "gpu_shared_mb utilization evidence is absent",
+    "utilization sampler never reported ready",
+    "workload exit code is 3221225781"
+  ]
+}

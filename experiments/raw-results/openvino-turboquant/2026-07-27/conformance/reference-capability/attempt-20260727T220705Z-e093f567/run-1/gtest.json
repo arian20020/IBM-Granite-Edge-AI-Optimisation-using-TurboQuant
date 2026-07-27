@@ -1,0 +1,32 @@
+{
+  "tests": 1,
+  "failures": 0,
+  "disabled": 0,
+  "errors": 0,
+  "timestamp": "2026-07-27T23:07:06Z",
+  "time": "0.215s",
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "TurboQuantStatefulGraph",
+      "tests": 1,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "timestamp": "2026-07-27T23:07:06Z",
+      "time": "0.215s",
+      "testsuite": [
+        {
+          "name": "PersistsOnlyCompressedStateForOneHundredSteps",
+          "file": "R:\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant\\tests\\cpp\\turboquant_stateful_graph.cpp",
+          "line": 1257,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-07-27T23:07:06Z",
+          "time": "0.215s",
+          "classname": "TurboQuantStatefulGraph"
+        }
+      ]
+    }
+  ]
+}

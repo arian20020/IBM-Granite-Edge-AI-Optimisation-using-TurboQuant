@@ -1,0 +1,12 @@
+{
+  "canonical_output": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability.json",
+  "canonical_output_written": false,
+  "error": "FileNotFoundError: [WinError 206] The filename or extension is too long while creating run-1",
+  "original_attempt_directory_name": "attempt-20260727T214745137784Z-0fbd692a54f4ce7e",
+  "preservation_note": "The empty pre-launch attempt directory was renamed to the compact UTC/nonce form after the same-directory attempt-summary write also crossed the legacy Windows path limit.",
+  "runs": [],
+  "schema": "openvino-turboquant-reference-capability-attempt/v1",
+  "started_utc": "2026-07-27T21:47:45.137784Z",
+  "status": "failed-prelaunch",
+  "workload_launch_attempted": false
+}

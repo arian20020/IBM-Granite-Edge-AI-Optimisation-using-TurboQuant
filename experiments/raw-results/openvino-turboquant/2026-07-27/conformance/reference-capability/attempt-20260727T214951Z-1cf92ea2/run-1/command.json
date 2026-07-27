@@ -1,0 +1,9 @@
+{
+  "command": [
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\build-genai-turboquant\\tests\\cpp\\Release\\tests_continuous_batching.exe",
+    "--gtest_filter=TurboQuantStatefulGraph.PersistsOnlyCompressedStateForOneHundredSteps",
+    "--gtest_output=json:C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-27\\conformance\\reference-capability\\attempt-20260727T214951Z-1cf92ea2\\run-1\\gtest.json"
+  ],
+  "run_nonce_environment_variable": "OPENVINO_TURBOQUANT_CAPABILITY_NONCE",
+  "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+}
