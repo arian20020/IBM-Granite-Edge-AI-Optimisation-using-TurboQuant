@@ -416,6 +416,7 @@ def _write_wrapper_driver(
     python_executable: Path = APPROVED_PYTHON,
     python_sha256: str = APPROVED_PYTHON_SHA256,
     python_dll_sha256: str = APPROVED_PYTHON_DLL_SHA256,
+    minimum_available_ram_mib: int = 2048,
 ) -> None:
     child_command = command or [sys.executable, "-c", program]
     child_command_lines = ["$childCommand = @("]
@@ -441,6 +442,7 @@ def _write_wrapper_driver(
                     "-EvidenceRoot "
                     f"{_ps_literal(str(evidence_root))} "
                     "-ExpectedExit Zero -TimeoutSeconds 5 "
+                    f"-MinimumAvailableRamMiB {minimum_available_ram_mib} "
                     f"{runtime_arguments} "
                     "-Command $childCommand"
                 ),
@@ -2155,6 +2157,33 @@ def test_powershell_51_wrapper_accepts_subst_aliases_by_filesystem_identity(
         _assert_wrapper_controller_binding(receipt, record)
         _assert_memory_evidence(record)
         _assert_zero_survivors(record)
+
+
+def test_powershell_wrapper_forwards_configured_ram_floor(tmp_path):
+    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    evidence_root = tmp_path / "configured-ram-floor-evidence"
+    driver = tmp_path / "configured-ram-floor-driver.ps1"
+    requested_mib = 4096
+    _write_wrapper_driver(
+        driver,
+        wrapper=wrapper,
+        label="configured-ram-floor",
+        working_directory=ROOT,
+        evidence_root=evidence_root,
+        program="print('ram-floor',flush=True)",
+        minimum_available_ram_mib=requested_mib,
+    )
+    completed = _invoke_wrapper_driver(driver)
+    assert completed.returncode == 0, completed.stderr
+    record = json.loads(
+        (evidence_root / "configured-ram-floor.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert record["configured_minimum_available_ram_bytes"] == (
+        requested_mib * 1024 * 1024
+    )
+    assert record["valid"] is True
 
 
 def test_guard_primitives_have_one_owner_and_legacy_modules_reexport():

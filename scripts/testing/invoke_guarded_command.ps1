@@ -18,6 +18,10 @@ param(
   [ValidateRange(0.001, 86400.0)]
   [double]$TimeoutSeconds = 7200.0,
 
+  [Parameter(Mandatory = $false)]
+  [ValidateRange(0, 1048576)]
+  [int]$MinimumAvailableRamMiB = 2048,
+
   [Parameter(Mandatory = $true)]
   [string]$PythonExecutable,
 
@@ -258,6 +262,9 @@ $timeoutValue = $TimeoutSeconds.ToString(
   'R',
   [Globalization.CultureInfo]::InvariantCulture
 )
+$minimumAvailableRamMiBValue = $MinimumAvailableRamMiB.ToString(
+  [Globalization.CultureInfo]::InvariantCulture
+)
 $controllerRepositoryRoot = [IO.Path]::GetFullPath(
   (& $joinPath $PSScriptRoot '..\..')
 )
@@ -473,7 +480,7 @@ $guardArguments = @($controllerIsolationFlags) + @(
   '--expected-exit',
   $expectedExitValue,
   '--minimum-available-ram-mib',
-  '2048',
+  $minimumAvailableRamMiBValue,
   '--timeout-seconds',
   $timeoutValue,
   '--'
@@ -902,8 +909,10 @@ if ([double]$record.maximum_runtime_seconds -ne $TimeoutSeconds) {
 & $assertJsonInteger `
   -Value $record.configured_minimum_available_ram_bytes `
   -Name 'Guard configured_minimum_available_ram_bytes'
-if ([int64]$record.configured_minimum_available_ram_bytes -ne 2147483648) {
-  throw 'Guard configured RAM floor is not exactly 2,048 MiB'
+$expectedConfiguredRamFloor = [int64]$MinimumAvailableRamMiB * 1MB
+if ([int64]$record.configured_minimum_available_ram_bytes -ne
+    $expectedConfiguredRamFloor) {
+  throw 'Guard configured RAM floor does not match the requested value'
 }
 $configuredRamFloor = [int64]$record.configured_minimum_available_ram_bytes
 & $assertJsonObjectShape -Value $record.observed_available_ram_bytes `
@@ -921,7 +930,7 @@ $observedRamMinimum = (
   [int64]$record.observed_available_ram_bytes.minimum
 )
 if ($observedRamMinimum -lt $configuredRamFloor) {
-  throw 'Guard observed RAM fell below the configured 2,048 MiB floor'
+  throw 'Guard observed RAM fell below the configured floor'
 }
 if (
   $observedRamMinimum -gt
