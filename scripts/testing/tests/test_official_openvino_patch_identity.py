@@ -420,25 +420,76 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "controlling repository changed"):
                 self.prepare()
 
+    def test_new_checkout_uses_short_same_volume_staging_root(self):
+        short_root = self.root / "short-stage"
+        observed: list[Path] = []
+
+        def create_checkout(_upstream, staging, expected, _patches, _spec):
+            observed.append(staging)
+            staging.mkdir(parents=True)
+            return expected
+
+        destination = self.root / "very/long/parent/derived"
+        with patch.object(
+            patch_identity.tempfile,
+            "gettempdir",
+            return_value=str(short_root),
+        ), patch.object(
+            patch_identity,
+            "_create_exact_checkout",
+            side_effect=create_checkout,
+        ):
+            commit = patch_identity._create_and_publish_checkout(
+                self.upstream,
+                destination,
+                self.expected,
+                [],
+                patch_identity.GENAI_TURBOQUANT_SPEC,
+            )
+        self.assertEqual(commit, self.expected)
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0].parent.parent, short_root)
+        self.assertTrue(destination.is_dir())
+        self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
+
+    def test_short_staging_root_must_share_destination_volume(self):
+        with patch.object(
+            patch_identity.tempfile,
+            "gettempdir",
+            return_value="Z:/openvino-stage",
+        ), patch.object(
+            patch_identity.os.path,
+            "splitdrive",
+            side_effect=lambda value: (
+                ("Z:", "") if str(value).upper().startswith("Z:") else ("C:", "")
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "same volume"):
+                patch_identity._short_staging_parent(self.destination)
+
     def test_failed_staging_creation_cleans_up_and_retry_succeeds(self):
+        short_root = self.root / "short-stage"
+
         def fail_mid_create(_upstream, staging, *_args):
             staging.mkdir(parents=True)
             (staging / "partial.txt").write_text("partial\n", encoding="utf-8")
             raise ValueError("forced create failure")
 
         with patch.object(
-            patch_identity,
-            "_create_exact_checkout",
-            side_effect=fail_mid_create,
+            patch_identity.tempfile,
+            "gettempdir",
+            return_value=str(short_root),
         ):
-            with self.assertRaisesRegex(ValueError, "forced create failure"):
-                self.prepare()
-        self.assertFalse(self.destination.exists())
-        self.assertEqual(
-            list(self.destination.parent.glob(f".{self.destination.name}.preparing-*")),
-            [],
-        )
-        record = self.prepare()
+            with patch.object(
+                patch_identity,
+                "_create_exact_checkout",
+                side_effect=fail_mid_create,
+            ):
+                with self.assertRaisesRegex(ValueError, "forced create failure"):
+                    self.prepare()
+            self.assertFalse(self.destination.exists())
+            self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
+            record = self.prepare()
         self.assertEqual(record["patch_commit"], self.expected)
         self.assertEqual(git("-C", str(self.destination), "status", "--porcelain"), "")
 

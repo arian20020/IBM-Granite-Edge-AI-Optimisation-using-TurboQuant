@@ -100,6 +100,30 @@ def _operational_path(path: str | Path) -> Path:
     return candidate
 
 
+def _short_staging_parent(destination: Path) -> Path:
+    """Return a short staging directory on the destination's physical volume."""
+    staging_parent = _operational_path(tempfile.gettempdir())
+    destination_physical = destination.resolve()
+    staging_physical = staging_parent.resolve()
+    destination_drive = os.path.splitdrive(str(destination_physical))[0]
+    staging_drive = os.path.splitdrive(str(staging_physical))[0]
+    if os.path.normcase(destination_drive) != os.path.normcase(staging_drive):
+        raise ValueError(
+            "short patch staging root must be on the same volume as destination"
+        )
+    staging_parent.mkdir(parents=True, exist_ok=True)
+    return staging_parent
+
+
+def _remove_staging_tree(path: Path) -> None:
+    """Remove only the controller-owned short staging tree."""
+    def make_writable_and_retry(function, failed_path, _error) -> None:
+        os.chmod(failed_path, stat.S_IWRITE)
+        function(failed_path)
+
+    shutil.rmtree(path, onerror=make_writable_and_retry)
+
+
 def _is_link_or_reparse(path: Path) -> bool:
     try:
         metadata = path.lstat()
@@ -287,10 +311,11 @@ def _create_and_publish_checkout(
     spec: PatchWorkspaceSpec,
 ) -> str:
     destination.parent.mkdir(parents=True, exist_ok=True)
+    staging_parent = _short_staging_parent(destination)
     staging_root = Path(
         tempfile.mkdtemp(
-            prefix=f".{destination.name}.preparing-",
-            dir=destination.parent,
+            prefix="openvino-patch-stage-",
+            dir=staging_parent,
         )
     )
     staging = staging_root / "checkout"
@@ -307,7 +332,8 @@ def _create_and_publish_checkout(
         os.replace(staging, destination)
         return patch_commit
     finally:
-        shutil.rmtree(staging_root, ignore_errors=True)
+        if staging_root.exists():
+            _remove_staging_tree(staging_root)
 
 
 def _verify_existing(
