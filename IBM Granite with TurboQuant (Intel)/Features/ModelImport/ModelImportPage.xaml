@@ -49,7 +49,7 @@
                             Margin="0,0,0,8"
                             HorizontalAlignment="Center"
                             AutomationProperties.Name="Granite Edge AI logo"
-                            Source="Assets/Branding/granite-edge-ai-icon.svg"
+                            Source="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg"
                             Stretch="Uniform" />
 
                         <!--  Displays the page heading.  -->
