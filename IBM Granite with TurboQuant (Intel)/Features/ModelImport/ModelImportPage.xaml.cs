@@ -68,6 +68,7 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         //record the outcome after the scanner returns
         internal bool HasValidatedModel { get; private set; }
+        internal ModelQuickScanResult? ValidatedScanResult { get; private set; }
 
         // the click handler for the “Download a recommended model”
         private void RecommendedModelDownloadButton_Click(
@@ -95,6 +96,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             }
 
             SelectedModelPath = selectedPath;
+            ValidatedScanResult = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
 
@@ -137,18 +139,54 @@ namespace GraniteEdgeAI.Features.ModelImport
                 return;
             }
 
-            if (scanResult.Outcome == ModelQuickScanOutcome.Failure)
+            if (!shouldApplyResult)
             {
-                HasValidatedModel = false;
-                ContinueToModelInspectionButton.IsEnabled = false;
-
-                ImportModelCardControl.SetState(
-                    ImportModelCardState.ScanFailed,
-                    selectedFileName: selectedFileName,
-                    failureCode: scanResult.FailureCode,
-                    failureMessage: scanResult.UserMessage);
-
+                // The model was removed or replaced while this scan was running.
+                // Do not allow its late result to alter the current card.
                 return;
+            }
+
+            switch (scanResult.Outcome)
+            {
+                case ModelQuickScanOutcome.Cancelled:
+                    SelectedModelPath = null;
+                    ValidatedScanResult = null;
+                    HasValidatedModel = false;
+                    ContinueToModelInspectionButton.IsEnabled = false;
+
+                    ImportModelCardControl.SetState(
+                        ImportModelCardState.AwaitingSelection);
+
+                    return;
+
+                case ModelQuickScanOutcome.Failure:
+                    ValidatedScanResult = null;
+                    HasValidatedModel = false;
+                    ContinueToModelInspectionButton.IsEnabled = false;
+
+                    ImportModelCardControl.SetState(
+                        ImportModelCardState.ScanFailed,
+                        selectedFileName: selectedFileName,
+                        failureCode: scanResult.FailureCode,
+                        failureMessage: scanResult.UserMessage);
+
+                    return;
+
+                case ModelQuickScanOutcome.Success:
+                    ValidatedScanResult = scanResult;
+                    HasValidatedModel = true;
+                    ContinueToModelInspectionButton.IsEnabled = true;
+
+                    ImportModelCardControl.ShowSuccess(
+                        CreateImportedModelCardData(
+                            selectedFileName,
+                            scanResult));
+
+                    return;
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unexpected model quick-scan outcome: {scanResult.Outcome}.");
             }
         }
 

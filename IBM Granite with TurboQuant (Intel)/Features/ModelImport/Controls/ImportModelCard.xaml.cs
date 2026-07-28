@@ -1,8 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using System;
 
 namespace GraniteEdgeAI.Features.ModelImport.Controls
 {
@@ -27,32 +25,45 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             string? failureCode = null,
             string? failureMessage = null)
         {
-            // Record the current state so it can be inspected and tested.
             CurrentState = state;
 
-            // Show the default interface only while waiting for selection.
             AwaitingSelectionView.Visibility =
                 state == ImportModelCardState.AwaitingSelection
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            // Show the loading interface only while scanning.
             ScanningView.Visibility =
                 state == ImportModelCardState.Scanning
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            // Show failure details only after the quick scan fails.
+            SuccessView.Visibility =
+                state == ImportModelCardState.ScanSucceeded
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
             FailureView.Visibility =
                 state == ImportModelCardState.ScanFailed
                     ? Visibility.Visible
                     : Visibility.Collapsed;
 
-            string displayedFileName = selectedFileName ?? string.Empty;
+            string displayedFileName =
+                selectedFileName ?? string.Empty;
 
-            // Keep both selected-model headers ready for their current view.
-            ScanningFileNameTextBlock.Text = displayedFileName;
-            FailureFileNameTextBlock.Text = displayedFileName;
+            ScanningFileNameTextBlock.Text =
+                state == ImportModelCardState.Scanning
+                    ? displayedFileName
+                    : string.Empty;
+
+            SuccessFileNameTextBlock.Text =
+                state == ImportModelCardState.ScanSucceeded
+                    ? displayedFileName
+                    : string.Empty;
+
+            FailureFileNameTextBlock.Text =
+                state == ImportModelCardState.ScanFailed
+                    ? displayedFileName
+                    : string.Empty;
 
             if (state == ImportModelCardState.ScanFailed)
             {
@@ -60,20 +71,77 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
                     string.IsNullOrWhiteSpace(failureCode)
                         ? "model-scan-failed"
                         : failureCode;
+
                 FailureMessageTextBlock.Text =
                     string.IsNullOrWhiteSpace(failureMessage)
                         ? "The selected model could not be scanned."
                         : failureMessage;
-
-                return;
+            }
+            else
+            {
+                FailureCodeTextBlock.Text = string.Empty;
+                FailureMessageTextBlock.Text = string.Empty;
             }
 
-            // Prevent details from a previous file resurfacing later.
-            FailureCodeTextBlock.Text = string.Empty;
-            FailureMessageTextBlock.Text = string.Empty;
+            if (state != ImportModelCardState.ScanSucceeded)
+            {
+                ClearSuccessValues();
+            }
         }
 
-        /// Handles the internal Browse button click.
+        /// <summary>
+        /// Displays the imported-model card using already-formatted
+        /// presentation values.
+        /// </summary>
+        internal void ShowSuccess(
+            ImportedModelCardData model)
+        {
+            ArgumentNullException.ThrowIfNull(model);
+
+            SetState(
+                ImportModelCardState.ScanSucceeded,
+                model.FileName);
+
+            SuccessModelNameTextBlock.Text =
+                model.ModelName;
+
+            SuccessParametersTextBlock.Text =
+                model.Parameters;
+
+            SuccessArchitectureTextBlock.Text =
+                model.Architecture;
+
+            SuccessQuantizationTextBlock.Text =
+                model.Quantization;
+
+            SuccessFileSizeTextBlock.Text =
+                model.FileSize;
+
+            SuccessDeclaredContextTextBlock.Text =
+                model.DeclaredContext;
+        }
+
+        private void ClearSuccessValues()
+        {
+            SuccessModelNameTextBlock.Text =
+                string.Empty;
+
+            SuccessParametersTextBlock.Text =
+                string.Empty;
+
+            SuccessArchitectureTextBlock.Text =
+                string.Empty;
+
+            SuccessQuantizationTextBlock.Text =
+                string.Empty;
+
+            SuccessFileSizeTextBlock.Text =
+                string.Empty;
+
+            SuccessDeclaredContextTextBlock.Text =
+                string.Empty;
+        }
+
         private void BrowseFilesButton_Click(
             object sender,
             RoutedEventArgs e)
@@ -81,9 +149,10 @@ namespace GraniteEdgeAI.Features.ModelImport.Controls
             BrowseFilesRequested?.Invoke(this, e);
         }
 
-        private void CancelScanButton_Click(object sender, RoutedEventArgs e)
+        private void CancelScanButton_Click(
+            object sender,
+            RoutedEventArgs e)
         {
-            // Notify the containing page that cancellation was requested.
             CancelScanRequested?.Invoke(this, e);
         }
     }

@@ -850,6 +850,394 @@
 
         </Border>
 
+        <!--  STATE 4: GGUF QUICK SCAN SUCCEEDED  -->
+        <Border
+            x:Name="SuccessView"
+            Height="288"
+            MaxWidth="804"
+            Padding="32,24,32,18"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="#FBFCFE"
+            BorderBrush="#C9D7E8"
+            BorderThickness="1.5"
+            CornerRadius="22"
+            Visibility="Collapsed">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!--  Selected-model header.  -->
+                    <RowDefinition
+                        Height="126" />
+
+                    <!--  Divider.  -->
+                    <RowDefinition
+                        Height="1" />
+
+                    <!--  Metadata values.  -->
+                    <RowDefinition
+                        Height="85" />
+
+                    <!--  Completion status.  -->
+                    <RowDefinition
+                        Height="34" />
+                </Grid.RowDefinitions>
+
+                <!--  Selected-model header  -->
+                <Grid
+                    Grid.Row="0">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="72" />
+                        <ColumnDefinition
+                            Width="*" />
+                        <ColumnDefinition
+                            Width="40" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  GGUF document icon  -->
+                    <Border
+                        Grid.Column="0"
+                        Width="72"
+                        Height="72"
+                        Margin="0,13,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="#E5EFFF"
+                        CornerRadius="18">
+
+                        <Viewbox
+                            Width="48"
+                            Height="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+
+                            <Grid
+                                Width="48"
+                                Height="48">
+
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="#2563EB"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+
+                                <TextBlock
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
+                                    FontWeight="Bold"
+                                    Foreground="#2563EB"
+                                    Text="GGUF" />
+
+                            </Grid>
+
+                        </Viewbox>
+
+                    </Border>
+
+                    <!--  Model name, filename and badges  -->
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="26,9,20,0"
+                        VerticalAlignment="Top"
+                        Spacing="3">
+
+                        <TextBlock
+                            x:Name="SuccessModelNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <TextBlock
+                            x:Name="SuccessFileNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="13"
+                            Foreground="#7A8495"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <StackPanel
+                            Margin="0,4,0,0"
+                            Orientation="Horizontal"
+                            Spacing="8">
+
+                            <!--  Format badge  -->
+                            <Border
+                                Width="70"
+                                Height="26"
+                                Background="#E7EFFF"
+                                CornerRadius="13">
+
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="#2563EB"
+                                    Text="GGUF" />
+
+                            </Border>
+
+                            <!--  Quantisation badge  -->
+                            <Border
+                                Height="26"
+                                MinWidth="88"
+                                Padding="14,0"
+                                Background="#EEECFF"
+                                CornerRadius="13">
+
+                                <TextBlock
+                                    x:Name="SuccessQuantizationTextBlock"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="#4F46E5"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="NoWrap" />
+
+                            </Border>
+
+                        </StackPanel>
+
+                    </StackPanel>
+
+                    <!--  Remove imported model  -->
+                    <Button
+                        x:Name="RemoveSucceededModelButton"
+                        Grid.Column="2"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="Remove imported model"
+                        Background="#FFFFFF"
+                        BorderBrush="#FFC2C2"
+                        BorderThickness="1"
+                        Click="CancelScanButton_Click"
+                        CornerRadius="11"
+                        UseSystemFocusVisuals="True">
+
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="#FF2D2D"
+                            Glyph="&#xE74D;" />
+
+                        <Button.Resources>
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="#FFFFFF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#FF2D2D" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="#FFC2C2" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="#FFF7F7" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#DC2626" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="#FCA5A5" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="#FEE2E2" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#B91C1C" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="#F87171" />
+                        </Button.Resources>
+
+                    </Button>
+
+                </Grid>
+
+                <!--  Header divider  -->
+                <Rectangle
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Fill="#E5E7EB" />
+
+                <!--  Successful metadata values  -->
+                <Grid
+                    Grid.Row="2">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="185" />
+                        <ColumnDefinition
+                            Width="200" />
+                        <ColumnDefinition
+                            Width="175" />
+                        <ColumnDefinition
+                            Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  Parameters  -->
+                    <StackPanel
+                        Grid.Column="0"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="PARAMETERS" />
+
+                        <TextBlock
+                            x:Name="SuccessParametersTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                    <!--  Architecture  -->
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="ARCHITECTURE" />
+
+                        <TextBlock
+                            x:Name="SuccessArchitectureTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                    <!--  File size  -->
+                    <StackPanel
+                        Grid.Column="2"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="FILE SIZE" />
+
+                        <TextBlock
+                            x:Name="SuccessFileSizeTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                    <!--  Declared context  -->
+                    <StackPanel
+                        Grid.Column="3"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="DECLARED CONTEXT" />
+
+                        <TextBlock
+                            x:Name="SuccessDeclaredContextTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                </Grid>
+
+                <!--  Successful quick-scan status  -->
+                <Border
+                    Grid.Row="3"
+                    Height="34"
+                    HorizontalAlignment="Stretch"
+                    Background="#ECFDF5"
+                    CornerRadius="17">
+
+                    <StackPanel
+                        Margin="12,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="10">
+
+                        <Border
+                            Width="16"
+                            Height="16"
+                            VerticalAlignment="Center"
+                            Background="#10B981"
+                            CornerRadius="8">
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="White"
+                                Text="✓" />
+
+                        </Border>
+
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#047857"
+                            Text="Quick scan complete · Ready for model inspection"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                </Border>
+
+            </Grid>
+
+        </Border>
+
     </Grid>
 
 </UserControl>
