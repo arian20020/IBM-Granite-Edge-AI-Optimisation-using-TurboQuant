@@ -63,7 +63,12 @@ PASS and Quality PASS.
    roadmap classifies them as non-heavy. Every Python command, CMake configure,
    CMake build, compiled test, and compiled probe in this plan goes through
    `scripts/testing/invoke_guarded_command.ps1`. Do not launch `python`,
-   `cmake`, `MSBuild`, `ctest`, or a test executable directly.
+   `cmake`, `MSBuild`, `ctest`, or a test executable directly. This host's
+   effective PowerShell policy is `Restricted` when every configured scope is
+   `Undefined`. Each controller process that invokes the reviewed wrapper must
+   set only `Set-ExecutionPolicy -Scope Process Bypass -Force`, prove the
+   process scope is `Bypass`, and prove `CurrentUser` and `LocalMachine` are
+   unchanged. Never change a persistent policy scope.
 6. The physical total is the sum of unique positive retained capacities:
    ordinary input/output/KV owners in `unique_reserved_bytes`, hidden beam
    owners in `beam_reserved_bytes`, and owned `PlainTensor` scale/ZP owners in
@@ -1018,6 +1023,17 @@ interrupted attempt is audited as incomplete and a full retry uses the next
 numbered directory.
 
 ```powershell
+$currentUserPolicyBefore = Get-ExecutionPolicy -Scope CurrentUser
+$localMachinePolicyBefore = Get-ExecutionPolicy -Scope LocalMachine
+Set-ExecutionPolicy -Scope Process Bypass -Force
+if ((Get-ExecutionPolicy -Scope Process) -ne "Bypass" -or
+    (Get-ExecutionPolicy -Scope CurrentUser) -ne
+      $currentUserPolicyBefore -or
+    (Get-ExecutionPolicy -Scope LocalMachine) -ne
+      $localMachinePolicyBefore) {
+  throw "Unable to enable only the process-scoped reviewed guard wrapper"
+}
+
 $guardEvidence =
   "R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-001"
 if ((Test-Path -LiteralPath $guardEvidence) -and
@@ -2156,6 +2172,17 @@ is mandatory after both `.cpp` files exist. Do not reuse the RED-generated
 project without this configure.
 
 ```powershell
+$currentUserPolicyBefore = Get-ExecutionPolicy -Scope CurrentUser
+$localMachinePolicyBefore = Get-ExecutionPolicy -Scope LocalMachine
+Set-ExecutionPolicy -Scope Process Bypass -Force
+if ((Get-ExecutionPolicy -Scope Process) -ne "Bypass" -or
+    (Get-ExecutionPolicy -Scope CurrentUser) -ne
+      $currentUserPolicyBefore -or
+    (Get-ExecutionPolicy -Scope LocalMachine) -ne
+      $localMachinePolicyBefore) {
+  throw "Unable to enable only the process-scoped reviewed guard wrapper"
+}
+
 & $wrapper `
   -Label task2-configure-green `
   -WorkingDirectory R:\ `
@@ -2224,6 +2251,17 @@ floor and zero survivors.
 Build the actual production target through the same guard:
 
 ```powershell
+$currentUserPolicyBefore = Get-ExecutionPolicy -Scope CurrentUser
+$localMachinePolicyBefore = Get-ExecutionPolicy -Scope LocalMachine
+Set-ExecutionPolicy -Scope Process Bypass -Force
+if ((Get-ExecutionPolicy -Scope Process) -ne "Bypass" -or
+    (Get-ExecutionPolicy -Scope CurrentUser) -ne
+      $currentUserPolicyBefore -or
+    (Get-ExecutionPolicy -Scope LocalMachine) -ne
+      $localMachinePolicyBefore) {
+  throw "Unable to enable only the process-scoped reviewed guard wrapper"
+}
+
 $buildPluginCommand = @(
   $cmake, "--build", "C:\ov-build\state-observer", "--config", "Release",
   "--target", "openvino_intel_cpu_plugin", "--parallel", "2"
@@ -2671,6 +2709,8 @@ independent reviews restart against the new HEAD.
 - [ ] Production CPU plugin target builds under guard; generated projects name
       the source and at least one non-empty observer object is hash-bound.
 - [ ] Every guard receipt proves 2,048 MiB minimum and zero survivors.
+- [ ] Wrapper shells use only process-scoped `Bypass`; persistent execution
+      policy scopes remain unchanged.
 - [ ] Diff/path/whitespace/source-marker/API/immutable-source audits pass.
 - [ ] Exact five-file derived commit is clean and has the required subject.
 - [ ] Scratch binary patch applies to the immutable base and writes the exact
