@@ -42,29 +42,15 @@
                         Orientation="Vertical"
                         Spacing="12">
 
-                        <!--  Creates the circular Granite logo background.  -->
-                        <Border
-                            Width="92"
-                            Height="92"
+                        <!--  Displays the approved Granite Edge AI logo without a circular background.  -->
+                        <Image
+                            Width="112"
+                            Height="112"
                             Margin="0,0,0,8"
                             HorizontalAlignment="Center"
-                            Background="#E8F0FE"
-                            CornerRadius="46">
-
-                            <!--
-                                TODO(BRANDING):
-                                Replace this temporary letter with the final approved
-                                IBM Granite Edge AI logo or application icon.
-                            -->
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="36"
-                                FontWeight="SemiBold"
-                                Foreground="#2563EB"
-                                Text="G" />
-
-                        </Border>
+                            AutomationProperties.Name="Granite Edge AI logo"
+                            Source="Assets/Branding/granite-edge-ai-icon.svg"
+                            Stretch="Uniform" />
 
                         <!--  Displays the page heading.  -->
                         <TextBlock

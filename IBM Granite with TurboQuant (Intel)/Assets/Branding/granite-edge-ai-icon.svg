@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="graniteBlue" x1="48" y1="256" x2="420" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F62FE"/>
+      <stop offset="1" stop-color="#003A9F"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0 0)" data-brand-element="Granite Edge AI G monogram">
+    <path d="M151 72H420L393 108H119C128 91 139 79 151 72Z" fill="url(#graniteBlue)"/>
+    <path d="M100 126H386L359 162H77C83 148 91 136 100 126Z" fill="url(#graniteBlue)"/>
+    <path d="M68 180H169L142 216H55C58 203 62 191 68 180Z" fill="url(#graniteBlue)"/>
+    <path d="M50 234H137V270H48C47 258 48 246 50 234Z" fill="url(#graniteBlue)"/>
+    <path d="M50 288H142L169 324H61C56 313 52 301 50 288Z" fill="url(#graniteBlue)"/>
+    <path d="M77 342H359L386 378H100C91 368 83 356 77 342Z" fill="url(#graniteBlue)"/>
+    <path d="M119 396H393L420 432H151C139 425 128 413 119 396Z" fill="url(#graniteBlue)"/>
+    <path d="M228 234H420V270H196L228 234Z" fill="url(#graniteBlue)"/>
+    <path d="M267 288H420V324H235L267 288Z" fill="url(#graniteBlue)"/>
+  </g>
+</svg>
