@@ -6,37 +6,39 @@ using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
-using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace GraniteEdgeAI.Features.ModelImport
 {
     /// <summary>
-    /// Represents the page where the user begins the model-import workflow.
+    /// Coordinates model-format selection, file picking, quick scanning, and
+    /// the visible model-import state.
     /// </summary>
-    public sealed partial class ModelImportPage : Page //Declare the class called ModelImportPage inheriting from WinUIs Page class
+    public sealed partial class ModelImportPage : Page
     {
-        //store functions that the page can call later:
-        private readonly Func<Task<ModelFormatSelection>> _selectModelFormatAsync; 
+        // Delegate seams keep native UI and scanner dependencies replaceable in tests.
+        private readonly Func<Task<ModelFormatSelection>> _selectModelFormatAsync;
         private readonly Func<Task<string?>> _pickGgufPathAsync;
         private readonly Func<
             ModelFormatSelection,
             string,
             CancellationToken,
             Task<ModelQuickScanResult>> _scanModelAsync;
+        private readonly CultureInfo _displayCulture;
+        private readonly Action<ModelQuickScanFailureDiagnostic>
+            _recordScanFailure;
+
+        // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
 
-        // Public Constructor:clean entry point for WinUI and normal application code
         public ModelImportPage()
-            : this(null, null, null)
+            : this(null, null, null, null, null)
         {
         }
 
-        // the main constructor that performs the real setup of the page:
-        // We use this to allow controlled replacement functions for tests (makes testing easier)
         internal ModelImportPage(
             Func<Task<ModelFormatSelection>>? selectModelFormatAsync,
             Func<Task<string?>>? pickGgufPathAsync,
@@ -44,13 +46,16 @@ namespace GraniteEdgeAI.Features.ModelImport
                 ModelFormatSelection,
                 string,
                 CancellationToken,
-                Task<ModelQuickScanResult>>? scanModelAsync = null)
+                Task<ModelQuickScanResult>>? scanModelAsync = null,
+            CultureInfo? displayCulture = null,
+            Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null)
         {
             InitializeComponent();
 
             _selectModelFormatAsync =
                 selectModelFormatAsync ?? ShowModelFormatSelectionAsync;
-            _pickGgufPathAsync = pickGgufPathAsync ?? PickGgufPathAsync;
+            _pickGgufPathAsync =
+                pickGgufPathAsync ?? PickGgufPathAsync;
 
             if (scanModelAsync is null)
             {
@@ -61,17 +66,18 @@ namespace GraniteEdgeAI.Features.ModelImport
             {
                 _scanModelAsync = scanModelAsync;
             }
-            //The ?? operator means “use the right-hand value when the left-hand value is null.
+
+            _displayCulture = displayCulture ?? CultureInfo.CurrentCulture;
+            _recordScanFailure =
+                recordScanFailure ?? WriteFailureDiagnosticToTrace;
         }
 
-        // tell the page where the selected file is located
         internal string? SelectedModelPath { get; private set; }
 
-        //record the outcome after the scanner returns
         internal bool HasValidatedModel { get; private set; }
+
         internal ModelQuickScanResult? ValidatedScanResult { get; private set; }
 
-        // the click handler for the “Download a recommended model”
         private void RecommendedModelDownloadButton_Click(
             object sender,
             RoutedEventArgs e)
@@ -90,26 +96,16 @@ namespace GraniteEdgeAI.Features.ModelImport
             }
 
             string? selectedPath = await _pickGgufPathAsync();
-
             if (selectedPath is null)
             {
                 return;
             }
 
-            SelectedModelPath = selectedPath;
-            ValidatedScanResult = null;
-            HasValidatedModel = false;
-            ContinueToModelInspectionButton.IsEnabled = false;
-
             string selectedFileName = Path.GetFileName(selectedPath);
+            PrepareForScan(selectedPath, selectedFileName);
 
-            ImportModelCardControl.SetState(
-                ImportModelCardState.Scanning,
-                selectedFileName);
-
-            CancellationTokenSource scanCancellationTokenSource = new();
-            _scanCancellationTokenSource = scanCancellationTokenSource;
-
+            CancellationTokenSource scanCancellationTokenSource =
+                BeginScan();
             ModelQuickScanResult scanResult;
             bool shouldApplyResult;
 
@@ -122,67 +118,74 @@ namespace GraniteEdgeAI.Features.ModelImport
             }
             finally
             {
-                shouldApplyResult = ReferenceEquals(
-                    _scanCancellationTokenSource,
+                shouldApplyResult = CompleteScan(
                     scanCancellationTokenSource);
-
-                if (shouldApplyResult)
-                {
-                    _scanCancellationTokenSource = null;
-                }
-
                 scanCancellationTokenSource.Dispose();
-            }
-
-            if (!shouldApplyResult ||
-                scanResult.Outcome == ModelQuickScanOutcome.Cancelled)
-            {
-                return;
             }
 
             if (!shouldApplyResult)
             {
-                // The model was removed or replaced while this scan was running.
-                // Do not allow its late result to alter the current card.
+                // A removed or replaced scan must not alter the current page.
                 return;
             }
 
+            ApplyScanResult(selectedFileName, scanResult);
+        }
+
+        private void PrepareForScan(
+            string selectedPath,
+            string selectedFileName)
+        {
+            SelectedModelPath = selectedPath;
+            ValidatedScanResult = null;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
+            ImportModelCardControl.ShowScanning(selectedFileName);
+        }
+
+        private CancellationTokenSource BeginScan()
+        {
+            CancellationTokenSource currentScan = new();
+            CancellationTokenSource? previousScan =
+                _scanCancellationTokenSource;
+
+            // Publish the replacement before cancellation so the old result is stale.
+            _scanCancellationTokenSource = currentScan;
+            previousScan?.Cancel();
+
+            return currentScan;
+        }
+
+        private bool CompleteScan(
+            CancellationTokenSource completedScan)
+        {
+            if (!ReferenceEquals(
+                _scanCancellationTokenSource,
+                completedScan))
+            {
+                return false;
+            }
+
+            _scanCancellationTokenSource = null;
+            return true;
+        }
+
+        private void ApplyScanResult(
+            string selectedFileName,
+            ModelQuickScanResult scanResult)
+        {
             switch (scanResult.Outcome)
             {
                 case ModelQuickScanOutcome.Cancelled:
-                    SelectedModelPath = null;
-                    ValidatedScanResult = null;
-                    HasValidatedModel = false;
-                    ContinueToModelInspectionButton.IsEnabled = false;
-
-                    ImportModelCardControl.SetState(
-                        ImportModelCardState.AwaitingSelection);
-
+                    ResetToAwaitingSelection();
                     return;
 
                 case ModelQuickScanOutcome.Failure:
-                    ValidatedScanResult = null;
-                    HasValidatedModel = false;
-                    ContinueToModelInspectionButton.IsEnabled = false;
-
-                    ImportModelCardControl.SetState(
-                        ImportModelCardState.ScanFailed,
-                        selectedFileName: selectedFileName,
-                        failureCode: scanResult.FailureCode,
-                        failureMessage: scanResult.UserMessage);
-
+                    ApplyFailureResult(selectedFileName, scanResult);
                     return;
 
                 case ModelQuickScanOutcome.Success:
-                    ValidatedScanResult = scanResult;
-                    HasValidatedModel = true;
-                    ContinueToModelInspectionButton.IsEnabled = true;
-
-                    ImportModelCardControl.ShowSuccess(
-                        CreateImportedModelCardData(
-                            selectedFileName,
-                            scanResult));
-
+                    ApplySuccessResult(selectedFileName, scanResult);
                     return;
 
                 default:
@@ -190,152 +193,103 @@ namespace GraniteEdgeAI.Features.ModelImport
                         $"Unexpected model quick-scan outcome: {scanResult.Outcome}.");
             }
         }
-        private static ImportedModelCardData
-    CreateImportedModelCardData(
-        string selectedFileName,
-        ModelQuickScanResult scanResult)
+
+        private void ApplyFailureResult(
+            string selectedFileName,
+            ModelQuickScanResult scanResult)
         {
-            if (scanResult.Outcome != ModelQuickScanOutcome.Success)
-            {
-                throw new ArgumentException(
-                    "Imported-card data can only be created from a successful scan.",
-                    nameof(scanResult));
-            }
+            string failureCode =
+                scanResult.FailureCode ?? "model-scan-failed";
+            string userMessage =
+                scanResult.UserMessage ??
+                "The selected model could not be scanned.";
+            string technicalMessage =
+                scanResult.TechnicalMessage ??
+                "No additional technical information was provided.";
 
-            return new ImportedModelCardData(
-                FileName: selectedFileName,
+            ValidatedScanResult = null;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
 
-                ModelName:
-                    string.IsNullOrWhiteSpace(scanResult.ModelName)
-                        ? selectedFileName
-                        : scanResult.ModelName,
+            RecordFailureDiagnostic(
+                new ModelQuickScanFailureDiagnostic(
+                    selectedFileName,
+                    failureCode,
+                    technicalMessage));
 
-                Parameters:
-                    FormatOptionalValue(
-                        scanResult.ParameterSizeLabel),
-
-                Architecture:
-                    FormatArchitecture(
-                        scanResult.Architecture),
-
-                Quantization:
-                    FormatOptionalValue(
-                        scanResult.Quantization),
-
-                FileSize:
-                    FormatFileSize(
-                        scanResult.FileSizeBytes),
-
-                DeclaredContext:
-                    FormatContextLength(
-                        scanResult.ContextLength));
+            ImportModelCardControl.ShowFailure(
+                selectedFileName,
+                failureCode,
+                userMessage);
         }
 
-        private static string FormatOptionalValue(
-            string? value)
+        private void ApplySuccessResult(
+            string selectedFileName,
+            ModelQuickScanResult scanResult)
         {
-            return string.IsNullOrWhiteSpace(value)
-                ? "Unknown"
-                : value.Trim();
+            ImportedModelCardData cardData =
+                ImportedModelCardDataMapper.Create(
+                    selectedFileName,
+                    scanResult,
+                    _displayCulture);
+
+            ValidatedScanResult = scanResult;
+            HasValidatedModel = true;
+            ContinueToModelInspectionButton.IsEnabled = true;
+            ImportModelCardControl.ShowSuccess(cardData);
         }
 
-        private static string FormatArchitecture(
-            string? architecture)
+        private void RecordFailureDiagnostic(
+            ModelQuickScanFailureDiagnostic diagnostic)
         {
-            if (string.IsNullOrWhiteSpace(architecture))
+            try
             {
-                return "Unknown";
+                _recordScanFailure(diagnostic);
             }
-
-            string value = architecture.Trim();
-
-            return char.ToUpperInvariant(value[0]) +
-                value[1..];
+            catch (Exception exception)
+            {
+                // Diagnostic reporting must never replace the controlled UI failure.
+                Trace.TraceError(
+                    "Recording model quick-scan failure '{0}' failed with {1}.",
+                    diagnostic.FailureCode,
+                    exception.GetType().Name);
+            }
         }
 
-        private static string FormatFileSize(
-            long? fileSizeBytes)
+        private static void WriteFailureDiagnosticToTrace(
+            ModelQuickScanFailureDiagnostic diagnostic)
         {
-            if (fileSizeBytes is null ||
-                fileSizeBytes <= 0)
-            {
-                return "Unknown";
-            }
-
-            double value = fileSizeBytes.Value;
-            string unit;
-
-            if (value >= 1_000_000_000_000)
-            {
-                value /= 1_000_000_000_000;
-                unit = "TB";
-            }
-            else if (value >= 1_000_000_000)
-            {
-                value /= 1_000_000_000;
-                unit = "GB";
-            }
-            else if (value >= 1_000_000)
-            {
-                value /= 1_000_000;
-                unit = "MB";
-            }
-            else if (value >= 1_000)
-            {
-                value /= 1_000;
-                unit = "KB";
-            }
-            else
-            {
-                unit = "B";
-            }
-
-            string numberFormat =
-                unit == "B"
-                    ? "N0"
-                    : "0.#";
-
-            return
-                $"{value.ToString(numberFormat, CultureInfo.CurrentCulture)} {unit}";
+            Trace.TraceWarning(
+                "Model quick scan failed for '{0}' with code '{1}': {2}",
+                diagnostic.SelectedFileName,
+                diagnostic.FailureCode,
+                diagnostic.TechnicalMessage);
         }
 
-        private static string FormatContextLength(
-            ulong? contextLength)
+        private void CancelActiveScan()
         {
-            if (contextLength is null)
-            {
-                return "Not declared";
-            }
-
-            const ulong OneK = 1_024;
-            const ulong OneM = OneK * OneK;
-
-            ulong value = contextLength.Value;
-
-            if (value >= OneM &&
-                value % OneM == 0)
-            {
-                return
-                    $"{(value / OneM).ToString("N0", CultureInfo.CurrentCulture)}M tokens";
-            }
-
-            if (value >= OneK &&
-                value % OneK == 0)
-            {
-                return
-                    $"{(value / OneK).ToString("N0", CultureInfo.CurrentCulture)}K tokens";
-            }
-
-            return
-                $"{value.ToString("N0", CultureInfo.CurrentCulture)} tokens";
+            CancellationTokenSource? activeScan =
+                _scanCancellationTokenSource;
+            _scanCancellationTokenSource = null;
+            activeScan?.Cancel();
         }
-        private async Task<ModelFormatSelection> ShowModelFormatSelectionAsync()
+
+        private void ResetToAwaitingSelection()
+        {
+            SelectedModelPath = null;
+            ValidatedScanResult = null;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
+            ImportModelCardControl.ShowAwaitingSelection();
+        }
+
+        private async Task<ModelFormatSelection>
+            ShowModelFormatSelectionAsync()
         {
             ModelFormatSelectionCard selectFormat = new();
             selectFormat.XamlRoot = Content.XamlRoot;
 
             await selectFormat.ShowAsync();
-
             return selectFormat.SelectedFormat;
         }
 
@@ -347,26 +301,20 @@ namespace GraniteEdgeAI.Features.ModelImport
 
             return selectedFile?.Path;
         }
-        
-        /// Responds when the import card asks the page to open the model picker.
-        private async void ImportModelCard_BrowseFilesRequested(object sender, RoutedEventArgs e)
+
+        private async void ImportModelCard_BrowseFilesRequested(
+            object sender,
+            RoutedEventArgs e)
         {
             await BrowseFilesAsync();
         }
 
-        private void ImportModelCard_CancelScanRequested(object sender, RoutedEventArgs e)
+        private void ImportModelCard_CancelScanRequested(
+            object sender,
+            RoutedEventArgs e)
         {
-            CancellationTokenSource? activeScan =
-                _scanCancellationTokenSource;
-            _scanCancellationTokenSource = null;
-            activeScan?.Cancel();
-
-            SelectedModelPath = null;
-            ValidatedScanResult = null;
-            HasValidatedModel = false;
-            ContinueToModelInspectionButton.IsEnabled = false;
-
-            ImportModelCardControl.SetState(ImportModelCardState.AwaitingSelection);
+            CancelActiveScan();
+            ResetToAwaitingSelection();
         }
     }
 }
