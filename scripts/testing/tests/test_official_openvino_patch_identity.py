@@ -51,6 +51,16 @@ class PatchIdentityTests(unittest.TestCase):
 
 
 class PatchWorkspaceControllerTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows drive-alias contract")
+    def test_operational_path_preserves_explicit_windows_drive_alias(self):
+        alias = Path("O:/openvino-cpu-state-observer")
+        operational = patch_identity._operational_path(alias)
+        self.assertEqual(operational.drive.upper(), "O:")
+        self.assertEqual(
+            operational,
+            Path("O:/openvino-cpu-state-observer"),
+        )
+
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary_directory.name)

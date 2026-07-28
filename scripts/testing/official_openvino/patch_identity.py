@@ -92,6 +92,14 @@ def _same_path(left: str | Path, right: str | Path) -> bool:
     return os.path.normcase(str(Path(left).resolve())) == os.path.normcase(str(Path(right).resolve()))
 
 
+def _operational_path(path: str | Path) -> Path:
+    """Make a path absolute without dereferencing a Windows drive alias."""
+    candidate = Path(os.path.abspath(os.fspath(path)))
+    if not candidate.is_absolute():
+        raise ValueError(f"operational path is not absolute: {path}")
+    return candidate
+
+
 def _is_link_or_reparse(path: Path) -> bool:
     try:
         metadata = path.lstat()
@@ -344,7 +352,7 @@ def prepare_patch_workspace(
     """Create or strictly verify a checkout derived from base plus controlled patches."""
     spec = GENAI_TURBOQUANT_SPEC if spec is None else spec
     upstream = Path(upstream).resolve()
-    destination = Path(destination).resolve()
+    destination = _operational_path(destination)
     if _path_at_or_below(destination, upstream):
         raise ValueError("destination must not equal or reside inside the pinned upstream")
     if not (upstream / ".git").exists():
@@ -389,7 +397,8 @@ def prepare_patch_workspace(
 
     record: dict[str, object] = {
         "upstream_path": str(upstream),
-        "destination_path": str(destination),
+        "destination_path": str(destination.resolve()),
+        "destination_operation_path": str(destination),
         "patch_directory": str(_patch_root(spec)),
         "branch": spec.branch,
         "base_commit": expected_commit,
