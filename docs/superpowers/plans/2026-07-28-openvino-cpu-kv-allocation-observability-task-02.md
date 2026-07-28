@@ -1016,11 +1016,15 @@ GREEN; implementation must satisfy the exact contract.
 
 ## Step 3: Reconfigure and prove RED under the process guard
 
-Use the roadmap's exact configure route. A prior label is never overwritten.
-Use a fresh attempt directory for a full execution or retry and retain every
-earlier attempt; within one attempt the labels below remain exact. An
-interrupted attempt is audited as incomplete and a full retry uses the next
-numbered directory.
+Use the reviewed CPU-unit configure route. A prior label is never overwritten.
+Attempt 001 stopped safely before the intended RED build because upstream
+HETERO adds its functional-test subdirectory whenever `ENABLE_TESTS=ON`, even
+when `ENABLE_FUNCTIONAL_TESTS=OFF`; that target then requires the deliberately
+absent `openvino::funcSharedTests`. Preserve and audit that failure evidence.
+Disable only HETERO for this CPU-unit route, retain all earlier evidence, and
+use fresh attempt 002 for the complete execution. Within one attempt the labels
+below remain exact. Any later interrupted attempt is audited as incomplete and
+a full retry uses the next numbered directory.
 
 ```powershell
 $currentUserPolicyBefore = Get-ExecutionPolicy -Scope CurrentUser
@@ -1034,8 +1038,78 @@ if ((Get-ExecutionPolicy -Scope Process) -ne "Bypass" -or
   throw "Unable to enable only the process-scoped reviewed guard wrapper"
 }
 
-$guardEvidence =
+$blockedEvidence =
   "R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-001"
+$blockedReceiptPath = Join-Path $blockedEvidence "task2-configure-red.json"
+$blockedLogPath = Join-Path $blockedEvidence "task2-configure-red.log"
+if ((Get-FileHash -LiteralPath $blockedReceiptPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+      "e5ce87fb234734693d61db6fbb32f79d2b5db6fe6c2ff1aa1c95f79c9df4457c" -or
+    (Get-FileHash -LiteralPath $blockedLogPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne
+      "5eca5dba8c004944c5191acea461396ebc5a9dd1839b47b7fdf119df6f9a4c05") {
+  throw "Task 2 attempt 001 evidence drifted"
+}
+$blocked = Get-Content -LiteralPath $blockedReceiptPath -Raw |
+  ConvertFrom-Json
+if ($blocked.schema -ne "official-openvino-owned-process-guard/v1" -or
+    $blocked.valid -ne $false -or
+    [int]$blocked.exit_code -ne 1 -or
+    @($blocked.validation_errors).Count -ne 1 -or
+    [string]$blocked.validation_errors[0] -ne
+      "child exit code did not match expected_exit=zero" -or
+    [int64]$blocked.configured_minimum_available_ram_bytes -ne 2147483648 -or
+    [int64]$blocked.observed_available_ram_bytes.minimum -lt 2147483648 -or
+    $blocked.launch_governance.created_suspended -ne $true -or
+    $blocked.launch_governance.assigned_before_resume -ne $true -or
+    [int]$blocked.job_object.queried_active_process_count_after_cleanup -ne 0 -or
+    @($blocked.job_object.survivor_pids_after_cleanup).Count -ne 0 -or
+    $blocked.timed_out -ne $false -or
+    $blocked.low_memory_stop -ne $false -or
+    $null -ne $blocked.termination_reason -or
+    @($blocked.emergency_actions).Count -ne 0 -or
+    [string]$blocked.log_sha256 -ne
+      "5eca5dba8c004944c5191acea461396ebc5a9dd1839b47b7fdf119df6f9a4c05") {
+  throw "Task 2 attempt 001 is not the accepted safe pre-RED blocker"
+}
+$blockedLog = Get-Content -LiteralPath $blockedLogPath -Raw
+if ($blockedLog -notmatch
+    'Target "ov_hetero_func_tests" links to:[\s\S]*openvino::funcSharedTests') {
+  throw "Task 2 attempt 001 no longer proves the HETERO configure blocker"
+}
+
+$buildBase = [IO.Path]::GetFullPath("C:\ov-build")
+$failedBuild = [IO.Path]::GetFullPath("C:\ov-build\state-observer")
+$expectedFailedBuild = $buildBase.TrimEnd("\") + "\state-observer"
+if (-not $failedBuild.Equals(
+      $expectedFailedBuild,
+      [StringComparison]::OrdinalIgnoreCase
+    ) -or
+    -not $failedBuild.StartsWith(
+      $buildBase.TrimEnd("\") + "\",
+      [StringComparison]::OrdinalIgnoreCase
+    )) {
+  throw "Refusing to clean an unexpected failed build path"
+}
+if (Test-Path -LiteralPath $failedBuild) {
+  $failedBuildItem = Get-Item -LiteralPath $failedBuild -Force
+  $nestedReparsePoints = @(
+    Get-ChildItem -LiteralPath $failedBuild -Recurse -Force |
+      Where-Object {
+        ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
+      }
+  )
+  if (($failedBuildItem.Attributes -band
+        [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+      $nestedReparsePoints.Count -ne 0) {
+    throw "Refusing to clean a failed build tree containing a reparse point"
+  }
+  Remove-Item -LiteralPath $failedBuild -Recurse -Force
+}
+if (Test-Path -LiteralPath $failedBuild) {
+  throw "Failed Task 2 build tree was not removed before attempt 002"
+}
+
+$guardEvidence =
+  "R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-002"
 if ((Test-Path -LiteralPath $guardEvidence) -and
     @(Get-ChildItem -LiteralPath $guardEvidence -Force).Count -ne 0) {
   throw "Task 2 attempt evidence already exists; audit it and select a new numbered attempt directory"
@@ -1047,6 +1121,7 @@ $configureCommand = @(
   "-G", "Visual Studio 18 2026", "-A", "x64",
   "-DENABLE_DEBUG_CAPS=ON", "-DENABLE_CPU_DEBUG_CAPS=ON",
   "-DENABLE_TESTS=ON", "-DENABLE_FUNCTIONAL_TESTS=OFF",
+  "-DENABLE_HETERO=OFF",
   "-DENABLE_SAMPLES=OFF", "-DENABLE_PYTHON=OFF",
   "-DENABLE_INTEL_GPU=OFF", "-DENABLE_INTEL_NPU=OFF",
   "-DENABLE_OV_ONNX_FRONTEND=OFF", "-DENABLE_OV_PADDLE_FRONTEND=OFF",
@@ -1071,6 +1146,7 @@ foreach ($required in @(
   "ENABLE_CPU_DEBUG_CAPS:BOOL=ON",
   "ENABLE_TESTS:BOOL=ON",
   "ENABLE_FUNCTIONAL_TESTS:BOOL=OFF",
+  "ENABLE_HETERO:BOOL=OFF",
   "BUILD_SHARED_LIBS:BOOL=ON"
 )) {
   if ($cache -notcontains $required) {
@@ -2709,6 +2785,8 @@ independent reviews restart against the new HEAD.
 - [ ] Production CPU plugin target builds under guard; generated projects name
       the source and at least one non-empty observer object is hash-bound.
 - [ ] Every guard receipt proves 2,048 MiB minimum and zero survivors.
+- [ ] Attempt 001 remains hash-bound and is classified only as the safe
+      pre-RED HETERO configure blocker; the complete run uses attempt 002.
 - [ ] Wrapper shells use only process-scoped `Bypass`; persistent execution
       policy scopes remain unchanged.
 - [ ] Diff/path/whitespace/source-marker/API/immutable-source audits pass.
