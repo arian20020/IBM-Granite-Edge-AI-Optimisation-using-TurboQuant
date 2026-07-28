@@ -1,5 +1,7 @@
 # Task 02: CPU State Allocation Snapshot Domain Model Micro-Plan
 
+## Task 1: Execute the CPU State Allocation Snapshot Domain Model
+
 > **For the implementer:** Use `superpowers:test-driven-development` and
 > `superpowers:subagent-driven-development`. Apply only the exact changes below
 > in the derived OpenVINO core checkout. Stop after the task commit and return
