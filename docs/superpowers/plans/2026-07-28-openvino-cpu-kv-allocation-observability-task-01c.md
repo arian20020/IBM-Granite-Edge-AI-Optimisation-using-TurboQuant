@@ -454,8 +454,9 @@ leave the destination untouched and publish no identity.
 Rename
 `test_failed_post_move_recursive_validation_rolls_back_and_cleans` to
 `test_failed_post_move_recursive_validation_leaves_destination_untouched`.
-Keep its existing forced validation failure and `os.replace` recorder, then
-replace the final assertions with:
+Keep its forced validation failure and `os.replace` recorder, change its
+`assertRaisesRegex` expectation from `"forced recursive failure"` to
+`"left untouched"`, then replace the final assertions with:
 
 ```python
         self.assertTrue(self.destination.is_dir())
