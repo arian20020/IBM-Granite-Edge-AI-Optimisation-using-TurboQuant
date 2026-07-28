@@ -407,14 +407,11 @@ def _create_and_publish_checkout(
         os.replace(staging, destination)
         try:
             _verify_recursive_checkout(destination)
-        except (OSError, ValueError):
-            try:
-                os.replace(destination, staging)
-            except OSError as rollback_error:
-                raise ValueError(
-                    "published checkout failed recursive validation and rollback failed"
-                ) from rollback_error
-            raise
+        except (OSError, ValueError) as validation_error:
+            raise ValueError(
+                "published checkout failed recursive validation; "
+                "destination left untouched and no identity may be published"
+            ) from validation_error
         return patch_commit
     finally:
         if staging_root.exists():

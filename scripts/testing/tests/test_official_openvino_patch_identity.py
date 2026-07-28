@@ -466,7 +466,7 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
                     rejected,
                 )
 
-    def test_failed_post_move_recursive_validation_rolls_back_and_cleans(self):
+    def test_failed_post_move_recursive_validation_leaves_destination_untouched(self):
         short_root = self.root / "short-stage"
         moves: list[tuple[Path, Path]] = []
         real_replace = os.replace
@@ -496,7 +496,7 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
             "replace",
             side_effect=record_replace,
         ):
-            with self.assertRaisesRegex(ValueError, "forced recursive failure"):
+            with self.assertRaisesRegex(ValueError, "left untouched"):
                 patch_identity._create_and_publish_checkout(
                     self.upstream,
                     self.destination,
@@ -505,12 +505,56 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
                     patch_identity.GENAI_TURBOQUANT_SPEC,
                 )
 
-        self.assertFalse(self.destination.exists())
+        self.assertTrue(self.destination.is_dir())
         self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
-        self.assertEqual(len(moves), 2)
+        self.assertEqual(len(moves), 1)
         self.assertEqual(moves[0][1], self.destination)
-        self.assertEqual(moves[1][0], self.destination)
-        self.assertEqual(moves[0][0], moves[1][1])
+
+    def test_post_move_failure_leaves_replaced_destination_untouched(self):
+        short_root = self.root / "short-stage"
+        displaced_owned = self.root / "displaced-owned-checkout"
+
+        def create_checkout(_upstream, staging, expected, _patches, _spec):
+            staging.mkdir(parents=True)
+            return expected
+
+        def replace_then_fail(destination):
+            os.replace(destination, displaced_owned)
+            destination.mkdir()
+            (destination / "foreign.txt").write_text(
+                "independent\n",
+                encoding="utf-8",
+            )
+            raise ValueError("forced recursive failure")
+
+        with patch.object(
+            patch_identity.tempfile,
+            "gettempdir",
+            return_value=str(short_root),
+        ), patch.object(
+            patch_identity,
+            "_create_exact_checkout",
+            side_effect=create_checkout,
+        ), patch.object(
+            patch_identity,
+            "_verify_recursive_checkout",
+            side_effect=replace_then_fail,
+        ):
+            with self.assertRaisesRegex(ValueError, "left untouched"):
+                patch_identity._create_and_publish_checkout(
+                    self.upstream,
+                    self.destination,
+                    self.expected,
+                    [],
+                    patch_identity.GENAI_TURBOQUANT_SPEC,
+                )
+
+        self.assertEqual(
+            (self.destination / "foreign.txt").read_text(encoding="utf-8"),
+            "independent\n",
+        )
+        self.assertTrue(displaced_owned.is_dir())
+        self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
 
     def test_existing_destination_requires_recursive_validation(self):
         self.prepare()
