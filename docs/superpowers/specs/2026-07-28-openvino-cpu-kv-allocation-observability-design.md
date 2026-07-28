@@ -146,7 +146,7 @@ Each snapshot contains:
 - `schema_version`;
 - snapshot sequence and process-local request identifier;
 - trigger and phase;
-- requested and actual device;
+- the executing CPU-plugin component and an opaque correlation identifier;
 - state name and concrete CPU state class;
 - memory role: `input`, `output`, `kv`, `beam`, or `scale_zp`;
 - stable block ordinal and alias relationship;
@@ -161,6 +161,29 @@ Each snapshot contains:
 
 The raw observer does not classify state names as key, value, TBQ3, or TBQ4.
 That mapping belongs to the GenAI manifest and activation evidence.
+
+### Device-Truth Feasibility Amendment
+
+The CPU child plugin cannot truthfully recover the caller's original virtual
+device request or the outer compiled model's full execution-device list. For
+example, an `AUTO` request delegated to CPU sees a CPU child compiled model;
+recording that child fact as `requested_device = CPU` would be false.
+
+Device truth therefore uses two correlated records:
+
+- the raw CPU allocation snapshot records `observer_plugin_device = CPU`, the
+  process ID, a process-wide monotonic observer request ID, and an opaque
+  correlation ID copied from private model runtime information;
+- the GenAI context record records the exact constructor `requested_device`
+  and the outer compiled model's uncollapsed
+  `actual_execution_devices` array, joined by process ID and correlation ID.
+
+The correlation marker is attached only after canonical model hashing so it
+cannot perturb source/transformed SHA-256 identity. It is a join key, not
+execution proof. The reconciled `kv_physical_allocation` event contains the
+requested and actual device fields required by the workbook and is accepted
+only when they are exactly `CPU` and `["CPU"]`. An `AUTO` request that resolves
+to CPU remains `AUTO` and is rejected for a formal direct-CPU row.
 
 ## GenAI Observation Architecture
 
