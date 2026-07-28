@@ -435,6 +435,136 @@ git commit -m "fix(openvino): validate relocated submodule paths"
 
 Require independent Spec PASS and Quality PASS before operational use.
 
+## Task 3A: Never roll back a post-move validation failure
+
+**Review amendment:** Quality review of commit `699f67e` proved that an
+ownership check followed by a path-based rollback still has an unavoidable
+time-of-check/time-of-use window: another process can replace `destination`
+after the check and before `os.replace(destination, staging)`. A safe
+controller must not move or delete any destination after it has been
+published. This amendment supersedes Task 2's automatic rollback requirement.
+Pre-move failures still clean controller-owned staging; post-move failures
+leave the destination untouched and publish no identity.
+
+**Files:**
+
+- Modify: `scripts/testing/tests/test_official_openvino_patch_identity.py`
+- Modify: `scripts/testing/official_openvino/patch_identity.py`
+
+Rename
+`test_failed_post_move_recursive_validation_rolls_back_and_cleans` to
+`test_failed_post_move_recursive_validation_leaves_destination_untouched`.
+Keep its existing forced validation failure and `os.replace` recorder, then
+replace the final assertions with:
+
+```python
+        self.assertTrue(self.destination.is_dir())
+        self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0][1], self.destination)
+```
+
+Add this replacement-race regression:
+
+```python
+    def test_post_move_failure_leaves_replaced_destination_untouched(self):
+        short_root = self.root / "short-stage"
+        displaced_owned = self.root / "displaced-owned-checkout"
+
+        def create_checkout(_upstream, staging, expected, _patches, _spec):
+            staging.mkdir(parents=True)
+            return expected
+
+        def replace_then_fail(destination):
+            os.replace(destination, displaced_owned)
+            destination.mkdir()
+            (destination / "foreign.txt").write_text(
+                "independent\n",
+                encoding="utf-8",
+            )
+            raise ValueError("forced recursive failure")
+
+        with patch.object(
+            patch_identity.tempfile,
+            "gettempdir",
+            return_value=str(short_root),
+        ), patch.object(
+            patch_identity,
+            "_create_exact_checkout",
+            side_effect=create_checkout,
+        ), patch.object(
+            patch_identity,
+            "_verify_recursive_checkout",
+            side_effect=replace_then_fail,
+        ):
+            with self.assertRaisesRegex(ValueError, "left untouched"):
+                patch_identity._create_and_publish_checkout(
+                    self.upstream,
+                    self.destination,
+                    self.expected,
+                    [],
+                    patch_identity.GENAI_TURBOQUANT_SPEC,
+                )
+
+        self.assertEqual(
+            (self.destination / "foreign.txt").read_text(encoding="utf-8"),
+            "independent\n",
+        )
+        self.assertTrue(displaced_owned.is_dir())
+        self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
+```
+
+Run the focused suite. Expected RED: exactly `2 failed, 31 passed`; both
+failures must be the amended owned-failure expectation and the new
+replacement-race test exposing the controller's unsafe rollback behavior.
+
+Replace the post-publication rollback handler in
+`_create_and_publish_checkout` with:
+
+```python
+        os.replace(staging, destination)
+        try:
+            _verify_recursive_checkout(destination)
+        except (OSError, ValueError) as validation_error:
+            raise ValueError(
+                "published checkout failed recursive validation; "
+                "destination left untouched and no identity may be published"
+            ) from validation_error
+        return patch_commit
+```
+
+The `finally` block may remove only `staging_root`. After publication that root
+contains no checkout, so cleanup cannot touch either the owned published
+directory or a foreign replacement. Both regression tests must prove there is
+no second controller `os.replace` call. `main()` must continue writing evidence
+only after `prepare_patch_workspace()` returns, so every post-move validation
+failure leaves no new identity.
+
+Run twice:
+
+```powershell
+foreach ($run in 1..2) {
+  python -m pytest `
+    scripts/testing/tests/test_official_openvino_patch_identity.py `
+    -q
+  if ($LASTEXITCODE -ne 0) { throw "Task 01C ownership run $run failed" }
+}
+python -m py_compile scripts/testing/official_openvino/patch_identity.py
+git diff --check
+```
+
+Expected: exactly `33 passed` twice, zero skips, and clean compile/diff checks.
+Commit only the two files:
+
+```powershell
+git add scripts/testing/official_openvino/patch_identity.py `
+        scripts/testing/tests/test_official_openvino_patch_identity.py
+git diff --cached --check
+git commit -m "fix(openvino): leave failed publication untouched"
+```
+
+Require fresh independent Spec PASS and Quality PASS before Task 4.
+
 ## Task 4: Rematerialize once, verify, and retire the rejected checkout
 
 No OpenVINO configure, build, or test command is allowed in this task.
