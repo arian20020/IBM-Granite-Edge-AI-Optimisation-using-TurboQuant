@@ -29,6 +29,96 @@ then publish one terminal receipt.
 - Do not edit the derived source, reuse Attempt 006 evidence, recursively
   clean, push, or update the workbook in this plan.
 
+## Attempt 008 Recovery Amendment
+
+Attempt 007 is permanently closed after the Task 2 wrapper failed before
+startup because the controller PowerShell process prohibited script execution.
+It produced zero evidence files. The approved Attempt 007 Task 1 boundary is
+immutable and remains the historical boundary for that closed attempt.
+
+For Task 2 onward, this amendment supersedes the Attempt 007 namespace:
+
+- Use the parallel boundary
+  `.superpowers/sdd/task02-attempt008-boundary.json`, with schema
+  `openvino-cpu-observer-task02-attempt008-boundary/v1` and otherwise identical
+  immutable identities.
+- Use evidence root exactly
+  `R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-008`.
+- Use only `t2a8-*` labels for Tasks 2 and 3.
+- Use replay scratch
+  `R:\.superpowers\sdd\replay\task02-attempt008`.
+- Use receipt
+  `.superpowers/sdd/task02-attempt008-receipt.json` with schema
+  `openvino-cpu-observer-task02-attempt008-receipt/v1`.
+- A failed guarded command closes Attempt 008; do not retry or reuse its label.
+- Before Task 2 execution, capture the effective `CurrentUser` and
+  `LocalMachine` execution policies, set only the current process policy to
+  `Bypass`, require the effective Process policy to be `Bypass`, and require
+  both persistent-scope policies to remain exactly unchanged.
+- The Task 2 invocation function reasserts those execution-policy invariants
+  immediately before and after every wrapper call.
+
+## Attempt 009 Recovery Amendment
+
+Attempt 008 is permanently closed after its second record rejected the
+semicolon-delimited multi-file `SelectedFiles` property. Its configure and
+failed production-compile records are immutable.
+
+For Task 2 onward, this amendment supersedes the Attempt 008 namespace and
+command set:
+
+- Use the parallel boundary
+  `.superpowers/sdd/task02-attempt009-boundary.json`, with schema
+  `openvino-cpu-observer-task02-attempt009-boundary/v1` and otherwise identical
+  immutable identities.
+- Use evidence root exactly
+  `R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-009`.
+- Use only `t2a9-*` labels for Tasks 2 and 3.
+- Compile the two production sources in two strictly serial guarded commands,
+  each with exactly one `SelectedFiles` path.
+- Use replay scratch
+  `R:\.superpowers\sdd\replay\task02-attempt009`.
+- Use receipt
+  `.superpowers/sdd/task02-attempt009-receipt.json` with schema
+  `openvino-cpu-observer-task02-attempt009-receipt/v1`.
+- Revalidate exactly ten guard records: configure, two production compiles,
+  unit compile, two links, plugin load, list, and two test runs.
+- A failed guarded command closes Attempt 009; do not retry or reuse its label.
+- Retain the Attempt 008 process-only `Bypass` preflight and before/after
+  persistent-policy invariants unchanged.
+
+## Attempt 010 Recovery Amendment
+
+Attempt 009 is permanently closed after six valid Task 2 records and a failed
+multiline `-Command` plugin-load record. Preserve all 14 Attempt 009 evidence
+files unchanged.
+
+The non-acceptance diagnostic `plugin-load-encoded` under
+`task02-plugin-load-preflight-001` proved that the complete load script survives
+the committed guard as one UTF-16LE Base64 `-EncodedCommand` argument and loads
+and frees the rebuilt plugin successfully.
+
+For Task 2 onward, this amendment supersedes the Attempt 009 namespace:
+
+- Use `.superpowers/sdd/task02-attempt010-boundary.json`, with schema
+  `openvino-cpu-observer-task02-attempt010-boundary/v1` and otherwise identical
+  immutable identities.
+- Use evidence root exactly
+  `R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-010`.
+- Use only `t2a10-*` labels for Tasks 2 and 3.
+- Retain the two strictly serial single-file production compiles.
+- Encode the complete plugin-load script with
+  `[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($pluginLoadScript))`
+  and pass exactly eight argv entries ending in
+  `-EncodedCommand`, `<single base64 string>`.
+- Use replay scratch
+  `R:\.superpowers\sdd\replay\task02-attempt010`.
+- Use receipt `.superpowers/sdd/task02-attempt010-receipt.json` with schema
+  `openvino-cpu-observer-task02-attempt010-receipt/v1`.
+- Revalidate exactly ten acceptance guard records.
+- A failed guarded command closes Attempt 010; do not retry or reuse its label.
+- Retain the process-only `Bypass` and persistent-policy invariants unchanged.
+
 ---
 
 ### Task 1: Freeze the boundary
@@ -157,9 +247,22 @@ it with `ConvertFrom-Json` and compare every field to `$boundary`.
 - Consumes: immutable boundary and committed guard.
 - Produces: freshly compiled Task 02 objects and relinked test/plugin binaries.
 
-- [ ] **Step 1: Define the fixed guarded invocation**
+- [ ] **Step 1: Establish the controller execution-policy invariant and define
+  the fixed guarded invocation**
 
 ```powershell
+$policyBefore = [ordered]@{
+  CurrentUser = Get-ExecutionPolicy -Scope CurrentUser
+  LocalMachine = Get-ExecutionPolicy -Scope LocalMachine
+}
+Set-ExecutionPolicy -Scope Process Bypass -Force
+if ((Get-ExecutionPolicy -Scope Process) -cne "Bypass" -or
+    (Get-ExecutionPolicy -Scope CurrentUser) -cne
+      [string]$policyBefore.CurrentUser -or
+    (Get-ExecutionPolicy -Scope LocalMachine) -cne
+      [string]$policyBefore.LocalMachine) {
+  throw "Controller execution-policy preflight failed"
+}
 $wrapper = "R:\scripts\testing\invoke_guarded_command.ps1"
 $python =
   "C:\Users\Student\AppData\Local\Programs\Python\Python311\python.exe"
@@ -171,25 +274,49 @@ $cmake =
   "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 $msbuild =
   "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe"
-function Invoke-Attempt007Guard {
+$evidence =
+  "R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task02-attempt-010"
+if (Test-Path -LiteralPath $evidence) {
+  throw "Attempt 010 evidence root already exists"
+}
+function Assert-Attempt010ExecutionPolicy {
+  if ((Get-ExecutionPolicy -Scope Process) -cne "Bypass" -or
+      (Get-ExecutionPolicy -Scope CurrentUser) -cne
+        [string]$policyBefore.CurrentUser -or
+      (Get-ExecutionPolicy -Scope LocalMachine) -cne
+        [string]$policyBefore.LocalMachine) {
+    throw "Attempt 010 execution-policy invariant failed"
+  }
+}
+function Invoke-Attempt010Guard {
   param(
     [string]$Label,
     [string[]]$Command,
     [double]$TimeoutSeconds = 7200
   )
-  & $wrapper -Label $Label -WorkingDirectory R:\ `
-    -EvidenceRoot $evidence -ExpectedExit Zero `
-    -TimeoutSeconds $TimeoutSeconds -MinimumAvailableRamMiB 2048 `
-    -PythonExecutable $python -PythonSha256 $pythonSha `
-    -PythonDllSha256 $pythonDllSha -Command $Command
-  if ($LASTEXITCODE -ne 0) { throw "$Label wrapper failed" }
+  Assert-Attempt010ExecutionPolicy
+  $wrapperExit = $null
+  try {
+    & $wrapper -Label $Label -WorkingDirectory R:\ `
+      -EvidenceRoot $evidence -ExpectedExit Zero `
+      -TimeoutSeconds $TimeoutSeconds -MinimumAvailableRamMiB 2048 `
+      -PythonExecutable $python -PythonSha256 $pythonSha `
+      -PythonDllSha256 $pythonDllSha -Command $Command
+    $wrapperExit = $LASTEXITCODE
+  }
+  finally {
+    Assert-Attempt010ExecutionPolicy
+  }
+  if ($null -eq $wrapperExit -or $wrapperExit -ne 0) {
+    throw "$Label wrapper failed"
+  }
 }
 ```
 
 - [ ] **Step 2: Configure the validated functional-test build**
 
 ```powershell
-Invoke-Attempt007Guard "t2a7-cfg-g" @(
+Invoke-Attempt010Guard "t2a10-cfg-g" @(
   $cmake, "-S", "O:\", "-B", "C:\ov-build\state-observer",
   "-G", "Visual Studio 18 2026", "-A", "x64",
   "-DENABLE_DEBUG_CAPS=ON", "-DENABLE_CPU_DEBUG_CAPS=ON",
@@ -202,14 +329,24 @@ Invoke-Attempt007Guard "t2a7-cfg-g" @(
 ) 1200
 ```
 
-- [ ] **Step 3: Compile the affected production sources**
+- [ ] **Step 3: Compile each affected production source serially**
 
 ```powershell
-Invoke-Attempt007Guard "t2a7-prod-compile-g" @(
+Invoke-Attempt010Guard "t2a10-cpu-memory-g" @(
   $msbuild,
   "C:\ov-build\state-observer\src\plugins\intel_cpu\openvino_intel_cpu_plugin_obj.vcxproj",
   "/t:ClCompile",
-  "/p:SelectedFiles=O:\src\plugins\intel_cpu\src\cpu_memory.cpp;O:\src\plugins\intel_cpu\src\utils\state_allocations_dump.cpp",
+  "/p:SelectedFiles=O:\src\plugins\intel_cpu\src\cpu_memory.cpp",
+  "/p:Configuration=Release", "/p:Platform=x64",
+  "/p:BuildProjectReferences=false", "/p:BuildInParallel=false",
+  "/p:UseMultiToolTask=false", "/p:TrackFileAccess=false",
+  "/m:1", "/nr:false", "/v:minimal"
+)
+Invoke-Attempt010Guard "t2a10-dump-compile-g" @(
+  $msbuild,
+  "C:\ov-build\state-observer\src\plugins\intel_cpu\openvino_intel_cpu_plugin_obj.vcxproj",
+  "/t:ClCompile",
+  "/p:SelectedFiles=O:\src\plugins\intel_cpu\src\utils\state_allocations_dump.cpp",
   "/p:Configuration=Release", "/p:Platform=x64",
   "/p:BuildProjectReferences=false", "/p:BuildInParallel=false",
   "/p:UseMultiToolTask=false", "/p:TrackFileAccess=false",
@@ -220,7 +357,7 @@ Invoke-Attempt007Guard "t2a7-prod-compile-g" @(
 - [ ] **Step 4: Compile the focused unit source**
 
 ```powershell
-Invoke-Attempt007Guard "t2a7-unit-compile-g" @(
+Invoke-Attempt010Guard "t2a10-unit-compile-g" @(
   $msbuild,
   "C:\ov-build\state-observer\src\plugins\intel_cpu\tests\unit\ov_cpu_unit_tests.vcxproj",
   "/t:ClCompile",
@@ -243,12 +380,12 @@ $lldProperties = @(
   "/p:LinkToolPath=C:\Program Files\LLVM\bin",
   "/m:1", "/nr:false", "/v:minimal"
 )
-Invoke-Attempt007Guard "t2a7-unit-link-g" (
+Invoke-Attempt010Guard "t2a10-unit-link-g" (
   @($msbuild,
     "C:\ov-build\state-observer\src\plugins\intel_cpu\tests\unit\ov_cpu_unit_tests.vcxproj",
     "/t:_Link") + $lldProperties
 )
-Invoke-Attempt007Guard "t2a7-plugin-link-g" (
+Invoke-Attempt010Guard "t2a10-plugin-link-g" (
   @($msbuild,
     "C:\ov-build\state-observer\src\plugins\intel_cpu\openvino_intel_cpu_plugin.vcxproj",
     "/t:_Link") + $lldProperties
@@ -278,10 +415,13 @@ $module = [NativePluginProbe]::LoadLibrary($path)
 if ($module -eq [IntPtr]::Zero) { exit 21 }
 if (-not [NativePluginProbe]::FreeLibrary($module)) { exit 22 }
 '@
-Invoke-Attempt007Guard "t2a7-plugin-load-g" @(
+$pluginLoadEncoded = [Convert]::ToBase64String(
+  [Text.Encoding]::Unicode.GetBytes($pluginLoadScript)
+)
+Invoke-Attempt010Guard "t2a10-plugin-load-g" @(
   "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe",
   "-NoLogo", "-NoProfile", "-NonInteractive",
-  "-ExecutionPolicy", "Bypass", "-Command", $pluginLoadScript
+  "-ExecutionPolicy", "Bypass", "-EncodedCommand", $pluginLoadEncoded
 ) 300
 ```
 
@@ -304,11 +444,11 @@ Invoke-Attempt007Guard "t2a7-plugin-load-g" @(
 
 ```powershell
 $unit = "O:\bin\intel64\Release\ov_cpu_unit_tests.exe"
-Invoke-Attempt007Guard "t2a7-list-g" @(
+Invoke-Attempt010Guard "t2a10-list-g" @(
   $unit, "--gtest_list_tests",
   "--gtest_filter=StateAllocationsDump.*", "--gtest_color=no"
 ) 300
-$listText = Get-Content "$evidence\t2a7-list-g.log" -Raw
+$listText = Get-Content "$evidence\t2a10-list-g.log" -Raw
 $testCount = @(
   $listText -split "\r?\n" |
     Where-Object { $_ -match '^\s{2}[A-Za-z0-9_]+$' }
@@ -319,8 +459,8 @@ if ($testCount -ne 25) { throw "Focused selection is $testCount, expected 25" }
 - [ ] **Step 2: Run the same 25-test selection twice**
 
 ```powershell
-foreach ($label in "t2a7-run-g1", "t2a7-run-g2") {
-  Invoke-Attempt007Guard $label @(
+foreach ($label in "t2a10-run-g1", "t2a10-run-g2") {
+  Invoke-Attempt010Guard $label @(
     $unit, "--gtest_filter=StateAllocationsDump.*", "--gtest_color=no"
   ) 300
   $text = Get-Content "$evidence\$label.log" -Raw
@@ -356,7 +496,7 @@ foreach ($entry in $artifactPaths.GetEnumerator()) {
 
 **Files:**
 - Create:
-  `.superpowers/sdd/task02-attempt007-receipt.json`
+  `.superpowers/sdd/task02-attempt010-receipt.json`
 - Modify:
   `.superpowers/sdd/progress.md`
 
@@ -369,7 +509,7 @@ foreach ($entry in $artifactPaths.GetEnumerator()) {
 
 ```powershell
 $scratch =
-  "R:\.superpowers\sdd\replay\task02-attempt007"
+  "R:\.superpowers\sdd\replay\task02-attempt010"
 if (Test-Path $scratch) { throw "Replay scratch already exists" }
 & git clone --no-hardlinks --no-checkout O:\ $scratch
 if ($LASTEXITCODE -ne 0) { throw "Replay clone failed" }
@@ -385,9 +525,10 @@ if ($replayTree -cne $task02Tree) { throw "Replay tree mismatch" }
 
 ```powershell
 $labels = @(
-  "t2a7-cfg-g", "t2a7-prod-compile-g", "t2a7-unit-compile-g",
-  "t2a7-unit-link-g", "t2a7-plugin-link-g", "t2a7-plugin-load-g",
-  "t2a7-list-g", "t2a7-run-g1", "t2a7-run-g2"
+  "t2a10-cfg-g", "t2a10-cpu-memory-g", "t2a10-dump-compile-g",
+  "t2a10-unit-compile-g", "t2a10-unit-link-g", "t2a10-plugin-link-g",
+  "t2a10-plugin-load-g", "t2a10-list-g", "t2a10-run-g1",
+  "t2a10-run-g2"
 )
 $guardReceipts = [ordered]@{}
 foreach ($label in $labels) {
@@ -421,9 +562,9 @@ foreach ($label in $labels) {
 - [ ] **Step 3: Publish and round-trip the terminal receipt**
 
 ```powershell
-$receiptPath = ".superpowers\sdd\task02-attempt007-receipt.json"
+$receiptPath = ".superpowers\sdd\task02-attempt010-receipt.json"
 $final = [ordered]@{
-  schema = "openvino-cpu-observer-task02-attempt007-receipt/v1"
+  schema = "openvino-cpu-observer-task02-attempt010-receipt/v1"
   accepted = $true
   base_commit = $base
   task02_commit = $task02
@@ -450,7 +591,7 @@ if ($roundTrip.schema -cne $final.schema -or
     $roundTrip.accepted -ne $true -or
     $roundTrip.task02_commit -cne $task02 -or
     $roundTrip.replay_tree -cne $task02Tree -or
-    @($roundTrip.guards.PSObject.Properties).Count -ne 9) {
+    @($roundTrip.guards.PSObject.Properties).Count -ne 10) {
   throw "Terminal receipt round trip failed"
 }
 ```
@@ -472,4 +613,4 @@ hashes, replay identity, and lack of source drift. It returns exactly:
 the same line by the same computed 64-hex receipt SHA-256.
 
 Append both verbatim verdicts to `.superpowers/sdd/progress.md`. Any other
-verdict closes Attempt 007 and prevents Task 03.
+verdict closes Attempt 010 and prevents Task 03.
