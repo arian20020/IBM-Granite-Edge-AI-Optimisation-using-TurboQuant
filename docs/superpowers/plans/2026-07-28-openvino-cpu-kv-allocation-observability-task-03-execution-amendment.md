@@ -49,7 +49,7 @@ Task 03 intentionally uses the current committed guard set:
 - `scripts/testing/official_openvino/owned_process_guard.py`:
   `f9199294e4e0d50947803ce6468c6ba1cf2fc389`
 - `scripts/testing/official_openvino/guarded_build.py`:
-  `dffd7def889a1eef70d291009275be4ab078a7ee`
+  `f27242b4e1f2976e7eeef94cd21616979473c968`
 - `scripts/testing/invoke_guarded_command.ps1`:
   `caef8c7f73d7e5c35d5573d0e33e661d3ad48139`
 
@@ -58,25 +58,36 @@ verification JSON and is covered by 48 passing focused guard tests. Task 03
 must prove each worktree guard hash equals its committed `HEAD:<path>` blob
 before every guarded phase.
 
+## Attempt 002 recovery
+
+Attempt 001 is permanently closed. Its only guarded command,
+`task3a1-configure-red`, completed CMake but failed guard validation because a
+short-lived child exited between the Job PID snapshot and its memory query.
+The record and log remain immutable. The guard now retries a PID that remains
+in the Job and permits only a PID confirmed absent from the Job; an unreadable
+live PID still fails closed. All 49 focused guard tests pass.
+
+The active execution namespace is Attempt 002.
+
 ## Attempt-scoped paths
 
 - Evidence:
-  `R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task03-attempt-001`
+  `R:\experiments\raw-results\openvino-turboquant\2026-07-28\guards\task03-attempt-002`
 - Main build:
-  `C:\ov-build\task03-attempt-001-main`
+  `C:\ov-build\task03-attempt-002-main`
 - Functional build:
-  `C:\ov-build\task03-attempt-001-functional`
+  `C:\ov-build\task03-attempt-002-functional`
 - Boundary:
-  `R:\.superpowers\sdd\task03-attempt001-boundary.json`
+  `R:\.superpowers\sdd\task03-attempt002-boundary.json`
 - Receipt:
-  `R:\.superpowers\sdd\task03-attempt001-receipt.json`
+  `R:\.superpowers\sdd\task03-attempt002-receipt.json`
 - Delta replay:
-  `R:\.superpowers\sdd\replay\task03-attempt001-delta`
+  `R:\.superpowers\sdd\replay\task03-attempt002-delta`
 - Cumulative replay:
-  `R:\.superpowers\sdd\replay\task03-attempt001-cumulative`
+  `R:\.superpowers\sdd\replay\task03-attempt002-cumulative`
 
-Every path above must be absent before Phase 1. A failed `task3a1-*` guarded
-command closes Attempt 001; a retry requires Attempt 002 and new paths.
+Every path above must be absent before Phase 1. A failed `task3a2-*` guarded
+command closes Attempt 002; a retry requires Attempt 003 and new paths.
 
 ## Phase protocol
 
@@ -145,10 +156,10 @@ line.
       `apply_patch`.
 - [ ] Create only the exact writer test body from Step 2 of the full plan.
 - [ ] Configure the new main build directory using label
-      `task3a1-configure-red`.
+      `task3a2-configure-red`.
 - [ ] Compile only
       `state_allocations_writer_test.cpp` using label
-      `task3a1-build-red`, expecting nonzero for the absent Task 03 contracts.
+      `task3a2-build-red`, expecting nonzero for the absent Task 03 contracts.
 - [ ] Require the RED log to name at least one missing Task 03 contract and
       contain no memory, path, generator, or linker failure.
 
@@ -164,31 +175,31 @@ line.
 
 ## Phase 3: Focused GREEN
 
-- [ ] Reconfigure the main build with label `task3a1-configure-green`.
+- [ ] Reconfigure the main build with label `task3a2-configure-green`.
 - [ ] In one guarded, encoded PowerShell child, compile each changed production
       and unit source serially with one `SelectedFiles` value, then LLD-link
-      `ov_cpu_unit_tests`; label it `task3a1-build-unit-green`.
+      `ov_cpu_unit_tests`; label it `task3a2-build-unit-green`.
 - [ ] List exactly 21 `StateAllocationsWriter.*` and 25
-      `StateAllocationsDump.*` tests with label `task3a1-list-green`.
+      `StateAllocationsDump.*` tests with label `task3a2-list-green`.
 - [ ] Run the exact combined 46-test filter twice using labels
-      `task3a1-writer-green-1` and `task3a1-writer-green-2`.
+      `task3a2-writer-green-1` and `task3a2-writer-green-2`.
 - [ ] Require both runs to report 46 passed and zero failed.
 
 ## Phase 4: Plugin and stock gates
 
 - [ ] In one guarded, encoded PowerShell child, compile the changed production
       sources serially and LLD-link `openvino_intel_cpu_plugin`; label it
-      `task3a1-plugin-green`.
+      `task3a2-plugin-green`.
 - [ ] Configure the new functional build with label
-      `task3a1-configure-functional`.
+      `task3a2-configure-functional`.
 - [ ] Build the required stock CPU variable-state functional target serially,
-      using LLD for its final link, with label `task3a1-build-functional`.
+      using LLD for its final link, with label `task3a2-build-functional`.
 - [ ] List the exact stock query-state selection using
-      `task3a1-list-stock`.
+      `task3a2-list-stock`.
 - [ ] Run the stock selection with the observer environment variable absent
-      using `task3a1-stock-unset`; require pass and no JSONL.
+      using `task3a2-stock-unset`; require pass and no JSONL.
 - [ ] Run the exact invalid `.txt` path gate using
-      `task3a1-stock-invalid`; require the planned nonzero result and no output
+      `task3a2-stock-invalid`; require the planned nonzero result and no output
       file.
 
 ## Phase 5: Final audits and commit
