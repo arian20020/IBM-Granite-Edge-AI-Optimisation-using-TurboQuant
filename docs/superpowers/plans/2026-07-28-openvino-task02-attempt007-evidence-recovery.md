@@ -52,13 +52,24 @@ Run from the controller worktree:
 ```powershell
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path ((& git rev-parse --show-toplevel).Trim())).Path
-$rRoot = (Resolve-Path "R:\").Path.TrimEnd("\")
-if (-not $root.TrimEnd("\").Equals(
+$rLine = @(
+  @(& subst.exe) |
+    Where-Object { $_ -match '^R:\\: => (?<target>.+)$' }
+)
+if ($rLine.Count -ne 1 -or
+    -not ($rLine[0] -match '^R:\\: => (?<target>.+)$')) {
+  throw "R: controller mapping is not active"
+}
+$rRoot = [IO.Path]::GetFullPath($Matches.target).TrimEnd("\")
+$controllerRoot = [IO.Path]::GetFullPath($root).TrimEnd("\")
+if (-not $controllerRoot.Equals(
     $rRoot, [StringComparison]::OrdinalIgnoreCase)) {
   throw "R: controller mapping is not active"
 }
 $expectedCore = "C:\ov-wb04\2026-07-19\openvino-cpu-state-observer"
-$oLine = @(& subst.exe) | Where-Object { $_ -match '^O:\\: => ' }
+$oLine = @(
+  @(& subst.exe) | Where-Object { $_ -match '^O:\\: => ' }
+)
 if ($oLine.Count -ne 1 -or
     -not $oLine[0].EndsWith($expectedCore,
       [StringComparison]::OrdinalIgnoreCase)) {
