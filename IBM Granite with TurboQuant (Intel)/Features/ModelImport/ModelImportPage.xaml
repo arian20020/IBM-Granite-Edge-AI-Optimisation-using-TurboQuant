@@ -42,15 +42,26 @@
                         Orientation="Vertical"
                         Spacing="12">
 
-                        <!--  Displays the approved Granite Edge AI logo without a circular background.  -->
+                        <!--
+                            Displays the SVG at 112 × 112 while decoding it at a larger
+                            internal size to provide additional detail when downscaled.
+                        -->
                         <Image
                             Width="112"
                             Height="112"
-                            Margin="0,0,0,8"
+                            Margin="0,8,0,0"
                             HorizontalAlignment="Center"
                             AutomationProperties.Name="Granite Edge AI logo"
-                            Source="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg"
-                            Stretch="Uniform" />
+                            Stretch="Uniform">
+
+                            <Image.Source>
+                                <SvgImageSource
+                                    RasterizePixelHeight="224"
+                                    RasterizePixelWidth="224"
+                                    UriSource="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg" />
+                            </Image.Source>
+
+                        </Image>
 
                         <!--  Displays the page heading.  -->
                         <TextBlock

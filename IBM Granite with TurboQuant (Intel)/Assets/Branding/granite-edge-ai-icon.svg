@@ -1,5 +1,10 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="512"
+    height="512"
+    viewBox="40 64 388 376"
+    fill="none">
   <defs>
     <linearGradient id="graniteBlue" x1="48" y1="256" x2="420" y2="256" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0F62FE"/>
