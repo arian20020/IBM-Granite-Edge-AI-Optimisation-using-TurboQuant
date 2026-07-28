@@ -501,7 +501,7 @@ foreach ($entry in $artifactPaths.GetEnumerator()) {
   `.superpowers/sdd/progress.md`
 
 **Interfaces:**
-- Consumes: boundary, all nine guard records/logs, artifacts, and Task 02 Git
+- Consumes: boundary, all ten guard records/logs, artifacts, and Task 02 Git
   delta.
 - Produces: terminal receipt and two independent review verdicts.
 
@@ -599,7 +599,7 @@ if ($roundTrip.schema -cne $final.schema -or
 - [ ] **Step 4: Obtain independent spec and quality verdicts**
 
 The spec reviewer reads the design, this plan, boundary, exact commit diff,
-all nine guard records/logs, artifact bytes, replay checkout, and terminal
+all ten guard records/logs, artifact bytes, replay checkout, and terminal
 receipt. It returns exactly:
 
 `SPEC PASS 222ad430d201ac4ebf7add6fe4009551c216c378`, followed on
