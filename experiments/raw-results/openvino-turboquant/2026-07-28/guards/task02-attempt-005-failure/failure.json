@@ -1,0 +1,214 @@
+{
+  "schema": "openvino-cpu-observer-task02-attempt-failure/v2",
+  "recorded_utc": "2026-07-28T14:45:27.5581048Z",
+  "attempt_id": "task02-attempt-005",
+  "classification": "controller_pre_boundary_runtime_format_binding_failure",
+  "root_cause_status": "reproduced_from_exact_script_and_preserved_state",
+  "root_cause": "The hidden controller exited before creating its boundary or evidence directory because Windows PowerShell parsed the comma-separated operands inside List[string].Add(\"{0}|{1}|{2}\" -f ...) as Add method arguments. The format operator therefore received only one operand for three placeholders and raised FormatError. The same latent binding error existed in the following attempt-004 manifest Add call.",
+  "execution_plan": {
+    "parent_head": "25fb4f39d328dcc52b21a5be1f0c15521ba1a4a6",
+    "parent_tree": "57b85df4b73e45d88be59b4f5f76b72fc07018c0",
+    "task02_plan_path": "docs/superpowers/plans/2026-07-28-openvino-cpu-kv-allocation-observability-task-02.md",
+    "task02_plan_bytes": 397592,
+    "task02_plan_blob": "b9df8feebd27062dccf99723fc72c28821240641",
+    "task02_plan_sha256": "0fc614df0e555a8b0924a702a8ae0a6119b32eaac6512b1a3c8eb746ced39859",
+    "roadmap_sha256": "9497cba857247af42bc7f889c17fc2e248edd6a02cf5703906aec23434504a3e"
+  },
+  "control_scripts": {
+    "launcher": {
+      "path": ".superpowers/sdd/task02-attempt005-launcher.ps1",
+      "bytes": 46968,
+      "sha256": "e05a8dd26e2f38c9f2e2a5ebb6fa3a5441834fbd6dfbc8282b111f2a1be0fbf8"
+    },
+    "controller": {
+      "path": ".superpowers/sdd/task02-attempt005-controller.ps1",
+      "bytes": 158223,
+      "sha256": "9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b"
+    },
+    "green_signal": {
+      "path": ".superpowers/sdd/task02-attempt005-green-signal.ps1",
+      "bytes": 37175,
+      "sha256": "9174b0c8bf89457f91e832b2b495caa19d8584f7e230205908fb1c9ba9c5664b"
+    },
+    "link_cap_supervisor": {
+      "path": ".superpowers/sdd/task02-attempt005-link-cap-supervisor.ps1",
+      "bytes": 38077,
+      "sha256": "fd005d235b27a532ac5d0536ccb5b429e9c4f554efcd1f6ed5c9a5cf08e0f90b"
+    }
+  },
+  "immutable_control_evidence": {
+    "path": ".superpowers/sdd/task02-attempt005-controller-job-ready.json",
+    "schema": "openvino-cpu-observer-task02-controller-job-ready/v2",
+    "bytes": 1275,
+    "sha256": "9d28749dafd80f40f914a82c59945fee91ab624d8fa32e10063c78915d8026a4",
+    "created_utc": "2026-07-28T14:40:22.5360369Z",
+    "controller_pid": 9064,
+    "controller_creation_filetime_utc": 134297232222902142,
+    "controller_script_sha256": "9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b",
+    "launcher_script_sha256": "e05a8dd26e2f38c9f2e2a5ebb6fa3a5441834fbd6dfbc8282b111f2a1be0fbf8",
+    "assigned_at_create": true,
+    "job_member_before_resume": true,
+    "controller_owned_handle": true,
+    "launcher_handle_closed_before_publish": true
+  },
+  "immutable_control_manifest": {
+    "normalization": "UTF-8 no BOM; lines joined by LF; exactly one final LF; ordinal path order; no header",
+    "line_format": "path|bytes|sha256",
+    "count": 5,
+    "lines": [
+      ".superpowers/sdd/task02-attempt005-controller-job-ready.json|1275|9d28749dafd80f40f914a82c59945fee91ab624d8fa32e10063c78915d8026a4",
+      ".superpowers/sdd/task02-attempt005-controller.ps1|158223|9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b",
+      ".superpowers/sdd/task02-attempt005-green-signal.ps1|37175|9174b0c8bf89457f91e832b2b495caa19d8584f7e230205908fb1c9ba9c5664b",
+      ".superpowers/sdd/task02-attempt005-launcher.ps1|46968|e05a8dd26e2f38c9f2e2a5ebb6fa3a5441834fbd6dfbc8282b111f2a1be0fbf8",
+      ".superpowers/sdd/task02-attempt005-link-cap-supervisor.ps1|38077|fd005d235b27a532ac5d0536ccb5b429e9c4f554efcd1f6ed5c9a5cf08e0f90b"
+    ],
+    "bytes": 625,
+    "sha256": "16d230602d38ecaf9e8201d6aeb1d5ebc2c7f66c0caee78f1591692ece4e4587"
+  },
+  "absent_path_manifest": {
+    "normalization": "UTF-8 no BOM; lines joined by LF; exactly one final LF; ordinal path order; no header",
+    "line_format": "path|ABSENT",
+    "count": 8,
+    "lines": [
+      ".superpowers/sdd/task02-attempt005-boundary.json|ABSENT",
+      ".superpowers/sdd/task02-attempt005-core-preview.patch|ABSENT",
+      ".superpowers/sdd/task02-attempt005-green-ready.json|ABSENT",
+      ".superpowers/sdd/task02-attempt005-patch-replay|ABSENT",
+      ".superpowers/sdd/task02-attempt005-receipt.json|ABSENT",
+      ".superpowers/sdd/task02-attempt005-red-ready.json|ABSENT",
+      ".superpowers/sdd/task02-attempt005-timeout-cleanup.json|ABSENT",
+      "experiments/raw-results/openvino-turboquant/2026-07-28/guards/task02-attempt-005|ABSENT"
+    ],
+    "bytes": 494,
+    "sha256": "75feb96c80073756a4c243cf0f7672c22cedcfc53b0f5a38fcde1113ebfa8bcf"
+  },
+  "failure_observation": {
+    "launcher_result": "controller_exited_before_red_ready",
+    "controller_exit_code_captured": false,
+    "controller_stderr_captured": false,
+    "controller_engine_stop_event": {
+      "log": "Windows PowerShell",
+      "event_id": 403,
+      "process_id": 9064,
+      "time_utc": "2026-07-28T14:40:26.6692268Z",
+      "new_engine_state": "Stopped",
+      "previous_engine_state": "Available"
+    },
+    "boundary_created": false,
+    "attempt_directory_created": false,
+    "red_ready_created": false,
+    "green_ready_created": false,
+    "timeout_cleanup_created": false,
+    "source_edited": false
+  },
+  "reproduction": {
+    "classification": "read_only_pre_boundary_replay",
+    "script_sha256": "9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b",
+    "replayed_original_lines": "253-1291",
+    "write_boundary_excluded": true,
+    "uncorrected_result": "fail",
+    "uncorrected_error_type": "System.Management.Automation.RuntimeException",
+    "uncorrected_error_id": "FormatError,Microsoft.PowerShell.Commands.InvokeExpressionCommand",
+    "uncorrected_error_verbatim": "Error formatting a string: Index (zero based) must be greater than or equal to zero and less than the size of the argument list..",
+    "uncorrected_error_normalization": "UTF-8 no BOM; no line terminator",
+    "uncorrected_error_bytes": 129,
+    "uncorrected_error_sha256": "4b94bbaaf7591f25c0d9d75a4b7d3e57abf9929854c8fc479930ce2f9bf879cb",
+    "uncorrected_script_stack_line": 865,
+    "original_failure_lines": "1117-1123",
+    "second_latent_lines": "1129-1134",
+    "source_slice_normalization": "UTF-8 no BOM, LF, complete inclusive source lines including leading indentation and trailing LF",
+    "original_failure_extent": {
+      "bytes": 206,
+      "sha256": "bcca02837ea4d60f79697ae5bb1c4cfc2a905caf0dd0091945022aa3e1bd979f"
+    },
+    "corrected_failure_extent": {
+      "bytes": 208,
+      "sha256": "7ea7671906a9c5d8291e2fe108adef95b1b47cfb309b7303fedbc3d919df1922"
+    },
+    "original_latent_extent": {
+      "bytes": 137,
+      "sha256": "93d8c6476bd400fca4d91ce0707933d4172fd6b7acd8359034a10b4d87a5a43c"
+    },
+    "corrected_latent_extent": {
+      "bytes": 139,
+      "sha256": "b01a979c60beea6887486d282e5578a17a26556c9dabd0c7611c3d64b1e5568e"
+    },
+    "original_replay_prefix": {
+      "bytes": 39255,
+      "sha256": "068849603c820869d3149ffae65c769035e5026f2d8ecb24332ef041c8470011"
+    },
+    "corrected_replay_prefix": {
+      "bytes": 39259,
+      "sha256": "4929a048930816b12e76b5b31555d083bf16054ba9da82b7322292165430df3d"
+    },
+    "minimal_correction": "Wrap each complete format expression in a second pair of parentheses so List[string].Add receives one formatted string: Add((... -f operand1, operand2, operand3)).",
+    "corrected_result": "pass",
+    "corrected_replay_scope": "entire original controller lines 253-1291",
+    "workspace_files_written": 0,
+    "heavy_processes_started": 0
+  },
+  "source_boundary": {
+    "derived_core": "C:\\ov-wb04\\2026-07-19\\openvino-cpu-state-observer",
+    "branch": "project/cpu-state-allocation-observer",
+    "head": "ede283a88e35465f0d680dabbf1f44080f8fc387",
+    "tree": "84c5a84dcca1065d394b422dad6682f8b9a5aebe",
+    "git_status_porcelain": [
+      "?? src/plugins/intel_cpu/tests/unit/state_allocations_dump_test.cpp"
+    ],
+    "files": {
+      "src/plugins/intel_cpu/src/cpu_memory.h": {
+        "state": "tracked_clean",
+        "bytes": 15811,
+        "sha256": "8b92ffa1e23a5a00c40475ea7661b0ec34edf90ac40919710aa570eb3f25fe34"
+      },
+      "src/plugins/intel_cpu/src/cpu_memory.cpp": {
+        "state": "tracked_clean",
+        "bytes": 26011,
+        "sha256": "9f235197e679b51029eae4e18eebbe3b38db039f77d9c3fdafb64709586643d0"
+      },
+      "src/plugins/intel_cpu/src/utils/state_allocations_dump.hpp": {
+        "state": "absent"
+      },
+      "src/plugins/intel_cpu/src/utils/state_allocations_dump.cpp": {
+        "state": "absent"
+      },
+      "src/plugins/intel_cpu/tests/unit/state_allocations_dump_test.cpp": {
+        "state": "untracked_red_fixture",
+        "bytes": 22516,
+        "sha256": "a1e18eda017edec7f473dd8c885e172e7379e2f92f38894fda627dce1c6f608b"
+      }
+    }
+  },
+  "source_restore_manifest": {
+    "normalization": "UTF-8 no BOM; lines joined by LF; exactly one final LF; ordinal path order; no header",
+    "line_format": "path|state|bytes|sha256|git_blob",
+    "count": 5,
+    "lines": [
+      "src/plugins/intel_cpu/src/cpu_memory.cpp|tracked_clean|26011|9f235197e679b51029eae4e18eebbe3b38db039f77d9c3fdafb64709586643d0|9e958e3eec4eaebda21eda1a64b0bc45d0d8da6d",
+      "src/plugins/intel_cpu/src/cpu_memory.h|tracked_clean|15811|8b92ffa1e23a5a00c40475ea7661b0ec34edf90ac40919710aa570eb3f25fe34|4091ce26472732ca31bfcb9ad03f637e9da0ad0a",
+      "src/plugins/intel_cpu/src/utils/state_allocations_dump.cpp|absent|ABSENT|ABSENT|ABSENT",
+      "src/plugins/intel_cpu/src/utils/state_allocations_dump.hpp|absent|ABSENT|ABSENT|ABSENT",
+      "src/plugins/intel_cpu/tests/unit/state_allocations_dump_test.cpp|untracked_red_fixture|22516|a1e18eda017edec7f473dd8c885e172e7379e2f92f38894fda627dce1c6f608b|ABSENT"
+    ],
+    "bytes": 671,
+    "sha256": "6eceb748471fa061896853cfdd29fe18262dffa1293743a16a2f15eea5145327"
+  },
+  "cleanup_state": {
+    "controller_process_survivors": 0,
+    "heavy_process_survivors": 0,
+    "csc_process_survivors": 0,
+    "named_controller_job": "Local\\OpenVINO-Task02-Attempt005-Controller",
+    "named_controller_job_present": false,
+    "open_job_object_error": 2
+  },
+  "metric_scope": "This attempt produced no benchmark or workbook metric. Job and headroom observations remain safety evidence only.",
+  "recovery_constraints": [
+    "Do not delete, overwrite, extend, or reuse the attempt-005 Job-ready receipt.",
+    "Do not create an attempt-005 boundary, evidence directory, phase receipt, or guard artifact after this closure.",
+    "Use a fresh attempt-006 controller Job name, control receipts, evidence directory, and script identities.",
+    "Fix both multiline List[string].Add format bindings and prove the complete pre-boundary block in a fresh Windows PowerShell 5.1 process before attempt 006.",
+    "Add an atomic controller-failure receipt for attempt 006 so a hidden pre-boundary exception is durable and exact.",
+    "Revalidate all five derived-source paths against this closure before attempt 006; retain the exact fixture-only RED boundary.",
+    "Do not lower or bypass any RAM, Job Object, process-identity, timeout, or artifact-integrity gate."
+  ]
+}
