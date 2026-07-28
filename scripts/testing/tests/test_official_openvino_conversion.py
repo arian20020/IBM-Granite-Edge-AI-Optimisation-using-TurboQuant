@@ -168,13 +168,88 @@ class OfficialOpenVINOArtifactTests(unittest.TestCase):
         }
         self.manifest_path = self.root / "artifact-manifest.json"
 
+    def refresh_inventory(self):
+        self.files = []
+        for path in sorted(self.artifact.iterdir()):
+            if path.is_file():
+                self.files.append({
+                    "path": path.name,
+                    "size_bytes": path.stat().st_size,
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                })
+        self.files.sort(key=lambda item: item["path"])
+        canonical = json.dumps(
+            self.files, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        self.inventory_sha256 = hashlib.sha256(canonical).hexdigest()
+        self.manifest["files"] = self.files
+        self.manifest["inventory_sha256"] = self.inventory_sha256
+        self.manifest["load_probe"]["artifact_inventory_sha256"] = (
+            self.inventory_sha256
+        )
+
+    def make_local_fp16_manifest(self):
+        (self.artifact / "openvino_model.xml").write_text(
+            '<net><data element_type="f16"/></net>',
+            encoding="utf-8",
+        )
+        (self.artifact / "openvino_config.json").unlink()
+        (self.artifact / "README.md").unlink()
+        provenance = self.root / "conversion-summary.json"
+        provenance.write_text(
+            '{"source_revision":"' + ("a" * 40) + '","exit_code":0}',
+            encoding="utf-8",
+        )
+        license_path = self.root / "source-README.md"
+        license_path.write_text(
+            "---\nlicense: apache-2.0\n---\nIBM Granite source snapshot.\n",
+            encoding="utf-8",
+        )
+        self.refresh_inventory()
+        xml_record = next(
+            item for item in self.files if item["path"] == "openvino_model.xml"
+        )
+        self.manifest["artifact_id"] = "granite-4.1-3b-f16-openvino-local"
+        self.manifest["model"].update({
+            "precision": "f16",
+            "artifact_repository": "local-conversion",
+            "artifact_revision": self.inventory_sha256,
+        })
+        self.manifest["conversion"].update({
+            "kind": "local-conversion",
+            "command": [
+                "optimum-cli", "export", "openvino",
+                "-m", "ibm-granite/granite-4.1-3b",
+                str(self.artifact),
+            ],
+            "provenance_path": str(provenance),
+            "provenance_sha256": hashlib.sha256(
+                provenance.read_bytes()
+            ).hexdigest(),
+        })
+        self.manifest["precision_proof"] = {
+            "path": "openvino_model.xml",
+            "sha256": xml_record["sha256"],
+            "element_type": "f16",
+            "element_type_count": 1,
+        }
+        self.manifest["license"] = {
+            "spdx": "Apache-2.0",
+            "path": str(license_path),
+            "sha256": hashlib.sha256(license_path.read_bytes()).hexdigest(),
+        }
+        return self.manifest
+
     def tearDown(self):
         self.temporary.cleanup()
 
-    def validate(self, manifest=None):
+    def validate(self, manifest=None, *, expected_precision="u4"):
         manifest = self.manifest if manifest is None else manifest
         self.manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        return validate_artifact_manifest(self.manifest_path, expected_precision="u4")
+        return validate_artifact_manifest(
+            self.manifest_path,
+            expected_precision=expected_precision,
+        )
 
     def test_accepts_hash_bound_precision_proven_cpu_generation_artifact(self):
         result = self.validate()
@@ -288,6 +363,137 @@ class OfficialOpenVINOArtifactTests(unittest.TestCase):
             mutate(broken)
             with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
                 self.validate(broken)
+
+    def test_accepts_real_u8_ir_element_type_for_int8_weights(self):
+        (self.artifact / "openvino_model.xml").write_text(
+            '<net><data element_type="u8"/></net>',
+            encoding="utf-8",
+        )
+        self.refresh_inventory()
+        xml_record = next(
+            item for item in self.files if item["path"] == "openvino_model.xml"
+        )
+        self.manifest["model"]["precision"] = "u8"
+        self.manifest["precision_proof"].update({
+            "element_type": "u8",
+            "element_type_count": 1,
+            "sha256": xml_record["sha256"],
+        })
+        result = self.validate(expected_precision="u8")
+        self.assertEqual(result["precision"], "u8")
+
+    def test_accepts_local_fp16_inventory_identity_and_external_evidence(self):
+        manifest = self.make_local_fp16_manifest()
+        result = self.validate(manifest, expected_precision="f16")
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["inventory_sha256"], self.inventory_sha256)
+        broken = copy.deepcopy(manifest)
+        broken["model"]["artifact_revision"] = "0" * 64
+        with self.assertRaisesRegex(
+            ValueError, "artifact revision.*inventory"
+        ):
+            self.validate(broken, expected_precision="f16")
+
+    def test_published_artifact_requires_inventoried_readme(self):
+        (self.artifact / "README.md").unlink()
+        evidence = self.artifact / "PUBLISHED_PROVENANCE.txt"
+        evidence.write_text(
+            "license: apache-2.0\nExact published conversion evidence.\n",
+            encoding="utf-8",
+        )
+        self.refresh_inventory()
+        evidence_record = next(
+            item
+            for item in self.files
+            if item["path"] == "PUBLISHED_PROVENANCE.txt"
+        )
+        self.manifest["conversion"].update({
+            "provenance_path": evidence_record["path"],
+            "provenance_sha256": evidence_record["sha256"],
+        })
+        self.manifest["license"].update({
+            "path": evidence_record["path"],
+            "sha256": evidence_record["sha256"],
+        })
+        with self.assertRaisesRegex(ValueError, "required artifact files"):
+            self.validate()
+
+    def test_published_artifact_rejects_external_provenance_and_license(self):
+        external_provenance = self.root / "published-conversion.json"
+        external_provenance.write_text(
+            '{"conversion":"published"}',
+            encoding="utf-8",
+        )
+        external_license = self.root / "published-source-README.md"
+        external_license.write_text(
+            "---\nlicense: apache-2.0\n---\nPublished source.\n",
+            encoding="utf-8",
+        )
+        for mutate, message in (
+            (
+                lambda manifest: manifest["conversion"].update({
+                    "provenance_path": str(external_provenance),
+                    "provenance_sha256": hashlib.sha256(
+                        external_provenance.read_bytes()
+                    ).hexdigest(),
+                }),
+                "provenance path",
+            ),
+            (
+                lambda manifest: manifest["license"].update({
+                    "path": str(external_license),
+                    "sha256": hashlib.sha256(
+                        external_license.read_bytes()
+                    ).hexdigest(),
+                }),
+                "license path",
+            ),
+        ):
+            broken = copy.deepcopy(self.manifest)
+            mutate(broken)
+            with self.subTest(message=message), self.assertRaisesRegex(
+                ValueError, message
+            ):
+                self.validate(broken)
+
+    def test_u8_precision_rejects_i8_ir_evidence(self):
+        (self.artifact / "openvino_model.xml").write_text(
+            '<net><data element_type="i8"/></net>',
+            encoding="utf-8",
+        )
+        self.refresh_inventory()
+        xml_record = next(
+            item for item in self.files if item["path"] == "openvino_model.xml"
+        )
+        self.manifest["model"]["precision"] = "u8"
+        self.manifest["precision_proof"].update({
+            "element_type": "i8",
+            "element_type_count": 1,
+            "sha256": xml_record["sha256"],
+        })
+        with self.assertRaisesRegex(ValueError, "precision proof"):
+            self.validate(expected_precision="u8")
+
+    def test_local_external_evidence_rejects_hash_mismatches(self):
+        manifest = self.make_local_fp16_manifest()
+        for mutate, message in (
+            (
+                lambda value: value["conversion"].update(
+                    provenance_sha256="0" * 64
+                ),
+                "conversion provenance hash mismatch",
+            ),
+            (
+                lambda value: value["license"].update(sha256="0" * 64),
+                "license hash mismatch",
+            ),
+        ):
+            broken = copy.deepcopy(manifest)
+            mutate(broken)
+            with self.subTest(message=message), self.assertRaisesRegex(
+                ValueError, message
+            ):
+                self.validate(broken, expected_precision="f16")
 
 
 if __name__ == "__main__":

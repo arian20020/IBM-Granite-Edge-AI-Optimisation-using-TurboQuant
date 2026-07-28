@@ -82,10 +82,13 @@ REQUIRED_ARTIFACT_FILES = frozenset({
     "tokenizer_config.json",
     "config.json",
     "generation_config.json",
-    "openvino_config.json",
-    "README.md",
 })
-PRECISION_ELEMENT_TYPE = {"f16": "f16", "u8": "i8", "u4": "i4"}
+PRECISION_REQUIRED_ARTIFACT_FILES = {
+    "f16": frozenset(),
+    "u8": frozenset({"openvino_config.json"}),
+    "u4": frozenset({"openvino_config.json"}),
+}
+PRECISION_ELEMENT_TYPE = {"f16": "f16", "u8": "u8", "u4": "i4"}
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 
@@ -159,17 +162,15 @@ def validate_artifact_manifest(
     model = manifest.get("model")
     if not isinstance(model, dict):
         raise ValueError("model provenance is required")
-    for field_name in (
-        "family",
-        "parameter_scale",
-        "source_repository",
-        "artifact_repository",
-    ):
+    for field_name in ("family", "parameter_scale", "source_repository"):
         _require_text(model.get(field_name), f"model {field_name}")
-    for field_name in ("source_revision", "artifact_revision"):
-        revision = model.get(field_name)
-        if not isinstance(revision, str) or _REVISION.fullmatch(revision) is None:
-            raise ValueError(f"{field_name.replace('_', ' ')} must be an exact revision")
+    _require_text(model.get("artifact_repository"), "model artifact_repository")
+    source_revision = model.get("source_revision")
+    if (
+        not isinstance(source_revision, str)
+        or _REVISION.fullmatch(source_revision) is None
+    ):
+        raise ValueError("source revision must be an exact revision")
     precision = model.get("precision")
     if precision not in PRECISION_ELEMENT_TYPE:
         raise ValueError("recognized model precision is required")
@@ -183,6 +184,20 @@ def validate_artifact_manifest(
         raise ValueError("conversion provenance is required")
     if conversion.get("kind") not in {"published-preconverted", "local-conversion"}:
         raise ValueError("conversion provenance kind is unsupported")
+    conversion_kind = conversion["kind"]
+    artifact_revision = model.get("artifact_revision")
+    if conversion_kind == "published-preconverted":
+        if (
+            not isinstance(artifact_revision, str)
+            or _REVISION.fullmatch(artifact_revision) is None
+        ):
+            raise ValueError("artifact revision must be an exact revision")
+    else:
+        if model["artifact_repository"] != "local-conversion":
+            raise ValueError(
+                "local conversion artifact repository must be local-conversion"
+            )
+        _require_hash(artifact_revision, "artifact revision")
     command = conversion.get("command")
     if (
         not isinstance(command, list)
@@ -236,7 +251,13 @@ def validate_artifact_manifest(
         }
         normalized_inventory.append(normalized)
         file_records[normalized_name] = normalized
-    missing_files = sorted(REQUIRED_ARTIFACT_FILES - set(file_records))
+    required_files = (
+        REQUIRED_ARTIFACT_FILES
+        | PRECISION_REQUIRED_ARTIFACT_FILES[precision]
+    )
+    if conversion_kind == "published-preconverted":
+        required_files = required_files | {"README.md"}
+    missing_files = sorted(required_files - set(file_records))
     if missing_files:
         raise ValueError(f"required artifact files missing: {missing_files}")
     normalized_inventory.sort(key=lambda item: item["path"])
@@ -246,12 +267,31 @@ def validate_artifact_manifest(
     inventory_sha256 = hashlib.sha256(canonical_inventory).hexdigest()
     if manifest.get("inventory_sha256") != inventory_sha256:
         raise ValueError("artifact inventory hash mismatch")
+    if (
+        conversion_kind == "local-conversion"
+        and artifact_revision != inventory_sha256
+    ):
+        raise ValueError(
+            "local conversion artifact revision must equal the inventory SHA256"
+        )
 
     provenance_path = conversion.get("provenance_path")
-    if provenance_path not in file_records:
+    if provenance_path in file_records:
+        if (
+            conversion.get("provenance_sha256")
+            != file_records[provenance_path]["sha256"]
+        ):
+            raise ValueError("conversion provenance hash mismatch")
+    elif conversion_kind == "local-conversion":
+        _external_hashed_file(
+            conversion,
+            manifest_path,
+            path_field="provenance_path",
+            hash_field="provenance_sha256",
+            kind="conversion provenance",
+        )
+    else:
         raise ValueError("conversion provenance path is not in the artifact inventory")
-    if conversion.get("provenance_sha256") != file_records[provenance_path]["sha256"]:
-        raise ValueError("conversion provenance hash mismatch")
 
     precision_proof = manifest.get("precision_proof")
     if not isinstance(precision_proof, dict):
@@ -286,11 +326,21 @@ def validate_artifact_manifest(
     if license_record.get("spdx") != "Apache-2.0":
         raise ValueError("license must be exact Apache-2.0 evidence")
     license_path = license_record.get("path")
-    if license_path not in file_records:
+    if license_path in file_records:
+        if license_record.get("sha256") != file_records[license_path]["sha256"]:
+            raise ValueError("license hash mismatch")
+        resolved_license_path = artifact_root / license_path
+    elif conversion_kind == "local-conversion":
+        resolved_license_path = _external_hashed_file(
+            license_record,
+            manifest_path,
+            path_field="path",
+            hash_field="sha256",
+            kind="license",
+        )
+    else:
         raise ValueError("license path is not in the artifact inventory")
-    if license_record.get("sha256") != file_records[license_path]["sha256"]:
-        raise ValueError("license hash mismatch")
-    license_text = (artifact_root / license_path).read_text(
+    license_text = resolved_license_path.read_text(
         encoding="utf-8", errors="replace"
     ).lower()
     if (
