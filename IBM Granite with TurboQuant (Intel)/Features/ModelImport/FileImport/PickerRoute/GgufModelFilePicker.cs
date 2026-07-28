@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace GraniteEdgeAI.Features.ModelImport.FileImport
+namespace GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute
 {
     /// <summary>
     /// Opens the Windows file picker for one GGUF model file.

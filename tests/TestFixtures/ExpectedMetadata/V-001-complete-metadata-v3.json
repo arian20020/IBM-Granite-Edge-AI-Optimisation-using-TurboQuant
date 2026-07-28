@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-001",
+    "fixtureFile":  "V-001-complete-metadata-v3.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q4_K_M",
+                             "fileSizeBytes":  320,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "8b4def1f97f9a5239ba17aa0e0c3c4e8b3c163bdeb32a52723b8d95c29593d70"
+                  },
+    "notes":  "Complete metadata fixture for the successful scan path."
+}

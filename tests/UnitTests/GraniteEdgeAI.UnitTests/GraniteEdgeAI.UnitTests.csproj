@@ -50,4 +50,22 @@
     <PackageReference Include="MSTest.TestAdapter" Version="4.3.2" />
     <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\TestFixtures\GGUF\**\*.gguf">
+      <Link>TestFixtures\GGUF\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\TestFixtures\Malformed\**\*.gguf">
+      <Link>TestFixtures\Malformed\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\TestFixtures\ExpectedMetadata\**\*.json">
+      <Link>TestFixtures\ExpectedMetadata\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\TestFixtures\fixture-manifest.json">
+      <Link>TestFixtures\fixture-manifest.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

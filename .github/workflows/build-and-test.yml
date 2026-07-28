@@ -65,6 +65,42 @@ jobs:
           sparse-checkout: |
             IBM Granite with TurboQuant (Intel)
             tests/UnitTests/GraniteEdgeAI.UnitTests
+            tests/TestFixtures
+
+      # Recreate every script-owned fixture before staging the build. A clean
+      # diff proves that committed binaries, expected JSON, and the integrity
+      # manifest are reproducible from their checked-in generators.
+      - name: Verify generated fixture reproducibility
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          & '.\tests\TestFixtures\Generate-GgufFixtures.ps1'
+
+          git diff --exit-code -- tests/TestFixtures
+          $fixtureDiffExitCode = $LASTEXITCODE
+          $fixtureStatus = @(
+            git status `
+              --porcelain `
+              --untracked-files=all `
+              -- tests/TestFixtures
+          )
+          if ($LASTEXITCODE -ne 0) {
+            throw 'git status failed while checking regenerated fixtures.'
+          }
+
+          if ($fixtureDiffExitCode -gt 1) {
+            throw 'git diff failed while checking regenerated fixtures.'
+          }
+
+          if (
+            $fixtureDiffExitCode -eq 1 -or
+            $fixtureStatus.Count -ne 0
+          ) {
+            $fixtureStatus | ForEach-Object { Write-Host $_ }
+            throw 'Fixture regeneration left tracked or untracked changes.'
+          }
 
       # actions/checkout only accepts paths beneath GITHUB_WORKSPACE, whose
       # Windows path repeats the long repository name. Copy the sparse tree to
@@ -164,9 +200,9 @@ jobs:
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vstest = & $vswhere `
-            -all `
+            -latest `
             -products * `
-            -find '**\Common7\IDE\**\vstest.console.exe' |
+            -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
             Select-Object -First 1
 
           if (-not $vstest) {
@@ -178,6 +214,61 @@ jobs:
             /Platform:x64 `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
             /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY"
+
+          $testExitCode = $LASTEXITCODE
+          if ($testExitCode -ne 0) {
+            throw "The packaged unit-test run failed with exit code $testExitCode."
+          }
+
+          $trxPath = Join-Path `
+            'D:\s' `
+            "$env:TEST_RESULTS_DIRECTORY\GraniteEdgeAI.UnitTests.trx"
+          if (-not (Test-Path -LiteralPath $trxPath -PathType Leaf)) {
+            throw "The packaged unit-test run did not create $trxPath."
+          }
+
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if (
+            [int]$counters.total -le 0 -or
+            [int]$counters.executed -le 0
+          ) {
+            throw 'The packaged unit-test run discovered or executed zero tests.'
+          }
+
+          if (
+            [int]$counters.total -ne [int]$counters.passed -or
+            [int]$counters.executed -ne [int]$counters.passed
+          ) {
+            throw 'The packaged unit-test TRX contains a non-passing result.'
+          }
+
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClasses = @(
+            'GraniteEdgeAI.UnitTests.GgufQuickScannerTests'
+            'GraniteEdgeAI.UnitTests.GgufFixtureIntegrityTests'
+            'GraniteEdgeAI.UnitTests.ModelQuickScannerTests'
+          )
+          foreach ($requiredClass in $requiredClasses) {
+            $requiredTestIds = @(
+              $definitions |
+                Where-Object {
+                  $_.TestMethod.className -eq $requiredClass
+                } |
+                ForEach-Object { $_.id }
+            )
+            $passedClassResults = @(
+              $results |
+                Where-Object {
+                  $_.testId -in $requiredTestIds -and
+                  $_.outcome -eq 'Passed'
+                }
+            )
+            if ($passedClassResults.Count -eq 0) {
+              throw "The packaged run did not pass a test from $requiredClass."
+            }
+          }
 
       # Preserve the available report even when unit tests fail.
       #

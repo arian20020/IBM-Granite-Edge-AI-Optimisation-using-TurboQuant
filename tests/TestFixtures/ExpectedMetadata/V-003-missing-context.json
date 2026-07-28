@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-003",
+    "fixtureFile":  "V-003-missing-context.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q4_K_M",
+                             "fileSizeBytes":  288,
+                             "contextLength":  null,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "aebfb87d95f3f55db6aac32024cbfae2b860f8b1e25a8e48a0a21e6fe103b596"
+                  },
+    "notes":  "Missing context metadata should produce an unavailable context value."
+}

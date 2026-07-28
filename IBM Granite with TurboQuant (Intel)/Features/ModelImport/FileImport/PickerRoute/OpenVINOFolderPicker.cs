@@ -2,7 +2,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace GraniteEdgeAI.Features.ModelImport.FileImport
+namespace GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute
 {
     class OpenVINOFolderPicker
     {

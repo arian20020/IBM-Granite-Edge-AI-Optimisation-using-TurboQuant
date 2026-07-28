@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-011",
+    "fixtureFile":  "V-011-current-q2_0-file-type.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q2_0",
+                             "fileSizeBytes":  320,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "ff4540498e5fea00b3c321c19a3ab0b7919451ae5fe5f0e5880e867c764d9258"
+                  },
+    "notes":  "Current llama.cpp file type 41 should display as Q2_0."
+}

@@ -1,0 +1,1243 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<UserControl
+    x:Class="GraniteEdgeAI.Features.ModelImport.Controls.ImportModelCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid
+        MinHeight="185"
+        Margin="0,28,0,0"
+        HorizontalAlignment="Stretch">
+
+        <!--  STATE 1: AWAITING MODEL SELECTION  -->
+        <Grid
+            x:Name="AwaitingSelectionView"
+            HorizontalAlignment="Stretch"
+            Background="Transparent"
+            Visibility="Visible">
+
+            <Rectangle
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Fill="#FAFBFD"
+                IsHitTestVisible="False"
+                RadiusX="20"
+                RadiusY="20"
+                Stroke="#C7D2E1"
+                StrokeDashArray="6,5"
+                StrokeDashCap="Round"
+                StrokeThickness="1.5" />
+
+            <StackPanel
+                Margin="28"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="9">
+
+                <Border
+                    Width="48"
+                    Height="48"
+                    HorizontalAlignment="Center"
+                    Background="#EAF2FF"
+                    CornerRadius="14">
+
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="24"
+                        FontWeight="SemiBold"
+                        Foreground="#2563EB"
+                        Text="↑"
+                        TextAlignment="Center" />
+
+                </Border>
+
+                <TextBlock
+                    Margin="0,3,0,0"
+                    HorizontalAlignment="Center"
+                    FontSize="18"
+                    FontWeight="SemiBold"
+                    Foreground="#111827"
+                    Text="Drag model file here"
+                    TextAlignment="Center" />
+
+                <TextBlock
+                    MaxWidth="600"
+                    HorizontalAlignment="Center"
+                    FontSize="14"
+                    Foreground="#6B7280"
+                    Text="Supported formats: GGUF (.gguf) or OpenVINO IR (.xml + .bin)"
+                    TextAlignment="Center"
+                    TextWrapping="Wrap" />
+
+                <Button
+                    x:Name="BrowseFilesButton"
+                    Width="220"
+                    Height="46"
+                    Margin="0,9,0,0"
+                    HorizontalAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    AutomationProperties.Name="Browse for a model file"
+                    Background="#2563EB"
+                    BorderBrush="#2563EB"
+                    BorderThickness="1"
+                    Click="BrowseFilesButton_Click"
+                    Content="Browse files"
+                    CornerRadius="11"
+                    FontWeight="SemiBold"
+                    Foreground="White"
+                    UseSystemFocusVisuals="True">
+
+                    <Button.Resources>
+                        <SolidColorBrush
+                            x:Key="ButtonBackground"
+                            Color="#2563EB" />
+                        <SolidColorBrush
+                            x:Key="ButtonForeground"
+                            Color="#FFFFFF" />
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrush"
+                            Color="#2563EB" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBackgroundPointerOver"
+                            Color="#1D4ED8" />
+                        <SolidColorBrush
+                            x:Key="ButtonForegroundPointerOver"
+                            Color="#FFFFFF" />
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrushPointerOver"
+                            Color="#1D4ED8" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBackgroundPressed"
+                            Color="#1E40AF" />
+                        <SolidColorBrush
+                            x:Key="ButtonForegroundPressed"
+                            Color="#FFFFFF" />
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrushPressed"
+                            Color="#1E40AF" />
+
+                        <SolidColorBrush
+                            x:Key="ButtonBackgroundDisabled"
+                            Color="#E5E7EB" />
+                        <SolidColorBrush
+                            x:Key="ButtonForegroundDisabled"
+                            Color="#9CA3AF" />
+                        <SolidColorBrush
+                            x:Key="ButtonBorderBrushDisabled"
+                            Color="#D1D5DB" />
+                    </Button.Resources>
+
+                </Button>
+
+            </StackPanel>
+
+        </Grid>
+
+        <!--  STATE 2: GGUF QUICK SCAN IN PROGRESS  -->
+        <Border
+            x:Name="ScanningView"
+            Height="288"
+            MaxWidth="804"
+            Padding="32,24,32,18"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="#FBFCFE"
+            BorderBrush="#C9D7E8"
+            BorderThickness="1.5"
+            CornerRadius="22"
+            Visibility="Collapsed">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition
+                        Height="126" />
+                    <RowDefinition
+                        Height="1" />
+                    <RowDefinition
+                        Height="85" />
+                    <RowDefinition
+                        Height="34" />
+                </Grid.RowDefinitions>
+
+                <!--  Selected model header  -->
+                <Grid
+                    Grid.Row="0">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="72" />
+                        <ColumnDefinition
+                            Width="*" />
+                        <ColumnDefinition
+                            Width="40" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="72"
+                        Height="72"
+                        Margin="0,13,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="#E5EFFF"
+                        CornerRadius="18">
+
+                        <Viewbox
+                            Width="48"
+                            Height="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+
+                            <Grid
+                                Width="48"
+                                Height="48">
+
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="#2563EB"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+
+                                <TextBlock
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
+                                    FontWeight="Bold"
+                                    Foreground="#2563EB"
+                                    Text="GGUF" />
+
+                            </Grid>
+
+                        </Viewbox>
+
+                    </Border>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="26,9,20,0"
+                        VerticalAlignment="Top"
+                        Spacing="3">
+
+                        <TextBlock
+                            x:Name="ScanningFileNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="#7A8495"
+                            Text="Selected local model"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <Border
+                            Width="70"
+                            Height="26"
+                            Margin="0,4,0,0"
+                            Padding="0"
+                            HorizontalAlignment="Left"
+                            Background="#E7EFFF"
+                            CornerRadius="13">
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                Foreground="#2563EB"
+                                Text="GGUF" />
+
+                        </Border>
+
+                    </StackPanel>
+
+                    <Button
+                        x:Name="CancelScanButton"
+                        Grid.Column="2"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="Remove selected model and cancel quick scan"
+                        Background="#FFFFFF"
+                        BorderBrush="#FFC2C2"
+                        BorderThickness="1"
+                        Click="CancelScanButton_Click"
+                        CornerRadius="11"
+                        UseSystemFocusVisuals="True">
+
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="#FF2D2D"
+                            Glyph="&#xE74D;" />
+
+                        <Button.Resources>
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="#FFFFFF" />
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#FF2D2D" />
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="#FFC2C2" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="#FFF7F7" />
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#DC2626" />
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="#FCA5A5" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="#FEE2E2" />
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#B91C1C" />
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="#F87171" />
+                        </Button.Resources>
+
+                    </Button>
+
+                </Grid>
+
+                <Rectangle
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Fill="#E5E7EB" />
+
+                <!--  Metadata skeletons  -->
+                <Grid
+                    Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="185" />
+                        <ColumnDefinition
+                            Width="200" />
+                        <ColumnDefinition
+                            Width="175" />
+                        <ColumnDefinition
+                            Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel
+                        Grid.Column="0"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="PARAMETERS" />
+
+                        <Border
+                            Width="78"
+                            Height="14"
+                            HorizontalAlignment="Left"
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
+
+                    </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="ARCHITECTURE" />
+
+                        <Border
+                            Width="116"
+                            Height="14"
+                            HorizontalAlignment="Left"
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
+
+                    </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="2"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="FILE SIZE" />
+
+                        <Border
+                            Width="84"
+                            Height="14"
+                            HorizontalAlignment="Left"
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
+
+                    </StackPanel>
+
+                    <StackPanel
+                        Grid.Column="3"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="10">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="DECLARED CONTEXT" />
+
+                        <Border
+                            Width="126"
+                            Height="14"
+                            HorizontalAlignment="Left"
+                            Background="#E5E7EB"
+                            CornerRadius="7" />
+
+                    </StackPanel>
+
+                </Grid>
+
+                <!--  Quick-scan status  -->
+                <Border
+                    Grid.Row="3"
+                    Height="34"
+                    HorizontalAlignment="Stretch"
+                    Background="#EEF4FF"
+                    CornerRadius="17">
+
+                    <StackPanel
+                        Margin="12,0,12,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="10">
+
+                        <ProgressRing
+                            Width="16"
+                            Height="16"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Quick scan in progress"
+                            Foreground="#2563EB"
+                            IsActive="True" />
+
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#2563EB"
+                            Text="Quick scan in progress · Reading model metadata"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                </Border>
+
+            </Grid>
+
+        </Border>
+
+        <!--  STATE 3: GGUF QUICK SCAN FAILED  -->
+        <Border
+            x:Name="FailureView"
+            Height="376"
+            MaxWidth="804"
+            Padding="32,24,32,22"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="#FBFCFE"
+            BorderBrush="#C9D7E8"
+            BorderThickness="1.5"
+            CornerRadius="22"
+            Visibility="Collapsed">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition
+                        Height="126" />
+                    <RowDefinition
+                        Height="1" />
+                    <RowDefinition
+                        Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--  Selected model header  -->
+                <Grid
+                    Grid.Row="0">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="72" />
+                        <ColumnDefinition
+                            Width="*" />
+                        <ColumnDefinition
+                            Width="40" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="72"
+                        Height="72"
+                        Margin="0,13,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="#E5EFFF"
+                        CornerRadius="18">
+
+                        <Viewbox
+                            Width="48"
+                            Height="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+
+                            <Grid
+                                Width="48"
+                                Height="48">
+
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="#2563EB"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+
+                                <TextBlock
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
+                                    FontWeight="Bold"
+                                    Foreground="#2563EB"
+                                    Text="GGUF" />
+
+                            </Grid>
+
+                        </Viewbox>
+
+                    </Border>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="26,9,20,0"
+                        VerticalAlignment="Top"
+                        Spacing="3">
+
+                        <TextBlock
+                            x:Name="FailureFileNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="#7A8495"
+                            Text="Selected local model"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <Border
+                            Width="70"
+                            Height="26"
+                            Margin="0,4,0,0"
+                            Padding="0"
+                            HorizontalAlignment="Left"
+                            Background="#E7EFFF"
+                            CornerRadius="13">
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                Foreground="#2563EB"
+                                Text="GGUF" />
+
+                        </Border>
+
+                    </StackPanel>
+
+                    <Button
+                        x:Name="RemoveFailedModelButton"
+                        Grid.Column="2"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="Remove failed model"
+                        Background="#FFFFFF"
+                        BorderBrush="#FFC2C2"
+                        BorderThickness="1"
+                        Click="CancelScanButton_Click"
+                        CornerRadius="11"
+                        UseSystemFocusVisuals="True">
+
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="#FF2D2D"
+                            Glyph="&#xE74D;" />
+
+                        <Button.Resources>
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="#FFFFFF" />
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#FF2D2D" />
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="#FFC2C2" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="#FFF7F7" />
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#DC2626" />
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="#FCA5A5" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="#FEE2E2" />
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#B91C1C" />
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="#F87171" />
+                        </Button.Resources>
+
+                    </Button>
+
+                </Grid>
+
+                <Rectangle
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Fill="#E5E7EB" />
+
+                <!--  Failure details  -->
+                <Grid
+                    Grid.Row="2"
+                    Margin="0,18,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition
+                            Height="20" />
+                        <RowDefinition
+                            Height="35" />
+                        <RowDefinition
+                            Height="56" />
+                        <RowDefinition
+                            Height="73" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel
+                        Grid.Row="0"
+                        VerticalAlignment="Top"
+                        Orientation="Horizontal"
+                        Spacing="8">
+
+                        <Border
+                            Width="18"
+                            Height="18"
+                            VerticalAlignment="Top"
+                            Background="#FEE2E2"
+                            CornerRadius="9">
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="Bold"
+                                Foreground="#DC2626"
+                                Text="!" />
+
+                        </Border>
+
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="11"
+                            FontWeight="Bold"
+                            Foreground="#DC2626"
+                            Text="QUICK SCAN FAILED" />
+
+                    </StackPanel>
+
+                    <TextBlock
+                        Grid.Row="1"
+                        VerticalAlignment="Center"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Foreground="#1B2435"
+                        Text="Model could not be imported" />
+
+                    <Grid
+                        Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition
+                                Width="178" />
+                            <ColumnDefinition
+                                Width="24" />
+                            <ColumnDefinition
+                                Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel
+                            Grid.Column="0"
+                            VerticalAlignment="Top"
+                            Spacing="5">
+
+                            <TextBlock
+                                FontSize="10"
+                                FontWeight="SemiBold"
+                                Foreground="#6B7280"
+                                Text="FAILURE CODE" />
+
+                            <Border
+                                Width="178"
+                                Height="27"
+                                HorizontalAlignment="Left"
+                                Background="#FEF2F2"
+                                CornerRadius="14">
+
+                                <TextBlock
+                                    x:Name="FailureCodeTextBlock"
+                                    Margin="10,0"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="#DC2626"
+                                    TextAlignment="Center"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="NoWrap" />
+
+                            </Border>
+
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Column="2"
+                            VerticalAlignment="Top"
+                            Spacing="4">
+
+                            <TextBlock
+                                FontSize="10"
+                                FontWeight="SemiBold"
+                                Foreground="#6B7280"
+                                Text="MESSAGE" />
+
+                            <TextBlock
+                                x:Name="FailureMessageTextBlock"
+                                MaxHeight="34"
+                                FontSize="13"
+                                Foreground="#4B5563"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+
+                        </StackPanel>
+
+                    </Grid>
+
+                    <Border
+                        Grid.Row="3"
+                        Height="58"
+                        VerticalAlignment="Bottom"
+                        Background="#FFF7F7"
+                        BorderBrush="#FDE2E2"
+                        BorderThickness="1"
+                        CornerRadius="14">
+
+                        <StackPanel
+                            Margin="14,6"
+                            VerticalAlignment="Center"
+                            Spacing="2">
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition
+                                        Width="16" />
+                                    <ColumnDefinition
+                                        Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock
+                                    Grid.Column="0"
+                                    FontSize="12"
+                                    FontWeight="Bold"
+                                    Foreground="#DC2626"
+                                    Text="1." />
+
+                                <TextBlock
+                                    Grid.Column="1"
+                                    FontSize="12"
+                                    Foreground="#4B5563"
+                                    Text="Make sure the file is a valid GGUF model with the required header and metadata."
+                                    TextWrapping="Wrap" />
+
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition
+                                        Width="16" />
+                                    <ColumnDefinition
+                                        Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock
+                                    Grid.Column="0"
+                                    FontSize="12"
+                                    FontWeight="Bold"
+                                    Foreground="#DC2626"
+                                    Text="2." />
+
+                                <TextBlock
+                                    Grid.Column="1"
+                                    FontSize="12"
+                                    Foreground="#4B5563"
+                                    Text="Otherwise, remove this model and import another one."
+                                    TextWrapping="Wrap" />
+
+                            </Grid>
+
+                        </StackPanel>
+
+                    </Border>
+
+                </Grid>
+
+            </Grid>
+
+        </Border>
+
+        <!--  STATE 4: GGUF QUICK SCAN SUCCEEDED  -->
+        <Border
+            x:Name="SuccessView"
+            Height="288"
+            MaxWidth="804"
+            Padding="32,24,32,18"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="#FBFCFE"
+            BorderBrush="#C9D7E8"
+            BorderThickness="1.5"
+            CornerRadius="22"
+            Visibility="Collapsed">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!--  Selected-model header.  -->
+                    <RowDefinition
+                        Height="126" />
+
+                    <!--  Divider.  -->
+                    <RowDefinition
+                        Height="1" />
+
+                    <!--  Metadata values.  -->
+                    <RowDefinition
+                        Height="85" />
+
+                    <!--  Completion status.  -->
+                    <RowDefinition
+                        Height="34" />
+                </Grid.RowDefinitions>
+
+                <!--  Selected-model header  -->
+                <Grid
+                    Grid.Row="0">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="72" />
+                        <ColumnDefinition
+                            Width="*" />
+                        <ColumnDefinition
+                            Width="40" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  GGUF document icon  -->
+                    <Border
+                        Grid.Column="0"
+                        Width="72"
+                        Height="72"
+                        Margin="0,13,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="#E5EFFF"
+                        CornerRadius="18">
+
+                        <Viewbox
+                            Width="48"
+                            Height="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+
+                            <Grid
+                                Width="48"
+                                Height="48">
+
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="#2563EB"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+
+                                <TextBlock
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
+                                    FontWeight="Bold"
+                                    Foreground="#2563EB"
+                                    Text="GGUF" />
+
+                            </Grid>
+
+                        </Viewbox>
+
+                    </Border>
+
+                    <!--  Model name, filename and badges  -->
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="26,9,20,0"
+                        VerticalAlignment="Top"
+                        Spacing="3">
+
+                        <TextBlock
+                            x:Name="SuccessModelNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <TextBlock
+                            x:Name="SuccessFileNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="13"
+                            Foreground="#7A8495"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <StackPanel
+                            Margin="0,4,0,0"
+                            Orientation="Horizontal"
+                            Spacing="8">
+
+                            <!--  Format badge  -->
+                            <Border
+                                Width="70"
+                                Height="26"
+                                Background="#E7EFFF"
+                                CornerRadius="13">
+
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="#2563EB"
+                                    Text="GGUF" />
+
+                            </Border>
+
+                            <!--  Quantisation badge  -->
+                            <Border
+                                Height="26"
+                                MinWidth="88"
+                                Padding="14,0"
+                                Background="#EEECFF"
+                                CornerRadius="13">
+
+                                <TextBlock
+                                    x:Name="SuccessQuantizationTextBlock"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Foreground="#4F46E5"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="NoWrap" />
+
+                            </Border>
+
+                        </StackPanel>
+
+                    </StackPanel>
+
+                    <!--  Remove imported model  -->
+                    <Button
+                        x:Name="RemoveSucceededModelButton"
+                        Grid.Column="2"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="Remove imported model"
+                        Background="#FFFFFF"
+                        BorderBrush="#FFC2C2"
+                        BorderThickness="1"
+                        Click="CancelScanButton_Click"
+                        CornerRadius="11"
+                        UseSystemFocusVisuals="True">
+
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="#FF2D2D"
+                            Glyph="&#xE74D;" />
+
+                        <Button.Resources>
+                            <SolidColorBrush
+                                x:Key="ButtonBackground"
+                                Color="#FFFFFF" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForeground"
+                                Color="#FF2D2D" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrush"
+                                Color="#FFC2C2" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPointerOver"
+                                Color="#FFF7F7" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPointerOver"
+                                Color="#DC2626" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPointerOver"
+                                Color="#FCA5A5" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBackgroundPressed"
+                                Color="#FEE2E2" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonForegroundPressed"
+                                Color="#B91C1C" />
+
+                            <SolidColorBrush
+                                x:Key="ButtonBorderBrushPressed"
+                                Color="#F87171" />
+                        </Button.Resources>
+
+                    </Button>
+
+                </Grid>
+
+                <!--  Header divider  -->
+                <Rectangle
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Fill="#E5E7EB" />
+
+                <!--  Successful metadata values  -->
+                <Grid
+                    Grid.Row="2">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="185" />
+                        <ColumnDefinition
+                            Width="200" />
+                        <ColumnDefinition
+                            Width="175" />
+                        <ColumnDefinition
+                            Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  Parameters  -->
+                    <StackPanel
+                        Grid.Column="0"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="PARAMETERS" />
+
+                        <TextBlock
+                            x:Name="SuccessParametersTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                    <!--  Architecture  -->
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="ARCHITECTURE" />
+
+                        <TextBlock
+                            x:Name="SuccessArchitectureTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                    <!--  File size  -->
+                    <StackPanel
+                        Grid.Column="2"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="FILE SIZE" />
+
+                        <TextBlock
+                            x:Name="SuccessFileSizeTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                    <!--  Declared context  -->
+                    <StackPanel
+                        Grid.Column="3"
+                        Margin="0,14,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="DECLARED CONTEXT" />
+
+                        <TextBlock
+                            x:Name="SuccessDeclaredContextTextBlock"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                </Grid>
+
+                <!--  Successful quick-scan status  -->
+                <Border
+                    Grid.Row="3"
+                    Height="34"
+                    HorizontalAlignment="Stretch"
+                    Background="#ECFDF5"
+                    CornerRadius="17">
+
+                    <StackPanel
+                        Margin="12,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="10">
+
+                        <Border
+                            Width="16"
+                            Height="16"
+                            VerticalAlignment="Center"
+                            Background="#10B981"
+                            CornerRadius="8">
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="White"
+                                Text="✓" />
+
+                        </Border>
+
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#047857"
+                            Text="Quick scan complete · Ready for model inspection"
+                            TextWrapping="NoWrap" />
+
+                    </StackPanel>
+
+                </Border>
+
+            </Grid>
+
+        </Border>
+
+    </Grid>
+
+</UserControl>

@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-008",
+    "fixtureFile":  "V-008-missing-file-type.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  null,
+                             "fileSizeBytes":  288,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "d22fc747d0b8019e7ba03323766f1a5fcf92b031764cc63e48e01d22d408d197"
+                  },
+    "notes":  "Missing general.file_type should produce an unavailable quantisation value."
+}

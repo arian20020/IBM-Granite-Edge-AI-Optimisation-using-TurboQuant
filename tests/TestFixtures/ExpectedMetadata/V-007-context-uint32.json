@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-007",
+    "fixtureFile":  "V-007-context-uint32.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  "3B",
+                             "quantization":  "Q4_K_M",
+                             "fileSizeBytes":  320,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "299630a0312460bab25d61ceece17df2b92be3eaae890e26b06b0e6613208ff7"
+                  },
+    "notes":  "Context length encoded as uint32 should be normalised into the result."
+}

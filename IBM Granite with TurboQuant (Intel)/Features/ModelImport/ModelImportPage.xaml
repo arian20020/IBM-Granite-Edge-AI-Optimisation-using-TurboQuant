@@ -5,6 +5,7 @@
     x:Class="GraniteEdgeAI.Features.ModelImport.ModelImportPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:GraniteEdgeAI.Features.ModelImport.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -81,154 +82,12 @@
                             This area will later receive drag-and-drop events and pass
                             the selected files to the model-import service.
                         -->
-                        <Grid
-                            MinHeight="185"
-                            Margin="0,28,0,0"
+
+                        <controls:ImportModelCard
+                            x:Name="ImportModelCardControl"
                             HorizontalAlignment="Stretch"
-                            Background="Transparent">
-
-                            <!--  Draws the drop area's background and dashed outline.  -->
-                            <!--  This Rectangle is decorative, so it ignores input.  -->
-                            <Rectangle
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Stretch"
-                                Fill="#F9FAFB"
-                                IsHitTestVisible="False"
-                                RadiusX="22"
-                                RadiusY="22"
-                                Stroke="#CBD5E1"
-                                StrokeDashArray="6,5"
-                                StrokeDashCap="Round"
-                                StrokeThickness="1.5" />
-
-                            <!--  Arranges the drop-area content vertically.  -->
-                            <StackPanel
-                                Margin="24"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="8">
-
-                                <!--
-                                    TODO(ICONS):
-                                    Replace this temporary arrow with an approved
-                                    WinUI icon or application asset.
-                                -->
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    FontSize="28"
-                                    FontWeight="SemiBold"
-                                    Foreground="#2563EB"
-                                    Text="↑"
-                                    TextAlignment="Center" />
-
-                                <!--  Displays the primary drag-and-drop instruction.  -->
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    FontSize="17"
-                                    FontWeight="SemiBold"
-                                    Foreground="#111827"
-                                    Text="Drag model file here"
-                                    TextAlignment="Center" />
-
-                                <!--  Lists the supported model formats.  -->
-                                <TextBlock
-                                    HorizontalAlignment="Center"
-                                    FontSize="14"
-                                    Foreground="#6B7280"
-                                    Text="Supported formats: GGUF (.gguf) or OpenVINO IR (.xml + .bin)"
-                                    TextAlignment="Center"
-                                    TextWrapping="Wrap" />
-
-                                <!--
-                                    Opens the Windows file picker.
-                                    
-                                    TODO(FILE PICKER):
-                                    A Click handler will later open FileOpenPicker,
-                                    validate the selected model files and update the
-                                    shared model-import state.
-                                -->
-                                <Button
-                                    x:Name="BrowseFilesButton"
-                                    Width="220"
-                                    Height="48"
-                                    Margin="0,8,0,0"
-                                    HorizontalAlignment="Center"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    AutomationProperties.Name="Browse for a model file"
-                                    Background="#2563EB"
-                                    BorderBrush="#2563EB"
-                                    BorderThickness="1"
-                                    Click="BrowseFilesButton_ClickAsync"
-                                    Content="Browse files"
-                                    CornerRadius="12"
-                                    FontWeight="SemiBold"
-                                    Foreground="White"
-                                    UseSystemFocusVisuals="True">
-
-                                    <!--  Controls the button's interaction-state colours.  -->
-                                    <Button.Resources>
-
-                                        <!--  Normal state.  -->
-                                        <SolidColorBrush
-                                            x:Key="ButtonBackground"
-                                            Color="#2563EB" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonForeground"
-                                            Color="#FFFFFF" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonBorderBrush"
-                                            Color="#2563EB" />
-
-                                        <!--  Mouse-hover state.  -->
-                                        <SolidColorBrush
-                                            x:Key="ButtonBackgroundPointerOver"
-                                            Color="#1D4ED8" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonForegroundPointerOver"
-                                            Color="#FFFFFF" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonBorderBrushPointerOver"
-                                            Color="#1D4ED8" />
-
-                                        <!--  Pressed state.  -->
-                                        <SolidColorBrush
-                                            x:Key="ButtonBackgroundPressed"
-                                            Color="#1E40AF" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonForegroundPressed"
-                                            Color="#FFFFFF" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonBorderBrushPressed"
-                                            Color="#1E40AF" />
-
-                                        <!--  Disabled state.  -->
-                                        <SolidColorBrush
-                                            x:Key="ButtonBackgroundDisabled"
-                                            Color="#E5E7EB" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonForegroundDisabled"
-                                            Color="#9CA3AF" />
-
-                                        <SolidColorBrush
-                                            x:Key="ButtonBorderBrushDisabled"
-                                            Color="#D1D5DB" />
-
-                                    </Button.Resources>
-
-                                </Button>
-
-                            </StackPanel>
-
-                        </Grid>
-
+                            BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
+                            CancelScanRequested="ImportModelCard_CancelScanRequested" />
                         <TextBlock
                             HorizontalAlignment="Center"
                             FontSize="13"
