@@ -3,165 +3,30 @@
 from __future__ import annotations
 
 import argparse
-import ctypes
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
-from ctypes import wintypes
 from pathlib import Path
 
-from parse_llama_measurement import summarize_measurement
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.testing.official_openvino import owned_process_guard  # noqa: E402
+from scripts.testing.official_openvino.owned_process_guard import (  # noqa: E402
+    available_ram_bytes,
+    process_memory_bytes,
+    process_tree_memory_bytes,
+    process_tree_pids,
+    process_tree_working_set_bytes,
+    working_set_bytes,
+)
 
-PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-PROCESS_VM_READ = 0x0010
-TH32CS_SNAPPROCESS = 0x00000002
-
-
-class PROCESS_MEMORY_COUNTERS_EX(ctypes.Structure):
-    _fields_ = [
-        ("cb", wintypes.DWORD),
-        ("PageFaultCount", wintypes.DWORD),
-        ("PeakWorkingSetSize", ctypes.c_size_t),
-        ("WorkingSetSize", ctypes.c_size_t),
-        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-        ("QuotaPagedPoolUsage", ctypes.c_size_t),
-        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-        ("PagefileUsage", ctypes.c_size_t),
-        ("PeakPagefileUsage", ctypes.c_size_t),
-        ("PrivateUsage", ctypes.c_size_t),
-    ]
-
-
-class PROCESSENTRY32W(ctypes.Structure):
-    _fields_ = [
-        ("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
-        ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
-        ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
-        ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
-        ("dwFlags", wintypes.DWORD), ("szExeFile", wintypes.WCHAR * 260),
-    ]
-
-
-def working_set_bytes(pid: int) -> int | None:
-    """Return current Windows physical working set for one process."""
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    psapi = ctypes.WinDLL("psapi", use_last_error=True)
-    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel32.CloseHandle.restype = wintypes.BOOL
-    psapi.GetProcessMemoryInfo.argtypes = [
-        wintypes.HANDLE,
-        ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX),
-        wintypes.DWORD,
-    ]
-    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
-    handle = kernel32.OpenProcess(
-        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, False, pid
-    )
-    if not handle:
-        return None
-    try:
-        counters = PROCESS_MEMORY_COUNTERS_EX()
-        counters.cb = ctypes.sizeof(counters)
-        ok = psapi.GetProcessMemoryInfo(
-            handle, ctypes.byref(counters), counters.cb
-        )
-        # Working set is the resident RAM attributed to the process. PrivateUsage
-        # is commit charge and is not a peak-RAM measure on Windows.
-        return int(counters.WorkingSetSize) if ok else None
-    finally:
-        kernel32.CloseHandle(handle)
-
-
-def process_memory_bytes(pid: int) -> tuple[int, int] | None:
-    """Return current physical working set and committed private bytes."""
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    psapi = ctypes.WinDLL("psapi", use_last_error=True)
-    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    psapi.GetProcessMemoryInfo.argtypes = [
-        wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX), wintypes.DWORD
-    ]
-    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
-    handle = kernel32.OpenProcess(
-        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, False, pid
-    )
-    if not handle:
-        return None
-    try:
-        counters = PROCESS_MEMORY_COUNTERS_EX()
-        counters.cb = ctypes.sizeof(counters)
-        if not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-            return None
-        return int(counters.WorkingSetSize), int(counters.PrivateUsage)
-    finally:
-        kernel32.CloseHandle(handle)
-
-
-def process_tree_pids(root_pid: int) -> set[int]:
-    """Return the root PID and every currently live descendant on Windows."""
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
-    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
-    kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
-    kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
-    snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
-    if snapshot == wintypes.HANDLE(-1).value:
-        return {root_pid}
-    parents: dict[int, int] = {}
-    try:
-        entry = PROCESSENTRY32W(); entry.dwSize = ctypes.sizeof(entry)
-        ok = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
-        while ok:
-            parents[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
-            ok = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
-    finally:
-        kernel32.CloseHandle(snapshot)
-    tree = {root_pid}
-    changed = True
-    while changed:
-        changed = False
-        for pid, parent in parents.items():
-            if parent in tree and pid not in tree:
-                tree.add(pid); changed = True
-    return tree
-
-
-def process_tree_working_set_bytes(root_pid: int) -> int | None:
-    values = [working_set_bytes(pid) for pid in process_tree_pids(root_pid)]
-    available = [value for value in values if value is not None]
-    return sum(available) if available else None
-
-
-def process_tree_memory_bytes(root_pid: int) -> tuple[int, int] | None:
-    values = [process_memory_bytes(pid) for pid in process_tree_pids(root_pid)]
-    available = [value for value in values if value is not None]
-    if not available:
-        return None
-    return sum(value[0] for value in available), sum(value[1] for value in available)
-
-
-class MEMORYSTATUSEX(ctypes.Structure):
-    _fields_ = [
-        ("dwLength", wintypes.DWORD), ("dwMemoryLoad", wintypes.DWORD),
-        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
-        ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
-        ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
-        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
-    ]
-
-
-def available_ram_bytes() -> int | None:
-    status = MEMORYSTATUSEX()
-    status.dwLength = ctypes.sizeof(status)
-    return int(status.ullAvailPhys) if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)) else None
+from parse_llama_measurement import summarize_measurement  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
