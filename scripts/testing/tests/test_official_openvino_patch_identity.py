@@ -420,6 +420,114 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "controlling repository changed"):
                 self.prepare()
 
+    def test_relocated_submodule_gitdir_allows_220_and_rejects_221(self):
+        staging = self.root / "stage"
+        worktree = staging / "nested/submodule"
+        gitdir = staging / ".git/modules/nested/submodule"
+        worktree.mkdir(parents=True)
+        gitdir.mkdir(parents=True)
+        relative_gitdir = os.path.relpath(gitdir, worktree).replace("\\", "/")
+        (worktree / ".git").write_text(
+            f"gitdir: {relative_gitdir}\n",
+            encoding="utf-8",
+        )
+
+        def destination_for_gitdir_length(target: int) -> Path:
+            for width in range(1, 201):
+                candidate = self.root / ("d" * width)
+                relocated = list(
+                    patch_identity._relocated_submodule_paths(
+                        staging,
+                        candidate,
+                    )
+                )
+                if patch_identity._utf8_path_length(relocated[0][2]) == target:
+                    return candidate
+            self.fail(f"unable to construct {target}-character gitdir")
+
+        allowed = destination_for_gitdir_length(220)
+        rejected = destination_for_gitdir_length(221)
+        with patch.object(
+            patch_identity,
+            "WINDOWS_GITDIR_MAX_LENGTH",
+            220,
+        ), patch.object(
+            patch_identity,
+            "WINDOWS_PATH_LIMIT",
+            260,
+        ):
+            patch_identity._preflight_relocated_gitdirs(staging, allowed)
+            with self.assertRaisesRegex(
+                ValueError,
+                "physical destination.*Git path limit",
+            ):
+                patch_identity._preflight_relocated_gitdirs(
+                    staging,
+                    rejected,
+                )
+
+    def test_failed_post_move_recursive_validation_rolls_back_and_cleans(self):
+        short_root = self.root / "short-stage"
+        moves: list[tuple[Path, Path]] = []
+        real_replace = os.replace
+
+        def create_checkout(_upstream, staging, expected, _patches, _spec):
+            staging.mkdir(parents=True)
+            return expected
+
+        def record_replace(source, destination):
+            moves.append((Path(source), Path(destination)))
+            real_replace(source, destination)
+
+        with patch.object(
+            patch_identity.tempfile,
+            "gettempdir",
+            return_value=str(short_root),
+        ), patch.object(
+            patch_identity,
+            "_create_exact_checkout",
+            side_effect=create_checkout,
+        ), patch.object(
+            patch_identity,
+            "_verify_recursive_checkout",
+            side_effect=ValueError("forced recursive failure"),
+        ), patch.object(
+            patch_identity.os,
+            "replace",
+            side_effect=record_replace,
+        ):
+            with self.assertRaisesRegex(ValueError, "forced recursive failure"):
+                patch_identity._create_and_publish_checkout(
+                    self.upstream,
+                    self.destination,
+                    self.expected,
+                    [],
+                    patch_identity.GENAI_TURBOQUANT_SPEC,
+                )
+
+        self.assertFalse(self.destination.exists())
+        self.assertEqual(list(short_root.glob("openvino-patch-stage-*")), [])
+        self.assertEqual(len(moves), 2)
+        self.assertEqual(moves[0][1], self.destination)
+        self.assertEqual(moves[1][0], self.destination)
+        self.assertEqual(moves[0][0], moves[1][1])
+
+    def test_existing_destination_requires_recursive_validation(self):
+        self.prepare()
+        with patch.object(
+            patch_identity,
+            "_verify_recursive_checkout",
+            side_effect=ValueError("forced recursive failure"),
+        ):
+            with self.assertRaisesRegex(ValueError, "forced recursive failure"):
+                patch_identity._verify_existing(
+                    self.upstream,
+                    self.destination,
+                    self.expected,
+                    patch_identity.GENAI_TURBOQUANT_SPEC,
+                )
+        self.assertTrue(self.destination.is_dir())
+
     def test_new_checkout_uses_short_same_volume_staging_root(self):
         short_root = self.root / "short-stage"
         observed: list[Path] = []
@@ -438,6 +546,11 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
             patch_identity,
             "_create_exact_checkout",
             side_effect=create_checkout,
+        ), patch.object(
+            patch_identity,
+            "_verify_recursive_checkout",
+            return_value=None,
+            create=True,
         ):
             commit = patch_identity._create_and_publish_checkout(
                 self.upstream,
@@ -578,14 +691,68 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
         expected_upstream = (
             shared_root / "external/official-openvino/2026-07-19/openvino"
         )
+        system_root = Path(f"{os.environ['SystemDrive']}\\")
         expected_destination = (
+            system_root
+            / "ov-wb04"
+            / "2026-07-19"
+            / "openvino-cpu-state-observer"
+        )
+        expected_evidence = (
             repository_root
-            / "external/official-openvino/2026-07-19/openvino-cpu-state-observer"
+            / "external/official-openvino/2026-07-19"
+            / "openvino-cpu-state-observer.identity.json"
         )
         self.assertIn(f"cwd={repository_root}".lower(), captured)
         self.assertIn("--family openvino-cpu-observer", captured)
         self.assertIn(str(expected_upstream).lower(), captured)
         self.assertIn(str(expected_destination).lower(), captured)
+        self.assertIn(str(expected_evidence).lower(), captured)
+
+        alias_root = self.root / "repository alias"
+        if os.name == "nt":
+            linked = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(alias_root), str(repository_root)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(linked.returncode, 0, linked.stdout + linked.stderr)
+        else:
+            alias_root.symlink_to(repository_root, target_is_directory=True)
+        try:
+            alias_completed = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(
+                        alias_root
+                        / "scripts/testing/prepare_openvino_cpu_observer_patch.ps1"
+                    ),
+                    "-PythonCommand",
+                    str(fake),
+                ],
+                cwd=foreign,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                alias_completed.returncode,
+                0,
+                alias_completed.stdout + alias_completed.stderr,
+            )
+            alias_capture = capture.read_text(encoding="utf-8").lower()
+            self.assertIn(str(expected_destination).lower(), alias_capture)
+        finally:
+            if os.name == "nt":
+                os.rmdir(alias_root)
+            else:
+                alias_root.unlink()
 
         completed = subprocess.run(
             [

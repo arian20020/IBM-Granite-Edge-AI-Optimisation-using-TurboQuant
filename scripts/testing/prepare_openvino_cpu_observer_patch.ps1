@@ -18,10 +18,14 @@ if (-not $UpstreamPath) {
     $UpstreamPath = Join-Path $sharedRepoRoot "external/official-openvino/$CampaignDate/openvino"
 }
 if (-not $DestinationPath) {
-    $DestinationPath = Join-Path $repoRoot "external/official-openvino/$CampaignDate/openvino-cpu-state-observer"
+    if (-not $env:SystemDrive -or $env:SystemDrive -notmatch "^[A-Za-z]:$") {
+        throw "SystemDrive is unavailable or malformed"
+    }
+    $physicalSystemRoot = "$($env:SystemDrive)\"
+    $DestinationPath = Join-Path $physicalSystemRoot "ov-wb04/$CampaignDate/openvino-cpu-state-observer"
 }
 if (-not $EvidencePath) {
-    $EvidencePath = Join-Path (Split-Path -Parent $DestinationPath) "openvino-cpu-state-observer.identity.json"
+    $EvidencePath = Join-Path $repoRoot "external/official-openvino/$CampaignDate/openvino-cpu-state-observer.identity.json"
 }
 
 Push-Location $repoRoot

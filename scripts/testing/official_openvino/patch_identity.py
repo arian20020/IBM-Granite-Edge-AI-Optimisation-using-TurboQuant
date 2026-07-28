@@ -16,6 +16,8 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+WINDOWS_GITDIR_MAX_LENGTH = 220 if os.name == "nt" else None
+WINDOWS_PATH_LIMIT = 260 if os.name == "nt" else None
 
 
 @dataclass(frozen=True)
@@ -253,6 +255,79 @@ def _revalidate_controlled_patches(
         raise ValueError(f"controlling repository changed during patch preparation: {exc}") from exc
 
 
+def _utf8_path_length(path: Path) -> int:
+    return len(str(path).encode("utf-8"))
+
+
+def _relocated_submodule_paths(
+    staging: Path,
+    destination: Path,
+) -> list[tuple[Path, Path, Path]]:
+    """Return relative worktree, relocated gitfile, and relocated gitdir paths."""
+    destination_physical = destination.resolve()
+    relocated: list[tuple[Path, Path, Path]] = []
+    for gitfile in staging.rglob(".git"):
+        if not gitfile.is_file():
+            continue
+        line = gitfile.read_text(encoding="utf-8").strip()
+        if not line.startswith("gitdir: "):
+            raise ValueError(f"malformed submodule gitfile: {gitfile}")
+        relative_parent = gitfile.parent.relative_to(staging)
+        relocated_gitfile = destination_physical / relative_parent / ".git"
+        relocated_gitdir = Path(
+            os.path.normpath(
+                os.path.join(
+                    str(relocated_gitfile.parent),
+                    line.removeprefix("gitdir: "),
+                )
+            )
+        )
+        relocated.append((relative_parent, relocated_gitfile, relocated_gitdir))
+    return relocated
+
+
+def _preflight_relocated_gitdirs(staging: Path, destination: Path) -> None:
+    """Reject submodule gitfiles that become unsafe after physical relocation."""
+    if WINDOWS_GITDIR_MAX_LENGTH is None or WINDOWS_PATH_LIMIT is None:
+        return
+    for relative_parent, relocated_gitfile, relocated_gitdir in (
+        _relocated_submodule_paths(staging, destination)
+    ):
+        if (
+            _utf8_path_length(relocated_gitfile) >= WINDOWS_PATH_LIMIT
+            or _utf8_path_length(relocated_gitdir) > WINDOWS_GITDIR_MAX_LENGTH
+        ):
+            raise ValueError(
+                "physical destination exceeds the Windows Git path limit "
+                f"for {relative_parent}: "
+                f"gitfile_bytes={_utf8_path_length(relocated_gitfile)}, "
+                f"gitdir_bytes={_utf8_path_length(relocated_gitdir)}, "
+                f"gitdir_max={WINDOWS_GITDIR_MAX_LENGTH}, "
+                f"path_limit={WINDOWS_PATH_LIMIT}; "
+                "choose a shorter physical destination"
+            )
+
+
+def _verify_recursive_checkout(destination: Path) -> None:
+    """Require every recursive submodule to be initialized, exact, and clean."""
+    status = _git(destination, "submodule", "status", "--recursive")
+    for line in status.splitlines():
+        if line and line[0] in "-+U":
+            raise ValueError(f"recursive submodule state is not exact: {line}")
+    nested_dirty = _git(
+        destination,
+        "submodule",
+        "foreach",
+        "--quiet",
+        "--recursive",
+        "git status --porcelain --untracked-files=all",
+    )
+    if nested_dirty:
+        raise ValueError("recursive submodule worktree is dirty")
+    if not _clean(destination):
+        raise ValueError("derived destination is dirty after recursive validation")
+
+
 def _create_exact_checkout(
     upstream: Path,
     destination: Path,
@@ -297,8 +372,7 @@ def _create_exact_checkout(
         patch_commit = expected_commit
 
     _git(destination, "submodule", "update", "--init", "--recursive")
-    if not _clean(destination):
-        raise ValueError("derived destination is dirty after preparation")
+    _verify_recursive_checkout(destination)
     _git(destination, "config", "core.longpaths", "true")
     return patch_commit
 
@@ -327,9 +401,20 @@ def _create_and_publish_checkout(
             patches,
             spec,
         )
+        _preflight_relocated_gitdirs(staging, destination)
         if destination.exists():
             raise ValueError("destination appeared while patch workspace was being prepared")
         os.replace(staging, destination)
+        try:
+            _verify_recursive_checkout(destination)
+        except (OSError, ValueError):
+            try:
+                os.replace(destination, staging)
+            except OSError as rollback_error:
+                raise ValueError(
+                    "published checkout failed recursive validation and rollback failed"
+                ) from rollback_error
+            raise
         return patch_commit
     finally:
         if staging_root.exists():
@@ -344,8 +429,7 @@ def _verify_existing(
 ) -> None:
     if not (destination / ".git").exists():
         raise ValueError("existing destination is not a Git checkout")
-    if not _clean(destination):
-        raise ValueError("existing destination is dirty")
+    _verify_recursive_checkout(destination)
     branch = _git(destination, "branch", "--show-current")
     if branch != spec.branch:
         raise ValueError(
