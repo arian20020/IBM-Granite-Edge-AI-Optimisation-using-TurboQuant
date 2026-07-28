@@ -257,7 +257,9 @@ $retiredCampaignTarget = [IO.Path]::GetFullPath(
   (Join-Path $parentWorktreePhysical `
     "external\official-openvino\2026-07-19")
 ).TrimEnd('\')
-$existingOLines = @(& subst.exe) | Where-Object { $_ -match '^O:\\: => ' }
+$existingOLines = @(
+  @(& subst.exe) | Where-Object { $_ -match '^O:\\: => ' }
+)
 if ($existingOLines.Count -gt 1) {
   throw "More than one O: substitution was reported"
 }
@@ -2478,8 +2480,10 @@ Stage only the five derived-core files and recheck the index:
   src/plugins/intel_cpu/tests/unit/state_allocations_dump_test.cpp
 if ($LASTEXITCODE -ne 0) { throw "Unable to stage Task 2 files" }
 
-$staged = @(& git -C $derivedCore diff --cached --name-only) |
-  Where-Object { $_ } | Sort-Object
+$staged = @(
+  @(& git -C $derivedCore diff --cached --name-only) |
+    Where-Object { $_ } | Sort-Object
+)
 if (Compare-Object $expectedChanged $staged) {
   throw "Staged Task 2 path set is not exact"
 }
