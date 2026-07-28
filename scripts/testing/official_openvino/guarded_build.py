@@ -33,6 +33,7 @@ from scripts.testing.official_openvino.owned_process_guard import (
 
 
 GUARD_SCHEMA = "official-openvino-owned-process-guard/v1"
+CONTROLLER_RESULT_SCHEMA = "official-openvino-controller-result/v1"
 MIB = 1024 * 1024
 
 
@@ -42,6 +43,12 @@ class GuardLimits:
     poll_interval_seconds: float = 0.25
     cleanup_timeout_seconds: float = 15.0
     maximum_runtime_seconds: float = 7_200.0
+
+
+@dataclass(frozen=True)
+class _GuardedCommandResult:
+    record: dict[str, object]
+    evidence_sha256: str
 
 
 def _utc_now() -> str:
@@ -97,29 +104,24 @@ def _validate_inputs(
     return values
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _serialize_json_bytes(value: dict[str, object]) -> bytes:
+    return (
+        json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    ).encode("utf-8")
 
 
-def _atomic_write_json(path: Path, value: dict[str, object]) -> None:
+def _atomic_write_bytes(path: Path, value: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="\n",
+            mode="wb",
             prefix=f".{path.name}.tmp-",
             dir=path.parent,
             delete=False,
         ) as handle:
             temporary_path = Path(handle.name)
-            json.dump(value, handle, indent=2, sort_keys=True, allow_nan=False)
-            handle.write("\n")
+            handle.write(value)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary_path, path)
@@ -133,6 +135,60 @@ def _exit_matches(exit_code: int | None, expected_exit: str) -> bool:
     if not isinstance(exit_code, int):
         return False
     return exit_code == 0 if expected_exit == "zero" else exit_code != 0
+
+
+def _absolute_without_resolving(path: Path) -> Path:
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _verify_samefile_identity(
+    requested_path: Path,
+    canonical_path: Path,
+    field_name: str,
+    errors: list[str],
+) -> bool:
+    try:
+        verified = os.path.samefile(requested_path, canonical_path)
+    except OSError as error:
+        _append_error(
+            errors,
+            f"{field_name} identity verification failed: "
+            f"{type(error).__name__}: {error}",
+        )
+        return False
+    if not verified:
+        _append_error(errors, f"{field_name} identity verification failed")
+    return verified
+
+
+def _verify_evidence_destination_identity(
+    requested_path: Path,
+    canonical_path: Path,
+    errors: list[str],
+) -> bool:
+    leaf_matches = os.path.normcase(requested_path.name) == os.path.normcase(
+        canonical_path.name
+    )
+    try:
+        parent_matches = os.path.samefile(
+            requested_path.parent,
+            canonical_path.parent,
+        )
+    except OSError as error:
+        _append_error(
+            errors,
+            "evidence_path identity verification failed: "
+            f"{type(error).__name__}: {error}",
+        )
+        return False
+    verified = parent_matches and leaf_matches
+    if not verified:
+        _append_error(
+            errors,
+            "evidence_path identity verification failed: "
+            "requested/canonical parent or normalized leaf differs",
+        )
+    return verified
 
 
 def _sample_job_processes(
@@ -157,7 +213,7 @@ def _sample_job_processes(
     return active_pids, working_set_bytes, private_bytes, []
 
 
-def run_guarded_command(
+def _run_guarded_command_with_binding(
     command: Sequence[str],
     *,
     cwd: Path,
@@ -165,11 +221,14 @@ def run_guarded_command(
     evidence_path: Path,
     expected_exit: Literal["zero", "nonzero"],
     limits: GuardLimits = GuardLimits(),
-) -> dict[str, object]:
+) -> _GuardedCommandResult:
     """Run one owned process tree and atomically persist exit/RAM/cleanup evidence."""
-    cwd = Path(cwd).resolve()
-    log_path = Path(log_path).resolve()
-    evidence_path = Path(evidence_path).resolve()
+    requested_cwd = _absolute_without_resolving(Path(cwd))
+    requested_log_path = _absolute_without_resolving(Path(log_path))
+    requested_evidence_path = _absolute_without_resolving(Path(evidence_path))
+    cwd = requested_cwd.resolve()
+    log_path = requested_log_path.resolve()
+    evidence_path = requested_evidence_path.resolve()
     command_values = _validate_inputs(
         command,
         cwd,
@@ -182,12 +241,26 @@ def run_guarded_command(
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
 
     started_monotonic = time.monotonic()
+    requested_path_provenance = {
+        "working_directory": str(requested_cwd),
+        "log_path": str(requested_log_path),
+        "evidence_path": str(requested_evidence_path),
+    }
+    path_identity_verified = {
+        "working_directory": False,
+        "log_path": False,
+        "evidence_path": False,
+    }
+    run_id = secrets.token_hex(32)
     record: dict[str, object] = {
         "schema": GUARD_SCHEMA,
+        "run_id": run_id,
         "command": command_values,
         "working_directory": str(cwd),
         "log_path": str(log_path),
         "evidence_path": str(evidence_path),
+        "requested_path_provenance": requested_path_provenance,
+        "path_identity_verified": path_identity_verified,
         "expected_exit": expected_exit,
         "started_utc": _utc_now(),
         "ended_utc": None,
@@ -246,16 +319,25 @@ def run_guarded_command(
     assigned = False
     log_handle = None
     log_temporary_path: Path | None = None
+    retained_log_sha256: str | None = None
 
+    path_identity_verified["working_directory"] = _verify_samefile_identity(
+        requested_cwd,
+        cwd,
+        "working_directory",
+        errors,
+    )
+
+    file_descriptor: int | None
     file_descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{log_path.name}.tmp-",
         dir=log_path.parent,
     )
-    os.close(file_descriptor)
     log_temporary_path = Path(temporary_name)
 
     try:
-        log_handle = log_temporary_path.open("wb", buffering=0)
+        log_handle = os.fdopen(file_descriptor, "w+b", buffering=0)
+        file_descriptor = None
         available_before = available_ram_bytes()
         record["observed_available_ram_bytes"]["before"] = available_before
         if available_before is None:
@@ -415,27 +497,59 @@ def run_guarded_command(
                 try:
                     log_handle.flush()
                     os.fsync(log_handle.fileno())
+                    log_handle.seek(0)
+                    digest = hashlib.sha256()
+                    for chunk in iter(
+                        lambda: log_handle.read(1024 * 1024),
+                        b"",
+                    ):
+                        digest.update(chunk)
+                    retained_log_sha256 = digest.hexdigest()
+                    record["log_sha256"] = retained_log_sha256
                 except Exception as error:
                     _append_error(
                         errors,
-                        f"log flush failed: {type(error).__name__}: {error}",
+                        "private log flush/hash failed: "
+                        f"{type(error).__name__}: {error}",
                     )
         finally:
+            if file_descriptor is not None:
+                try:
+                    os.close(file_descriptor)
+                except Exception as error:
+                    _append_error(
+                        errors,
+                        "private log descriptor close failed: "
+                        f"{type(error).__name__}: {error}",
+                    )
+                file_descriptor = None
             _close_run_resources(
                 [log_handle] if log_handle is not None else [],
                 [job] if job is not None else [],
                 errors,
             )
 
-    if log_temporary_path is None or not log_temporary_path.is_file():
+    if log_temporary_path is None or retained_log_sha256 is None:
         _append_error(errors, "temporary log is missing")
     else:
         try:
+            # Threat boundary: the random private pathname is trusted while the
+            # retained handle is open. After hashing that handle, close-to-
+            # replace is intentionally immediate and never reopens the temp by
+            # pathname. Any later public replacement is rejected by the wrapper
+            # against this retained pre-publication digest.
             os.replace(log_temporary_path, log_path)
             log_temporary_path = None
         finally:
             if log_temporary_path is not None:
                 log_temporary_path.unlink(missing_ok=True)
+
+    path_identity_verified["log_path"] = _verify_samefile_identity(
+        requested_log_path,
+        log_path,
+        "log_path",
+        errors,
+    )
 
     available_after = available_ram_bytes()
     record["observed_available_ram_bytes"]["after"] = available_after
@@ -467,6 +581,8 @@ def run_guarded_command(
         _append_error(errors, "zero-survivor Job Object proof is missing")
     if emergency_actions:
         _append_error(errors, "emergency process cleanup was required")
+    if memory_query_failed_pids:
+        _append_error(errors, "Job-PID memory query failed")
     if (
         memory_sample_count < 1
         or not isinstance(peak_working_set_bytes, int)
@@ -486,16 +602,46 @@ def run_guarded_command(
         or minimum_observed < limits.minimum_available_ram_bytes
     ):
         _append_error(errors, "measured available RAM did not satisfy the floor")
-    if log_path.is_file():
-        record["log_sha256"] = _sha256_file(log_path)
-    else:
-        _append_error(errors, "final log is missing")
+    if retained_log_sha256 is None:
+        _append_error(errors, "retained private log SHA-256 is missing")
 
+    path_identity_verified["evidence_path"] = (
+        _verify_evidence_destination_identity(
+            requested_evidence_path,
+            evidence_path,
+            errors,
+        )
+    )
     record["ended_utc"] = _utc_now()
     record["elapsed_seconds"] = time.monotonic() - started_monotonic
     record["valid"] = not errors
-    _atomic_write_json(evidence_path, record)
-    return record
+    evidence_bytes = _serialize_json_bytes(record)
+    evidence_sha256 = hashlib.sha256(evidence_bytes).hexdigest()
+    _atomic_write_bytes(evidence_path, evidence_bytes)
+    return _GuardedCommandResult(
+        record=record,
+        evidence_sha256=evidence_sha256,
+    )
+
+
+def run_guarded_command(
+    command: Sequence[str],
+    *,
+    cwd: Path,
+    log_path: Path,
+    evidence_path: Path,
+    expected_exit: Literal["zero", "nonzero"],
+    limits: GuardLimits = GuardLimits(),
+) -> dict[str, object]:
+    """Run one owned process tree and return its persisted evidence record."""
+    return _run_guarded_command_with_binding(
+        command,
+        cwd=cwd,
+        log_path=log_path,
+        evidence_path=evidence_path,
+        expected_exit=expected_exit,
+        limits=limits,
+    ).record
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -540,7 +686,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
-    record = run_guarded_command(
+    result = _run_guarded_command_with_binding(
         args.command,
         cwd=args.cwd,
         log_path=args.log,
@@ -553,12 +699,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             maximum_runtime_seconds=args.timeout_seconds,
         ),
     )
+    record = result.record
+    canonical_evidence_path = Path(str(record["evidence_path"]))
+    canonical_log_path = Path(str(record["log_path"]))
     print(
         json.dumps(
             {
-                "schema": record["schema"],
-                "evidence_path": record["evidence_path"],
-                "exit_code": record["exit_code"],
+                "schema": CONTROLLER_RESULT_SCHEMA,
+                "record_schema": record["schema"],
+                "run_id": record["run_id"],
+                "evidence_path": str(canonical_evidence_path),
+                "evidence_sha256": result.evidence_sha256,
+                "log_path": str(canonical_log_path),
+                "log_sha256": record["log_sha256"],
+                "actual_exit_code": record["exit_code"],
                 "valid": record["valid"],
             },
             sort_keys=True,
