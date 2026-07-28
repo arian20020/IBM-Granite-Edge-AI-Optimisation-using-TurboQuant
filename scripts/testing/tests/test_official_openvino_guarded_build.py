@@ -1010,17 +1010,7 @@ def test_guard_fails_closed_when_any_job_pid_memory_query_fails(
     monkeypatch,
 ):
     guard = _guarded_build()
-    original = guard.process_memory_bytes
-    failed_once = False
-
-    def fail_first_query(pid):
-        nonlocal failed_once
-        if not failed_once:
-            failed_once = True
-            return None
-        return original(pid)
-
-    monkeypatch.setattr(guard, "process_memory_bytes", fail_first_query)
+    monkeypatch.setattr(guard, "process_memory_bytes", lambda _pid: None)
     record = _run(
         tmp_path,
         [sys.executable, "-c", "import time;time.sleep(0.15)"],
@@ -1028,6 +1018,27 @@ def test_guard_fails_closed_when_any_job_pid_memory_query_fails(
     assert record["memory_query_failed_pids"] != []
     assert record["valid"] is False
     assert "Job-PID memory query failed" in record["validation_errors"]
+
+
+def test_job_memory_sample_ignores_only_confirmed_exited_pid(monkeypatch):
+    guard = _guarded_build()
+
+    class ExitingJob:
+        def __init__(self):
+            self.queries = 0
+
+        def active_pids(self):
+            self.queries += 1
+            return [4312] if self.queries == 1 else []
+
+    monkeypatch.setattr(guard, "process_memory_bytes", lambda _pid: None)
+    active, working_set, private, failed = guard._sample_job_processes(
+        ExitingJob()
+    )
+    assert active == [4312]
+    assert working_set == 0
+    assert private == 0
+    assert failed == []
 
 
 def test_cli_requires_literal_separator_and_preserves_argv(tmp_path):

@@ -200,14 +200,26 @@ def _sample_job_processes(
         return active_pids, None, None, []
     working_set_bytes = 0
     private_bytes = 0
-    failed_pids: list[int] = []
+    pending_pids: list[int] = []
     for pid in active_pids:
         memory = process_memory_bytes(pid)
         if memory is None:
-            failed_pids.append(pid)
+            pending_pids.append(pid)
             continue
         working_set_bytes += memory[0]
         private_bytes += memory[1]
+    failed_pids: list[int] = []
+    if pending_pids:
+        confirmed_active_pids = set(job.active_pids())
+        for pid in pending_pids:
+            if pid not in confirmed_active_pids:
+                continue
+            memory = process_memory_bytes(pid)
+            if memory is None:
+                failed_pids.append(pid)
+                continue
+            working_set_bytes += memory[0]
+            private_bytes += memory[1]
     if failed_pids:
         return active_pids, None, None, sorted(failed_pids)
     return active_pids, working_set_bytes, private_bytes, []
