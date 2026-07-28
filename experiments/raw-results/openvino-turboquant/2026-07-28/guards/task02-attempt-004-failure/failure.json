@@ -1,0 +1,266 @@
+{
+  "schema": "openvino-cpu-observer-task02-attempt-failure/v1",
+  "recorded_utc": "2026-07-28T10:41:41.4834218Z",
+  "attempt_id": "task02-attempt-004",
+  "classification": "incomplete_after_valid_configure_before_build_guard_publication",
+  "root_cause_status": "not_captured",
+  "root_cause": "The controller or guarded build ended before the private build log was atomically published and before a build guard record or wrapper receipt was emitted; no persisted evidence identifies why.",
+  "parent_plan_commit": "b2926d42624cd8fbb2f044a8b7cd6122d8b689b2",
+  "task02_plan_blob": "fe4a43b295d892a84e916cc98c26814f24abce79",
+  "task02_plan_sha256": "31dd6e1da46ef970e31d5ca672458adf0f6cabeb7afeae4943474de27d45818d",
+  "roadmap_sha256": "9497cba857247af42bc7f889c17fc2e248edd6a02cf5703906aec23434504a3e",
+  "boundary": {
+    "path": ".superpowers/sdd/task02-boundary.json",
+    "bytes": 11566,
+    "sha256": "f76d33abdf2563f111d8db1ad408008d1e182519231d3a0c5f0301eaa1aa72e7"
+  },
+  "control_scripts": {
+    "controller": {
+      "path": ".superpowers/sdd/task02-attempt004-controller.ps1",
+      "bytes": 84750,
+      "sha256": "fe38bc06070167089c2175074431d2a08c32e8108993079807cf629aea4fbf5f"
+    },
+    "launcher": {
+      "path": ".superpowers/sdd/task02-attempt004-launcher.ps1",
+      "bytes": 8801,
+      "sha256": "2987945ab8e0f3469aa36aca777f77f08d427ba40f7e1f969b4a1f013f245382"
+    },
+    "green_signal": {
+      "path": ".superpowers/sdd/task02-attempt004-green-signal.ps1",
+      "bytes": 7991,
+      "sha256": "8261e3518506713962e411c3e12304db381fac215f46c1a3c662a8d4191beb06"
+    },
+    "pre_red_diagnostic": {
+      "path": ".superpowers/sdd/task02-attempt004-pre-red-diagnostic.ps1",
+      "bytes": 58459,
+      "sha256": "6799b8865fec24afd529e39885258e4e2ae5172a60c31511c96c56042d690e05"
+    },
+    "cap_feasibility_helper": {
+      "path": ".superpowers/sdd/task02-link-working-set-cap.ps1",
+      "bytes": 5297,
+      "sha256": "5b8a27dfe73d94092cede5e52c003345e5b7dcf160087db0deeda5980371ea77"
+    }
+  },
+  "source_boundary": {
+    "derived_core": "C:\\ov-wb04\\2026-07-19\\openvino-cpu-state-observer",
+    "branch": "project/cpu-state-allocation-observer",
+    "head": "ede283a88e35465f0d680dabbf1f44080f8fc387",
+    "tree": "84c5a84dcca1065d394b422dad6682f8b9a5aebe",
+    "git_status_porcelain": [
+      "?? src/plugins/intel_cpu/tests/unit/state_allocations_dump_test.cpp"
+    ],
+    "files": {
+      "src/plugins/intel_cpu/src/cpu_memory.h": {
+        "state": "tracked_clean",
+        "bytes": 15811,
+        "sha256": "8b92ffa1e23a5a00c40475ea7661b0ec34edf90ac40919710aa570eb3f25fe34"
+      },
+      "src/plugins/intel_cpu/src/cpu_memory.cpp": {
+        "state": "tracked_clean",
+        "bytes": 26011,
+        "sha256": "9f235197e679b51029eae4e18eebbe3b38db039f77d9c3fdafb64709586643d0"
+      },
+      "src/plugins/intel_cpu/src/utils/state_allocations_dump.hpp": {
+        "state": "absent"
+      },
+      "src/plugins/intel_cpu/src/utils/state_allocations_dump.cpp": {
+        "state": "absent"
+      },
+      "src/plugins/intel_cpu/tests/unit/state_allocations_dump_test.cpp": {
+        "state": "untracked_red_fixture",
+        "bytes": 22516,
+        "sha256": "a1e18eda017edec7f473dd8c885e172e7379e2f92f38894fda627dce1c6f608b"
+      }
+    }
+  },
+  "phase_state": {
+    "guard_command_started": true,
+    "completed_labels": [
+      "task2-configure-red"
+    ],
+    "incomplete_label": "task2-build-red",
+    "red_ready_created": false,
+    "green_ready_created": false,
+    "final_receipt_created": false,
+    "preview_patch_created": false,
+    "replay_directory_created": false,
+    "controller_exit_code_captured": false,
+    "source_edited": false
+  },
+  "attempt_evidence": {
+    "manifest_canonicalization": "Ordinal relative-path sort; path|bytes|sha256; LF after every line; UTF-8 without BOM.",
+    "file_count": 4,
+    "canonical_manifest_sha256": "94aea149cc38d826a62a8445eb6f19e907a003499f5927b5536619f54b4fc8c2",
+    "files": {
+      ".task2-build-red.log.tmp-uq_aegvp": {
+        "visibility": "private_temporary",
+        "bytes": 3437,
+        "sha256": "5a5cd73cb48671aca8325d3ba7bfb384c0f6a3f88ead9766a8c2d69d76fe8593"
+      },
+      "task2-configure-red.json": {
+        "visibility": "public",
+        "bytes": 3405,
+        "sha256": "82cd6c5a84a6578d5035ca054737269181ad633b59429dd50f9c12b535d3514a"
+      },
+      "task2-configure-red.log": {
+        "visibility": "public",
+        "bytes": 6834,
+        "sha256": "61c1fdce077a38941ab1d7b84e76d4837abbca640e77a3e494a7a35852475539"
+      },
+      "task2-configure-red.wrapper.json": {
+        "visibility": "public",
+        "bytes": 4030,
+        "sha256": "8d9ebd5c9744d8abf3dbd136dba9739c03ce34e0808e3020d20728f07653520b"
+      }
+    },
+    "public_configure_artifact_count": 3,
+    "private_temporary_artifact_count": 1,
+    "public_build_artifact_count": 0,
+    "configure_record": {
+      "run_id": "8bd9604d35450ecef65645887cfb532e2cca87ea16d8b880f20d196b85bbff11",
+      "exit_code": 0,
+      "expected_exit": "zero",
+      "valid": true,
+      "low_memory_stop": false,
+      "minimum_available_ram_bytes": 5249957888,
+      "peak_working_set_bytes": 163713024,
+      "peak_private_bytes": 110850048,
+      "active_job_pids_after_cleanup": 0,
+      "survivor_pids_after_cleanup": []
+    },
+    "private_build_log": {
+      "line_count": 87,
+      "contains_c1083": false,
+      "contains_error_line": false,
+      "last_source": "dnnl_threadpool.cpp"
+    }
+  },
+  "diagnostic_evidence": {
+    "manifest_canonicalization": "Ordinal relative-path sort; path|bytes|sha256; LF after every line; UTF-8 without BOM.",
+    "directory_count": 11,
+    "file_count": 21,
+    "canonical_manifest_sha256": "9c709913d23059def8ad31f0ec7d22b192907573cb0917fe395c1000adb551dd",
+    "combined_with_attempt_004": {
+      "directory_count": 12,
+      "file_count": 25,
+      "canonical_bytes": 2742,
+      "canonical_manifest_sha256": "e8b3dc46d45ac8dc43ba3f8b6bdc061fcf0f8512d01f7243c0d5398c87321bb4"
+    },
+    "canonical_lines": [
+      "t2d-full-mp1/t2-red-full-mp1.json|3083|a342b9f9c52fb380e594dc3f5ab7742752bb9c5228263f7740e9ad1c93cfa533",
+      "t2d-full-mp1/t2-red-full-mp1.log|2522|3daffe251d745ccabbee01dad9476d757c89f07e450246e899b5499ae77a1a6d",
+      "t2d-full-nopdb/t2-red-full-nopdb.json|3182|9569423c9e22fc9eeb0363c778ed741e98abdf0958789eca261d9a80f1765cf6",
+      "t2d-full-nopdb/t2-red-full-nopdb.log|2522|3daffe251d745ccabbee01dad9476d757c89f07e450246e899b5499ae77a1a6d",
+      "t2d-ovcap1/t2-ovcap1.json|2978|b246893959dc7e1ea44babbe78aeb09220f1ee46ca6b7c05c1b31377a94735a3",
+      "t2d-ovcap1/t2-ovcap1.log|76|aee38634dd4712e2367f91a3d1b72c46a66748e141a81bb83df94eeda2add839",
+      "t2d-ovcap2/t2-ovcap2.json|2813|bf0fdda89812a1a4604de171e501889ae308dd53c15548477ce157e4b0592280",
+      "t2d-ovcap2/t2-ovcap2.log|391|902753562af75f493542095046dc567f10c6592eb207affba9fb6895706d647c",
+      "t2d-ovdirect/t2-ovdirect.json|3127|8de8dfc39e63e79613c77ad80f5c31b0135af243c447bd33d08413ddf44ec434",
+      "t2d-ovdirect/t2-ovdirect.log|101|de86eb97b906e5d0854a58d2eabf5375ba77a6c9e060fc8bc9cad703342fd603",
+      "t2d-ovnoicf/t2-ovnoicf.json|3157|531dfd8753844a930547aba16b38ca45715307ce5558de9a5e5a0bf9e21b3610",
+      "t2d-ovnoicf/t2-ovnoicf.log|207|134d990d21316748917ca75b73db7d984a393812b632d5909a2c1a8a7aa2ef90",
+      "t2d-ovtrim1/t2-ovtrim1.json|3138|a2231f4fed631e60a7fd26eb0caaa961dbfe20deddbd03519ea140cde4247ffe",
+      "t2d-ovtrim1/t2-ovtrim1.log|207|134d990d21316748917ca75b73db7d984a393812b632d5909a2c1a8a7aa2ef90",
+      "t2d-selected/t2-red-selected.json|3118|70a63f075f17cae06959f1734aa61dbb7f7fd1c9c82c398ef45d61fb5b7372e4",
+      "t2d-selected/t2-red-selected.log|356|38635aad23f54bc02202220da432ae0134c7bcbaa51d1f6b1aa964ead48df638",
+      "task02-attempt-004-diagnostic-selected/failure.json|300|77245604efd4fd3160867d2f8a5b10b6bd964dc8f0a32224076a9a0ad315a721",
+      "task02-attempt-004-diagnostic-serial/task2-build-red-diagnostic-serial.json|8440|da59de7e895562779f8eb418f6e3586cfea64e563eec7f29c42c6b660acaebd2",
+      "task02-attempt-004-diagnostic-serial/task2-build-red-diagnostic-serial.log|124409|21c2d1c222d8a30644645a08c1aeaa67342e031cb79a28bae574b3eaaf11446e",
+      "task02-attempt-004-diagnostic/task2-build-red-diagnostic.json|3654|fc28ed5f904941abc325b5cfc4944f11f99d6284463b4ccf3035cffeb189975f",
+      "task02-attempt-004-diagnostic/task2-build-red-diagnostic.log|1374|66f8ff0b09269377b9c7d8b087ff1437e75c0e9f388758f0b5e42d3da853bf8a",
+      "task02-attempt-004/.task2-build-red.log.tmp-uq_aegvp|3437|5a5cd73cb48671aca8325d3ba7bfb384c0f6a3f88ead9766a8c2d69d76fe8593",
+      "task02-attempt-004/task2-configure-red.json|3405|82cd6c5a84a6578d5035ca054737269181ad633b59429dd50f9c12b535d3514a",
+      "task02-attempt-004/task2-configure-red.log|6834|61c1fdce077a38941ab1d7b84e76d4837abbca640e77a3e494a7a35852475539",
+      "task02-attempt-004/task2-configure-red.wrapper.json|4030|8d9ebd5c9744d8abf3dbd136dba9739c03ce34e0808e3020d20728f07653520b"
+    ],
+    "focused_selected_red": {
+      "directory": "t2d-selected",
+      "run_id": "5a0756ce3d52892e7ddd9fcf48579376bb9903d1795efde593a3db8064685388",
+      "exit_code": 1,
+      "expected_exit": "nonzero",
+      "valid": true,
+      "diagnostic": "error C1083: Cannot open include file: 'utils/state_allocations_dump.hpp': No such file or directory",
+      "minimum_available_ram_bytes": 7073488896,
+      "survivor_pids_after_cleanup": []
+    },
+    "working_set_cap_feasibility": {
+      "directory": "t2d-ovcap2",
+      "run_id": "af8f53bb9201570d87423409777f9c44e193b857e08202ec6d29e7162345771c",
+      "exit_code": 0,
+      "expected_exit": "zero",
+      "valid": true,
+      "minimum_available_ram_bytes": 2819620864,
+      "peak_job_working_set_bytes": 4489220096,
+      "peak_job_private_bytes": 5127688192,
+      "per_link_maximum_working_set_bytes": 4294967296,
+      "observed_working_set_flags": 6,
+      "cap_verified": true,
+      "survivor_pids_after_cleanup": [],
+      "helper": {
+        "path": ".superpowers/sdd/task02-link-working-set-cap.ps1",
+        "bytes": 5297,
+        "sha256": "5b8a27dfe73d94092cede5e52c003345e5b7dcf160087db0deeda5980371ea77"
+      },
+      "link_command_tlog": {
+        "path": "C:\\ov-build\\state-observer\\src\\openvino.dir\\Release\\openvino.tlog\\link.command.1.tlog",
+        "bytes": 338552,
+        "sha256": "c4978b22536177d5262fae1a919b8b592f34ccf8f60ef4757a1182aa96020fb2",
+        "required_options": [
+          "/INCREMENTAL:NO",
+          "/OPT:REF",
+          "/OPT:ICF",
+          "/MACHINE:X64",
+          "/guard:cf"
+        ],
+        "forbidden_options": [
+          "/LTCG",
+          "/OPT:NOREF",
+          "/OPT:NOICF"
+        ]
+      },
+      "outputs": {
+        "openvino.dll": {
+          "bytes": 15729152,
+          "sha256": "b0b0ada5c01ff941aa3ce33e684e2ba10472d67f39788df6db29bb44f148b4e5",
+          "dumpbin_file_type": "DLL",
+          "machine": "x64"
+        },
+        "openvino.lib": {
+          "bytes": 7810048,
+          "sha256": "cb73e4e68ecaeb63192b5e05809216ae19d35ff76f031145892daa6bf10b686e"
+        },
+        "openvino.exp": {
+          "bytes": 5021499,
+          "sha256": "9f69b3740e902a2806c7272b9b53f63647c296d7aeb1fce7ed3c74564a03c4dc"
+        }
+      }
+    },
+    "failed_routes": [
+      "parallel_2_full_target",
+      "serial_1_full_target",
+      "m_1_full_target",
+      "no_pdb_full_target",
+      "uncapped_direct_runtime_link",
+      "second_uncapped_direct_runtime_link",
+      "no_icf_direct_runtime_link",
+      "4608_mib_link_working_set_cap"
+    ]
+  },
+  "findings": {
+    "attempt_004_interruption_cause": "unproven",
+    "focused_intended_red": "Proven only by the valid t2d-selected guard record and not by attempt 004.",
+    "uncapped_full_target_routes": "Every explored uncapped or full-target RED route violated the 2048 MiB available-RAM floor.",
+    "working_set_cap_scope": "t2d-ovcap2 proves only that the unchanged Release OpenVINO link can complete under a verified 4096 MiB per-link.exe physical working-set cap. It does not prove Task 2 GREEN.",
+    "metric_scope": "Guard RAM and linker working-set observations are safety evidence only and are not workbook benchmark metrics."
+  },
+  "recovery_constraints": [
+    "Do not mutate or extend task02-attempt-004.",
+    "Do not reuse any attempt-004 label or control receipt.",
+    "Do not lower or bypass the 2048 MiB available-RAM floor.",
+    "Create a fresh task02-attempt-005 with fresh controller, launcher, phase receipts, labels, and evidence.",
+    "Use the proven selected-file ClCompile route for RED and require the exact sole error C1083 diagnostic.",
+    "Use a reviewed and hash-pinned 4096 MiB per-link.exe physical working-set cap for heavy GREEN links while preserving upstream Release linker flags.",
+    "Rerun a fresh configure, full unit build, exact test enumeration, two complete 25-test runs, and production CPU-plugin build.",
+    "If attempt 005 is interrupted, preserve it without extension and require attempt 006."
+  ]
+}
