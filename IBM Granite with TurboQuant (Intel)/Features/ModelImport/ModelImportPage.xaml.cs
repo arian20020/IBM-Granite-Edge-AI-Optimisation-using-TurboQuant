@@ -6,6 +6,7 @@ using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
