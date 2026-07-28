@@ -368,21 +368,18 @@ an independently appearing destination.
 In `_verify_existing`, call `_verify_recursive_checkout(destination)` before
 reading branch/origin/HEAD and before mutating `core.longpaths`.
 
-Run twice:
+Run the focused suite once before changing the PowerShell controller:
 
 ```powershell
-foreach ($run in 1..2) {
-  python -m pytest `
-    scripts/testing/tests/test_official_openvino_patch_identity.py `
-    -q
-  if ($LASTEXITCODE -ne 0) { throw "Task 01C GREEN run $run failed" }
-}
-python -m py_compile scripts/testing/official_openvino/patch_identity.py
-git diff --check
+python -m pytest `
+  scripts/testing/tests/test_official_openvino_patch_identity.py `
+  -q
 ```
 
-Expected: exactly `32 passed` twice, zero skips, and zero exits from compile
-and diff checks.
+Expected intermediate result: exactly `31 passed, 1 failed`. The sole failure
+must be the controller smoke's intentionally new short-default assertion,
+because Task 3 has not changed the controller yet. Any other failure blocks
+Task 3.
 
 ## Task 3: Make the controller default short and the evidence organized
 
@@ -405,12 +402,26 @@ if (-not $EvidencePath) {
 }
 ```
 
-Re-run the focused suite twice and `git diff --check`. Confirm the PowerShell
-smoke proves explicit overrides remain unchanged, controller invocation through
-a repository junction still selects the physical system-drive root, and the
-default evidence is not placed beside the external short checkout. The Python
-relocation preflight remains the final fail-closed authority if a host reports
-an unusual canonical system-drive mapping.
+Run the full acceptance twice:
+
+```powershell
+foreach ($run in 1..2) {
+  python -m pytest `
+    scripts/testing/tests/test_official_openvino_patch_identity.py `
+    -q
+  if ($LASTEXITCODE -ne 0) { throw "Task 01C GREEN run $run failed" }
+}
+python -m py_compile scripts/testing/official_openvino/patch_identity.py
+git diff --check
+```
+
+Expected: exactly `32 passed` twice, zero skips, and zero exits from compile
+and diff checks. Confirm the PowerShell smoke proves explicit overrides remain
+unchanged, controller invocation through a repository junction still selects
+the physical system-drive root, and the default evidence is not placed beside
+the external short checkout. The Python relocation preflight remains the final
+fail-closed authority if a host reports an unusual canonical system-drive
+mapping.
 
 Commit only the three implementation files:
 
