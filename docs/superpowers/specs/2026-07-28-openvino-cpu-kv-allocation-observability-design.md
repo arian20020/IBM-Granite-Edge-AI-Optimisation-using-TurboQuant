@@ -97,9 +97,12 @@ The observer runs at the leaf of CPU
 It is compiled only under `CPU_DEBUG_CAPS` and remains inert unless
 `OV_CPU_STATE_ALLOCATION_DUMP_PATH` names a valid `.jsonl` file.
 
-The controlled process also supplies
-`OV_CPU_STATE_ALLOCATION_PHASE=post_infer`. Accepted WB-04 evidence permits
-only the exact `post_infer` phase for steady-state allocation claims.
+Phase is derived inside the CPU request; it is not accepted from an
+environment label. The observer records `post_infer` only after inference and
+output pull both complete successfully, `seeded_no_infer` when private state
+was seeded without a successful inference, and `fresh` otherwise. Accepted
+WB-04 evidence permits only exact `post_infer` for steady-state allocation
+claims.
 
 ### Internal Data Sources
 
