@@ -3,6 +3,8 @@ using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Threading;
@@ -111,6 +113,182 @@ public sealed class ModelImportPageStateMachineTests
         Assert.AreEqual(
             "Second Granite Model",
             GetTextBlock(card, "SuccessModelNameTextBlock").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CancelButton_IgnoresLateSuccessResult()
+    {
+        const string selectedPath = @"C:\Models\slow-success.gguf";
+        CancellationToken scanToken = default;
+        var scanCompletion =
+            new TaskCompletionSource<ModelQuickScanResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath),
+            (format, path, cancellationToken) =>
+            {
+                scanToken = cancellationToken;
+                return scanCompletion.Task;
+            });
+
+        Task browseTask = page.BrowseFilesAsync();
+        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
+        var cancelButton = (Button)card.FindName("CancelScanButton");
+
+        InvokeButton(cancelButton);
+        scanCompletion.SetResult(
+            ModelQuickScanResult.CreateSuccess(
+                modelName: "Late Granite Model",
+                architecture: "granite",
+                parameterSizeLabel: "3B",
+                quantization: "Q4_K_M",
+                fileSizeBytes: 2_000_000_000L,
+                contextLength: 131_072UL,
+                ggufVersion: 3));
+        await browseTask;
+
+        Assert.IsTrue(scanToken.IsCancellationRequested);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsNull(page.ValidatedScanResult);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsFalse(
+            ((Button)page.FindName(
+                "ContinueToModelInspectionButton")).IsEnabled);
+        Assert.AreEqual(
+            ImportModelCardState.AwaitingSelection,
+            card.CurrentState);
+        Assert.AreEqual(
+            string.Empty,
+            GetTextBlock(card, "SuccessModelNameTextBlock").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task FailedScan_RecordsTechnicalDiagnosticAndShowsUserMessage()
+    {
+        const string selectedPath = @"C:\Models\broken-model.gguf";
+        const string failureCode = "invalid-magic";
+        const string userMessage =
+            "The selected file is not a valid GGUF model.";
+        const string technicalMessage =
+            "Expected GGUF magic at file offset zero.";
+        ModelQuickScanFailureDiagnostic? capturedDiagnostic = null;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath),
+            (format, path, cancellationToken) =>
+                Task.FromResult(
+                    ModelQuickScanResult.CreateFailure(
+                        failureCode,
+                        userMessage,
+                        technicalMessage)),
+            recordScanFailure: diagnostic =>
+                capturedDiagnostic = diagnostic);
+
+        await page.BrowseFilesAsync();
+
+        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
+        Assert.IsNotNull(capturedDiagnostic);
+        Assert.AreEqual("broken-model.gguf", capturedDiagnostic.SelectedFileName);
+        Assert.AreEqual(failureCode, capturedDiagnostic.FailureCode);
+        Assert.AreEqual(technicalMessage, capturedDiagnostic.TechnicalMessage);
+        Assert.AreEqual(
+            userMessage,
+            GetTextBlock(card, "FailureMessageTextBlock").Text);
+        Assert.AreNotEqual(
+            technicalMessage,
+            GetTextBlock(card, "FailureMessageTextBlock").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task DiagnosticSinkFailure_DoesNotReplaceControlledFailureCard()
+    {
+        const string selectedPath = @"C:\Models\broken-model.gguf";
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath),
+            (format, path, cancellationToken) =>
+                Task.FromResult(
+                    ModelQuickScanResult.CreateFailure(
+                        "invalid-magic",
+                        "The selected file is not a valid GGUF model.",
+                        "Expected GGUF magic at file offset zero.")),
+            recordScanFailure: diagnostic =>
+                throw new InvalidOperationException("Test diagnostic failure."));
+
+        await page.BrowseFilesAsync();
+
+        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
+        Assert.AreEqual(
+            ImportModelCardState.ScanFailed,
+            card.CurrentState);
+        Assert.AreEqual(
+            Visibility.Visible,
+            GetElement(card, "FailureView").Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RealFixture_ThroughRealRouter_DisplaysSuccessCard()
+    {
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "GGUF",
+            "V-001-complete-metadata-v3.gguf");
+        Assert.IsTrue(File.Exists(fixturePath));
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(fixturePath));
+
+        await page.BrowseFilesAsync();
+
+        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
+        Assert.IsTrue(page.HasValidatedModel);
+        Assert.IsNotNull(page.ValidatedScanResult);
+        Assert.AreEqual(3u, page.ValidatedScanResult.GgufVersion);
+        Assert.AreEqual(
+            ImportModelCardState.ScanSucceeded,
+            card.CurrentState);
+        Assert.AreEqual(
+            "IBM Granite Fixture Model",
+            GetTextBlock(card, "SuccessModelNameTextBlock").Text);
+        Assert.AreEqual(
+            "3B",
+            GetTextBlock(card, "SuccessParametersTextBlock").Text);
+        Assert.AreEqual(
+            "Q4_K_M",
+            GetTextBlock(card, "SuccessQuantizationTextBlock").Text);
+        Assert.AreEqual(
+            "320 B",
+            GetTextBlock(card, "SuccessFileSizeTextBlock").Text);
+        Assert.AreEqual(
+            "128K tokens",
+            GetTextBlock(card, "SuccessDeclaredContextTextBlock").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ScanSucceeded_WithoutCardData_IsRejected()
+    {
+        var card = new ImportModelCard();
+
+        Assert.Throws<InvalidOperationException>(
+            () => card.SetState(
+                ImportModelCardState.ScanSucceeded,
+                "model.gguf"));
+    }
+
+    private static void InvokeButton(Button button)
+    {
+        var automationPeer = new ButtonAutomationPeer(button);
+        var invokeProvider = (IInvokeProvider)automationPeer.GetPattern(
+            PatternInterface.Invoke);
+
+        invokeProvider.Invoke();
     }
 
     private static FrameworkElement GetElement(
