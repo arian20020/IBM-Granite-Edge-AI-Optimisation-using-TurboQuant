@@ -495,6 +495,18 @@ class OfficialOpenVINOArtifactTests(unittest.TestCase):
             ):
                 self.validate(broken, expected_precision="f16")
 
+    def test_local_conversion_rejects_u4_precision(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["model"].update({
+            "artifact_repository": "local-conversion",
+            "artifact_revision": self.inventory_sha256,
+        })
+        manifest["conversion"]["kind"] = "local-conversion"
+        with self.assertRaisesRegex(
+            ValueError, "local conversion precision"
+        ):
+            self.validate(manifest, expected_precision="u4")
+
 
 if __name__ == "__main__":
     unittest.main()

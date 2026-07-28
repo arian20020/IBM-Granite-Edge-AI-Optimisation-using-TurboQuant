@@ -193,6 +193,8 @@ def validate_artifact_manifest(
         ):
             raise ValueError("artifact revision must be an exact revision")
     else:
+        if precision not in {"f16", "u8"}:
+            raise ValueError("local conversion precision must be f16 or u8")
         if model["artifact_repository"] != "local-conversion":
             raise ValueError(
                 "local conversion artifact repository must be local-conversion"
