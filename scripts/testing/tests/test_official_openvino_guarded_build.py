@@ -417,6 +417,7 @@ def _write_wrapper_driver(
     python_sha256: str = APPROVED_PYTHON_SHA256,
     python_dll_sha256: str = APPROVED_PYTHON_DLL_SHA256,
     minimum_available_ram_mib: int = 2048,
+    verification_output_path: Path | None = None,
 ) -> None:
     child_command = command or [sys.executable, "-c", program]
     child_command_lines = ["$childCommand = @("]
@@ -428,6 +429,12 @@ def _write_wrapper_driver(
         python_executable=python_executable,
         python_sha256=python_sha256,
         python_dll_sha256=python_dll_sha256,
+    )
+    verification_argument = (
+        " -VerificationOutputPath "
+        f"{_ps_literal(str(verification_output_path))}"
+        if verification_output_path is not None
+        else ""
     )
     driver.write_text(
         "\n".join(
@@ -444,7 +451,7 @@ def _write_wrapper_driver(
                     "-ExpectedExit Zero -TimeoutSeconds 5 "
                     f"-MinimumAvailableRamMiB {minimum_available_ram_mib} "
                     f"{runtime_arguments} "
-                    "-Command $childCommand"
+                    f"-Command $childCommand{verification_argument}"
                 ),
             ]
         )
@@ -2183,6 +2190,41 @@ def test_powershell_wrapper_forwards_configured_ram_floor(tmp_path):
     assert record["configured_minimum_available_ram_bytes"] == (
         requested_mib * 1024 * 1024
     )
+
+
+def test_powershell_wrapper_persists_exact_verification_stdout(tmp_path):
+    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    evidence_root = tmp_path / "verification-output-evidence"
+    verification_path = (
+        evidence_root / "verification-output.verification.json"
+    )
+    driver = tmp_path / "verification-output-driver.ps1"
+    _write_wrapper_driver(
+        driver,
+        wrapper=wrapper,
+        label="verification-output",
+        working_directory=ROOT,
+        evidence_root=evidence_root,
+        program="print('verification-output',flush=True)",
+        verification_output_path=verification_path,
+    )
+    completed = _invoke_wrapper_driver(driver)
+    assert completed.returncode == 0, completed.stderr
+    assert verification_path.is_file()
+    assert verification_path.read_text(encoding="utf-8") == (
+        completed.stdout.strip()
+    )
+    verification = json.loads(verification_path.read_text(encoding="utf-8"))
+    record = json.loads(
+        (evidence_root / "verification-output.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert verification["schema"] == (
+        "official-openvino-wrapper-verification/v1"
+    )
+    assert verification["run_id"] == record["run_id"]
+    _assert_wrapper_controller_binding(verification, record)
     assert record["valid"] is True
 
 

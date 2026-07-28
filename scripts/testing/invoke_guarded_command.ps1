@@ -33,6 +33,9 @@ param(
   [ValidatePattern('^[0-9a-f]{64}$')]
   [string]$PythonDllSha256,
 
+  [Parameter(Mandatory = $false)]
+  [string]$VerificationOutputPath,
+
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
   [string[]]$Command
@@ -250,9 +253,29 @@ $resolvedEvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
   & $outNull
 $logPath = & $joinPath $resolvedEvidenceRoot ($Label + '.log')
 $evidencePath = & $joinPath $resolvedEvidenceRoot ($Label + '.json')
+$verificationPath = $null
+if (-not [string]::IsNullOrEmpty($VerificationOutputPath)) {
+  if (-not [IO.Path]::IsPathRooted($VerificationOutputPath)) {
+    throw 'VerificationOutputPath must be absolute'
+  }
+  $verificationPath = [IO.Path]::GetFullPath($VerificationOutputPath)
+  $expectedVerificationPath = [IO.Path]::GetFullPath(
+    (& $joinPath $resolvedEvidenceRoot ($Label + '.verification.json'))
+  )
+  if (-not $verificationPath.Equals(
+      $expectedVerificationPath,
+      [StringComparison]::OrdinalIgnoreCase)) {
+    throw (
+      'VerificationOutputPath must be the label verification file under ' +
+      'EvidenceRoot'
+    )
+  }
+}
 if (
   [IO.File]::Exists($logPath) -or
-  [IO.File]::Exists($evidencePath)
+  [IO.File]::Exists($evidencePath) -or
+  ($null -ne $verificationPath -and
+   [IO.File]::Exists($verificationPath))
 ) {
   throw "Guard evidence label already exists: $Label"
 }
@@ -1168,7 +1191,52 @@ $verification = [ordered]@{
   }
   valid = $true
 }
-& $writeOutput (
+$verificationJson = (
   $verification |
     & $convertToJson -Depth 8 -Compress
 )
+if ($null -ne $verificationPath) {
+  $verificationTemporaryPath = [IO.Path]::Combine(
+    $resolvedEvidenceRoot,
+    (
+      '.' + $Label + '.verification.' +
+      [Guid]::NewGuid().ToString('N') + '.tmp'
+    )
+  )
+  try {
+    $utf8NoBom = [Text.UTF8Encoding]::new($false)
+    $stream = [IO.FileStream]::new(
+      $verificationTemporaryPath,
+      [IO.FileMode]::CreateNew,
+      [IO.FileAccess]::Write,
+      [IO.FileShare]::None
+    )
+    try {
+      $writer = [IO.StreamWriter]::new($stream, $utf8NoBom)
+      try {
+        $writer.Write($verificationJson)
+        $writer.Flush()
+        $stream.Flush($true)
+      } finally {
+        $writer.Dispose()
+      }
+    } finally {
+      $stream.Dispose()
+    }
+    [IO.File]::Move($verificationTemporaryPath, $verificationPath)
+  } finally {
+    if ([IO.File]::Exists($verificationTemporaryPath)) {
+      [IO.File]::Delete($verificationTemporaryPath)
+    }
+  }
+  $persistedVerification = [IO.File]::ReadAllText(
+    $verificationPath,
+    [Text.UTF8Encoding]::new($false, $true)
+  )
+  if (-not [StringComparer]::Ordinal.Equals(
+      $persistedVerification,
+      $verificationJson)) {
+    throw 'Persisted wrapper verification does not match stdout'
+  }
+}
+& $writeOutput $verificationJson
