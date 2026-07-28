@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -189,7 +190,145 @@ namespace GraniteEdgeAI.Features.ModelImport
                         $"Unexpected model quick-scan outcome: {scanResult.Outcome}.");
             }
         }
+        private static ImportedModelCardData
+    CreateImportedModelCardData(
+        string selectedFileName,
+        ModelQuickScanResult scanResult)
+        {
+            if (scanResult.Outcome != ModelQuickScanOutcome.Success)
+            {
+                throw new ArgumentException(
+                    "Imported-card data can only be created from a successful scan.",
+                    nameof(scanResult));
+            }
 
+            return new ImportedModelCardData(
+                FileName: selectedFileName,
+
+                ModelName:
+                    string.IsNullOrWhiteSpace(scanResult.ModelName)
+                        ? selectedFileName
+                        : scanResult.ModelName,
+
+                Parameters:
+                    FormatOptionalValue(
+                        scanResult.ParameterSizeLabel),
+
+                Architecture:
+                    FormatArchitecture(
+                        scanResult.Architecture),
+
+                Quantization:
+                    FormatOptionalValue(
+                        scanResult.Quantization),
+
+                FileSize:
+                    FormatFileSize(
+                        scanResult.FileSizeBytes),
+
+                DeclaredContext:
+                    FormatContextLength(
+                        scanResult.ContextLength));
+        }
+
+        private static string FormatOptionalValue(
+            string? value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? "Unknown"
+                : value.Trim();
+        }
+
+        private static string FormatArchitecture(
+            string? architecture)
+        {
+            if (string.IsNullOrWhiteSpace(architecture))
+            {
+                return "Unknown";
+            }
+
+            string value = architecture.Trim();
+
+            return char.ToUpperInvariant(value[0]) +
+                value[1..];
+        }
+
+        private static string FormatFileSize(
+            long? fileSizeBytes)
+        {
+            if (fileSizeBytes is null ||
+                fileSizeBytes <= 0)
+            {
+                return "Unknown";
+            }
+
+            double value = fileSizeBytes.Value;
+            string unit;
+
+            if (value >= 1_000_000_000_000)
+            {
+                value /= 1_000_000_000_000;
+                unit = "TB";
+            }
+            else if (value >= 1_000_000_000)
+            {
+                value /= 1_000_000_000;
+                unit = "GB";
+            }
+            else if (value >= 1_000_000)
+            {
+                value /= 1_000_000;
+                unit = "MB";
+            }
+            else if (value >= 1_000)
+            {
+                value /= 1_000;
+                unit = "KB";
+            }
+            else
+            {
+                unit = "B";
+            }
+
+            string numberFormat =
+                unit == "B"
+                    ? "N0"
+                    : "0.#";
+
+            return
+                $"{value.ToString(numberFormat, CultureInfo.CurrentCulture)} {unit}";
+        }
+
+        private static string FormatContextLength(
+            ulong? contextLength)
+        {
+            if (contextLength is null)
+            {
+                return "Not declared";
+            }
+
+            const ulong OneK = 1_024;
+            const ulong OneM = OneK * OneK;
+
+            ulong value = contextLength.Value;
+
+            if (value >= OneM &&
+                value % OneM == 0)
+            {
+                return
+                    $"{(value / OneM).ToString("N0", CultureInfo.CurrentCulture)}M tokens";
+            }
+
+            if (value >= OneK &&
+                value % OneK == 0)
+            {
+                return
+                    $"{(value / OneK).ToString("N0", CultureInfo.CurrentCulture)}K tokens";
+            }
+
+            return
+                $"{value.ToString("N0", CultureInfo.CurrentCulture)} tokens";
+        }
         private async Task<ModelFormatSelection> ShowModelFormatSelectionAsync()
         {
             ModelFormatSelectionCard selectFormat = new();
@@ -223,6 +362,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             activeScan?.Cancel();
 
             SelectedModelPath = null;
+            ValidatedScanResult = null;
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
 

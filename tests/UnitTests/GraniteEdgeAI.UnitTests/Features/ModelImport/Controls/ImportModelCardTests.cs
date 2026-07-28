@@ -264,6 +264,275 @@ public sealed class ImportModelCardTests
             GetTextBlock(card, "FailureFileNameTextBlock").Text);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ScanSucceeded_DisplaysImportedCardValues()
+    {
+        var card = new ImportModelCard();
+
+        card.ShowSuccess(
+            new ImportedModelCardData(
+                FileName:
+                    "granite-3.3-8b-instruct-Q4_K_M.gguf",
+                ModelName:
+                    "IBM Granite 3.3 8B Instruct",
+                Parameters:
+                    "8B",
+                Architecture:
+                    "Granite",
+                Quantization:
+                    "Q4_K_M",
+                FileSize:
+                    "5.1 GB",
+                DeclaredContext:
+                    "128K tokens"));
+
+        Assert.AreEqual(
+            ImportModelCardState.ScanSucceeded,
+            card.CurrentState);
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetElement(
+                card,
+                "AwaitingSelectionView").Visibility);
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetElement(
+                card,
+                "ScanningView").Visibility);
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetElement(
+                card,
+                "FailureView").Visibility);
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            GetElement(
+                card,
+                "SuccessView").Visibility);
+
+        Assert.AreEqual(
+            "IBM Granite 3.3 8B Instruct",
+            GetTextBlock(
+                card,
+                "SuccessModelNameTextBlock").Text);
+
+        Assert.AreEqual(
+            "granite-3.3-8b-instruct-Q4_K_M.gguf",
+            GetTextBlock(
+                card,
+                "SuccessFileNameTextBlock").Text);
+
+        Assert.AreEqual(
+            "Q4_K_M",
+            GetTextBlock(
+                card,
+                "SuccessQuantizationTextBlock").Text);
+
+        Assert.AreEqual(
+            "8B",
+            GetTextBlock(
+                card,
+                "SuccessParametersTextBlock").Text);
+
+        Assert.AreEqual(
+            "Granite",
+            GetTextBlock(
+                card,
+                "SuccessArchitectureTextBlock").Text);
+
+        Assert.AreEqual(
+            "5.1 GB",
+            GetTextBlock(
+                card,
+                "SuccessFileSizeTextBlock").Text);
+
+        Assert.AreEqual(
+            "128K tokens",
+            GetTextBlock(
+                card,
+                "SuccessDeclaredContextTextBlock").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task SuccessfulGgufScan_ShowsImportedCardAndEnablesContinue()
+    {
+        const string selectedPath =
+            @"C:\Models\granite-3.3-8b-instruct-Q4_K_M.gguf";
+
+        ModelQuickScanResult successfulResult =
+            ModelQuickScanResult.CreateSuccess(
+                modelName:
+                    "IBM Granite 3.3 8B Instruct",
+                architecture:
+                    "granite",
+                parameterSizeLabel:
+                    "8B",
+                quantization:
+                    "Q4_K_M",
+                fileSizeBytes:
+                    5_100_000_000L,
+                contextLength:
+                    131_072UL,
+                ggufVersion:
+                    3);
+
+        var page = new ModelImportPage(
+            () => Task.FromResult(
+                ModelFormatSelection.Gguf),
+
+            () => Task.FromResult<string?>(
+                selectedPath),
+
+            (format, path, cancellationToken) =>
+            {
+                Assert.AreEqual(
+                    ModelFormatSelection.Gguf,
+                    format);
+
+                Assert.AreEqual(
+                    selectedPath,
+                    path);
+
+                Assert.IsFalse(
+                    cancellationToken.IsCancellationRequested);
+
+                return Task.FromResult(
+                    successfulResult);
+            });
+
+        await page.BrowseFilesAsync();
+
+        var card =
+            (ImportModelCard)page.FindName(
+                "ImportModelCardControl");
+
+        var continueButton =
+            (Button)page.FindName(
+                "ContinueToModelInspectionButton");
+
+        Assert.AreEqual(
+            selectedPath,
+            page.SelectedModelPath);
+
+        Assert.AreSame(
+            successfulResult,
+            page.ValidatedScanResult);
+
+        Assert.IsTrue(
+            page.HasValidatedModel);
+
+        Assert.IsTrue(
+            continueButton.IsEnabled);
+
+        Assert.AreEqual(
+            ImportModelCardState.ScanSucceeded,
+            card.CurrentState);
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            GetElement(
+                card,
+                "SuccessView").Visibility);
+
+        Assert.AreEqual(
+            "5.1 GB",
+            GetTextBlock(
+                card,
+                "SuccessFileSizeTextBlock").Text);
+
+        Assert.AreEqual(
+            "128K tokens",
+            GetTextBlock(
+                card,
+                "SuccessDeclaredContextTextBlock").Text);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RemoveSuccessfulModel_ClearsValidatedState()
+    {
+        const string selectedPath =
+            @"C:\Models\granite.gguf";
+
+        var page = new ModelImportPage(
+            () => Task.FromResult(
+                ModelFormatSelection.Gguf),
+
+            () => Task.FromResult<string?>(
+                selectedPath),
+
+            (format, path, cancellationToken) =>
+                Task.FromResult(
+                    ModelQuickScanResult.CreateSuccess(
+                        modelName:
+                            "IBM Granite",
+                        architecture:
+                            "granite",
+                        parameterSizeLabel:
+                            "8B",
+                        quantization:
+                            "Q4_K_M",
+                        fileSizeBytes:
+                            5_100_000_000L,
+                        contextLength:
+                            131_072UL,
+                        ggufVersion:
+                            3)));
+
+        await page.BrowseFilesAsync();
+
+        var card =
+            (ImportModelCard)page.FindName(
+                "ImportModelCardControl");
+
+        var removeButton =
+            (Button)card.FindName(
+                "RemoveSucceededModelButton");
+
+        InvokeButton(removeButton);
+
+        Assert.IsNull(
+            page.SelectedModelPath);
+
+        Assert.IsNull(
+            page.ValidatedScanResult);
+
+        Assert.IsFalse(
+            page.HasValidatedModel);
+
+        Assert.IsFalse(
+            ((Button)page.FindName(
+                "ContinueToModelInspectionButton")).IsEnabled);
+
+        Assert.AreEqual(
+            ImportModelCardState.AwaitingSelection,
+            card.CurrentState);
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            GetElement(
+                card,
+                "AwaitingSelectionView").Visibility);
+
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetElement(
+                card,
+                "SuccessView").Visibility);
+
+        Assert.AreEqual(
+            string.Empty,
+            GetTextBlock(
+                card,
+                "SuccessModelNameTextBlock").Text);
+    }
+
     private static void InvokeButton(Button button)
     {
         var automationPeer = new ButtonAutomationPeer(button);
