@@ -98,11 +98,13 @@ It is compiled only under `CPU_DEBUG_CAPS` and remains inert unless
 `OV_CPU_STATE_ALLOCATION_DUMP_PATH` names a valid `.jsonl` file.
 
 Phase is derived inside the CPU request; it is not accepted from an
-environment label. The observer records `post_infer` only after inference and
-output pull both complete successfully, `seeded_no_infer` when private state
-was seeded without a successful inference, and `fresh` otherwise. Accepted
-WB-04 evidence permits only exact `post_infer` for steady-state allocation
-claims.
+environment label. The observer records `post_infer` only when the most recent
+inference attempt and output pull both completed successfully,
+`seeded_no_infer` when private state was seeded without such a successful
+attempt, and `fresh` otherwise. The success flag clears at the start of every
+attempt and on state reset so a prior success cannot survive a later failure
+or reset. Accepted WB-04 evidence permits only exact `post_infer` for
+steady-state allocation claims.
 
 ### Internal Data Sources
 
