@@ -21,7 +21,6 @@ REQUIRED_OPTIONS = {
     "ENABLE_TESTS": "ON",
     "ENABLE_SAMPLES": "OFF",
     "ENABLE_TOOLS": "OFF",
-    "ENABLE_PYTHON": "OFF",
     "ENABLE_JS": "OFF",
 }
 
@@ -486,6 +485,15 @@ def validate_build_manifest(
             raise ValueError(f"required configure option mismatch: {name}")
         if cache_values.get(name) != expected:
             raise ValueError(f"CMake cache configure option mismatch: {name}")
+    python_option = options.get("ENABLE_PYTHON")
+    if python_option not in {"ON", "OFF"}:
+        raise ValueError(
+            "required configure option mismatch: ENABLE_PYTHON must be ON or OFF"
+        )
+    if cache_values.get("ENABLE_PYTHON") != python_option:
+        raise ValueError(
+            "CMake cache configure option mismatch: ENABLE_PYTHON"
+        )
 
     build = _require_mapping(manifest.get("build"), "build")
     if build.get("exit_code") != 0:

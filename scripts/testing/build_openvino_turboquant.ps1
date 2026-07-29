@@ -26,11 +26,15 @@ param(
   [string]$CMakeExecutable = 'cmake',
 
   [Parameter(Mandatory = $false)]
+  [switch]$EnablePython,
+
+  [Parameter(Mandatory = $false)]
   [ValidateNotNullOrEmpty()]
   [string[]]$Targets = @(
     'openvino_genai_obj',
     'turboquant_codec_tests',
     'turboquant_config_tests',
+    'turboquant_state_update_decode_tests',
     'turboquant_stateful_graph_tests',
     'turboquant_pipeline_activation_tests'
   ),
@@ -47,11 +51,20 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$pythonOption = if ($EnablePython.IsPresent) { 'ON' } else { 'OFF' }
+$effectiveTargets = @($Targets)
+if (
+  $EnablePython.IsPresent -and
+  $effectiveTargets -notcontains 'py_openvino_genai'
+) {
+  $effectiveTargets += 'py_openvino_genai'
+}
+
 $requiredOptions = [ordered]@{
   ENABLE_TESTS = 'ON'
   ENABLE_SAMPLES = 'OFF'
   ENABLE_TOOLS = 'OFF'
-  ENABLE_PYTHON = 'OFF'
+  ENABLE_PYTHON = $pythonOption
   ENABLE_JS = 'OFF'
 }
 
@@ -150,7 +163,10 @@ function Assert-CMakeCache {
     [string]$ExpectedSource,
 
     [Parameter(Mandatory = $true)]
-    [string]$ExpectedOpenVINODir
+    [string]$ExpectedOpenVINODir,
+
+    [Parameter(Mandatory = $true)]
+    [string]$ExpectedPythonExecutable
   )
 
   $values = Read-CMakeCache -LiteralPath $CachePath
@@ -176,6 +192,18 @@ function Assert-CMakeCache {
         $entry.Key,
         $entry.Value
       )
+    }
+  }
+  if ($requiredOptions['ENABLE_PYTHON'] -ceq 'ON') {
+    if (
+      -not $values.ContainsKey('_Python3_EXECUTABLE') -or
+      -not (
+        Test-SamePath `
+          $values['_Python3_EXECUTABLE'] `
+          $ExpectedPythonExecutable
+      )
+    ) {
+      throw 'CMake cache configured Python executable does not match'
     }
   }
   return $values
@@ -213,7 +241,7 @@ function Invoke-GuardedBuildCommand {
     '--'
   ) + $Command
 
-  $controllerLines = @(& $PythonExecutable @guardArguments)
+  $controllerLines = @(& $resolvedPythonExecutable @guardArguments)
   $controllerExit = $LASTEXITCODE
   if ($controllerExit -ne 0) {
     throw "Guarded $Label command failed with exit $controllerExit"
@@ -266,7 +294,7 @@ function Invoke-GuardedBuildCommand {
 
 function Get-ValidatedSourceIdentity {
   $identityLines = @(
-    & $PythonExecutable `
+    & $resolvedPythonExecutable `
       -m scripts.testing.verify_openvino_turboquant_build `
       --identity $resolvedIdentity `
       --source $resolvedSource
@@ -338,6 +366,16 @@ function Write-AtomicUtf8Json {
 $repoRoot = [IO.Path]::GetFullPath(
   [IO.Path]::Combine($PSScriptRoot, '..', '..')
 )
+$resolvedPythonExecutable = if ([IO.File]::Exists($PythonExecutable)) {
+  (Resolve-Path -LiteralPath $PythonExecutable).Path
+} else {
+  $pythonCommand = Get-Command `
+    -Name $PythonExecutable `
+    -CommandType Application `
+    -ErrorAction Stop |
+      Select-Object -First 1
+  [IO.Path]::GetFullPath($pythonCommand.Source)
+}
 $resolvedSource = (
   Resolve-Path -LiteralPath $SourcePath
 ).Path
@@ -390,7 +428,8 @@ if ([IO.Directory]::Exists($resolvedBuild)) {
     $null = Assert-CMakeCache `
       -CachePath $cachePath `
       -ExpectedSource $resolvedSource `
-      -ExpectedOpenVINODir $resolvedOpenVINODir
+      -ExpectedOpenVINODir $resolvedOpenVINODir `
+      -ExpectedPythonExecutable $resolvedPythonExecutable
   } elseif (
     [IO.Directory]::EnumerateFileSystemEntries($resolvedBuild).GetEnumerator().MoveNext()
   ) {
@@ -411,10 +450,11 @@ try {
     '-B',
     $resolvedBuild,
     "-DOpenVINO_DIR=$resolvedOpenVINODir",
+    "-DPython3_EXECUTABLE=$resolvedPythonExecutable",
     '-DENABLE_TESTS=ON',
     '-DENABLE_SAMPLES=OFF',
     '-DENABLE_TOOLS=OFF',
-    '-DENABLE_PYTHON=OFF',
+    "-DENABLE_PYTHON=$pythonOption",
     '-DENABLE_JS=OFF'
   )
   $configureGuard = Invoke-GuardedBuildCommand `
@@ -424,7 +464,8 @@ try {
   $cacheValues = Assert-CMakeCache `
     -CachePath $cachePath `
     -ExpectedSource $resolvedSource `
-    -ExpectedOpenVINODir $resolvedOpenVINODir
+    -ExpectedOpenVINODir $resolvedOpenVINODir `
+    -ExpectedPythonExecutable $resolvedPythonExecutable
   $cacheHashAfterConfigure = Get-Sha256 -LiteralPath $cachePath
 
   $buildCommand = @(
@@ -436,7 +477,7 @@ try {
     '--parallel',
     [string]$Parallelism,
     '--target'
-  ) + @($Targets)
+  ) + $effectiveTargets
   $buildGuard = Invoke-GuardedBuildCommand `
     -Label 'build' `
     -Command $buildCommand
@@ -444,7 +485,8 @@ try {
   $cacheValues = Assert-CMakeCache `
     -CachePath $cachePath `
     -ExpectedSource $resolvedSource `
-    -ExpectedOpenVINODir $resolvedOpenVINODir
+    -ExpectedOpenVINODir $resolvedOpenVINODir `
+    -ExpectedPythonExecutable $resolvedPythonExecutable
   $cacheHash = Get-Sha256 -LiteralPath $cachePath
   $sourceIdentityAfterBuild = Get-ValidatedSourceIdentity
   foreach ($identityField in @(
@@ -475,14 +517,32 @@ $outputPaths = @(
     [IO.SearchOption]::AllDirectories
   ) |
     Where-Object {
-      @('.dll', '.lib', '.exe') -contains (
+      @('.dll', '.lib', '.exe', '.pyd') -contains (
         [IO.Path]::GetExtension($_).ToLowerInvariant()
       )
     } |
     Sort-Object
 )
 if ($outputPaths.Count -eq 0) {
-  throw 'Build produced no DLL, LIB, or EXE outputs to hash'
+  throw 'Build produced no DLL, LIB, EXE, or PYD outputs to hash'
+}
+if ($EnablePython.IsPresent) {
+  $pythonOutputs = @(
+    $outputPaths |
+      Where-Object {
+        [IO.Path]::GetExtension($_).Equals(
+          '.pyd',
+          [StringComparison]::OrdinalIgnoreCase
+        ) -and
+        [IO.Path]::GetFileName($_).StartsWith(
+          'py_openvino_genai',
+          [StringComparison]::OrdinalIgnoreCase
+        )
+      }
+  )
+  if ($pythonOutputs.Count -eq 0) {
+    throw 'Python build produced no py_openvino_genai module'
+  }
 }
 $outputs = @(
   foreach ($outputPath in $outputPaths) {
@@ -505,6 +565,11 @@ $outputs = @(
 $recordedOptions = [ordered]@{}
 foreach ($entry in $requiredOptions.GetEnumerator()) {
   $recordedOptions[$entry.Key] = [string]$cacheValues[$entry.Key]
+}
+if ($EnablePython.IsPresent) {
+  $recordedOptions['Python3_EXECUTABLE'] = (
+    [string]$cacheValues['_Python3_EXECUTABLE']
+  )
 }
 $patchRecords = @(
   foreach ($patch in @($sourceIdentity.patches)) {
@@ -545,6 +610,7 @@ $manifest = [ordered]@{
     source_directory = $resolvedSource
     build_directory = $resolvedBuild
     openvino_dir = $resolvedOpenVINODir
+    python_executable = $resolvedPythonExecutable
     options = $recordedOptions
     cache_path = $cachePath
     cache_sha256 = $cacheHash
@@ -562,7 +628,7 @@ $manifest = [ordered]@{
     command = $buildCommand
     exit_code = [int]$buildGuard.record.exit_code
     parallelism = $Parallelism
-    targets = @($Targets)
+    targets = $effectiveTargets
     log_path = $buildGuard.log_path
     log_sha256 = $buildGuard.log_sha256
     guard_evidence_path = $buildGuard.evidence_path

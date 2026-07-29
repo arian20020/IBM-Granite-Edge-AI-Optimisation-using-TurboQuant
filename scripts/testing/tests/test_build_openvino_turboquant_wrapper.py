@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -25,13 +26,16 @@ def test_wrapper_has_identity_bound_guarded_build_contract():
         "BuildPath",
         "Parallelism",
         "EvidenceRoot",
+        "MinimumAvailableRamMiB",
+        "EnablePython",
     ):
         assert f"${parameter}" in script
     for option in (
         "-DENABLE_TESTS=ON",
         "-DENABLE_SAMPLES=OFF",
         "-DENABLE_TOOLS=OFF",
-        "-DENABLE_PYTHON=OFF",
+        "-DENABLE_PYTHON=$pythonOption",
+        "-DPython3_EXECUTABLE=$resolvedPythonExecutable",
         "-DENABLE_JS=OFF",
     ):
         assert option in script
@@ -39,8 +43,10 @@ def test_wrapper_has_identity_bound_guarded_build_contract():
         "openvino_genai_obj",
         "turboquant_codec_tests",
         "turboquant_config_tests",
+        "turboquant_state_update_decode_tests",
         "turboquant_stateful_graph_tests",
         "turboquant_pipeline_activation_tests",
+        "py_openvino_genai",
     ):
         assert target in script
 
@@ -54,6 +60,9 @@ def test_wrapper_has_identity_bound_guarded_build_contract():
     assert "cache_sha256" in script
     assert "outputs" in script
     assert "sha256" in script
+    assert "'.pyd'" in script
+    assert "Python build produced no py_openvino_genai module" in script
+    assert "configured Python executable does not match" in script
     assert "openvino-turboquant-build-provenance/v1" in script
 
 
@@ -158,3 +167,63 @@ def test_wrapper_rejects_an_existing_cache_for_another_source(tmp_path: Path):
 
     assert result.returncode != 0
     assert "different source directory" in result.stdout + result.stderr
+
+
+def test_python_build_rejects_cache_bound_to_another_interpreter(tmp_path: Path):
+    source = tmp_path / "source"
+    openvino_dir = tmp_path / "openvino"
+    build = tmp_path / "build"
+    evidence = tmp_path / "evidence"
+    wrong_python = tmp_path / "wrong-python.exe"
+    for directory in (source, openvino_dir, build):
+        directory.mkdir()
+    wrong_python.write_bytes(b"not the selected interpreter")
+    identity = tmp_path / "source.identity.json"
+    identity.write_text("{}", encoding="utf-8")
+    (build / "CMakeCache.txt").write_text(
+        f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n"
+        f"OpenVINO_DIR:PATH={openvino_dir}\n"
+        "ENABLE_TESTS:BOOL=ON\n"
+        "ENABLE_SAMPLES:BOOL=OFF\n"
+        "ENABLE_TOOLS:BOOL=OFF\n"
+        "ENABLE_PYTHON:BOOL=ON\n"
+        "ENABLE_JS:BOOL=OFF\n"
+        f"Python3_EXECUTABLE:FILEPATH={wrong_python}\n"
+        f"_Python3_EXECUTABLE:INTERNAL={wrong_python}\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            powershell_executable(),
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(WRAPPER),
+            "-SourcePath",
+            str(source),
+            "-IdentityPath",
+            str(identity),
+            "-OpenVINODir",
+            str(openvino_dir),
+            "-BuildPath",
+            str(build),
+            "-Parallelism",
+            "1",
+            "-EvidenceRoot",
+            str(evidence),
+            "-PythonExecutable",
+            sys.executable,
+            "-EnablePython",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert (
+        "configured Python executable does not match"
+        in result.stdout + result.stderr
+    )

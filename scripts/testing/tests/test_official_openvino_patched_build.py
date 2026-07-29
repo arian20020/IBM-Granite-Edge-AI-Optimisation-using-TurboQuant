@@ -301,6 +301,28 @@ class PatchedBuildManifestTests(unittest.TestCase):
         self.assertEqual(result["status"], "passed")
         self.assertEqual(result["validated_test_runs"], 10)
 
+    def test_accepts_python_enabled_build_only_when_manifest_matches_cache(self):
+        self.manifest["configure"]["options"]["ENABLE_PYTHON"] = "ON"
+        cache_text = self.cache.read_text(encoding="utf-8")
+        self.cache.write_text(
+            cache_text.replace(
+                "ENABLE_PYTHON:BOOL=OFF",
+                "ENABLE_PYTHON:BOOL=ON",
+            ),
+            encoding="utf-8",
+        )
+        self.manifest["configure"]["cache_sha256"] = sha256(self.cache)
+
+        result = self.validate()
+
+        self.assertEqual(result["status"], "passed")
+
+    def test_rejects_python_option_that_does_not_match_cache(self):
+        self.manifest["configure"]["options"]["ENABLE_PYTHON"] = "ON"
+
+        with self.assertRaisesRegex(ValueError, "ENABLE_PYTHON"):
+            self.validate()
+
     def test_rejects_wrong_commit_dirty_source_or_foreign_cmake_source(self):
         mutations = []
         wrong_upstream = json.loads(json.dumps(self.manifest))
