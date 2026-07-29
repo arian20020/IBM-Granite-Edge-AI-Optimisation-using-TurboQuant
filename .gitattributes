@@ -11,3 +11,8 @@ experiments/granite_turboquant_intel/logs/** -text whitespace=-blank-at-eol,-bla
 experiments/granite_turboquant_intel/manifests/** -text
 experiments/granite_turboquant_intel/notes/upstream-llama-cpp/** -text
 # END IXN CONTROLLED EXPERIMENT EVIDENCE
+
+# Portable unified diffs contain mandatory one-space context lines. Preserve
+# their exported bytes and do not treat that format syntax as trailing-space
+# source errors.
+experiments/patches/**/*.patch -text whitespace=-blank-at-eol,-blank-at-eof
