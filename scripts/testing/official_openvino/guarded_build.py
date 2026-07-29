@@ -116,7 +116,7 @@ def _atomic_write_bytes(path: Path, value: bytes) -> None:
     try:
         with tempfile.NamedTemporaryFile(
             mode="wb",
-            prefix=f".{path.name}.tmp-",
+            prefix=".ovg-evidence-",
             dir=path.parent,
             delete=False,
         ) as handle:
@@ -342,7 +342,7 @@ def _run_guarded_command_with_binding(
 
     file_descriptor: int | None
     file_descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{log_path.name}.tmp-",
+        prefix=".ovg-log-",
         dir=log_path.parent,
     )
     log_temporary_path = Path(temporary_name)

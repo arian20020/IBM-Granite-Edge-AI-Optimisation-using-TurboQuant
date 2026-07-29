@@ -614,6 +614,91 @@ def test_build_provenance_binds_executable_and_cache_to_clean_checkout(
     }
 
 
+def test_expected_derived_commit_can_be_explicit_or_identity_derived(
+    tmp_path: Path,
+):
+    identity_path = tmp_path / "source.identity.json"
+    identity_path.write_text(
+        json.dumps(
+            {
+                "patch_commit": EXPECTED_DERIVED_COMMIT,
+                "destination_path": str(tmp_path / "derived"),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert capability.resolve_expected_derived_commit(
+        EXPECTED_DERIVED_COMMIT,
+        None,
+    ) == EXPECTED_DERIVED_COMMIT
+    assert capability.resolve_expected_derived_commit(
+        None,
+        identity_path,
+    ) == EXPECTED_DERIVED_COMMIT
+    assert capability.resolve_expected_derived_commit(
+        EXPECTED_DERIVED_COMMIT,
+        identity_path,
+    ) == EXPECTED_DERIVED_COMMIT
+
+
+@pytest.mark.parametrize(
+    "explicit,identity_value,match",
+    [
+        (None, None, "required"),
+        ("not-a-commit", None, "40-character"),
+        (None, {"patch_commit": "not-a-commit"}, "patch_commit"),
+        (
+            EXPECTED_DERIVED_COMMIT,
+            {"patch_commit": "c" * 40},
+            "conflicts",
+        ),
+    ],
+)
+def test_expected_derived_commit_rejects_missing_invalid_or_conflicting_values(
+    tmp_path: Path,
+    explicit,
+    identity_value,
+    match: str,
+):
+    identity_path = None
+    if identity_value is not None:
+        identity_path = tmp_path / "source.identity.json"
+        identity_path.write_text(json.dumps(identity_value), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=match):
+        capability.resolve_expected_derived_commit(explicit, identity_path)
+
+
+def test_capability_cli_requires_explicit_commit_or_source_identity():
+    common = [
+        "--derived-repo",
+        "derived",
+        "--build-dir",
+        "build",
+        "--executable",
+        "capability.exe",
+        "--runtime-library-dir",
+        "runtime",
+        "--output",
+        "evidence.json",
+    ]
+    with pytest.raises(SystemExit):
+        capability._parse_args(common)
+
+    explicit = capability._parse_args(
+        common + ["--expected-derived-commit", EXPECTED_DERIVED_COMMIT]
+    )
+    assert explicit.expected_derived_commit == EXPECTED_DERIVED_COMMIT
+    assert explicit.source_identity is None
+
+    identity = capability._parse_args(
+        common + ["--source-identity", "source.identity.json"]
+    )
+    assert identity.expected_derived_commit is None
+    assert identity.source_identity == Path("source.identity.json")
+
+
 def test_two_350ms_fresh_fixture_processes_produce_memory_and_utilization(
     tmp_path: Path,
 ):

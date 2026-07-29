@@ -27,7 +27,9 @@ SCALARS = (
     "gpu_memory_peak_mb",
     "expected_persistent_kv_bytes",
     "actual_persistent_kv_bytes",
+    "standard_kv_bytes",
     "payload_kv_bytes",
+    "norm_kv_bytes",
     "metadata_kv_bytes",
     "scratch_peak_bytes",
     "kv_mb",
@@ -46,7 +48,6 @@ STRICTLY_POSITIVE = frozenset({
     "available_ram_after_mb",
     "expected_persistent_kv_bytes",
     "actual_persistent_kv_bytes",
-    "payload_kv_bytes",
     "kv_mb",
 })
 UTILIZATION = ("cpu_percent", "gpu_percent")
@@ -56,6 +57,12 @@ ACTIVATION_TEXT_FIELDS = (
     "requested_value_algorithm",
     "activated_key_algorithm",
     "activated_value_algorithm",
+    "requested_key_cache_precision",
+    "requested_value_cache_precision",
+    "activated_key_cache_precision",
+    "activated_value_cache_precision",
+    "observed_key_state_precision",
+    "observed_value_state_precision",
     "attention_path",
     "requested_device",
     "actual_device",
@@ -149,6 +156,14 @@ def _activation(sample_index: int, raw: Any, sample: Mapping[str, Any]) -> dict[
         raise ValueError("activation key algorithm mismatch")
     if raw["requested_value_algorithm"] != raw["activated_value_algorithm"]:
         raise ValueError("activation value algorithm mismatch")
+    for side in ("key", "value"):
+        requested_precision = raw[f"requested_{side}_cache_precision"]
+        activated_precision = raw[f"activated_{side}_cache_precision"]
+        if (
+            requested_precision != "plugin_default"
+            and requested_precision != activated_precision
+        ):
+            raise ValueError(f"activation {side} cache precision mismatch")
     if raw["requested_device"] != raw["actual_device"]:
         raise ValueError("activation device fallback is not permitted")
     expected = _number(
@@ -167,6 +182,19 @@ def _activation(sample_index: int, raw: Any, sample: Mapping[str, Any]) -> dict[
         or not _equal(expected, actual)
     ):
         raise ValueError("activation persistent KV byte reconciliation failed")
+    expected_standard = _number(
+        raw.get("expected_persistent_standard_bytes"),
+        "activation expected persistent STANDARD bytes",
+    )
+    actual_standard = _number(
+        raw.get("actual_persistent_standard_bytes"),
+        "activation actual persistent STANDARD bytes",
+    )
+    if (
+        not _equal(expected_standard, actual_standard)
+        or not _equal(actual_standard, float(sample["standard_kv_bytes"]))
+    ):
+        raise ValueError("activation persistent STANDARD byte reconciliation failed")
     return result
 
 
@@ -198,7 +226,10 @@ def _validate_sample(index: int, raw: Mapping[str, Any]) -> dict[str, Any]:
         not _equal(expected_kv, actual_kv)
         or not _equal(
             actual_kv,
-            sample["payload_kv_bytes"] + sample["metadata_kv_bytes"],
+            sample["standard_kv_bytes"]
+            + sample["payload_kv_bytes"]
+            + sample["norm_kv_bytes"]
+            + sample["metadata_kv_bytes"],
         )
         or not _equal(sample["kv_mb"], actual_kv / MIB)
     ):

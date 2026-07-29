@@ -57,6 +57,38 @@ class OfficialOpenVINOSourceAuditTests(unittest.TestCase):
         self.assertFalse(result.qjl_implementation)
         self.assertFalse(result.polar_implementation)
 
+    def test_u32_element_type_does_not_prove_u3_precision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "types.cpp").write_text(
+                "auto type = ov::element::u32;\n",
+                encoding="utf-8",
+            )
+            result = audit_codec_boundary([root])
+        self.assertFalse(result.u3_precision)
+
+    def test_public_key_cache_precision_property_is_detected_independently(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "properties.hpp").write_text(
+                'constexpr auto property = "KEY_CACHE_PRECISION";\n',
+                encoding="utf-8",
+            )
+            result = audit_codec_boundary([root])
+        self.assertTrue(result.key_property)
+        self.assertFalse(result.value_property)
+
+    def test_public_value_cache_precision_property_is_detected_independently(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "properties.hpp").write_text(
+                'constexpr auto property = "VALUE_CACHE_PRECISION";\n',
+                encoding="utf-8",
+            )
+            result = audit_codec_boundary([root])
+        self.assertFalse(result.key_property)
+        self.assertTrue(result.value_property)
+
     def test_gpu_fallback_cannot_be_classified_as_gpu_activation(self):
         source = CodecBoundary(True, True, True, True, True, True, True, True,
                                False, False, ())

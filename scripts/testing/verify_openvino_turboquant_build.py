@@ -15,11 +15,14 @@ from typing import Any
 
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
 MINIMUM_RAM_FLOOR = 2 * 1024**3
 REQUIRED_OPTIONS = {
-    "OPENVINO_GENAI_BUILD_TESTS": "ON",
-    "OPENVINO_GENAI_BUILD_EXAMPLES": "OFF",
-    "OPENVINO_GENAI_BUILD_BENCHMARKS": "OFF",
+    "ENABLE_TESTS": "ON",
+    "ENABLE_SAMPLES": "OFF",
+    "ENABLE_TOOLS": "OFF",
+    "ENABLE_PYTHON": "OFF",
+    "ENABLE_JS": "OFF",
 }
 
 
@@ -34,6 +37,12 @@ def _sha256(path: Path) -> str:
 def _require_sha256(value: Any, field: str) -> str:
     if not isinstance(value, str) or SHA256_RE.fullmatch(value) is None:
         raise ValueError(f"{field} must be a lowercase SHA256")
+    return value
+
+
+def _require_git_oid(value: Any, field: str) -> str:
+    if not isinstance(value, str) or GIT_OID_RE.fullmatch(value) is None:
+        raise ValueError(f"{field} must be a lowercase 40-character Git object ID")
     return value
 
 
@@ -59,6 +68,15 @@ def _same_path(left: Path, right: Path) -> bool:
     return os.path.normcase(str(left.resolve())) == os.path.normcase(str(right.resolve()))
 
 
+def _path_is_within(child: Path, parent: Path) -> bool:
+    child_text = os.path.normcase(str(child.resolve()))
+    parent_text = os.path.normcase(str(parent.resolve()))
+    try:
+        return os.path.commonpath([child_text, parent_text]) == parent_text
+    except ValueError:
+        return False
+
+
 def _git(repository: Path, *arguments: str) -> str:
     result = subprocess.run(
         ["git", "-C", str(repository), *arguments],
@@ -72,6 +90,252 @@ def _git(repository: Path, *arguments: str) -> str:
             f"{(result.stderr or result.stdout).strip()}"
         )
     return result.stdout.strip()
+
+
+def _read_json_object_bytes(path: Path, kind: str) -> tuple[dict[str, Any], bytes]:
+    try:
+        payload = path.read_bytes()
+        value = json.loads(payload.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{kind} is unreadable: {path}") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"{kind} must contain a JSON object")
+    return value, payload
+
+
+def _raw_git_blob_id(payload: bytes) -> str:
+    header = f"blob {len(payload)}\0".encode("ascii")
+    return hashlib.sha1(header + payload).hexdigest()
+
+
+def _controlled_patch_blob_id(path: Path, payload: bytes) -> str:
+    """Match patch_identity's attribute-aware `git hash-object --path`."""
+
+    repository = subprocess.run(
+        ["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if repository.returncode:
+        return _raw_git_blob_id(payload)
+    repository_root = Path(repository.stdout.strip()).resolve()
+    try:
+        relative_path = path.resolve().relative_to(repository_root).as_posix()
+    except ValueError as exc:
+        raise ValueError(
+            f"identity patch is outside its controlling repository: {path}"
+        ) from exc
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository_root),
+            "hash-object",
+            f"--path={relative_path}",
+            "--stdin",
+        ],
+        input=payload,
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode:
+        message = (result.stderr or result.stdout).decode(
+            "utf-8", errors="replace"
+        )
+        raise ValueError(
+            f"cannot compute controlled patch Git blob: {message.strip()}"
+        )
+    blob_id = result.stdout.decode("ascii", errors="strict").strip()
+    return _require_git_oid(blob_id, f"computed patch blob for {path.name}")
+
+
+def ordered_patch_series_sha256(patches: list[dict[str, str]]) -> str:
+    """Hash ordered patch identities without depending on JSON whitespace."""
+
+    payload = json.dumps(
+        patches,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def validate_source_identity(
+    identity_path: Path,
+    source_path: Path,
+    *,
+    expected_upstream_commit: str | None = None,
+    expected_patch_commit: str | None = None,
+) -> dict[str, Any]:
+    """Bind one live derived checkout to its controller-produced patch identity."""
+
+    identity_path = Path(identity_path).resolve()
+    source_path = Path(source_path).resolve()
+    if not identity_path.is_file():
+        raise ValueError(f"source identity file missing: {identity_path}")
+    if not (source_path / ".git").exists():
+        raise ValueError(f"source Git checkout missing: {source_path}")
+
+    identity, identity_bytes = _read_json_object_bytes(
+        identity_path, "source identity"
+    )
+    base_commit = _require_git_oid(identity.get("base_commit"), "identity base_commit")
+    upstream_commit = _require_git_oid(
+        identity.get("upstream_commit"), "identity upstream_commit"
+    )
+    patch_commit = _require_git_oid(
+        identity.get("patch_commit"), "identity patch_commit"
+    )
+    upstream_tree = _require_git_oid(
+        identity.get("upstream_tree"), "identity upstream_tree"
+    )
+    derived_tree = _require_git_oid(
+        identity.get("derived_tree"), "identity derived_tree"
+    )
+    if base_commit != upstream_commit:
+        raise ValueError("identity base and upstream commits differ")
+    if expected_upstream_commit is not None:
+        expected_upstream_commit = _require_git_oid(
+            expected_upstream_commit, "expected upstream commit"
+        )
+        if upstream_commit != expected_upstream_commit:
+            raise ValueError("upstream commit mismatch")
+    if expected_patch_commit is not None:
+        expected_patch_commit = _require_git_oid(
+            expected_patch_commit, "expected patch commit"
+        )
+        if patch_commit != expected_patch_commit:
+            raise ValueError("patch commit mismatch")
+    if identity.get("dirty") is not False:
+        raise ValueError("source identity records a dirty patch workspace")
+    branch = _require_nonblank(identity.get("branch"), "identity branch")
+
+    identity_destination = _path(
+        identity.get("destination_path"),
+        "identity destination path",
+        identity_path,
+    )
+    if not _same_path(identity_destination, source_path):
+        raise ValueError("source identity destination does not match source path")
+
+    patch_directory = _path(
+        identity.get("patch_directory"),
+        "identity patch directory",
+        identity_path,
+    )
+    if not patch_directory.is_dir():
+        raise ValueError(f"identity patch directory missing: {patch_directory}")
+
+    applied_patches = identity.get("applied_patches")
+    if (
+        not isinstance(applied_patches, list)
+        or not applied_patches
+        or any(not isinstance(name, str) or not name for name in applied_patches)
+    ):
+        raise ValueError("identity applied patch list is invalid")
+    if applied_patches != sorted(applied_patches) or len(set(applied_patches)) != len(
+        applied_patches
+    ):
+        raise ValueError("identity applied patch list is not unique lexical order")
+
+    raw_patch_records = identity.get("patches")
+    if not isinstance(raw_patch_records, list) or not raw_patch_records:
+        raise ValueError("identity ordered patch records are required")
+    patch_records: list[dict[str, str]] = []
+    for index, raw_record in enumerate(raw_patch_records):
+        record = _require_mapping(raw_record, f"identity patch record {index}")
+        name = _require_nonblank(record.get("name"), f"identity patch {index} name")
+        if (
+            name != Path(name).name
+            or "/" in name
+            or "\\" in name
+            or not name.endswith(".patch")
+        ):
+            raise ValueError(f"identity patch name is unsafe: {name}")
+        patch_records.append(
+            {
+                "name": name,
+                "blob_id": _require_git_oid(
+                    record.get("blob_id"), f"identity patch {name} blob_id"
+                ),
+                "sha256": _require_sha256(
+                    record.get("sha256"), f"identity patch {name} SHA-256"
+                ),
+            }
+        )
+
+    patch_names = [record["name"] for record in patch_records]
+    if patch_names != applied_patches:
+        raise ValueError(
+            "identity ordered patch records do not match the applied patch list"
+        )
+    current_patch_names = sorted(
+        path.name for path in patch_directory.iterdir() if path.suffix == ".patch"
+    )
+    if current_patch_names != applied_patches:
+        raise ValueError("identity applied patch list is stale")
+    for record in patch_records:
+        patch_path = patch_directory / record["name"]
+        if not patch_path.is_file():
+            raise ValueError(f"identity patch file missing: {patch_path}")
+        payload = patch_path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != record["sha256"]:
+            raise ValueError(f"patch SHA-256 mismatch: {patch_path}")
+        if _controlled_patch_blob_id(patch_path, payload) != record["blob_id"]:
+            raise ValueError(f"patch Git blob mismatch: {patch_path}")
+
+    live_head = _git(source_path, "rev-parse", "HEAD")
+    if live_head != patch_commit:
+        raise ValueError("live source patch commit mismatch")
+    live_branch = _git(source_path, "branch", "--show-current")
+    if live_branch != branch:
+        raise ValueError("live source branch does not match source identity")
+    live_derived_tree = _git(source_path, "rev-parse", "HEAD^{tree}")
+    if live_derived_tree != derived_tree:
+        raise ValueError("live source derived tree mismatch")
+    try:
+        _git(source_path, "cat-file", "-e", f"{upstream_commit}^{{commit}}")
+        _git(
+            source_path,
+            "merge-base",
+            "--is-ancestor",
+            upstream_commit,
+            patch_commit,
+        )
+    except ValueError as exc:
+        raise ValueError(
+            "upstream commit is not an ancestor of the patch commit"
+        ) from exc
+    live_upstream_tree = _git(
+        source_path, "rev-parse", f"{upstream_commit}^{{tree}}"
+    )
+    if live_upstream_tree != upstream_tree:
+        raise ValueError("live source upstream tree mismatch")
+    live_status = _git(
+        source_path, "status", "--porcelain", "--untracked-files=all"
+    )
+    if live_status:
+        raise ValueError("live source is dirty")
+
+    return {
+        "identity_path": str(identity_path),
+        "identity_sha256": hashlib.sha256(identity_bytes).hexdigest(),
+        "path": str(source_path),
+        "patch_directory": str(patch_directory),
+        "branch": branch,
+        "base_commit": base_commit,
+        "upstream_commit": upstream_commit,
+        "patch_commit": patch_commit,
+        "upstream_tree": upstream_tree,
+        "derived_tree": derived_tree,
+        "applied_patches": list(applied_patches),
+        "patches": patch_records,
+        "patch_series_sha256": ordered_patch_series_sha256(patch_records),
+        "dirty": False,
+        "status_porcelain_sha256": hashlib.sha256(b"").hexdigest(),
+    }
 
 
 def _validate_hashed_file(
@@ -131,31 +395,45 @@ def validate_build_manifest(
     if manifest.get("status") != "passed":
         raise ValueError("build manifest status must be passed")
 
+    expected_upstream_commit = _require_git_oid(
+        expected_upstream_commit, "expected upstream commit"
+    )
+    expected_patch_commit = _require_git_oid(
+        expected_patch_commit, "expected patch commit"
+    )
     source = _require_mapping(manifest.get("source"), "source")
-    if source.get("upstream_commit") != expected_upstream_commit:
-        raise ValueError("upstream commit mismatch")
-    if source.get("patch_commit") != expected_patch_commit:
-        raise ValueError("patch commit mismatch")
-    _require_sha256(source.get("patch_series_sha256"), "patch series hash")
-    if source.get("dirty") is not False:
-        raise ValueError("recorded source is dirty")
-    empty_status_hash = hashlib.sha256(b"").hexdigest()
-    if source.get("status_porcelain_sha256") != empty_status_hash:
-        raise ValueError("source status hash does not prove a clean checkout")
     source_path = _path(source.get("path"), "source path", manifest_path)
-    if not (source_path / ".git").exists():
-        raise ValueError(f"source Git checkout missing: {source_path}")
-    actual_head = _git(source_path, "rev-parse", "HEAD")
-    if actual_head != expected_patch_commit:
-        raise ValueError("live source patch commit mismatch")
-    try:
-        _git(source_path, "cat-file", "-e", f"{expected_upstream_commit}^{{commit}}")
-        _git(source_path, "merge-base", "--is-ancestor", expected_upstream_commit, expected_patch_commit)
-    except ValueError as exc:
-        raise ValueError("upstream commit is not an ancestor of the patch commit") from exc
-    live_status = _git(source_path, "status", "--porcelain", "--untracked-files=all")
-    if live_status:
-        raise ValueError("live source is dirty")
+    identity_path = _validate_hashed_file(
+        source,
+        path_field="identity_path",
+        hash_field="identity_sha256",
+        manifest_path=manifest_path,
+        kind="source identity",
+    )
+    validated_identity = validate_source_identity(
+        identity_path,
+        source_path,
+        expected_upstream_commit=expected_upstream_commit,
+        expected_patch_commit=expected_patch_commit,
+    )
+    identity_fields = {
+        "identity_sha256": "identity hash",
+        "base_commit": "base commit",
+        "upstream_commit": "upstream commit",
+        "patch_commit": "patch commit",
+        "upstream_tree": "upstream tree",
+        "derived_tree": "derived tree",
+        "branch": "patch branch",
+        "patch_directory": "patch directory",
+        "applied_patches": "applied patch list",
+        "patches": "ordered patch records",
+        "patch_series_sha256": "patch series hash",
+        "dirty": "dirty source state",
+        "status_porcelain_sha256": "source status hash",
+    }
+    for field, label in identity_fields.items():
+        if source.get(field) != validated_identity[field]:
+            raise ValueError(f"recorded {label} does not match source identity")
 
     toolchain = _require_mapping(manifest.get("toolchain"), "toolchain")
     for field in (
@@ -188,6 +466,10 @@ def validate_build_manifest(
         manifest_path=manifest_path,
         kind="CMake cache",
     )
+    if cache.name != "CMakeCache.txt" or not _path_is_within(
+        cache, build_directory
+    ):
+        raise ValueError("CMake cache is outside the configured build directory")
     if not _same_path(_configured_source(cache), source_path):
         raise ValueError("CMake cache configured source does not match the patched source")
     _validate_hashed_file(
@@ -243,6 +525,10 @@ def validate_build_manifest(
             raise ValueError(f"binary size is invalid: {name}")
         if path.stat().st_size != size:
             raise ValueError(f"binary size mismatch: {name}")
+        if not _path_is_within(path, build_directory):
+            raise ValueError(
+                f"binary is outside the configured build directory: {name}"
+            )
         binaries[name] = record
     required_binary_set = set(required_binaries)
     missing_binaries = sorted(required_binary_set - set(binaries))
@@ -323,19 +609,42 @@ def validate_build_manifest(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--expected-upstream-commit", required=True)
-    parser.add_argument("--expected-patch-commit", required=True)
-    parser.add_argument("--required-binary", action="append", required=True)
-    parser.add_argument("--required-test-suite", action="append", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--manifest", type=Path)
+    mode.add_argument("--identity", type=Path)
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--expected-upstream-commit")
+    parser.add_argument("--expected-patch-commit")
+    parser.add_argument("--required-binary", action="append")
+    parser.add_argument("--required-test-suite", action="append")
     args = parser.parse_args()
-    result = validate_build_manifest(
-        args.manifest,
-        expected_upstream_commit=args.expected_upstream_commit,
-        expected_patch_commit=args.expected_patch_commit,
-        required_binaries=args.required_binary,
-        required_test_suites=args.required_test_suite,
-    )
+    if args.identity is not None:
+        if args.source is None:
+            parser.error("--source is required with --identity")
+        result = validate_source_identity(
+            args.identity,
+            args.source,
+            expected_upstream_commit=args.expected_upstream_commit,
+            expected_patch_commit=args.expected_patch_commit,
+        )
+    else:
+        if args.source is not None:
+            parser.error("--source is only valid with --identity")
+        if args.expected_upstream_commit is None:
+            parser.error("--expected-upstream-commit is required with --manifest")
+        if args.expected_patch_commit is None:
+            parser.error("--expected-patch-commit is required with --manifest")
+        if not args.required_binary:
+            parser.error("--required-binary is required with --manifest")
+        if not args.required_test_suite:
+            parser.error("--required-test-suite is required with --manifest")
+        result = validate_build_manifest(
+            args.manifest,
+            expected_upstream_commit=args.expected_upstream_commit,
+            expected_patch_commit=args.expected_patch_commit,
+            required_binaries=args.required_binary,
+            required_test_suites=args.required_test_suite,
+        )
     print(json.dumps(result, indent=2))
     return 0
 

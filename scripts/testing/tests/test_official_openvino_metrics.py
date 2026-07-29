@@ -40,8 +40,10 @@ def sample(offset=0):
         "gpu_memory_peak_mb": dedicated + shared,
         "expected_persistent_kv_bytes": actual,
         "actual_persistent_kv_bytes": actual,
+        "standard_kv_bytes": 0,
         "payload_kv_bytes": payload,
-        "metadata_kv_bytes": metadata,
+        "norm_kv_bytes": 2 * MIB,
+        "metadata_kv_bytes": metadata - (2 * MIB),
         "scratch_peak_bytes": (8 + offset) * MIB,
         "kv_mb": actual / MIB,
         "cpu_percent": utilization([40 + offset, 42 + offset, 41 + offset]),
@@ -51,6 +53,12 @@ def sample(offset=0):
             "requested_value_algorithm": "TBQ3",
             "activated_key_algorithm": "TBQ4",
             "activated_value_algorithm": "TBQ3",
+            "requested_key_cache_precision": "u4",
+            "requested_value_cache_precision": "u3",
+            "activated_key_cache_precision": "u4",
+            "activated_value_cache_precision": "u3",
+            "observed_key_state_precision": "u8+f32+i32",
+            "observed_value_state_precision": "u8+f32+i32",
             "norm_correction": True,
             "attention_path": "stateful-sdpa",
             "requested_device": "CPU",
@@ -58,6 +66,8 @@ def sample(offset=0):
             "fallback": False,
             "expected_persistent_bytes": actual,
             "actual_persistent_bytes": actual,
+            "expected_persistent_standard_bytes": 0,
+            "actual_persistent_standard_bytes": 0,
             "output_valid": True,
         },
         "output_sha256": f"{offset + 1:064x}",
@@ -93,6 +103,8 @@ class OfficialOpenVINOMetricTests(unittest.TestCase):
         self.assertEqual(result["gpu_dedicated_memory_peak_mb"]["max"], 50)
         self.assertEqual(result["gpu_shared_memory_peak_mb"]["max"], 18)
         self.assertEqual(result["actual_persistent_kv_bytes"]["count"], 3)
+        self.assertEqual(result["standard_kv_bytes"]["max"], 0)
+        self.assertEqual(result["norm_kv_bytes"]["min"], 2 * MIB)
         self.assertEqual(result["activation"]["sample_count"], 3)
         self.assertEqual(
             result["activation"]["activated_pairs"],

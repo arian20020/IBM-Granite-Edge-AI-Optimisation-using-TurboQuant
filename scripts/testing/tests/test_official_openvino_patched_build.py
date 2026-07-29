@@ -23,6 +23,16 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def patch_series_sha256(patches: list[dict[str, str]]) -> str:
+    payload = json.dumps(
+        patches,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 class PatchedBuildManifestTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -70,14 +80,99 @@ class PatchedBuildManifestTests(unittest.TestCase):
         self.actual_patch = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=self.source, text=True
         ).strip()
+        self.upstream_tree = subprocess.check_output(
+            ["git", "rev-parse", f"{self.base_commit}^{{tree}}"],
+            cwd=self.source,
+            text=True,
+        ).strip()
+        self.derived_tree = subprocess.check_output(
+            ["git", "rev-parse", f"{self.actual_patch}^{{tree}}"],
+            cwd=self.source,
+            text=True,
+        ).strip()
+        self.control = self.root / "control"
+        self.control.mkdir()
+        subprocess.run(["git", "init"], cwd=self.control, check=True, capture_output=True)
+        (self.control / ".gitattributes").write_text(
+            "* text=auto\n",
+            encoding="utf-8",
+        )
+        self.patch_directory = (
+            self.control / "experiments" / "patches" / "openvino-turboquant"
+        )
+        self.patch_directory.mkdir(parents=True)
+        for index, content in enumerate(
+            (b"first patch\r\n", b"second patch\r\n"),
+            start=1,
+        ):
+            (self.patch_directory / f"000{index}-fixture.patch").write_bytes(
+                content
+            )
+        subprocess.run(["git", "add", "."], cwd=self.control, check=True)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.invalid",
+                "commit",
+                "-m",
+                "controlled patches",
+            ],
+            cwd=self.control,
+            check=True,
+            capture_output=True,
+        )
+        self.patch_records = [
+            {
+                "name": patch.name,
+                "blob_id": subprocess.check_output(
+                    [
+                        "git",
+                        "rev-parse",
+                        "HEAD:"
+                        + patch.relative_to(self.control).as_posix(),
+                    ],
+                    cwd=self.control,
+                    text=True,
+                ).strip(),
+                "sha256": sha256(patch),
+            }
+            for patch in sorted(self.patch_directory.glob("*.patch"))
+        ]
+        self.applied_patches = [record["name"] for record in self.patch_records]
+        self.identity = {
+            "upstream_path": str(self.root / "upstream"),
+            "destination_path": str(self.source),
+            "destination_operation_path": str(self.source),
+            "patch_directory": str(self.patch_directory),
+            "branch": subprocess.check_output(
+                ["git", "branch", "--show-current"],
+                cwd=self.source,
+                text=True,
+            ).strip(),
+            "base_commit": self.base_commit,
+            "upstream_commit": self.base_commit,
+            "patch_commit": self.actual_patch,
+            "upstream_tree": self.upstream_tree,
+            "derived_tree": self.derived_tree,
+            "applied_patches": self.applied_patches,
+            "patches": self.patch_records,
+            "dirty": False,
+        }
+        self.identity_path = self.root / "source.identity.json"
+        self.write_identity()
         self.build = self.root / "build"
         self.build.mkdir()
         self.cache = self.build / "CMakeCache.txt"
         self.cache.write_text(
             f"CMAKE_HOME_DIRECTORY:INTERNAL={self.source.as_posix()}\n"
-            "OPENVINO_GENAI_BUILD_TESTS:BOOL=ON\n"
-            "OPENVINO_GENAI_BUILD_EXAMPLES:BOOL=OFF\n"
-            "OPENVINO_GENAI_BUILD_BENCHMARKS:BOOL=OFF\n",
+            "ENABLE_TESTS:BOOL=ON\n"
+            "ENABLE_SAMPLES:BOOL=OFF\n"
+            "ENABLE_TOOLS:BOOL=OFF\n"
+            "ENABLE_PYTHON:BOOL=OFF\n"
+            "ENABLE_JS:BOOL=OFF\n",
             encoding="utf-8",
         )
         self.configure_log = self.build / "configure.log"
@@ -120,9 +215,18 @@ class PatchedBuildManifestTests(unittest.TestCase):
             "status": "passed",
             "source": {
                 "path": str(self.source),
+                "identity_path": str(self.identity_path),
+                "identity_sha256": sha256(self.identity_path),
+                "patch_directory": str(self.patch_directory),
+                "branch": self.identity["branch"],
+                "base_commit": self.base_commit,
                 "upstream_commit": self.base_commit,
                 "patch_commit": self.actual_patch,
-                "patch_series_sha256": "3" * 64,
+                "upstream_tree": self.upstream_tree,
+                "derived_tree": self.derived_tree,
+                "applied_patches": self.applied_patches,
+                "patches": self.patch_records,
+                "patch_series_sha256": patch_series_sha256(self.patch_records),
                 "dirty": False,
                 "status_porcelain_sha256": hashlib.sha256(b"").hexdigest(),
             },
@@ -143,9 +247,11 @@ class PatchedBuildManifestTests(unittest.TestCase):
                 "log_path": str(self.configure_log),
                 "log_sha256": sha256(self.configure_log),
                 "options": {
-                    "OPENVINO_GENAI_BUILD_TESTS": "ON",
-                    "OPENVINO_GENAI_BUILD_EXAMPLES": "OFF",
-                    "OPENVINO_GENAI_BUILD_BENCHMARKS": "OFF",
+                    "ENABLE_TESTS": "ON",
+                    "ENABLE_SAMPLES": "OFF",
+                    "ENABLE_TOOLS": "OFF",
+                    "ENABLE_PYTHON": "OFF",
+                    "ENABLE_JS": "OFF",
                 },
             },
             "build": {
@@ -172,6 +278,12 @@ class PatchedBuildManifestTests(unittest.TestCase):
 
     def tearDown(self):
         self.temporary.cleanup()
+
+    def write_identity(self):
+        self.identity_path.write_text(
+            json.dumps(self.identity, indent=2),
+            encoding="utf-8",
+        )
 
     def validate(self, manifest=None):
         manifest = self.manifest if manifest is None else manifest
@@ -206,6 +318,60 @@ class PatchedBuildManifestTests(unittest.TestCase):
         for manifest, message in mutations:
             with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
                 self.validate(manifest)
+
+    def test_rejects_stale_identity_patch_list_or_patch_bytes(self):
+        stale_identity_hash = json.loads(json.dumps(self.manifest))
+        stale_identity_hash["source"]["identity_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "identity hash"):
+            self.validate(stale_identity_hash)
+
+        stale_patch_list = json.loads(json.dumps(self.manifest))
+        stale_patch_list["source"]["applied_patches"].reverse()
+        with self.assertRaisesRegex(ValueError, "applied patch"):
+            self.validate(stale_patch_list)
+
+        (self.patch_directory / self.applied_patches[0]).write_text(
+            "tampered patch\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "patch SHA-256"):
+            self.validate()
+
+    def test_rejects_stale_identity_even_when_its_manifest_hash_is_updated(self):
+        self.identity["applied_patches"].reverse()
+        self.write_identity()
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest["source"]["identity_sha256"] = sha256(self.identity_path)
+        manifest["source"]["applied_patches"] = list(
+            self.identity["applied_patches"]
+        )
+
+        with self.assertRaisesRegex(ValueError, "identity applied patch list"):
+            self.validate(manifest)
+
+    def test_rejects_wrong_recorded_or_live_source_trees(self):
+        wrong_recorded_tree = json.loads(json.dumps(self.manifest))
+        wrong_recorded_tree["source"]["derived_tree"] = "f" * 40
+        with self.assertRaisesRegex(ValueError, "derived tree"):
+            self.validate(wrong_recorded_tree)
+
+        self.identity["derived_tree"] = "e" * 40
+        self.write_identity()
+        wrong_live_tree = json.loads(json.dumps(self.manifest))
+        wrong_live_tree["source"]["identity_sha256"] = sha256(self.identity_path)
+        wrong_live_tree["source"]["derived_tree"] = "e" * 40
+        with self.assertRaisesRegex(ValueError, "live source derived tree"):
+            self.validate(wrong_live_tree)
+
+    def test_rejects_identity_branch_that_is_not_live(self):
+        self.identity["branch"] = "project/not-the-live-branch"
+        self.write_identity()
+        manifest = json.loads(json.dumps(self.manifest))
+        manifest["source"]["identity_sha256"] = sha256(self.identity_path)
+        manifest["source"]["branch"] = self.identity["branch"]
+
+        with self.assertRaisesRegex(ValueError, "live source branch"):
+            self.validate(manifest)
 
     def test_rejects_missing_second_run_failure_skip_or_zero_selected_tests(self):
         for mutation, message in (
@@ -242,7 +408,7 @@ class PatchedBuildManifestTests(unittest.TestCase):
             ),
             (
                 lambda manifest: manifest["configure"]["options"].update(
-                    OPENVINO_GENAI_BUILD_EXAMPLES="ON"
+                    ENABLE_SAMPLES="ON"
                 ),
                 "configure option",
             ),
@@ -251,6 +417,26 @@ class PatchedBuildManifestTests(unittest.TestCase):
             mutate(manifest)
             with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
                 self.validate(manifest)
+
+    def test_rejects_cache_or_binary_outside_the_configured_build(self):
+        foreign_cache = self.root / "foreign-CMakeCache.txt"
+        foreign_cache.write_bytes(self.cache.read_bytes())
+        foreign_cache_manifest = json.loads(json.dumps(self.manifest))
+        foreign_cache_manifest["configure"]["cache_path"] = str(foreign_cache)
+        foreign_cache_manifest["configure"]["cache_sha256"] = sha256(foreign_cache)
+        with self.assertRaisesRegex(ValueError, "cache.*build directory"):
+            self.validate(foreign_cache_manifest)
+
+        foreign_binary = self.root / "foreign-output.dll"
+        foreign_binary.write_bytes(b"foreign output")
+        foreign_binary_manifest = json.loads(json.dumps(self.manifest))
+        foreign_binary_manifest["binaries"][0].update(
+            path=str(foreign_binary),
+            size_bytes=foreign_binary.stat().st_size,
+            sha256=sha256(foreign_binary),
+        )
+        with self.assertRaisesRegex(ValueError, "binary.*build directory"):
+            self.validate(foreign_binary_manifest)
 
     def test_rejects_aggregate_failure_or_residual_process(self):
         for path, value, message in (

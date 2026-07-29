@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import re
 import subprocess
 from typing import Any, Iterable, Mapping
 
@@ -38,15 +39,24 @@ class Activation:
     classification: str
 
 
+def _token_patterns(*tokens: str) -> tuple[re.Pattern[str], ...]:
+    return tuple(re.compile(rf"(?<!\w){re.escape(token)}(?!\w)", re.IGNORECASE)
+                 for token in tokens)
+
+
 _FEATURE_PATTERNS = {
-    "turbo_enum": ("tbq3", "tbq4", "turboquant"),
-    "key_property": ("key_cache_quant_mode", "key_cache_algorithm"),
-    "value_property": ("value_cache_quant_mode", "value_cache_algorithm"),
-    "u3_precision": ("element::u3", "precision::u3", "tbq3"),
-    "u4_precision": ("element::u4", "precision::u4", "tbq4"),
-    "norm_switch": ("cache_norm", "norm_before_quant", "normalize_cache"),
-    "packed_storage": ("packed_storage", "packed_bytes", "pack_u3", "pack_u4"),
-    "cpu_sdpa_path": ("scaled_dot_product_attention", "sdpa"),
+    "turbo_enum": _token_patterns("tbq3", "tbq4", "turboquant"),
+    "key_property": _token_patterns(
+        "key_cache_precision", "key_cache_quant_mode", "key_cache_algorithm",
+    ),
+    "value_property": _token_patterns(
+        "value_cache_precision", "value_cache_quant_mode", "value_cache_algorithm",
+    ),
+    "u3_precision": _token_patterns("element::u3", "precision::u3", "tbq3"),
+    "u4_precision": _token_patterns("element::u4", "precision::u4", "tbq4"),
+    "norm_switch": _token_patterns("cache_norm", "norm_before_quant", "normalize_cache"),
+    "packed_storage": _token_patterns("packed_storage", "packed_bytes", "pack_u3", "pack_u4"),
+    "cpu_sdpa_path": _token_patterns("scaled_dot_product_attention", "sdpa"),
 }
 
 
@@ -103,7 +113,7 @@ def audit_codec_boundary(source_roots: Iterable[Path]) -> CodecBoundary:
                     continue
                 lowered = line.lower()
                 for feature, patterns in _FEATURE_PATTERNS.items():
-                    if any(pattern in lowered for pattern in patterns):
+                    if any(pattern.search(lowered) for pattern in patterns):
                         flags[feature] = True
                         matches.append(SourceMatch(str(path), number, feature, line.strip()))
                 if cache_context and "qjl" in lowered:

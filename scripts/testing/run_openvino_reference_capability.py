@@ -55,7 +55,6 @@ EXPECTED_TEST_NAME = (
 )
 EXPECTED_GTEST_FILTER = f"--gtest_filter={EXPECTED_TEST_NAME}"
 EXPECTED_HASH_ALGORITHM = "FNV-1a-64-labelled-step-result-raw-bytes"
-REQUIRED_DERIVED_COMMIT = "adb5fbe37e9f8c533461c892a19191f1709ae774"
 NONCE_ENVIRONMENT_VARIABLE = "OPENVINO_TURBOQUANT_CAPABILITY_NONCE"
 EXACT_INTERVAL_MS = 100
 EXACT_TIMEOUT_SECONDS = 300.0
@@ -91,6 +90,59 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def resolve_expected_derived_commit(
+    explicit_commit: str | None,
+    source_identity: Path | None,
+) -> str:
+    """Resolve the required derived commit without embedding campaign state."""
+
+    if explicit_commit is not None and re.fullmatch(
+        r"[0-9a-f]{40}", explicit_commit
+    ) is None:
+        raise ValueError(
+            "expected derived commit must be a lowercase 40-character Git ID"
+        )
+
+    identity_commit: str | None = None
+    if source_identity is not None:
+        identity_path = Path(source_identity).resolve()
+        try:
+            identity = json.loads(identity_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"source identity is unreadable: {identity_path}"
+            ) from exc
+        if not isinstance(identity, dict):
+            raise ValueError("source identity must contain a JSON object")
+        identity_commit = identity.get("patch_commit")
+        if not isinstance(identity_commit, str) or re.fullmatch(
+            r"[0-9a-f]{40}", identity_commit
+        ) is None:
+            raise ValueError(
+                "source identity patch_commit must be a lowercase "
+                "40-character Git ID"
+            )
+
+    if explicit_commit is None and identity_commit is None:
+        raise ValueError(
+            "an expected derived commit or source identity is required"
+        )
+    if (
+        explicit_commit is not None
+        and identity_commit is not None
+        and explicit_commit != identity_commit
+    ):
+        raise ValueError(
+            "explicit expected derived commit conflicts with source identity"
+        )
+    resolved_commit = (
+        explicit_commit if explicit_commit is not None else identity_commit
+    )
+    if resolved_commit is None:
+        raise AssertionError("derived commit resolution invariant failed")
+    return resolved_commit
 
 
 def validate_runtime_library_dir(path: Path) -> Path:
@@ -2210,13 +2262,16 @@ def _git_identity(repo: Path) -> tuple[str, str]:
     return commit, status
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--derived-repo", type=Path, required=True)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--executable", type=Path, required=True)
     parser.add_argument("--runtime-library-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    commit_source = parser.add_mutually_exclusive_group(required=True)
+    commit_source.add_argument("--expected-derived-commit")
+    commit_source.add_argument("--source-identity", type=Path)
     parser.add_argument(
         "--timeout-seconds", type=float, default=EXACT_TIMEOUT_SECONDS
     )
@@ -2226,11 +2281,15 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=EXACT_MINIMUM_AVAILABLE_RAM_MB,
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main() -> int:
     args = _parse_args()
+    expected_derived_commit = resolve_expected_derived_commit(
+        args.expected_derived_commit,
+        args.source_identity,
+    )
     output = args.output.resolve()
     raw_root = output.parent / output.stem
     raw_root.mkdir(parents=True, exist_ok=True)
@@ -2253,6 +2312,15 @@ def main() -> int:
         "build_directory": str(args.build_dir.resolve()),
         "executable": str(absolute_invocation_path(args.executable)),
         "runtime_library_dir": str(args.runtime_library_dir),
+        "expected_derived_commit": expected_derived_commit,
+        "source_identity": (
+            None
+            if args.source_identity is None
+            else {
+                "path": str(args.source_identity.resolve()),
+                "sha256": _sha256_file(args.source_identity.resolve()),
+            }
+        ),
         "controller_configuration": {
             "timeout_seconds": args.timeout_seconds,
             "sampling_interval_ms": args.interval_ms,
@@ -2314,10 +2382,10 @@ def main() -> int:
             "commit": commit_before_run_1,
             "status_porcelain": status_before_run_1,
         }
-        if commit_before_run_1 != REQUIRED_DERIVED_COMMIT:
+        if commit_before_run_1 != expected_derived_commit:
             raise ValueError(
                 f"derived commit is {commit_before_run_1}, expected "
-                f"{REQUIRED_DERIVED_COMMIT}"
+                f"{expected_derived_commit}"
             )
         if status_before_run_1:
             raise ValueError("derived checkout is not clean before run 1")
@@ -2439,7 +2507,7 @@ def main() -> int:
             commit_before_run_1
             == commit_before_run_2
             == commit_after_run_2
-            == REQUIRED_DERIVED_COMMIT
+            == expected_derived_commit
         ):
             raise ValueError("derived commit drifted across the two runs")
         if status_before_run_2 or status_after_run_2:

@@ -723,6 +723,45 @@ def _assert_wrapper_controller_binding(
     }
 
 
+def test_private_temporary_prefixes_are_bounded_and_name_independent(
+    tmp_path,
+    monkeypatch,
+):
+    guard = _guarded_build()
+    original_mkstemp = guard.tempfile.mkstemp
+    original_named_temporary_file = guard.tempfile.NamedTemporaryFile
+    observed_log_prefixes: list[str] = []
+    observed_evidence_prefixes: list[str] = []
+
+    def capture_mkstemp(*args, **kwargs):
+        observed_log_prefixes.append(kwargs["prefix"])
+        return original_mkstemp(*args, **kwargs)
+
+    def capture_named_temporary_file(*args, **kwargs):
+        observed_evidence_prefixes.append(kwargs["prefix"])
+        return original_named_temporary_file(*args, **kwargs)
+
+    monkeypatch.setattr(guard.tempfile, "mkstemp", capture_mkstemp)
+    monkeypatch.setattr(
+        guard.tempfile,
+        "NamedTemporaryFile",
+        capture_named_temporary_file,
+    )
+
+    record = guard.run_guarded_command(
+        [sys.executable, "-c", "print('bounded-prefix',flush=True)"],
+        cwd=ROOT,
+        log_path=tmp_path / ("l" * 96 + ".log"),
+        evidence_path=tmp_path / ("e" * 96 + ".json"),
+        expected_exit="zero",
+        limits=_limits(guard),
+    )
+
+    assert record["valid"] is True
+    assert observed_log_prefixes == [".ovg-log-"]
+    assert observed_evidence_prefixes == [".ovg-evidence-"]
+
+
 def test_zero_exit_atomically_replaces_log_and_evidence(tmp_path):
     guard = _guarded_build()
     log_path = tmp_path / "child.log"
@@ -776,8 +815,8 @@ def test_zero_exit_atomically_replaces_log_and_evidence(tmp_path):
     assert "replacement-stderr" in combined_log
     persisted = json.loads(evidence_path.read_text(encoding="utf-8"))
     assert persisted == result
-    assert list(tmp_path.glob(".child.log.tmp-*")) == []
-    assert list(tmp_path.glob(".evidence.json.tmp-*")) == []
+    assert list(tmp_path.glob(".ovg-log-*")) == []
+    assert list(tmp_path.glob(".ovg-evidence-*")) == []
     _assert_path_provenance(
         result,
         working_directory=ROOT,
@@ -797,7 +836,7 @@ def test_guard_keeps_original_private_log_descriptor_until_hash(
     def reject_private_log_path_reopen(path, *args, **kwargs):
         if (
             path.parent == tmp_path
-            and path.name.startswith(".child.log.tmp-")
+            and path.name.startswith(".ovg-log-")
         ):
             raise AssertionError("private log was reopened by pathname")
         return original_path_open(path, *args, **kwargs)
