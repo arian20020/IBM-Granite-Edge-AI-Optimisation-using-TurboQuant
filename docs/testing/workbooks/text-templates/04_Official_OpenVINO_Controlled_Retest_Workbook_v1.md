@@ -1,4 +1,4 @@
-# 04 Official OpenVINO Controlled Retest Workbook v1.5
+# 04 Official OpenVINO Controlled Retest Workbook v1.6
 
 **Controlled filename:** `04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx`  
 **Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`  
@@ -7,7 +7,7 @@
 
 ## Official OpenVINO Runtime, GenAI and Merged TurboQuant Controlled Retest Workbook
 
-Controlled retest revision 1.5. Historical results remain legacy evidence and are not copied into active result cells.
+Controlled retest revision 1.6. Historical results remain legacy evidence and are not copied into active result cells.
 
 **Purpose:** establish the dependable official OpenVINO CPU/GPU baseline and fully evaluate every TurboQuant format exposed by the pinned **official merged CPU SDPA implementation**. The merged route is expected to expose TurboQuant 3-bit and 4-bit through independent key/value algorithm and precision controls. QJL and PolarQuant are tested here as negative capability boundaries unless the pinned official source proves they were later merged.
 
@@ -24,13 +24,13 @@ Controlled retest revision 1.5. Historical results remain legacy evidence and ar
 | OpenVINO GenAI version/commit | 2026.2.1.0 / 7dea0459b2ac7d8dfd877fd9df6737674fd8371d |
 | TurboQuant merge/PR lineage | No TurboQuant/TBQ3/TBQ4 implementation found in exact tagged source; experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 | Python version | 3.11.9 |
-| Compiler/CMake | not-found / not-found; official wheels used |
+| Compiler/CMake | Visual Studio 18 2026 / Microsoft-bundled CMake; official source build verified |
 | Conversion tool/version | Optimum Intel 2.0.0; conversion memory-gated |
 | Device plugins detected | CPU, GPU |
 | Model source/revision | ibm-granite/granite-4.1-3b@c0650403e44e78ec0262dab1c90914c65b196c4e; granite-4.1-8b@1504002f650e656a0a3789d99574df12e3e94ed0 |
 | Test operator | Codex automated controlled retest |
-| Test start/end date | 2026-07-19 / 2026-07-19 |
-| Overall status | Recovery pending: zero Granite benchmark rows executed; seven setup/API probes passed |
+| Test start/end date | 2026-07-19 / 2026-07-29 |
+| Overall status | Source/test recovery passed: official GenAI 505/505 and CPU observer 46/46 twice; zero Granite benchmark rows executed |
 
 # 2. Target laptop
 
@@ -71,6 +71,23 @@ Controlled retest revision 1.5. Historical results remain legacy evidence and ar
 | OV-B10 | Official TurboQuant diagnostics | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 | OV-B11 | QJL and Polar negative boundary | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
 | OV-B12 | CPU SDPA preconditions | unsupported-by-source | experiments/raw-results/official-openvino/2026-07-19/diagnostics/source-audit.json |
+
+## 4.1 Source-build and observer recovery verification
+
+These are build/test recovery gates, not Granite benchmark measurements. They
+must not be copied into performance, memory, utilization or quality cells.
+
+| Gate | Result | Exact evidence |
+| --- | --- | --- |
+| Official OpenVINO GenAI source suite | passed: 505/505 tests; 77 suites; 0 failed; 0 skipped; 17.092 s | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-genai-official-tests/genai-tests-full-005.json; gtest-results-005.json |
+| CPU allocation observer focused discovery | passed: 21 writer + 25 dump = 46 tests | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-list2.json |
+| CPU allocation observer focused run 1 | passed: 46/46 | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-run1.json |
+| CPU allocation observer focused run 2 | passed: 46/46 | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-run2.json |
+| Observer-enabled production CPU plugin | passed; required observer markers present; SHA-256 `76c4ae4fff7c56965fc86c0e99bc963e9c859939f149398686ed3a0f4057c372` | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-plugin.json |
+| CPU functional test binary | passed; SHA-256 `0905fea779a6d34d86d983eeb1be84a93344abf57faed05501a5ca6a6b29dd24` | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-funcbuild.json |
+| Stock CPU `query_state()` with observer disabled | passed: 1/1; no output file | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3-off.json |
+| Invalid observer `.txt` destination | passed fail-closed gate: process exit 1 for exact `.jsonl` suffix error; no output file | experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3-bad.json |
+| Private observer implementation | committed cleanly as `8e20a73de7286d391775ef5999446359c8d02cb9`; exact nine-path delta | derived OpenVINO branch `project/cpu-state-allocation-observer` |
 
 # 5. Model conversion and validation
 
@@ -422,4 +439,4 @@ Codes include: BF, DEP, WIN, MODEL, ARCH, BASE, TQ-ACT, TQ-FALLBACK, TQ-CRASH, Q
 | Recommended official fallback | Standard OpenVINO on a higher-memory host; do not label this release TurboQuant-capable |
 | Application role | Official CPU/GPU capability baseline only; TurboQuant evaluation requires a different proven implementation |
 | Main evidence path | experiments/raw-results/official-openvino/2026-07-19 |
-| Final bounded reasoning | The 2026-07-19 campaign proved environment and source boundaries only. Runtime and quality placeholders are not execution passes and must be superseded by measured evidence. |
+| Final bounded reasoning | The recovery now proves the official GenAI source suite and private CPU allocation observer build/test gates. It still does not prove any Granite performance, utilization, KV-allocation or quality result. Those active benchmark cells remain pending until measured runs supersede the 2026-07-19 safety-gated records. |

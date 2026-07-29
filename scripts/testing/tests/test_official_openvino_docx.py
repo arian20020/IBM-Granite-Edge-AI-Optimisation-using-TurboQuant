@@ -17,6 +17,7 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         )
         self.assertTrue(result["accepted"])
         self.assertEqual(result["blank_table_cells"], 0)
+        self.assertEqual(result["visible_revision"], "1.6")
 
     def test_blank_table_cell_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

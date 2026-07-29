@@ -11,7 +11,7 @@ class OfficialOpenVINOReconcileTests(unittest.TestCase):
     def test_workbook_does_not_call_terminal_placeholders_execution_complete(self):
         text = WORKBOOK.read_text(encoding="utf-8")
         self.assertNotIn("Overall status | Terminal-complete", text)
-        self.assertIn("Recovery pending: zero Granite benchmark rows executed", text)
+        self.assertIn("zero Granite benchmark rows executed", text)
 
     def test_rejects_blank_and_bare_na_table_cells(self):
         with self.assertRaisesRegex(ValueError, "blank table cell"):
