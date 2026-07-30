@@ -1,11 +1,17 @@
 import copy
 import hashlib
 import json
+import os
+import subprocess
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
+import scripts.testing.adjudicate_official_openvino_quality as adjudicator
 from scripts.testing.adjudicate_official_openvino_quality import (
     adjudicate_quality,
     build_blind_scoring_input,
@@ -21,6 +27,11 @@ from scripts.testing.tests.test_run_official_openvino_quality import (
     RENDERED,
     RecordingExecutor,
     contains_null,
+)
+from scripts.testing.tests.test_official_openvino_quality_campaign import (
+    _accepted_input,
+    _capture_api,
+    _install_capture_runner,
 )
 
 
@@ -58,6 +69,174 @@ def score_sheet(scoring_input, score=9):
             for row in scoring_input["responses"]
         ],
     }
+
+
+def _write_governed_json(path, value):
+    path.write_bytes(
+        (
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode("utf-8")
+    )
+
+
+def _write_guard_json(path, value):
+    path.write_bytes(
+        (
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("utf-8")
+    )
+
+
+def _governed_capture_root(
+    tmp_path,
+    monkeypatch,
+    *,
+    failed_turn_ids=(),
+):
+    raw_root = tmp_path / "blind-captures"
+    _install_capture_runner(
+        monkeypatch,
+        failed_turn_ids=set(failed_turn_ids),
+    )
+    _add_governed_capture(
+        raw_root,
+        tmp_path,
+        blind_label="response-A7",
+    )
+    return raw_root
+
+
+def _add_governed_capture(
+    raw_root,
+    tmp_path,
+    *,
+    blind_label,
+):
+    source = _accepted_input(tmp_path / f"accepted-{blind_label}")
+    source = replace(
+        source,
+        output_root=raw_root / blind_label,
+    )
+    _capture_api()(source, resume=False)
+
+
+def _governed_scoring_input(raw_root):
+    return build_blind_scoring_input(
+        raw_root=raw_root,
+        prompt_set_path=PROMPT_SET,
+        rendered_root=RENDERED,
+        rubric_path=RUBRIC,
+    )
+
+
+def _resign_governed_record(record):
+    unsigned = {
+        key: value for key, value in record.items() if key != "record_sha256"
+    }
+    record["record_sha256"] = hashlib.sha256(
+        json.dumps(
+            unsigned,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _resign_governed_receipt(receipt):
+    unsigned = {
+        key: value
+        for key, value in receipt.items()
+        if key != "governed_execution_sha256"
+    }
+    receipt["governed_execution_sha256"] = hashlib.sha256(
+        (
+            json.dumps(
+                unsigned,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _resign_governed_summary(summary):
+    unsigned = {
+        key: value
+        for key, value in summary.items()
+        if key != "capture_sha256"
+    }
+    summary["capture_sha256"] = hashlib.sha256(
+        json.dumps(
+            unsigned,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _rebind_governed_evidence_hash(root, field, digest):
+    receipt_path = root / "governed-execution.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt[field] = digest
+    _resign_governed_receipt(receipt)
+    _write_governed_json(receipt_path, receipt)
+
+    record_hashes = {}
+    for prompt_id in (f"P{number}" for number in range(1, 7)):
+        record_path = root / prompt_id / "response.json"
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record[field] = digest
+        _resign_governed_record(record)
+        _write_governed_json(record_path, record)
+        record_hashes[prompt_id] = record["record_sha256"]
+
+    summary_path = root / "capture-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary[field] = digest
+    for prompt_id, record_sha256 in record_hashes.items():
+        summary["responses"][prompt_id]["record_sha256"] = record_sha256
+    _resign_governed_summary(summary)
+    _write_governed_json(summary_path, summary)
+
+
+def _resign_worker_result(worker_result):
+    unsigned = {
+        "schema": worker_result["schema"],
+        "outcomes": worker_result["outcomes"],
+    }
+    worker_result["worker_result_sha256"] = hashlib.sha256(
+        (
+            json.dumps(
+                unsigned,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _redirect_guard_executable(guard, capture_root):
+    attacker = capture_root.parent.parent / "attacker.exe"
+    attacker.write_bytes(b"synthetic non-Python executable")
+    guard["command"][0] = str(attacker.resolve())
 
 
 class OfficialOpenVINOQualityAdjudicationTests(unittest.TestCase):
@@ -509,6 +688,542 @@ class OfficialOpenVINOQualityAdjudicationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "output hash"):
             self.scoring_input()
+
+
+def test_governed_capture_projects_six_blind_rows_without_private_identity(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    summary = json.loads(
+        (
+            raw_root
+            / "response-A7"
+            / "capture-summary.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    scoring = _governed_scoring_input(raw_root)
+
+    assert len(scoring["responses"]) == 6
+    assert {
+        row["prompt_id"] for row in scoring["responses"]
+    } == {f"P{number}" for number in range(1, 7)}
+    assert {
+        row["blind_label"] for row in scoring["responses"]
+    } == {"response-A7"}
+    forbidden_keys = {
+        "test_id",
+        "context_tokens",
+        "campaign_identity_sha256",
+        "runtime_summary_sha256",
+        "runtime_config_sha256",
+        "quality_worker_spec_sha256",
+        "worker_result_sha256",
+        "guard_evidence_sha256",
+        "record_sha256",
+        "precision",
+        "codec",
+        "device",
+        "model",
+        "build",
+    }
+    assert all(
+        forbidden_keys.isdisjoint(row)
+        for row in scoring["responses"]
+    )
+    encoded_rows = json.dumps(
+        scoring["responses"],
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    assert summary["test_id"] not in encoded_rows
+    assert summary["campaign_identity_sha256"] not in encoded_rows
+    assert "TBQ" not in encoded_rows
+    p6 = next(
+        row for row in scoring["responses"] if row["prompt_id"] == "P6"
+    )
+    assert len(p6["turn_outputs"]) == 2
+    assert p6["turn_outputs"][0]["output"] == "ACTUAL-SAVED\r\nverbatim"
+    assert p6["turn_outputs"][1]["output"] == "  exact P6-turn-2\r\n"
+
+
+def test_governed_capture_preserves_scoring_caps_and_unblinding(
+    tmp_path,
+    monkeypatch,
+):
+    scoring = _governed_scoring_input(
+        _governed_capture_root(tmp_path, monkeypatch)
+    )
+
+    result = adjudicate_quality(
+        scoring_input=scoring,
+        score_sheet=score_sheet(scoring, score=10),
+        blind_map={"response-A7": "OV-TQ-03"},
+        rubric_path=RUBRIC,
+    )
+
+    assert result["status"] == "complete"
+    assert result["configurations"][0]["test_id"] == "OV-TQ-03"
+    assert result["configurations"][0]["blind_label"] == "response-A7"
+    assert any(
+        prompt["critical_caps"]
+        for prompt in result["configurations"][0]["prompts"].values()
+    )
+    assert all(
+        prompt["final_score"]
+        <= min(prompt["critical_caps"] or [10.0])
+        for prompt in result["configurations"][0]["prompts"].values()
+    )
+
+
+def test_governed_adapter_rejects_tampered_record_self_hash(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    path = raw_root / "response-A7" / "P6" / "response.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["record_sha256"] = "0" * 64
+    _write_governed_json(path, record)
+
+    with pytest.raises(ValueError, match="record hash"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_resigned_forged_response_hash(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    path = raw_root / "response-A7" / "P3" / "response.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["response_sha256"] = "0" * 64
+    _resign_governed_record(record)
+    _write_governed_json(path, record)
+
+    with pytest.raises(ValueError, match="prompt or output hash"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_tampered_capture_summary_hash(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    path = raw_root / "response-A7" / "capture-summary.json"
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    summary["capture_sha256"] = "0" * 64
+    _write_governed_json(path, summary)
+
+    with pytest.raises(ValueError, match="capture summary hash"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_binds_summary_to_actual_guard_evidence_bytes(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    path = (
+        raw_root
+        / "response-A7"
+        / "governed"
+        / "guard-evidence.json"
+    )
+    path.write_bytes(path.read_bytes() + b" ")
+
+    with pytest.raises(ValueError, match="guard evidence hash"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_rehashed_wrong_guard_ram_floor(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    root = raw_root / "response-A7"
+    guard_path = root / "governed" / "guard-evidence.json"
+    guard = json.loads(guard_path.read_text(encoding="utf-8"))
+    guard["configured_minimum_available_ram_bytes"] = 1
+    _write_guard_json(guard_path, guard)
+    _rebind_governed_evidence_hash(
+        root,
+        "guard_evidence_sha256",
+        hashlib.sha256(guard_path.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match="RAM floor"):
+        _governed_scoring_input(raw_root)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda guard, _root: guard.update(
+                schema="official-openvino-owned-process-guard/legacy"
+            ),
+            "guard schema",
+        ),
+        (
+            lambda guard, _root: guard.update(command=["attacker.exe"]),
+            "guard command",
+        ),
+        (
+            _redirect_guard_executable,
+            "Python executable",
+        ),
+        (
+            lambda guard, root: guard["command"].__setitem__(
+                -3,
+                str(root / "governed" / "worker-result.json"),
+            ),
+            "guard command",
+        ),
+        (
+            lambda guard, _root: guard.update(
+                environment_sha256="0" * 64
+            ),
+            "environment identity",
+        ),
+        (
+            lambda guard, _root: guard.update(
+                working_directory="C:/attacker"
+            ),
+            "working directory",
+        ),
+        (
+            lambda guard, _root: guard.update(
+                maximum_runtime_seconds=False
+            ),
+            "timeout",
+        ),
+        (
+            lambda guard, root: guard.update(
+                log_path=str(root / "governed" / "worker-spec.json")
+            ),
+            "guard log path",
+        ),
+        (
+            lambda guard, root: guard.update(
+                evidence_path=str(root / "governed" / "worker-spec.json")
+            ),
+            "guard evidence path",
+        ),
+    ],
+)
+def test_governed_adapter_rejects_consistently_rehashed_guard_identity(
+    tmp_path,
+    monkeypatch,
+    mutate,
+    message,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    root = raw_root / "response-A7"
+    guard_path = root / "governed" / "guard-evidence.json"
+    guard = json.loads(guard_path.read_text(encoding="utf-8"))
+    mutate(guard, root)
+    _write_guard_json(guard_path, guard)
+    _rebind_governed_evidence_hash(
+        root,
+        "guard_evidence_sha256",
+        hashlib.sha256(guard_path.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match=message):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_consistently_rehashed_stale_worker_spec(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    root = raw_root / "response-A7"
+    spec_path = root / "governed" / "worker-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec["schema"] = "official-openvino-wb04-quality-worker-spec/legacy"
+    _write_governed_json(spec_path, spec)
+    spec_sha256 = hashlib.sha256(spec_path.read_bytes()).hexdigest()
+
+    receipt_path = root / "governed-execution.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["quality_worker_spec_sha256"] = spec_sha256
+    _resign_governed_receipt(receipt)
+    _write_governed_json(receipt_path, receipt)
+
+    record_hashes = {}
+    for prompt_id in (f"P{number}" for number in range(1, 7)):
+        record_path = root / prompt_id / "response.json"
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record["quality_worker_spec_sha256"] = spec_sha256
+        _resign_governed_record(record)
+        _write_governed_json(record_path, record)
+        record_hashes[prompt_id] = record["record_sha256"]
+
+    summary_path = root / "capture-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["quality_worker_spec_sha256"] = spec_sha256
+    for prompt_id, record_sha256 in record_hashes.items():
+        summary["responses"][prompt_id]["record_sha256"] = record_sha256
+    _resign_governed_summary(summary)
+    _write_governed_json(summary_path, summary)
+
+    with pytest.raises(ValueError, match="worker spec schema"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_rehashed_spec_prompt_not_executed(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    root = raw_root / "response-A7"
+    spec_path = root / "governed" / "worker-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec["prompts"][0]["prompt"] = "different but structurally valid prompt"
+    _write_governed_json(spec_path, spec)
+    _rebind_governed_evidence_hash(
+        root,
+        "quality_worker_spec_sha256",
+        hashlib.sha256(spec_path.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match="worker spec does not match"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_rehashed_invalid_worker_outcome_type(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    root = raw_root / "response-A7"
+    worker_path = root / "governed" / "worker-result.json"
+    worker = json.loads(worker_path.read_text(encoding="utf-8"))
+    worker["outcomes"][0]["status"] = True
+    _resign_worker_result(worker)
+    _write_governed_json(worker_path, worker)
+    _rebind_governed_evidence_hash(
+        root,
+        "worker_result_sha256",
+        hashlib.sha256(worker_path.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match="worker result outcome status"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_rehashed_worker_output_not_in_records(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    root = raw_root / "response-A7"
+    worker_path = root / "governed" / "worker-result.json"
+    worker = json.loads(worker_path.read_text(encoding="utf-8"))
+    worker["outcomes"][0]["raw_output"] = "forged worker-only output"
+    worker["outcomes"][0]["raw_output_sha256"] = hashlib.sha256(
+        b"forged worker-only output"
+    ).hexdigest()
+    _resign_worker_result(worker)
+    _write_governed_json(worker_path, worker)
+    _rebind_governed_evidence_hash(
+        root,
+        "worker_result_sha256",
+        hashlib.sha256(worker_path.read_bytes()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match="worker result does not match"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_requires_exactly_six_capture_records(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    (raw_root / "response-A7" / "P3" / "response.json").unlink()
+
+    with pytest.raises(ValueError, match="incomplete or unexpected"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_hardlink_aliases_before_projection(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    source = raw_root / "response-A7" / "P1" / "response.json"
+    alias = raw_root / "response-A7" / "P2" / "response.json"
+    alias.unlink()
+    try:
+        os.link(source, alias)
+    except OSError as error:
+        pytest.skip(f"hardlink creation unavailable: {error}")
+
+    with pytest.raises(ValueError, match="alias"):
+        _governed_scoring_input(raw_root)
+
+
+def test_governed_adapter_rejects_junction_or_symlink_raw_root(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    alias = tmp_path / "blind-captures-alias"
+    if os.name == "nt":
+        cmd = (
+            Path(os.environ["SystemRoot"])
+            / "System32"
+            / "cmd.exe"
+        )
+        result = subprocess.run(
+            [
+                str(cmd),
+                "/d",
+                "/c",
+                "mklink",
+                "/J",
+                str(alias),
+                str(raw_root),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            pytest.skip(
+                "junction creation unavailable: "
+                f"{result.stdout}{result.stderr}"
+            )
+    else:
+        try:
+            alias.symlink_to(raw_root, target_is_directory=True)
+        except OSError as error:
+            pytest.skip(f"directory symlink creation unavailable: {error}")
+
+    try:
+        with pytest.raises(ValueError, match="alias|reparse|link"):
+            _governed_scoring_input(alias)
+    finally:
+        if alias.exists():
+            alias.rmdir()
+
+
+def test_governed_adapter_rechecks_all_row_snapshots_at_final_boundary(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    _add_governed_capture(
+        raw_root,
+        tmp_path,
+        blind_label="response-K2",
+    )
+    original_snapshot = adjudicator._snapshot_governed_capture
+    mutated = False
+
+    def replace_earlier_row_when_later_row_is_read(root):
+        nonlocal mutated
+        root = Path(root)
+        if root.name == "response-K2" and not mutated:
+            path = raw_root / "response-A7" / "P1" / "response.json"
+            replacement = path.with_name("response.replacement")
+            replacement.write_bytes(path.read_bytes())
+            os.replace(replacement, path)
+            mutated = True
+        return original_snapshot(root)
+
+    monkeypatch.setattr(
+        adjudicator,
+        "_snapshot_governed_capture",
+        replace_earlier_row_when_later_row_is_read,
+    )
+
+    with pytest.raises(ValueError, match="changed|identity|snapshot"):
+        _governed_scoring_input(raw_root)
+    assert mutated
+
+
+def test_governed_adapter_rechecks_exact_child_set_at_final_boundary(
+    tmp_path,
+    monkeypatch,
+):
+    raw_root = _governed_capture_root(tmp_path, monkeypatch)
+    _add_governed_capture(
+        raw_root,
+        tmp_path,
+        blind_label="response-K2",
+    )
+    original_snapshot = adjudicator._snapshot_governed_capture
+    mutated = False
+
+    def add_child_when_later_row_is_read(root):
+        nonlocal mutated
+        root = Path(root)
+        if root.name == "response-K2" and not mutated:
+            (raw_root / "response-Z9").mkdir()
+            mutated = True
+        return original_snapshot(root)
+
+    monkeypatch.setattr(
+        adjudicator,
+        "_snapshot_governed_capture",
+        add_child_when_later_row_is_read,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="blind configuration|child|changed|snapshot|state",
+    ):
+        _governed_scoring_input(raw_root)
+    assert mutated
+
+
+@pytest.mark.parametrize(
+    "failed_turn_ids",
+    [
+        {"P2-turn-1"},
+        {"P6-turn-1"},
+        {"P6-turn-2"},
+    ],
+)
+def test_governed_failed_null_evidence_is_preserved_and_non_scored(
+    tmp_path,
+    monkeypatch,
+    failed_turn_ids,
+):
+    raw_root = _governed_capture_root(
+        tmp_path,
+        monkeypatch,
+        failed_turn_ids=failed_turn_ids,
+    )
+    failed_prompt = "P6" if any(
+        turn.startswith("P6-") for turn in failed_turn_ids
+    ) else "P2"
+    path = (
+        raw_root
+        / "response-A7"
+        / failed_prompt
+        / "response.json"
+    )
+    before = path.read_bytes()
+    record = json.loads(before.decode("utf-8"))
+    failed_turns = [
+        turn
+        for turn in record["turn_outputs"]
+        if turn["status"] == "failed"
+    ]
+    assert failed_turns
+    assert all(turn["output"] is None for turn in failed_turns)
+    assert all(turn["output_sha256"] is None for turn in failed_turns)
+
+    with pytest.raises(ValueError, match="failed.*non-scored"):
+        _governed_scoring_input(raw_root)
+
+    assert path.read_bytes() == before
 
 
 if __name__ == "__main__":

@@ -17,7 +17,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
+import stat
 import statistics
 import sys
 from collections.abc import Mapping, Sequence
@@ -32,12 +34,20 @@ if str(ROOT) not in sys.path:
 from scripts.testing.official_openvino.quality import (  # noqa: E402
     score_response as aggregate_prompt_scores,
 )
+from scripts.testing.official_openvino.quality_worker import (  # noqa: E402
+    _validate_spec as validate_quality_worker_spec,
+)
 from scripts.testing.run_official_openvino_quality import (  # noqa: E402
     EXPECTED_GENERATION_SETTINGS,
     FROZEN_PROMPT_SET_SHA256,
     FROZEN_PROMPT_SHA256S,
     PROMPT_IDS,
     QualityConfiguration,
+    QualityRuntimeIdentity,
+    _build_capture_summary,
+    _validate_blind_label,
+    _validate_capture_record,
+    _validate_governed_capture_summary,
     atomic_write_json,
     build_completion_artifact,
     load_prompt_contract,
@@ -422,7 +432,934 @@ def deterministic_gate(
     raise ValueError(f"unknown prompt_id: {prompt_id}")
 
 
-def _collect_raw_responses(
+_GOVERNED_CAPTURE_FILES = {
+    "capture-summary.json",
+    "governed-execution.json",
+    "governed/guard-evidence.json",
+    "governed/worker-result.json",
+    "governed/worker-spec.json",
+    "governed/worker.log",
+    *(f"{prompt_id}/response.json" for prompt_id in PROMPT_IDS),
+}
+_GOVERNED_CAPTURE_DIRECTORIES = {"governed", *PROMPT_IDS}
+_GOVERNED_CAPTURE_TREE = (
+    _GOVERNED_CAPTURE_FILES | _GOVERNED_CAPTURE_DIRECTORIES
+)
+_GOVERNED_RECEIPT_FIELDS = {
+    "schema",
+    "status",
+    "campaign_identity_sha256",
+    "measurement_summary_sha256",
+    "runtime_config_sha256",
+    "prompt_set_sha256",
+    "rubric_sha256",
+    "governed_root",
+    "quality_worker_spec_path",
+    "quality_worker_spec_sha256",
+    "worker_result_path",
+    "worker_result_sha256",
+    "worker_log_path",
+    "worker_log_sha256",
+    "guard_evidence_path",
+    "guard_evidence_sha256",
+    "guard_valid",
+    "guard_timed_out",
+    "guard_low_memory_stop",
+    "guard_cleanup_process_count",
+    "guard_exit_code",
+    "guard_queried_active_process_count_after_cleanup",
+    "guard_survivor_pids_after_cleanup",
+    "governed_execution_sha256",
+}
+
+
+def _canonical_nullable_json(value: Any) -> bytes:
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("governed quality evidence is not canonical JSON") from exc
+
+
+def _canonical_capture_file(value: Any) -> bytes:
+    return _canonical_nullable_json(value) + b"\n"
+
+
+def _parse_nullable_json_object(
+    raw: bytes,
+    *,
+    source: Path,
+    require_canonical: bool,
+) -> dict[str, Any]:
+    def duplicate_free(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant: {value}")
+
+    try:
+        value = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=duplicate_free,
+            parse_constant=reject_constant,
+        )
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"invalid governed quality JSON artifact: {source}") from exc
+    if type(value) is not dict:
+        raise ValueError(f"governed quality JSON artifact must be an object: {source}")
+    if require_canonical and raw != _canonical_capture_file(value):
+        raise ValueError(f"governed quality artifact bytes are not canonical: {source}")
+    return value
+
+
+def _capture_path_identity(value: os.stat_result) -> tuple[int, ...]:
+    return (
+        int(value.st_dev),
+        int(value.st_ino),
+        int(value.st_mode),
+        int(value.st_size),
+        int(value.st_mtime_ns),
+        int(value.st_ctime_ns),
+        int(value.st_nlink),
+        int(getattr(value, "st_file_attributes", 0)),
+        int(getattr(value, "st_reparse_tag", 0)),
+    )
+
+
+def _is_capture_alias(value: os.stat_result) -> bool:
+    return bool(
+        stat.S_ISLNK(value.st_mode)
+        or getattr(value, "st_reparse_tag", 0)
+        or (getattr(value, "st_file_attributes", 0) & 0x400)
+    )
+
+
+def _snapshot_lexical_raw_root(
+    path: Path,
+) -> tuple[Path, tuple[tuple[str, tuple[int, ...]], ...]]:
+    absolute = Path(os.path.abspath(Path(path)))
+    anchor = Path(absolute.anchor)
+    components = [anchor]
+    current = anchor
+    for component in absolute.parts[1:]:
+        current /= component
+        components.append(current)
+
+    identities: list[tuple[str, tuple[int, ...]]] = []
+    for component in components:
+        try:
+            metadata = os.lstat(component)
+        except OSError as exc:
+            raise ValueError(
+                f"cannot read raw quality root ancestry: {component}"
+            ) from exc
+        if _is_capture_alias(metadata):
+            raise ValueError(
+                f"raw quality root ancestry contains an alias or reparse link: "
+                f"{component}"
+            )
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise ValueError(
+                f"raw quality root ancestry is not a directory: {component}"
+            )
+        identities.append(
+            (
+                os.fspath(component),
+                _capture_path_identity(metadata),
+            )
+        )
+    return absolute, tuple(identities)
+
+
+def _snapshot_capture_entry(
+    path: Path,
+    *,
+    expect_file: bool,
+) -> tuple[tuple[int, ...], bytes | None]:
+    try:
+        before = os.lstat(path)
+    except OSError as exc:
+        raise ValueError(f"governed capture evidence is missing: {path}") from exc
+    if _is_capture_alias(before):
+        raise ValueError(f"governed capture evidence contains an alias: {path}")
+    identity = _capture_path_identity(before)
+    if not expect_file:
+        if not stat.S_ISDIR(before.st_mode):
+            raise ValueError(f"governed capture directory is invalid: {path}")
+        try:
+            after = os.lstat(path)
+        except OSError as exc:
+            raise ValueError(f"governed capture directory changed: {path}") from exc
+        if _is_capture_alias(after) or _capture_path_identity(after) != identity:
+            raise ValueError(f"governed capture directory identity changed: {path}")
+        return identity, None
+    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+        raise ValueError(f"governed capture evidence contains a hardlink alias: {path}")
+    try:
+        with path.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if (
+                _is_capture_alias(opened)
+                or not stat.S_ISREG(opened.st_mode)
+                or opened.st_nlink != 1
+                or _capture_path_identity(opened) != identity
+            ):
+                raise ValueError(
+                    f"governed capture file identity changed: {path}"
+                )
+            raw = handle.read()
+            read_complete = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise ValueError(f"governed capture file changed while reading: {path}") from exc
+    try:
+        after = os.lstat(path)
+    except OSError as exc:
+        raise ValueError(f"governed capture file changed after reading: {path}") from exc
+    if (
+        _capture_path_identity(read_complete) != identity
+        or _is_capture_alias(after)
+        or _capture_path_identity(after) != identity
+    ):
+        raise ValueError(f"governed capture file identity changed: {path}")
+    return identity, raw
+
+
+def _snapshot_raw_root(
+    root: Path,
+) -> tuple[
+    tuple[
+        tuple[tuple[int, ...], bytes | None],
+        tuple[tuple[str, tuple[int, ...]], ...],
+    ],
+    tuple[Path, ...],
+]:
+    root_snapshot = _snapshot_capture_entry(root, expect_file=False)
+    try:
+        with os.scandir(root) as entries:
+            children = [
+                entry
+                for entry in entries
+                if not entry.name.startswith(".")
+            ]
+    except OSError as exc:
+        raise ValueError(f"cannot read raw quality root: {root}: {exc}") from exc
+    if not children:
+        raise ValueError("raw quality root contains no blind configurations")
+
+    child_snapshots: list[tuple[str, tuple[int, ...]]] = []
+    row_roots: list[Path] = []
+    for child in sorted(children, key=lambda value: value.name):
+        try:
+            metadata = child.stat(follow_symlinks=False)
+        except OSError as exc:
+            raise ValueError("raw quality root child changed") from exc
+        if _is_capture_alias(metadata):
+            raise ValueError(
+                "raw quality root contains an alias or reparse link"
+            )
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise ValueError(
+                "raw quality root contains invalid blind configurations"
+            )
+        child_path = root / child.name
+        child_snapshot = _snapshot_capture_entry(
+            child_path,
+            expect_file=False,
+        )
+        child_snapshots.append((child.name, child_snapshot[0]))
+        row_roots.append(child_path)
+    if _snapshot_capture_entry(root, expect_file=False) != root_snapshot:
+        raise ValueError("raw quality root changed during enumeration")
+    return (
+        (root_snapshot, tuple(child_snapshots)),
+        tuple(row_roots),
+    )
+
+
+def _enumerate_capture_tree(root: Path) -> set[str]:
+    actual: set[str] = set()
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        try:
+            with os.scandir(directory) as entries:
+                children = list(entries)
+        except OSError as exc:
+            raise ValueError(
+                "governed capture has incomplete or unexpected state"
+            ) from exc
+        for child in children:
+            relative = Path(child.path).relative_to(root).as_posix()
+            try:
+                metadata = child.stat(follow_symlinks=False)
+            except OSError as exc:
+                raise ValueError("governed capture state changed") from exc
+            if _is_capture_alias(metadata):
+                raise ValueError("governed capture contains an alias")
+            actual.add(relative)
+            if stat.S_ISDIR(metadata.st_mode):
+                pending.append(Path(child.path))
+            elif not stat.S_ISREG(metadata.st_mode):
+                raise ValueError("governed capture contains an invalid path")
+    return actual
+
+
+def _snapshot_governed_capture(
+    root: Path,
+) -> dict[str, tuple[tuple[int, ...], bytes | None]]:
+    root = Path(root)
+    if _enumerate_capture_tree(root) != _GOVERNED_CAPTURE_TREE:
+        raise ValueError("governed capture has incomplete or unexpected state")
+    snapshots = {".": _snapshot_capture_entry(root, expect_file=False)}
+    file_identities: dict[tuple[int, int], str] = {}
+    for relative in sorted(_GOVERNED_CAPTURE_TREE):
+        expect_file = relative in _GOVERNED_CAPTURE_FILES
+        snapshot = _snapshot_capture_entry(
+            root / relative,
+            expect_file=expect_file,
+        )
+        snapshots[relative] = snapshot
+        if expect_file:
+            device_inode = (snapshot[0][0], snapshot[0][1])
+            if device_inode[1] != 0 and device_inode in file_identities:
+                raise ValueError(
+                    "governed capture contains a file identity alias"
+                )
+            file_identities[device_inode] = relative
+    if _snapshot_capture_entry(root, expect_file=False) != snapshots["."]:
+        raise ValueError("governed capture root changed during validation")
+    return snapshots
+
+
+def _snapshot_bytes(
+    snapshot: Mapping[str, tuple[tuple[int, ...], bytes | None]],
+    relative: str,
+) -> bytes:
+    entry = snapshot.get(relative)
+    if (
+        type(entry) is not tuple
+        or len(entry) != 2
+        or type(entry[1]) is not bytes
+    ):
+        raise ValueError(f"governed capture evidence is missing: {relative}")
+    return entry[1]
+
+
+def _require_exact_value(
+    value: Any,
+    expected: Any,
+    *,
+    field: str,
+) -> None:
+    if type(value) is not type(expected) or value != expected:
+        raise ValueError(f"governed capture {field} is invalid")
+
+
+def _validate_governed_receipt(
+    receipt: dict[str, Any],
+    *,
+    summary: Mapping[str, Any],
+    hashes: Mapping[str, str],
+) -> dict[str, Any]:
+    if set(receipt) != _GOVERNED_RECEIPT_FIELDS:
+        raise ValueError("governed execution receipt fields are invalid")
+    for field in (
+        "campaign_identity_sha256",
+        "measurement_summary_sha256",
+        "runtime_config_sha256",
+        "prompt_set_sha256",
+        "rubric_sha256",
+        "quality_worker_spec_sha256",
+        "worker_result_sha256",
+        "worker_log_sha256",
+        "guard_evidence_sha256",
+        "governed_execution_sha256",
+    ):
+        _require_sha256(receipt.get(field), field)
+    unsigned = {
+        key: value
+        for key, value in receipt.items()
+        if key != "governed_execution_sha256"
+    }
+    expected_self_hash = _sha256_bytes(_canonical_capture_file(unsigned))
+    if receipt["governed_execution_sha256"] != expected_self_hash:
+        raise ValueError("governed execution receipt hash is invalid")
+    exact = {
+        "schema": "official-openvino-wb04-governed-quality-execution/v1",
+        "status": "valid",
+        "campaign_identity_sha256": summary["campaign_identity_sha256"],
+        "measurement_summary_sha256": summary["runtime_summary_sha256"],
+        "runtime_config_sha256": summary["runtime_config_sha256"],
+        "prompt_set_sha256": summary["prompt_set_sha256"],
+        "rubric_sha256": summary["rubric_sha256"],
+        "governed_root": "governed",
+        "quality_worker_spec_path": "governed/worker-spec.json",
+        "quality_worker_spec_sha256": hashes["quality_worker_spec_sha256"],
+        "worker_result_path": "governed/worker-result.json",
+        "worker_result_sha256": hashes["worker_result_sha256"],
+        "worker_log_path": "governed/worker.log",
+        "worker_log_sha256": hashes["worker_log_sha256"],
+        "guard_evidence_path": "governed/guard-evidence.json",
+        "guard_evidence_sha256": hashes["guard_evidence_sha256"],
+        "guard_valid": True,
+        "guard_timed_out": False,
+        "guard_low_memory_stop": False,
+        "guard_cleanup_process_count": 0,
+        "guard_exit_code": 0,
+        "guard_queried_active_process_count_after_cleanup": 0,
+        "guard_survivor_pids_after_cleanup": [],
+    }
+    for field, expected in exact.items():
+        _require_exact_value(receipt.get(field), expected, field=field)
+    return receipt
+
+
+def _validate_guard_record(
+    guard: dict[str, Any],
+    *,
+    receipt: Mapping[str, Any],
+    worker_log_sha256: str,
+    capture_root: Path,
+) -> None:
+    if (
+        type(guard.get("schema")) is not str
+        or guard["schema"] != "official-openvino-owned-process-guard/v1"
+    ):
+        raise ValueError("governed capture guard schema is invalid")
+    root = Path(capture_root).resolve()
+    spec_path = (root / "governed" / "worker-spec.json").resolve()
+    result_path = (root / "governed" / "worker-result.json").resolve()
+    expected_log_path = (root / "governed" / "worker.log").resolve()
+    expected_evidence_path = (
+        root / "governed" / "guard-evidence.json"
+    ).resolve()
+    command = guard.get("command")
+    if (
+        type(command) is not list
+        or len(command) != 7
+        or any(type(item) is not str for item in command)
+        or not Path(command[0]).is_absolute()
+        or command[1:4]
+        != [
+            "-m",
+            "scripts.testing.official_openvino.quality_worker",
+            "--spec",
+        ]
+        or command[5] != "--result"
+        or Path(command[4]) != spec_path
+        or Path(command[6]) != result_path
+    ):
+        raise ValueError("governed capture guard command is invalid")
+    python_executable = Path(command[0])
+    try:
+        python_metadata = os.lstat(python_executable)
+    except OSError as exc:
+        raise ValueError(
+            "governed capture Python executable is invalid"
+        ) from exc
+    if (
+        re.fullmatch(
+            r"python(?:\d+(?:\.\d+)*)?\.exe",
+            python_executable.name,
+            flags=re.IGNORECASE,
+        )
+        is None
+        or _is_capture_alias(python_metadata)
+        or not stat.S_ISREG(python_metadata.st_mode)
+    ):
+        raise ValueError("governed capture Python executable is invalid")
+    for field, expected, label in (
+        ("log_path", expected_log_path, "guard log path"),
+        (
+            "evidence_path",
+            expected_evidence_path,
+            "guard evidence path",
+        ),
+    ):
+        value = guard.get(field)
+        if type(value) is not str or Path(value) != expected:
+            raise ValueError(f"governed capture {label} is invalid")
+    working_directory = guard.get("working_directory")
+    if type(working_directory) is not str:
+        raise ValueError("governed capture working directory is invalid")
+    working_root = Path(working_directory)
+    if (
+        not working_root.is_absolute()
+        or not working_root.is_dir()
+        or not (
+            working_root
+            / "scripts"
+            / "testing"
+            / "measure_official_openvino.py"
+        ).is_file()
+    ):
+        raise ValueError("governed capture working directory is invalid")
+    environment_sha256 = _require_sha256(
+        guard.get("environment_sha256"),
+        "environment_sha256",
+    )
+    if environment_sha256 == "0" * 64:
+        raise ValueError("governed capture environment identity is invalid")
+    timeout = guard.get("maximum_runtime_seconds")
+    if (
+        type(timeout) is not float
+        or not math.isfinite(timeout)
+        or timeout <= 0
+    ):
+        raise ValueError("governed capture timeout is invalid")
+    if (
+        type(guard.get("configured_minimum_available_ram_bytes")) is not int
+        or guard["configured_minimum_available_ram_bytes"]
+        != 2_048 * 1024 * 1024
+    ):
+        raise ValueError("governed capture guard RAM floor is invalid")
+    exact = {
+        "valid": receipt["guard_valid"],
+        "timed_out": receipt["guard_timed_out"],
+        "low_memory_stop": receipt["guard_low_memory_stop"],
+        "emergency_actions": [],
+        "cleanup_process_count": receipt["guard_cleanup_process_count"],
+        "exit_code": receipt["guard_exit_code"],
+        "log_sha256": worker_log_sha256,
+    }
+    for field, expected in exact.items():
+        _require_exact_value(guard.get(field), expected, field=f"guard {field}")
+    job = guard.get("job_object")
+    if type(job) is not dict:
+        raise ValueError("governed capture guard cleanup is invalid")
+    for field, expected in {
+        "setup_ok": True,
+        "query_ok": True,
+        "queried_active_process_count_after_cleanup": receipt[
+            "guard_queried_active_process_count_after_cleanup"
+        ],
+        "survivor_pids_after_cleanup": receipt[
+            "guard_survivor_pids_after_cleanup"
+        ],
+    }.items():
+        _require_exact_value(
+            job.get(field),
+            expected,
+            field=f"guard job {field}",
+        )
+
+
+def _validate_worker_result_binding(
+    worker_result: dict[str, Any],
+) -> None:
+    if set(worker_result) != {
+        "schema",
+        "outcomes",
+        "worker_result_sha256",
+    }:
+        raise ValueError("governed worker result fields are invalid")
+    _require_exact_value(
+        worker_result.get("schema"),
+        "official-openvino-wb04-quality-worker-result/v1",
+        field="worker result schema",
+    )
+    outcomes = worker_result.get("outcomes")
+    if type(outcomes) is not list or len(outcomes) != 7:
+        raise ValueError("governed worker result outcomes are invalid")
+    expected_turn_ids = [
+        "P1-turn-1",
+        "P2-turn-1",
+        "P3-turn-1",
+        "P4-turn-1",
+        "P5-turn-1",
+        "P6-turn-1",
+        "P6-turn-2",
+    ]
+    outcome_fields = {
+        "turn_id",
+        "raw_prompt",
+        "raw_prompt_sha256",
+        "status",
+        "raw_output",
+        "raw_output_sha256",
+        "failure_type",
+        "failure_message",
+    }
+    for outcome, expected_turn_id in zip(
+        outcomes,
+        expected_turn_ids,
+        strict=True,
+    ):
+        if type(outcome) is not dict or set(outcome) != outcome_fields:
+            raise ValueError("governed worker result outcome fields are invalid")
+        if (
+            type(outcome["turn_id"]) is not str
+            or outcome["turn_id"] != expected_turn_id
+        ):
+            raise ValueError("governed worker result outcome order is invalid")
+        raw_prompt = outcome["raw_prompt"]
+        if (
+            type(raw_prompt) is not str
+            or not raw_prompt.strip()
+            or outcome["raw_prompt_sha256"] != _sha256_text(raw_prompt)
+        ):
+            raise ValueError("governed worker result outcome prompt is invalid")
+        status = outcome["status"]
+        if type(status) is not str or status not in {"complete", "failed"}:
+            raise ValueError("governed worker result outcome status is invalid")
+        if status == "complete":
+            raw_output = outcome["raw_output"]
+            if (
+                type(raw_output) is not str
+                or outcome["raw_output_sha256"] != _sha256_text(raw_output)
+                or outcome["failure_type"] is not None
+                or outcome["failure_message"] is not None
+            ):
+                raise ValueError(
+                    "governed worker result completed outcome is invalid"
+                )
+        elif (
+            outcome["raw_output"] is not None
+            or outcome["raw_output_sha256"] is not None
+            or type(outcome["failure_type"]) is not str
+            or not outcome["failure_type"].strip()
+            or type(outcome["failure_message"]) is not str
+        ):
+            raise ValueError("governed worker result failed outcome is invalid")
+    _require_sha256(
+        worker_result.get("worker_result_sha256"),
+        "worker_result_sha256",
+    )
+    expected_hash = _sha256_bytes(
+        _canonical_capture_file(
+            {
+                "schema": worker_result["schema"],
+                "outcomes": outcomes,
+            }
+        )
+    )
+    if worker_result["worker_result_sha256"] != expected_hash:
+        raise ValueError("governed worker result hash is invalid")
+
+
+def _validate_worker_record_binding(
+    worker_result: Mapping[str, Any],
+    records: Mapping[str, Mapping[str, Any]],
+) -> None:
+    outcomes = worker_result["outcomes"]
+    bindings = [
+        ("P1", 0),
+        ("P2", 0),
+        ("P3", 0),
+        ("P4", 0),
+        ("P5", 0),
+        ("P6", 0),
+        ("P6", 1),
+    ]
+    for outcome, (prompt_id, turn_index) in zip(
+        outcomes,
+        bindings,
+        strict=True,
+    ):
+        record = records[prompt_id]
+        turn_prompt = record["turn_prompts"][turn_index]
+        turn_output = record["turn_outputs"][turn_index]
+        exact = {
+            "raw_prompt": turn_prompt["raw_prompt"],
+            "raw_prompt_sha256": turn_prompt["raw_prompt_sha256"],
+            "status": turn_output["status"],
+            "raw_output": turn_output["output"],
+            "raw_output_sha256": turn_output["output_sha256"],
+        }
+        if turn_output["status"] == "complete":
+            exact.update(
+                {
+                    "failure_type": None,
+                    "failure_message": None,
+                }
+            )
+        else:
+            exact.update(
+                {
+                    "failure_type": turn_output["failure_type"],
+                    "failure_message": turn_output["failure"],
+                }
+            )
+        if any(
+            type(outcome.get(field)) is not type(expected)
+            or outcome[field] != expected
+            for field, expected in exact.items()
+        ):
+            raise ValueError(
+                "governed worker result does not match capture records"
+            )
+
+
+def _validate_worker_spec_result_binding(
+    worker_spec: Mapping[str, Any],
+    worker_result: Mapping[str, Any],
+) -> None:
+    prompts = worker_spec["prompts"]
+    outcomes = worker_result["outcomes"]
+    for prompt, outcome in zip(
+        prompts[:6],
+        outcomes[:6],
+        strict=True,
+    ):
+        raw_prompt = prompt["prompt"]
+        if (
+            outcome["raw_prompt"] != raw_prompt
+            or outcome["raw_prompt_sha256"] != _sha256_text(raw_prompt)
+        ):
+            raise ValueError(
+                "governed worker spec does not match worker result"
+            )
+    turn_one_output = (
+        outcomes[5]["raw_output"]
+        if outcomes[5]["status"] == "complete"
+        else ""
+    )
+    expected_turn_two_prompt = (
+        f"User: {prompts[5]['prompt'].strip()}\n"
+        f"Assistant: {turn_one_output}\n"
+        f"User: {prompts[6]['prompt'].strip()}"
+    )
+    if (
+        outcomes[6]["raw_prompt"] != expected_turn_two_prompt
+        or outcomes[6]["raw_prompt_sha256"]
+        != _sha256_text(expected_turn_two_prompt)
+    ):
+        raise ValueError("governed worker spec does not match worker result")
+
+
+def _project_governed_record(
+    record: Mapping[str, Any],
+    *,
+    blind_label: str,
+    contract: Mapping[str, Any],
+    controls: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    prompt_id = record["prompt_id"]
+    turns = [
+        {
+            "turn_id": turn["turn_id"],
+            "output": turn["output"],
+            "output_sha256": turn["output_sha256"],
+        }
+        for turn in record["turn_outputs"]
+    ]
+    request_sha256 = _sha256_bytes(
+        _canonical_json(
+            {
+                "prompt_id": prompt_id,
+                "prompt_sha256": contract["prompts"][prompt_id][
+                    "prompt_sha256"
+                ],
+            }
+        )
+    )
+    response_sha256 = _sha256_bytes(
+        _canonical_json(
+            {
+                "prompt_id": prompt_id,
+                "turn_outputs": turns,
+            }
+        )
+    )
+    return {
+        "blind_label": blind_label,
+        "prompt_id": prompt_id,
+        "prompt_sha256": contract["prompts"][prompt_id]["prompt_sha256"],
+        "request_sha256": request_sha256,
+        "response_sha256": response_sha256,
+        "output": record["output"],
+        "output_sha256": record["output_sha256"],
+        "turn_outputs": turns,
+        "deterministic_gate": deterministic_gate(
+            prompt_id,
+            record["output"],
+            turns,
+            controls[prompt_id],
+        ),
+    }
+
+
+def _collect_governed_capture_responses(
+    *,
+    row_roots: Sequence[Path],
+    capture_snapshots: Mapping[
+        Path,
+        Mapping[str, tuple[tuple[int, ...], bytes | None]],
+    ],
+    contract: Mapping[str, Any],
+    controls: Mapping[str, Mapping[str, Any]],
+    rubric_sha256: str,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    labels: set[str] = set()
+    for row_root in row_roots:
+        label = _validate_blind_label(row_root.name)
+        if label in labels:
+            raise ValueError("duplicate governed blind configuration")
+        labels.add(label)
+        snapshot = capture_snapshots.get(row_root)
+        if snapshot is None:
+            raise ValueError("governed capture snapshot is missing")
+        summary = _parse_nullable_json_object(
+            _snapshot_bytes(snapshot, "capture-summary.json"),
+            source=row_root / "capture-summary.json",
+            require_canonical=True,
+        )
+        for field in (
+            "campaign_identity_sha256",
+            "runtime_summary_sha256",
+            "runtime_config_sha256",
+            "prompt_set_sha256",
+            "rubric_sha256",
+            "quality_worker_spec_sha256",
+            "worker_result_sha256",
+            "guard_evidence_sha256",
+            "capture_sha256",
+        ):
+            _require_sha256(summary.get(field), field)
+        if (
+            type(summary.get("test_id")) is not str
+            or not summary["test_id"].strip()
+            or type(summary.get("context_tokens")) is not int
+            or summary["context_tokens"] <= 0
+        ):
+            raise ValueError("governed capture private runtime identity is invalid")
+        if summary["prompt_set_sha256"] != contract["prompt_set_sha256"]:
+            raise ValueError("governed capture prompt-set identity mismatch")
+        if summary["rubric_sha256"] != rubric_sha256:
+            raise ValueError("governed capture rubric identity mismatch")
+
+        raw_hashes = {
+            "quality_worker_spec_sha256": _sha256_bytes(
+                _snapshot_bytes(snapshot, "governed/worker-spec.json")
+            ),
+            "worker_result_sha256": _sha256_bytes(
+                _snapshot_bytes(snapshot, "governed/worker-result.json")
+            ),
+            "worker_log_sha256": _sha256_bytes(
+                _snapshot_bytes(snapshot, "governed/worker.log")
+            ),
+            "guard_evidence_sha256": _sha256_bytes(
+                _snapshot_bytes(snapshot, "governed/guard-evidence.json")
+            ),
+        }
+        for field in (
+            "quality_worker_spec_sha256",
+            "worker_result_sha256",
+            "guard_evidence_sha256",
+        ):
+            if summary[field] != raw_hashes[field]:
+                label_text = field.replace("_sha256", "").replace("_", " ")
+                raise ValueError(f"{label_text} hash mismatch")
+
+        receipt = _parse_nullable_json_object(
+            _snapshot_bytes(snapshot, "governed-execution.json"),
+            source=row_root / "governed-execution.json",
+            require_canonical=True,
+        )
+        _validate_governed_receipt(
+            receipt,
+            summary=summary,
+            hashes=raw_hashes,
+        )
+        worker_spec = _parse_nullable_json_object(
+            _snapshot_bytes(snapshot, "governed/worker-spec.json"),
+            source=row_root / "governed" / "worker-spec.json",
+            require_canonical=True,
+        )
+        validate_quality_worker_spec(worker_spec)
+        worker_result = _parse_nullable_json_object(
+            _snapshot_bytes(snapshot, "governed/worker-result.json"),
+            source=row_root / "governed" / "worker-result.json",
+            require_canonical=True,
+        )
+        _validate_worker_result_binding(worker_result)
+        _validate_worker_spec_result_binding(worker_spec, worker_result)
+        guard = _parse_nullable_json_object(
+            _snapshot_bytes(snapshot, "governed/guard-evidence.json"),
+            source=row_root / "governed" / "guard-evidence.json",
+            require_canonical=False,
+        )
+        _validate_guard_record(
+            guard,
+            receipt=receipt,
+            worker_log_sha256=raw_hashes["worker_log_sha256"],
+            capture_root=row_root,
+        )
+
+        runtime = QualityRuntimeIdentity(
+            test_id=summary["test_id"],
+            context_tokens=summary["context_tokens"],
+            campaign_identity_sha256=summary["campaign_identity_sha256"],
+        )
+        evidence_hashes = {
+            field: summary[field]
+            for field in (
+                "quality_worker_spec_sha256",
+                "worker_result_sha256",
+                "guard_evidence_sha256",
+            )
+        }
+        records: dict[str, dict[str, Any]] = {}
+        for prompt_id in PROMPT_IDS:
+            record = _parse_nullable_json_object(
+                _snapshot_bytes(snapshot, f"{prompt_id}/response.json"),
+                source=row_root / prompt_id / "response.json",
+                require_canonical=True,
+            )
+            records[prompt_id] = _validate_capture_record(
+                record,
+                prompt_id=prompt_id,
+                contract=contract,
+                rubric_sha256=rubric_sha256,
+                expected_runtime=runtime,
+                runtime_summary_sha256=summary["runtime_summary_sha256"],
+                runtime_config_sha256=summary["runtime_config_sha256"],
+                evidence_hashes=evidence_hashes,
+            )
+        _validate_worker_record_binding(worker_result, records)
+        expected_summary = _build_capture_summary(
+            records=records,
+            contract=contract,
+            rubric_sha256=rubric_sha256,
+            expected_runtime=runtime,
+            runtime_summary_sha256=summary["runtime_summary_sha256"],
+            runtime_config_sha256=summary["runtime_config_sha256"],
+            evidence_hashes=evidence_hashes,
+        )
+        _validate_governed_capture_summary(
+            summary,
+            expected=expected_summary,
+        )
+        if any(record["status"] == "failed" for record in records.values()):
+            if _snapshot_governed_capture(row_root) != snapshot:
+                raise ValueError("governed capture changed during validation")
+            raise ValueError(
+                f"failed governed capture {label} is non-scored"
+            )
+        for prompt_id in PROMPT_IDS:
+            rows.append(
+                _project_governed_record(
+                    records[prompt_id],
+                    blind_label=label,
+                    contract=contract,
+                    controls=controls,
+                )
+            )
+    return rows
+
+
+def _collect_legacy_raw_responses(
     *,
     raw_root: Path,
     prompt_set_path: Path,
@@ -507,6 +1444,103 @@ def _collect_raw_responses(
     return contract, rows
 
 
+def _require_governed_raw_root_unchanged(
+    *,
+    raw_root: Path,
+    ancestry_snapshot: tuple[tuple[str, tuple[int, ...]], ...],
+    aggregate_snapshot: tuple[
+        tuple[tuple[int, ...], bytes | None],
+        tuple[tuple[str, tuple[int, ...]], ...],
+    ],
+    row_roots: Sequence[Path],
+    capture_snapshots: Mapping[
+        Path,
+        Mapping[str, tuple[tuple[int, ...], bytes | None]],
+    ],
+) -> None:
+    current_root, current_ancestry = _snapshot_lexical_raw_root(raw_root)
+    if current_root != raw_root or current_ancestry != ancestry_snapshot:
+        raise ValueError(
+            "raw quality root ancestry changed during validation"
+        )
+    current_aggregate, current_rows = _snapshot_raw_root(raw_root)
+    if (
+        current_aggregate != aggregate_snapshot
+        or current_rows != tuple(row_roots)
+    ):
+        raise ValueError(
+            "raw quality root child set changed during validation"
+        )
+    for row_root in row_roots:
+        expected = capture_snapshots.get(row_root)
+        if (
+            expected is None
+            or _snapshot_governed_capture(row_root) != expected
+        ):
+            raise ValueError(
+                "governed capture row snapshot changed during validation"
+            )
+
+    final_root, final_ancestry = _snapshot_lexical_raw_root(raw_root)
+    final_aggregate, final_rows = _snapshot_raw_root(raw_root)
+    if (
+        final_root != raw_root
+        or final_ancestry != ancestry_snapshot
+        or final_aggregate != aggregate_snapshot
+        or final_rows != tuple(row_roots)
+    ):
+        raise ValueError(
+            "raw quality root changed during final snapshot validation"
+        )
+
+
+def _collect_raw_responses(
+    *,
+    raw_root: Path,
+    prompt_set_path: Path,
+    rendered_root: Path,
+    rubric_sha256: str,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    raw_root, ancestry_snapshot = _snapshot_lexical_raw_root(raw_root)
+    aggregate_snapshot, row_roots = _snapshot_raw_root(raw_root)
+    governed = [
+        (row / "capture-summary.json").exists()
+        for row in row_roots
+    ]
+    legacy = [(row / "completion.json").exists() for row in row_roots]
+    if all(governed) and not any(legacy):
+        capture_snapshots = {
+            row_root: _snapshot_governed_capture(row_root)
+            for row_root in row_roots
+        }
+        contract = load_prompt_contract(prompt_set_path, rendered_root)
+        controls = _prompt_controls(prompt_set_path)
+        rows = _collect_governed_capture_responses(
+            row_roots=row_roots,
+            capture_snapshots=capture_snapshots,
+            contract=contract,
+            controls=controls,
+            rubric_sha256=rubric_sha256,
+        )
+        _require_governed_raw_root_unchanged(
+            raw_root=raw_root,
+            ancestry_snapshot=ancestry_snapshot,
+            aggregate_snapshot=aggregate_snapshot,
+            row_roots=row_roots,
+            capture_snapshots=capture_snapshots,
+        )
+        return contract, rows
+    if all(legacy) and not any(governed):
+        return _collect_legacy_raw_responses(
+            raw_root=raw_root,
+            prompt_set_path=prompt_set_path,
+            rendered_root=rendered_root,
+        )
+    raise ValueError(
+        "raw quality root contains mixed, stale, or incomplete artifact forms"
+    )
+
+
 def build_blind_scoring_input(
     *,
     raw_root: Path,
@@ -516,12 +1550,13 @@ def build_blind_scoring_input(
 ) -> dict[str, Any]:
     """Create the reviewer-facing bundle without test IDs or codec labels."""
 
+    rubric = load_rubric(rubric_path)
     contract, responses = _collect_raw_responses(
         raw_root=raw_root,
         prompt_set_path=prompt_set_path,
         rendered_root=rendered_root,
+        rubric_sha256=rubric["rubric_sha256"],
     )
-    rubric = load_rubric(rubric_path)
     payload = {
         "schema_version": 1,
         "artifact_type": "openvino-quality-blind-scoring-input",
