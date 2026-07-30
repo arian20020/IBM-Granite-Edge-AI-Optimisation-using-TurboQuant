@@ -1,0 +1,266 @@
+{
+    "schema":  "openvino-turboquant-build-provenance/v1",
+    "status":  "passed",
+    "created_utc":  "2026-07-30T01:58:45.4874461Z",
+    "source":  {
+                   "path":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-30\\genai-tq-replay-bounded",
+                   "identity_path":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\source-identity-bounded.json",
+                   "identity_sha256":  "44f4bfc111c78258320c0788ddba288f0f54840845cefac6fdfcae9b772e6574",
+                   "patch_directory":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-replay-controller\\experiments\\patches\\openvino-turboquant",
+                   "branch":  "project/turboquant-wb04",
+                   "base_commit":  "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+                   "upstream_commit":  "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+                   "patch_commit":  "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+                   "upstream_tree":  "5e53069a20ba5fefa541bb9c470b6bfa2831eab6",
+                   "derived_tree":  "2e872dd4817c42d91cb7c3094954d7b56fa12b0a",
+                   "applied_patches":  [
+                                           "0001-tbq-codec.patch",
+                                           "0002-kv-config-telemetry.patch",
+                                           "0003-fused-stateful-runtime.patch",
+                                           "0004-bounded-identity-gpu-standard.patch"
+                                       ],
+                   "patches":  [
+                                   {
+                                       "name":  "0001-tbq-codec.patch",
+                                       "blob_id":  "a67e0739b4d43ca937a691b7e0d1b91aa5909765",
+                                       "sha256":  "3e713b3c9152eb299ff580493efd654177583bcba9a1a8c06e43e4bf558b5e21"
+                                   },
+                                   {
+                                       "name":  "0002-kv-config-telemetry.patch",
+                                       "blob_id":  "1f3b1c8971f1f744c54a1f970916c8daa92d1dc5",
+                                       "sha256":  "eb42267d424fbf14442b664e60d0cbd56311908396a16b5a65e95e8b176cb957"
+                                   },
+                                   {
+                                       "name":  "0003-fused-stateful-runtime.patch",
+                                       "blob_id":  "b15ef1734cfb40734ee6b4d444ec644730ebe689",
+                                       "sha256":  "2e0a943e29d0a728e233a213152935d741847e01adfde1536e596350a992d7a2"
+                                   },
+                                   {
+                                       "name":  "0004-bounded-identity-gpu-standard.patch",
+                                       "blob_id":  "359ee6c794aa3063ccd64d1c836accc938fb116f",
+                                       "sha256":  "e564693c86586836242e7f76d5c634e6b6fcddc7517d818378def8342f123728"
+                                   }
+                               ],
+                   "patch_series_sha256":  "034695c3608345b305a5e7422ac06de6b254e32b502dc335f76d64398fcf3994",
+                   "dirty":  false,
+                   "status_porcelain_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+               },
+    "configure":  {
+                      "command":  [
+                                      "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+                                      "-S",
+                                      "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-30\\genai-tq-replay-bounded",
+                                      "-B",
+                                      "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b",
+                                      "-DOpenVINO_DIR=C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\.venv-official-openvino-turboquant-py313\\Lib\\site-packages\\openvino\\cmake",
+                                      "-DPython3_EXECUTABLE=C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\.venv-official-openvino-turboquant-py313\\Scripts\\python.exe",
+                                      "-DENABLE_TESTS=ON",
+                                      "-DENABLE_SAMPLES=OFF",
+                                      "-DENABLE_TOOLS=OFF",
+                                      "-DENABLE_PYTHON=ON",
+                                      "-DENABLE_JS=OFF"
+                                  ],
+                      "exit_code":  0,
+                      "source_directory":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-30\\genai-tq-replay-bounded",
+                      "build_directory":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b",
+                      "openvino_dir":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\.venv-official-openvino-turboquant-py313\\Lib\\site-packages\\openvino\\cmake",
+                      "python_executable":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\.venv-official-openvino-turboquant-py313\\Scripts\\python.exe",
+                      "options":  {
+                                      "ENABLE_TESTS":  "ON",
+                                      "ENABLE_SAMPLES":  "OFF",
+                                      "ENABLE_TOOLS":  "OFF",
+                                      "ENABLE_PYTHON":  "ON",
+                                      "ENABLE_JS":  "OFF",
+                                      "Python3_EXECUTABLE":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\.venv-official-openvino-turboquant-py313\\Scripts\\python.exe"
+                                  },
+                      "cache_path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\CMakeCache.txt",
+                      "cache_sha256":  "56c85e905ba5994bb4be7f0967d459faf981df07b15cad123a8da607c420ec2a",
+                      "cache_sha256_after_configure":  "56c85e905ba5994bb4be7f0967d459faf981df07b15cad123a8da607c420ec2a",
+                      "log_path":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\build-00edae3b-attempt-001\\configure.log",
+                      "log_sha256":  "8a3b01b120061eef447da6f5ad11bee161c828a017ca459d1235688bf1f1dfee",
+                      "guard_evidence_path":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\build-00edae3b-attempt-001\\configure.guard.json",
+                      "guard_evidence_sha256":  "96c4309499dc072831f3be13dbcc7746844303deb1ab8705c899a47b84c81a46",
+                      "minimum_available_ram_bytes":  9606537216,
+                      "cleanup":  {
+                                      "queried_active_process_count_after_cleanup":  0,
+                                      "query_ok":  true,
+                                      "setup_ok":  true,
+                                      "survivor_pids_after_cleanup":  [
+
+                                                                      ],
+                                      "terminate_job_called":  false
+                                  }
+                  },
+    "build":  {
+                  "command":  [
+                                  "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+                                  "--build",
+                                  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b",
+                                  "--config",
+                                  "Release",
+                                  "--parallel",
+                                  "1",
+                                  "--target",
+                                  "openvino_genai_obj",
+                                  "turboquant_codec_tests",
+                                  "turboquant_config_tests",
+                                  "turboquant_state_update_decode_tests",
+                                  "turboquant_stateful_graph_tests",
+                                  "turboquant_pipeline_activation_tests",
+                                  "py_openvino_genai"
+                              ],
+                  "exit_code":  0,
+                  "parallelism":  1,
+                  "targets":  [
+                                  "openvino_genai_obj",
+                                  "turboquant_codec_tests",
+                                  "turboquant_config_tests",
+                                  "turboquant_state_update_decode_tests",
+                                  "turboquant_stateful_graph_tests",
+                                  "turboquant_pipeline_activation_tests",
+                                  "py_openvino_genai"
+                              ],
+                  "log_path":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\build-00edae3b-attempt-001\\build.log",
+                  "log_sha256":  "d5adc0905c5631d1c7553557ba7056e0cd6bb05c2b042ae27b8daf257e49f471",
+                  "guard_evidence_path":  "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\build-00edae3b-attempt-001\\build.guard.json",
+                  "guard_evidence_sha256":  "6b36750942ac5b3be6c2c5d0de43a5731f9b6d23b3f7c1f233c6b1edd7f13161",
+                  "minimum_available_ram_bytes":  6163447808,
+                  "cleanup":  {
+                                  "queried_active_process_count_after_cleanup":  0,
+                                  "query_ok":  true,
+                                  "setup_ok":  true,
+                                  "survivor_pids_after_cleanup":  [
+
+                                                                  ],
+                                  "terminate_job_called":  false
+                              }
+              },
+    "outputs":  [
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\_deps\\pcre2-build\\Release\\pcre2-8-static.lib",
+                        "relative_path":  "_deps\\pcre2-build\\Release\\pcre2-8-static.lib",
+                        "size_bytes":  1040854,
+                        "sha256":  "e7990c57804f828bb08570d5b7b6d0c9825d70d4e88c92bdb015d1652fa2fdb0"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\_deps\\sentencepiece-build\\src\\Release\\sentencepiece.lib",
+                        "relative_path":  "_deps\\sentencepiece-build\\src\\Release\\sentencepiece.lib",
+                        "size_bytes":  14605934,
+                        "sha256":  "f2beceefb5d60ebcc601fc2ebd7cceb9a09846d47746e11f1ffbf1738c7cf644"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\_deps\\xgrammar-build\\Release\\xgrammar.lib",
+                        "relative_path":  "_deps\\xgrammar-build\\Release\\xgrammar.lib",
+                        "size_bytes":  34976946,
+                        "sha256":  "153dcd48a499554592434caa4817da6f78498cd5727111dc4386a88f84c24066"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\bin\\Release\\turboquant_pipeline_activation_tests.exe",
+                        "relative_path":  "bin\\Release\\turboquant_pipeline_activation_tests.exe",
+                        "size_bytes":  6469632,
+                        "sha256":  "a09c212d531778718b74e878d56fc1a1c195513cb93a8ed6430f948d6212e236"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\bin\\Release\\turboquant_state_update_decode_tests.exe",
+                        "relative_path":  "bin\\Release\\turboquant_state_update_decode_tests.exe",
+                        "size_bytes":  541696,
+                        "sha256":  "42bba17f8054c5bfbcdd95b02f21cc1d54e42841b8aa487c87fc819b6199a6fd"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\bin\\Release\\turboquant_stateful_graph_tests.exe",
+                        "relative_path":  "bin\\Release\\turboquant_stateful_graph_tests.exe",
+                        "size_bytes":  980480,
+                        "sha256":  "d7e50eabd10a0adab569ca9517ea78fd939c3c556b9a09680fb973a9bdebe02c"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\CMakeFiles\\4.3.1-msvc1\\CompilerIdC\\CompilerIdC.exe",
+                        "relative_path":  "CMakeFiles\\4.3.1-msvc1\\CompilerIdC\\CompilerIdC.exe",
+                        "size_bytes":  14848,
+                        "sha256":  "47cac2209d2f6330d17e850f3c78d815276da3aa32edecc2d0c2ad413221a067"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\CMakeFiles\\4.3.1-msvc1\\CompilerIdCXX\\CompilerIdCXX.exe",
+                        "relative_path":  "CMakeFiles\\4.3.1-msvc1\\CompilerIdCXX\\CompilerIdCXX.exe",
+                        "size_bytes":  14848,
+                        "sha256":  "a050083d08feb348e26917ca396c3b477bfdf2bdc2c2cacaf42d8e934e35aaf6"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\lib\\Release\\gtest.lib",
+                        "relative_path":  "lib\\Release\\gtest.lib",
+                        "size_bytes":  5183466,
+                        "sha256":  "66e1059d117ed2894d78dc123553f056ef1f36820433e9b9194bcb15df98a8bc"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\lib\\Release\\gtest_main.lib",
+                        "relative_path":  "lib\\Release\\gtest_main.lib",
+                        "size_bytes":  11186,
+                        "sha256":  "8cd70fe1fe7580a3b23f096bae938871643ad953f60ce1db285a29efbff28703"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\openvino_genai\\openvino_genai.dll",
+                        "relative_path":  "openvino_genai\\openvino_genai.dll",
+                        "size_bytes":  6053888,
+                        "sha256":  "b9d7923a5472f81e0cbc26dbfde082a45a8dc9aff2445422d7686b1131d648f8"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\openvino_genai\\openvino_genai.lib",
+                        "relative_path":  "openvino_genai\\openvino_genai.lib",
+                        "size_bytes":  632592,
+                        "sha256":  "0a821fe2361635af9371f89c154921d99f4d0b0c17e66ddea93dd2c8d90bc863"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\openvino_genai\\openvino_tokenizers.dll",
+                        "relative_path":  "openvino_genai\\openvino_tokenizers.dll",
+                        "size_bytes":  3397120,
+                        "sha256":  "51d1b4f9482e6fe9ea5b940b0e7859644fad1eaf5a884b1acbc9668444acf42a"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\openvino_genai\\openvino_tokenizers.lib",
+                        "relative_path":  "openvino_genai\\openvino_tokenizers.lib",
+                        "size_bytes":  2216,
+                        "sha256":  "19f514e4a833a318d9d496bb3a4eaee06c64591113ba6327f9e5d89c50e3b732"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\openvino_genai\\py_openvino_genai.cp313-win_amd64.pyd",
+                        "relative_path":  "openvino_genai\\py_openvino_genai.cp313-win_amd64.pyd",
+                        "size_bytes":  2125824,
+                        "sha256":  "ad8e6c7d9f670e8141a336a7f65c894c544b176442f2c3ecc47921744ca0a15a"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\openvino_genai\\py_openvino_genai.lib",
+                        "relative_path":  "openvino_genai\\py_openvino_genai.lib",
+                        "size_bytes":  2192,
+                        "sha256":  "3d3ae2374848c0cfe4dfb2d62923fcc136286e3fbd24a5f622314731be4a8bcf"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\src\\cpp\\openvino_genai_obj.dir\\Release\\openvino_genai_obj.lib",
+                        "relative_path":  "src\\cpp\\openvino_genai_obj.dir\\Release\\openvino_genai_obj.lib",
+                        "size_bytes":  546011212,
+                        "sha256":  "55548bd09afe317eea42455d9274015d1f57bbf2e1a636a3b1665dd3939823c1"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\src\\cpp\\Release\\gguflib.lib",
+                        "relative_path":  "src\\cpp\\Release\\gguflib.lib",
+                        "size_bytes":  64154,
+                        "sha256":  "a4e3d0633e9b2de18905b86dbb87a706683161bd6f75b3773c2d6dcb320b40b0"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\tests\\cpp\\Release\\turboquant_codec_tests.exe",
+                        "relative_path":  "tests\\cpp\\Release\\turboquant_codec_tests.exe",
+                        "size_bytes":  356864,
+                        "sha256":  "996c064a2cfb1bed59aea531da0f8baaa862bcc7101d7ef7fdafc26ec1e96f85"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\tests\\cpp\\Release\\turboquant_config_tests.exe",
+                        "relative_path":  "tests\\cpp\\Release\\turboquant_config_tests.exe",
+                        "size_bytes":  501248,
+                        "sha256":  "11265ba7231dc762889aa1805d816241e328cebcb88acf9e615b355a7142420e"
+                    },
+                    {
+                        "path":  "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b\\tests\\cpp\\Release\\turboquant_pipeline_activation_tests.lib",
+                        "relative_path":  "tests\\cpp\\Release\\turboquant_pipeline_activation_tests.lib",
+                        "size_bytes":  651468,
+                        "sha256":  "a7d64455568311b299c319a30a2132a2548b5da3982b6620fb90404868e9d50f"
+                    }
+                ]
+}

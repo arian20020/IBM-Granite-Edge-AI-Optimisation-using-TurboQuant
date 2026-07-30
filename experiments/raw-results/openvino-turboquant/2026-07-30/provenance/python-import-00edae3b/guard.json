@@ -1,0 +1,66 @@
+{
+  "child_process_observed": false,
+  "cleanup_timeout_seconds": 15.0,
+  "command": [
+    "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-c",
+    "import json,openvino,openvino_genai; from openvino_genai import py_openvino_genai; print(json.dumps({'openvino':openvino.__file__,'openvino_genai':openvino_genai.__file__,'extension':py_openvino_genai.__file__,'version':openvino_genai.__version__},sort_keys=True))"
+  ],
+  "configured_minimum_available_ram_bytes": 2147483648,
+  "elapsed_seconds": 0.4048939000003884,
+  "emergency_actions": [],
+  "ended_utc": "2026-07-30T02:01:35.071095Z",
+  "evidence_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\python-import-00edae3b\\guard.json",
+  "exit_code": 0,
+  "expected_exit": "zero",
+  "job_object": {
+    "queried_active_process_count_after_cleanup": 0,
+    "query_ok": true,
+    "setup_ok": true,
+    "survivor_pids_after_cleanup": [],
+    "terminate_job_called": false
+  },
+  "launch_governance": {
+    "assigned_before_resume": true,
+    "cpu_affinity_mask": null,
+    "cpu_rate_hard_cap_percent": null,
+    "created_suspended": true
+  },
+  "log_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\python-import-00edae3b\\run.log",
+  "log_sha256": "df88d0cf346f1426f9a8456cbd5314e4aaa06a3ca9f7de19b09b6c410cc752d3",
+  "low_memory_stop": false,
+  "maximum_runtime_seconds": 60.0,
+  "memory_query_failed_pids": [],
+  "memory_sample_count": 3,
+  "msbuild_disable_node_reuse": "1",
+  "observed_available_ram_bytes": {
+    "after": 9855148032,
+    "before": 9859137536,
+    "minimum": 9819262976
+  },
+  "observed_pids": [
+    9524
+  ],
+  "path_identity_verified": {
+    "evidence_path": true,
+    "log_path": true,
+    "working_directory": true
+  },
+  "peak_private_bytes": 405340160,
+  "peak_working_set_bytes": 50573312,
+  "poll_interval_seconds": 0.25,
+  "requested_path_provenance": {
+    "evidence_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\python-import-00edae3b\\guard.json",
+    "log_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\python-import-00edae3b\\run.log",
+    "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+  },
+  "root_pid": 9524,
+  "run_id": "d99fa7329a8a29e21942e9b2266dfbed38242aaf7a883edfcac0930a5116b206",
+  "schema": "official-openvino-owned-process-guard/v1",
+  "started_utc": "2026-07-30T02:01:34.666236Z",
+  "termination_reason": null,
+  "timed_out": false,
+  "valid": true,
+  "validation_errors": [],
+  "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+}

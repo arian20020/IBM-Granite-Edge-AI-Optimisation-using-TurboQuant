@@ -1,0 +1,41 @@
+{
+  "upstream_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\external\\official-openvino\\2026-07-19\\openvino.genai",
+  "destination_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-30\\genai-tq-replay-bounded",
+  "destination_operation_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-30\\genai-tq-replay-bounded",
+  "patch_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-replay-controller\\experiments\\patches\\openvino-turboquant",
+  "branch": "project/turboquant-wb04",
+  "base_commit": "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+  "upstream_commit": "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+  "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+  "upstream_tree": "5e53069a20ba5fefa541bb9c470b6bfa2831eab6",
+  "derived_tree": "2e872dd4817c42d91cb7c3094954d7b56fa12b0a",
+  "applied_patches": [
+    "0001-tbq-codec.patch",
+    "0002-kv-config-telemetry.patch",
+    "0003-fused-stateful-runtime.patch",
+    "0004-bounded-identity-gpu-standard.patch"
+  ],
+  "patches": [
+    {
+      "name": "0001-tbq-codec.patch",
+      "blob_id": "a67e0739b4d43ca937a691b7e0d1b91aa5909765",
+      "sha256": "3e713b3c9152eb299ff580493efd654177583bcba9a1a8c06e43e4bf558b5e21"
+    },
+    {
+      "name": "0002-kv-config-telemetry.patch",
+      "blob_id": "1f3b1c8971f1f744c54a1f970916c8daa92d1dc5",
+      "sha256": "eb42267d424fbf14442b664e60d0cbd56311908396a16b5a65e95e8b176cb957"
+    },
+    {
+      "name": "0003-fused-stateful-runtime.patch",
+      "blob_id": "b15ef1734cfb40734ee6b4d444ec644730ebe689",
+      "sha256": "2e0a943e29d0a728e233a213152935d741847e01adfde1536e596350a992d7a2"
+    },
+    {
+      "name": "0004-bounded-identity-gpu-standard.patch",
+      "blob_id": "359ee6c794aa3063ccd64d1c836accc938fb116f",
+      "sha256": "e564693c86586836242e7f76d5c634e6b6fcddc7517d818378def8342f123728"
+    }
+  ],
+  "dirty": false
+}
