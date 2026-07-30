@@ -8,6 +8,7 @@ import pytest
 
 from scripts.testing.measure_official_openvino import (
     CampaignLock,
+    _persisted_record,
     build_campaign_identity,
     run_measurement_sequence,
 )
@@ -371,6 +372,22 @@ def _record(role: str, ordinal: int, spec: dict) -> dict:
     }
 
 
+def _completed_campaign(tmp_path: Path) -> dict:
+    kwargs = _setup_campaign(tmp_path)
+
+    def fake_measurement(**run_kwargs):
+        role = run_kwargs["role"]
+        spec = json.loads(
+            run_kwargs["spec_path"].read_text(encoding="utf-8")
+        )
+        record = _record(role, ROLES.index(role), spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    run_measurement_sequence(**kwargs, run_measurement=fake_measurement)
+    return kwargs
+
+
 def test_sequence_runs_five_roles_once_and_atomically_summarizes_only_samples(
     tmp_path,
 ):
@@ -467,6 +484,85 @@ def test_sequence_runs_five_roles_once_and_atomically_summarizes_only_samples(
             allow_nan=False,
         ).encode("utf-8")
     ).hexdigest()
+
+
+@pytest.mark.parametrize("raw", (b'{"role":"pilot","role":"pilot"}', b'{"value":NaN}', b'{"value":1e999}'))
+def test_persisted_record_rejects_duplicate_keys_and_nonfinite_numbers(
+    raw,
+    tmp_path,
+):
+    source = tmp_path / "record.json"
+    source.write_bytes(raw)
+
+    assert _persisted_record(source) is None
+
+
+def test_persisted_record_allows_null_for_optional_runtime_data(tmp_path):
+    source = tmp_path / "record.json"
+    source.write_bytes(b'{"optional_telemetry":null}')
+
+    assert _persisted_record(source) == {"optional_telemetry": None}
+
+
+@pytest.mark.parametrize(
+    "name, mutate",
+    (
+        (
+            "duplicate key",
+            lambda path: path.write_text(
+                path.read_text(encoding="utf-8").replace(
+                    '"accepted": true,',
+                    '"accepted": true,\n  "accepted": true,',
+                    1,
+                ),
+                encoding="utf-8",
+            ),
+        ),
+        ("wrong number", lambda receipt: receipt.update(attempt_number=2)),
+        (
+            "wrong spec path",
+            lambda receipt: receipt.update(spec_path="attempts/pilot/other.json"),
+        ),
+        (
+            "wrong runtime path",
+            lambda receipt: receipt.update(
+                runtime_record_path="attempts/pilot/attempt-001/run/other.json"
+            ),
+        ),
+        (
+            "accepted controller error",
+            lambda receipt: receipt.update(controller_error="forged failure"),
+        ),
+    ),
+)
+def test_resume_rejects_malformed_accepted_receipt_before_launching(
+    name,
+    mutate,
+    tmp_path,
+):
+    kwargs = _completed_campaign(tmp_path)
+    receipt_path = (
+        kwargs["campaign_root"]
+        / "attempts"
+        / "pilot"
+        / "attempt-001"
+        / "sequence-receipt.json"
+    )
+    if name == "duplicate key":
+        mutate(receipt_path)
+    else:
+        _mutate_json(receipt_path, mutate)
+    launches = 0
+
+    def must_not_launch(**_):
+        nonlocal launches
+        launches += 1
+        raise AssertionError("malformed accepted receipt must stop before launch")
+
+    with pytest.raises(RuntimeError, match="accepted receipt"):
+        run_measurement_sequence(**kwargs, run_measurement=must_not_launch)
+
+    assert launches == 0
 
 
 def test_sequence_refuses_a_concurrent_controller_before_launching_a_role(

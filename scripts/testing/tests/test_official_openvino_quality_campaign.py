@@ -204,6 +204,16 @@ def test_attempt_sequence_duplicate_json_key_rejects(tmp_path):
         load(source)
 
 
+def test_summary_whitespace_change_rejects_sequence_hash_binding(tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    summary_path = source.campaign_root / "measurement-summary.json"
+    summary_path.write_bytes(summary_path.read_bytes() + b"\n")
+
+    with pytest.raises(ValueError, match="attempt sequence"):
+        load(source)
+
+
 def test_accepted_campaign_recomputes_identity_summary_environment_and_worker_spec(tmp_path):
     source = _accepted_input(tmp_path)
     _, load, build = _quality_api()

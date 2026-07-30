@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -41,6 +42,20 @@ CAMPAIGN_SCHEMA = "official-openvino-wb04-campaign-identity/v1"
 RECEIPT_SCHEMA = "official-openvino-wb04-sequence-receipt/v1"
 SEQUENCE_SCHEMA = "official-openvino-wb04-attempt-sequence/v1"
 _ATTEMPT_DIRECTORY = re.compile(r"^attempt-(\d{3})$")
+_ACCEPTED_RECEIPT_FIELDS = frozenset(
+    {
+        "schema",
+        "role",
+        "attempt_number",
+        "campaign_identity_sha256",
+        "spec_sha256",
+        "spec_path",
+        "spec_file_sha256",
+        "runtime_record_path",
+        "runtime_record_sha256",
+        "accepted",
+    }
+)
 _FROZEN_EXECUTION_FIELDS = (
     "key_cache_precision",
     "value_cache_precision",
@@ -761,13 +776,46 @@ def _attempt_directories(role_root: Path) -> list[tuple[int, Path]]:
 
 
 def _persisted_record(path: Path) -> dict[str, Any] | None:
+    """Read a persisted object with strict JSON syntax.
+
+    JSON null remains permitted for optional runtime telemetry and rejected
+    attempts. Accepted receipts apply their own non-null closed schema below.
+    """
+
     if not path.is_file():
         return None
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON value: {value}")
+
+    def reject_duplicate_keys(
+        pairs: list[tuple[str, Any]],
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    def contains_nonfinite(value: Any) -> bool:
+        if isinstance(value, float):
+            return not math.isfinite(value)
+        if isinstance(value, Mapping):
+            return any(contains_nonfinite(item) for item in value.values())
+        if isinstance(value, list):
+            return any(contains_nonfinite(item) for item in value)
+        return False
+
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        value = json.loads(
+            path.read_text(encoding="utf-8-sig"),
+            parse_constant=reject_constant,
+            object_pairs_hook=reject_duplicate_keys,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
         return None
-    return value if isinstance(value, dict) else None
+    return value if isinstance(value, dict) and not contains_nonfinite(value) else None
 
 
 def _runtime_record_matches_spec(
@@ -805,11 +853,28 @@ def _resumable_attempt(
     expected_spec_sha256 = _sha256_json(role_spec)
     role_root = campaign_root / "attempts" / role
     accepted: list[tuple[dict[str, Any], dict[str, Any], Path]] = []
-    for _, attempt_dir in _attempt_directories(role_root):
+    root = Path(campaign_root).resolve()
+    for attempt_number, attempt_dir in _attempt_directories(role_root):
         receipt_path = attempt_dir / "sequence-receipt.json"
         receipt = _persisted_record(receipt_path)
-        if receipt is None or receipt.get("accepted") is not True:
+        if receipt is None:
+            if receipt_path.is_file():
+                raise RuntimeError(f"{role} accepted receipt is invalid")
             continue
+        if receipt.get("accepted") is not True:
+            continue
+        spec_path = attempt_dir / "spec.json"
+        record_path = attempt_dir / "run" / "attempt.json"
+        if (
+            set(receipt) != _ACCEPTED_RECEIPT_FIELDS
+            or type(receipt.get("attempt_number")) is not int
+            or receipt["attempt_number"] != attempt_number
+            or receipt.get("spec_path")
+            != spec_path.relative_to(root).as_posix()
+            or receipt.get("runtime_record_path")
+            != record_path.relative_to(root).as_posix()
+        ):
+            raise RuntimeError(f"{role} accepted receipt chain is invalid")
         if (
             receipt.get("schema") != RECEIPT_SCHEMA
             or receipt.get("role") != role
@@ -819,8 +884,6 @@ def _resumable_attempt(
             raise RuntimeError(
                 f"{role} accepted receipt does not match campaign identity"
             )
-        spec_path = attempt_dir / "spec.json"
-        record_path = attempt_dir / "run" / "attempt.json"
         if (
             not spec_path.is_file()
             or _sha256_file(spec_path) != receipt.get("spec_file_sha256")

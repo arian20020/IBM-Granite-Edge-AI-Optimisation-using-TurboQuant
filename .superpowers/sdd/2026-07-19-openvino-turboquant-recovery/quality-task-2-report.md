@@ -145,3 +145,26 @@ The final related suite (campaign adapter, worker, measurement sequence,
 matrix binding, quality runner, and adjudication) result was: 106 passed.
 `py_compile` for every changed Python file and `git diff --check` also exited
 successfully.
+
+## Review Fix Round 2
+
+The accepted-attempt resume chain now treats receipts as strict evidence, not
+advisory metadata. `_persisted_record()` rejects duplicate JSON object keys and
+all non-finite numeric values (including named constants and numeric overflow).
+Its explicit null policy permits `null` only as ordinary optional persisted
+record data, preserving valid runtime/failed-attempt representations; an
+accepted receipt remains a closed non-null schema.
+
+Each accepted receipt must have exactly the published fields, omit
+`controller_error`, use the exact integer attempt number encoded by its
+directory, and bind `spec_path` and `runtime_record_path` to the exact relative
+files in that directory. Duplicate-key receipts and receipts with a wrong
+number, either substituted path, or an accepted controller error reject before
+any measurement callback can run. A whitespace-only change to an otherwise
+identical summary also rejects because the unchanged attempt sequence retains
+the prior raw-byte SHA-256.
+
+The RED suite exposed all eight malformed record/receipt cases. The final
+related regression command (adapter, worker, sequence, matrix binding, runner,
+and adjudication) completed with: 116 passed. All tests use synthetic runtime
+records; no OpenVINO launch or inference occurred.
