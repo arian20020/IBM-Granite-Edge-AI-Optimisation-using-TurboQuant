@@ -1,7 +1,6 @@
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
-using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -79,13 +78,6 @@ namespace GraniteEdgeAI.Features.ModelImport
         internal bool HasValidatedModel { get; private set; }
 
         internal ModelQuickScanResult? ValidatedScanResult { get; private set; }
-
-        private void RecommendedModelDownloadButton_Click(
-            object sender,
-            RoutedEventArgs e)
-        {
-            Frame.Navigate(typeof(RecommendedModelDownloadPage));
-        }
 
         internal async Task BrowseFilesAsync()
         {

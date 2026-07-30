@@ -17,7 +17,8 @@
     <None Remove="Features\ModelImport\Controls\ImportModelCard.xaml" />
     <None Remove="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml" />
     <None Remove="Features\ModelImport\ModelImportPage.xaml" />
-    <None Remove="Features\ModelImport\ModelDownload\RecommendedModelDownloadPage.xaml" />
+    <None Remove="Features\Onboarding\Controls\OnboardingStageIndicator.xaml" />
+    <None Remove="Features\Onboarding\OnboardingShellPage.xaml" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -56,11 +57,6 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Features\ModelImport\ModelDownload\RecommendedModelDownloadPage.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Features\ModelImport\ModelDownload\ModelDownloadCard.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -77,6 +73,16 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Features\ModelImport\FileImport\DragDropRoute\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\Onboarding\Controls\OnboardingStageIndicator.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\Onboarding\OnboardingShellPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
   <!--
