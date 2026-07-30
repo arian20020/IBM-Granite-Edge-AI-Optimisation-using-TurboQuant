@@ -17,8 +17,8 @@ def utilization(values):
 
 
 def sample(offset=0):
-    payload = (96 + offset) * MIB
-    metadata = (4 + offset) * MIB
+    payload = 96 * MIB
+    metadata = 4 * MIB
     actual = payload + metadata
     dedicated = 48 + offset
     shared = 16 + offset
@@ -49,6 +49,7 @@ def sample(offset=0):
         "cpu_percent": utilization([40 + offset, 42 + offset, 41 + offset]),
         "gpu_percent": utilization([20 + offset, 22 + offset, 21 + offset]),
         "activation": {
+            "status": "activated",
             "requested_key_algorithm": "TBQ4",
             "requested_value_algorithm": "TBQ3",
             "activated_key_algorithm": "TBQ4",
@@ -68,6 +69,19 @@ def sample(offset=0):
             "actual_persistent_bytes": actual,
             "expected_persistent_standard_bytes": 0,
             "actual_persistent_standard_bytes": 0,
+            "expected_persistent_payload_bytes": payload,
+            "actual_persistent_payload_bytes": payload,
+            "expected_persistent_norm_bytes": 2 * MIB,
+            "actual_persistent_norm_bytes": 2 * MIB,
+            "expected_persistent_metadata_bytes": metadata - (2 * MIB),
+            "actual_persistent_metadata_bytes": metadata - (2 * MIB),
+            "operation_type": "TurboQuantStateUpdateDecode",
+            "operation_count": 80,
+            "matched_state_count": 80,
+            "transformed_model_hash": "c" * 16,
+            "runtime_layer_type": "Reference",
+            "build_commit": "a" * 40,
+            "model_hash": "b" * 16,
             "output_valid": True,
         },
         "output_sha256": f"{offset + 1:064x}",
@@ -106,11 +120,76 @@ class OfficialOpenVINOMetricTests(unittest.TestCase):
         self.assertEqual(result["standard_kv_bytes"]["max"], 0)
         self.assertEqual(result["norm_kv_bytes"]["min"], 2 * MIB)
         self.assertEqual(result["activation"]["sample_count"], 3)
+        self.assertEqual(result["activation"]["build_commit"], "a" * 40)
+        self.assertEqual(result["activation"]["model_hash"], "b" * 16)
+        self.assertEqual(
+            result["activation"]["transformed_model_hash"], "c" * 16
+        )
+        self.assertEqual(
+            result["activation"]["operation_type"],
+            "TurboQuantStateUpdateDecode",
+        )
+        self.assertEqual(result["activation"]["operation_count"], 80)
+        self.assertEqual(result["activation"]["matched_state_count"], 80)
         self.assertEqual(
             result["activation"]["activated_pairs"],
             [{"key": "TBQ4", "value": "TBQ3"}],
         )
         self.assertEqual(len(result["output_sha256"]), 3)
+
+    def test_gpu_combined_peak_uses_same_observation_bounds(self):
+        rows = [sample(i) for i in range(3)]
+        for row in rows:
+            row["gpu_memory_peak_mb"] = (
+                row["gpu_dedicated_memory_peak_mb"] + 2
+            )
+        result = summarize_samples(rows)
+        self.assertEqual(result["gpu_memory_peak_mb"]["max"], 52)
+
+        rows[0]["gpu_memory_peak_mb"] = (
+            rows[0]["gpu_dedicated_memory_peak_mb"]
+            + rows[0]["gpu_shared_memory_peak_mb"]
+            + 1
+        )
+        with self.assertRaisesRegex(ValueError, "GPU memory total"):
+            summarize_samples(rows)
+
+    def test_runtime_identity_must_match_between_formal_samples(self):
+        mutations = (
+            lambda activation: activation.update(build_commit="d" * 40),
+            lambda activation: activation.update(model_hash="e" * 16),
+            lambda activation: activation.update(
+                transformed_model_hash="f" * 16
+            ),
+            lambda activation: activation.update(
+                operation_type="DifferentOperation"
+            ),
+            lambda activation: activation.update(
+                operation_count=79,
+                matched_state_count=79,
+            ),
+        )
+        for mutate in mutations:
+            rows = [copy.deepcopy(sample(i)) for i in range(3)]
+            mutate(rows[1]["activation"])
+            with self.subTest(mutate=mutate), self.assertRaisesRegex(
+                ValueError, "activation identity"
+            ):
+                summarize_samples(rows)
+
+    def test_persistent_byte_components_must_match_between_formal_samples(self):
+        rows = [copy.deepcopy(sample(i)) for i in range(3)]
+        delta = MIB
+        row = rows[1]
+        row["payload_kv_bytes"] += delta
+        row["metadata_kv_bytes"] -= delta
+        activation = row["activation"]
+        activation["expected_persistent_payload_bytes"] += delta
+        activation["actual_persistent_payload_bytes"] += delta
+        activation["expected_persistent_metadata_bytes"] -= delta
+        activation["actual_persistent_metadata_bytes"] -= delta
+        with self.assertRaisesRegex(ValueError, "activation identity"):
+            summarize_samples(rows)
 
     def test_utilization_summary_and_raw_values_must_reconcile(self):
         for mutate, message in (

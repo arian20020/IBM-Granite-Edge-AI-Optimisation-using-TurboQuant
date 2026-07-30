@@ -28,6 +28,7 @@ from .runtime_measurement import (
     parse_cpu_samples,
     parse_gpu_samples,
     parse_worker_output,
+    validate_activation_telemetry,
 )
 
 
@@ -404,6 +405,10 @@ def run_governed_process(
 
     after = available_ram_bytes()
     record["available_ram_bytes"]["after"] = after
+    if after is None:
+        _append_error(errors, "available RAM query failed after run")
+    elif after < minimum_available_ram_bytes:
+        _append_error(errors, "available RAM is below the post-run floor")
     available_values = [
         value
         for value in (
@@ -485,12 +490,23 @@ def measurement_sample(record: dict[str, Any], source_path: Path) -> dict[str, A
         raise ValueError("governed record is not valid")
     worker = record["worker"]
     activation = record["activation"]
+    validate_activation_telemetry(activation)
     source = Path(source_path)
     if not source.is_file():
         raise ValueError("governed source record is missing")
+    expected_standard_bytes = int(
+        activation["expected_persistent_standard_bytes"]
+    )
     standard_bytes = int(activation["actual_persistent_standard_bytes"])
+    expected_payload_bytes = int(
+        activation["expected_persistent_payload_bytes"]
+    )
     payload_bytes = int(activation["actual_persistent_payload_bytes"])
+    expected_norm_bytes = int(activation["expected_persistent_norm_bytes"])
     norm_bytes = int(activation["actual_persistent_norm_bytes"])
+    expected_metadata_bytes = int(
+        activation["expected_persistent_metadata_bytes"]
+    )
     metadata_bytes = int(activation["actual_persistent_metadata_bytes"])
     actual_bytes = int(activation["actual_bytes"])
     expected_bytes = int(activation["expected_bytes"])
@@ -531,6 +547,7 @@ def measurement_sample(record: dict[str, Any], source_path: Path) -> dict[str, A
         "cpu_percent": record["cpu_percent"],
         "gpu_percent": record["gpu_percent"],
         "activation": {
+            "status": activation["status"],
             "requested_key_algorithm": activation[
                 "requested_key_algorithm"
             ],
@@ -572,6 +589,21 @@ def measurement_sample(record: dict[str, Any], source_path: Path) -> dict[str, A
                 "expected_persistent_standard_bytes"
             ],
             "actual_persistent_standard_bytes": standard_bytes,
+            "expected_persistent_payload_bytes": expected_payload_bytes,
+            "actual_persistent_payload_bytes": payload_bytes,
+            "expected_persistent_norm_bytes": expected_norm_bytes,
+            "actual_persistent_norm_bytes": norm_bytes,
+            "expected_persistent_metadata_bytes": expected_metadata_bytes,
+            "actual_persistent_metadata_bytes": metadata_bytes,
+            "operation_type": activation["operation_type"],
+            "operation_count": activation["operation_count"],
+            "matched_state_count": activation["matched_state_count"],
+            "transformed_model_hash": activation[
+                "transformed_model_hash"
+            ],
+            "runtime_layer_type": activation["runtime_layer_type"],
+            "build_commit": activation["build_commit"],
+            "model_hash": activation["model_hash"],
             "output_valid": worker["output_valid"],
         },
         "output_sha256": record["output_sha256"],

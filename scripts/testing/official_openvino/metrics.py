@@ -53,6 +53,7 @@ STRICTLY_POSITIVE = frozenset({
 UTILIZATION = ("cpu_percent", "gpu_percent")
 UTIL_STATS = ("mean", "median", "peak", "count")
 ACTIVATION_TEXT_FIELDS = (
+    "status",
     "requested_key_algorithm",
     "requested_value_algorithm",
     "activated_key_algorithm",
@@ -66,6 +67,16 @@ ACTIVATION_TEXT_FIELDS = (
     "attention_path",
     "requested_device",
     "actual_device",
+    "operation_type",
+    "transformed_model_hash",
+    "runtime_layer_type",
+    "build_commit",
+    "model_hash",
+)
+ACTIVATION_BYTE_COMPONENT_FIELDS = tuple(
+    f"{side}_persistent_{component}_bytes"
+    for component in ("standard", "payload", "norm", "metadata")
+    for side in ("expected", "actual")
 )
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -195,6 +206,64 @@ def _activation(sample_index: int, raw: Any, sample: Mapping[str, Any]) -> dict[
         or not _equal(actual_standard, float(sample["standard_kv_bytes"]))
     ):
         raise ValueError("activation persistent STANDARD byte reconciliation failed")
+    component_bindings = (
+        ("payload", "payload_kv_bytes"),
+        ("norm", "norm_kv_bytes"),
+        ("metadata", "metadata_kv_bytes"),
+    )
+    expected_components = [expected_standard]
+    actual_components = [actual_standard]
+    for component, sample_field in component_bindings:
+        expected_component = _number(
+            raw.get(f"expected_persistent_{component}_bytes"),
+            f"activation expected persistent {component} bytes",
+        )
+        actual_component = _number(
+            raw.get(f"actual_persistent_{component}_bytes"),
+            f"activation actual persistent {component} bytes",
+        )
+        if (
+            not _equal(expected_component, actual_component)
+            or not _equal(actual_component, float(sample[sample_field]))
+        ):
+            raise ValueError(
+                f"activation persistent {component} byte reconciliation failed"
+            )
+        expected_components.append(expected_component)
+        actual_components.append(actual_component)
+    if (
+        not _equal(expected, sum(expected_components))
+        or not _equal(actual, sum(actual_components))
+    ):
+        raise ValueError(
+            "activation persistent total does not equal its byte components"
+        )
+
+    operation_count = _integer(
+        raw.get("operation_count"), "activation operation count"
+    )
+    matched_state_count = _integer(
+        raw.get("matched_state_count"), "activation matched-state count"
+    )
+    if raw["status"] == "activated":
+        if operation_count <= 0 or operation_count != matched_state_count:
+            raise ValueError(
+                "activation operation and matched-state counts do not reconcile"
+            )
+    elif raw["status"] == "not_requested":
+        if operation_count != 0 or matched_state_count != 0:
+            raise ValueError(
+                "STANDARD activation cannot claim TurboQuant operations"
+            )
+    else:
+        raise ValueError("activation status is unsupported")
+
+    build_commit = raw["build_commit"]
+    if len(build_commit) != 40 or any(
+        character not in "0123456789abcdefABCDEF"
+        for character in build_commit
+    ):
+        raise ValueError("activation build commit must be an exact Git ID")
     return result
 
 
@@ -213,12 +282,21 @@ def _validate_sample(index: int, raw: Mapping[str, Any]) -> dict[str, Any]:
     if minimum > before or minimum > after:
         raise ValueError("available RAM minimum exceeds a boundary measurement")
 
-    expected_gpu_total = (
+    maximum_possible_gpu_total = (
         sample["gpu_dedicated_memory_peak_mb"]
         + sample["gpu_shared_memory_peak_mb"]
     )
-    if not _equal(sample["gpu_memory_peak_mb"], expected_gpu_total):
-        raise ValueError("GPU memory total does not equal dedicated plus shared memory")
+    minimum_possible_gpu_total = max(
+        sample["gpu_dedicated_memory_peak_mb"],
+        sample["gpu_shared_memory_peak_mb"],
+    )
+    if (
+        sample["gpu_memory_peak_mb"] < minimum_possible_gpu_total
+        or sample["gpu_memory_peak_mb"] > maximum_possible_gpu_total
+    ):
+        raise ValueError(
+            "GPU memory total is outside same-observation component bounds"
+        )
 
     expected_kv = sample["expected_persistent_kv_bytes"]
     actual_kv = sample["actual_persistent_kv_bytes"]
@@ -296,6 +374,9 @@ def summarize_samples(
         *ACTIVATION_TEXT_FIELDS,
         "norm_correction",
         "fallback",
+        "operation_count",
+        "matched_state_count",
+        *ACTIVATION_BYTE_COMPONENT_FIELDS,
     )
     identities = {
         tuple(sample["activation"][field] for field in activation_identity_fields)
@@ -327,6 +408,7 @@ def summarize_samples(
         }
 
     activations = [sample["activation"] for sample in validated]
+    activation_identity = activations[0]
     result["activation"] = {
         "sample_count": 3,
         "requested_pairs": sorted({
@@ -359,6 +441,19 @@ def summarize_samples(
             activation["actual_device"] for activation in activations
         }),
         "fallback": False,
+        "build_commit": activation_identity["build_commit"],
+        "model_hash": activation_identity["model_hash"],
+        "transformed_model_hash": activation_identity[
+            "transformed_model_hash"
+        ],
+        "operation_type": activation_identity["operation_type"],
+        "operation_count": activation_identity["operation_count"],
+        "matched_state_count": activation_identity["matched_state_count"],
+        "runtime_layer_type": activation_identity["runtime_layer_type"],
+        "persistent_byte_components": {
+            field: activation_identity[field]
+            for field in ACTIVATION_BYTE_COMPONENT_FIELDS
+        },
         "telemetry_sha256": [sample["telemetry_sha256"] for sample in validated],
     }
     result["output_sha256"] = [sample["output_sha256"] for sample in validated]

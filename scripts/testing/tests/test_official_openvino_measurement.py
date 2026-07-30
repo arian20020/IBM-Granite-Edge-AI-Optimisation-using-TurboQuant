@@ -4,6 +4,7 @@ import statistics
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.testing.official_openvino.runtime_measurement import (
     RESULT_MARKER,
@@ -12,6 +13,10 @@ from scripts.testing.official_openvino.runtime_measurement import (
     parse_cpu_samples,
     parse_gpu_samples,
     parse_worker_output,
+)
+from scripts.testing.official_openvino.runtime_process import (
+    measurement_sample,
+    run_governed_process,
 )
 from scripts.testing.official_openvino.measurement_worker import (
     extract_performance_metrics,
@@ -25,6 +30,123 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def activation_telemetry(**overrides) -> dict:
+    value = {
+        "status": "activated",
+        "requested_key_algorithm": "TBQ4",
+        "requested_value_algorithm": "TBQ3",
+        "activated_key_algorithm": "TBQ4",
+        "activated_value_algorithm": "TBQ3",
+        "requested_key_cache_precision": "u4",
+        "requested_value_cache_precision": "u3",
+        "activated_key_cache_precision": "u4",
+        "activated_value_cache_precision": "u3",
+        "observed_key_state_precision": "u8+f32+i32",
+        "observed_value_state_precision": "u8+f32+i32",
+        "norm_correction": True,
+        "expected_bytes": 100,
+        "actual_bytes": 100,
+        "matched_state_count": 2,
+        "expected_persistent_standard_bytes": 0,
+        "actual_persistent_standard_bytes": 0,
+        "expected_persistent_payload_bytes": 80,
+        "actual_persistent_payload_bytes": 80,
+        "expected_persistent_norm_bytes": 10,
+        "actual_persistent_norm_bytes": 10,
+        "expected_persistent_metadata_bytes": 10,
+        "actual_persistent_metadata_bytes": 10,
+        "decoded_scratch_bytes": 400,
+        "full_precision_equivalent_bytes": 400,
+        "operation_type": "TurboQuantStateUpdateDecode",
+        "operation_count": 2,
+        "transformed_model_hash": "0123456789abcdef",
+        "attention_path": "stateful_sdpa_reference_codec",
+        "device": "CPU",
+        "actual_device": "CPU",
+        "runtime_layer_type": "Reference",
+        "fallback": False,
+        "build_commit": "a" * 40,
+        "model_hash": "fedcba9876543210",
+    }
+    value.update(overrides)
+    return value
+
+
+def worker_result() -> dict:
+    return {
+        "schema": "official-openvino-wb04-worker/v1",
+        "output": "OK",
+        "output_valid": True,
+        "load_ms": 10.0,
+        "ttft_ms": 2.0,
+        "prompt_tps": 5.0,
+        "tpot_ms": 4.0,
+        "decode_tps": 250.0,
+        "generation_duration_ms": 8.0,
+    }
+
+
+def standard_cpu_telemetry(**overrides) -> dict:
+    value = activation_telemetry(
+        status="not_requested",
+        requested_key_algorithm="STANDARD",
+        requested_value_algorithm="STANDARD",
+        activated_key_algorithm="STANDARD",
+        activated_value_algorithm="STANDARD",
+        requested_key_cache_precision="u8",
+        requested_value_cache_precision="u8",
+        activated_key_cache_precision="u8",
+        activated_value_cache_precision="u8",
+        observed_key_state_precision="u8",
+        observed_value_state_precision="u8",
+        norm_correction=False,
+        expected_bytes=128,
+        actual_bytes=128,
+        matched_state_count=0,
+        expected_persistent_standard_bytes=128,
+        actual_persistent_standard_bytes=128,
+        expected_persistent_payload_bytes=0,
+        actual_persistent_payload_bytes=0,
+        expected_persistent_norm_bytes=0,
+        actual_persistent_norm_bytes=0,
+        expected_persistent_metadata_bytes=0,
+        actual_persistent_metadata_bytes=0,
+        decoded_scratch_bytes=0,
+        full_precision_equivalent_bytes=128,
+        operation_type="not_requested",
+        operation_count=0,
+        transformed_model_hash="not_requested",
+        attention_path="stateful_sdpa_standard",
+        runtime_layer_type="not_requested",
+    )
+    value.update(overrides)
+    return value
+
+
+def governed_record(activation: dict) -> dict:
+    return {
+        "valid": True,
+        "role": "sample-1",
+        "worker": worker_result(),
+        "activation": activation,
+        "peak_working_set_bytes": 1024**3,
+        "peak_private_bytes": 512 * 1024**2,
+        "available_ram_bytes": {
+            "before": 4 * 1024**3,
+            "minimum": 3 * 1024**3,
+            "after": 4 * 1024**3,
+        },
+        "gpu_dedicated_memory_peak_mb": 1.0,
+        "gpu_shared_memory_peak_mb": 2.0,
+        "gpu_memory_peak_mb": 2.5,
+        "cpu_percent": {"values": [10, 20]},
+        "gpu_percent": {"values": [1, 2]},
+        "output_sha256": "c" * 64,
+        "telemetry_sha256": "d" * 64,
+        "cleanup_process_count": 0,
+    }
 
 
 class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
@@ -186,33 +308,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
             )
 
     def test_worker_output_requires_one_result_and_one_activated_record(self):
-        activation = {
-            "status": "activated",
-            "requested_key_algorithm": "TBQ4",
-            "requested_value_algorithm": "TBQ3",
-            "activated_key_algorithm": "TBQ4",
-            "activated_value_algorithm": "TBQ3",
-            "requested_key_cache_precision": "u4",
-            "requested_value_cache_precision": "u3",
-            "activated_key_cache_precision": "u4",
-            "activated_value_cache_precision": "u3",
-            "expected_bytes": 100,
-            "actual_bytes": 100,
-            "expected_persistent_standard_bytes": 0,
-            "actual_persistent_standard_bytes": 0,
-            "fallback": False,
-        }
-        result = {
-            "schema": "official-openvino-wb04-worker/v1",
-            "output": "OK",
-            "output_valid": True,
-            "load_ms": 10.0,
-            "ttft_ms": 2.0,
-            "prompt_tps": 5.0,
-            "tpot_ms": 4.0,
-            "decode_tps": 250.0,
-            "generation_duration_ms": 8.0,
-        }
+        activation = activation_telemetry()
+        result = worker_result()
         parsed = parse_worker_output(
             json.dumps(activation) + "\n" + RESULT_MARKER + json.dumps(result),
             "",
@@ -231,6 +328,86 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 + "\n"
                 + RESULT_MARKER
                 + json.dumps(result),
+                "",
+            )
+
+    def test_worker_output_accepts_measured_cpu_standard_telemetry(self):
+        activation = standard_cpu_telemetry()
+        parsed = parse_worker_output(
+            json.dumps(activation)
+            + "\n"
+            + RESULT_MARKER
+            + json.dumps(worker_result()),
+            "",
+        )
+        self.assertEqual(parsed["activation"], activation)
+
+    def test_worker_output_rejects_uninstrumented_gpu_standard_telemetry(self):
+        activation = standard_cpu_telemetry(
+            requested_key_cache_precision="not_requested",
+            requested_value_cache_precision="not_requested",
+            activated_key_cache_precision="not_requested",
+            activated_value_cache_precision="not_requested",
+            observed_key_state_precision="not_requested",
+            observed_value_state_precision="not_requested",
+            expected_bytes=0,
+            actual_bytes=0,
+            expected_persistent_standard_bytes=0,
+            actual_persistent_standard_bytes=0,
+            full_precision_equivalent_bytes=0,
+            attention_path="not_requested",
+            device="GPU",
+            actual_device="GPU",
+        )
+        with self.assertRaisesRegex(ValueError, "GPU STANDARD"):
+            parse_worker_output(
+                json.dumps(activation)
+                + "\n"
+                + RESULT_MARKER
+                + json.dumps(worker_result()),
+                "",
+            )
+
+    def test_worker_output_accepts_instrumented_gpu_standard_telemetry(self):
+        activation = standard_cpu_telemetry(
+            device="GPU",
+            actual_device="GPU.0",
+        )
+        parsed = parse_worker_output(
+            json.dumps(activation)
+            + "\n"
+            + RESULT_MARKER
+            + json.dumps(worker_result()),
+            "",
+        )
+        self.assertEqual(parsed["activation"], activation)
+
+    def test_worker_output_rejects_each_mismatched_byte_component(self):
+        for component in ("standard", "payload", "norm", "metadata"):
+            with self.subTest(component=component):
+                activation = activation_telemetry(
+                    **{f"actual_persistent_{component}_bytes": 999}
+                )
+                with self.assertRaisesRegex(ValueError, component):
+                    parse_worker_output(
+                        json.dumps(activation)
+                        + "\n"
+                        + RESULT_MARKER
+                        + json.dumps(worker_result()),
+                        "",
+                    )
+
+    def test_worker_output_rejects_totals_that_do_not_equal_components(self):
+        activation = activation_telemetry(
+            expected_bytes=101,
+            actual_bytes=101,
+        )
+        with self.assertRaisesRegex(ValueError, "components"):
+            parse_worker_output(
+                json.dumps(activation)
+                + "\n"
+                + RESULT_MARKER
+                + json.dumps(worker_result()),
                 "",
             )
 
@@ -258,6 +435,35 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(parsed["gpu_percent"]["count"], 3)
         self.assertEqual(parsed["gpu_dedicated_memory_peak_mb"], 6)
         self.assertEqual(parsed["gpu_shared_memory_peak_mb"], 9)
+
+    def test_gpu_memory_peak_uses_one_observation_not_independent_maxima(self):
+        rows = [
+            {
+                "timestamp_utc": "2026-07-29T00:00:01Z",
+                "gpu_percent": 10,
+                "gpu_engine_count": 1,
+                "gpu_dedicated_mb": 10,
+                "gpu_shared_mb": 0,
+                "gpu_engine_query_ok": "true",
+                "gpu_memory_query_ok": "true",
+            },
+            {
+                "timestamp_utc": "2026-07-29T00:00:02Z",
+                "gpu_percent": 20,
+                "gpu_engine_count": 1,
+                "gpu_dedicated_mb": 0,
+                "gpu_shared_mb": 9,
+                "gpu_engine_query_ok": "true",
+                "gpu_memory_query_ok": "true",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            write_csv(path, rows)
+            parsed = parse_gpu_samples(path)
+        self.assertEqual(parsed["gpu_dedicated_memory_peak_mb"], 10)
+        self.assertEqual(parsed["gpu_shared_memory_peak_mb"], 9)
+        self.assertEqual(parsed["gpu_memory_peak_mb"], 10)
 
     def test_cpu_parser_recomputes_mean_median_peak_and_count(self):
         rows = [
@@ -347,6 +553,98 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, "pilot"):
                 execute_attempt_sequence(Path(directory), run)
+
+    def test_guard_rejects_missing_post_run_available_ram(self):
+        floor = 2 * 1024**3
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sampler = root / "sampler.ps1"
+            sampler.write_text("", encoding="utf-8")
+            with mock.patch(
+                "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
+                side_effect=[floor - 1, None],
+            ):
+                record = run_governed_process(
+                    command=["never-launched"],
+                    output_dir=root / "run",
+                    role="pilot",
+                    environment={},
+                    sampler_script=sampler,
+                    minimum_available_ram_bytes=floor,
+                )
+        self.assertFalse(record["valid"])
+        self.assertIn(
+            "available RAM query failed after run",
+            record["validation_errors"],
+        )
+
+    def test_guard_rejects_post_run_available_ram_below_floor(self):
+        floor = 2 * 1024**3
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sampler = root / "sampler.ps1"
+            sampler.write_text("", encoding="utf-8")
+            with mock.patch(
+                "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
+                side_effect=[floor - 1, floor - 1],
+            ):
+                record = run_governed_process(
+                    command=["never-launched"],
+                    output_dir=root / "run",
+                    role="pilot",
+                    environment={},
+                    sampler_script=sampler,
+                    minimum_available_ram_bytes=floor,
+                )
+        self.assertFalse(record["valid"])
+        self.assertIn(
+            "available RAM is below the post-run floor",
+            record["validation_errors"],
+        )
+
+    def test_measurement_sample_retains_runtime_identity_and_byte_components(self):
+        activation = activation_telemetry()
+        record = governed_record(activation)
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            sample = measurement_sample(record, source)
+        retained = sample["activation"]
+        for field in (
+            "build_commit",
+            "model_hash",
+            "transformed_model_hash",
+            "operation_type",
+            "operation_count",
+            "matched_state_count",
+            "expected_persistent_standard_bytes",
+            "actual_persistent_standard_bytes",
+            "expected_persistent_payload_bytes",
+            "actual_persistent_payload_bytes",
+            "expected_persistent_norm_bytes",
+            "actual_persistent_norm_bytes",
+            "expected_persistent_metadata_bytes",
+            "actual_persistent_metadata_bytes",
+        ):
+            self.assertEqual(retained[field], activation[field])
+
+    def test_measurement_sample_rejects_invalid_runtime_identity(self):
+        activation = activation_telemetry(build_commit="not-a-commit")
+        record = governed_record(activation)
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "build commit"):
+                measurement_sample(record, source)
+
+    def test_measurement_sample_rejects_operation_state_count_mismatch(self):
+        activation = activation_telemetry(matched_state_count=1)
+        record = governed_record(activation)
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "operation"):
+                measurement_sample(record, source)
 
 
 if __name__ == "__main__":

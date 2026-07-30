@@ -22,6 +22,7 @@ RESULT_MARKER = "OPENVINO_WB04_RESULT_JSON="
 WORKER_SCHEMA = "official-openvino-wb04-worker/v1"
 RUNTIME_ALGORITHMS = frozenset({"STANDARD", "TBQ3", "TBQ4"})
 CACHE_PRECISIONS = frozenset({"f16", "bf16", "f32", "u8", "u4", "u3"})
+PERSISTENT_COMPONENTS = ("standard", "payload", "norm", "metadata")
 
 
 def _finite_number(value: Any, field: str, *, maximum: float | None = None) -> float:
@@ -33,6 +34,232 @@ def _finite_number(value: Any, field: str, *, maximum: float | None = None) -> f
     if maximum is not None and result > maximum:
         raise ValueError(f"{field} exceeds {maximum}")
     return result
+
+
+def _nonnegative_integer(
+    value: Any,
+    field: str,
+    *,
+    positive: bool = False,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an integer")
+    if value < 0 or (positive and value == 0):
+        comparison = "positive" if positive else "non-negative"
+        raise ValueError(f"{field} must be {comparison}")
+    return value
+
+
+def _nonblank_text(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be non-blank")
+    return value
+
+
+def validate_activation_telemetry(activation: Mapping[str, Any]) -> None:
+    """Validate allocation reconciliation and immutable runtime identity."""
+
+    if not isinstance(activation, Mapping):
+        raise ValueError("activation telemetry must be an object")
+    status = activation.get("status")
+    if status not in {"activated", "not_requested"}:
+        raise ValueError("activation telemetry status is unsupported")
+    if activation.get("fallback") is not False:
+        raise ValueError("activation telemetry reports fallback")
+
+    requested_key = _nonblank_text(
+        activation.get("requested_key_algorithm"),
+        "requested key algorithm",
+    )
+    requested_value = _nonblank_text(
+        activation.get("requested_value_algorithm"),
+        "requested value algorithm",
+    )
+    activated_key = _nonblank_text(
+        activation.get("activated_key_algorithm"),
+        "activated key algorithm",
+    )
+    activated_value = _nonblank_text(
+        activation.get("activated_value_algorithm"),
+        "activated value algorithm",
+    )
+    for field, value in (
+        ("requested key algorithm", requested_key),
+        ("requested value algorithm", requested_value),
+        ("activated key algorithm", activated_key),
+        ("activated value algorithm", activated_value),
+    ):
+        if value not in RUNTIME_ALGORITHMS:
+            raise ValueError(f"{field} is unsupported")
+    if requested_key != activated_key or requested_value != activated_value:
+        raise ValueError("requested and activated algorithms differ")
+
+    expected_components: dict[str, int] = {}
+    actual_components: dict[str, int] = {}
+    for component in PERSISTENT_COMPONENTS:
+        expected = _nonnegative_integer(
+            activation.get(f"expected_persistent_{component}_bytes"),
+            f"expected persistent {component} bytes",
+        )
+        actual = _nonnegative_integer(
+            activation.get(f"actual_persistent_{component}_bytes"),
+            f"actual persistent {component} bytes",
+        )
+        if expected != actual:
+            raise ValueError(
+                f"persistent {component} byte components do not reconcile"
+            )
+        expected_components[component] = expected
+        actual_components[component] = actual
+
+    expected_total = _nonnegative_integer(
+        activation.get("expected_bytes"), "expected persistent bytes"
+    )
+    actual_total = _nonnegative_integer(
+        activation.get("actual_bytes"), "actual persistent bytes"
+    )
+    if expected_total != actual_total:
+        raise ValueError("persistent total bytes do not reconcile")
+    if (
+        expected_total != sum(expected_components.values())
+        or actual_total != sum(actual_components.values())
+    ):
+        raise ValueError("persistent totals do not equal their byte components")
+
+    build_commit = _nonblank_text(
+        activation.get("build_commit"), "build commit"
+    )
+    if len(build_commit) != 40 or any(
+        character not in "0123456789abcdefABCDEF" for character in build_commit
+    ):
+        raise ValueError("build commit must be an exact 40-character Git ID")
+    _nonblank_text(activation.get("model_hash"), "model hash")
+    transformed_model_hash = _nonblank_text(
+        activation.get("transformed_model_hash"),
+        "transformed model hash",
+    )
+    operation_type = _nonblank_text(
+        activation.get("operation_type"), "operation type"
+    )
+    operation_count = _nonnegative_integer(
+        activation.get("operation_count"), "operation count"
+    )
+    matched_state_count = _nonnegative_integer(
+        activation.get("matched_state_count"), "matched state count"
+    )
+    device = _nonblank_text(activation.get("device"), "requested device")
+    actual_device = _nonblank_text(
+        activation.get("actual_device"), "actual device"
+    )
+    attention_path = _nonblank_text(
+        activation.get("attention_path"), "attention path"
+    )
+    runtime_layer_type = _nonblank_text(
+        activation.get("runtime_layer_type"), "runtime layer type"
+    )
+    decoded_scratch_bytes = _nonnegative_integer(
+        activation.get("decoded_scratch_bytes"), "decoded scratch bytes"
+    )
+    full_precision_equivalent_bytes = _nonnegative_integer(
+        activation.get("full_precision_equivalent_bytes"),
+        "full-precision equivalent bytes",
+    )
+
+    if status == "not_requested":
+        if (
+            requested_key != "STANDARD"
+            or requested_value != "STANDARD"
+            or activated_key != "STANDARD"
+            or activated_value != "STANDARD"
+        ):
+            raise ValueError(
+                "not_requested telemetry must remain STANDARD/STANDARD"
+            )
+        if expected_components["standard"] <= 0:
+            if device.upper().startswith("GPU"):
+                raise ValueError(
+                    "GPU STANDARD zero-byte allocation telemetry is not "
+                    "instrumented"
+                )
+            raise ValueError(
+                "CPU STANDARD telemetry requires positive measured standard bytes"
+            )
+        requested_family = device.split(".", 1)[0].upper()
+        actual_family = actual_device.split(".", 1)[0].upper()
+        if (
+            requested_family not in {"CPU", "GPU"}
+            or actual_family != requested_family
+        ):
+            raise ValueError("STANDARD requested and actual device families differ")
+        if any(
+            expected_components[component] != 0
+            for component in ("payload", "norm", "metadata")
+        ):
+            raise ValueError(
+                "CPU STANDARD telemetry cannot claim TurboQuant byte components"
+            )
+        if operation_count != 0 or matched_state_count != 0:
+            raise ValueError(
+                "CPU STANDARD telemetry cannot claim TurboQuant operations"
+            )
+        if operation_type != "not_requested":
+            raise ValueError(
+                "CPU STANDARD telemetry has an invalid operation type"
+            )
+        if transformed_model_hash != "not_requested":
+            raise ValueError(
+                "STANDARD telemetry has an invalid transformed model hash"
+            )
+        if (
+            attention_path != "stateful_sdpa_standard"
+            or runtime_layer_type != "not_requested"
+        ):
+            raise ValueError("STANDARD telemetry has an invalid runtime identity")
+        if decoded_scratch_bytes != 0:
+            raise ValueError("STANDARD telemetry cannot claim decoded scratch bytes")
+        if full_precision_equivalent_bytes != actual_total:
+            raise ValueError(
+                "STANDARD full-precision bytes do not equal persistent bytes"
+            )
+        for field in (
+            "requested_key_cache_precision",
+            "requested_value_cache_precision",
+            "activated_key_cache_precision",
+            "activated_value_cache_precision",
+            "observed_key_state_precision",
+            "observed_value_state_precision",
+        ):
+            if _nonblank_text(activation.get(field), field) == "not_requested":
+                raise ValueError(
+                    "measured STANDARD telemetry requires cache precision evidence"
+                )
+        return
+
+    if requested_key == "STANDARD" and requested_value == "STANDARD":
+        raise ValueError(
+            "activated TurboQuant telemetry must request compression"
+        )
+    if device != "CPU" or actual_device != "CPU":
+        raise ValueError("activated TurboQuant telemetry must execute on CPU")
+    if operation_type != "TurboQuantStateUpdateDecode":
+        raise ValueError("activated TurboQuant operation type is invalid")
+    if operation_count <= 0 or operation_count != matched_state_count:
+        raise ValueError(
+            "activated operation and matched-state counts do not reconcile"
+        )
+    if transformed_model_hash == "not_requested":
+        raise ValueError(
+            "activated TurboQuant telemetry lacks a transformed model hash"
+        )
+    if (
+        attention_path != "stateful_sdpa_reference_codec"
+        or runtime_layer_type != "Reference"
+    ):
+        raise ValueError("activated TurboQuant runtime identity is invalid")
+    if decoded_scratch_bytes <= 0 or full_precision_equivalent_bytes <= 0:
+        raise ValueError(
+            "activated TurboQuant transient byte evidence is empty"
+        )
 
 
 def _summarize(values: Sequence[float]) -> dict[str, Any]:
@@ -149,19 +376,15 @@ def parse_worker_output(stdout: str, stderr: str) -> dict[str, Any]:
     activations = [
         value
         for value in (*_json_objects(stdout), *_json_objects(stderr))
-        if value.get("status") == "activated"
+        if value.get("status") in {"activated", "not_requested"}
     ]
     if len(activations) != 1:
         raise ValueError(
-            f"expected exactly one activated telemetry record, found {len(activations)}"
+            "expected exactly one activated or measured STANDARD telemetry "
+            f"record, found {len(activations)}"
         )
     activation = activations[0]
-    if activation.get("fallback") is not False:
-        raise ValueError("activated telemetry reports fallback")
-    expected = _finite_number(activation.get("expected_bytes"), "expected bytes")
-    actual = _finite_number(activation.get("actual_bytes"), "actual bytes")
-    if expected != actual:
-        raise ValueError("activated telemetry persistent bytes do not reconcile")
+    validate_activation_telemetry(activation)
     return {"result": result, "activation": activation}
 
 
@@ -239,6 +462,7 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
     gpu: list[float] = []
     dedicated: list[float] = []
     shared: list[float] = []
+    combined: list[float] = []
     engines: list[int] = []
     for index, row in enumerate(rows, start=1):
         if not _parse_bool(row["gpu_engine_query_ok"], "GPU engine query"):
@@ -263,12 +487,13 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             _finite_number(dedicated_value, "GPU dedicated memory")
         )
         shared.append(_finite_number(shared_value, "GPU shared memory"))
+        combined.append(dedicated[-1] + shared[-1])
     return {
         "gpu_percent": _summarize(gpu),
         "gpu_engine_count": _summarize(engines),
         "gpu_dedicated_memory_peak_mb": max(dedicated),
         "gpu_shared_memory_peak_mb": max(shared),
-        "gpu_memory_peak_mb": max(dedicated) + max(shared),
+        "gpu_memory_peak_mb": max(combined),
         "observation_count": len(rows),
     }
 
@@ -371,4 +596,5 @@ __all__ = [
     "parse_cpu_samples",
     "parse_gpu_samples",
     "parse_worker_output",
+    "validate_activation_telemetry",
 ]
