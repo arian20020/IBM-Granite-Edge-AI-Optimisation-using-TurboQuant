@@ -54,8 +54,115 @@ def _setup_campaign(tmp_path: Path) -> dict:
     (libraries / "openvino.dll").write_bytes(b"openvino")
     model = tmp_path / "model"
     model.mkdir()
-    (model / "openvino_model.xml").write_text("<model/>", encoding="utf-8")
-    (model / "openvino_model.bin").write_bytes(b"weights")
+    model_contents = {
+        "openvino_model.xml": '<model><data element_type="u8"/></model>',
+        "openvino_model.bin": "weights",
+        "openvino_tokenizer.xml": "<model/>",
+        "openvino_tokenizer.bin": "tokenizer",
+        "openvino_detokenizer.xml": "<model/>",
+        "openvino_detokenizer.bin": "detokenizer",
+        "tokenizer.json": '{"version":"1.0"}',
+        "tokenizer_config.json": '{"model_max_length":8192}',
+        "config.json": '{"model_type":"granite"}',
+        "generation_config.json": '{"do_sample":false}',
+        "openvino_config.json": '{"weight_format":"int8"}',
+        "README.md": "---\nlicense: apache-2.0\n---\nConverted model.\n",
+    }
+    for name, content in model_contents.items():
+        (model / name).write_text(content, encoding="utf-8")
+    inventory = [
+        {
+            "path": path.name,
+            "size_bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for path in sorted(model.iterdir())
+        if path.is_file()
+    ]
+    inventory.sort(key=lambda item: item["path"])
+    inventory_sha256 = hashlib.sha256(
+        json.dumps(
+            inventory,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    load_probe_log = tmp_path / "load-probe.log"
+    load_probe_log.write_text("CPU generation passed\n", encoding="utf-8")
+    probe_output = "Granite probe output"
+    readme = next(item for item in inventory if item["path"] == "README.md")
+    model_xml = next(
+        item for item in inventory if item["path"] == "openvino_model.xml"
+    )
+    artifact_manifest = tmp_path / "artifact-manifest.json"
+    _write_json(
+        artifact_manifest,
+        {
+            "schema_version": 1,
+            "status": "load-proven",
+            "artifact_id": "granite-4.1-3b-u8-openvino",
+            "artifact_root": str(model),
+            "model": {
+                "family": "granite-4.1",
+                "parameter_scale": "3b",
+                "precision": "u8",
+                "source_repository": "ibm-granite/granite-4.1-3b",
+                "source_revision": "a" * 40,
+                "artifact_repository": "publisher/granite-4.1-3b-int8-ov",
+                "artifact_revision": "b" * 40,
+            },
+            "conversion": {
+                "kind": "published-preconverted",
+                "command": [
+                    "optimum-cli",
+                    "export",
+                    "openvino",
+                    "--weight-format",
+                    "int8",
+                ],
+                "tool_versions": {
+                    "optimum-intel": "2.1.0.dev0",
+                    "openvino": "2026.2.1",
+                },
+                "provenance_path": "README.md",
+                "provenance_sha256": readme["sha256"],
+            },
+            "files": inventory,
+            "inventory_sha256": inventory_sha256,
+            "precision_proof": {
+                "path": "openvino_model.xml",
+                "sha256": model_xml["sha256"],
+                "element_type": "u8",
+                "element_type_count": 1,
+            },
+            "license": {
+                "spdx": "Apache-2.0",
+                "path": "README.md",
+                "sha256": readme["sha256"],
+            },
+            "load_probe": {
+                "status": "passed",
+                "device_requested": "CPU",
+                "device_actual": "CPU",
+                "fallback": False,
+                "model_path": str(model),
+                "command": ["probe", "--model", str(model), "--device", "CPU"],
+                "generated_tokens": 4,
+                "output": probe_output,
+                "output_sha256": hashlib.sha256(
+                    probe_output.encode("utf-8")
+                ).hexdigest(),
+                "artifact_inventory_sha256": inventory_sha256,
+                "runtime_build_manifest_sha256": "c" * 64,
+                "exit_code": 0,
+                "cleanup_process_count": 0,
+                "log_path": str(load_probe_log),
+                "log_sha256": hashlib.sha256(
+                    load_probe_log.read_bytes()
+                ).hexdigest(),
+            },
+        },
+    )
     sampler = tmp_path / "sampler.ps1"
     sampler.write_text("# sampler\n", encoding="utf-8")
     build_provenance = tmp_path / "build-provenance.json"
@@ -116,6 +223,7 @@ def _setup_campaign(tmp_path: Path) -> dict:
         "spec_path": spec,
         "campaign_root": tmp_path / "campaign",
         "matrix_path": matrix,
+        "artifact_manifest_path": artifact_manifest,
         "build_provenance_path": build_provenance,
         "build_root": build,
         "repo_root": repo,
@@ -134,6 +242,7 @@ def _identity_kwargs(kwargs: dict) -> dict:
         for field in (
             "spec_path",
             "matrix_path",
+            "artifact_manifest_path",
             "build_provenance_path",
             "build_root",
             "repo_root",
@@ -550,17 +659,6 @@ def test_resume_rejects_changed_identity_before_launching_more_work(tmp_path):
             ),
         ),
         (
-            "model",
-            lambda kwargs: (
-                Path(
-                    json.loads(
-                        kwargs["spec_path"].read_text(encoding="utf-8")
-                    )["model_path"]
-                )
-                / "openvino_model.bin"
-            ).write_bytes(b"different weights"),
-        ),
-        (
             "prompt",
             lambda kwargs: _mutate_json(
                 kwargs["spec_path"],
@@ -593,6 +691,37 @@ def test_canonical_identity_changes_for_every_resume_boundary(
     assert before["campaign_identity_sha256"] != after[
         "campaign_identity_sha256"
     ]
+
+
+def test_campaign_rejects_model_bytes_that_no_longer_match_manifest(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+    model = Path(
+        json.loads(
+            kwargs["spec_path"].read_text(encoding="utf-8")
+        )["model_path"]
+    )
+    (model / "openvino_model.bin").write_bytes(b"different weights")
+
+    with pytest.raises(ValueError, match="artifact (hash|size) mismatch"):
+        build_campaign_identity(**_identity_kwargs(kwargs))
+
+
+def test_campaign_rejects_model_manifest_precision_mismatch_before_launch(
+    tmp_path,
+):
+    kwargs = _setup_campaign(tmp_path)
+    _mutate_json(
+        kwargs["matrix_path"],
+        lambda value: value["cases"][0].update(weight_precision="u4"),
+    )
+
+    with pytest.raises(ValueError, match="expected precision u4"):
+        run_measurement_sequence(
+            **kwargs,
+            run_measurement=lambda **_: pytest.fail(
+                "invalid artifact must stop before launch"
+            ),
+        )
 
 
 def test_canonical_identity_ignores_runtime_generated_python_bytecode(tmp_path):

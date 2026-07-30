@@ -188,4 +188,5 @@ def test_cli_can_be_invoked_directly_from_repository_root():
     assert "--python-site-packages" in result.stdout
     assert "--campaign-root" in result.stdout
     assert "--matrix" in result.stdout
+    assert "--artifact-manifest" in result.stdout
     assert "--build-provenance" in result.stdout

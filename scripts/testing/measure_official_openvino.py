@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.testing.official_openvino.conversion import (
+    validate_artifact_manifest,
+)
 from scripts.testing.official_openvino.metrics import summarize_samples
 from scripts.testing.official_openvino.runtime_measurement import (
     atomic_write_json,
@@ -162,6 +165,7 @@ def build_campaign_identity(
     *,
     spec_path: Path,
     matrix_path: Path,
+    artifact_manifest_path: Path,
     build_provenance_path: Path,
     build_root: Path,
     repo_root: Path,
@@ -173,6 +177,28 @@ def build_campaign_identity(
 
     spec = _sequence_spec(spec_path)
     model_path = _directory(Path(spec["model_path"]), "model")
+    matrix = _matrix_case(
+        matrix_path,
+        spec["controlled_test_id"],
+        spec["context"],
+    )
+    expected_precision = matrix["case"].get("weight_precision")
+    if expected_precision not in {"f16", "u8", "u4"}:
+        raise ValueError("matrix case has no recognized weight precision")
+    manifest_path = _file(
+        artifact_manifest_path,
+        "model artifact manifest",
+    )
+    artifact = validate_artifact_manifest(
+        manifest_path,
+        expected_precision=expected_precision,
+    )
+    if os.path.normcase(str(model_path)) != os.path.normcase(
+        str(Path(artifact["artifact_root"]).resolve())
+    ):
+        raise ValueError(
+            "worker model path does not match the validated artifact manifest"
+        )
     build = _directory(build_root, "build root")
     package = _directory(build / "openvino_genai", "OpenVINO GenAI package")
     modules = sorted(package.glob("py_openvino_genai*.pyd"))
@@ -212,11 +238,7 @@ def build_campaign_identity(
     identity = {
         "config": {field: spec.get(field) for field in config_fields},
         "context": spec["context"],
-        "matrix": _matrix_case(
-            matrix_path,
-            spec["controlled_test_id"],
-            spec["context"],
-        ),
+        "matrix": matrix,
         "build": {
             "root": str(build),
             "provenance_path": str(provenance_path),
@@ -230,7 +252,11 @@ def build_campaign_identity(
                 "sha256": _sha256_file(runtime_dll),
             },
         },
-        "model": _directory_content_identity(model_path, "model"),
+        "model": {
+            "artifact_manifest_path": str(manifest_path),
+            "artifact_manifest_sha256": _sha256_file(manifest_path),
+            "validated_artifact": artifact,
+        },
         "prompt": {
             "utf8_bytes": len(spec["prompt"].encode("utf-8")),
             "sha256": hashlib.sha256(
@@ -637,6 +663,7 @@ def _run_measurement_sequence_locked(
     spec_path: Path,
     campaign_root: Path,
     matrix_path: Path,
+    artifact_manifest_path: Path,
     build_provenance_path: Path,
     build_root: Path,
     repo_root: Path,
@@ -656,6 +683,7 @@ def _run_measurement_sequence_locked(
     identity = build_campaign_identity(
         spec_path=spec_path,
         matrix_path=matrix_path,
+        artifact_manifest_path=artifact_manifest_path,
         build_provenance_path=build_provenance_path,
         build_root=build_root,
         repo_root=repo_root,
@@ -777,6 +805,7 @@ def run_measurement_sequence(
     spec_path: Path,
     campaign_root: Path,
     matrix_path: Path,
+    artifact_manifest_path: Path,
     build_provenance_path: Path,
     build_root: Path,
     repo_root: Path,
@@ -795,6 +824,7 @@ def run_measurement_sequence(
             spec_path=spec_path,
             campaign_root=campaign_root,
             matrix_path=matrix_path,
+            artifact_manifest_path=artifact_manifest_path,
             build_provenance_path=build_provenance_path,
             build_root=build_root,
             repo_root=repo_root,
@@ -816,6 +846,11 @@ def _parser() -> argparse.ArgumentParser:
     destination.add_argument("--campaign-root", type=Path)
     parser.add_argument("--role", choices=sorted(ROLES))
     parser.add_argument("--matrix", dest="matrix_path", type=Path)
+    parser.add_argument(
+        "--artifact-manifest",
+        dest="artifact_manifest_path",
+        type=Path,
+    )
     parser.add_argument(
         "--build-provenance",
         dest="build_provenance_path",
@@ -859,15 +894,20 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.role is not None:
         parser.error("--role cannot be used with --campaign-root")
-    if args.matrix_path is None or args.build_provenance_path is None:
+    if (
+        args.matrix_path is None
+        or args.artifact_manifest_path is None
+        or args.build_provenance_path is None
+    ):
         parser.error(
-            "--matrix and --build-provenance are required with "
-            "--campaign-root"
+            "--matrix, --artifact-manifest, and --build-provenance are "
+            "required with --campaign-root"
         )
     sequence = run_measurement_sequence(
         **common,
         campaign_root=args.campaign_root,
         matrix_path=args.matrix_path,
+        artifact_manifest_path=args.artifact_manifest_path,
         build_provenance_path=args.build_provenance_path,
     )
     print(json.dumps(sequence, sort_keys=True, allow_nan=False))
