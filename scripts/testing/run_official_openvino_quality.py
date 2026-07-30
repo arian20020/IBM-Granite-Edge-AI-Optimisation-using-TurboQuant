@@ -28,7 +28,12 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
+
+from scripts.testing.official_openvino.quality import (
+    validate_response_record as validate_scoring_response_record,
+)
 
 
 PROMPT_IDS = tuple(f"P{number}" for number in range(1, 7))
@@ -58,6 +63,9 @@ FROZEN_RENDERED_SHA256S = {
 }
 FROZEN_P5_FIXTURE_SHA256 = (
     "72555318f7ac5ece22987330d761d8ec831e92364b6f317bc4514f1f4240cc1a"
+)
+FROZEN_RUBRIC_SHA256 = (
+    "a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90"
 )
 FROZEN_PROMPT_SHA256S = {
     "P1": "481ddd30bfe6bab2f8bbafca6f4230f281c350fbd01b25ccaa54d33f0649bb2d",
@@ -93,6 +101,31 @@ class QualityConfiguration:
 QualityExecutor = Callable[[QualityConfiguration, Path, Path], None]
 
 
+@dataclass(frozen=True)
+class QualityRuntimeIdentity:
+    """Expected identity of the accepted measurement supplying a quality run."""
+
+    test_id: str
+    context_tokens: int
+    campaign_identity_sha256: str
+
+
+@dataclass(frozen=True)
+class QualityGenerationRequest:
+    """One exact model invocation in the frozen P1-P6 screen."""
+
+    prompt_id: str
+    turn_id: str
+    raw_prompt: str
+    generation_settings: Mapping[str, Any]
+
+
+QualityGenerator = Callable[
+    [QualityGenerationRequest],
+    str | Mapping[str, Any],
+]
+
+
 def reject_nulls(value: Any, *, location: str = "$") -> None:
     """Reject JSON null recursively, including inside arbitrary mappings."""
 
@@ -110,11 +143,21 @@ def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-finite JSON number is prohibited: {value}")
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
 def parse_json_bytes_strict(raw: bytes, *, source: str | Path) -> Any:
     try:
         value = json.loads(
             raw.decode("utf-8-sig"),
             parse_constant=_reject_json_constant,
+            object_pairs_hook=_reject_duplicate_keys,
         )
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError(f"invalid JSON artifact: {source}: {exc}") from exc
@@ -331,6 +374,680 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
     }
     reject_nulls(contract)
     return contract
+
+
+def _validate_runtime_identity(identity: QualityRuntimeIdentity) -> None:
+    if not isinstance(identity.test_id, str) or not identity.test_id.strip():
+        raise ValueError("test_id must be a non-blank string")
+    if (
+        isinstance(identity.context_tokens, bool)
+        or not isinstance(identity.context_tokens, int)
+        or identity.context_tokens <= 0
+    ):
+        raise ValueError("context_tokens must be a positive integer")
+    _validate_sha256(
+        identity.campaign_identity_sha256,
+        field="campaign_identity_sha256",
+    )
+
+
+def _load_accepted_measurement_summary(
+    path: Path,
+    expected: QualityRuntimeIdentity,
+) -> tuple[dict[str, Any], str, str]:
+    """Load one accepted measured summary and bind its full runtime identity."""
+
+    _validate_runtime_identity(expected)
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise RuntimeError(f"accepted measurement summary is unavailable: {path}") from exc
+    value = parse_json_bytes_strict(raw, source=path)
+    if not isinstance(value, dict):
+        raise RuntimeError("accepted measurement summary must be a JSON object")
+    required_state = (
+        value.get("schema_version") == 1
+        and value.get("status") == "measured"
+        and value.get("accepted") is True
+        and value.get("sample_count") == 3
+        and value.get("cleanup_process_count") == 0
+    )
+    if not required_state:
+        raise RuntimeError(
+            "quality capture requires an accepted measurement summary with "
+            "three samples and zero surviving owned processes"
+        )
+    expected_fields = {
+        "test_id": expected.test_id,
+        "context_tokens": expected.context_tokens,
+        "campaign_identity_sha256": expected.campaign_identity_sha256,
+    }
+    for field, expected_value in expected_fields.items():
+        if value.get(field) != expected_value:
+            raise RuntimeError(
+                f"measurement summary {field.replace('_', ' ')} mismatch"
+            )
+    _validate_sha256(
+        value["campaign_identity_sha256"],
+        field="campaign_identity_sha256",
+    )
+    runtime_config_sha256 = _validate_sha256(
+        value.get("runtime_config_sha256"),
+        field="runtime_config_sha256",
+    )
+    return dict(value), _sha256_bytes(raw), runtime_config_sha256
+
+
+def _load_frozen_rubric(path: Path) -> tuple[dict[str, Any], str]:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"frozen quality rubric is unavailable: {path}") from exc
+    digest = _sha256_bytes(raw)
+    if digest != FROZEN_RUBRIC_SHA256:
+        raise ValueError("frozen quality rubric hash mismatch")
+    value = parse_json_bytes_strict(raw, source=path)
+    if (
+        not isinstance(value, dict)
+        or value.get("rubric_id") != "GTQ-QUALITY-RUBRIC-v1"
+        or value.get("status") != "controlling"
+    ):
+        raise ValueError("frozen quality rubric identity mismatch")
+    return dict(value), digest
+
+
+def _p6_turn_two_prompt(
+    turn_one_prompt: str,
+    turn_one_output: str,
+    turn_two_prompt: str,
+) -> str:
+    return (
+        f"User: {turn_one_prompt.strip()}\n"
+        f"Assistant: {turn_one_output}\n"
+        f"User: {turn_two_prompt.strip()}"
+    )
+
+
+def _generation_outcome(
+    generate: QualityGenerator,
+    request: QualityGenerationRequest,
+) -> dict[str, str]:
+    try:
+        raw = generate(request)
+    except Exception as exc:
+        partial = getattr(exc, "output", "")
+        return {
+            "status": "failed",
+            "output": partial if isinstance(partial, str) else "",
+            "failure": str(exc),
+        }
+    if isinstance(raw, str):
+        return {"status": "complete", "output": raw}
+    if not isinstance(raw, Mapping):
+        raise ValueError("quality generator must return text or a result mapping")
+    result = dict(raw)
+    status = result.get("status")
+    expected_fields = (
+        {"status", "output"}
+        if status == "complete"
+        else {"status", "output", "failure"}
+    )
+    if status not in {"complete", "failed"} or set(result) != expected_fields:
+        raise ValueError(
+            "quality generator result must be complete/output or "
+            "failed/output/failure"
+        )
+    if not isinstance(result["output"], str):
+        raise ValueError("quality generator output must be text")
+    if status == "failed" and not isinstance(result["failure"], str):
+        raise ValueError("quality generator failure must be text")
+    return result
+
+
+def _turn_prompt(turn_id: str, raw_prompt: str) -> dict[str, str]:
+    return {
+        "turn_id": turn_id,
+        "raw_prompt": raw_prompt,
+        "raw_prompt_sha256": _sha256_text(raw_prompt),
+    }
+
+
+def _turn_output(turn_id: str, outcome: Mapping[str, str]) -> dict[str, str]:
+    output = outcome["output"]
+    result = {
+        "turn_id": turn_id,
+        "status": outcome["status"],
+        "output": output,
+        "output_sha256": _sha256_text(output),
+    }
+    if outcome["status"] == "failed":
+        result["failure"] = outcome["failure"]
+        result["failure_sha256"] = _sha256_text(outcome["failure"])
+    return result
+
+
+def _response_sha256(turn_outputs: Sequence[Mapping[str, Any]]) -> str:
+    return _sha256_bytes(_canonical_json(list(turn_outputs)))
+
+
+def _record_sha256(record: Mapping[str, Any]) -> str:
+    unsigned = {
+        key: value for key, value in record.items() if key != "record_sha256"
+    }
+    return _sha256_bytes(_canonical_json(unsigned))
+
+
+_CAPTURE_RECORD_FIELDS = {
+    "schema_version",
+    "artifact_type",
+    "status",
+    "test_id",
+    "context_tokens",
+    "campaign_identity_sha256",
+    "prompt_id",
+    "prompt_set_id",
+    "prompt_set_sha256",
+    "prompt_sha256",
+    "raw_prompt",
+    "raw_prompt_sha256",
+    "rubric_id",
+    "rubric_sha256",
+    "runtime_summary_sha256",
+    "runtime_config_sha256",
+    "generation_settings",
+    "generation_settings_sha256",
+    "turn_prompts",
+    "turn_outputs",
+    "output",
+    "output_sha256",
+    "response_sha256",
+    "record_sha256",
+}
+_CAPTURE_P6_FIELDS = {"turn_1", "turn_1_sha256"}
+_CAPTURE_FAILURE_FIELDS = {
+    "failure",
+    "failure_sha256",
+    "failed_turn_id",
+}
+
+
+def _build_capture_record(
+    *,
+    prompt_id: str,
+    contract: Mapping[str, Any],
+    rubric_sha256: str,
+    expected_runtime: QualityRuntimeIdentity,
+    runtime_summary_sha256: str,
+    runtime_config_sha256: str,
+    turn_prompts: Sequence[Mapping[str, str]],
+    turn_outputs: Sequence[Mapping[str, str]],
+) -> dict[str, Any]:
+    final_prompt = turn_prompts[-1]["raw_prompt"]
+    final_output = turn_outputs[-1]["output"]
+    failed_outputs = [
+        output for output in turn_outputs if output["status"] == "failed"
+    ]
+    status = "failed" if failed_outputs else "complete"
+    record: dict[str, Any] = {
+        "schema_version": 1,
+        "artifact_type": "openvino-quality-response-record",
+        "status": status,
+        "test_id": expected_runtime.test_id,
+        "context_tokens": expected_runtime.context_tokens,
+        "campaign_identity_sha256": (
+            expected_runtime.campaign_identity_sha256
+        ),
+        "prompt_id": prompt_id,
+        "prompt_set_id": contract["prompt_set_id"],
+        "prompt_set_sha256": contract["prompt_set_sha256"],
+        "prompt_sha256": _sha256_text(final_prompt),
+        "raw_prompt": final_prompt,
+        "raw_prompt_sha256": _sha256_text(final_prompt),
+        "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+        "rubric_sha256": rubric_sha256,
+        "runtime_summary_sha256": runtime_summary_sha256,
+        "runtime_config_sha256": runtime_config_sha256,
+        "generation_settings": dict(contract["generation_settings"]),
+        "generation_settings_sha256": _sha256_bytes(
+            _canonical_json(contract["generation_settings"])
+        ),
+        "turn_prompts": [dict(prompt) for prompt in turn_prompts],
+        "turn_outputs": [dict(output) for output in turn_outputs],
+        "output": final_output,
+        "output_sha256": _sha256_text(final_output),
+        "response_sha256": _response_sha256(turn_outputs),
+    }
+    if prompt_id == "P6":
+        first_output = turn_outputs[0]["output"]
+        record["turn_1"] = first_output
+        record["turn_1_sha256"] = _sha256_text(first_output)
+    if status == "failed":
+        failed = failed_outputs[0]
+        record["failure"] = failed["failure"]
+        record["failure_sha256"] = failed["failure_sha256"]
+        record["failed_turn_id"] = failed["turn_id"]
+    record["record_sha256"] = _record_sha256(record)
+    return record
+
+
+def _validate_capture_record(
+    record: Any,
+    *,
+    prompt_id: str,
+    contract: Mapping[str, Any],
+    rubric_sha256: str,
+    expected_runtime: QualityRuntimeIdentity,
+    runtime_summary_sha256: str,
+    runtime_config_sha256: str,
+) -> dict[str, Any]:
+    reject_nulls(record)
+    if not isinstance(record, dict):
+        raise ValueError("quality response record must be a JSON object")
+    fixed = {
+        "schema_version": 1,
+        "artifact_type": "openvino-quality-response-record",
+        "test_id": expected_runtime.test_id,
+        "context_tokens": expected_runtime.context_tokens,
+        "campaign_identity_sha256": (
+            expected_runtime.campaign_identity_sha256
+        ),
+        "prompt_id": prompt_id,
+        "prompt_set_id": contract["prompt_set_id"],
+        "prompt_set_sha256": contract["prompt_set_sha256"],
+        "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+        "rubric_sha256": rubric_sha256,
+        "runtime_summary_sha256": runtime_summary_sha256,
+        "runtime_config_sha256": runtime_config_sha256,
+        "generation_settings": contract["generation_settings"],
+        "generation_settings_sha256": _sha256_bytes(
+            _canonical_json(contract["generation_settings"])
+        ),
+    }
+    for field, expected in fixed.items():
+        if record.get(field) != expected:
+            raise ValueError(f"quality response {field} mismatch")
+    if record.get("status") not in {"complete", "failed"}:
+        raise ValueError("quality response status is invalid")
+    expected_fields = set(_CAPTURE_RECORD_FIELDS)
+    if prompt_id == "P6":
+        expected_fields.update(_CAPTURE_P6_FIELDS)
+    if record["status"] == "failed":
+        expected_fields.update(_CAPTURE_FAILURE_FIELDS)
+    if set(record) != expected_fields:
+        raise ValueError(
+            "quality response record has missing or unexpected fields"
+        )
+    for field in (
+        "campaign_identity_sha256",
+        "prompt_set_sha256",
+        "prompt_sha256",
+        "raw_prompt_sha256",
+        "rubric_sha256",
+        "runtime_summary_sha256",
+        "runtime_config_sha256",
+        "generation_settings_sha256",
+        "output_sha256",
+        "response_sha256",
+        "record_sha256",
+    ):
+        _validate_sha256(record.get(field), field=field)
+    if _record_sha256(record) != record["record_sha256"]:
+        raise ValueError("quality response record hash mismatch")
+
+    turn_prompts = record.get("turn_prompts")
+    turn_outputs = record.get("turn_outputs")
+    if (
+        not isinstance(turn_prompts, list)
+        or not isinstance(turn_outputs, list)
+        or not turn_prompts
+        or len(turn_prompts) != len(turn_outputs)
+    ):
+        raise ValueError("quality response turn evidence is incomplete")
+    expected_turn_ids = (
+        ["turn_1", "turn_2"]
+        if prompt_id == "P6" and len(turn_prompts) == 2
+        else ["turn_1"]
+    )
+    if len(turn_prompts) != len(expected_turn_ids):
+        raise ValueError("quality response has an invalid turn count")
+    if record["status"] == "complete" and (
+        prompt_id == "P6" and len(turn_prompts) != 2
+    ):
+        raise ValueError("complete P6 response requires two turns")
+
+    if prompt_id == "P6":
+        execution = contract["prompts"]["P6"]["execution"]
+        turn_one = record.get("turn_1")
+        if not isinstance(turn_one, str):
+            raise ValueError("P6 turn 1 output is required")
+        expected_prompts = [execution["turn_1_prompt"]]
+        if len(turn_prompts) == 2:
+            expected_prompts.append(
+                _p6_turn_two_prompt(
+                    execution["turn_1_prompt"],
+                    turn_one,
+                    execution["turn_2_prompt"],
+                )
+            )
+        if record.get("turn_1_sha256") != _sha256_text(turn_one):
+            raise ValueError("P6 turn 1 output hash mismatch")
+    else:
+        expected_prompts = [contract["prompts"][prompt_id]["execution"]["prompt"]]
+
+    for index, (prompt, output, turn_id, expected_prompt) in enumerate(
+        zip(turn_prompts, turn_outputs, expected_turn_ids, expected_prompts)
+    ):
+        if not isinstance(prompt, dict) or set(prompt) != {
+            "turn_id",
+            "raw_prompt",
+            "raw_prompt_sha256",
+        }:
+            raise ValueError(f"quality turn prompt {index} is invalid")
+        if (
+            prompt["turn_id"] != turn_id
+            or prompt["raw_prompt"] != expected_prompt
+            or prompt["raw_prompt_sha256"] != _sha256_text(expected_prompt)
+        ):
+            raise ValueError(f"quality turn prompt {index} identity mismatch")
+        if not isinstance(output, dict):
+            raise ValueError(f"quality turn output {index} is invalid")
+        expected_output_fields = (
+            {"turn_id", "status", "output", "output_sha256"}
+            if output.get("status") == "complete"
+            else {
+                "turn_id",
+                "status",
+                "output",
+                "output_sha256",
+                "failure",
+                "failure_sha256",
+            }
+        )
+        if set(output) != expected_output_fields:
+            raise ValueError(f"quality turn output {index} fields are invalid")
+        if (
+            output["turn_id"] != turn_id
+            or output["status"] not in {"complete", "failed"}
+            or not isinstance(output["output"], str)
+            or output["output_sha256"] != _sha256_text(output["output"])
+        ):
+            raise ValueError(f"quality turn output {index} identity mismatch")
+        if output["status"] == "failed" and (
+            not isinstance(output["failure"], str)
+            or output["failure_sha256"] != _sha256_text(output["failure"])
+        ):
+            raise ValueError(f"quality turn output {index} failure mismatch")
+
+    final_prompt = turn_prompts[-1]["raw_prompt"]
+    final_output = turn_outputs[-1]["output"]
+    if (
+        record.get("raw_prompt") != final_prompt
+        or record["raw_prompt_sha256"] != _sha256_text(final_prompt)
+        or record["prompt_sha256"] != _sha256_text(final_prompt)
+        or record.get("output") != final_output
+        or record["output_sha256"] != _sha256_text(final_output)
+        or record["response_sha256"] != _response_sha256(turn_outputs)
+    ):
+        raise ValueError("quality response prompt or output hash mismatch")
+
+    failures = [item for item in turn_outputs if item["status"] == "failed"]
+    if record["status"] == "complete":
+        if failures:
+            raise ValueError("complete quality response contains a failed turn")
+        validate_scoring_response_record(
+            record,
+            expected_runtime={
+                "test_id": expected_runtime.test_id,
+                "context_tokens": expected_runtime.context_tokens,
+                "runtime_summary_sha256": runtime_summary_sha256,
+                "runtime_config_sha256": runtime_config_sha256,
+            },
+            expected_prompt_set_sha256=contract["prompt_set_sha256"],
+            expected_prompt_sha256=_sha256_text(final_prompt),
+        )
+    else:
+        if len(failures) != 1:
+            raise ValueError("failed quality response must preserve one failed turn")
+        failed = failures[0]
+        for field, expected in {
+            "failure": failed["failure"],
+            "failure_sha256": failed["failure_sha256"],
+            "failed_turn_id": failed["turn_id"],
+        }.items():
+            if record.get(field) != expected:
+                raise ValueError(f"failed quality response {field} mismatch")
+    return dict(record)
+
+
+def _capture_prompt(
+    *,
+    prompt_id: str,
+    contract: Mapping[str, Any],
+    generate: QualityGenerator,
+    rubric_sha256: str,
+    expected_runtime: QualityRuntimeIdentity,
+    runtime_summary_sha256: str,
+    runtime_config_sha256: str,
+) -> dict[str, Any]:
+    prompt = contract["prompts"][prompt_id]
+    turn_prompts: list[dict[str, str]] = []
+    turn_outputs: list[dict[str, str]] = []
+    if prompt_id != "P6":
+        request = QualityGenerationRequest(
+            prompt_id=prompt_id,
+            turn_id="turn_1",
+            raw_prompt=prompt["execution"]["prompt"],
+            generation_settings=MappingProxyType(
+                dict(contract["generation_settings"])
+            ),
+        )
+        outcome = _generation_outcome(generate, request)
+        turn_prompts.append(_turn_prompt("turn_1", request.raw_prompt))
+        turn_outputs.append(_turn_output("turn_1", outcome))
+    else:
+        execution = prompt["execution"]
+        first_request = QualityGenerationRequest(
+            prompt_id="P6",
+            turn_id="turn_1",
+            raw_prompt=execution["turn_1_prompt"],
+            generation_settings=MappingProxyType(
+                dict(contract["generation_settings"])
+            ),
+        )
+        first_outcome = _generation_outcome(generate, first_request)
+        turn_prompts.append(_turn_prompt("turn_1", first_request.raw_prompt))
+        turn_outputs.append(_turn_output("turn_1", first_outcome))
+        if first_outcome["status"] == "complete":
+            second_raw_prompt = _p6_turn_two_prompt(
+                execution["turn_1_prompt"],
+                first_outcome["output"],
+                execution["turn_2_prompt"],
+            )
+            second_request = QualityGenerationRequest(
+                prompt_id="P6",
+                turn_id="turn_2",
+                raw_prompt=second_raw_prompt,
+                generation_settings=MappingProxyType(
+                    dict(contract["generation_settings"])
+                ),
+            )
+            second_outcome = _generation_outcome(generate, second_request)
+            turn_prompts.append(_turn_prompt("turn_2", second_request.raw_prompt))
+            turn_outputs.append(_turn_output("turn_2", second_outcome))
+    return _build_capture_record(
+        prompt_id=prompt_id,
+        contract=contract,
+        rubric_sha256=rubric_sha256,
+        expected_runtime=expected_runtime,
+        runtime_summary_sha256=runtime_summary_sha256,
+        runtime_config_sha256=runtime_config_sha256,
+        turn_prompts=turn_prompts,
+        turn_outputs=turn_outputs,
+    )
+
+
+def _build_capture_summary(
+    *,
+    records: Mapping[str, Mapping[str, Any]],
+    contract: Mapping[str, Any],
+    rubric_sha256: str,
+    expected_runtime: QualityRuntimeIdentity,
+    runtime_summary_sha256: str,
+    runtime_config_sha256: str,
+) -> dict[str, Any]:
+    failure_count = sum(
+        record["status"] == "failed" for record in records.values()
+    )
+    summary: dict[str, Any] = {
+        "schema_version": 1,
+        "artifact_type": "openvino-quality-capture-summary",
+        "status": (
+            "captured-with-failures" if failure_count else "captured"
+        ),
+        "test_id": expected_runtime.test_id,
+        "context_tokens": expected_runtime.context_tokens,
+        "campaign_identity_sha256": (
+            expected_runtime.campaign_identity_sha256
+        ),
+        "runtime_summary_sha256": runtime_summary_sha256,
+        "runtime_config_sha256": runtime_config_sha256,
+        "prompt_set_id": contract["prompt_set_id"],
+        "prompt_set_sha256": contract["prompt_set_sha256"],
+        "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+        "rubric_sha256": rubric_sha256,
+        "generation_settings_sha256": _sha256_bytes(
+            _canonical_json(contract["generation_settings"])
+        ),
+        "response_count": len(records),
+        "failure_count": failure_count,
+        "responses": {
+            prompt_id: {
+                "status": record["status"],
+                "record_sha256": record["record_sha256"],
+                "output_sha256": record["output_sha256"],
+            }
+            for prompt_id, record in records.items()
+        },
+    }
+    summary["capture_sha256"] = _sha256_bytes(_canonical_json(summary))
+    return summary
+
+
+def capture_quality_responses(
+    *,
+    measurement_summary_path: Path,
+    expected_runtime: QualityRuntimeIdentity,
+    prompt_set_path: Path,
+    rendered_root: Path,
+    rubric_path: Path,
+    output_root: Path,
+    generate: QualityGenerator,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """Capture immutable P1-P6 responses without scoring or judging them."""
+
+    if not callable(generate):
+        raise ValueError("generate must be callable")
+    _summary, runtime_summary_sha256, runtime_config_sha256 = (
+        _load_accepted_measurement_summary(
+            measurement_summary_path,
+            expected_runtime,
+        )
+    )
+    contract = load_prompt_contract(prompt_set_path, rendered_root)
+    _rubric, rubric_sha256 = _load_frozen_rubric(rubric_path)
+    if not resume and output_root.exists() and any(output_root.iterdir()):
+        raise FileExistsError(
+            f"refusing to overwrite quality evidence: {output_root}"
+        )
+
+    summary_path = output_root / "capture-summary.json"
+    if summary_path.exists():
+        if not resume:
+            raise FileExistsError(
+                f"refusing to overwrite quality evidence: {summary_path}"
+            )
+        completed_records: dict[str, dict[str, Any]] = {}
+        for prompt_id in PROMPT_IDS:
+            response_path = output_root / prompt_id / "response.json"
+            if not response_path.is_file():
+                raise ValueError(
+                    "completed quality capture is missing "
+                    f"{prompt_id} response evidence"
+                )
+            completed_records[prompt_id] = _validate_capture_record(
+                read_json_strict(response_path),
+                prompt_id=prompt_id,
+                contract=contract,
+                rubric_sha256=rubric_sha256,
+                expected_runtime=expected_runtime,
+                runtime_summary_sha256=runtime_summary_sha256,
+                runtime_config_sha256=runtime_config_sha256,
+            )
+        expected_summary = _build_capture_summary(
+            records=completed_records,
+            contract=contract,
+            rubric_sha256=rubric_sha256,
+            expected_runtime=expected_runtime,
+            runtime_summary_sha256=runtime_summary_sha256,
+            runtime_config_sha256=runtime_config_sha256,
+        )
+        persisted_summary = read_json_strict(summary_path)
+        if persisted_summary != expected_summary:
+            raise ValueError(
+                "quality capture summary does not match response records"
+            )
+        return dict(persisted_summary)
+
+    records: dict[str, dict[str, Any]] = {}
+    for prompt_id in PROMPT_IDS:
+        response_path = output_root / prompt_id / "response.json"
+        if response_path.exists():
+            if not resume:
+                raise FileExistsError(
+                    f"refusing to overwrite quality evidence: {response_path}"
+                )
+            record = _validate_capture_record(
+                read_json_strict(response_path),
+                prompt_id=prompt_id,
+                contract=contract,
+                rubric_sha256=rubric_sha256,
+                expected_runtime=expected_runtime,
+                runtime_summary_sha256=runtime_summary_sha256,
+                runtime_config_sha256=runtime_config_sha256,
+            )
+        else:
+            record = _capture_prompt(
+                prompt_id=prompt_id,
+                contract=contract,
+                generate=generate,
+                rubric_sha256=rubric_sha256,
+                expected_runtime=expected_runtime,
+                runtime_summary_sha256=runtime_summary_sha256,
+                runtime_config_sha256=runtime_config_sha256,
+            )
+            _validate_capture_record(
+                record,
+                prompt_id=prompt_id,
+                contract=contract,
+                rubric_sha256=rubric_sha256,
+                expected_runtime=expected_runtime,
+                runtime_summary_sha256=runtime_summary_sha256,
+                runtime_config_sha256=runtime_config_sha256,
+            )
+            atomic_write_json(response_path, record)
+        records[prompt_id] = record
+
+    capture_summary = _build_capture_summary(
+        records=records,
+        contract=contract,
+        rubric_sha256=rubric_sha256,
+        expected_runtime=expected_runtime,
+        runtime_summary_sha256=runtime_summary_sha256,
+        runtime_config_sha256=runtime_config_sha256,
+    )
+    atomic_write_json(summary_path, capture_summary)
+    return capture_summary
 
 
 def _validate_configuration(configuration: QualityConfiguration) -> None:
