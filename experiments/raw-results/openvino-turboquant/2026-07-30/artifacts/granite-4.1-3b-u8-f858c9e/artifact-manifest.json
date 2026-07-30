@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "status": "load-proven",
+  "artifact_id": "granite-4.1-3b-u8-openvino-f858c9e",
+  "artifact_root": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-4.1-3b-int8-ov-f858c9e",
+  "model": {
+    "family": "granite-4.1",
+    "parameter_scale": "3b",
+    "precision": "u8",
+    "source_repository": "ibm-granite/granite-4.1-3b",
+    "source_revision": "c0650403e44e78ec0262dab1c90914c65b196c4e",
+    "source_revision_status": "inferred-not-publisher-bound",
+    "source_revision_basis": "Latest IBM default-branch commit dated 2026-05-04, with no later commit before the publisher's stated 2026-06-05 conversion date; the publisher command omitted --revision.",
+    "artifact_repository": "HarmenWessels/granite-4.1-3b-int8-ov",
+    "artifact_revision": "f858c9eb8584eff7d5501ef88e013e6d4c42b7b0"
+  },
+  "conversion": {
+    "kind": "published-preconverted",
+    "command": [
+      "optimum-cli",
+      "export",
+      "openvino",
+      "-m",
+      "ibm-granite/granite-4.1-3b",
+      "--task",
+      "text-generation-with-past",
+      "--weight-format",
+      "int8",
+      "granite-4.1-3b-int8-ov"
+    ],
+    "tool_versions": {
+      "optimum-intel": "2.1.0.dev0",
+      "transformers": "5.5.0"
+    },
+    "version_evidence_status": "embedded-metadata-preferred-over-conflicting-readme",
+    "version_evidence_note": "openvino_config.json reports Optimum 2.1.0.dev0 and Transformers 5.5.0; config.json and generation_config.json also report Transformers 5.5.0. The publisher README instead says Transformers 4.57.6.",
+    "provenance_path": "README.md",
+    "provenance_sha256": "2dc2301114afad6d5ae0e3f259d4278ef49c10ec2c0dd6678ea09e59382cabd7"
+  },
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size_bytes": 1519,
+      "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1575,
+      "sha256": "2dc2301114afad6d5ae0e3f259d4278ef49c10ec2c0dd6678ea09e59382cabd7"
+    },
+    {
+      "path": "chat_template.jinja",
+      "size_bytes": 6212,
+      "sha256": "735184a4c7cadc955b11f322926ac95a5961a106ae9028f85d984fc08f122073"
+    },
+    {
+      "path": "config.json",
+      "size_bytes": 861,
+      "sha256": "a42484326f1d284e5fd0b38ec0d3bb3b3894dbfd9fda4780828e3bab1e8f24b5"
+    },
+    {
+      "path": "generation_config.json",
+      "size_bytes": 153,
+      "sha256": "54390a5096966e5511b8289ae144418fff748e241038bae771470b21b1b8552a"
+    },
+    {
+      "path": "openvino_config.json",
+      "size_bytes": 484,
+      "sha256": "a2efe29dbd34e65b86eea1234d06e4b940531feed1a29514794dff7f2350be18"
+    },
+    {
+      "path": "openvino_detokenizer.bin",
+      "size_bytes": 1448197,
+      "sha256": "e445a458d0f91763a7ab63b5146f168755e756c52837c751caef7269d65d9eba"
+    },
+    {
+      "path": "openvino_detokenizer.xml",
+      "size_bytes": 14050,
+      "sha256": "df6fb9b5333fb3d8feb4ac2a4a78edfa0d37436f3f078a09e7870129df83d240"
+    },
+    {
+      "path": "openvino_model.bin",
+      "size_bytes": 3406770593,
+      "sha256": "f92a009e300ee1c01edc8a6cbaf4f591e2998421757ce63c090d75a5687faa06"
+    },
+    {
+      "path": "openvino_model.xml",
+      "size_bytes": 3592826,
+      "sha256": "be4f41b11d11203ee14f089a7f91755c683700787c2d758195652ed9b1fce580"
+    },
+    {
+      "path": "openvino_tokenizer.bin",
+      "size_bytes": 3695595,
+      "sha256": "c0c9f0e0ec4c0bd7df2cb236659c031db2baf04fec81aaa5ea6738250a3e5b28"
+    },
+    {
+      "path": "openvino_tokenizer.xml",
+      "size_bytes": 30463,
+      "sha256": "845950fce99c588aa95025cc34e02726895851038eeb0cce1ac5624871fc9cda"
+    },
+    {
+      "path": "tokenizer.json",
+      "size_bytes": 7153434,
+      "sha256": "24665f2815ee47aba521e4710bfc52f8ca045a552ec3f60925cce5e0edecb657"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size_bytes": 397,
+      "sha256": "993dfdb33b802cf1be48915e1601e5c02a22b131dbb82b01615a2deb7f6ba55a"
+    }
+  ],
+  "inventory_sha256": "aa13bffef41db340f8d86ee61f2f8894c9c8c35f57736b5e14f414ac4174bfef",
+  "precision_proof": {
+    "path": "openvino_model.xml",
+    "sha256": "be4f41b11d11203ee14f089a7f91755c683700787c2d758195652ed9b1fce580",
+    "element_type": "u8",
+    "element_type_count": 562
+  },
+  "license": {
+    "spdx": "Apache-2.0",
+    "path": "README.md",
+    "sha256": "2dc2301114afad6d5ae0e3f259d4278ef49c10ec2c0dd6678ea09e59382cabd7"
+  },
+  "load_probe": {
+    "status": "passed",
+    "device_requested": "CPU",
+    "device_actual": "CPU",
+    "fallback": false,
+    "model_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-4.1-3b-int8-ov-f858c9e",
+    "command": [
+      "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "-m",
+      "scripts.testing.official_openvino.measurement_worker",
+      "--spec",
+      "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\diagnostics\\u8-standard-load-probe-attempt-002\\spec.json"
+    ],
+    "spec_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\diagnostics\\u8-standard-load-probe-attempt-002\\spec.json",
+    "spec_sha256": "dd408f1d4d6551245127ab563abb9b4f8ef6acddd2eebc8b0cd4ec0fbee840e9",
+    "attempt_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\diagnostics\\u8-standard-load-probe-attempt-002\\run\\attempt.json",
+    "attempt_sha256": "720741b6eed42475abe6c23fad8a63d0850e78490145dc1368721490f7444605",
+    "generated_tokens": 4,
+    "output": "OK\n",
+    "output_sha256": "a12b7cb43c9d9134b5bb1b35e9096b66775d9e92e7611d1cc92b02edd6782a87",
+    "artifact_inventory_sha256": "aa13bffef41db340f8d86ee61f2f8894c9c8c35f57736b5e14f414ac4174bfef",
+    "runtime_build_manifest_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\provenance\\build-00edae3b-attempt-001\\build-provenance.json",
+    "runtime_build_manifest_sha256": "57fb318a55db56fb409a60f0b1d516a988f8543c0446153e63efdee3a748e262",
+    "exit_code": 0,
+    "cleanup_process_count": 0,
+    "log_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\diagnostics\\u8-standard-load-probe-attempt-002\\run\\stdout.txt",
+    "log_sha256": "a682258d8e66c6c678306ed54dd2e51c89f01457f365495fa40559c9471f86d9",
+    "observed_standard_kv_state_precision": {
+      "requested_key": "u8",
+      "requested_value": "u8",
+      "plugin_reported_activated_key": "u8",
+      "plugin_reported_activated_value": "u8",
+      "actual_key_tensor": "f32",
+      "actual_value_tensor": "f32"
+    }
+  }
+}

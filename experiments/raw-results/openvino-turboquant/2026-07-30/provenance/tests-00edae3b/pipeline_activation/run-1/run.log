@@ -1,0 +1,49 @@
+Running main() from C:\ov-wb04\2026-07-30\build-genai-tq-00edae3b\_deps\googletest-src\googletest\src\gtest_main.cc
+[==========] Running 20 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 20 tests from TurboQuantPipelineActivation
+[ RUN      ] TurboQuantPipelineActivation.ModelTakingConstructorAcceptsValidatedConfigurationAndModelHash
+[       OK ] TurboQuantPipelineActivation.ModelTakingConstructorAcceptsValidatedConfigurationAndModelHash (2 ms)
+[ RUN      ] TurboQuantPipelineActivation.CompilesTransformedCpuModelBeforeReportingActivated
+[       OK ] TurboQuantPipelineActivation.CompilesTransformedCpuModelBeforeReportingActivated (58 ms)
+[ RUN      ] TurboQuantPipelineActivation.ReportsExpectedCurrentSourceCommitFromProductionObjects
+[       OK ] TurboQuantPipelineActivation.ReportsExpectedCurrentSourceCommitFromProductionObjects (48 ms)
+[ RUN      ] TurboQuantPipelineActivation.ReconcilesDynamicManifestBatchFromActualRuntimeState
+[       OK ] TurboQuantPipelineActivation.ReconcilesDynamicManifestBatchFromActualRuntimeState (45 ms)
+[ RUN      ] TurboQuantPipelineActivation.ActivatesEveryRequestedKeyValueSelectionWithoutFallback
+[       OK ] TurboQuantPipelineActivation.ActivatesEveryRequestedKeyValueSelectionWithoutFallback (353 ms)
+[ RUN      ] TurboQuantPipelineActivation.EmitsActivatedOnlyOnceAfterFirstSuccessfulGeneration
+[       OK ] TurboQuantPipelineActivation.EmitsActivatedOnlyOnceAfterFirstSuccessfulGeneration (53 ms)
+[ RUN      ] TurboQuantPipelineActivation.CpuCachePrecisionPropertiesDoNotChangeObservedStateTensorPrecision
+[       OK ] TurboQuantPipelineActivation.CpuCachePrecisionPropertiesDoNotChangeObservedStateTensorPrecision (103 ms)
+[ RUN      ] TurboQuantPipelineActivation.StandardModelReportsPostGenerationPrecisionAndPersistentBytes
+[       OK ] TurboQuantPipelineActivation.StandardModelReportsPostGenerationPrecisionAndPersistentBytes (36 ms)
+[ RUN      ] TurboQuantPipelineActivation.GpuStandardModelReportsObservedStateOnlyAfterGeneration
+[       OK ] TurboQuantPipelineActivation.GpuStandardModelReportsObservedStateOnlyAfterGeneration (242 ms)
+[ RUN      ] TurboQuantPipelineActivation.MixedModelIncludesStandardAndTurboQuantPersistentBytes
+[       OK ] TurboQuantPipelineActivation.MixedModelIncludesStandardAndTurboQuantPersistentBytes (37 ms)
+[ RUN      ] TurboQuantPipelineActivation.SymmetricTurboQuantReportsLogicalAndObservedPrecisions
+[       OK ] TurboQuantPipelineActivation.SymmetricTurboQuantReportsLogicalAndObservedPrecisions (48 ms)
+[ RUN      ] TurboQuantPipelineActivation.RejectsRequestedGpuAndNpuBeforeCompilation
+[       OK ] TurboQuantPipelineActivation.RejectsRequestedGpuAndNpuBeforeCompilation (9 ms)
+[ RUN      ] TurboQuantPipelineActivation.PublicCpuSdpaPathPassesStrippedConfigurationAndModelHash
+[       OK ] TurboQuantPipelineActivation.PublicCpuSdpaPathPassesStrippedConfigurationAndModelHash (59 ms)
+[ RUN      ] TurboQuantPipelineActivation.RejectsRequestedCpuSdpaWithNpuDraftBeforeRouteSelection
+[       OK ] TurboQuantPipelineActivation.RejectsRequestedCpuSdpaWithNpuDraftBeforeRouteSelection (5 ms)
+[ RUN      ] TurboQuantPipelineActivation.RejectsExplicitAndDefaultPagedAttentionBeforeSelection
+[       OK ] TurboQuantPipelineActivation.RejectsExplicitAndDefaultPagedAttentionBeforeSelection (4 ms)
+[ RUN      ] TurboQuantPipelineActivation.RejectsRequestedModelStringBeforeReadingIt
+[       OK ] TurboQuantPipelineActivation.RejectsRequestedModelStringBeforeReadingIt (0 ms)
+[ RUN      ] TurboQuantPipelineActivation.TransformAndCompileFailuresEmitNoActivationEvent
+[       OK ] TurboQuantPipelineActivation.TransformAndCompileFailuresEmitNoActivationEvent (5 ms)
+[ RUN      ] TurboQuantPipelineActivation.FailedGenerationEmitsNoActivationEvent
+[       OK ] TurboQuantPipelineActivation.FailedGenerationEmitsNoActivationEvent (45 ms)
+[ RUN      ] TurboQuantPipelineActivation.RejectsMissingAndInvalidStateReconciliationWithoutEmission
+[       OK ] TurboQuantPipelineActivation.RejectsMissingAndInvalidStateReconciliationWithoutEmission (44 ms)
+[ RUN      ] TurboQuantPipelineActivation.SerializesManifestBackedActivationFields
+[       OK ] TurboQuantPipelineActivation.SerializesManifestBackedActivationFields (0 ms)
+[----------] 20 tests from TurboQuantPipelineActivation (1208 ms total)
+
+[----------] Global test environment tear-down
+[==========] 20 tests from 1 test suite ran. (1208 ms total)
+[  PASSED  ] 20 tests.

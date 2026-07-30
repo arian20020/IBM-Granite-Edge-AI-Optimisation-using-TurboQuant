@@ -1,0 +1,27 @@
+Running main() from C:\ov-wb04\2026-07-30\build-genai-tq-00edae3b\_deps\googletest-src\googletest\src\gtest_main.cc
+[==========] Running 9 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 9 tests from TurboQuantCodec
+[ RUN      ] TurboQuantCodec.RoundTripPreservesNormAndPackedSize
+[       OK ] TurboQuantCodec.RoundTripPreservesNormAndPackedSize (0 ms)
+[ RUN      ] TurboQuantCodec.ZeroVectorRoundTripsWithoutDivisionByZero
+[       OK ] TurboQuantCodec.ZeroVectorRoundTripsWithoutDivisionByZero (0 ms)
+[ RUN      ] TurboQuantCodec.PacksNonByteAlignedLengthsExactly
+[       OK ] TurboQuantCodec.PacksNonByteAlignedLengthsExactly (0 ms)
+[ RUN      ] TurboQuantCodec.ProducesDeterministicGoldenLittleEndianPayloads
+[       OK ] TurboQuantCodec.ProducesDeterministicGoldenLittleEndianPayloads (0 ms)
+[ RUN      ] TurboQuantCodec.NaturalInverseUsesStoredNormWithoutQuantizedNormCorrection
+[       OK ] TurboQuantCodec.NaturalInverseUsesStoredNormWithoutQuantizedNormCorrection (0 ms)
+[ RUN      ] TurboQuantCodec.ExistingCodecGoldenVectorsRemainBitIdentical
+[       OK ] TurboQuantCodec.ExistingCodecGoldenVectorsRemainBitIdentical (0 ms)
+[ RUN      ] TurboQuantCodec.NaturalInversePreservesRecordValidationAndZeroRecords
+[       OK ] TurboQuantCodec.NaturalInversePreservesRecordValidationAndZeroRecords (0 ms)
+[ RUN      ] TurboQuantCodec.NaturalInverseRejectsPackedSizeOverflowForBothBitWidths
+[       OK ] TurboQuantCodec.NaturalInverseRejectsPackedSizeOverflowForBothBitWidths (0 ms)
+[ RUN      ] TurboQuantCodec.RejectsInvalidMetadataAndInput
+[       OK ] TurboQuantCodec.RejectsInvalidMetadataAndInput (0 ms)
+[----------] 9 tests from TurboQuantCodec (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 9 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 9 tests.

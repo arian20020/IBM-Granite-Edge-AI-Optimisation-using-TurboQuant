@@ -1,0 +1,180 @@
+-- Building for: Visual Studio 18 2026
+-- Selecting Windows SDK version 10.0.28000.0 to target Windows 10.0.26200.
+-- The CXX compiler identification is MSVC 19.51.36248.0
+-- The C compiler identification is MSVC 19.51.36248.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- OpenVINO GenAI full version: 2026.2.1.0-2-00edae3bfd4-project/turboquant-wb04
+-- Found Python3: C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\.venv-official-openvino-turboquant-py313\Scripts\python.exe (found version "3.13.14") found components: Interpreter Development.Module
+-- CMAKE_BUILD_TYPE is not defined, 'Release' will be used
+-- OpenVINO Tokenizers full version: 2026.2.1.0-682-6da74a793f0
+-- Performing Test SUGGEST_OVERRIDE_SUPPORTED
+-- Performing Test SUGGEST_OVERRIDE_SUPPORTED - Failed
+-- Adjusted sentencepiece source dir to: C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/sentencepiece-src/sentencepiece
+CMake Deprecation Warning at C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/sentencepiece-src/sentencepiece/CMakeLists.txt:15 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- VERSION: 0.2.1
+-- Using pre-committed precompiled_charsmap.hpp from source directory
+-- Could NOT find BZip2 (missing: BZIP2_LIBRARIES BZIP2_INCLUDE_DIR) 
+-- Could NOT find ZLIB (missing: ZLIB_LIBRARY ZLIB_INCLUDE_DIR) 
+-- Could NOT find Readline (missing: READLINE_INCLUDE_DIR READLINE_LIBRARY) 
+-- Could NOT find Editline (missing: EDITLINE_INCLUDE_DIR EDITLINE_LIBRARY) 
+-- Looking for assert.h
+-- Looking for assert.h - found
+-- Looking for dirent.h
+-- Looking for dirent.h - not found
+-- Looking for sys/stat.h
+-- Looking for sys/stat.h - found
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for unistd.h
+-- Looking for unistd.h - not found
+-- Looking for windows.h
+-- Looking for windows.h - found
+-- Looking for bcopy
+-- Looking for bcopy - not found
+-- Looking for memfd_create
+-- Looking for memfd_create - not found
+-- Looking for memmove
+-- Looking for memmove - found
+-- Looking for secure_getenv
+-- Looking for secure_getenv - not found
+-- Looking for strerror
+-- Looking for strerror - found
+-- Performing Test HAVE_REALPATH
+-- Performing Test HAVE_REALPATH - Failed
+-- Performing Test HAVE_ATTRIBUTE_UNINITIALIZED
+-- Performing Test HAVE_ATTRIBUTE_UNINITIALIZED - Failed
+-- Performing Test HAVE_VISIBILITY
+-- Performing Test HAVE_VISIBILITY - Failed
+-- Performing Test HAVE_BUILTIN_ASSUME
+-- Performing Test HAVE_BUILTIN_ASSUME - Success
+-- Performing Test HAVE_BUILTIN_MUL_OVERFLOW
+-- Performing Test HAVE_BUILTIN_MUL_OVERFLOW - Failed
+-- Performing Test HAVE_BUILTIN_UNREACHABLE
+-- Performing Test HAVE_BUILTIN_UNREACHABLE - Failed
+-- Performing Test INTEL_CET_ENABLED
+-- Performing Test INTEL_CET_ENABLED - Failed
+-- 
+-- 
+-- PCRE2-10.46 configuration summary:
+-- 
+--   Install prefix .................... : C:/Program Files (x86)/OpenVINOGenAI
+--   C compiler ........................ : C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe
+--   C compiler flags (Debug) .......... : /DWIN32 /D_WINDOWS /wd4146 /wd4244 /wd4267 /wd4700 /wd4703 /Zi /Ob0 /Od /RTC1
+--   C compiler flags (Release) ........ : /DWIN32 /D_WINDOWS /wd4146 /wd4244 /wd4267 /wd4700 /wd4703 /O2 /Ob2 /DNDEBUG /wd4146 /wd4244 /wd4267 /wd4700 /wd4703
+--   C compiler flags (MinSizeRel) ..... : /DWIN32 /D_WINDOWS /wd4146 /wd4244 /wd4267 /wd4700 /wd4703 /O1 /Ob1 /DNDEBUG
+--   C compiler flags (RelWithDebInfo) . : /DWIN32 /D_WINDOWS /wd4146 /wd4244 /wd4267 /wd4700 /wd4703 /Zi /O2 /Ob1 /DNDEBUG
+-- 
+--   Build configurations .............. : Debug;Release;MinSizeRel;RelWithDebInfo
+--   Build 8 bit PCRE2 library ......... : ON
+--   Build 16 bit PCRE2 library ........ : OFF
+--   Build 32 bit PCRE2 library ........ : OFF
+--   Include debugging code ............ : IfDebugBuild
+--   Enable JIT compiling support ...... : ON
+--   Use SELinux allocator in JIT ...... : IGNORE
+--   Enable Unicode support ............ : ON
+--   Newline char/sequence ............. : LF
+--   \R matches only ANYCRLF ........... : OFF
+--   \C is disabled .................... : OFF
+--   EBCDIC coding ..................... : OFF
+--   EBCDIC coding with NL=0x25 ........ : OFF
+--   Rebuild char tables ............... : OFF
+--   Internal link size ................ : 2
+--   Maximum variable lookbehind ....... : 255
+--   Parentheses nest limit ............ : 250
+--   Heap limit ........................ : 20000000
+--   Match limit ....................... : 10000000
+--   Match depth limit ................. : MATCH_LIMIT
+--   Build shared libs ................. : OFF
+--   Build static libs ................. : ON
+--      with PIC enabled ............... : ON
+--   Build pcre2grep ................... : OFF
+--   Enable JIT in pcre2grep ........... : ON
+--   Enable callouts in pcre2grep ...... : ON
+--   Enable callout fork in pcre2grep .. : ON
+--   Buffer size for pcre2grep ......... : 20480
+--   Build tests (implies pcre2test .... : OFF
+--                and pcre2grep)
+--   Link pcre2grep with libz .......... : Library not found
+--   Link pcre2grep with libbz2 ........ : Library not found
+--   Link pcre2test with libeditline ... : Library not found
+--   Link pcre2test with libreadline ... : Library not found
+--   Support Valgrind .................. : OFF
+--   Use %zu and %td ................... : AUTO
+--   Install MSVC .pdb files ........... : OFF
+-- 
+-- ENABLE_SYSTEM_OPENCL is OFF - CDPruner will use CPU-only DPP implementation
+-- Using the multi-header code from C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/nlohmann_json-src/include/
+CMake Deprecation Warning at C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/gguflib-src/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Config file: C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/xgrammar-src/cmake/config.cmake
+-- Build type: Release
+-- Build Python bindings: OFF
+-- Build C++ tests: OFF
+-- CUDA architectures: native
+-- Enable C++ trace: OFF
+-- OpenCL library or headers not found, ENABLE_OPENCL_DPP will not be defined.
+-- pybind11 v3.0.1 
+-- Performing Test HAS_MSVC_GL_LTCG
+-- Performing Test HAS_MSVC_GL_LTCG - Success
+CMake Deprecation Warning at C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/googletest-src/CMakeLists.txt:4 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/googletest-src/googlemock/CMakeLists.txt:39 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b/_deps/googletest-src/googletest/CMakeLists.txt:49 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Found Python: C:/Users/Student/AppData/Local/Programs/Python/Python313/python.exe (found version "3.13.14") found components: Interpreter
+-- Configuring done (46.1s)
+-- Generating done (0.7s)
+-- Build files have been written to: C:/ov-wb04/2026-07-30/build-genai-tq-00edae3b

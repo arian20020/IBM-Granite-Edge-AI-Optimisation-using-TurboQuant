@@ -1,0 +1,95 @@
+Running main() from C:\ov-wb04\2026-07-30\build-genai-tq-00edae3b\_deps\googletest-src\googletest\src\gtest_main.cc
+[==========] Running 43 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 43 tests from TurboQuantStatefulGraph
+[ RUN      ] TurboQuantStatefulGraph.DiscoversTwoLayersAndIndependentKeyValueState
+[       OK ] TurboQuantStatefulGraph.DiscoversTwoLayersAndIndependentKeyValueState (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.HashesSourceAndCanonicalManifestWithoutModelSerialization
+[       OK ] TurboQuantStatefulGraph.HashesSourceAndCanonicalManifestWithoutModelSerialization (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.TransformsOwnedModelInPlaceWithoutCloning
+[       OK ] TurboQuantStatefulGraph.TransformsOwnedModelInPlaceWithoutCloning (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsLateReplacementBuildWithoutMutatingOwnedModel
+[       OK ] TurboQuantStatefulGraph.RejectsLateReplacementBuildWithoutMutatingOwnedModel (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.AllowsFreshVectorsToDependOnEarlierLayerState
+[       OK ] TurboQuantStatefulGraph.AllowsFreshVectorsToDependOnEarlierLayerState (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.PreservesBatchGatherCacheReorderForCompressedState
+[       OK ] TurboQuantStatefulGraph.PreservesBatchGatherCacheReorderForCompressedState (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.AcceptsDynamicFreshSequenceForPromptPrefill
+[       OK ] TurboQuantStatefulGraph.AcceptsDynamicFreshSequenceForPromptPrefill (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.PreservesGroupedQueryLayoutBetweenCacheAndSdpa
+[       OK ] TurboQuantStatefulGraph.PreservesGroupedQueryLayoutBetweenCacheAndSdpa (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.AcceptsCombinedGraniteCacheAndGroupedQueryTopology
+[       OK ] TurboQuantStatefulGraph.AcceptsCombinedGraniteCacheAndGroupedQueryTopology (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.KeepsCompressedStateAlignedAcrossCpuBeamReorders
+[       OK ] TurboQuantStatefulGraph.KeepsCompressedStateAlignedAcrossCpuBeamReorders (85 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsGroupedQueryLayoutOutsideHeadGroupAxis
+[       OK ] TurboQuantStatefulGraph.RejectsGroupedQueryLayoutOutsideHeadGroupAxis (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.UsesOneFusedOperationPerSelectedStateWithExactIdentity
+[       OK ] TurboQuantStatefulGraph.UsesOneFusedOperationPerSelectedStateWithExactIdentity (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.DiscoversWhitelistedSliceAndConvertEdges
+[       OK ] TurboQuantStatefulGraph.DiscoversWhitelistedSliceAndConvertEdges (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.ReplacesOnlySelectedStateWithExactPackedAllocation
+[       OK ] TurboQuantStatefulGraph.ReplacesOnlySelectedStateWithExactPackedAllocation (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.PreservesAllNineIndependentKeyValueSelections
+[       OK ] TurboQuantStatefulGraph.PreservesAllNineIndependentKeyValueSelections (295 ms)
+[ RUN      ] TurboQuantStatefulGraph.ExecutesStrictI32MetadataWithoutMarkerOnIntegratedDynamicCpuState
+[       OK ] TurboQuantStatefulGraph.ExecutesStrictI32MetadataWithoutMarkerOnIntegratedDynamicCpuState (32 ms)
+[ RUN      ] TurboQuantStatefulGraph.MatchesFrozenScalarCodecForReviewerAdversarialVectors
+[       OK ] TurboQuantStatefulGraph.MatchesFrozenScalarCodecForReviewerAdversarialVectors (32 ms)
+[ RUN      ] TurboQuantStatefulGraph.MatchesFrozenScalarCodecAcrossSeededFiniteMagnitudes
+[       OK ] TurboQuantStatefulGraph.MatchesFrozenScalarCodecAcrossSeededFiniteMagnitudes (135 ms)
+[ RUN      ] TurboQuantStatefulGraph.MatchesFrozenScalarCodecPayloadAndDecodeSemantics
+[       OK ] TurboQuantStatefulGraph.MatchesFrozenScalarCodecPayloadAndDecodeSemantics (194 ms)
+[ RUN      ] TurboQuantStatefulGraph.ProducesFrozenTbq3AndTbq4GoldenVectors
+[       OK ] TurboQuantStatefulGraph.ProducesFrozenTbq3AndTbq4GoldenVectors (66 ms)
+[ RUN      ] TurboQuantStatefulGraph.RestoresNormAndMeetsFrozenMseTolerance
+[       OK ] TurboQuantStatefulGraph.RestoresNormAndMeetsFrozenMseTolerance (32 ms)
+[ RUN      ] TurboQuantStatefulGraph.SupportsNaturalInverseWhenNormCorrectionIsDisabled
+[       OK ] TurboQuantStatefulGraph.SupportsNaturalInverseWhenNormCorrectionIsDisabled (66 ms)
+[ RUN      ] TurboQuantStatefulGraph.ZeroVectorsKeepZeroPayloadNormAndDecode
+[       OK ] TurboQuantStatefulGraph.ZeroVectorsKeepZeroPayloadNormAndDecode (64 ms)
+[ RUN      ] TurboQuantStatefulGraph.AppendsAndDecodesThreeTokensWithoutFullPrecisionState
+[       OK ] TurboQuantStatefulGraph.AppendsAndDecodesThreeTokensWithoutFullPrecisionState (35 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsDerivedVariableIdCollisionTransactionally
+[       OK ] TurboQuantStatefulGraph.RejectsDerivedVariableIdCollisionTransactionally (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsNonEmptySelectedInitialStateTransactionally
+[       OK ] TurboQuantStatefulGraph.RejectsNonEmptySelectedInitialStateTransactionally (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.PreservesDynamicSelectedBatchInCompressedManifest
+[       OK ] TurboQuantStatefulGraph.PreservesDynamicSelectedBatchInCompressedManifest (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsDynamicSelectedHeadCountTransactionally
+[       OK ] TurboQuantStatefulGraph.RejectsDynamicSelectedHeadCountTransactionally (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsGpuPagedAttentionAmbiguousAndNonSdpaGraphs
+[       OK ] TurboQuantStatefulGraph.RejectsGpuPagedAttentionAmbiguousAndNonSdpaGraphs (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsDuplicateVariableIds
+[       OK ] TurboQuantStatefulGraph.RejectsDuplicateVariableIds (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsUnsupportedStateVersionsAnywhereInModel
+[       OK ] TurboQuantStatefulGraph.RejectsUnsupportedStateVersionsAnywhereInModel (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsPagedAttentionAnywhereInModel
+[       OK ] TurboQuantStatefulGraph.RejectsPagedAttentionAnywhereInModel (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsMixedElementTypes
+[       OK ] TurboQuantStatefulGraph.RejectsMixedElementTypes (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsDynamicHeadDimension
+[       OK ] TurboQuantStatefulGraph.RejectsDynamicHeadDimension (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsRankOtherThanFour
+[       OK ] TurboQuantStatefulGraph.RejectsRankOtherThanFour (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsHeadDimensionNotDivisibleByEight
+[       OK ] TurboQuantStatefulGraph.RejectsHeadDimensionNotDivisibleByEight (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsEveryUnclassifiedState
+[       OK ] TurboQuantStatefulGraph.RejectsEveryUnclassifiedState (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsMissingOrMultipleReadValuePairs
+[       OK ] TurboQuantStatefulGraph.RejectsMissingOrMultipleReadValuePairs (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsStateWithoutOneFreshVectorAppend
+[       OK ] TurboQuantStatefulGraph.RejectsStateWithoutOneFreshVectorAppend (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsSplitAssignAndSdpaUpdateChains
+[       OK ] TurboQuantStatefulGraph.RejectsSplitAssignAndSdpaUpdateChains (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsConcatOutsideSequenceAxis
+[       OK ] TurboQuantStatefulGraph.RejectsConcatOutsideSequenceAxis (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsUnsupportedSliceAxisStepAndBounds
+[       OK ] TurboQuantStatefulGraph.RejectsUnsupportedSliceAxisStepAndBounds (0 ms)
+[ RUN      ] TurboQuantStatefulGraph.RejectsUnsupportedTraversalEdgesWithoutMutation
+[       OK ] TurboQuantStatefulGraph.RejectsUnsupportedTraversalEdgesWithoutMutation (0 ms)
+[----------] 43 tests from TurboQuantStatefulGraph (1054 ms total)
+
+[----------] Global test environment tear-down
+[==========] 43 tests from 1 test suite ran. (1054 ms total)
+[  PASSED  ] 43 tests.

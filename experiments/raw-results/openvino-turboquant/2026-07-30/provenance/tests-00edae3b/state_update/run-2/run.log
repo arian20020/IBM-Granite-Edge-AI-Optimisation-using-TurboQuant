@@ -1,0 +1,45 @@
+Running main() from C:\ov-wb04\2026-07-30\build-genai-tq-00edae3b\_deps\googletest-src\googletest\src\gtest_main.cc
+[==========] Running 18 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 18 tests from TurboQuantStateUpdateDecode
+[ RUN      ] TurboQuantStateUpdateDecode.InfersFourExactOutputsForStaticAndDynamicSequence
+[       OK ] TurboQuantStateUpdateDecode.InfersFourExactOutputsForStaticAndDynamicSequence (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.RejectsI64MetadataInput
+[       OK ] TurboQuantStateUpdateDecode.RejectsI64MetadataInput (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.RejectsHeadDimensionBeyondStrictI32MetadataRange
+[       OK ] TurboQuantStateUpdateDecode.RejectsHeadDimensionBeyondStrictI32MetadataRange (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.ResolvesCompatibleDynamicBatchAcrossInputs
+[       OK ] TurboQuantStateUpdateDecode.ResolvesCompatibleDynamicBatchAcrossInputs (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.AdoptsFreshBatchForUninitializedDynamicState
+[       OK ] TurboQuantStateUpdateDecode.AdoptsFreshBatchForUninitializedDynamicState (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.RejectsDynamicHeadCountOnEveryInput
+[       OK ] TurboQuantStateUpdateDecode.RejectsDynamicHeadCountOnEveryInput (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.RejectsIncompatibleStaticAndConcreteRuntimeBatch
+[       OK ] TurboQuantStateUpdateDecode.RejectsIncompatibleStaticAndConcreteRuntimeBatch (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.RejectsCompositeOutputByteOverflowDuringShapeValidation
+[       OK ] TurboQuantStateUpdateDecode.RejectsCompositeOutputByteOverflowDuringShapeValidation (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.ClonesAndVisitsAllAttributesExactly
+[       OK ] TurboQuantStateUpdateDecode.ClonesAndVisitsAllAttributesExactly (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.AppendsExactScalarRecordsAndDecodesCurrentSlice
+[       OK ] TurboQuantStateUpdateDecode.AppendsExactScalarRecordsAndDecodesCurrentSlice (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.UsesExactNaturalInverseWhenNormCorrectionIsDisabled
+[       OK ] TurboQuantStateUpdateDecode.UsesExactNaturalInverseWhenNormCorrectionIsDisabled (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.MatchesScalarCodecAcrossSeededFiniteMagnitudes
+[       OK ] TurboQuantStateUpdateDecode.MatchesScalarCodecAcrossSeededFiniteMagnitudes (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.ZeroVectorsRemainExactForBothBitWidthsAndNormModes
+[       OK ] TurboQuantStateUpdateDecode.ZeroVectorsRemainExactForBothBitWidthsAndNormModes (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.OwnsNoHiddenStateBetweenIndependentEvaluations
+[       OK ] TurboQuantStateUpdateDecode.OwnsNoHiddenStateBetweenIndependentEvaluations (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.PreservesExactOrderingAcrossBatchHeadsAndPriorSequence
+[       OK ] TurboQuantStateUpdateDecode.PreservesExactOrderingAcrossBatchHeadsAndPriorSequence (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.AppendsMultipleFreshRecordsInOnePrefillEvaluation
+[       OK ] TurboQuantStateUpdateDecode.AppendsMultipleFreshRecordsInOnePrefillEvaluation (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.RejectsMalformedInputsBeforeWritingOutputs
+[       OK ] TurboQuantStateUpdateDecode.RejectsMalformedInputsBeforeWritingOutputs (0 ms)
+[ RUN      ] TurboQuantStateUpdateDecode.PinnedCpuExecutesDynamicPrefillThenDecodeAsReference
+[       OK ] TurboQuantStateUpdateDecode.PinnedCpuExecutesDynamicPrefillThenDecodeAsReference (27 ms)
+[----------] 18 tests from TurboQuantStateUpdateDecode (29 ms total)
+
+[----------] Global test environment tear-down
+[==========] 18 tests from 1 test suite ran. (29 ms total)
+[  PASSED  ] 18 tests.
