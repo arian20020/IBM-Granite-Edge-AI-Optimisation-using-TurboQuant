@@ -415,11 +415,29 @@ def test_sequence_runs_five_roles_once_and_atomically_summarizes_only_samples(
         )
     )
     assert metrics["status"] == "measured"
+    assert metrics["accepted"] is True
     assert metrics["sample_count"] == 3
+    assert metrics["cleanup_process_count"] == 0
+    assert metrics["test_id"] == "OV-TQ-03"
+    assert metrics["context_tokens"] == 4096
     assert metrics["ttft_ms"]["mean"] == 53
     assert metrics["cpu_percent"]["mean"] == 44
     assert metrics["gpu_percent"]["mean"] == 24
     assert len(metrics["campaign_identity_sha256"]) == 64
+    campaign_identity = json.loads(
+        (kwargs["campaign_root"] / "campaign-identity.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert metrics["runtime_config_sha256"] == hashlib.sha256(
+        json.dumps(
+            campaign_identity["identity"]["config"],
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def test_sequence_refuses_a_concurrent_controller_before_launching_a_role(

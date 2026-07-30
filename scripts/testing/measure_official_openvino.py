@@ -779,7 +779,18 @@ def _run_measurement_sequence_locked(
         for _, record, source in completed[2:]
     ]
     metrics = summarize_samples(formal_samples)
-    metrics["campaign_identity_sha256"] = identity_sha256
+    metrics.update(
+        {
+            "accepted": True,
+            "cleanup_process_count": 0,
+            "test_id": template["controlled_test_id"],
+            "context_tokens": template["context"],
+            "campaign_identity_sha256": identity_sha256,
+            "runtime_config_sha256": _sha256_json(
+                identity["identity"]["config"]
+            ),
+        }
+    )
     metrics_path = root / "measurement-summary.json"
     atomic_write_json(metrics_path, metrics)
     receipts = [receipt for receipt, _, _ in completed]
