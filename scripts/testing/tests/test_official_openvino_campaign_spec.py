@@ -19,21 +19,6 @@ from scripts.testing.measure_official_openvino import (
 ROOT = Path(__file__).resolve().parents[3]
 MATRIX = ROOT / "experiments/manifests/official-openvino/retest-matrix.json"
 SCRIPT = ROOT / "scripts/testing/generate_official_openvino_specs.py"
-WORKER_FIELDS = {
-    "apply_chat_template",
-    "context",
-    "controlled_test_id",
-    "device",
-    "expected_input_tokens",
-    "ignore_eos",
-    "max_new_tokens",
-    "model_path",
-    "prompt",
-    "properties",
-    "role",
-    "schema",
-    "seed",
-}
 
 
 def _clean_inputs(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -164,7 +149,7 @@ def test_worker_specs_bind_exact_matrix_runtime_contract(tmp_path):
     )
 
 
-def test_explicit_u4_model_binding_adds_only_tq02_with_exact_scalar_properties(
+def test_explicit_u4_binding_records_tq02_semantic_rejection_without_a_spec(
     tmp_path,
 ):
     build, u8_model, cache = _clean_inputs(tmp_path)
