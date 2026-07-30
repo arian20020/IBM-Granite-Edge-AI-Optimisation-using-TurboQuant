@@ -97,6 +97,7 @@ def _run(
     *,
     expected_exit: str = "zero",
     limits=None,
+    environment=None,
 ):
     guard = _guarded_build()
     return guard.run_guarded_command(
@@ -106,6 +107,7 @@ def _run(
         evidence_path=tmp_path / "evidence.json",
         expected_exit=expected_exit,
         limits=limits or _limits(guard),
+        environment=environment,
     )
 
 
@@ -1042,6 +1044,51 @@ def test_generic_guard_disables_cpu_caps_and_msbuild_node_reuse(tmp_path):
     assert (tmp_path / "child.log").read_text(encoding="utf-8").strip() == "1"
     assert record["valid"] is True
     _assert_memory_evidence(record)
+
+
+def test_guard_uses_supplied_environment_and_records_the_exact_effective_hash(
+    tmp_path,
+):
+    environment = {
+        "SYSTEMROOT": os.environ["SYSTEMROOT"],
+        "TASK3_ENV": "retained-value",
+    }
+    program = (
+        "import os,json;print(json.dumps({key:os.environ[key] for key in "
+        "('SYSTEMROOT','TASK3_ENV','MSBUILDDISABLENODEREUSE')},sort_keys=True))"
+    )
+
+    record = _run(
+        tmp_path,
+        [sys.executable, "-c", program],
+        environment=environment,
+    )
+
+    effective = {**environment, "MSBUILDDISABLENODEREUSE": "1"}
+    assert json.loads((tmp_path / "child.log").read_text(encoding="utf-8")) == effective
+    assert record["environment_sha256"] == hashlib.sha256(
+        json.dumps(
+            effective,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+@pytest.mark.parametrize(
+    "environment",
+    (True, {"": "value"}, {"KEY": ""}, {"Path": "one", "PATH": "two"}),
+)
+def test_guard_rejects_invalid_environment_before_launching(tmp_path, environment):
+    with pytest.raises((TypeError, ValueError), match="environment"):
+        _run(
+            tmp_path,
+            [sys.executable, "-c", "raise SystemExit(0)"],
+            environment=environment,
+        )
+
+    assert not (tmp_path / "child.log").exists()
 
 
 def test_guard_fails_closed_when_any_job_pid_memory_query_fails(

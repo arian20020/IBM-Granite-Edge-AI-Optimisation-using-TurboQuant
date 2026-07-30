@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Literal, Sequence
 
 from scripts.testing.official_openvino import owned_process_guard
@@ -108,6 +109,44 @@ def _serialize_json_bytes(value: dict[str, object]) -> bytes:
     return (
         json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
     ).encode("utf-8")
+
+
+def _effective_environment(
+    environment: Mapping[str, str] | None,
+) -> tuple[dict[str, str], str]:
+    if environment is None:
+        value = dict(os.environ)
+    else:
+        if isinstance(environment, bool) or not isinstance(environment, Mapping):
+            raise TypeError("environment must be a mapping")
+        value = {}
+        seen: set[str] = set()
+        for key, item in environment.items():
+            if (
+                not isinstance(key, str)
+                or not key.strip()
+                or not isinstance(item, str)
+                or not item.strip()
+            ):
+                raise ValueError("environment keys and values must be nonblank strings")
+            normalized = key.casefold()
+            if normalized in seen:
+                raise ValueError("environment contains duplicate Windows keys")
+            seen.add(normalized)
+            value[key] = item
+    msbuild_key = "MSBUILDDISABLENODEREUSE"
+    for key in tuple(value):
+        if key.casefold() == msbuild_key.casefold():
+            del value[key]
+    value[msbuild_key] = "1"
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return value, hashlib.sha256(encoded).hexdigest()
 
 
 def _atomic_write_bytes(path: Path, value: bytes) -> None:
@@ -233,6 +272,7 @@ def _run_guarded_command_with_binding(
     evidence_path: Path,
     expected_exit: Literal["zero", "nonzero"],
     limits: GuardLimits = GuardLimits(),
+    environment: Mapping[str, str] | None = None,
 ) -> _GuardedCommandResult:
     """Run one owned process tree and atomically persist exit/RAM/cleanup evidence."""
     requested_cwd = _absolute_without_resolving(Path(cwd))
@@ -249,6 +289,7 @@ def _run_guarded_command_with_binding(
         expected_exit,
         limits,
     )
+    effective_environment, environment_sha256 = _effective_environment(environment)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -300,6 +341,7 @@ def _run_guarded_command_with_binding(
         "low_memory_stop": False,
         "termination_reason": None,
         "msbuild_disable_node_reuse": "1",
+        "environment_sha256": environment_sha256,
         "launch_governance": {
             "created_suspended": False,
             "assigned_before_resume": False,
@@ -313,6 +355,7 @@ def _run_guarded_command_with_binding(
             "queried_active_process_count_after_cleanup": None,
             "survivor_pids_after_cleanup": None,
         },
+        "cleanup_process_count": -1,
         "emergency_actions": [],
         "validation_errors": [],
         "log_sha256": None,
@@ -369,15 +412,13 @@ def _run_guarded_command_with_binding(
             job = KillOnCloseJob(
                 f"OfficialOpenVINOGuard-{secrets.token_hex(16)}"
             )
-            environment = os.environ.copy()
-            environment["MSBUILDDISABLENODEREUSE"] = "1"
             creation_flags = (
                 subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED
             )
             process = subprocess.Popen(
                 command_values,
                 cwd=cwd,
-                env=environment,
+                env=effective_environment,
                 stdin=subprocess.DEVNULL,
                 stdout=log_handle,
                 stderr=subprocess.STDOUT,
@@ -584,6 +625,10 @@ def _run_guarded_command_with_binding(
     )
 
     job_evidence = record["job_object"]
+    survivors = job_evidence["survivor_pids_after_cleanup"]
+    record["cleanup_process_count"] = (
+        len(survivors) if isinstance(survivors, list) else -1
+    )
     if not (
         job_evidence["setup_ok"] is True
         and job_evidence["query_ok"] is True
@@ -644,6 +689,7 @@ def run_guarded_command(
     evidence_path: Path,
     expected_exit: Literal["zero", "nonzero"],
     limits: GuardLimits = GuardLimits(),
+    environment: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     """Run one owned process tree and return its persisted evidence record."""
     return _run_guarded_command_with_binding(
@@ -653,6 +699,7 @@ def run_guarded_command(
         evidence_path=evidence_path,
         expected_exit=expected_exit,
         limits=limits,
+        environment=environment,
     ).record
 
 

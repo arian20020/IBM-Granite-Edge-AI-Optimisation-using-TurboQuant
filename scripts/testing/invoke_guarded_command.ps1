@@ -777,8 +777,10 @@ if ($observedLogHash -cne $controllerResult.log_sha256) {
     'low_memory_stop',
     'termination_reason',
     'msbuild_disable_node_reuse',
+    'environment_sha256',
     'launch_governance',
     'job_object',
+    'cleanup_process_count',
     'emergency_actions',
     'validation_errors',
     'log_sha256',
@@ -789,6 +791,11 @@ if ($observedLogHash -cne $controllerResult.log_sha256) {
   -Name 'Guard evidence record schema'
 if ($record.schema -cne 'official-openvino-owned-process-guard/v1') {
   throw "Unexpected guard schema: $($record.schema)"
+}
+& $assertJsonString -Value $record.environment_sha256 `
+  -Name 'Guard environment_sha256'
+if ($record.environment_sha256 -cnotmatch '^[0-9a-f]{64}$') {
+  throw 'Guard environment_sha256 is not a lowercase SHA-256'
 }
 & $assertJsonString -Value $record.run_id -Name 'Guard run_id'
 if ($record.run_id -cnotmatch '^[0-9a-f]{64}$') {
@@ -970,12 +977,16 @@ foreach (
     'peak_working_set_bytes',
     'peak_private_bytes',
     'root_pid',
-    'exit_code'
+    'exit_code',
+    'cleanup_process_count'
   )
 ) {
   & $assertJsonInteger `
     -Value $record.$integerField `
     -Name "Guard $integerField"
+}
+if ([int64]$record.cleanup_process_count -ne 0) {
+  throw 'Guard cleanup_process_count must be zero'
 }
 if (
   [int64]$record.memory_sample_count -lt 1 -or

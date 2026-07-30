@@ -60,12 +60,104 @@ def _quality_api():
         build_quality_worker_spec,
         load_accepted_quality_campaign,
     )
-
     return (
         QualityCampaignInput,
         load_accepted_quality_campaign,
         build_quality_worker_spec,
     )
+
+
+def _governed_quality_api():
+    from scripts.testing.official_openvino.quality_campaign import (
+        GovernedQualityWorkerResult,
+        run_governed_quality_worker,
+    )
+
+    return GovernedQualityWorkerResult, run_governed_quality_worker
+
+
+def _canonical_bytes(value):
+    return (
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def _worker_result(*, failed_turn=False):
+    outcomes = []
+    for prompt_id, turn_id in (
+        ("P1", "turn_1"), ("P2", "turn_1"), ("P3", "turn_1"),
+        ("P4", "turn_1"), ("P5", "turn_1"), ("P6", "turn_1"),
+        ("P6", "turn_2"),
+    ):
+        failed = failed_turn and prompt_id == "P2"
+        outcomes.append(
+            {
+                "turn_id": f"{prompt_id}-{turn_id.replace('_', '-')}",
+                "raw_prompt": f"raw {prompt_id} {turn_id}",
+                "raw_prompt_sha256": hashlib.sha256(
+                    f"raw {prompt_id} {turn_id}".encode("utf-8")
+                ).hexdigest(),
+                "status": "failed" if failed else "complete",
+                "raw_output": None if failed else f"output {prompt_id} {turn_id}",
+                "raw_output_sha256": None if failed else hashlib.sha256(
+                    f"output {prompt_id} {turn_id}".encode("utf-8")
+                ).hexdigest(),
+                "failure_type": "RuntimeError" if failed else None,
+                "failure_message": "synthetic failure" if failed else None,
+            }
+        )
+    value = {
+        "schema": "official-openvino-wb04-quality-worker-result/v1",
+        "outcomes": outcomes,
+    }
+    value["worker_result_sha256"] = hashlib.sha256(
+        _canonical_bytes(value)
+    ).hexdigest()
+    return value
+
+
+def _governed_guard(tmp_path, calls, *, failed_turn=False, mutate=None):
+    def fake_guard(**kwargs):
+        calls.append(kwargs)
+        result = _worker_result(failed_turn=failed_turn)
+        result_path = Path(kwargs["command"][-1])
+        result_path.write_bytes(_canonical_bytes(result))
+        environment = dict(kwargs["environment"])
+        guard = {
+            "schema": "official-openvino-owned-process-guard/v1",
+            "valid": True,
+            "command": kwargs["command"],
+            "working_directory": str(Path(kwargs["cwd"]).resolve()),
+            "log_path": str(Path(kwargs["log_path"]).resolve()),
+            "evidence_path": str(Path(kwargs["evidence_path"]).resolve()),
+            "environment_sha256": _sha256_json(environment),
+            "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
+            "timed_out": False,
+            "low_memory_stop": False,
+            "emergency_actions": [],
+            "cleanup_process_count": 0,
+            "exit_code": 0,
+            "job_object": {
+                "setup_ok": True,
+                "query_ok": True,
+                "queried_active_process_count_after_cleanup": 0,
+                "survivor_pids_after_cleanup": [],
+            },
+        }
+        if mutate is not None:
+            mutate(guard)
+        evidence = (json.dumps(guard, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        Path(kwargs["evidence_path"]).write_bytes(evidence)
+        Path(kwargs["log_path"]).write_text("synthetic guard\n", encoding="utf-8")
+        return guard
+
+    return fake_guard
 
 
 def _skeletal_input(tmp_path):
@@ -410,3 +502,77 @@ def test_campaign_timeout_requires_a_finite_positive_number(timeout, tmp_path):
 
     with pytest.raises(ValueError, match="timeout"):
         load(source)
+
+
+def test_governed_worker_binds_the_exact_campaign_command_environment_and_guard(
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    Result, run = _governed_quality_api()
+    calls = []
+
+    result = run(
+        load(source),
+        tmp_path / "governed",
+        1800.0,
+        run_command=_governed_guard(tmp_path, calls),
+    )
+
+    assert Result.__dataclass_params__.frozen is True
+    assert calls[0]["command"][:3] == [
+        str(source.python_executable.resolve()),
+        "-m",
+        "scripts.testing.official_openvino.quality_worker",
+    ]
+    assert calls[0]["cwd"] == source.repo_root.resolve()
+    assert calls[0]["environment"] == load(source).worker_environment
+    assert calls[0]["limits"].minimum_available_ram_bytes == 2_048 * 1024 * 1024
+    assert calls[0]["limits"].maximum_runtime_seconds == 1800.0
+    assert calls[0]["expected_exit"] == "zero"
+    assert result.guard_evidence["cleanup_process_count"] == 0
+    assert result.worker_result["schema"] == "official-openvino-wb04-quality-worker-result/v1"
+
+
+@pytest.mark.parametrize(
+    "mutate, message",
+    (
+        (lambda guard: guard.update(timed_out=True), "timeout"),
+        (lambda guard: guard.update(low_memory_stop=True), "low-memory"),
+        (lambda guard: guard.update(valid=False), "guard"),
+        (lambda guard: guard.update(exit_code=1), "exit"),
+        (lambda guard: guard.update(emergency_actions=[{"action": "kill"}]), "emergency"),
+        (lambda guard: guard.update(cleanup_process_count=1), "cleanup"),
+        (lambda guard: guard.update(environment_sha256="a" * 64), "environment"),
+    ),
+)
+def test_governed_worker_rejects_invalid_guard_evidence(mutate, message, tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    with pytest.raises(RuntimeError, match=message):
+        run(
+            load(source),
+            tmp_path / "governed",
+            1800.0,
+            run_command=_governed_guard(tmp_path, [], mutate=mutate),
+        )
+
+
+def test_governed_worker_retains_raw_failed_turn_without_inventing_a_score(tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    result = run(
+        load(source),
+        tmp_path / "governed",
+        1800.0,
+        run_command=_governed_guard(tmp_path, [], failed_turn=True),
+    )
+
+    failed = result.worker_result["outcomes"][1]
+    assert failed["status"] == "failed"
+    assert failed["raw_output"] is None
+    assert all("score" not in key for key in result.worker_result)

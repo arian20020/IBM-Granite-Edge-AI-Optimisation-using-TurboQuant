@@ -24,7 +24,14 @@ from scripts.testing.measure_official_openvino import (
 from scripts.testing.official_openvino.metrics import summarize_samples
 from scripts.testing.official_openvino.quality_worker import (
     GENERATION_SETTINGS,
+    RESULT_SCHEMA,
     SPEC_SCHEMA,
+    _canonical_json,
+)
+from scripts.testing.official_openvino.guarded_build import (
+    GUARD_SCHEMA,
+    GuardLimits,
+    run_guarded_command,
 )
 from scripts.testing.run_official_openvino_quality import (
     _load_frozen_rubric,
@@ -82,6 +89,14 @@ class AcceptedQualityCampaign:
     rubric_path: Path
     output_root: Path
     timeout_seconds: float
+
+
+@dataclass(frozen=True)
+class GovernedQualityWorkerResult:
+    worker_result: Mapping[str, Any]
+    worker_result_sha256: str
+    guard_evidence: Mapping[str, Any]
+    guard_evidence_sha256: str
 
 
 def _canonical_identity_bytes(value: Mapping[str, Any]) -> bytes:
@@ -344,9 +359,206 @@ def build_quality_worker_spec(campaign: AcceptedQualityCampaign) -> dict[str, An
     }
 
 
+def _accepted_input_from_campaign(
+    campaign: AcceptedQualityCampaign,
+) -> QualityCampaignInput:
+    return QualityCampaignInput(
+        **{
+            field: getattr(campaign, field)
+            for field in QualityCampaignInput.__dataclass_fields__
+        }
+    )
+
+
+def _strict_object(raw: bytes, *, source: Path) -> dict[str, Any]:
+    def duplicate_free(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant: {value}")
+
+    try:
+        value = json.loads(
+            raw.decode("utf-8-sig"),
+            object_pairs_hook=duplicate_free,
+            parse_constant=reject_constant,
+        )
+    except (UnicodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError(f"invalid JSON artifact: {source}") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"JSON artifact must be an object: {source}")
+    return value
+
+
+def _environment_sha256(value: Mapping[str, str]) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            dict(value),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _validate_guard_evidence(
+    record: Mapping[str, Any],
+    *,
+    command: list[str],
+    cwd: Path,
+    log_path: Path,
+    evidence_path: Path,
+    environment: Mapping[str, str],
+    timeout_seconds: float,
+) -> None:
+    expected_environment_sha256 = _environment_sha256(environment)
+    required = {
+        "schema": GUARD_SCHEMA,
+        "valid": True,
+        "command": command,
+        "working_directory": str(cwd),
+        "log_path": str(log_path),
+        "evidence_path": str(evidence_path),
+        "environment_sha256": expected_environment_sha256,
+        "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
+        "timed_out": False,
+        "low_memory_stop": False,
+        "emergency_actions": [],
+        "cleanup_process_count": 0,
+        "exit_code": 0,
+    }
+    for field, expected in required.items():
+        if record.get(field) != expected:
+            label = "timeout" if field == "timed_out" else field.replace("_", "-")
+            raise RuntimeError(f"guard {label} is invalid")
+    if record.get("maximum_runtime_seconds") not in (None, timeout_seconds):
+        raise RuntimeError("guard timeout is invalid")
+    job = record.get("job_object")
+    if not isinstance(job, Mapping) or any(
+        job.get(field) != expected
+        for field, expected in {
+            "setup_ok": True,
+            "query_ok": True,
+            "queried_active_process_count_after_cleanup": 0,
+            "survivor_pids_after_cleanup": [],
+        }.items()
+    ):
+        raise RuntimeError("guard cleanup is invalid")
+
+
+def _validate_worker_result(raw: bytes, *, source: Path) -> Mapping[str, Any]:
+    value = _strict_object(raw, source=source)
+    if set(value) != {"schema", "outcomes", "worker_result_sha256"}:
+        raise ValueError("quality worker result fields are invalid")
+    if value.get("schema") != RESULT_SCHEMA:
+        raise ValueError("quality worker result schema is invalid")
+    outcomes = value.get("outcomes")
+    expected_turns = [
+        "P1-turn-1", "P2-turn-1", "P3-turn-1", "P4-turn-1", "P5-turn-1",
+        "P6-turn-1", "P6-turn-2",
+    ]
+    if not isinstance(outcomes, list) or [
+        row.get("turn_id") if isinstance(row, Mapping) else None
+        for row in outcomes
+    ] != expected_turns:
+        raise ValueError("quality worker result outcomes are invalid")
+    expected_hash = hashlib.sha256(
+        _canonical_json({"schema": value["schema"], "outcomes": outcomes})
+    ).hexdigest()
+    if value.get("worker_result_sha256") != expected_hash:
+        raise ValueError("quality worker result hash is invalid")
+    return _freeze(value)
+
+
+def run_governed_quality_worker(
+    campaign: AcceptedQualityCampaign,
+    output_root: Path,
+    timeout_seconds: float,
+    run_command=run_guarded_command,
+) -> GovernedQualityWorkerResult:
+    """Launch exactly one accepted quality worker behind the owned-process guard."""
+
+    if not isinstance(campaign, AcceptedQualityCampaign):
+        raise TypeError("campaign must be AcceptedQualityCampaign")
+    if (
+        isinstance(timeout_seconds, bool)
+        or not isinstance(timeout_seconds, (int, float))
+        or not math.isfinite(timeout_seconds)
+        or timeout_seconds <= 0
+    ):
+        raise ValueError("timeout must be finite and positive")
+    accepted = load_accepted_quality_campaign(_accepted_input_from_campaign(campaign))
+    root = Path(output_root).resolve()
+    if root.exists():
+        raise FileExistsError("governed quality output directory must be fresh")
+    root.mkdir(parents=True)
+    spec_path = root / "worker-spec.json"
+    result_path = root / "worker-result.json"
+    log_path = root / "worker.log"
+    evidence_path = root / "guard-evidence.json"
+    if any(path.exists() for path in (spec_path, result_path, log_path, evidence_path)):
+        raise FileExistsError("governed quality evidence target already exists")
+    spec = build_quality_worker_spec(accepted)
+    spec_bytes = _canonical_json(spec)
+    spec_path.write_bytes(spec_bytes)
+    command = [
+        str(accepted.python_executable),
+        "-m",
+        "scripts.testing.official_openvino.quality_worker",
+        "--spec",
+        str(spec_path),
+        "--result",
+        str(result_path),
+    ]
+    environment = dict(accepted.worker_environment)
+    evidence = run_command(
+        command=command,
+        cwd=accepted.repo_root,
+        log_path=log_path,
+        evidence_path=evidence_path,
+        expected_exit="zero",
+        limits=GuardLimits(
+            minimum_available_ram_bytes=2_048 * 1024 * 1024,
+            maximum_runtime_seconds=float(timeout_seconds),
+        ),
+        environment=environment,
+    )
+    if not isinstance(evidence, Mapping):
+        raise RuntimeError("guard evidence is invalid")
+    raw_evidence = evidence_path.read_bytes()
+    persisted_evidence = _strict_object(raw_evidence, source=evidence_path)
+    if persisted_evidence != dict(evidence):
+        raise RuntimeError("guard evidence does not match returned record")
+    _validate_guard_evidence(
+        persisted_evidence,
+        command=command,
+        cwd=accepted.repo_root,
+        log_path=log_path,
+        evidence_path=evidence_path,
+        environment=environment,
+        timeout_seconds=float(timeout_seconds),
+    )
+    worker_raw = result_path.read_bytes()
+    worker_result = _validate_worker_result(worker_raw, source=result_path)
+    return GovernedQualityWorkerResult(
+        worker_result=worker_result,
+        worker_result_sha256=hashlib.sha256(worker_raw).hexdigest(),
+        guard_evidence=_freeze(persisted_evidence),
+        guard_evidence_sha256=hashlib.sha256(raw_evidence).hexdigest(),
+    )
+
+
 __all__ = [
     "AcceptedQualityCampaign",
+    "GovernedQualityWorkerResult",
     "QualityCampaignInput",
     "build_quality_worker_spec",
     "load_accepted_quality_campaign",
+    "run_governed_quality_worker",
 ]
