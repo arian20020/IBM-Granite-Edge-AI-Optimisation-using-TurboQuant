@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import secrets
 import shutil
+import statistics
 import subprocess
 import time
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -72,6 +75,103 @@ def _write_memory_row(handle: Any, value: dict[str, Any]) -> None:
         + "\n"
     )
     handle.flush()
+
+
+def _finite_nonnegative(value: Any, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be numeric")
+    normalized = float(value)
+    if not math.isfinite(normalized) or normalized < 0:
+        raise ValueError(f"{field} must be finite and non-negative")
+    return normalized
+
+
+def _gpu_summary(
+    value: Any,
+    field: str,
+    *,
+    maximum: float | None = None,
+    integers: bool = False,
+) -> list[float]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field} evidence is required")
+    if value.get("query_succeeded") is not True:
+        raise ValueError(f"{field} query did not succeed")
+    raw_values = value.get("values")
+    if not isinstance(raw_values, list) or len(raw_values) < 2:
+        raise ValueError(f"{field} requires at least two observations")
+    values = [
+        _finite_nonnegative(item, f"{field} observation") for item in raw_values
+    ]
+    if maximum is not None and any(item > maximum for item in values):
+        raise ValueError(f"{field} observations exceed {maximum}")
+    if integers and any(not item.is_integer() for item in values):
+        raise ValueError(f"{field} observations must be integers")
+    count = value.get("count")
+    if isinstance(count, bool) or not isinstance(count, int) or count != len(values):
+        raise ValueError(f"{field} count does not match observations")
+    expected = {
+        "mean": statistics.fmean(values),
+        "median": statistics.median(values),
+        "peak": max(values),
+    }
+    for statistic, expected_value in expected.items():
+        actual = _finite_nonnegative(
+            value.get(statistic),
+            f"{field} {statistic}",
+        )
+        if not math.isclose(actual, expected_value, rel_tol=1e-9, abs_tol=1e-9):
+            raise ValueError(f"{field} {statistic} does not match observations")
+    return values
+
+
+def _validate_gpu_observability(record: Mapping[str, Any]) -> None:
+    activation = record.get("activation")
+    if not isinstance(activation, Mapping):
+        raise ValueError("activation telemetry is required")
+    actual_device = activation.get("actual_device")
+    if not isinstance(actual_device, str):
+        raise ValueError("actual activation device is required")
+    if actual_device.split(".", 1)[0].upper() != "GPU":
+        return
+
+    gpu_values = _gpu_summary(
+        record.get("gpu_percent"),
+        "GPU utilization",
+        maximum=100.0,
+    )
+    engine_values = _gpu_summary(
+        record.get("gpu_engine_count"),
+        "GPU engine-count",
+        integers=True,
+    )
+    if len(gpu_values) != len(engine_values):
+        raise ValueError(
+            "GPU utilization and engine-count observation counts differ"
+        )
+    if max(engine_values) <= 0:
+        raise ValueError("GPU engine-count peak must be positive")
+    if max(gpu_values) <= 0:
+        raise ValueError("GPU utilization peak must be positive")
+
+    dedicated = _finite_nonnegative(
+        record.get("gpu_dedicated_memory_peak_mb"),
+        "GPU dedicated memory peak",
+    )
+    shared = _finite_nonnegative(
+        record.get("gpu_shared_memory_peak_mb"),
+        "GPU shared memory peak",
+    )
+    combined = _finite_nonnegative(
+        record.get("gpu_memory_peak_mb"),
+        "GPU combined memory peak",
+    )
+    if combined <= 0:
+        raise ValueError("GPU combined memory peak must be positive")
+    if combined < max(dedicated, shared) or combined > dedicated + shared:
+        raise ValueError(
+            "GPU combined memory peak is outside component bounds"
+        )
 
 
 def run_governed_process(
@@ -159,6 +259,7 @@ def run_governed_process(
         "memory_sample_count": 0,
         "cpu_percent": None,
         "gpu_percent": None,
+        "gpu_engine_count": None,
         "gpu_dedicated_memory_peak_mb": None,
         "gpu_shared_memory_peak_mb": None,
         "gpu_memory_peak_mb": None,
@@ -455,6 +556,7 @@ def run_governed_process(
             )
             record["cpu_percent"] = cpu
             record["gpu_percent"] = gpu["gpu_percent"]
+            record["gpu_engine_count"] = gpu["gpu_engine_count"]
             for field in (
                 "gpu_dedicated_memory_peak_mb",
                 "gpu_shared_memory_peak_mb",
@@ -463,6 +565,7 @@ def run_governed_process(
                 record[field] = gpu[field]
             record["worker"] = parsed["result"]
             record["activation"] = parsed["activation"]
+            _validate_gpu_observability(record)
             record["output_sha256"] = hashlib.sha256(
                 parsed["result"]["output"].encode("utf-8")
             ).hexdigest()
@@ -491,6 +594,7 @@ def measurement_sample(record: dict[str, Any], source_path: Path) -> dict[str, A
     worker = record["worker"]
     activation = record["activation"]
     validate_activation_telemetry(activation)
+    _validate_gpu_observability(record)
     source = Path(source_path)
     if not source.is_file():
         raise ValueError("governed source record is missing")

@@ -11,6 +11,7 @@ import csv
 import json
 import math
 import os
+import re
 import statistics
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
@@ -23,6 +24,7 @@ WORKER_SCHEMA = "official-openvino-wb04-worker/v1"
 RUNTIME_ALGORITHMS = frozenset({"STANDARD", "TBQ3", "TBQ4"})
 CACHE_PRECISIONS = frozenset({"f16", "bf16", "f32", "u8", "u4", "u3"})
 PERSISTENT_COMPONENTS = ("standard", "payload", "norm", "metadata")
+RUNTIME_DEVICE_PATTERN = re.compile(r"(?:CPU|GPU(?:\.(?:0|[1-9][0-9]*))?)\Z")
 
 
 def _finite_number(value: Any, field: str, *, maximum: float | None = None) -> float:
@@ -297,24 +299,46 @@ def build_runtime_property_spec(
                 f"unsupported runtime {field} algorithm: {value}; "
                 "expected exact uppercase STANDARD, TBQ3, or TBQ4"
             )
-    normalized_device = device.upper()
-    if normalized_device not in {"CPU", "GPU"}:
+    if not isinstance(device, str):
         raise ValueError("runtime device must be CPU or GPU")
+    normalized_device = device.upper()
+    if RUNTIME_DEVICE_PATTERN.fullmatch(normalized_device) is None:
+        raise ValueError("runtime device must be CPU or GPU")
+    gpu_requested = normalized_device == "GPU" or normalized_device.startswith("GPU.")
     if (
-        normalized_device != "CPU"
+        gpu_requested
         and (key_algorithm != "STANDARD" or value_algorithm != "STANDARD")
     ):
         raise ValueError("project TurboQuant is supported only on CPU")
-    for field, value in (
-        ("key cache precision", key_cache_precision),
-        ("value cache precision", value_cache_precision),
+    if gpu_requested and (
+        key_cache_precision != "frozen" or value_cache_precision != "frozen"
     ):
-        if value not in CACHE_PRECISIONS:
-            raise ValueError(f"unsupported {field}: {value}")
+        raise ValueError(
+            "GPU cache precision is plugin-owned; "
+            "key and value cache precision must both be frozen"
+        )
+    if not gpu_requested:
+        for field, value in (
+            ("key cache precision", key_cache_precision),
+            ("value cache precision", value_cache_precision),
+        ):
+            if value not in CACHE_PRECISIONS:
+                raise ValueError(f"unsupported {field}: {value}")
     if not isinstance(norm_correction, bool):
         raise ValueError("norm correction must be boolean")
     if not isinstance(cache_dir, str) or not cache_dir.strip():
         raise ValueError("cache directory must be non-blank")
+
+    if gpu_requested:
+        return {
+            "device": normalized_device,
+            "properties": {
+                "ATTENTION_BACKEND": "SDPA",
+                "CACHE_DIR": cache_dir,
+                "NUM_STREAMS": 1,
+                "PERFORMANCE_HINT": "LATENCY",
+            },
+        }
 
     properties: dict[str, Any] = {
         "ATTENTION_BACKEND": "SDPA",

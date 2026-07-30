@@ -32,6 +32,17 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+def utilization_summary(values: list[float]) -> dict:
+    return {
+        "values": values,
+        "mean": statistics.fmean(values),
+        "median": statistics.median(values),
+        "peak": max(values),
+        "count": len(values),
+        "query_succeeded": True,
+    }
+
+
 def activation_telemetry(**overrides) -> dict:
     value = {
         "status": "activated",
@@ -141,8 +152,9 @@ def governed_record(activation: dict) -> dict:
         "gpu_dedicated_memory_peak_mb": 1.0,
         "gpu_shared_memory_peak_mb": 2.0,
         "gpu_memory_peak_mb": 2.5,
-        "cpu_percent": {"values": [10, 20]},
-        "gpu_percent": {"values": [1, 2]},
+        "cpu_percent": utilization_summary([10, 20]),
+        "gpu_percent": utilization_summary([1, 2]),
+        "gpu_engine_count": utilization_summary([1, 1]),
         "output_sha256": "c" * 64,
         "telemetry_sha256": "d" * 64,
         "cleanup_process_count": 0,
@@ -284,6 +296,65 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         )
         self.assertNotIn("KEY_CACHE_PRECISION", mixed["properties"])
         self.assertIs(mixed["properties"]["TURBOQUANT_NORM_CORRECTION"], True)
+
+    def test_gpu_standard_runtime_properties_are_plugin_owned_and_gpu_safe(self):
+        expected_properties = {
+            "ATTENTION_BACKEND": "SDPA",
+            "CACHE_DIR": "cache",
+            "NUM_STREAMS": 1,
+            "PERFORMANCE_HINT": "LATENCY",
+        }
+        for device, expected_device in (
+            ("gpu", "GPU"),
+            ("GPU.0", "GPU.0"),
+            ("gpu.12", "GPU.12"),
+        ):
+            with self.subTest(device=device):
+                spec = build_runtime_property_spec(
+                    device=device,
+                    key_algorithm="STANDARD",
+                    value_algorithm="STANDARD",
+                    key_cache_precision="frozen",
+                    value_cache_precision="frozen",
+                    norm_correction=False,
+                    cache_dir="cache",
+                )
+                self.assertEqual(spec["device"], expected_device)
+                self.assertEqual(spec["properties"], expected_properties)
+
+    def test_gpu_runtime_property_spec_rejects_ambiguous_routes_and_overrides(self):
+        common = {
+            "key_algorithm": "STANDARD",
+            "value_algorithm": "STANDARD",
+            "key_cache_precision": "frozen",
+            "value_cache_precision": "frozen",
+            "norm_correction": False,
+            "cache_dir": "cache",
+        }
+        for device in ("GPUX", "AUTO:GPU", "GPU.foo", "GPU.-1", "GPU.01"):
+            with self.subTest(device=device):
+                with self.assertRaisesRegex(ValueError, "CPU or GPU"):
+                    build_runtime_property_spec(device=device, **common)
+
+        for key_precision, value_precision in (
+            ("u8", "frozen"),
+            ("frozen", "u4"),
+            ("f16", "f16"),
+        ):
+            with self.subTest(
+                key_precision=key_precision,
+                value_precision=value_precision,
+            ):
+                with self.assertRaisesRegex(ValueError, "plugin-owned"):
+                    build_runtime_property_spec(
+                        device="GPU.0",
+                        key_algorithm="STANDARD",
+                        value_algorithm="STANDARD",
+                        key_cache_precision=key_precision,
+                        value_cache_precision=value_precision,
+                        norm_correction=False,
+                        cache_dir="cache",
+                    )
 
     def test_invalid_runtime_labels_and_non_cpu_turboquant_fail_closed(self):
         common = {
@@ -480,6 +551,11 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(parsed["gpu_percent"]["median"], 10)
         self.assertEqual(parsed["gpu_percent"]["peak"], 20)
         self.assertEqual(parsed["gpu_percent"]["count"], 3)
+        self.assertEqual(parsed["gpu_engine_count"]["values"], [1.0, 2.0, 3.0])
+        self.assertEqual(parsed["gpu_engine_count"]["mean"], 2.0)
+        self.assertEqual(parsed["gpu_engine_count"]["median"], 2.0)
+        self.assertEqual(parsed["gpu_engine_count"]["peak"], 3.0)
+        self.assertEqual(parsed["gpu_engine_count"]["count"], 3)
         self.assertEqual(parsed["gpu_dedicated_memory_peak_mb"], 6)
         self.assertEqual(parsed["gpu_shared_memory_peak_mb"], 9)
 
@@ -648,6 +724,160 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
             "available RAM is below the post-run floor",
             record["validation_errors"],
         )
+
+    def test_governed_process_persists_parsed_gpu_engine_evidence(self):
+        floor = 2 * 1024**3
+        gpu_evidence = {
+            "gpu_percent": utilization_summary([4.0, 8.0]),
+            "gpu_engine_count": utilization_summary([1.0, 2.0]),
+            "gpu_dedicated_memory_peak_mb": 0.0,
+            "gpu_shared_memory_peak_mb": 24.0,
+            "gpu_memory_peak_mb": 24.0,
+            "observation_count": 2,
+        }
+        parsed_worker = {
+            "result": worker_result(),
+            "activation": standard_cpu_telemetry(
+                device="GPU",
+                actual_device="GPU.0",
+            ),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sampler = root / "sampler.ps1"
+            sampler.write_text("", encoding="utf-8")
+            with (
+                mock.patch(
+                    "scripts.testing.official_openvino.runtime_process."
+                    "available_ram_bytes",
+                    side_effect=[floor - 1, floor],
+                ),
+                mock.patch(
+                    "scripts.testing.official_openvino.runtime_process."
+                    "parse_cpu_samples",
+                    return_value=utilization_summary([10.0, 12.0]),
+                ),
+                mock.patch(
+                    "scripts.testing.official_openvino.runtime_process."
+                    "parse_gpu_samples",
+                    return_value=gpu_evidence,
+                ),
+                mock.patch(
+                    "scripts.testing.official_openvino.runtime_process."
+                    "parse_worker_output",
+                    return_value=parsed_worker,
+                ),
+            ):
+                record = run_governed_process(
+                    command=["never-launched"],
+                    output_dir=root / "run",
+                    role="pilot",
+                    environment={},
+                    sampler_script=sampler,
+                    minimum_available_ram_bytes=floor,
+                )
+        self.assertEqual(
+            record["gpu_engine_count"],
+            gpu_evidence["gpu_engine_count"],
+        )
+
+    def test_gpu_measurement_sample_requires_repeated_nonzero_observability(self):
+        cases = (
+            (
+                "one GPU utilization observation",
+                lambda record: record.__setitem__(
+                    "gpu_percent", utilization_summary([8.0])
+                ),
+                "at least two",
+            ),
+            (
+                "one engine-count observation",
+                lambda record: record.__setitem__(
+                    "gpu_engine_count", utilization_summary([1.0])
+                ),
+                "at least two",
+            ),
+            (
+                "zero engine peak",
+                lambda record: record.__setitem__(
+                    "gpu_engine_count", utilization_summary([0.0, 0.0])
+                ),
+                "engine-count peak",
+            ),
+            (
+                "zero utilization peak",
+                lambda record: record.__setitem__(
+                    "gpu_percent", utilization_summary([0.0, 0.0])
+                ),
+                "utilization peak",
+            ),
+            (
+                "zero combined memory",
+                lambda record: record.update(
+                    gpu_dedicated_memory_peak_mb=0.0,
+                    gpu_shared_memory_peak_mb=0.0,
+                    gpu_memory_peak_mb=0.0,
+                ),
+                "combined memory peak",
+            ),
+            (
+                "failed engine query",
+                lambda record: record["gpu_engine_count"].update(
+                    query_succeeded=False
+                ),
+                "engine-count query",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            for name, mutate, expected_error in cases:
+                with self.subTest(name=name):
+                    record = governed_record(
+                        standard_cpu_telemetry(
+                            device="GPU",
+                            actual_device="GPU.0",
+                        )
+                    )
+                    mutate(record)
+                    with self.assertRaisesRegex(ValueError, expected_error):
+                        measurement_sample(record, source)
+
+    def test_integrated_gpu_shared_memory_observability_is_valid(self):
+        record = governed_record(
+            standard_cpu_telemetry(
+                device="GPU",
+                actual_device="GPU.0",
+            )
+        )
+        record.update(
+            gpu_dedicated_memory_peak_mb=0.0,
+            gpu_shared_memory_peak_mb=24.0,
+            gpu_memory_peak_mb=24.0,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            sample = measurement_sample(record, source)
+        self.assertEqual(sample["gpu_dedicated_memory_peak_mb"], 0.0)
+        self.assertEqual(sample["gpu_shared_memory_peak_mb"], 24.0)
+        self.assertEqual(sample["gpu_memory_peak_mb"], 24.0)
+
+    def test_cpu_measurement_sample_allows_honest_zero_gpu_evidence(self):
+        record = governed_record(activation_telemetry())
+        record.update(
+            gpu_percent=utilization_summary([0.0, 0.0]),
+            gpu_engine_count=utilization_summary([0.0, 0.0]),
+            gpu_dedicated_memory_peak_mb=0.0,
+            gpu_shared_memory_peak_mb=0.0,
+            gpu_memory_peak_mb=0.0,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            sample = measurement_sample(record, source)
+        self.assertEqual(sample["gpu_percent"]["peak"], 0.0)
+        self.assertEqual(sample["gpu_memory_peak_mb"], 0.0)
 
     def test_measurement_sample_retains_runtime_identity_and_byte_components(self):
         activation = activation_telemetry()
