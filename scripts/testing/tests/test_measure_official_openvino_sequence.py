@@ -11,6 +11,10 @@ from scripts.testing.measure_official_openvino import (
     build_campaign_identity,
     run_measurement_sequence,
 )
+from scripts.testing.official_openvino.matrix import (
+    FROZEN_BUILD_IDENTITY,
+    FROZEN_SOURCE_IDENTITY,
+)
 
 
 MIB = 1024**2
@@ -179,10 +183,13 @@ def _setup_campaign(tmp_path: Path) -> dict:
         matrix,
         {
             "schema_version": 1,
+            "source_identity": FROZEN_SOURCE_IDENTITY,
+            "build_identity": FROZEN_BUILD_IDENTITY,
             "cases": [
                 {
                     "test_id": "OV-TQ-03",
                     "phase": "formal",
+                    "description": "TBQ4 symmetric",
                     "model": "granite-3b",
                     "weight_precision": "u8",
                     "device": "cpu",
@@ -191,6 +198,26 @@ def _setup_campaign(tmp_path: Path) -> dict:
                     "v_algorithm": "tbq4",
                     "k_precision": "u4",
                     "v_precision": "u4",
+                    "guard": "none",
+                    "quality_required": True,
+                    "required_metrics": [
+                        "load_ms", "ttft_ms", "prompt_tps", "tpot_ms",
+                        "decode_tps", "generation_duration_ms",
+                        "peak_working_set_mb", "peak_private_mb",
+                        "available_ram_min_mb", "kv_mb",
+                        "gpu_memory_peak_mb", "cpu_percent", "gpu_percent",
+                    ],
+                    "key_cache_precision": "u4",
+                    "value_cache_precision": "u4",
+                    "requested_device": "CPU",
+                    "runtime_key_algorithm": "TBQ4",
+                    "runtime_value_algorithm": "TBQ4",
+                    "norm_correction": True,
+                    "attention_path": "stateful_sdpa_reference_codec",
+                    "execution_route": "patched-stateful",
+                    "expected_outcome": "pass",
+                    "suitable_host_required": False,
+                    "numeric_generation_metrics_expected": True,
                 }
             ],
         },

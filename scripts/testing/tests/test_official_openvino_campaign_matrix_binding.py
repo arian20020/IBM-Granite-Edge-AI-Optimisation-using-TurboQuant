@@ -22,6 +22,44 @@ def _case(**overrides):
         "v_precision": "u4",
     }
     value.update(overrides)
+    algorithms = {value["k_algorithm"], value["v_algorithm"]}
+    value.update({
+        "key_cache_precision": value["k_precision"],
+        "value_cache_precision": value["v_precision"],
+        "requested_device": value["device"].upper(),
+        "runtime_key_algorithm": (
+            "STANDARD"
+            if value["k_algorithm"] in {"standard", "scalar", "frozen"}
+            else value["k_algorithm"].upper()
+        ),
+        "runtime_value_algorithm": (
+            "STANDARD"
+            if value["v_algorithm"] in {"standard", "scalar", "frozen"}
+            else value["v_algorithm"].upper()
+        ),
+        "norm_correction": bool(algorithms & {"tbq3", "tbq4"}),
+        "attention_path": (
+            "stateful_sdpa_reference_codec"
+            if algorithms & {"tbq3", "tbq4"}
+            else "stateful_sdpa_standard"
+        ),
+        "execution_route": (
+            "upstream-scalar" if algorithms == {"scalar"} else "patched-stateful"
+        ),
+        "expected_outcome": "pass",
+        "suitable_host_required": False,
+        "numeric_generation_metrics_expected": True,
+    })
+    value.update({
+        key: overrides[key]
+        for key in {
+            "key_cache_precision", "value_cache_precision", "requested_device",
+            "runtime_key_algorithm", "runtime_value_algorithm", "norm_correction",
+            "attention_path", "execution_route", "expected_outcome",
+            "suitable_host_required", "numeric_generation_metrics_expected",
+        }
+        & overrides.keys()
+    })
     return value
 
 
@@ -90,6 +128,28 @@ def test_runtime_activation_is_bound_to_matrix_and_rejects_fallback():
             _record(fallback=True),
             _case(),
         )
+
+
+def test_campaign_binding_consumes_the_frozen_explicit_contract_not_a_rederivation():
+    case = _case()
+    validate_worker_spec_against_matrix_case(_spec(), case)
+    validate_runtime_record_against_matrix_case(_record(), case)
+
+    for field, value, message, validator in (
+        ("runtime_value_algorithm", "TBQ3", "value algorithm", validate_worker_spec_against_matrix_case),
+        ("norm_correction", False, "norm correction", validate_worker_spec_against_matrix_case),
+        ("attention_path", "stateful_sdpa_standard", "attention path", validate_runtime_record_against_matrix_case),
+        ("expected_outcome", "expected-rejection", "expected outcome", validate_worker_spec_against_matrix_case),
+        ("execution_route", "non-runtime", "execution route", validate_worker_spec_against_matrix_case),
+        ("numeric_generation_metrics_expected", False, "numeric generation metrics", validate_worker_spec_against_matrix_case),
+    ):
+        tampered = copy.deepcopy(case)
+        tampered[field] = value
+        with pytest.raises(ValueError, match=message):
+            if validator is validate_worker_spec_against_matrix_case:
+                validator(_spec(), tampered)
+            else:
+                validator(_record(), tampered)
 
 
 def test_scalar_control_requires_concrete_scalar_state_not_standard_relabel():

@@ -15,6 +15,114 @@ MATRIX = ROOT / "experiments/manifests/official-openvino/retest-matrix.json"
 
 
 class OfficialOpenVINOMatrixTests(unittest.TestCase):
+    def test_matrix_freezes_receipt_references_and_every_execution_contract_field(self):
+        raw = json.loads(MATRIX.read_text(encoding="utf-8"))
+        self.assertEqual(
+            raw.get("source_identity"),
+            {
+                "path": "experiments/raw-results/openvino-turboquant/2026-07-30/provenance/source-identity-bounded.json",
+                "sha256": "44f4bfc111c78258320c0788ddba288f0f54840845cefac6fdfcae9b772e6574",
+                "scope": "declared campaign input; not row execution proof",
+                "upstream_commit": "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+                "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+                "derived_tree": "2e872dd4817c42d91cb7c3094954d7b56fa12b0a",
+            },
+        )
+        self.assertEqual(
+            raw.get("build_identity"),
+            {
+                "path": "experiments/raw-results/openvino-turboquant/2026-07-30/provenance/build-00edae3b-attempt-001/build-provenance.json",
+                "sha256": "57fb318a55db56fb409a60f0b1d516a988f8543c0446153e63efdee3a748e262",
+                "scope": "declared campaign input; not row execution proof",
+                "status": "passed",
+                "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+            },
+        )
+        required = {
+            "key_cache_precision",
+            "value_cache_precision",
+            "requested_device",
+            "runtime_key_algorithm",
+            "runtime_value_algorithm",
+            "norm_correction",
+            "attention_path",
+            "execution_route",
+            "expected_outcome",
+            "suitable_host_required",
+            "numeric_generation_metrics_expected",
+        }
+        self.assertTrue(all(required <= set(case) for case in raw["cases"]))
+
+        for case in load_matrix(MATRIX):
+            contract = execution_contract(case)
+            self.assertEqual(case.key_cache_precision, case.k_precision)
+            self.assertEqual(case.value_cache_precision, case.v_precision)
+            self.assertEqual(case.requested_device, case.device.upper())
+            for field in required - {
+                "key_cache_precision",
+                "value_cache_precision",
+                "requested_device",
+            }:
+                self.assertEqual(getattr(case, field), getattr(contract, field))
+
+    def test_matrix_rejects_missing_or_drifting_frozen_execution_contract_fields(self):
+        payload = json.loads(MATRIX.read_text(encoding="utf-8"))
+        expected_source = {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/provenance/source-identity-bounded.json",
+            "sha256": "44f4bfc111c78258320c0788ddba288f0f54840845cefac6fdfcae9b772e6574",
+            "scope": "declared campaign input; not row execution proof",
+            "upstream_commit": "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+            "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+            "derived_tree": "2e872dd4817c42d91cb7c3094954d7b56fa12b0a",
+        }
+        expected_build = {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/provenance/build-00edae3b-attempt-001/build-provenance.json",
+            "sha256": "57fb318a55db56fb409a60f0b1d516a988f8543c0446153e63efdee3a748e262",
+            "scope": "declared campaign input; not row execution proof",
+            "status": "passed",
+            "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+        }
+        payload["source_identity"] = expected_source
+        payload["build_identity"] = expected_build
+        for case in load_matrix(MATRIX):
+            contract = execution_contract(case)
+            raw_case = next(
+                item for item in payload["cases"] if item["test_id"] == case.test_id
+            )
+            raw_case.update({
+                "key_cache_precision": case.k_precision,
+                "value_cache_precision": case.v_precision,
+                "requested_device": case.device.upper(),
+                "runtime_key_algorithm": contract.runtime_key_algorithm,
+                "runtime_value_algorithm": contract.runtime_value_algorithm,
+                "norm_correction": contract.norm_correction,
+                "attention_path": (
+                    "not-applicable-non-runtime"
+                    if contract.execution_route == "non-runtime"
+                    else "not-produced-by-expected-rejection"
+                    if contract.expected_outcome == "expected-rejection"
+                    else "stateful_sdpa_reference_codec"
+                    if contract.execution_route == "patched-stateful"
+                    else "stateful_sdpa_standard"
+                ),
+                "execution_route": contract.execution_route,
+                "expected_outcome": contract.expected_outcome,
+                "suitable_host_required": contract.suitable_host_required,
+                "numeric_generation_metrics_expected": contract.numeric_generation_metrics_expected,
+            })
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "matrix.json"
+            payload["cases"][0].pop("attention_path")
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "attention_path"):
+                load_matrix(path)
+
+            payload = json.loads(MATRIX.read_text(encoding="utf-8"))
+            payload["cases"][0]["expected_outcome"] = "expected-rejection"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "expected_outcome"):
+                load_matrix(path)
+
     def test_matrix_contains_every_wb04_id_once(self):
         cases = load_matrix(MATRIX)
         expected = ({f"OV-B{i:02d}" for i in range(1, 13)} |

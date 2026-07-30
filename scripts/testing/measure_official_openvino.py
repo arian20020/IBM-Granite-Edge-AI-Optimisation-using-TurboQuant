@@ -20,6 +20,10 @@ from scripts.testing.official_openvino.conversion import (
     validate_artifact_manifest,
 )
 from scripts.testing.official_openvino.metrics import summarize_samples
+from scripts.testing.official_openvino.matrix import (
+    load_matrix,
+    load_matrix_metadata,
+)
 from scripts.testing.official_openvino.runtime_measurement import (
     atomic_write_json,
 )
@@ -134,6 +138,8 @@ def _sequence_spec(path: Path) -> dict[str, Any]:
 
 def _matrix_case(path: Path, test_id: str, context: int) -> dict[str, Any]:
     matrix_path = _file(path, "retest matrix")
+    identities = load_matrix_metadata(matrix_path)
+    load_matrix(matrix_path)
     matrix = _read_json_object(matrix_path, "retest matrix")
     cases = matrix.get("cases")
     if not isinstance(cases, list):
@@ -157,27 +163,16 @@ def _matrix_case(path: Path, test_id: str, context: int) -> dict[str, Any]:
         "path": str(matrix_path),
         "file_sha256": _sha256_file(matrix_path),
         "schema_version": matrix.get("schema_version"),
+        "source_identity": identities["source_identity"],
+        "build_identity": identities["build_identity"],
         "case": case,
     }
 
 
-def _matrix_runtime_algorithm(label: Any, *, field: str) -> str:
-    if label in {"standard", "scalar", "frozen"}:
-        return "STANDARD"
-    if label in {"tbq3", "tbq4"}:
-        return str(label).upper()
-    raise ValueError(f"matrix {field} algorithm is not runnable: {label}")
-
-
-def _matrix_norm_correction(case: Mapping[str, Any]) -> bool:
-    turboquant = any(
-        case.get(field) in {"tbq3", "tbq4"}
-        for field in ("k_algorithm", "v_algorithm")
-    )
-    return turboquant and case.get("test_id") not in {
-        "OV-TQ-11",
-        "OV-TQ-12",
-    }
+def _frozen_case_field(case: Mapping[str, Any], field: str) -> Any:
+    if field not in case:
+        raise ValueError(f"matrix frozen {field} is missing")
+    return case[field]
 
 
 def _device_family(value: Any, *, field: str) -> str:
@@ -197,11 +192,22 @@ def validate_worker_spec_against_matrix_case(
 
     if spec.get("controlled_test_id") != case.get("test_id"):
         raise ValueError("worker spec test ID does not match the matrix case")
+    if _frozen_case_field(case, "expected_outcome") != "pass":
+        raise ValueError("matrix expected outcome prohibits worker execution")
+    if _frozen_case_field(case, "execution_route") not in {
+        "patched-stateful",
+        "stateful-standard",
+        "upstream-scalar",
+        "device-standard",
+    }:
+        raise ValueError("matrix execution route prohibits worker execution")
+    if _frozen_case_field(case, "numeric_generation_metrics_expected") is not True:
+        raise ValueError("matrix numeric generation metrics are not expected")
     contexts = case.get("contexts")
     if not isinstance(contexts, list) or spec.get("context") not in contexts:
         raise ValueError("worker spec context does not match the matrix case")
     expected_device = _device_family(
-        case.get("device"), field="matrix device"
+        _frozen_case_field(case, "requested_device"), field="matrix requested device"
     )
     if _device_family(spec.get("device"), field="worker spec device") != (
         expected_device
@@ -211,12 +217,8 @@ def validate_worker_spec_against_matrix_case(
     properties = spec.get("properties")
     if not isinstance(properties, Mapping):
         raise ValueError("worker spec properties are missing")
-    expected_key = _matrix_runtime_algorithm(
-        case.get("k_algorithm"), field="key"
-    )
-    expected_value = _matrix_runtime_algorithm(
-        case.get("v_algorithm"), field="value"
-    )
+    expected_key = _frozen_case_field(case, "runtime_key_algorithm")
+    expected_value = _frozen_case_field(case, "runtime_value_algorithm")
     turboquant = expected_key != "STANDARD" or expected_value != "STANDARD"
     if turboquant:
         if properties.get("TURBOQUANT_KEY_ALGORITHM") != expected_key:
@@ -230,7 +232,7 @@ def validate_worker_spec_against_matrix_case(
                 "the matrix case"
             )
         if properties.get("TURBOQUANT_NORM_CORRECTION") is not (
-            _matrix_norm_correction(case)
+            _frozen_case_field(case, "norm_correction")
         ):
             raise ValueError(
                 "worker spec norm correction does not match the matrix case"
@@ -247,20 +249,18 @@ def validate_worker_spec_against_matrix_case(
             "worker spec requested TurboQuant for a STANDARD matrix case"
         )
 
-    for side, algorithm_field, precision_field in (
-        ("KEY", "k_algorithm", "k_precision"),
-        ("VALUE", "v_algorithm", "v_precision"),
+    for side, algorithm, precision_field in (
+        ("KEY", expected_key, "key_cache_precision"),
+        ("VALUE", expected_value, "value_cache_precision"),
     ):
-        if _matrix_runtime_algorithm(
-            case.get(algorithm_field), field=side.lower()
-        ) != "STANDARD":
+        if algorithm != "STANDARD":
             if f"{side}_CACHE_PRECISION" in properties:
                 raise ValueError(
                     f"worker spec {side.lower()} cache precision must be "
                     "owned by TurboQuant"
                 )
             continue
-        precision = case.get(precision_field)
+        precision = _frozen_case_field(case, precision_field)
         if precision in {"f16", "bf16", "u8", "u4"} and (
             properties.get(f"{side}_CACHE_PRECISION") != precision
         ):
@@ -282,14 +282,21 @@ def validate_runtime_record_against_matrix_case(
     if activation.get("fallback") is not False:
         raise ValueError("runtime activation reports fallback")
 
-    expected_key = _matrix_runtime_algorithm(
-        case.get("k_algorithm"), field="key"
-    )
-    expected_value = _matrix_runtime_algorithm(
-        case.get("v_algorithm"), field="value"
-    )
+    if _frozen_case_field(case, "expected_outcome") != "pass":
+        raise ValueError("matrix expected outcome prohibits runtime execution")
+    if _frozen_case_field(case, "execution_route") not in {
+        "patched-stateful",
+        "stateful-standard",
+        "upstream-scalar",
+        "device-standard",
+    }:
+        raise ValueError("matrix execution route prohibits runtime execution")
+    if _frozen_case_field(case, "numeric_generation_metrics_expected") is not True:
+        raise ValueError("matrix numeric generation metrics are not expected")
+    expected_key = _frozen_case_field(case, "runtime_key_algorithm")
+    expected_value = _frozen_case_field(case, "runtime_value_algorithm")
     expected_device = _device_family(
-        case.get("device"), field="matrix device"
+        _frozen_case_field(case, "requested_device"), field="matrix requested device"
     )
     if _device_family(
         activation.get("device"), field="activation requested device"
@@ -314,13 +321,11 @@ def validate_runtime_record_against_matrix_case(
     expected_status = "activated" if turboquant else "not_requested"
     if activation.get("status") != expected_status:
         raise ValueError("activation status differs from the matrix route")
-    if activation.get("norm_correction") is not _matrix_norm_correction(case):
+    if activation.get("norm_correction") is not _frozen_case_field(
+        case, "norm_correction"
+    ):
         raise ValueError("activation norm correction differs from the matrix")
-    expected_attention = (
-        "stateful_sdpa_reference_codec"
-        if turboquant
-        else "stateful_sdpa_standard"
-    )
+    expected_attention = _frozen_case_field(case, "attention_path")
     if activation.get("attention_path") != expected_attention:
         raise ValueError("activation attention path differs from the matrix")
 
@@ -329,10 +334,10 @@ def validate_runtime_record_against_matrix_case(
         and case.get("v_algorithm") == "scalar"
     )
     for side, algorithm, precision_field in (
-        ("key", expected_key, "k_precision"),
-        ("value", expected_value, "v_precision"),
+        ("key", expected_key, "key_cache_precision"),
+        ("value", expected_value, "value_cache_precision"),
     ):
-        precision = case.get(precision_field)
+        precision = _frozen_case_field(case, precision_field)
         requested = activation.get(
             f"requested_{side}_cache_precision"
         )

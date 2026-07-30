@@ -100,7 +100,8 @@ def test_generation_expands_every_runnable_context_and_records_gpu_rejection(
         "matrix_sha256": hashlib.sha256(MATRIX.read_bytes()).hexdigest(),
         "rejections": [
             {
-                "execution_contract": {
+                    "execution_contract": {
+                    "attention_path": "not-produced-by-expected-rejection",
                     "controlled_test_id": "OV-TQ-18",
                     "execution_route": "expected-rejection",
                     "expected_outcome": "expected-rejection",
@@ -111,16 +112,22 @@ def test_generation_expands_every_runnable_context_and_records_gpu_rejection(
                     "runtime_value_algorithm": "TBQ4",
                     "suitable_host_required": False,
                 },
-                "matrix_case": {
+                    "matrix_case": {
+                    "attention_path": "not-produced-by-expected-rejection",
                     "contexts": [1024],
                     "description": "GPU TurboQuant gate",
-                    "device": "gpu",
+                        "device": "gpu",
+                    "execution_route": "expected-rejection",
+                    "expected_outcome": "expected-rejection",
                     "guard": "none",
                     "k_algorithm": "tbq4",
-                    "k_precision": "u4",
+                        "k_precision": "u4",
+                    "key_cache_precision": "u4",
                     "model": "granite-3b",
+                    "norm_correction": True,
+                    "numeric_generation_metrics_expected": False,
                     "phase": "formal",
-                    "quality_required": True,
+                        "quality_required": True,
                     "required_metrics": [
                         "available_ram_min_mb",
                         "cpu_percent",
@@ -136,9 +143,14 @@ def test_generation_expands_every_runnable_context_and_records_gpu_rejection(
                         "tpot_ms",
                         "ttft_ms",
                     ],
+                    "requested_device": "GPU",
+                    "runtime_key_algorithm": "TBQ4",
+                    "runtime_value_algorithm": "TBQ4",
+                    "suitable_host_required": False,
                     "test_id": "OV-TQ-18",
                     "v_algorithm": "tbq4",
-                    "v_precision": "u4",
+                        "v_precision": "u4",
+                    "value_cache_precision": "u4",
                     "weight_precision": "u8",
                 },
                 "reason": (

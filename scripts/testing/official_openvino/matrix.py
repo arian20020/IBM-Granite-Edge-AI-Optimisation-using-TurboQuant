@@ -13,6 +13,21 @@ ALGORITHMS = frozenset({"standard", "scalar", "tbq3", "tbq4", "qjl", "polar", "f
 PRECISIONS = frozenset({"dynamic", "f16", "bf16", "u8", "u4", "u3", "probe", "frozen"})
 GUARDS = frozenset({"none", "ram-2048-mib"})
 RUNTIME_ALGORITHMS = frozenset({"STANDARD", "TBQ3", "TBQ4"})
+FROZEN_SOURCE_IDENTITY = {
+    "path": "experiments/raw-results/openvino-turboquant/2026-07-30/provenance/source-identity-bounded.json",
+    "sha256": "44f4bfc111c78258320c0788ddba288f0f54840845cefac6fdfcae9b772e6574",
+    "scope": "declared campaign input; not row execution proof",
+    "upstream_commit": "7dea0459b2ac7d8dfd877fd9df6737674fd8371d",
+    "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+    "derived_tree": "2e872dd4817c42d91cb7c3094954d7b56fa12b0a",
+}
+FROZEN_BUILD_IDENTITY = {
+    "path": "experiments/raw-results/openvino-turboquant/2026-07-30/provenance/build-00edae3b-attempt-001/build-provenance.json",
+    "sha256": "57fb318a55db56fb409a60f0b1d516a988f8543c0446153e63efdee3a748e262",
+    "scope": "declared campaign input; not row execution proof",
+    "status": "passed",
+    "patch_commit": "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+}
 FORMAL_METRICS = frozenset({
     "load_ms", "ttft_ms", "prompt_tps", "tpot_ms", "decode_tps",
     "generation_duration_ms", "peak_working_set_mb", "peak_private_mb",
@@ -42,6 +57,17 @@ class OpenVINOCase:
     guard: str
     quality_required: bool
     required_metrics: frozenset[str]
+    key_cache_precision: str | None
+    value_cache_precision: str | None
+    requested_device: str | None
+    runtime_key_algorithm: str | None
+    runtime_value_algorithm: str | None
+    norm_correction: bool | None
+    attention_path: str | None
+    execution_route: str | None
+    expected_outcome: str | None
+    suitable_host_required: bool | None
+    numeric_generation_metrics_expected: bool | None
 
 
 @dataclass(frozen=True)
@@ -54,6 +80,7 @@ class OpenVINOExecutionContract:
     runtime_key_algorithm: str
     runtime_value_algorithm: str
     norm_correction: bool
+    attention_path: str
     suitable_host_required: bool
     requires_actual_cache_precision_proof: bool
     numeric_generation_metrics_expected: bool
@@ -108,6 +135,14 @@ def execution_contract(case: OpenVINOCase) -> OpenVINOExecutionContract:
         and case.test_id not in NORM_DISABLED_ABLATION_IDS
         and case.test_id not in {"OV-B08", "OV-B09", "OV-B10", "OV-B12"}
     )
+    if route == "non-runtime":
+        attention_path = "not-applicable-non-runtime"
+    elif expected_outcome == "expected-rejection":
+        attention_path = "not-produced-by-expected-rejection"
+    elif route == "patched-stateful":
+        attention_path = "stateful_sdpa_reference_codec"
+    else:
+        attention_path = "stateful_sdpa_standard"
     return OpenVINOExecutionContract(
         controlled_test_id=case.test_id,
         execution_route=route,
@@ -115,6 +150,7 @@ def execution_contract(case: OpenVINOCase) -> OpenVINOExecutionContract:
         runtime_key_algorithm=runtime_key,
         runtime_value_algorithm=runtime_value,
         norm_correction=norm_correction,
+        attention_path=attention_path,
         suitable_host_required=case.model == "granite-8b",
         requires_actual_cache_precision_proof=route
         in {"upstream-scalar", "stateful-standard", "device-standard"},
@@ -125,8 +161,53 @@ def execution_contract(case: OpenVINOCase) -> OpenVINOExecutionContract:
     )
 
 
-def load_matrix(path: Path) -> list[OpenVINOCase]:
+def _load_payload(path: Path) -> dict:
     payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(payload, dict):
+        raise ValueError("matrix payload must be an object")
+    if payload.get("source_identity") != FROZEN_SOURCE_IDENTITY:
+        raise ValueError("source_identity does not match the frozen receipt reference")
+    if payload.get("build_identity") != FROZEN_BUILD_IDENTITY:
+        raise ValueError("build_identity does not match the frozen receipt reference")
+    return payload
+
+
+def load_matrix_metadata(path: Path) -> dict[str, dict[str, str]]:
+    """Return the receipt references that bind a declared campaign input."""
+
+    payload = _load_payload(path)
+    return {
+        "source_identity": dict(payload["source_identity"]),
+        "build_identity": dict(payload["build_identity"]),
+    }
+
+
+def _validate_explicit_execution_contract(case: OpenVINOCase) -> None:
+    contract = execution_contract(case)
+    expected = {
+        "key_cache_precision": case.k_precision,
+        "value_cache_precision": case.v_precision,
+        "requested_device": case.device.upper(),
+        "runtime_key_algorithm": contract.runtime_key_algorithm,
+        "runtime_value_algorithm": contract.runtime_value_algorithm,
+        "norm_correction": contract.norm_correction,
+        "attention_path": contract.attention_path,
+        "execution_route": contract.execution_route,
+        "expected_outcome": contract.expected_outcome,
+        "suitable_host_required": contract.suitable_host_required,
+        "numeric_generation_metrics_expected": contract.numeric_generation_metrics_expected,
+    }
+    for field, expected_value in expected.items():
+        actual = getattr(case, field)
+        if isinstance(expected_value, bool):
+            if type(actual) is not bool or actual != expected_value:
+                raise ValueError(f"{case.test_id} {field} does not match execution contract")
+        elif actual != expected_value:
+            raise ValueError(f"{case.test_id} {field} does not match execution contract")
+
+
+def load_matrix(path: Path) -> list[OpenVINOCase]:
+    payload = _load_payload(path)
     cases: list[OpenVINOCase] = []
     seen: set[str] = set()
     for raw in payload.get("cases", []):
@@ -162,7 +243,20 @@ def load_matrix(path: Path) -> list[OpenVINOCase]:
             device=raw["device"], contexts=tuple(raw.get("contexts", ())),
             guard=raw["guard"], quality_required=quality_required,
             required_metrics=metrics,
+            key_cache_precision=raw.get("key_cache_precision"),
+            value_cache_precision=raw.get("value_cache_precision"),
+            requested_device=raw.get("requested_device"),
+            runtime_key_algorithm=raw.get("runtime_key_algorithm"),
+            runtime_value_algorithm=raw.get("runtime_value_algorithm"),
+            norm_correction=raw.get("norm_correction"),
+            attention_path=raw.get("attention_path"),
+            execution_route=raw.get("execution_route"),
+            expected_outcome=raw.get("expected_outcome"),
+            suitable_host_required=raw.get("suitable_host_required"),
+            numeric_generation_metrics_expected=raw.get(
+                "numeric_generation_metrics_expected"
+            ),
         )
-        execution_contract(case)
+        _validate_explicit_execution_contract(case)
         cases.append(case)
     return cases
