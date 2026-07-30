@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import stat
 import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -43,6 +44,7 @@ from scripts.testing.run_official_openvino_quality import (
     _build_governed_capture_records,
     _load_frozen_rubric,
     _validate_capture_record,
+    _validate_governed_capture_summary,
     load_prompt_contract,
     parse_json_bytes_strict,
 )
@@ -107,6 +109,13 @@ class GovernedQualityWorkerResult:
     guard_evidence_sha256: str
     quality_worker_spec_sha256: str
     worker_log_sha256: str
+
+
+@dataclass(frozen=True)
+class _EvidenceSnapshot:
+    kind: str
+    identity: tuple[int, ...]
+    raw: bytes | None
 
 
 def _canonical_identity_bytes(value: Mapping[str, Any]) -> bytes:
@@ -279,6 +288,28 @@ def _identity_arguments(value: QualityCampaignInput) -> dict[str, Path]:
     }
 
 
+def _validated_lexical_output_root(path: Path) -> Path:
+    """Preserve the requested path while rejecting aliasing ancestry."""
+
+    absolute = Path(os.path.abspath(Path(path)))
+    current = Path(absolute.anchor)
+    for component in absolute.parts[1:]:
+        current /= component
+        if not os.path.lexists(current):
+            continue
+        try:
+            metadata = os.lstat(current)
+        except OSError as error:
+            raise ValueError(
+                "quality output root ancestry is unreadable"
+            ) from error
+        if _is_reparse(metadata):
+            raise ValueError(
+                "quality output root contains a link or reparse alias"
+            )
+    return absolute
+
+
 def load_accepted_quality_campaign(
     input: QualityCampaignInput,
 ) -> AcceptedQualityCampaign:
@@ -328,13 +359,14 @@ def load_accepted_quality_campaign(
         worker_environment=environment,
         prompt_contract=prompt_contract,
         rubric_sha256=rubric_sha256,
+        output_root=_validated_lexical_output_root(input.output_root),
         **{
             field: Path(getattr(input, field)).resolve()
             for field in (
                 "campaign_root", "spec_path", "matrix_path", "artifact_manifest_path",
                 "build_provenance_path", "build_root", "repo_root", "python_executable",
                 "python_site_packages", "openvino_libraries", "sampler_script",
-                "prompt_set_path", "rendered_root", "rubric_path", "output_root",
+                "prompt_set_path", "rendered_root", "rubric_path",
             )
         },
         timeout_seconds=float(input.timeout_seconds),
@@ -656,6 +688,8 @@ def _load_governed_quality_worker(
     campaign: AcceptedQualityCampaign,
     output_root: Path,
     timeout_seconds: float,
+    *,
+    artifact_bytes: Mapping[str, bytes] | None = None,
 ) -> GovernedQualityWorkerResult:
     """Strictly revalidate one persisted Task-3 execution without launching."""
 
@@ -669,17 +703,42 @@ def _load_governed_quality_worker(
         "worker.log",
         "guard-evidence.json",
     }
-    try:
-        children = list(root.iterdir())
-    except OSError as error:
-        raise ValueError("governed quality execution is incomplete") from error
-    if (
-        {child.name for child in children} != expected_names
-        or any(child.is_symlink() or not child.is_file() for child in children)
-    ):
-        raise ValueError(
-            "governed quality execution has incomplete or unexpected state"
-        )
+    if artifact_bytes is None:
+        try:
+            children = list(root.iterdir())
+        except OSError as error:
+            raise ValueError(
+                "governed quality execution is incomplete"
+            ) from error
+        if (
+            {child.name for child in children} != expected_names
+            or any(
+                child.is_symlink() or not child.is_file()
+                for child in children
+            )
+        ):
+            raise ValueError(
+                "governed quality execution has incomplete or unexpected state"
+            )
+        try:
+            raw_by_name = {
+                name: (root / name).read_bytes()
+                for name in expected_names
+            }
+        except OSError as error:
+            raise ValueError(
+                "governed quality execution is incomplete"
+            ) from error
+    else:
+        if (
+            not isinstance(artifact_bytes, Mapping)
+            or set(artifact_bytes) != expected_names
+            or any(type(raw) is not bytes for raw in artifact_bytes.values())
+        ):
+            raise ValueError(
+                "governed quality execution snapshot is invalid"
+            )
+        raw_by_name = dict(artifact_bytes)
 
     spec_path = root / "worker-spec.json"
     result_path = root / "worker-result.json"
@@ -687,32 +746,23 @@ def _load_governed_quality_worker(
     evidence_path = root / "guard-evidence.json"
     expected_spec = build_quality_worker_spec(accepted)
     expected_spec_bytes = _canonical_json(expected_spec)
-    try:
-        spec_bytes = spec_path.read_bytes()
-    except OSError as error:
-        raise ValueError("quality worker spec is missing") from error
+    spec_bytes = raw_by_name["worker-spec.json"]
     if spec_bytes != expected_spec_bytes:
         raise ValueError(
             "quality worker spec bytes do not match accepted campaign"
         )
     spec_sha256 = hashlib.sha256(spec_bytes).hexdigest()
 
-    try:
-        worker_raw = result_path.read_bytes()
-    except OSError as error:
-        raise ValueError("quality worker result is missing") from error
+    worker_raw = raw_by_name["worker-result.json"]
     worker_result = _validate_worker_result(worker_raw, source=result_path)
 
-    try:
-        log_bytes = log_path.read_bytes()
-    except OSError as error:
-        raise RuntimeError("quality worker log is missing") from error
+    log_bytes = raw_by_name["worker.log"]
     log_sha256 = hashlib.sha256(log_bytes).hexdigest()
 
     try:
-        guard_raw = evidence_path.read_bytes()
+        guard_raw = raw_by_name["guard-evidence.json"]
         guard = _strict_object(guard_raw, source=evidence_path)
-    except (OSError, ValueError) as error:
+    except ValueError as error:
         raise RuntimeError("guard evidence is missing or invalid") from error
     if guard_raw != _canonical_identity_bytes(guard):
         raise RuntimeError("guard evidence bytes are not canonical")
@@ -806,6 +856,79 @@ def _governed_execution_receipt(
     return receipt
 
 
+def _exact_json_equal(actual: Any, expected: Any) -> bool:
+    if isinstance(expected, Mapping):
+        return (
+            isinstance(actual, Mapping)
+            and set(actual) == set(expected)
+            and all(
+                _exact_json_equal(actual[key], expected[key])
+                for key in expected
+            )
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            type(actual) is list
+            and len(actual) == len(expected)
+            and all(
+                _exact_json_equal(actual_item, expected_item)
+                for actual_item, expected_item in zip(
+                    actual,
+                    expected,
+                    strict=True,
+                )
+            )
+        )
+    return type(actual) is type(expected) and actual == expected
+
+
+def _validate_lower_sha256(value: Any, *, field: str) -> str:
+    if (
+        type(value) is not str
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(f"{field} must be a lowercase SHA-256")
+    return value
+
+
+def _validate_governed_execution_receipt(
+    receipt: Any,
+    *,
+    expected: Mapping[str, Any],
+) -> dict[str, Any]:
+    if type(receipt) is not dict or type(expected) is not dict:
+        raise ValueError("governed execution receipt must be an object")
+    if set(receipt) != set(expected):
+        raise ValueError("governed execution receipt fields are invalid")
+    for field in (
+        "campaign_identity_sha256",
+        "measurement_summary_sha256",
+        "runtime_config_sha256",
+        "prompt_set_sha256",
+        "rubric_sha256",
+        "quality_worker_spec_sha256",
+        "worker_result_sha256",
+        "worker_log_sha256",
+        "guard_evidence_sha256",
+        "governed_execution_sha256",
+    ):
+        _validate_lower_sha256(receipt.get(field), field=field)
+    unsigned = {
+        key: value
+        for key, value in receipt.items()
+        if key != "governed_execution_sha256"
+    }
+    expected_hash = hashlib.sha256(_canonical_json(unsigned)).hexdigest()
+    if receipt["governed_execution_sha256"] != expected_hash:
+        raise ValueError("governed execution receipt hash is invalid")
+    if not _exact_json_equal(receipt, expected):
+        raise ValueError(
+            "governed execution receipt does not match evidence"
+        )
+    return dict(receipt)
+
+
 def _publish_canonical_json(path: Path, value: Mapping[str, Any]) -> None:
     destination = Path(path)
     if destination.exists():
@@ -837,24 +960,23 @@ def _publish_canonical_json(path: Path, value: Mapping[str, Any]) -> None:
             temporary.unlink(missing_ok=True)
 
 
-def _read_canonical_capture_artifact(
-    path: Path,
+def _decode_canonical_capture_artifact(
+    raw: bytes,
     *,
+    source: Path,
     label: str,
 ) -> dict[str, Any]:
     try:
-        raw = Path(path).read_bytes()
-    except OSError as error:
-        raise ValueError(f"{label} is missing") from error
-    value = parse_json_bytes_strict(raw, source=path)
-    if not isinstance(value, dict) or raw != _canonical_json(value):
+        value = _strict_object(raw, source=source)
+    except ValueError as error:
+        raise ValueError(f"{label} is invalid") from error
+    if raw != _canonical_json(value):
         raise ValueError(f"{label} bytes are not canonical")
     return value
 
 
-def _expected_capture_tree() -> set[str]:
-    expected = {
-        "governed",
+def _capture_file_paths() -> set[str]:
+    files = {
         "governed/worker-spec.json",
         "governed/worker-result.json",
         "governed/worker.log",
@@ -862,29 +984,352 @@ def _expected_capture_tree() -> set[str]:
         "governed-execution.json",
         "capture-summary.json",
     }
-    for prompt_id in PROMPT_IDS:
-        expected.add(prompt_id)
-        expected.add(f"{prompt_id}/response.json")
+    files.update(f"{prompt_id}/response.json" for prompt_id in PROMPT_IDS)
+    return files
+
+
+def _expected_capture_tree() -> set[str]:
+    expected = _capture_file_paths()
+    expected.update(
+        {
+            "governed",
+            *PROMPT_IDS,
+        }
+    )
     return expected
 
 
-def _validate_complete_capture_tree(root: Path) -> None:
+_GOVERNED_FILE_PATHS = {
+    "worker-spec.json",
+    "worker-result.json",
+    "worker.log",
+    "guard-evidence.json",
+}
+
+
+def _stat_identity(value: os.stat_result) -> tuple[int, ...]:
+    return (
+        int(value.st_dev),
+        int(value.st_ino),
+        int(value.st_mode),
+        int(value.st_size),
+        int(value.st_mtime_ns),
+        int(value.st_ctime_ns),
+        int(value.st_nlink),
+        int(getattr(value, "st_file_attributes", 0)),
+        int(getattr(value, "st_reparse_tag", 0)),
+    )
+
+
+def _is_reparse(value: os.stat_result) -> bool:
+    return bool(
+        stat.S_ISLNK(value.st_mode)
+        or getattr(value, "st_reparse_tag", 0)
+        or (getattr(value, "st_file_attributes", 0) & 0x400)
+    )
+
+
+def _claimed_directory_identity(path: Path) -> tuple[int, int]:
+    lexical = _validated_lexical_output_root(path)
     try:
-        paths = list(root.rglob("*"))
+        metadata = os.lstat(lexical)
     except OSError as error:
-        raise ValueError("governed quality capture state is incomplete") from error
-    actual = {
-        path.relative_to(root).as_posix()
-        for path in paths
-    }
+        raise ValueError("claimed quality output root is missing") from error
+    if _is_reparse(metadata) or not stat.S_ISDIR(metadata.st_mode):
+        raise ValueError(
+            "claimed quality output root is a link, alias, or invalid directory"
+        )
+    identity = (int(metadata.st_dev), int(metadata.st_ino))
+    if identity[1] == 0:
+        raise ValueError(
+            "claimed quality output root has no stable file identity"
+        )
+    return identity
+
+
+def _assert_claimed_directory_identity(
+    path: Path,
+    expected: tuple[int, int],
+) -> None:
+    if _claimed_directory_identity(path) != expected:
+        raise ValueError(
+            "claimed quality output root identity changed during capture"
+        )
+
+
+def _snapshot_path(path: Path, *, kind: str) -> _EvidenceSnapshot:
+    try:
+        before = os.lstat(path)
+    except OSError as error:
+        raise ValueError(f"quality evidence is missing: {path}") from error
+    if _is_reparse(before):
+        raise ValueError(f"quality evidence link or reparse alias: {path}")
+    before_identity = _stat_identity(before)
+    if kind == "directory":
+        if not stat.S_ISDIR(before.st_mode):
+            raise ValueError(f"quality evidence directory is invalid: {path}")
+        try:
+            after = os.lstat(path)
+        except OSError as error:
+            raise ValueError(
+                f"quality evidence directory changed: {path}"
+            ) from error
+        if (
+            _is_reparse(after)
+            or _stat_identity(after) != before_identity
+        ):
+            raise ValueError(
+                f"quality evidence directory identity changed: {path}"
+            )
+        return _EvidenceSnapshot(
+            kind="directory",
+            identity=before_identity,
+            raw=None,
+        )
+    if kind != "file" or not stat.S_ISREG(before.st_mode):
+        raise ValueError(f"quality evidence file is invalid: {path}")
+    if before.st_nlink != 1:
+        raise ValueError(f"quality evidence hardlink alias is invalid: {path}")
+    try:
+        with Path(path).open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if (
+                _is_reparse(opened)
+                or not stat.S_ISREG(opened.st_mode)
+                or opened.st_nlink != 1
+                or _stat_identity(opened) != before_identity
+            ):
+                raise ValueError(
+                    f"quality evidence file identity changed: {path}"
+                )
+            raw = handle.read()
+            read_complete = os.fstat(handle.fileno())
+    except OSError as error:
+        raise ValueError(
+            f"quality evidence file changed while reading: {path}"
+        ) from error
+    try:
+        after = os.lstat(path)
+    except OSError as error:
+        raise ValueError(
+            f"quality evidence file changed after reading: {path}"
+        ) from error
     if (
-        not root.is_dir()
-        or any(path.is_symlink() for path in paths)
-        or actual != _expected_capture_tree()
+        _stat_identity(read_complete) != before_identity
+        or _is_reparse(after)
+        or _stat_identity(after) != before_identity
     ):
+        raise ValueError(f"quality evidence file identity changed: {path}")
+    return _EvidenceSnapshot(
+        kind="file",
+        identity=before_identity,
+        raw=raw,
+    )
+
+
+def _enumerate_tree(root: Path) -> set[str]:
+    actual: set[str] = set()
+    pending = [Path(root)]
+    while pending:
+        directory = pending.pop()
+        try:
+            with os.scandir(directory) as entries:
+                children = list(entries)
+        except OSError as error:
+            raise ValueError(
+                "governed quality capture state is incomplete"
+            ) from error
+        for child in children:
+            relative = (
+                Path(child.path).relative_to(root).as_posix()
+            )
+            try:
+                metadata = child.stat(follow_symlinks=False)
+            except OSError as error:
+                raise ValueError(
+                    "governed quality capture state changed"
+                ) from error
+            if _is_reparse(metadata):
+                raise ValueError(
+                    "governed quality capture contains a link or reparse alias"
+                )
+            actual.add(relative)
+            if stat.S_ISDIR(metadata.st_mode):
+                pending.append(Path(child.path))
+            elif not stat.S_ISREG(metadata.st_mode):
+                raise ValueError(
+                    "governed quality capture contains an invalid path"
+                )
+    return actual
+
+
+def _snapshot_tree(
+    root: Path,
+    *,
+    expected_tree: set[str],
+    file_paths: set[str],
+) -> dict[str, _EvidenceSnapshot]:
+    root = Path(root)
+    root_snapshot = _snapshot_path(root, kind="directory")
+    if _enumerate_tree(root) != expected_tree:
         raise ValueError(
             "governed quality capture has incomplete or unexpected state"
         )
+    snapshots = {".": root_snapshot}
+    file_identities: dict[tuple[int, int], str] = {}
+    for relative in sorted(expected_tree):
+        kind = "file" if relative in file_paths else "directory"
+        snapshot = _snapshot_path(root / relative, kind=kind)
+        snapshots[relative] = snapshot
+        if kind == "file":
+            file_identity = (
+                snapshot.identity[0],
+                snapshot.identity[1],
+            )
+            if (
+                file_identity[1] != 0
+                and file_identity in file_identities
+            ):
+                raise ValueError(
+                    "governed quality capture contains a file identity alias"
+                )
+            file_identities[file_identity] = relative
+    if _snapshot_path(root, kind="directory") != root_snapshot:
+        raise ValueError("governed quality capture root changed")
+    return snapshots
+
+
+def _snapshot_capture_tree(root: Path) -> dict[str, _EvidenceSnapshot]:
+    return _snapshot_tree(
+        root,
+        expected_tree=_expected_capture_tree(),
+        file_paths=_capture_file_paths(),
+    )
+
+
+def _snapshot_governed_tree(root: Path) -> dict[str, _EvidenceSnapshot]:
+    return _snapshot_tree(
+        root,
+        expected_tree=set(_GOVERNED_FILE_PATHS),
+        file_paths=set(_GOVERNED_FILE_PATHS),
+    )
+
+
+def _assert_snapshot_unchanged(
+    root: Path,
+    snapshot: Mapping[str, _EvidenceSnapshot],
+    *,
+    governed_only: bool,
+) -> None:
+    refreshed = (
+        _snapshot_governed_tree(root)
+        if governed_only
+        else _snapshot_capture_tree(root)
+    )
+    if refreshed != dict(snapshot):
+        raise ValueError(
+            "governed quality capture changed after its evidence snapshot"
+        )
+
+
+def _snapshot_file_bytes(
+    snapshot: Mapping[str, _EvidenceSnapshot],
+    relative_path: str,
+) -> bytes:
+    entry = snapshot.get(relative_path)
+    if (
+        not isinstance(entry, _EvidenceSnapshot)
+        or entry.kind != "file"
+        or type(entry.raw) is not bytes
+    ):
+        raise ValueError(
+            f"quality evidence snapshot is incomplete: {relative_path}"
+        )
+    return entry.raw
+
+
+def _governed_artifact_bytes(
+    snapshot: Mapping[str, _EvidenceSnapshot],
+    *,
+    prefix: str,
+) -> dict[str, bytes]:
+    return {
+        name: _snapshot_file_bytes(
+            snapshot,
+            f"{prefix}{name}",
+        )
+        for name in _GOVERNED_FILE_PATHS
+    }
+
+
+def _validate_capture_snapshot(
+    snapshot: Mapping[str, _EvidenceSnapshot],
+    *,
+    root: Path,
+    accepted: AcceptedQualityCampaign,
+    runtime: QualityRuntimeIdentity,
+    evidence_hashes: Mapping[str, str],
+    receipt: Mapping[str, Any],
+    records: Mapping[str, Mapping[str, Any]],
+    summary: Mapping[str, Any],
+) -> dict[str, Any]:
+    receipt_raw = _snapshot_file_bytes(
+        snapshot,
+        "governed-execution.json",
+    )
+    persisted_receipt = _decode_canonical_capture_artifact(
+        receipt_raw,
+        source=root / "governed-execution.json",
+        label="governed execution receipt",
+    )
+    _validate_governed_execution_receipt(
+        persisted_receipt,
+        expected=receipt,
+    )
+    if receipt_raw != _canonical_json(dict(receipt)):
+        raise ValueError(
+            "governed execution receipt does not match evidence"
+        )
+    for prompt_id in PROMPT_IDS:
+        relative = f"{prompt_id}/response.json"
+        raw = _snapshot_file_bytes(snapshot, relative)
+        persisted = _decode_canonical_capture_artifact(
+            raw,
+            source=root / relative,
+            label=f"{prompt_id} quality response",
+        )
+        validated = _validate_capture_record(
+            persisted,
+            prompt_id=prompt_id,
+            contract=accepted.prompt_contract,
+            rubric_sha256=accepted.rubric_sha256,
+            expected_runtime=runtime,
+            runtime_summary_sha256=accepted.measurement_summary_sha256,
+            runtime_config_sha256=accepted.runtime_config_sha256,
+            evidence_hashes=evidence_hashes,
+        )
+        if (
+            not _exact_json_equal(validated, records[prompt_id])
+            or raw != _canonical_json(dict(records[prompt_id]))
+        ):
+            raise ValueError(
+                f"{prompt_id} quality response does not match worker evidence"
+            )
+    summary_raw = _snapshot_file_bytes(snapshot, "capture-summary.json")
+    persisted_summary = _decode_canonical_capture_artifact(
+        summary_raw,
+        source=root / "capture-summary.json",
+        label="quality capture summary",
+    )
+    validated_summary = _validate_governed_capture_summary(
+        persisted_summary,
+        expected=summary,
+    )
+    if summary_raw != _canonical_json(dict(summary)):
+        raise ValueError(
+            "quality capture summary does not match response records"
+        )
+    return validated_summary
 
 
 def capture_governed_quality_campaign(
@@ -899,29 +1344,44 @@ def capture_governed_quality_campaign(
     accepted = load_accepted_quality_campaign(input)
     root = accepted.output_root
     governed_root = root / "governed"
+    claimed_root_identity: tuple[int, int] | None = None
     if resume:
-        _validate_complete_capture_tree(root)
+        capture_snapshot = _snapshot_capture_tree(root)
         governed = _load_governed_quality_worker(
             accepted,
             governed_root,
             accepted.timeout_seconds,
+            artifact_bytes=_governed_artifact_bytes(
+                capture_snapshot,
+                prefix="governed/",
+            ),
         )
     else:
-        if root.exists():
+        try:
+            root.mkdir(parents=True, exist_ok=False)
+        except FileExistsError as error:
             raise FileExistsError(
                 f"refusing to overwrite pre-existing quality evidence: {root}"
-            )
+            ) from error
+        claimed_root_identity = _claimed_directory_identity(root)
+        _assert_claimed_directory_identity(root, claimed_root_identity)
         launched = run_governed_quality_worker(
             accepted,
             governed_root,
             accepted.timeout_seconds,
         )
+        _assert_claimed_directory_identity(root, claimed_root_identity)
         if not isinstance(launched, GovernedQualityWorkerResult):
             raise RuntimeError("governed quality worker result is invalid")
+        governed_snapshot = _snapshot_governed_tree(governed_root)
         governed = _load_governed_quality_worker(
             accepted,
             governed_root,
             accepted.timeout_seconds,
+            artifact_bytes=_governed_artifact_bytes(
+                governed_snapshot,
+                prefix="",
+            ),
         )
         for field in (
             "quality_worker_spec_sha256",
@@ -933,6 +1393,7 @@ def capture_governed_quality_campaign(
                 raise RuntimeError(
                     "governed quality launch result does not match artifacts"
                 )
+        _assert_claimed_directory_identity(root, claimed_root_identity)
     if not isinstance(governed, GovernedQualityWorkerResult):
         raise RuntimeError("governed quality worker result is invalid")
 
@@ -943,6 +1404,8 @@ def capture_governed_quality_campaign(
         raise ValueError("accepted quality campaign changed during capture")
     accepted = refreshed
     receipt = _governed_execution_receipt(accepted, governed)
+    if claimed_root_identity is not None:
+        _assert_claimed_directory_identity(root, claimed_root_identity)
     evidence_hashes = {
         "quality_worker_spec_sha256": (
             governed.quality_worker_spec_sha256
@@ -975,52 +1438,61 @@ def capture_governed_quality_campaign(
         evidence_hashes=evidence_hashes,
     )
 
-    receipt_path = root / "governed-execution.json"
-    summary_path = root / "capture-summary.json"
     if resume:
-        if _read_canonical_capture_artifact(
-            receipt_path,
-            label="governed execution receipt",
-        ) != receipt:
-            raise ValueError("governed execution receipt does not match evidence")
-        for prompt_id in PROMPT_IDS:
-            path = root / prompt_id / "response.json"
-            persisted = _read_canonical_capture_artifact(
-                path,
-                label=f"{prompt_id} quality response",
-            )
-            validated = _validate_capture_record(
-                persisted,
-                prompt_id=prompt_id,
-                contract=accepted.prompt_contract,
-                rubric_sha256=accepted.rubric_sha256,
-                expected_runtime=runtime,
-                runtime_summary_sha256=accepted.measurement_summary_sha256,
-                runtime_config_sha256=accepted.runtime_config_sha256,
-                evidence_hashes=evidence_hashes,
-            )
-            if validated != records[prompt_id]:
-                raise ValueError(
-                    f"{prompt_id} quality response does not match worker evidence"
-                )
-        persisted_summary = _read_canonical_capture_artifact(
-            summary_path,
-            label="quality capture summary",
+        persisted_summary = _validate_capture_snapshot(
+            capture_snapshot,
+            root=root,
+            accepted=accepted,
+            runtime=runtime,
+            evidence_hashes=evidence_hashes,
+            receipt=receipt,
+            records=records,
+            summary=summary,
         )
-        if persisted_summary != summary:
-            raise ValueError(
-                "quality capture summary does not match response records"
-            )
+        _assert_snapshot_unchanged(
+            root,
+            capture_snapshot,
+            governed_only=False,
+        )
         return persisted_summary
 
-    _publish_canonical_json(receipt_path, receipt)
+    if claimed_root_identity is None:
+        raise RuntimeError("fresh quality capture has no claimed root owner")
+    _assert_claimed_directory_identity(root, claimed_root_identity)
+    _assert_snapshot_unchanged(
+        governed_root,
+        governed_snapshot,
+        governed_only=True,
+    )
+    _publish_canonical_json(root / "governed-execution.json", receipt)
+    _assert_claimed_directory_identity(root, claimed_root_identity)
     for prompt_id in PROMPT_IDS:
         _publish_canonical_json(
             root / prompt_id / "response.json",
             records[prompt_id],
         )
-    _publish_canonical_json(summary_path, summary)
-    return summary
+        _assert_claimed_directory_identity(root, claimed_root_identity)
+    _publish_canonical_json(root / "capture-summary.json", summary)
+    _assert_claimed_directory_identity(root, claimed_root_identity)
+    capture_snapshot = _snapshot_capture_tree(root)
+    persisted_summary = _validate_capture_snapshot(
+        capture_snapshot,
+        root=root,
+        accepted=accepted,
+        runtime=runtime,
+        evidence_hashes=evidence_hashes,
+        receipt=receipt,
+        records=records,
+        summary=summary,
+    )
+    _assert_claimed_directory_identity(root, claimed_root_identity)
+    _assert_snapshot_unchanged(
+        root,
+        capture_snapshot,
+        governed_only=False,
+    )
+    _assert_claimed_directory_identity(root, claimed_root_identity)
+    return persisted_summary
 
 
 __all__ = [

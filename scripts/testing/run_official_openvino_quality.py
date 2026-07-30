@@ -190,6 +190,46 @@ def _canonical_json(value: Any) -> bytes:
     ).encode("utf-8")
 
 
+def _canonical_governed_json(value: Any) -> bytes:
+    """Canonical JSON for governed evidence with narrowly validated nulls."""
+
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _json_exact_equal(actual: Any, expected: Any) -> bool:
+    """Compare JSON values without Python's bool/int numeric equivalence."""
+
+    if isinstance(expected, Mapping):
+        return (
+            isinstance(actual, Mapping)
+            and set(actual) == set(expected)
+            and all(
+                _json_exact_equal(actual[key], expected[key])
+                for key in expected
+            )
+        )
+    if isinstance(expected, (list, tuple)):
+        return (
+            type(actual) is list
+            and len(actual) == len(expected)
+            and all(
+                _json_exact_equal(actual_item, expected_item)
+                for actual_item, expected_item in zip(
+                    actual,
+                    expected,
+                    strict=True,
+                )
+            )
+        )
+    return type(actual) is type(expected) and actual == expected
+
+
 def _sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
@@ -532,15 +572,25 @@ def _turn_output(turn_id: str, outcome: Mapping[str, str]) -> dict[str, str]:
     return result
 
 
-def _response_sha256(turn_outputs: Sequence[Mapping[str, Any]]) -> str:
-    return _sha256_bytes(_canonical_json(list(turn_outputs)))
+def _response_sha256(
+    turn_outputs: Sequence[Mapping[str, Any]],
+    *,
+    governed: bool = False,
+) -> str:
+    canonical = _canonical_governed_json if governed else _canonical_json
+    return _sha256_bytes(canonical(list(turn_outputs)))
 
 
-def _record_sha256(record: Mapping[str, Any]) -> str:
+def _record_sha256(
+    record: Mapping[str, Any],
+    *,
+    governed: bool = False,
+) -> str:
     unsigned = {
         key: value for key, value in record.items() if key != "record_sha256"
     }
-    return _sha256_bytes(_canonical_json(unsigned))
+    canonical = _canonical_governed_json if governed else _canonical_json
+    return _sha256_bytes(canonical(unsigned))
 
 
 def _map_governed_generation_settings(
@@ -633,10 +683,11 @@ def _build_capture_record(
     runtime_summary_sha256: str,
     runtime_config_sha256: str,
     turn_prompts: Sequence[Mapping[str, str]],
-    turn_outputs: Sequence[Mapping[str, str]],
+    turn_outputs: Sequence[Mapping[str, Any]],
     evidence_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     governed_hashes = _validate_governed_evidence_hashes(evidence_hashes)
+    governed = governed_hashes is not None
     final_prompt = turn_prompts[-1]["raw_prompt"]
     final_output = turn_outputs[-1]["output"]
     failed_outputs = [
@@ -669,15 +720,22 @@ def _build_capture_record(
         "turn_prompts": [dict(prompt) for prompt in turn_prompts],
         "turn_outputs": [dict(output) for output in turn_outputs],
         "output": final_output,
-        "output_sha256": _sha256_text(final_output),
-        "response_sha256": _response_sha256(turn_outputs),
+        "output_sha256": (
+            None if final_output is None else _sha256_text(final_output)
+        ),
+        "response_sha256": _response_sha256(
+            turn_outputs,
+            governed=governed,
+        ),
     }
     if governed_hashes is not None:
         record.update(governed_hashes)
     if prompt_id == "P6":
         first_output = turn_outputs[0]["output"]
         record["turn_1"] = first_output
-        record["turn_1_sha256"] = _sha256_text(first_output)
+        record["turn_1_sha256"] = (
+            None if first_output is None else _sha256_text(first_output)
+        )
     if status == "failed":
         failed = failed_outputs[0]
         record["failure"] = failed["failure"]
@@ -686,7 +744,7 @@ def _build_capture_record(
         if governed_hashes is not None:
             record["failure_type"] = failed["failure_type"]
             record["failure_type_sha256"] = failed["failure_type_sha256"]
-    record["record_sha256"] = _record_sha256(record)
+    record["record_sha256"] = _record_sha256(record, governed=governed)
     return record
 
 
@@ -702,8 +760,10 @@ def _validate_capture_record(
     evidence_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     governed_hashes = _validate_governed_evidence_hashes(evidence_hashes)
-    reject_nulls(record)
-    if not isinstance(record, dict):
+    governed = governed_hashes is not None
+    if not governed:
+        reject_nulls(record)
+    if type(record) is not dict:
         raise ValueError("quality response record must be a JSON object")
     fixed = {
         "schema_version": 1,
@@ -728,9 +788,15 @@ def _validate_capture_record(
     if governed_hashes is not None:
         fixed.update(governed_hashes)
     for field, expected in fixed.items():
-        if record.get(field) != expected:
+        if field not in record or not _json_exact_equal(
+            record[field],
+            expected,
+        ):
             raise ValueError(f"quality response {field} mismatch")
-    if record.get("status") not in {"complete", "failed"}:
+    if (
+        type(record.get("status")) is not str
+        or record["status"] not in {"complete", "failed"}
+    ):
         raise ValueError("quality response status is invalid")
     expected_fields = set(_CAPTURE_RECORD_FIELDS)
     if governed_hashes is not None:
@@ -754,22 +820,29 @@ def _validate_capture_record(
         "runtime_summary_sha256",
         "runtime_config_sha256",
         "generation_settings_sha256",
-        "output_sha256",
         "response_sha256",
         "record_sha256",
     ):
         _validate_sha256(record.get(field), field=field)
+    if record.get("output") is None:
+        if not governed or record.get("output_sha256") is not None:
+            raise ValueError("quality response output identity mismatch")
+    else:
+        _validate_sha256(record.get("output_sha256"), field="output_sha256")
     if governed_hashes is not None:
         for field in _CAPTURE_GOVERNED_FIELDS:
             _validate_sha256(record.get(field), field=field)
-    if _record_sha256(record) != record["record_sha256"]:
+    if (
+        _record_sha256(record, governed=governed)
+        != record["record_sha256"]
+    ):
         raise ValueError("quality response record hash mismatch")
 
     turn_prompts = record.get("turn_prompts")
     turn_outputs = record.get("turn_outputs")
     if (
-        not isinstance(turn_prompts, list)
-        or not isinstance(turn_outputs, list)
+        type(turn_prompts) is not list
+        or type(turn_outputs) is not list
         or not turn_prompts
         or len(turn_prompts) != len(turn_outputs)
     ):
@@ -789,42 +862,57 @@ def _validate_capture_record(
     if prompt_id == "P6":
         execution = contract["prompts"]["P6"]["execution"]
         turn_one = record.get("turn_1")
-        if not isinstance(turn_one, str):
-            raise ValueError("P6 turn 1 output is required")
+        first_turn = turn_outputs[0]
+        first_turn_failed = (
+            type(first_turn) is dict
+            and first_turn.get("status") == "failed"
+        )
+        if governed and first_turn_failed:
+            if turn_one is not None or record.get("turn_1_sha256") is not None:
+                raise ValueError("P6 failed turn 1 identity mismatch")
+            history = ""
+        else:
+            if type(turn_one) is not str:
+                raise ValueError("P6 turn 1 output is required")
+            if record.get("turn_1_sha256") != _sha256_text(turn_one):
+                raise ValueError("P6 turn 1 output hash mismatch")
+            history = turn_one
         expected_prompts = [execution["turn_1_prompt"]]
         if len(turn_prompts) == 2:
             expected_prompts.append(
                 _p6_turn_two_prompt(
                     execution["turn_1_prompt"],
-                    turn_one,
+                    history,
                     execution["turn_2_prompt"],
                 )
             )
-        if record.get("turn_1_sha256") != _sha256_text(turn_one):
-            raise ValueError("P6 turn 1 output hash mismatch")
     else:
         expected_prompts = [contract["prompts"][prompt_id]["execution"]["prompt"]]
 
     for index, (prompt, output, turn_id, expected_prompt) in enumerate(
         zip(turn_prompts, turn_outputs, expected_turn_ids, expected_prompts)
     ):
-        if not isinstance(prompt, dict) or set(prompt) != {
+        if type(prompt) is not dict or set(prompt) != {
             "turn_id",
             "raw_prompt",
             "raw_prompt_sha256",
         }:
             raise ValueError(f"quality turn prompt {index} is invalid")
         if (
-            prompt["turn_id"] != turn_id
+            type(prompt["turn_id"]) is not str
+            or prompt["turn_id"] != turn_id
+            or type(prompt["raw_prompt"]) is not str
             or prompt["raw_prompt"] != expected_prompt
+            or type(prompt["raw_prompt_sha256"]) is not str
             or prompt["raw_prompt_sha256"] != _sha256_text(expected_prompt)
         ):
             raise ValueError(f"quality turn prompt {index} identity mismatch")
-        if not isinstance(output, dict):
+        if type(output) is not dict:
             raise ValueError(f"quality turn output {index} is invalid")
+        output_status = output.get("status")
         expected_output_fields = (
             {"turn_id", "status", "output", "output_sha256"}
-            if output.get("status") == "complete"
+            if output_status == "complete"
             else {
                 "turn_id",
                 "status",
@@ -841,20 +929,44 @@ def _validate_capture_record(
         if set(output) != expected_output_fields:
             raise ValueError(f"quality turn output {index} fields are invalid")
         if (
-            output["turn_id"] != turn_id
-            or output["status"] not in {"complete", "failed"}
-            or not isinstance(output["output"], str)
-            or output["output_sha256"] != _sha256_text(output["output"])
+            type(output["turn_id"]) is not str
+            or type(output_status) is not str
+            or output["turn_id"] != turn_id
+            or output_status not in {"complete", "failed"}
         ):
             raise ValueError(f"quality turn output {index} identity mismatch")
-        if output["status"] == "failed" and (
-            not isinstance(output["failure"], str)
+        if output_status == "complete":
+            if (
+                type(output["output"]) is not str
+                or output["output_sha256"]
+                != _sha256_text(output["output"])
+            ):
+                raise ValueError(
+                    f"quality turn output {index} identity mismatch"
+                )
+        elif governed:
+            if (
+                output["output"] is not None
+                or output["output_sha256"] is not None
+            ):
+                raise ValueError(
+                    f"quality turn output {index} failure output mismatch"
+                )
+        elif (
+            type(output["output"]) is not str
+            or output["output_sha256"] != _sha256_text(output["output"])
+        ):
+            raise ValueError(
+                f"quality turn output {index} failure output mismatch"
+            )
+        if output_status == "failed" and (
+            type(output["failure"]) is not str
             or output["failure_sha256"] != _sha256_text(output["failure"])
         ):
             raise ValueError(f"quality turn output {index} failure mismatch")
-        if output["status"] == "failed" and governed_hashes is not None:
+        if output_status == "failed" and governed:
             if (
-                not isinstance(output["failure_type"], str)
+                type(output["failure_type"]) is not str
                 or not output["failure_type"].strip()
                 or output["failure_type_sha256"]
                 != _sha256_text(output["failure_type"])
@@ -865,13 +977,21 @@ def _validate_capture_record(
 
     final_prompt = turn_prompts[-1]["raw_prompt"]
     final_output = turn_outputs[-1]["output"]
+    expected_output_sha256 = (
+        None if final_output is None else _sha256_text(final_output)
+    )
     if (
-        record.get("raw_prompt") != final_prompt
+        type(record.get("raw_prompt")) is not str
+        or record["raw_prompt"] != final_prompt
         or record["raw_prompt_sha256"] != _sha256_text(final_prompt)
         or record["prompt_sha256"] != _sha256_text(final_prompt)
-        or record.get("output") != final_output
-        or record["output_sha256"] != _sha256_text(final_output)
-        or record["response_sha256"] != _response_sha256(turn_outputs)
+        or not _json_exact_equal(record.get("output"), final_output)
+        or not _json_exact_equal(
+            record["output_sha256"],
+            expected_output_sha256,
+        )
+        or record["response_sha256"]
+        != _response_sha256(turn_outputs, governed=governed)
     ):
         raise ValueError("quality response prompt or output hash mismatch")
 
@@ -904,14 +1024,14 @@ def _validate_capture_record(
             "failure_sha256": failed["failure_sha256"],
             "failed_turn_id": failed["turn_id"],
         }.items():
-            if record.get(field) != expected:
+            if not _json_exact_equal(record.get(field), expected):
                 raise ValueError(f"failed quality response {field} mismatch")
         if governed_hashes is not None:
             for field, expected in {
                 "failure_type": failed["failure_type"],
                 "failure_type_sha256": failed["failure_type_sha256"],
             }.items():
-                if record.get(field) != expected:
+                if not _json_exact_equal(record.get(field), expected):
                     raise ValueError(
                         f"failed quality response {field} mismatch"
                     )
@@ -922,7 +1042,7 @@ def _governed_turn_output(
     *,
     turn_id: str,
     outcome: Mapping[str, Any],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     if outcome["status"] == "complete":
         output = outcome["raw_output"]
         if (
@@ -950,8 +1070,8 @@ def _governed_turn_output(
     return {
         "turn_id": turn_id,
         "status": "failed",
-        "output": "",
-        "output_sha256": _sha256_text(""),
+        "output": None,
+        "output_sha256": None,
         "failure": failure,
         "failure_sha256": _sha256_text(failure),
         "failure_type": failure_type,
@@ -1183,8 +1303,96 @@ def _build_capture_summary(
     }
     if governed_hashes is not None:
         summary.update(governed_hashes)
-    summary["capture_sha256"] = _sha256_bytes(_canonical_json(summary))
+    canonical = (
+        _canonical_governed_json
+        if governed_hashes is not None
+        else _canonical_json
+    )
+    summary["capture_sha256"] = _sha256_bytes(canonical(summary))
     return summary
+
+
+def _validate_governed_capture_summary(
+    summary: Any,
+    *,
+    expected: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Strictly validate a governed summary, including its self-hash."""
+
+    if type(summary) is not dict or type(expected) is not dict:
+        raise ValueError("governed quality capture summary must be an object")
+    if set(summary) != set(expected):
+        raise ValueError(
+            "governed quality capture summary fields are invalid"
+        )
+    for field in (
+        "campaign_identity_sha256",
+        "runtime_summary_sha256",
+        "runtime_config_sha256",
+        "prompt_set_sha256",
+        "rubric_sha256",
+        "generation_settings_sha256",
+        "quality_worker_spec_sha256",
+        "worker_result_sha256",
+        "guard_evidence_sha256",
+        "capture_sha256",
+    ):
+        _validate_sha256(summary.get(field), field=field)
+    if (
+        type(summary.get("schema_version")) is not int
+        or summary["schema_version"] != 1
+        or type(summary.get("response_count")) is not int
+        or summary["response_count"] != len(PROMPT_IDS)
+        or type(summary.get("failure_count")) is not int
+        or not 0 <= summary["failure_count"] <= len(PROMPT_IDS)
+    ):
+        raise ValueError(
+            "governed quality capture summary counts are invalid"
+        )
+    responses = summary.get("responses")
+    if type(responses) is not dict or set(responses) != set(PROMPT_IDS):
+        raise ValueError(
+            "governed quality capture summary responses are invalid"
+        )
+    for prompt_id in PROMPT_IDS:
+        response = responses[prompt_id]
+        if type(response) is not dict or set(response) != {
+            "status",
+            "record_sha256",
+            "output_sha256",
+        }:
+            raise ValueError(
+                f"governed quality capture summary {prompt_id} is invalid"
+            )
+        if (
+            type(response["status"]) is not str
+            or response["status"] not in {"complete", "failed"}
+        ):
+            raise ValueError(
+                f"governed quality capture summary {prompt_id} status is invalid"
+            )
+        _validate_sha256(
+            response["record_sha256"],
+            field=f"{prompt_id} record_sha256",
+        )
+        if response["output_sha256"] is not None:
+            _validate_sha256(
+                response["output_sha256"],
+                field=f"{prompt_id} output_sha256",
+            )
+    unsigned = {
+        key: value
+        for key, value in summary.items()
+        if key != "capture_sha256"
+    }
+    expected_hash = _sha256_bytes(_canonical_governed_json(unsigned))
+    if summary["capture_sha256"] != expected_hash:
+        raise ValueError("governed quality capture summary hash is invalid")
+    if not _json_exact_equal(summary, expected):
+        raise ValueError(
+            "governed quality capture summary does not match evidence"
+        )
+    return dict(summary)
 
 
 def capture_quality_responses(

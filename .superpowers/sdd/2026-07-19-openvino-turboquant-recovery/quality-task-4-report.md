@@ -142,3 +142,111 @@ Python 3.13 before commit.
 - Only the four Task-4 source/test files and this report are in task scope.
   Scalar-semantic-rejection work, progress-ledger edits, and retained historical
   evidence remain untouched and excluded from staging.
+
+## Review Fix Round 1/5 - Findings
+
+Independent review of commit `3e9e61c` identified three evidence-integrity
+defects and one coverage gap:
+
+- governed failed worker outcomes were converted from exact JSON null output
+  fields into invented empty strings and hashes;
+- receipt and summary resume comparison used Python value equality without
+  independent exact-key, exact-type, or self-hash validation, so values such
+  as `False` and `0`, or `6.0` and `6`, could compare equal;
+- resume read evidence sequentially without a stable snapshot or final reread,
+  accepted hardlink aliases, and fresh publication did not atomically establish
+  one operation owner before launching;
+- adversarial tests did not cover null failure preservation, P6 failed-history
+  substitution, type smuggling, recomputed self-hashes, aliases, replacement
+  during validation, or concurrent publication.
+
+## Review Fix Round 1/5 - RED
+
+The new adversarial subset initially reported 14 failed and 12 passed. Four
+failures were deliberately accepted rejections whose exception messages did
+not match an overly narrow test regex; the other ten reproduced the production
+defects: three invented-output failures, four stale self-hash type-smuggling
+acceptances, one accepted hardlink, one accepted same-byte replacement, and
+both concurrent callers entering the worker boundary.
+
+## Review Fix Round 1/5 - Implementation
+
+- Governed records now retain `raw_output=None` and
+  `raw_output_sha256=None` exactly for failed turns. Nullable fields are
+  permitted only at the governed failed-output positions, including P6
+  `turn_1`; all other record fields remain strictly typed and hash checked.
+- The P6 turn-two prompt is still independently verified against the documented
+  empty-history substitution when turn one failed. The persisted turn-one
+  evidence remains null rather than conflating that substitution with model
+  output.
+- Receipt and summary validators now require exact fields and JSON scalar
+  types, recompute their self-hashes, and compare canonical expected bytes.
+  Both stale-hash and attacker-recomputed-hash bool/int or int/float changes
+  fail closed.
+- A fresh capture atomically creates its output root before the worker can
+  launch, so only one caller owns publication. Failed operations retain their
+  create-only partial state.
+- Governed and complete capture trees are validated from immutable byte and
+  file-identity snapshots. Symlinks, reparse points, non-regular paths,
+  multi-link files, and duplicate file identities are rejected. Validation
+  consumes only snapshot bytes, then re-snapshots the exact tree and requires
+  every identity and byte to remain unchanged before returning success.
+- The caller's absolute lexical output-root path is retained instead of
+  resolving away an alias. Every existing ancestry component is checked with
+  `lstat`, and a top-level symlink, Windows junction, or other reparse alias is
+  rejected before resume or launch.
+- Atomic fresh-root creation records the outer directory's stable device/file
+  identity immediately. That same lexical identity is checked before and after
+  worker validation, at every create-only publication boundary, and after the
+  final tree validation, so replacing the claimed outer root cannot inherit an
+  accepted capture by moving the same governed child beneath it.
+- The legacy callback capture schema and behavior remain unchanged.
+
+## Review Fix Round 1/5 - GREEN
+
+The final adversarial additions include real nullable failure/resume evidence,
+P6 failed-turn empty-history binding, stale and recomputed self-hash
+type-smuggling, hash-consistent unexpected fields, invalid self-hashes,
+hardlinks, replacement during both resume and fresh validation, concurrent
+fresh callers, a real Windows output-root junction, and outer-root identity
+replacement.
+
+The two final path/ownership regression tests passed:
+
+```text
+2 passed
+```
+
+The complete capture and campaign boundary passed:
+
+```text
+133 passed in 67.38s
+```
+
+The six-file related boundary passed:
+
+```text
+249 passed in 211.56s
+```
+
+Both Python 3.11 and Python 3.13 compiled the four scoped Python files
+successfully using isolated temporary bytecode roots. `git diff --check`
+exited 0.
+
+## Review Fix Round 1/5 - Independent Re-review
+
+The first re-review correctly retained two Important findings: resolving the
+top-level output root erased alias evidence, and atomic creation did not retain
+the outer directory identity through publication. Both received dedicated
+failing tests before implementation.
+
+The second independent re-review returned **APPROVED** with no remaining
+scoped findings:
+
+- top-level symlink/junction ancestry rejects before launch;
+- fresh publication remains bound to the originally claimed outer-root
+  identity;
+- the two new adversarial cases passed;
+- the full capture/campaign suite passed 133/133;
+- scoped diff checking passed;
+- specification and task quality both passed.

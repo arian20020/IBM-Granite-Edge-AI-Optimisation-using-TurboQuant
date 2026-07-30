@@ -2,6 +2,9 @@ import hashlib
 import json
 import math
 import os
+import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
@@ -342,6 +345,35 @@ def _install_capture_runner(
 
 def _read_capture_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _write_canonical_capture_json(path, value):
+    Path(path).write_bytes(_canonical_bytes(value))
+
+
+def _resign_governed_receipt(value):
+    value.pop("governed_execution_sha256", None)
+    value["governed_execution_sha256"] = hashlib.sha256(
+        _canonical_bytes(value)
+    ).hexdigest()
+
+
+def _resign_capture_summary(value):
+    value.pop("capture_sha256", None)
+    value["capture_sha256"] = _sha256_json(value)
+
+
+def _forbid_capture_runner(monkeypatch):
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+
+    def forbidden_runner(*args, **kwargs):
+        launches.append((args, kwargs))
+        raise AssertionError("resume must not launch the governed worker")
+
+    monkeypatch.setattr(module, "run_governed_quality_worker", forbidden_runner)
+    return launches
 
 
 def _quality_artifact_paths(root):
@@ -1139,18 +1171,32 @@ def test_governed_capture_preserves_raw_failure_without_score_or_completion(
 
     result = _capture_api()(source, resume=False)
 
-    record = _read_capture_json(source.output_root / "P2" / "response.json")
+    root = source.output_root
+    record = _read_capture_json(root / "P2" / "response.json")
+    worker = _read_capture_json(root / "governed" / "worker-result.json")
+    worker_outcome = worker["outcomes"][1]
     assert result["status"] == "captured-with-failures"
     assert result["failure_count"] == 1
+    assert worker_outcome["raw_output"] is None
+    assert worker_outcome["raw_output_sha256"] is None
     assert record["status"] == "failed"
     assert record["failure_type"] == "RuntimeError"
     assert record["failure"] == "synthetic failure P2-turn-1"
+    assert record["output"] is None
+    assert record["output_sha256"] is None
     assert record["turn_outputs"][0]["status"] == "failed"
+    assert record["turn_outputs"][0]["output"] is None
+    assert record["turn_outputs"][0]["output_sha256"] is None
     assert record["turn_outputs"][0]["failure"] == record["failure"]
     assert not any(
         "score" in key or "pass" in key or "complete" in key
         for key in record
     )
+    launches = _forbid_capture_runner(monkeypatch)
+    resumed = _capture_api()(source, resume=True)
+    assert launches == []
+    assert resumed == result
+    assert _read_capture_json(root / "P2" / "response.json") == record
 
 
 def test_governed_capture_preserves_both_failed_p6_turns(
@@ -1176,7 +1222,38 @@ def test_governed_capture_preserves_both_failed_p6_turns(
         ("failed", "synthetic failure P6-turn-2"),
     ]
     assert record["failed_turn_id"] == "turn_1"
-    assert record["turn_1"] == ""
+    assert record["turn_1"] is None
+    assert record["turn_1_sha256"] is None
+
+
+def test_governed_capture_preserves_failed_p6_turn_one_and_empty_history_input(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(
+        monkeypatch,
+        failed_turn_ids={"P6-turn-1"},
+    )
+
+    result = _capture_api()(source, resume=False)
+
+    root = source.output_root
+    record = _read_capture_json(root / "P6" / "response.json")
+    worker = _read_capture_json(root / "governed" / "worker-result.json")
+    first_outcome, second_outcome = worker["outcomes"][5:]
+    assert result["status"] == "captured-with-failures"
+    assert first_outcome["raw_output"] is None
+    assert first_outcome["raw_output_sha256"] is None
+    assert record["turn_1"] is None
+    assert record["turn_1_sha256"] is None
+    assert record["turn_outputs"][0]["output"] is None
+    assert record["turn_outputs"][0]["output_sha256"] is None
+    assert second_outcome["status"] == "complete"
+    assert record["output"] == second_outcome["raw_output"]
+    assert record["output_sha256"] == second_outcome["raw_output_sha256"]
+    assert record["turn_prompts"][1]["raw_prompt"] == second_outcome["raw_prompt"]
+    assert "Assistant: \nUser:" in second_outcome["raw_prompt"]
 
 
 def test_governed_capture_clean_resume_validates_without_launch_or_rewrite(
@@ -1390,3 +1467,350 @@ def test_governed_capture_resume_rejects_unexpected_state_before_launch(
         _capture_api()(source, resume=True)
 
     assert launches == []
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "field", "smuggled_value"),
+    (
+        ("governed-execution.json", "guard_cleanup_process_count", False),
+        ("governed-execution.json", "guard_exit_code", False),
+        ("capture-summary.json", "failure_count", False),
+        ("capture-summary.json", "response_count", 6.0),
+    ),
+)
+def test_governed_capture_resume_rejects_type_smuggling_with_stale_self_hash(
+    relative_path,
+    field,
+    smuggled_value,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    target = source.output_root / relative_path
+    value = _read_capture_json(target)
+    value[field] = smuggled_value
+    _write_canonical_capture_json(target, value)
+
+    launches = _forbid_capture_runner(monkeypatch)
+    with pytest.raises(ValueError, match="hash|type|invalid|mismatch|match"):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "field", "smuggled_value", "resign"),
+    (
+        (
+            "governed-execution.json",
+            "guard_cleanup_process_count",
+            False,
+            _resign_governed_receipt,
+        ),
+        (
+            "capture-summary.json",
+            "response_count",
+            6.0,
+            _resign_capture_summary,
+        ),
+    ),
+)
+def test_governed_capture_resume_rejects_type_smuggling_with_recomputed_self_hash(
+    relative_path,
+    field,
+    smuggled_value,
+    resign,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    target = source.output_root / relative_path
+    value = _read_capture_json(target)
+    value[field] = smuggled_value
+    resign(value)
+    _write_canonical_capture_json(target, value)
+
+    launches = _forbid_capture_runner(monkeypatch)
+    with pytest.raises(ValueError, match="hash|type|invalid|mismatch|match"):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "hash_field"),
+    (
+        ("governed-execution.json", "governed_execution_sha256"),
+        ("capture-summary.json", "capture_sha256"),
+    ),
+)
+def test_governed_capture_resume_rejects_invalid_self_hash(
+    relative_path,
+    hash_field,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    target = source.output_root / relative_path
+    value = _read_capture_json(target)
+    value[hash_field] = "0" * 64
+    _write_canonical_capture_json(target, value)
+
+    launches = _forbid_capture_runner(monkeypatch)
+    with pytest.raises(ValueError, match="hash|invalid|mismatch|match"):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "resign"),
+    (
+        ("governed-execution.json", _resign_governed_receipt),
+        ("capture-summary.json", _resign_capture_summary),
+    ),
+)
+def test_governed_capture_resume_rejects_hash_consistent_unexpected_field(
+    relative_path,
+    resign,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    target = source.output_root / relative_path
+    value = _read_capture_json(target)
+    value["unexpected"] = "hash-consistent-but-invalid"
+    resign(value)
+    _write_canonical_capture_json(target, value)
+
+    launches = _forbid_capture_runner(monkeypatch)
+    with pytest.raises(ValueError, match="field|invalid|match"):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+def test_governed_capture_resume_rejects_hardlinked_evidence_alias(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    target = source.output_root / "P1" / "response.json"
+    alias = tmp_path / "outside-response-alias.json"
+    alias.write_bytes(target.read_bytes())
+    target.unlink()
+    os.link(alias, target)
+    assert target.stat().st_nlink >= 2
+
+    launches = _forbid_capture_runner(monkeypatch)
+    with pytest.raises(ValueError, match="alias|link|identity|state"):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+def test_governed_capture_resume_rejects_output_root_reparse_alias(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    alias = tmp_path / "quality-output-alias"
+    if os.name == "nt":
+        cmd = Path(os.environ["SystemRoot"]) / "System32" / "cmd.exe"
+        created = subprocess.run(
+            [
+                str(cmd),
+                "/d",
+                "/c",
+                "mklink",
+                "/J",
+                str(alias),
+                str(source.output_root),
+            ],
+            text=True,
+            capture_output=True,
+            timeout=10,
+        )
+        assert created.returncode == 0, created.stdout + created.stderr
+    else:
+        alias.symlink_to(source.output_root, target_is_directory=True)
+
+    aliased = replace(source, output_root=alias)
+    launches = _forbid_capture_runner(monkeypatch)
+    try:
+        with pytest.raises(ValueError, match="link|reparse|alias"):
+            _capture_api()(aliased, resume=True)
+    finally:
+        if os.name == "nt":
+            alias.rmdir()
+        else:
+            alias.unlink()
+
+    assert launches == []
+    assert source.output_root.is_dir()
+
+
+def test_governed_capture_resume_rejects_same_byte_replacement_during_validation(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    original_validator = module._validate_capture_record
+    receipt = source.output_root / "governed-execution.json"
+    replacement_count = 0
+
+    def replacing_validator(*args, **kwargs):
+        nonlocal replacement_count
+        if replacement_count == 0:
+            replacement = receipt.with_name(".replacement-receipt.json")
+            replacement.write_bytes(receipt.read_bytes())
+            os.replace(replacement, receipt)
+            replacement_count += 1
+        return original_validator(*args, **kwargs)
+
+    monkeypatch.setattr(
+        module,
+        "_validate_capture_record",
+        replacing_validator,
+    )
+    launches = _forbid_capture_runner(monkeypatch)
+    with pytest.raises(ValueError, match="changed|identity|state|snapshot"):
+        _capture_api()(source, resume=True)
+
+    assert replacement_count == 1
+    assert launches == []
+
+
+def test_governed_capture_fresh_rejects_same_byte_replacement_during_validation(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    original_validator = module._validate_capture_record
+    receipt = source.output_root / "governed-execution.json"
+    replacement_count = 0
+
+    def replacing_validator(*args, **kwargs):
+        nonlocal replacement_count
+        if replacement_count == 0 and receipt.exists():
+            replacement = receipt.with_name(".replacement-receipt.json")
+            replacement.write_bytes(receipt.read_bytes())
+            os.replace(replacement, receipt)
+            replacement_count += 1
+        return original_validator(*args, **kwargs)
+
+    monkeypatch.setattr(
+        module,
+        "_validate_capture_record",
+        replacing_validator,
+    )
+    with pytest.raises(ValueError, match="changed|identity|state|snapshot"):
+        _capture_api()(source, resume=False)
+
+    assert replacement_count == 1
+
+
+def test_governed_capture_fresh_rejects_replaced_outer_root_identity(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    original_receipt = module._governed_execution_receipt
+    moved_root = source.output_root.with_name("moved-quality-output")
+    replacement_count = 0
+
+    def replace_root_after_worker_validation(*args, **kwargs):
+        nonlocal replacement_count
+        receipt = original_receipt(*args, **kwargs)
+        if replacement_count == 0:
+            os.replace(source.output_root, moved_root)
+            source.output_root.mkdir()
+            os.replace(
+                moved_root / "governed",
+                source.output_root / "governed",
+            )
+            replacement_count += 1
+        return receipt
+
+    monkeypatch.setattr(
+        module,
+        "_governed_execution_receipt",
+        replace_root_after_worker_validation,
+    )
+    with pytest.raises(ValueError, match="root|identity|changed|owner"):
+        _capture_api()(source, resume=False)
+
+    assert replacement_count == 1
+    assert not (source.output_root / "capture-summary.json").exists()
+
+
+def test_governed_capture_concurrent_fresh_publication_has_one_owner(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    synthetic_runner = module.run_governed_quality_worker
+    runner_barrier = threading.Barrier(2)
+    start_barrier = threading.Barrier(2)
+    runner_calls = []
+    calls_lock = threading.Lock()
+
+    def synchronized_runner(campaign, output_root, timeout_seconds):
+        with calls_lock:
+            runner_calls.append(Path(output_root))
+        try:
+            runner_barrier.wait(timeout=1.0)
+        except threading.BrokenBarrierError:
+            pass
+        return synthetic_runner(campaign, output_root, timeout_seconds)
+
+    def capture_once():
+        start_barrier.wait(timeout=2.0)
+        try:
+            return ("success", _capture_api()(source, resume=False))
+        except Exception as error:  # exercise the public race boundary
+            return ("error", error)
+
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        synchronized_runner,
+    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(lambda _: capture_once(), range(2)))
+
+    successes = [value for status, value in outcomes if status == "success"]
+    errors = [value for status, value in outcomes if status == "error"]
+    assert len(successes) == 1
+    assert len(errors) == 1
+    assert isinstance(errors[0], FileExistsError)
+    assert len(runner_calls) == 1
