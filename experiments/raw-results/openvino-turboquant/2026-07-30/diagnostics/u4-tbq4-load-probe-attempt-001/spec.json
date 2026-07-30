@@ -1,0 +1,24 @@
+{
+  "apply_chat_template": false,
+  "context": "diagnostic-short-prompt",
+  "controlled_test_id": "WB04-DIAGNOSTIC-U4-TBQ4",
+  "device": "CPU",
+  "ignore_eos": true,
+  "max_new_tokens": 4,
+  "model_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-4.1-3b-int4-cw-ov-ea0231a",
+  "prompt": "Reply with the single word OK.",
+  "properties": {
+    "ATTENTION_BACKEND": "SDPA",
+    "CACHE_DIR": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\cache\\openvino-turboquant\\granite-int4-tbq4-00edae3b",
+    "ENABLE_CPU_PINNING": false,
+    "INFERENCE_NUM_THREADS": 1,
+    "NUM_STREAMS": 1,
+    "PERFORMANCE_HINT": "LATENCY",
+    "TURBOQUANT_KEY_ALGORITHM": "TBQ4",
+    "TURBOQUANT_NORM_CORRECTION": true,
+    "TURBOQUANT_VALUE_ALGORITHM": "TBQ4"
+  },
+  "role": "pilot",
+  "schema": "official-openvino-wb04-worker-spec/v1",
+  "seed": 42
+}
