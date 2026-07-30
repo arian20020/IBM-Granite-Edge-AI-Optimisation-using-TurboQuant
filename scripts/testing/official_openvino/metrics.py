@@ -10,6 +10,7 @@ from typing import Any
 
 
 MIB = 1024**2
+MEASUREMENT_SUMMARY_SCHEMA = "official-openvino-wb04-measurement-summary/v1"
 SCALARS = (
     "load_ms",
     "ttft_ms",
@@ -386,6 +387,7 @@ def summarize_samples(
         raise ValueError("activation identity differs between formal samples")
 
     result: dict[str, Any] = {
+        "schema": MEASUREMENT_SUMMARY_SCHEMA,
         "schema_version": 1,
         "status": "measured",
         "sample_count": 3,

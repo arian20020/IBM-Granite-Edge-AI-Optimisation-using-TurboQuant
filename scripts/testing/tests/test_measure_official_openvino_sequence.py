@@ -442,6 +442,8 @@ def test_sequence_runs_five_roles_once_and_atomically_summarizes_only_samples(
         )
     )
     assert metrics["status"] == "measured"
+    assert metrics["schema"] == "official-openvino-wb04-measurement-summary/v1"
+    assert metrics["schema_version"] == 1
     assert metrics["accepted"] is True
     assert metrics["sample_count"] == 3
     assert metrics["cleanup_process_count"] == 0

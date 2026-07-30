@@ -112,6 +112,11 @@ class OfficialOpenVINOMetricTests(unittest.TestCase):
 
     def test_summary_reports_all_memory_kv_timing_and_activation_evidence(self):
         result = summarize_samples([sample(i) for i in range(3)])
+        self.assertEqual(
+            result["schema"],
+            "official-openvino-wb04-measurement-summary/v1",
+        )
+        self.assertEqual(result["schema_version"], 1)
         self.assertEqual(result["ttft_ms"]["median"], 51)
         self.assertEqual(result["available_ram_before_mb"]["count"], 3)
         self.assertEqual(result["gpu_dedicated_memory_peak_mb"]["max"], 50)
@@ -269,6 +274,8 @@ class OfficialOpenVINOMetricTests(unittest.TestCase):
             "evidence_sha256": "a" * 64,
         })
         self.assertEqual(result["status"], "not-produced-by-expected-rejection")
+        self.assertNotIn("schema", result)
+        self.assertNotIn("schema_version", result)
         with self.assertRaisesRegex(ValueError, "evidence SHA256"):
             summarize_samples([], terminal={
                 "status": "not-produced-by-expected-rejection",
