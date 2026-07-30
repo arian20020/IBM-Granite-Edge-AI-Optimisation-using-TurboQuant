@@ -9,7 +9,7 @@
     mc:Ignorable="d">
 
     <Grid
-        MinHeight="185"
+        MinHeight="168"
         Margin="0,28,0,0"
         HorizontalAlignment="Stretch">
 
@@ -33,10 +33,10 @@
                 StrokeThickness="1.5" />
 
             <StackPanel
-                Margin="28"
+                Margin="22,20,22,20"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                Spacing="9">
+                Spacing="8">
 
                 <Border
                     Width="48"
@@ -78,7 +78,7 @@
                     x:Name="BrowseFilesButton"
                     Width="220"
                     Height="46"
-                    Margin="0,9,0,0"
+                    Margin="0,7,0,0"
                     HorizontalAlignment="Center"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
@@ -144,9 +144,9 @@
         <!--  STATE 2: GGUF QUICK SCAN IN PROGRESS  -->
         <Border
             x:Name="ScanningView"
-            Height="288"
+            Height="260"
             MaxWidth="804"
-            Padding="32,24,32,18"
+            Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
             Background="#FBFCFE"
@@ -158,11 +158,11 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition
-                        Height="126" />
+                        Height="112" />
                     <RowDefinition
                         Height="1" />
                     <RowDefinition
-                        Height="85" />
+                        Height="79" />
                     <RowDefinition
                         Height="34" />
                 </Grid.RowDefinitions>
@@ -184,7 +184,7 @@
                         Grid.Column="0"
                         Width="72"
                         Height="72"
-                        Margin="0,13,0,0"
+                        Margin="0,8,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="#E5EFFF"
@@ -223,7 +223,7 @@
 
                     <StackPanel
                         Grid.Column="1"
-                        Margin="26,9,20,0"
+                        Margin="26,4,20,0"
                         VerticalAlignment="Top"
                         Spacing="3">
 
@@ -346,7 +346,7 @@
 
                     <StackPanel
                         Grid.Column="0"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
@@ -367,7 +367,7 @@
 
                     <StackPanel
                         Grid.Column="1"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
@@ -388,7 +388,7 @@
 
                     <StackPanel
                         Grid.Column="2"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
@@ -409,7 +409,7 @@
 
                     <StackPanel
                         Grid.Column="3"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
@@ -471,9 +471,9 @@
         <!--  STATE 3: GGUF QUICK SCAN FAILED  -->
         <Border
             x:Name="FailureView"
-            Height="376"
+            Height="350"
             MaxWidth="804"
-            Padding="32,24,32,22"
+            Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
             Background="#FBFCFE"
@@ -485,7 +485,7 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition
-                        Height="126" />
+                        Height="112" />
                     <RowDefinition
                         Height="1" />
                     <RowDefinition
@@ -509,7 +509,7 @@
                         Grid.Column="0"
                         Width="72"
                         Height="72"
-                        Margin="0,13,0,0"
+                        Margin="0,8,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="#E5EFFF"
@@ -548,7 +548,7 @@
 
                     <StackPanel
                         Grid.Column="1"
-                        Margin="26,9,20,0"
+                        Margin="26,4,20,0"
                         VerticalAlignment="Top"
                         Spacing="3">
 
@@ -658,7 +658,7 @@
                 <!--  Failure details  -->
                 <Grid
                     Grid.Row="2"
-                    Margin="0,18,0,0">
+                    Margin="0,14,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition
                             Height="20" />
@@ -667,7 +667,7 @@
                         <RowDefinition
                             Height="56" />
                         <RowDefinition
-                            Height="73" />
+                            Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <StackPanel
@@ -778,19 +778,26 @@
 
                     </Grid>
 
+                    <!--
+                        Displays recovery guidance in a content-sized panel.
+                        
+                        MinHeight preserves the intended visual weight, while automatic
+                        sizing prevents wrapped guidance from being clipped.
+                    -->
                     <Border
                         Grid.Row="3"
-                        Height="58"
-                        VerticalAlignment="Bottom"
+                        MinHeight="60"
+                        Margin="0,0,0,0"
+                        Padding="14,6"
                         Background="#FFF7F7"
                         BorderBrush="#FDE2E2"
                         BorderThickness="1"
                         CornerRadius="14">
 
+                        <!--  Arranges the numbered recovery steps vertically.  -->
                         <StackPanel
-                            Margin="14,6"
                             VerticalAlignment="Center"
-                            Spacing="2">
+                            Spacing="3">
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -853,9 +860,9 @@
         <!--  STATE 4: GGUF QUICK SCAN SUCCEEDED  -->
         <Border
             x:Name="SuccessView"
-            Height="288"
+            Height="260"
             MaxWidth="804"
-            Padding="32,24,32,18"
+            Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
             Background="#FBFCFE"
@@ -868,7 +875,7 @@
                 <Grid.RowDefinitions>
                     <!--  Selected-model header.  -->
                     <RowDefinition
-                        Height="126" />
+                        Height="112" />
 
                     <!--  Divider.  -->
                     <RowDefinition
@@ -876,7 +883,7 @@
 
                     <!--  Metadata values.  -->
                     <RowDefinition
-                        Height="85" />
+                        Height="79" />
 
                     <!--  Completion status.  -->
                     <RowDefinition
@@ -901,7 +908,7 @@
                         Grid.Column="0"
                         Width="72"
                         Height="72"
-                        Margin="0,13,0,0"
+                        Margin="0,8,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="#E5EFFF"
@@ -941,7 +948,7 @@
                     <!--  Model name, filename and badges  -->
                     <StackPanel
                         Grid.Column="1"
-                        Margin="26,9,20,0"
+                        Margin="26,4,20,0"
                         VerticalAlignment="Top"
                         Spacing="3">
 
@@ -965,11 +972,11 @@
                         <StackPanel
                             Margin="0,4,0,0"
                             Orientation="Horizontal"
-                            Spacing="8">
+                            Spacing="6">
 
                             <!--  Format badge  -->
                             <Border
-                                Width="70"
+                                Width="56"
                                 Height="26"
                                 Background="#E7EFFF"
                                 CornerRadius="13">
@@ -987,8 +994,8 @@
                             <!--  Quantisation badge  -->
                             <Border
                                 Height="26"
-                                MinWidth="88"
-                                Padding="14,0"
+                                MinWidth="68"
+                                Padding="10,0"
                                 Background="#EEECFF"
                                 CornerRadius="13">
 
@@ -1100,7 +1107,7 @@
                     <!--  Parameters  -->
                     <StackPanel
                         Grid.Column="0"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="8">
 
@@ -1123,7 +1130,7 @@
                     <!--  Architecture  -->
                     <StackPanel
                         Grid.Column="1"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="8">
 
@@ -1146,7 +1153,7 @@
                     <!--  File size  -->
                     <StackPanel
                         Grid.Column="2"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="8">
 
@@ -1169,7 +1176,7 @@
                     <!--  Declared context  -->
                     <StackPanel
                         Grid.Column="3"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="8">
 
@@ -1195,19 +1202,31 @@
                 <Border
                     Grid.Row="3"
                     Height="34"
+                    Padding="16,0"
                     HorizontalAlignment="Stretch"
                     Background="#ECFDF5"
                     CornerRadius="17">
 
-                    <StackPanel
-                        Margin="12,0"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="10">
+                    <!--
+                        The grid gives the icon a fixed inset from the rounded edge
+                        and keeps both the icon and message vertically centred.
+                    -->
+                    <Grid
+                        VerticalAlignment="Stretch">
 
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition
+                                Width="16" />
+                            <ColumnDefinition
+                                Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!--  Successful scan indicator.  -->
                         <Border
+                            Grid.Column="0"
                             Width="16"
                             Height="16"
+                            HorizontalAlignment="Left"
                             VerticalAlignment="Center"
                             Background="#10B981"
                             CornerRadius="8">
@@ -1218,19 +1237,25 @@
                                 FontSize="10"
                                 FontWeight="Bold"
                                 Foreground="White"
-                                Text="✓" />
+                                Text="✓"
+                                TextAlignment="Center" />
 
                         </Border>
 
+                        <!--  Successful scan message.  -->
                         <TextBlock
+                            Grid.Column="1"
+                            Margin="10,-4,0,0"
+                            HorizontalAlignment="Left"
                             VerticalAlignment="Center"
                             FontSize="13"
                             FontWeight="SemiBold"
                             Foreground="#047857"
                             Text="Quick scan complete · Ready for model inspection"
+                            TextAlignment="Left"
                             TextWrapping="NoWrap" />
 
-                    </StackPanel>
+                    </Grid>
 
                 </Border>
 

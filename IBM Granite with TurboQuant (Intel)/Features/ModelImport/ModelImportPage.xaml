@@ -12,7 +12,7 @@
 
     <!--  Fills the page and provides its light-grey background.  -->
     <Grid
-        Background="#F5F6FA">
+        Background="White">
 
         <!--  Allows the page to scroll when the available window height is limited.  -->
         <ScrollViewer
@@ -31,9 +31,7 @@
                     Margin="32"
                     Padding="48"
                     HorizontalAlignment="Stretch"
-                    VerticalAlignment="Top"
-                    Background="White"
-                    CornerRadius="28">
+                    VerticalAlignment="Top">
 
                     <!--  Arranges the page content vertically.  -->
                     <StackPanel
