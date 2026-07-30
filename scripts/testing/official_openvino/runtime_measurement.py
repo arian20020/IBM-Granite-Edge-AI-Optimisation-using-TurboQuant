@@ -288,8 +288,15 @@ def build_runtime_property_spec(
 ) -> dict[str, Any]:
     """Translate an already-typed execution contract into runtime properties."""
 
-    if key_algorithm not in RUNTIME_ALGORITHMS or value_algorithm not in RUNTIME_ALGORITHMS:
-        raise ValueError("runtime algorithm labels must use exact uppercase enums")
+    for field, value in (
+        ("key", key_algorithm),
+        ("value", value_algorithm),
+    ):
+        if value not in RUNTIME_ALGORITHMS:
+            raise ValueError(
+                f"unsupported runtime {field} algorithm: {value}; "
+                "expected exact uppercase STANDARD, TBQ3, or TBQ4"
+            )
     normalized_device = device.upper()
     if normalized_device not in {"CPU", "GPU"}:
         raise ValueError("runtime device must be CPU or GPU")

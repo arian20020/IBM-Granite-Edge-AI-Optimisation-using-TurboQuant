@@ -307,6 +307,53 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 **common,
             )
 
+    def test_unsupported_runtime_algorithms_name_field_and_value(self):
+        common = {
+            "device": "cpu",
+            "key_cache_precision": "u4",
+            "value_cache_precision": "u4",
+            "norm_correction": True,
+            "cache_dir": "cache",
+        }
+        with self.assertRaises(ValueError) as key_error:
+            build_runtime_property_spec(
+                key_algorithm="SCALAR",
+                value_algorithm="TBQ4",
+                **common,
+            )
+        self.assertEqual(
+            str(key_error.exception),
+            "unsupported runtime key algorithm: SCALAR; "
+            "expected exact uppercase STANDARD, TBQ3, or TBQ4",
+        )
+
+        with self.assertRaises(ValueError) as value_error:
+            build_runtime_property_spec(
+                key_algorithm="STANDARD",
+                value_algorithm="POLAR",
+                **common,
+            )
+        self.assertEqual(
+            str(value_error.exception),
+            "unsupported runtime value algorithm: POLAR; "
+            "expected exact uppercase STANDARD, TBQ3, or TBQ4",
+        )
+
+        with self.assertRaises(ValueError) as gpu_error:
+            build_runtime_property_spec(
+                device="gpu",
+                key_algorithm="TBQ4",
+                value_algorithm="TBQ4",
+                key_cache_precision="u4",
+                value_cache_precision="u4",
+                norm_correction=True,
+                cache_dir="cache",
+            )
+        self.assertEqual(
+            str(gpu_error.exception),
+            "project TurboQuant is supported only on CPU",
+        )
+
     def test_worker_output_requires_one_result_and_one_activated_record(self):
         activation = activation_telemetry()
         result = worker_result()
