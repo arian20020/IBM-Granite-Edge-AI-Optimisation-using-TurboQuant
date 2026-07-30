@@ -186,3 +186,6 @@ def test_cli_can_be_invoked_directly_from_repository_root():
     assert result.returncode == 0, result.stderr
     assert "--build-root" in result.stdout
     assert "--python-site-packages" in result.stdout
+    assert "--campaign-root" in result.stdout
+    assert "--matrix" in result.stdout
+    assert "--build-provenance" in result.stdout
