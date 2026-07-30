@@ -214,17 +214,31 @@ class OfficialOpenVINOExpectedRejectionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_expected_rejection_evidence(payload, MATRIX)
 
-    def test_atomic_writer_uses_canonical_byte_identical_json(self):
+    def test_writer_validates_and_publishes_create_only_canonical_json(self):
         payload = generate_expected_rejection_evidence(MATRIX)
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "nested" / "expected-rejections.json"
+
+            invalid_output = Path(directory) / "invalid.json"
+            invalid = copy.deepcopy(payload)
+            invalid["note"] = "not controlled evidence"
+            with self.assertRaises(ValueError):
+                write_expected_rejection_evidence(invalid_output, invalid)
+            self.assertFalse(invalid_output.exists())
+
             write_expected_rejection_evidence(output, payload)
             first = output.read_bytes()
             self.assertEqual(first, canonical_bytes(payload))
-            write_expected_rejection_evidence(output, payload)
+
+            with self.assertRaises(FileExistsError):
+                write_expected_rejection_evidence(output, payload)
             self.assertEqual(output.read_bytes(), first)
 
-    def test_cli_writes_valid_byte_identical_evidence(self):
+            second_output = Path(directory) / "second.json"
+            write_expected_rejection_evidence(second_output, payload)
+            self.assertEqual(second_output.read_bytes(), first)
+
+    def test_cli_rejects_overwrite_and_is_deterministic_across_new_destinations(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "expected-rejections.json"
             command = [
@@ -254,8 +268,22 @@ class OfficialOpenVINOExpectedRejectionTests(unittest.TestCase):
                 check=False,
                 text=True,
             )
-            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertNotEqual(second.returncode, 0, second.stdout)
+            self.assertIn("FileExistsError", second.stderr)
             self.assertEqual(output.read_bytes(), first_bytes)
+
+            second_output = Path(directory) / "expected-rejections-second.json"
+            second_command = [*command[:-1], str(second_output)]
+            distinct = subprocess.run(
+                second_command,
+                cwd=ROOT,
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            self.assertEqual(distinct.returncode, 0, distinct.stderr)
+            self.assertEqual(second_output.read_bytes(), first_bytes)
+
             payload = json.loads(first_bytes)
             self.assertTrue(
                 validate_expected_rejection_evidence(payload, MATRIX)["accepted"]

@@ -325,7 +325,19 @@ def write_expected_rejection_evidence(
     path: Path,
     payload: Mapping[str, Any],
 ) -> None:
-    """Atomically write compact, sorted UTF-8 JSON with one trailing newline."""
+    """Validate and atomically publish new evidence without replacing a file."""
+
+    if type(payload) is not dict:
+        raise ValueError("expected-rejection publication payload must be an object")
+    bound_matrix_value = payload.get("matrix_path")
+    if not isinstance(bound_matrix_value, str) or not bound_matrix_value:
+        raise ValueError(
+            "expected-rejection publication matrix_path must be non-empty text"
+        )
+    bound_matrix = Path(bound_matrix_value)
+    if not bound_matrix.is_absolute():
+        bound_matrix = _REPO_ROOT / bound_matrix
+    validate_expected_rejection_evidence(payload, bound_matrix.resolve())
 
     destination = Path(path).resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -340,10 +352,17 @@ def write_expected_rejection_evidence(
             handle.write(_canonical_bytes(payload))
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, destination)
+        try:
+            os.link(temporary, destination)
+        except FileExistsError as error:
+            raise FileExistsError(
+                f"refusing to replace existing expected-rejection evidence: "
+                f"{destination}"
+            ) from error
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise
+    temporary.unlink()
 
 
 __all__ = [
