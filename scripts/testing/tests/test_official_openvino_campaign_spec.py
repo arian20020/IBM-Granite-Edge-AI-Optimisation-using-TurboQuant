@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import scripts.testing.official_openvino.campaign_spec as campaign_spec_module
 from scripts.testing.official_openvino.campaign_spec import (
     generate_formal_u8_granite3b_specs,
 )
@@ -225,6 +226,70 @@ def test_opt_in_baselines_adds_cpu_and_exact_gpu0_specs_and_rejections(
         for role in SEQUENCE_ROLES:
             role_spec = _role_spec(template, role, "b" * 64)
             assert role_spec["role"] == role
+
+
+@pytest.mark.parametrize("overlap", ("build", "model", "cache", "ancestor"))
+def test_generation_rejects_output_aliasing_controlled_input_roots(
+    tmp_path,
+    overlap,
+):
+    build, model, cache = _clean_inputs(tmp_path)
+    output = {
+        "build": build / "generated-specs",
+        "model": model / "generated-specs",
+        "cache": cache / "generated-specs",
+        "ancestor": tmp_path,
+    }[overlap]
+
+    with pytest.raises(ValueError, match="overlap"):
+        generate_formal_u8_granite3b_specs(
+            matrix_path=MATRIX,
+            build_root=build,
+            model_path=model,
+            cache_root=cache,
+            output_root=output,
+        )
+
+
+def test_concurrent_output_creation_is_preserved_and_publication_rejects(
+    tmp_path,
+    monkeypatch,
+):
+    build, model, cache = _clean_inputs(tmp_path)
+    output = tmp_path / "raced output"
+    original = campaign_spec_module.atomic_write_json
+    raced = False
+
+    def create_competing_destination(path, value):
+        nonlocal raced
+        if not raced:
+            raced = True
+            output.mkdir()
+            (output / "competitor.txt").write_text(
+                "preserve me", encoding="utf-8"
+            )
+        original(path, value)
+
+    monkeypatch.setattr(
+        campaign_spec_module,
+        "atomic_write_json",
+        create_competing_destination,
+    )
+
+    with pytest.raises(FileExistsError, match="publish"):
+        generate_formal_u8_granite3b_specs(
+            matrix_path=MATRIX,
+            build_root=build,
+            model_path=model,
+            cache_root=cache,
+            output_root=output,
+        )
+
+    assert (output / "competitor.txt").read_text(encoding="utf-8") == (
+        "preserve me"
+    )
+    assert not (output / "expected-rejections.json").exists()
+    assert not list(output.glob("OV-*/context-*/spec.json"))
 
 
 def test_explicit_u4_model_binding_fails_closed_when_u4_model_is_missing(

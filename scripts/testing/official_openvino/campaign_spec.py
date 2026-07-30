@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import re
+import shutil
+import tempfile
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -51,13 +53,31 @@ def _build_root(path: Path) -> Path:
     return root
 
 
-def _empty_output_root(path: Path) -> Path:
+def _paths_overlap(first: Path, second: Path) -> bool:
+    return (
+        first == second
+        or first in second.parents
+        or second in first.parents
+    )
+
+
+def _fresh_output_root(
+    path: Path,
+    *,
+    protected_paths: tuple[tuple[str, Path], ...],
+) -> Path:
     output = Path(path).resolve()
+    for field, protected in protected_paths:
+        if _paths_overlap(output, protected.resolve()):
+            raise ValueError(
+                f"output root must not overlap {field}: {protected}"
+            )
     if output.exists():
-        if not output.is_dir():
-            raise ValueError(f"output root is not a directory: {output}")
-        if next(output.iterdir(), None) is not None:
-            raise ValueError(f"output root must be empty: {output}")
+        raise ValueError(
+            "output root must not exist; empty-directory reuse is "
+            f"prohibited: {output}"
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
     return output
 
 
@@ -128,11 +148,24 @@ def generate_formal_u8_granite3b_specs(
             )
         model_paths_by_weight_precision["u4"] = u4_model
     cache = _directory(cache_root, "cache")
-    output = _empty_output_root(output_root)
     matrix, cases = _selected_cases(
         matrix_path,
         model_paths_by_weight_precision=model_paths_by_weight_precision,
         include_baselines=include_baselines,
+    )
+    output = _fresh_output_root(
+        output_root,
+        protected_paths=(
+            ("matrix", matrix),
+            ("build root", build),
+            ("U8 model", model_paths_by_weight_precision["u8"]),
+            *(
+                (("U4 model", model_paths_by_weight_precision["u4"]),)
+                if "u4" in model_paths_by_weight_precision
+                else ()
+            ),
+            ("cache root", cache),
+        ),
     )
 
     planned_specs: list[tuple[Path, dict[str, Any]]] = []
@@ -204,8 +237,7 @@ def generate_formal_u8_granite3b_specs(
                 "properties": runtime["properties"],
             }
             destination = (
-                output
-                / case.test_id
+                Path(case.test_id)
                 / f"context-{context}"
                 / "spec.json"
             )
@@ -214,18 +246,39 @@ def generate_formal_u8_granite3b_specs(
     if not planned_specs:
         raise ValueError("selected matrix rows produced no runnable worker specs")
 
-    output.mkdir(parents=True, exist_ok=True)
-    for destination, spec in planned_specs:
-        atomic_write_json(destination, spec)
-    rejection_path = output / "expected-rejections.json"
-    atomic_write_json(
-        rejection_path,
-        {
-            "schema": EXPECTED_REJECTIONS_SCHEMA,
-            "matrix_sha256": hashlib.sha256(matrix.read_bytes()).hexdigest(),
-            "rejections": rejections,
-        },
+    staging = Path(
+        tempfile.mkdtemp(
+            dir=output.parent,
+            prefix=f".{output.name}.",
+        )
     )
+    rejection_path = output / "expected-rejections.json"
+    try:
+        for relative_path, spec in planned_specs:
+            atomic_write_json(staging / relative_path, spec)
+        atomic_write_json(
+            staging / rejection_path.name,
+            {
+                "schema": EXPECTED_REJECTIONS_SCHEMA,
+                "matrix_sha256": hashlib.sha256(
+                    matrix.read_bytes()
+                ).hexdigest(),
+                "rejections": rejections,
+            },
+        )
+        try:
+            staging.rename(output)
+        except OSError as error:
+            if output.exists():
+                raise FileExistsError(
+                    "refusing to publish specs over a concurrently created "
+                    f"output root: {output}"
+                ) from error
+            raise
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
     result: dict[str, object] = {
         "build_root": str(build),
         "model_path": str(model_paths_by_weight_precision["u8"]),
@@ -233,7 +286,8 @@ def generate_formal_u8_granite3b_specs(
         "spec_count": len(planned_specs),
         "expected_rejection_count": len(rejections),
         "spec_paths": [
-            str(destination) for destination, _ in planned_specs
+            str(output / relative_path)
+            for relative_path, _ in planned_specs
         ],
         "expected_rejections_path": str(rejection_path),
     }
