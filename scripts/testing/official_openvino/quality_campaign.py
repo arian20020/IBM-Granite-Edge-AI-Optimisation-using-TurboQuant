@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,7 @@ from scripts.testing.official_openvino.quality_worker import (
 from scripts.testing.official_openvino.guarded_build import (
     GUARD_SCHEMA,
     GuardLimits,
+    _effective_environment,
     run_guarded_command,
 )
 from scripts.testing.run_official_openvino_quality import (
@@ -302,6 +304,11 @@ def load_accepted_quality_campaign(
             repo_root=input.repo_root,
             python_site_packages=input.python_site_packages,
             openvino_libraries=input.openvino_libraries,
+            base_environment={
+                key: value
+                for key, value in os.environ.items()
+                if key.strip() and value.strip()
+            },
         )
     )
     return AcceptedQualityCampaign(
@@ -395,18 +402,6 @@ def _strict_object(raw: bytes, *, source: Path) -> dict[str, Any]:
     return value
 
 
-def _environment_sha256(value: Mapping[str, str]) -> str:
-    return hashlib.sha256(
-        json.dumps(
-            dict(value),
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
-    ).hexdigest()
-
-
 def _validate_guard_evidence(
     record: Mapping[str, Any],
     *,
@@ -416,8 +411,9 @@ def _validate_guard_evidence(
     evidence_path: Path,
     environment: Mapping[str, str],
     timeout_seconds: float,
+    log_sha256: str,
 ) -> None:
-    expected_environment_sha256 = _environment_sha256(environment)
+    _, expected_environment_sha256 = _effective_environment(environment)
     required = {
         "schema": GUARD_SCHEMA,
         "valid": True,
@@ -427,51 +423,111 @@ def _validate_guard_evidence(
         "evidence_path": str(evidence_path),
         "environment_sha256": expected_environment_sha256,
         "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
+        "maximum_runtime_seconds": float(timeout_seconds),
         "timed_out": False,
         "low_memory_stop": False,
         "emergency_actions": [],
         "cleanup_process_count": 0,
         "exit_code": 0,
+        "log_sha256": log_sha256,
     }
     for field, expected in required.items():
-        if record.get(field) != expected:
-            label = "timeout" if field == "timed_out" else field.replace("_", "-")
+        actual = record.get(field)
+        if type(actual) is not type(expected) or actual != expected:
+            label = (
+                "timeout"
+                if field in {"timed_out", "maximum_runtime_seconds"}
+                else field.replace("_", "-")
+            )
             raise RuntimeError(f"guard {label} is invalid")
-    if record.get("maximum_runtime_seconds") not in (None, timeout_seconds):
-        raise RuntimeError("guard timeout is invalid")
     job = record.get("job_object")
-    if not isinstance(job, Mapping) or any(
-        job.get(field) != expected
-        for field, expected in {
-            "setup_ok": True,
-            "query_ok": True,
-            "queried_active_process_count_after_cleanup": 0,
-            "survivor_pids_after_cleanup": [],
-        }.items()
-    ):
+    if type(job) is not dict:
         raise RuntimeError("guard cleanup is invalid")
+    for field, expected in {
+        "setup_ok": True,
+        "query_ok": True,
+        "queried_active_process_count_after_cleanup": 0,
+        "survivor_pids_after_cleanup": [],
+    }.items():
+        actual = job.get(field)
+        if type(actual) is not type(expected) or actual != expected:
+            raise RuntimeError("guard cleanup is invalid")
 
 
 def _validate_worker_result(raw: bytes, *, source: Path) -> Mapping[str, Any]:
     value = _strict_object(raw, source=source)
+    if raw != _canonical_json(value):
+        raise ValueError("quality worker result bytes are not canonical")
     if set(value) != {"schema", "outcomes", "worker_result_sha256"}:
         raise ValueError("quality worker result fields are invalid")
-    if value.get("schema") != RESULT_SCHEMA:
+    if type(value.get("schema")) is not str or value["schema"] != RESULT_SCHEMA:
         raise ValueError("quality worker result schema is invalid")
     outcomes = value.get("outcomes")
     expected_turns = [
         "P1-turn-1", "P2-turn-1", "P3-turn-1", "P4-turn-1", "P5-turn-1",
         "P6-turn-1", "P6-turn-2",
     ]
-    if not isinstance(outcomes, list) or [
-        row.get("turn_id") if isinstance(row, Mapping) else None
-        for row in outcomes
-    ] != expected_turns:
+    if type(outcomes) is not list or len(outcomes) != len(expected_turns):
         raise ValueError("quality worker result outcomes are invalid")
+    outcome_fields = {
+        "turn_id",
+        "raw_prompt",
+        "raw_prompt_sha256",
+        "status",
+        "raw_output",
+        "raw_output_sha256",
+        "failure_type",
+        "failure_message",
+    }
+    for outcome, expected_turn in zip(outcomes, expected_turns, strict=True):
+        if type(outcome) is not dict or set(outcome) != outcome_fields:
+            raise ValueError("quality worker result outcome fields are invalid")
+        if (
+            type(outcome["turn_id"]) is not str
+            or outcome["turn_id"] != expected_turn
+        ):
+            raise ValueError("quality worker result outcomes are invalid")
+        prompt = outcome["raw_prompt"]
+        if type(prompt) is not str or not prompt.strip():
+            raise ValueError("quality worker result outcome prompt is invalid")
+        prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        if (
+            type(outcome["raw_prompt_sha256"]) is not str
+            or outcome["raw_prompt_sha256"] != prompt_sha256
+        ):
+            raise ValueError("quality worker result outcome prompt hash is invalid")
+        status = outcome["status"]
+        if type(status) is not str or status not in {"complete", "failed"}:
+            raise ValueError("quality worker result outcome status is invalid")
+        if status == "complete":
+            output = outcome["raw_output"]
+            if type(output) is not str:
+                raise ValueError("quality worker result outcome output is invalid")
+            output_sha256 = hashlib.sha256(output.encode("utf-8")).hexdigest()
+            if (
+                type(outcome["raw_output_sha256"]) is not str
+                or outcome["raw_output_sha256"] != output_sha256
+                or outcome["failure_type"] is not None
+                or outcome["failure_message"] is not None
+            ):
+                raise ValueError(
+                    "quality worker result outcome completion fields are invalid"
+                )
+        elif (
+            outcome["raw_output"] is not None
+            or outcome["raw_output_sha256"] is not None
+            or type(outcome["failure_type"]) is not str
+            or not outcome["failure_type"].strip()
+            or type(outcome["failure_message"]) is not str
+        ):
+            raise ValueError("quality worker result outcome failure fields are invalid")
     expected_hash = hashlib.sha256(
         _canonical_json({"schema": value["schema"], "outcomes": outcomes})
     ).hexdigest()
-    if value.get("worker_result_sha256") != expected_hash:
+    if (
+        type(value.get("worker_result_sha256")) is not str
+        or value["worker_result_sha256"] != expected_hash
+    ):
         raise ValueError("quality worker result hash is invalid")
     return _freeze(value)
 
@@ -502,10 +558,9 @@ def run_governed_quality_worker(
     result_path = root / "worker-result.json"
     log_path = root / "worker.log"
     evidence_path = root / "guard-evidence.json"
-    if any(path.exists() for path in (spec_path, result_path, log_path, evidence_path)):
-        raise FileExistsError("governed quality evidence target already exists")
     spec = build_quality_worker_spec(accepted)
     spec_bytes = _canonical_json(spec)
+    spec_sha256 = hashlib.sha256(spec_bytes).hexdigest()
     spec_path.write_bytes(spec_bytes)
     command = [
         str(accepted.python_executable),
@@ -531,9 +586,38 @@ def run_governed_quality_worker(
     )
     if not isinstance(evidence, Mapping):
         raise RuntimeError("guard evidence is invalid")
-    raw_evidence = evidence_path.read_bytes()
-    persisted_evidence = _strict_object(raw_evidence, source=evidence_path)
-    if persisted_evidence != dict(evidence):
+    try:
+        persisted_spec = spec_path.read_bytes()
+    except OSError as error:
+        raise ValueError("quality worker spec is missing after launch") from error
+    if (
+        persisted_spec != spec_bytes
+        or hashlib.sha256(persisted_spec).hexdigest() != spec_sha256
+    ):
+        raise ValueError("quality worker spec was altered during launch")
+    try:
+        log_bytes = log_path.read_bytes()
+    except OSError as error:
+        raise RuntimeError("guard log is missing after launch") from error
+    log_sha256 = hashlib.sha256(log_bytes).hexdigest()
+    try:
+        raw_evidence = evidence_path.read_bytes()
+    except OSError as error:
+        raise RuntimeError("guard evidence is missing after launch") from error
+    try:
+        persisted_evidence = _strict_object(raw_evidence, source=evidence_path)
+    except ValueError as error:
+        raise RuntimeError("guard evidence is invalid") from error
+    if raw_evidence != _canonical_identity_bytes(persisted_evidence):
+        raise RuntimeError("guard evidence bytes are not canonical")
+    try:
+        returned_evidence_bytes = _canonical_identity_bytes(dict(evidence))
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("returned guard evidence is invalid") from error
+    if (
+        persisted_evidence != dict(evidence)
+        or raw_evidence != returned_evidence_bytes
+    ):
         raise RuntimeError("guard evidence does not match returned record")
     _validate_guard_evidence(
         persisted_evidence,
@@ -543,8 +627,12 @@ def run_governed_quality_worker(
         evidence_path=evidence_path,
         environment=environment,
         timeout_seconds=float(timeout_seconds),
+        log_sha256=log_sha256,
     )
-    worker_raw = result_path.read_bytes()
+    try:
+        worker_raw = result_path.read_bytes()
+    except OSError as error:
+        raise ValueError("quality worker result is missing after launch") from error
     worker_result = _validate_worker_result(worker_raw, source=result_path)
     return GovernedQualityWorkerResult(
         worker_result=worker_result,

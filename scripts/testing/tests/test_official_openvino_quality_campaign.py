@@ -122,13 +122,60 @@ def _worker_result(*, failed_turn=False):
     return value
 
 
-def _governed_guard(tmp_path, calls, *, failed_turn=False, mutate=None):
+def _resign_worker_result(value):
+    value.pop("worker_result_sha256", None)
+    value["worker_result_sha256"] = hashlib.sha256(
+        _canonical_bytes(value)
+    ).hexdigest()
+
+
+def _reorder_worker_result(value):
+    value["outcomes"][0], value["outcomes"][1] = (
+        value["outcomes"][1],
+        value["outcomes"][0],
+    )
+    _resign_worker_result(value)
+
+
+def _break_raw_output_hash(value):
+    value["outcomes"][0]["raw_output_sha256"] = "0" * 64
+    _resign_worker_result(value)
+
+
+def _break_failed_outcome_relationship(value):
+    value["outcomes"][0]["status"] = "failed"
+    _resign_worker_result(value)
+
+
+def _tamper_worker_result_hash(value):
+    value["worker_result_sha256"] = "0" * 64
+
+
+def _governed_guard(
+    tmp_path,
+    calls,
+    *,
+    failed_turn=False,
+    mutate=None,
+    mutate_result=None,
+    result_suffix=b"",
+    post_artifact=None,
+):
     def fake_guard(**kwargs):
+        from scripts.testing.official_openvino.guarded_build import (
+            _effective_environment,
+        )
+
         calls.append(kwargs)
         result = _worker_result(failed_turn=failed_turn)
+        if mutate_result is not None:
+            mutate_result(result)
         result_path = Path(kwargs["command"][-1])
-        result_path.write_bytes(_canonical_bytes(result))
+        result_path.write_bytes(_canonical_bytes(result) + result_suffix)
         environment = dict(kwargs["environment"])
+        _, environment_sha256 = _effective_environment(environment)
+        log_bytes = b"synthetic guard\n"
+        Path(kwargs["log_path"]).write_bytes(log_bytes)
         guard = {
             "schema": "official-openvino-owned-process-guard/v1",
             "valid": True,
@@ -136,8 +183,11 @@ def _governed_guard(tmp_path, calls, *, failed_turn=False, mutate=None):
             "working_directory": str(Path(kwargs["cwd"]).resolve()),
             "log_path": str(Path(kwargs["log_path"]).resolve()),
             "evidence_path": str(Path(kwargs["evidence_path"]).resolve()),
-            "environment_sha256": _sha256_json(environment),
+            "environment_sha256": environment_sha256,
             "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
+            "maximum_runtime_seconds": float(
+                kwargs["limits"].maximum_runtime_seconds
+            ),
             "timed_out": False,
             "low_memory_stop": False,
             "emergency_actions": [],
@@ -149,12 +199,14 @@ def _governed_guard(tmp_path, calls, *, failed_turn=False, mutate=None):
                 "queried_active_process_count_after_cleanup": 0,
                 "survivor_pids_after_cleanup": [],
             },
+            "log_sha256": hashlib.sha256(log_bytes).hexdigest(),
         }
         if mutate is not None:
             mutate(guard)
         evidence = (json.dumps(guard, indent=2, sort_keys=True) + "\n").encode("utf-8")
         Path(kwargs["evidence_path"]).write_bytes(evidence)
-        Path(kwargs["log_path"]).write_text("synthetic guard\n", encoding="utf-8")
+        if post_artifact is not None:
+            post_artifact(kwargs)
         return guard
 
     return fake_guard
@@ -532,6 +584,12 @@ def test_governed_worker_binds_the_exact_campaign_command_environment_and_guard(
     assert calls[0]["expected_exit"] == "zero"
     assert result.guard_evidence["cleanup_process_count"] == 0
     assert result.worker_result["schema"] == "official-openvino-wb04-quality-worker-result/v1"
+    assert result.guard_evidence_sha256 == hashlib.sha256(
+        (tmp_path / "governed" / "guard-evidence.json").read_bytes()
+    ).hexdigest()
+    assert result.worker_result_sha256 == hashlib.sha256(
+        (tmp_path / "governed" / "worker-result.json").read_bytes()
+    ).hexdigest()
 
 
 @pytest.mark.parametrize(
@@ -576,3 +634,263 @@ def test_governed_worker_retains_raw_failed_turn_without_inventing_a_score(tmp_p
     assert failed["status"] == "failed"
     assert failed["raw_output"] is None
     assert all("score" not in key for key in result.worker_result)
+
+
+def test_governed_worker_uses_real_guard_effective_environment_hash(tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    result = run(
+        load(source),
+        tmp_path / "governed",
+        1800.0,
+        run_command=_governed_guard(tmp_path, []),
+    )
+
+    assert result.guard_evidence["valid"] is True
+
+
+def test_governed_worker_rejects_skeletal_hash_consistent_outcomes(tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    def skeletal(value):
+        value["outcomes"] = [
+            {"turn_id": turn_id}
+            for turn_id in (
+                "P1-turn-1", "P2-turn-1", "P3-turn-1", "P4-turn-1",
+                "P5-turn-1", "P6-turn-1", "P6-turn-2",
+            )
+        ]
+        _resign_worker_result(value)
+
+    with pytest.raises(ValueError, match="outcome"):
+        run(
+            load(source),
+            tmp_path / "governed",
+            1800.0,
+            run_command=_governed_guard(
+                tmp_path,
+                [],
+                mutate_result=skeletal,
+            ),
+        )
+
+
+def test_governed_worker_rejects_noncanonical_result_bytes(tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    with pytest.raises(ValueError, match="canonical"):
+        run(
+            load(source),
+            tmp_path / "governed",
+            1800.0,
+            run_command=_governed_guard(
+                tmp_path,
+                [],
+                result_suffix=b"\n",
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "mutate_result, message",
+    (
+        (_reorder_worker_result, "outcome"),
+        (_break_raw_output_hash, "outcome"),
+        (_break_failed_outcome_relationship, "outcome"),
+        (_tamper_worker_result_hash, "hash"),
+    ),
+)
+def test_governed_worker_rejects_reordered_malformed_or_hash_tampered_results(
+    mutate_result,
+    message,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    with pytest.raises(ValueError, match=message):
+        run(
+            load(source),
+            tmp_path / "governed",
+            1800.0,
+            run_command=_governed_guard(
+                tmp_path,
+                [],
+                mutate_result=mutate_result,
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "post_artifact, message",
+    (
+        (
+            lambda kwargs: Path(kwargs["command"][-3]).write_bytes(b"tampered"),
+            "spec",
+        ),
+        (
+            lambda kwargs: Path(kwargs["command"][-3]).unlink(),
+            "spec",
+        ),
+        (
+            lambda kwargs: Path(kwargs["log_path"]).write_bytes(b"tampered"),
+            "log",
+        ),
+        (
+            lambda kwargs: Path(kwargs["log_path"]).unlink(),
+            "log",
+        ),
+        (
+            lambda kwargs: Path(kwargs["evidence_path"]).unlink(),
+            "guard",
+        ),
+        (
+            lambda kwargs: Path(kwargs["evidence_path"]).write_bytes(b"tampered"),
+            "guard",
+        ),
+        (
+            lambda kwargs: Path(kwargs["evidence_path"]).write_bytes(
+                Path(kwargs["evidence_path"]).read_bytes() + b"\n"
+            ),
+            "guard",
+        ),
+        (
+            lambda kwargs: Path(kwargs["command"][-1]).unlink(),
+            "result",
+        ),
+        (
+            lambda kwargs: Path(kwargs["command"][-1]).write_bytes(b"tampered"),
+            "result",
+        ),
+    ),
+)
+def test_governed_worker_rejects_missing_or_tampered_launch_artifacts(
+    post_artifact,
+    message,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    with pytest.raises((RuntimeError, ValueError), match=message):
+        run(
+            load(source),
+            tmp_path / "governed",
+            1800.0,
+            run_command=_governed_guard(
+                tmp_path,
+                [],
+                post_artifact=post_artifact,
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "mutate, message",
+    (
+        (
+            lambda guard: guard.pop("maximum_runtime_seconds"),
+            "timeout",
+        ),
+        (
+            lambda guard: guard.update(maximum_runtime_seconds=None),
+            "timeout",
+        ),
+        (
+            lambda guard: guard.update(maximum_runtime_seconds=1800),
+            "timeout",
+        ),
+        (
+            lambda guard: guard.update(maximum_runtime_seconds=1801.0),
+            "timeout",
+        ),
+        (
+            lambda guard: guard.update(valid=1),
+            "guard",
+        ),
+        (
+            lambda guard: guard.update(
+                configured_minimum_available_ram_bytes=float(2_048 * 1024 * 1024)
+            ),
+            "configured-minimum",
+        ),
+        (
+            lambda guard: guard.update(cleanup_process_count=False),
+            "cleanup",
+        ),
+        (
+            lambda guard: guard.update(exit_code=False),
+            "exit",
+        ),
+        (
+            lambda guard: guard.update(timed_out=0),
+            "timeout",
+        ),
+        (
+            lambda guard: guard.update(low_memory_stop=0),
+            "low-memory",
+        ),
+        (
+            lambda guard: guard["job_object"].update(setup_ok=1),
+            "cleanup",
+        ),
+        (
+            lambda guard: guard["job_object"].update(
+                queried_active_process_count_after_cleanup=False
+            ),
+            "cleanup",
+        ),
+    ),
+)
+def test_governed_worker_rejects_guard_type_smuggling(mutate, message, tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+
+    with pytest.raises(RuntimeError, match=message):
+        run(
+            load(source),
+            tmp_path / "governed",
+            1800.0,
+            run_command=_governed_guard(
+                tmp_path,
+                [],
+                mutate=mutate,
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "target_name",
+    (
+        None,
+        "worker-spec.json",
+        "worker-result.json",
+        "worker.log",
+        "guard-evidence.json",
+    ),
+)
+def test_governed_worker_rejects_preexisting_output_root(target_name, tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    _, run = _governed_quality_api()
+    output_root = tmp_path / "governed"
+    output_root.mkdir()
+    if target_name is not None:
+        (output_root / target_name).write_bytes(b"pre-existing")
+
+    with pytest.raises(FileExistsError, match="fresh"):
+        run(
+            load(source),
+            output_root,
+            1800.0,
+            run_command=lambda **_: pytest.fail("guard must not launch"),
+        )
