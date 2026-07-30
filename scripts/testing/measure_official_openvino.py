@@ -899,8 +899,9 @@ def _write_sequence_receipt(
             else None
         ),
         "accepted": accepted,
-        "controller_error": controller_error,
     }
+    if controller_error is not None:
+        receipt["controller_error"] = controller_error
     atomic_write_json(attempt_dir / "sequence-receipt.json", receipt)
     return receipt
 

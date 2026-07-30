@@ -98,3 +98,50 @@ before Task 2 was finalized. Measured summaries now emit both
 `schema_version: 1`; terminal evidence envelopes remain intentionally
 distinct. Task 2 therefore rejects the old schema-less measured shape, and no
 runtime evidence was accepted or manufactured here.
+
+## Review Fix Round
+
+The review identified that a summary with the right outer fields could be
+accepted without proving the five-role campaign that produced it. The adapter
+now reuses the measurement controller's `_sequence_spec`, `_role_spec`, and
+`_resumable_attempt` helpers for every pilot, warmup, and formal role. It then
+recomputes the three formal samples with `measurement_sample()` and the entire
+measured summary with `summarize_samples()`. The persisted summary must match
+that recomputation exactly (after JSON normalization), and
+`attempt-sequence.json` must exactly contain the returned receipts plus the
+summary path and raw-file SHA-256. A skeletal or replaced summary therefore
+cannot stand in for accepted attempt evidence.
+
+Attempt-sequence JSON is parsed with the strict quality-artifact parser, so
+duplicate keys cannot be collapsed by a permissive JSON decoder. Accepted
+receipts now omit a null `controller_error` field; this keeps successful
+sequence evidence compatible with that strict no-null parser. The sequence's
+summary SHA-256 is calculated from the same summary bytes already parsed and
+validated, avoiding a second read between validation and hash binding.
+
+`build_quality_worker_spec()` now re-loads the campaign from its retained
+paths before deriving a spec. Replaced or directly constructed
+`AcceptedQualityCampaign` instances cannot substitute identity or prompt
+fields. The sampler path must be an existing file. Finally, Task-1 generation
+settings are exported as an immutable mapping and validated against a separate
+literal tuple, so mutating a public mapping cannot weaken validation.
+
+The review RED suite failed for each of those cases before the fix: skeletal
+summary, replaced/directly constructed campaign identity, missing sampler, and
+generation-settings mutation. The post-fix focused command was:
+
+```text
+python -m pytest scripts/testing/tests/test_official_openvino_quality_campaign.py \
+  scripts/testing/tests/test_official_openvino_quality_worker.py -q
+```
+
+Result: 57 passed. These fixtures use the existing five-role sequence test
+recorder; they do not import OpenVINO or run model inference.
+
+The strict-sequence follow-up also added a duplicate-key regression. Its
+focused campaign, worker, and sequence suite result was: 73 passed.
+
+The final related suite (campaign adapter, worker, measurement sequence,
+matrix binding, quality runner, and adjudication) result was: 106 passed.
+`py_compile` for every changed Python file and `git diff --check` also exited
+successfully.

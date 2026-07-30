@@ -7,8 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.testing.measure_official_openvino import build_campaign_identity
+from scripts.testing.measure_official_openvino import (
+    build_campaign_identity,
+    run_measurement_sequence,
+)
 from scripts.testing.tests.test_measure_official_openvino_sequence import (
+    _record,
     _setup_campaign,
 )
 
@@ -64,7 +68,7 @@ def _quality_api():
     )
 
 
-def _accepted_input(tmp_path):
+def _skeletal_input(tmp_path):
     QualityCampaignInput, _, _ = _quality_api()
     values = _setup_campaign(tmp_path)
     (
@@ -129,6 +133,36 @@ def _accepted_input(tmp_path):
     )
 
 
+def _accepted_input(tmp_path):
+    source = _skeletal_input(tmp_path)
+    roles = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
+
+    def fake_measurement(**run_kwargs):
+        role = run_kwargs["role"]
+        spec = json.loads(
+            run_kwargs["spec_path"].read_text(encoding="utf-8")
+        )
+        record = _record(role, roles.index(role), spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    run_measurement_sequence(
+        spec_path=source.spec_path,
+        campaign_root=source.campaign_root,
+        matrix_path=source.matrix_path,
+        artifact_manifest_path=source.artifact_manifest_path,
+        build_provenance_path=source.build_provenance_path,
+        build_root=source.build_root,
+        repo_root=source.repo_root,
+        python_executable=source.python_executable,
+        python_site_packages=source.python_site_packages,
+        openvino_libraries=source.openvino_libraries,
+        sampler_script=source.sampler_script,
+        run_measurement=fake_measurement,
+    )
+    return source
+
+
 def _mutate_json(path, mutate):
     value = json.loads(path.read_text(encoding="utf-8"))
     mutate(value)
@@ -141,6 +175,33 @@ def test_quality_campaign_module_exposes_governed_adapter_api():
     assert QualityCampaignInput.__dataclass_params__.frozen is True
     assert callable(load)
     assert callable(build)
+
+
+def test_skeletal_measurement_summary_without_accepted_sequence_rejects(tmp_path):
+    source = _skeletal_input(tmp_path)
+    _, load, _ = _quality_api()
+
+    with pytest.raises(ValueError, match="attempt sequence"):
+        load(source)
+
+
+def test_attempt_sequence_duplicate_json_key_rejects(tmp_path):
+    source = _accepted_input(tmp_path)
+    _, load, _ = _quality_api()
+    sequence_path = source.campaign_root / "attempt-sequence.json"
+    raw = sequence_path.read_text(encoding="utf-8")
+    sequence_path.write_text(
+        raw.replace(
+            '"schema": "official-openvino-wb04-attempt-sequence/v1",',
+            '"schema": "official-openvino-wb04-attempt-sequence/v1",\n'
+            '  "schema": "official-openvino-wb04-attempt-sequence/v1",',
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="invalid JSON artifact"):
+        load(source)
 
 
 def test_accepted_campaign_recomputes_identity_summary_environment_and_worker_spec(tmp_path):
@@ -252,6 +313,56 @@ def test_worker_spec_cannot_accept_model_or_configuration_substitution(tmp_path)
         )
     with pytest.raises(TypeError):
         build(campaign, model_path="C:/attacker/model")
+
+
+@pytest.mark.parametrize("construction", ("replace", "direct"))
+def test_worker_spec_reloads_retained_campaign_not_forged_dataclass_fields(
+    construction,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _, load, build = _quality_api()
+    campaign = load(source)
+    forged_identity = {
+        "identity": {
+            "config": {"device": "GPU", "properties": {"ATTACK": True}},
+            "model": {
+                "validated_artifact": {"artifact_root": "C:/attacker/model"}
+            },
+        }
+    }
+    if construction == "replace":
+        forged = replace(campaign, identity=forged_identity)
+    else:
+        from scripts.testing.official_openvino.quality_campaign import (
+            AcceptedQualityCampaign,
+        )
+
+        forged = AcceptedQualityCampaign(
+            **{
+                **{
+                    field: getattr(campaign, field)
+                    for field in campaign.__dataclass_fields__
+                },
+                "identity": forged_identity,
+            }
+        )
+
+    worker_spec = build(forged)
+
+    assert worker_spec["device"] == "CPU"
+    assert worker_spec["model_path"] != "C:/attacker/model"
+    assert worker_spec["properties"] != {"ATTACK": True}
+
+
+def test_missing_sampler_script_rejects_before_worker_spec(tmp_path):
+    source = replace(
+        _accepted_input(tmp_path), sampler_script=tmp_path / "missing-sampler.py"
+    )
+    _, load, _ = _quality_api()
+
+    with pytest.raises(ValueError, match="sampler script"):
+        load(source)
 
 
 @pytest.mark.parametrize(

@@ -18,12 +18,13 @@ from typing import Any
 
 SPEC_SCHEMA = "official-openvino-wb04-quality-worker-spec/v1"
 RESULT_SCHEMA = "official-openvino-wb04-quality-worker-result/v1"
-GENERATION_SETTINGS = {
-    "max_new_tokens": 256,
-    "do_sample": False,
-    "rng_seed": 42,
-    "apply_chat_template": False,
-}
+_FIXED_GENERATION_SETTINGS = (
+    ("max_new_tokens", 256),
+    ("do_sample", False),
+    ("rng_seed", 42),
+    ("apply_chat_template", False),
+)
+GENERATION_SETTINGS = MappingProxyType(dict(_FIXED_GENERATION_SETTINGS))
 _EXPECTED_PROMPTS = (
     ("P1", "turn_1"),
     ("P2", "turn_1"),
@@ -149,12 +150,12 @@ def _validate_spec(spec: Mapping[str, Any]) -> _NormalizedSpec:
     settings = snapshot["generation_settings"]
     if (
         not isinstance(settings, Mapping)
-        or set(settings) != set(GENERATION_SETTINGS)
+        or set(settings) != {field for field, _ in _FIXED_GENERATION_SETTINGS}
     ):
         raise ValueError("quality worker generation settings are not frozen")
     if any(
         type(settings[field]) is not type(expected) or settings[field] != expected
-        for field, expected in GENERATION_SETTINGS.items()
+        for field, expected in _FIXED_GENERATION_SETTINGS
     ):
         raise ValueError("quality worker generation settings are not frozen")
     normalized_settings = MappingProxyType(dict(settings))

@@ -12,9 +12,16 @@ from types import MappingProxyType
 from typing import Any
 
 from scripts.testing.measure_official_openvino import (
+    SEQUENCE_ROLES,
+    SEQUENCE_SCHEMA,
+    _resumable_attempt,
+    _role_spec,
+    _sequence_spec,
     build_campaign_identity,
     build_worker_environment,
+    measurement_sample,
 )
+from scripts.testing.official_openvino.metrics import summarize_samples
 from scripts.testing.official_openvino.quality_worker import (
     GENERATION_SETTINGS,
     SPEC_SCHEMA,
@@ -131,6 +138,7 @@ def _read_summary(
     root: Path,
     *,
     identity: Mapping[str, Any],
+    spec_path: Path,
 ) -> tuple[Mapping[str, Any], str, str]:
     source = Path(root) / "measurement-summary.json"
     try:
@@ -171,6 +179,61 @@ def _read_summary(
     for field, expected_value in expected_fields.items():
         if summary.get(field) != expected_value:
             raise ValueError(f"measurement summary {field.replace('_', ' ')} mismatch")
+    try:
+        template = _sequence_spec(spec_path)
+        completed = []
+        for role in SEQUENCE_ROLES:
+            resumed = _resumable_attempt(
+                campaign_root=Path(root),
+                role=role,
+                role_spec=_role_spec(template, role, expected_identity),
+                identity_sha256=expected_identity,
+                matrix_case=identity["identity"]["matrix"]["case"],
+            )
+            if resumed is None:
+                raise ValueError(f"{role} accepted attempt is missing")
+            completed.append(resumed)
+        expected_summary = summarize_samples(
+            [measurement_sample(record, source) for _, record, source in completed[2:]]
+        )
+    except (RuntimeError, ValueError) as error:
+        raise ValueError(f"measurement attempt sequence is invalid: {error}") from error
+    expected_summary.update(
+        {
+            "accepted": True,
+            "cleanup_process_count": 0,
+            "test_id": template["controlled_test_id"],
+            "context_tokens": template["context"],
+            "campaign_identity_sha256": expected_identity,
+            "runtime_config_sha256": expected_config,
+        }
+    )
+    expected_summary = json.loads(
+        json.dumps(expected_summary, allow_nan=False)
+    )
+    if summary != expected_summary:
+        raise ValueError("measurement summary does not match accepted attempts")
+    expected_sequence = {
+        "schema": SEQUENCE_SCHEMA,
+        "campaign_identity_sha256": expected_identity,
+        "pilot_passed": True,
+        "warmup_excluded": True,
+        "pilot": completed[0][0],
+        "warmup": completed[1][0],
+        "accepted_samples": [receipt for receipt, _, _ in completed[2:]],
+        "accepted_sample_count": 3,
+        "cleanup_process_count": 0,
+        "measurement_summary_path": "measurement-summary.json",
+        "measurement_summary_sha256": hashlib.sha256(raw).hexdigest(),
+    }
+    sequence_source = Path(root) / "attempt-sequence.json"
+    try:
+        sequence_raw = sequence_source.read_bytes()
+    except OSError as error:
+        raise ValueError("measurement attempt sequence is missing or unreadable") from error
+    sequence = parse_json_bytes_strict(sequence_raw, source=sequence_source)
+    if sequence != expected_sequence:
+        raise ValueError("measurement attempt sequence does not match accepted attempts")
     return _freeze(summary), hashlib.sha256(raw).hexdigest(), expected_config
 
 
@@ -205,11 +268,14 @@ def load_accepted_quality_campaign(
         or input.timeout_seconds <= 0
     ):
         raise ValueError("quality campaign timeout must be positive")
+    if not Path(input.sampler_script).resolve().is_file():
+        raise ValueError("sampler script file is missing")
     recomputed = build_campaign_identity(**_identity_arguments(input))
     identity = _read_identity(input.campaign_root, recomputed)
     summary, summary_sha256, config_sha256 = _read_summary(
         input.campaign_root,
         identity=identity,
+        spec_path=input.spec_path,
     )
     prompt_contract = _freeze(
         load_prompt_contract(input.prompt_set_path, input.rendered_root)
@@ -250,10 +316,18 @@ def build_quality_worker_spec(campaign: AcceptedQualityCampaign) -> dict[str, An
 
     if not isinstance(campaign, AcceptedQualityCampaign):
         raise TypeError("campaign must be AcceptedQualityCampaign")
-    identity = campaign.identity["identity"]
+    refreshed = load_accepted_quality_campaign(
+        QualityCampaignInput(
+            **{
+                field: getattr(campaign, field)
+                for field in QualityCampaignInput.__dataclass_fields__
+            }
+        )
+    )
+    identity = refreshed.identity["identity"]
     config = identity["config"]
     model_path = identity["model"]["validated_artifact"]["artifact_root"]
-    prompts = campaign.prompt_contract["prompts"]
+    prompts = refreshed.prompt_contract["prompts"]
     return {
         "schema": SPEC_SCHEMA,
         "model_path": str(Path(model_path).resolve()),

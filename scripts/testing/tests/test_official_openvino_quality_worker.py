@@ -3,6 +3,7 @@ import json
 import sys
 from collections.abc import Mapping
 from types import SimpleNamespace
+from types import MappingProxyType
 
 import pytest
 
@@ -163,6 +164,26 @@ def test_non_frozen_generation_settings_reject_before_pipeline_creation(monkeypa
     monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
     spec = _spec()
     spec["generation_settings"]["max_new_tokens"] = 255
+
+    with pytest.raises(ValueError, match="generation settings"):
+        _worker()(spec)
+
+    assert fake.instances == []
+
+
+def test_generation_settings_constant_cannot_be_mutated_or_weaken_validation(
+    monkeypatch,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    assert isinstance(quality_worker.GENERATION_SETTINGS, MappingProxyType)
+    with pytest.raises(TypeError):
+        quality_worker.GENERATION_SETTINGS["max_new_tokens"] = 1
+
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+    spec = _spec()
+    spec["generation_settings"]["max_new_tokens"] = 1
 
     with pytest.raises(ValueError, match="generation settings"):
         _worker()(spec)
