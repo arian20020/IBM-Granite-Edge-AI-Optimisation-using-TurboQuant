@@ -42,3 +42,35 @@ python -m unittest scripts.testing.tests.test_official_openvino_matrix scripts.t
 No inference, model execution, or hardware launch was run. Existing unrelated
 uncommitted changes in `runtime_measurement.py` and
 `test_official_openvino_measurement.py` were deliberately not staged.
+
+## Matrix Task fix round 1/5
+
+RED verification:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_campaign_matrix_binding.py
+# 5 failed, 4 passed
+```
+
+The failures proved that worker prelaunch accepted missing/tampered
+`attention_path` and `suitable_host_required`, did not stop a suitable-host
+row, and derived scalar proof from mutable legacy `k_algorithm`/`v_algorithm`
+labels instead of the frozen route.
+
+GREEN verification:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_campaign_matrix_binding.py
+# 9 passed in 0.05s
+
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_measure_official_openvino_sequence.py scripts/testing/tests/test_official_openvino_campaign_matrix_binding.py scripts/testing/tests/test_official_openvino_campaign_spec.py
+# 35 passed in 1.28s
+
+python -m unittest scripts.testing.tests.test_official_openvino_matrix scripts.testing.tests.test_official_openvino_measurement -v
+# Ran 36 tests in 0.060s; OK
+```
+
+The worker now reads all eleven frozen fields before launch, validates
+attention against the frozen route/outcome, rejects a suitable-host row from
+the local worker path, and keys scalar precision proof only to
+`execution_route == "upstream-scalar"`.

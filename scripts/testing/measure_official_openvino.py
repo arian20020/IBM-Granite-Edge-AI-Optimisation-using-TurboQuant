@@ -41,6 +41,19 @@ CAMPAIGN_SCHEMA = "official-openvino-wb04-campaign-identity/v1"
 RECEIPT_SCHEMA = "official-openvino-wb04-sequence-receipt/v1"
 SEQUENCE_SCHEMA = "official-openvino-wb04-attempt-sequence/v1"
 _ATTEMPT_DIRECTORY = re.compile(r"^attempt-(\d{3})$")
+_FROZEN_EXECUTION_FIELDS = (
+    "key_cache_precision",
+    "value_cache_precision",
+    "requested_device",
+    "runtime_key_algorithm",
+    "runtime_value_algorithm",
+    "norm_correction",
+    "attention_path",
+    "execution_route",
+    "expected_outcome",
+    "suitable_host_required",
+    "numeric_generation_metrics_expected",
+)
 
 
 def _directory(path: Path, field: str) -> Path:
@@ -175,6 +188,34 @@ def _frozen_case_field(case: Mapping[str, Any], field: str) -> Any:
     return case[field]
 
 
+def _frozen_execution_contract(case: Mapping[str, Any]) -> dict[str, Any]:
+    """Read every frozen execution field before considering a worker launch."""
+
+    contract = {
+        field: _frozen_case_field(case, field)
+        for field in _FROZEN_EXECUTION_FIELDS
+    }
+    route = contract["execution_route"]
+    outcome = contract["expected_outcome"]
+    if route == "non-runtime":
+        expected_attention = "not-applicable-non-runtime"
+    elif outcome == "expected-rejection":
+        expected_attention = "not-produced-by-expected-rejection"
+    elif route == "patched-stateful":
+        expected_attention = "stateful_sdpa_reference_codec"
+    elif route in {"upstream-scalar", "stateful-standard", "device-standard"}:
+        expected_attention = "stateful_sdpa_standard"
+    else:
+        expected_attention = None
+    if contract["attention_path"] != expected_attention:
+        raise ValueError(
+            "matrix attention path does not match the frozen route/outcome"
+        )
+    if type(contract["suitable_host_required"]) is not bool:
+        raise ValueError("matrix suitable host requirement is invalid")
+    return contract
+
+
 def _device_family(value: Any, *, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} is missing")
@@ -190,24 +231,29 @@ def validate_worker_spec_against_matrix_case(
 ) -> None:
     """Fail before launch when a worker spec diverges from its matrix row."""
 
+    frozen = _frozen_execution_contract(case)
     if spec.get("controlled_test_id") != case.get("test_id"):
         raise ValueError("worker spec test ID does not match the matrix case")
-    if _frozen_case_field(case, "expected_outcome") != "pass":
+    if frozen["expected_outcome"] != "pass":
         raise ValueError("matrix expected outcome prohibits worker execution")
-    if _frozen_case_field(case, "execution_route") not in {
+    if frozen["execution_route"] not in {
         "patched-stateful",
         "stateful-standard",
         "upstream-scalar",
         "device-standard",
     }:
         raise ValueError("matrix execution route prohibits worker execution")
-    if _frozen_case_field(case, "numeric_generation_metrics_expected") is not True:
+    if frozen["numeric_generation_metrics_expected"] is not True:
         raise ValueError("matrix numeric generation metrics are not expected")
+    if frozen["suitable_host_required"]:
+        raise ValueError(
+            "matrix suitable host requirement prohibits local worker execution"
+        )
     contexts = case.get("contexts")
     if not isinstance(contexts, list) or spec.get("context") not in contexts:
         raise ValueError("worker spec context does not match the matrix case")
     expected_device = _device_family(
-        _frozen_case_field(case, "requested_device"), field="matrix requested device"
+        frozen["requested_device"], field="matrix requested device"
     )
     if _device_family(spec.get("device"), field="worker spec device") != (
         expected_device
@@ -217,8 +263,8 @@ def validate_worker_spec_against_matrix_case(
     properties = spec.get("properties")
     if not isinstance(properties, Mapping):
         raise ValueError("worker spec properties are missing")
-    expected_key = _frozen_case_field(case, "runtime_key_algorithm")
-    expected_value = _frozen_case_field(case, "runtime_value_algorithm")
+    expected_key = frozen["runtime_key_algorithm"]
+    expected_value = frozen["runtime_value_algorithm"]
     turboquant = expected_key != "STANDARD" or expected_value != "STANDARD"
     if turboquant:
         if properties.get("TURBOQUANT_KEY_ALGORITHM") != expected_key:
@@ -232,7 +278,7 @@ def validate_worker_spec_against_matrix_case(
                 "the matrix case"
             )
         if properties.get("TURBOQUANT_NORM_CORRECTION") is not (
-            _frozen_case_field(case, "norm_correction")
+            frozen["norm_correction"]
         ):
             raise ValueError(
                 "worker spec norm correction does not match the matrix case"
@@ -260,7 +306,7 @@ def validate_worker_spec_against_matrix_case(
                     "owned by TurboQuant"
                 )
             continue
-        precision = _frozen_case_field(case, precision_field)
+        precision = frozen[precision_field]
         if precision in {"f16", "bf16", "u8", "u4"} and (
             properties.get(f"{side}_CACHE_PRECISION") != precision
         ):
@@ -329,10 +375,7 @@ def validate_runtime_record_against_matrix_case(
     if activation.get("attention_path") != expected_attention:
         raise ValueError("activation attention path differs from the matrix")
 
-    scalar_control = (
-        case.get("k_algorithm") == "scalar"
-        and case.get("v_algorithm") == "scalar"
-    )
+    scalar_control = _frozen_case_field(case, "execution_route") == "upstream-scalar"
     for side, algorithm, precision_field in (
         ("key", expected_key, "key_cache_precision"),
         ("value", expected_value, "value_cache_precision"),
