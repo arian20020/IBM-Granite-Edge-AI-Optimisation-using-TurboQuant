@@ -50,6 +50,12 @@ def _clean_inputs(tmp_path: Path) -> tuple[Path, Path, Path]:
     return build, model, cache
 
 
+def _clean_u4_model(tmp_path: Path) -> Path:
+    model = tmp_path / "u4 model path"
+    model.mkdir()
+    return model
+
+
 def _generate(tmp_path: Path, *, output_name: str = "spec output"):
     build, model, cache = _clean_inputs(tmp_path)
     output = tmp_path / output_name
@@ -239,6 +245,79 @@ def test_worker_specs_bind_exact_matrix_runtime_contract(tmp_path):
     )
 
 
+def test_explicit_u4_model_binding_adds_only_tq02_with_exact_scalar_properties(
+    tmp_path,
+):
+    build, u8_model, cache = _clean_inputs(tmp_path)
+    u4_model = _clean_u4_model(tmp_path)
+    output = tmp_path / "u8 and u4 spec output"
+
+    result = generate_formal_u8_granite3b_specs(
+        matrix_path=MATRIX,
+        build_root=build,
+        model_path=u8_model,
+        u4_model_path=u4_model,
+        cache_root=cache,
+        output_root=output,
+    )
+
+    spec_paths = sorted(output.glob("OV-TQ-*/context-*/spec.json"))
+    assert len(spec_paths) == 21
+    assert result["spec_count"] == 21
+    assert (output / "OV-TQ-18").exists() is False
+
+    scalar_u4 = _read_spec(output, "OV-TQ-02", 4096)
+    assert scalar_u4["model_path"] == str(u4_model.resolve())
+    assert scalar_u4["model_path"] != str(u8_model.resolve())
+    assert scalar_u4["properties"] == {
+        "ATTENTION_BACKEND": "SDPA",
+        "CACHE_DIR": str(
+            (cache / "OV-TQ-02" / "context-4096").resolve()
+        ),
+        "ENABLE_CPU_PINNING": False,
+        "INFERENCE_NUM_THREADS": 1,
+        "KEY_CACHE_PRECISION": "u4",
+        "NUM_STREAMS": 1,
+        "PERFORMANCE_HINT": "LATENCY",
+        "VALUE_CACHE_PRECISION": "u4",
+    }
+    assert _read_spec(output, "OV-TQ-01", 4096)["model_path"] == str(
+        u8_model.resolve()
+    )
+
+
+def test_explicit_u4_model_binding_fails_closed_when_u4_model_is_missing(
+    tmp_path,
+):
+    build, model, cache = _clean_inputs(tmp_path)
+
+    with pytest.raises(ValueError, match="U4 model"):
+        generate_formal_u8_granite3b_specs(
+            matrix_path=MATRIX,
+            build_root=build,
+            model_path=model,
+            u4_model_path=tmp_path / "missing u4 model",
+            cache_root=cache,
+            output_root=tmp_path / "output",
+        )
+
+
+def test_explicit_u4_model_binding_rejects_the_u8_model_directory(
+    tmp_path,
+):
+    build, model, cache = _clean_inputs(tmp_path)
+
+    with pytest.raises(ValueError, match="must differ"):
+        generate_formal_u8_granite3b_specs(
+            matrix_path=MATRIX,
+            build_root=build,
+            model_path=model,
+            u4_model_path=model,
+            cache_root=cache,
+            output_root=tmp_path / "output",
+        )
+
+
 def test_every_generated_spec_is_accepted_by_sequence_contract_for_all_roles(
     tmp_path,
 ):
@@ -331,3 +410,40 @@ def test_cli_generates_specs_from_explicit_paths_without_running_inference(
     assert summary["expected_rejection_count"] == 1
     assert (output / "OV-TQ-01/context-4096/spec.json").is_file()
     assert (output / "expected-rejections.json").is_file()
+
+
+def test_cli_accepts_explicit_u4_model_binding_without_running_inference(
+    tmp_path,
+):
+    build, model, cache = _clean_inputs(tmp_path)
+    u4_model = _clean_u4_model(tmp_path)
+    output = tmp_path / "u4 cli output"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--matrix",
+            str(MATRIX),
+            "--build-root",
+            str(build),
+            "--model-path",
+            str(model),
+            "--u4-model-path",
+            str(u4_model),
+            "--cache-root",
+            str(cache),
+            "--output-root",
+            str(output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    summary = json.loads(result.stdout)
+    assert summary["spec_count"] == 21
+    assert _read_spec(output, "OV-TQ-02", 4096)["model_path"] == str(
+        u4_model.resolve()
+    )

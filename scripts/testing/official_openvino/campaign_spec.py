@@ -68,7 +68,11 @@ def _matrix_case_record(case: OpenVINOCase) -> dict[str, Any]:
     return value
 
 
-def _selected_cases(matrix_path: Path) -> tuple[Path, list[OpenVINOCase]]:
+def _selected_cases(
+    matrix_path: Path,
+    *,
+    model_paths_by_weight_precision: dict[str, Path],
+) -> tuple[Path, list[OpenVINOCase]]:
     source = Path(matrix_path).resolve()
     if not source.is_file():
         raise ValueError(f"retest matrix file is missing: {source}")
@@ -77,11 +81,12 @@ def _selected_cases(matrix_path: Path) -> tuple[Path, list[OpenVINOCase]]:
         for case in load_matrix(source)
         if case.phase == "formal"
         and case.model == "granite-3b"
-        and case.weight_precision == "u8"
+        and case.weight_precision in model_paths_by_weight_precision
     ]
     if not selected:
         raise ValueError(
-            "retest matrix has no formal U8 Granite 3B campaign rows"
+            "retest matrix has no formal Granite 3B campaign rows for the "
+            "supplied model precision bindings"
         )
     return source, selected
 
@@ -91,20 +96,34 @@ def generate_formal_u8_granite3b_specs(
     matrix_path: Path,
     build_root: Path,
     model_path: Path,
+    u4_model_path: Path | None = None,
     cache_root: Path,
     output_root: Path,
 ) -> dict[str, object]:
     """Write one sequence template per runnable formal row/context.
 
     Expected-rejection rows are recorded separately and can never reach the
-    measurement worker.
+    measurement worker. Supplying ``u4_model_path`` opts in to formal U4 rows
+    and binds them only to that directory.
     """
 
     build = _build_root(build_root)
-    model = _directory(model_path, "model")
+    model_paths_by_weight_precision = {
+        "u8": _directory(model_path, "model"),
+    }
+    if u4_model_path is not None:
+        u4_model = _directory(u4_model_path, "U4 model")
+        if u4_model == model_paths_by_weight_precision["u8"]:
+            raise ValueError(
+                "U4 model directory must differ from the U8 model directory"
+            )
+        model_paths_by_weight_precision["u4"] = u4_model
     cache = _directory(cache_root, "cache")
     output = _empty_output_root(output_root)
-    matrix, cases = _selected_cases(matrix_path)
+    matrix, cases = _selected_cases(
+        matrix_path,
+        model_paths_by_weight_precision=model_paths_by_weight_precision,
+    )
 
     planned_specs: list[tuple[Path, dict[str, Any]]] = []
     rejections: list[dict[str, Any]] = []
@@ -129,6 +148,12 @@ def generate_formal_u8_granite3b_specs(
                 f"{case.test_id} has no runnable formal execution contract"
             )
 
+        case_model = model_paths_by_weight_precision.get(case.weight_precision)
+        if case_model is None:
+            raise ValueError(
+                f"{case.test_id} has no model binding for weight precision "
+                f"{case.weight_precision}"
+            )
         for context in case.contexts:
             workload = build_context_workload(context)
             campaign_cache = (
@@ -151,7 +176,7 @@ def generate_formal_u8_granite3b_specs(
                 "expected_input_tokens": workload[
                     "expected_input_tokens"
                 ],
-                "model_path": str(model),
+                "model_path": str(case_model),
                 "device": runtime["device"],
                 "prompt": workload["prompt"],
                 "max_new_tokens": 4,
@@ -183,9 +208,9 @@ def generate_formal_u8_granite3b_specs(
             "rejections": rejections,
         },
     )
-    return {
+    result: dict[str, object] = {
         "build_root": str(build),
-        "model_path": str(model),
+        "model_path": str(model_paths_by_weight_precision["u8"]),
         "output_root": str(output),
         "spec_count": len(planned_specs),
         "expected_rejection_count": len(rejections),
@@ -194,6 +219,9 @@ def generate_formal_u8_granite3b_specs(
         ],
         "expected_rejections_path": str(rejection_path),
     }
+    if "u4" in model_paths_by_weight_precision:
+        result["u4_model_path"] = str(model_paths_by_weight_precision["u4"])
+    return result
 
 
 __all__ = ["generate_formal_u8_granite3b_specs"]

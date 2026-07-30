@@ -21,6 +21,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--matrix", dest="matrix_path", type=Path, required=True)
     parser.add_argument("--build-root", type=Path, required=True)
     parser.add_argument("--model-path", type=Path, required=True)
+    parser.add_argument("--u4-model-path", type=Path)
     parser.add_argument("--cache-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     return parser
@@ -34,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
             matrix_path=args.matrix_path,
             build_root=args.build_root,
             model_path=args.model_path,
+            u4_model_path=args.u4_model_path,
             cache_root=args.cache_root,
             output_root=args.output_root,
         )
