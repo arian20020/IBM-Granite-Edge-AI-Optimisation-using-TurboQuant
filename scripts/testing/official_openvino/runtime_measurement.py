@@ -335,7 +335,7 @@ def build_runtime_property_spec(
             "properties": {
                 "ATTENTION_BACKEND": "SDPA",
                 "CACHE_DIR": cache_dir,
-                "NUM_STREAMS": 1,
+                "NUM_STREAMS": "1",
                 "PERFORMANCE_HINT": "LATENCY",
             },
         }

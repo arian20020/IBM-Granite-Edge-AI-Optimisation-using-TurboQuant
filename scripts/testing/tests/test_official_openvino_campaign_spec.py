@@ -208,9 +208,10 @@ def test_opt_in_baselines_adds_cpu_and_exact_gpu0_specs_and_rejections(
     assert gpu["properties"] == {
         "ATTENTION_BACKEND": "SDPA",
         "CACHE_DIR": str((cache / "OV-06" / "context-4096").resolve()),
-        "NUM_STREAMS": 1,
+        "NUM_STREAMS": "1",
         "PERFORMANCE_HINT": "LATENCY",
     }
+    assert type(gpu["properties"]["NUM_STREAMS"]) is str
 
     rejection = json.loads((output / "expected-rejections.json").read_text())
     assert {

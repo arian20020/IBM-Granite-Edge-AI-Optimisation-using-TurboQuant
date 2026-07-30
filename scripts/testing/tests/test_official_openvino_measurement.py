@@ -274,6 +274,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(standard["device"], "CPU")
         self.assertEqual(standard["properties"]["KEY_CACHE_PRECISION"], "u8")
         self.assertEqual(standard["properties"]["VALUE_CACHE_PRECISION"], "u4")
+        self.assertIs(type(standard["properties"]["NUM_STREAMS"]), int)
+        self.assertEqual(standard["properties"]["NUM_STREAMS"], 1)
         self.assertNotIn("TURBOQUANT_KEY_ALGORITHM", standard["properties"])
 
         mixed = build_runtime_property_spec(
@@ -301,7 +303,7 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         expected_properties = {
             "ATTENTION_BACKEND": "SDPA",
             "CACHE_DIR": "cache",
-            "NUM_STREAMS": 1,
+            "NUM_STREAMS": "1",
             "PERFORMANCE_HINT": "LATENCY",
         }
         for device, expected_device in (
@@ -321,6 +323,7 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 )
                 self.assertEqual(spec["device"], expected_device)
                 self.assertEqual(spec["properties"], expected_properties)
+                self.assertIs(type(spec["properties"]["NUM_STREAMS"]), str)
 
     def test_gpu_runtime_property_spec_rejects_ambiguous_routes_and_overrides(self):
         common = {
