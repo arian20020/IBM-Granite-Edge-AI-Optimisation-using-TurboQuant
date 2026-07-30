@@ -1007,14 +1007,23 @@ _GOVERNED_FILE_PATHS = {
 }
 
 
-def _stat_identity(value: os.stat_result) -> tuple[int, ...]:
+def _stat_identity(
+    value: os.stat_result,
+    *,
+    handle_compatible: bool = False,
+) -> tuple[int, ...]:
+    ctime_ns = (
+        getattr(value, "st_birthtime_ns", value.st_ctime_ns)
+        if handle_compatible and os.name == "nt"
+        else value.st_ctime_ns
+    )
     return (
         int(value.st_dev),
         int(value.st_ino),
         int(value.st_mode),
         int(value.st_size),
         int(value.st_mtime_ns),
-        int(value.st_ctime_ns),
+        int(ctime_ns),
         int(value.st_nlink),
         int(getattr(value, "st_file_attributes", 0)),
         int(getattr(value, "st_reparse_tag", 0)),
@@ -1065,6 +1074,7 @@ def _snapshot_path(path: Path, *, kind: str) -> _EvidenceSnapshot:
     if _is_reparse(before):
         raise ValueError(f"quality evidence link or reparse alias: {path}")
     before_identity = _stat_identity(before)
+    before_handle_identity = _stat_identity(before, handle_compatible=True)
     if kind == "directory":
         if not stat.S_ISDIR(before.st_mode):
             raise ValueError(f"quality evidence directory is invalid: {path}")
@@ -1097,7 +1107,8 @@ def _snapshot_path(path: Path, *, kind: str) -> _EvidenceSnapshot:
                 _is_reparse(opened)
                 or not stat.S_ISREG(opened.st_mode)
                 or opened.st_nlink != 1
-                or _stat_identity(opened) != before_identity
+                or _stat_identity(opened, handle_compatible=True)
+                != before_handle_identity
             ):
                 raise ValueError(
                     f"quality evidence file identity changed: {path}"
@@ -1115,7 +1126,8 @@ def _snapshot_path(path: Path, *, kind: str) -> _EvidenceSnapshot:
             f"quality evidence file changed after reading: {path}"
         ) from error
     if (
-        _stat_identity(read_complete) != before_identity
+        _stat_identity(read_complete, handle_compatible=True)
+        != before_handle_identity
         or _is_reparse(after)
         or _stat_identity(after) != before_identity
     ):

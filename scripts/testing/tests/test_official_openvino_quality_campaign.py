@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
@@ -1248,6 +1249,25 @@ def test_governed_capture_launches_once_and_publishes_six_hash_bound_records(
     for path in _quality_artifact_paths(root):
         value = _read_capture_json(path)
         assert path.read_bytes() == _canonical_bytes(value)
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="Windows path and handle metadata use different ctime semantics",
+)
+def test_snapshot_accepts_unchanged_hardlink_published_file_on_windows(tmp_path):
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    temporary = tmp_path / ".evidence.json.tmp"
+    published = tmp_path / "evidence.json"
+    temporary.write_bytes(b'{"evidence":"unchanged"}\n')
+    time.sleep(0.01)
+    os.link(temporary, published)
+    temporary.unlink()
+
+    snapshot = module._snapshot_path(published, kind="file")
+
+    assert snapshot.raw == b'{"evidence":"unchanged"}\n'
 
 
 def test_governed_capture_binds_actual_p6_turn_one_and_exact_worker_prompt(
