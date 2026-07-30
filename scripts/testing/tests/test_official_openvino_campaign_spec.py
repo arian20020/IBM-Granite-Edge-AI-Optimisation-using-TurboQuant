@@ -178,6 +178,55 @@ def test_explicit_u4_binding_records_tq02_semantic_rejection_without_a_spec(
     } == {"OV-TQ-01", "OV-TQ-02", "OV-TQ-18"}
 
 
+def test_opt_in_baselines_adds_cpu_and_exact_gpu0_specs_and_rejections(
+    tmp_path,
+):
+    build, u8_model, cache = _clean_inputs(tmp_path)
+    u4_model = _clean_u4_model(tmp_path)
+    output = tmp_path / "complete local 3b spec output"
+
+    result = generate_formal_u8_granite3b_specs(
+        matrix_path=MATRIX,
+        build_root=build,
+        model_path=u8_model,
+        u4_model_path=u4_model,
+        cache_root=cache,
+        output_root=output,
+        include_baselines=True,
+    )
+
+    assert result["spec_count"] == 21
+    cpu = _read_spec(output, "OV-03", 4096)
+    assert cpu["device"] == "CPU"
+    assert cpu["properties"]["KEY_CACHE_PRECISION"] == "f16"
+    assert cpu["properties"]["VALUE_CACHE_PRECISION"] == "f16"
+    assert not any(key.startswith("TURBOQUANT_") for key in cpu["properties"])
+
+    gpu = _read_spec(output, "OV-06", 4096)
+    assert gpu["device"] == "GPU.0"
+    assert gpu["properties"] == {
+        "ATTENTION_BACKEND": "SDPA",
+        "CACHE_DIR": str((cache / "OV-06" / "context-4096").resolve()),
+        "NUM_STREAMS": 1,
+        "PERFORMANCE_HINT": "LATENCY",
+    }
+
+    rejection = json.loads((output / "expected-rejections.json").read_text())
+    assert {
+        item["matrix_case"]["test_id"] for item in rejection["rejections"]
+    } == {"OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02", "OV-TQ-18"}
+    assert not (output / "OV-04").exists()
+    assert not (output / "OV-05").exists()
+
+    for test_id in ("OV-03", "OV-06"):
+        template = _sequence_spec(
+            output / test_id / "context-4096" / "spec.json"
+        )
+        for role in SEQUENCE_ROLES:
+            role_spec = _role_spec(template, role, "b" * 64)
+            assert role_spec["role"] == role
+
+
 def test_explicit_u4_model_binding_fails_closed_when_u4_model_is_missing(
     tmp_path,
 ):
@@ -340,3 +389,41 @@ def test_cli_accepts_explicit_u4_model_binding_without_running_inference(
     assert {
         item["matrix_case"]["test_id"] for item in rejection["rejections"]
     } == {"OV-TQ-01", "OV-TQ-02", "OV-TQ-18"}
+
+
+def test_cli_can_opt_in_complete_local_u8_baselines_without_inference(
+    tmp_path,
+):
+    build, model, cache = _clean_inputs(tmp_path)
+    u4_model = _clean_u4_model(tmp_path)
+    output = tmp_path / "complete local cli output"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--matrix",
+            str(MATRIX),
+            "--build-root",
+            str(build),
+            "--model-path",
+            str(model),
+            "--u4-model-path",
+            str(u4_model),
+            "--include-baselines",
+            "--cache-root",
+            str(cache),
+            "--output-root",
+            str(output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    summary = json.loads(result.stdout)
+    assert summary["spec_count"] == 21
+    assert summary["expected_rejection_count"] == 5
+    assert (output / "OV-03/context-4096/spec.json").is_file()
+    assert (output / "OV-06/context-4096/spec.json").is_file()

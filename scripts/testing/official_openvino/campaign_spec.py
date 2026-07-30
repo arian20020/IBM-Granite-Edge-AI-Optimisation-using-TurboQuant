@@ -17,7 +17,7 @@ SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
 EXPECTED_REJECTIONS_SCHEMA = (
     "official-openvino-wb04-expected-rejections/v1"
 )
-_SAFE_TEST_ID = re.compile(r"^OV-TQ-[0-9]{2}$")
+_SAFE_TEST_ID = re.compile(r"^OV-(?:TQ-)?[0-9]{2}$")
 _REJECTION_REASON = (
     "matrix execution contract declares expected-rejection; "
     "worker spec generation is prohibited"
@@ -72,6 +72,7 @@ def _selected_cases(
     matrix_path: Path,
     *,
     model_paths_by_weight_precision: dict[str, Path],
+    include_baselines: bool,
 ) -> tuple[Path, list[OpenVINOCase]]:
     source = Path(matrix_path).resolve()
     if not source.is_file():
@@ -79,7 +80,10 @@ def _selected_cases(
     selected = [
         case
         for case in load_matrix(source)
-        if case.phase == "formal"
+        if (
+            case.phase == "formal"
+            or (include_baselines and case.phase == "baseline")
+        )
         and case.model == "granite-3b"
         and case.weight_precision in model_paths_by_weight_precision
     ]
@@ -99,14 +103,19 @@ def generate_formal_u8_granite3b_specs(
     u4_model_path: Path | None = None,
     cache_root: Path,
     output_root: Path,
+    include_baselines: bool = False,
 ) -> dict[str, object]:
     """Write one sequence template per runnable formal row/context.
 
     Expected-rejection rows are recorded separately and can never reach the
-    measurement worker. Supplying ``u4_model_path`` opts in to formal U4 rows
-    and binds them only to that directory.
+    measurement worker. Supplying ``u4_model_path`` opts in to U4 rows and
+    binds them only to that directory. ``include_baselines`` additionally
+    selects runnable Granite 3B baseline rows while preserving the formal-only
+    default.
     """
 
+    if type(include_baselines) is not bool:
+        raise ValueError("include_baselines must be a boolean")
     build = _build_root(build_root)
     model_paths_by_weight_precision = {
         "u8": _directory(model_path, "model"),
@@ -123,6 +132,7 @@ def generate_formal_u8_granite3b_specs(
     matrix, cases = _selected_cases(
         matrix_path,
         model_paths_by_weight_precision=model_paths_by_weight_precision,
+        include_baselines=include_baselines,
     )
 
     planned_specs: list[tuple[Path, dict[str, Any]]] = []
@@ -159,8 +169,16 @@ def generate_formal_u8_granite3b_specs(
             campaign_cache = (
                 cache / case.test_id / f"context-{context}"
             ).resolve()
+            runtime_device = (
+                "GPU.0"
+                if (
+                    case.execution_route == "device-standard"
+                    and case.requested_device == "GPU"
+                )
+                else case.device
+            )
             runtime = build_runtime_property_spec(
-                device=case.device,
+                device=runtime_device,
                 key_algorithm=contract.runtime_key_algorithm,
                 value_algorithm=contract.runtime_value_algorithm,
                 key_cache_precision=case.k_precision,

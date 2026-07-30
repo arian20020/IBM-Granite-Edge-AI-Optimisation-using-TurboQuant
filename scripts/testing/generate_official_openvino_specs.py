@@ -22,6 +22,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--build-root", type=Path, required=True)
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--u4-model-path", type=Path)
+    parser.add_argument("--include-baselines", action="store_true")
     parser.add_argument("--cache-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     return parser
@@ -38,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
             u4_model_path=args.u4_model_path,
             cache_root=args.cache_root,
             output_root=args.output_root,
+            include_baselines=args.include_baselines,
         )
     except ValueError as error:
         parser.error(str(error))
