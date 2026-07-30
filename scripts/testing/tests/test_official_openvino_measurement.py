@@ -15,6 +15,7 @@ from scripts.testing.official_openvino.runtime_measurement import (
 )
 from scripts.testing.official_openvino.measurement_worker import (
     extract_performance_metrics,
+    generate_decoded_result,
     materialize_openvino_properties,
 )
 
@@ -27,6 +28,38 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 
 class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
+    def test_worker_uses_one_item_batch_to_preserve_decoded_perf_metrics(self):
+        class Result:
+            texts = ["measured output"]
+            perf_metrics = object()
+
+        class Pipeline:
+            def __init__(self):
+                self.inputs = None
+                self.config = None
+                self.streamer = None
+
+            def generate(self, inputs, config, streamer=None):
+                self.inputs = inputs
+                self.config = config
+                self.streamer = streamer
+                streamer("measured")
+                return Result()
+
+        pipeline = Pipeline()
+        chunks = []
+        result, output = generate_decoded_result(
+            pipeline,
+            "prompt",
+            object(),
+            lambda chunk: chunks.append(chunk) or False,
+        )
+
+        self.assertIs(result.perf_metrics, Result.perf_metrics)
+        self.assertEqual(output, "measured output")
+        self.assertEqual(pipeline.inputs, ["prompt"])
+        self.assertEqual(chunks, ["measured"])
+
     def test_worker_materializes_only_precision_property_values(self):
         class Type:
             f16 = object()
@@ -56,7 +89,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 self.std = 0
 
         class Raw:
-            token_infer_durations = [200.0, 20.0, 30.0]
+            # OpenVINO exposes raw token inference durations in microseconds.
+            token_infer_durations = [200_000.0, 20_000.0, 30_000.0]
 
         class Metrics:
             raw_metrics = Raw()
@@ -88,6 +122,7 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(result["ttft_ms"], 210.0)
         self.assertEqual(result["perf_ttft_ms"], 205.0)
         self.assertEqual(result["prompt_tps"], 100.0)
+        self.assertEqual(result["first_token_inference_ms"], 200.0)
         self.assertEqual(result["tpot_ms"], 25.0)
         self.assertEqual(result["decode_tps"], 40.0)
         self.assertEqual(result["generation_duration_ms"], 270.0)

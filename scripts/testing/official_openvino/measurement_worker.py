@@ -64,9 +64,10 @@ def extract_performance_metrics(
     raw_prefill = list(metrics.raw_metrics.token_infer_durations)
     if not raw_prefill:
         raise ValueError("OpenVINO raw token inference durations are absent")
-    first_inference_ms = _positive(
+    first_inference_us = _positive(
         float(raw_prefill[0]), "first-token inference duration"
     )
+    first_inference_ms = first_inference_us / 1000.0
     perf_ttft = _positive(float(metrics.get_ttft().mean), "OpenVINO TTFT")
     tpot = _positive(float(metrics.get_tpot().mean), "OpenVINO TPOT")
     openvino_generation = _positive(
@@ -82,10 +83,10 @@ def extract_performance_metrics(
         "ttft_ms": request_ttft,
         "perf_ttft_ms": perf_ttft,
         "ttft_crosscheck_delta_ms": abs(request_ttft - perf_ttft),
-        "prompt_tps": input_tokens / (first_inference_ms / 1000.0),
+        "prompt_tps": input_tokens / (first_inference_us / 1_000_000.0),
         "prompt_tps_definition": (
             "input token count divided by OpenVINO raw first-token inference "
-            "duration"
+            "duration (microseconds converted to seconds)"
         ),
         "tpot_ms": tpot,
         "decode_tps": 1000.0 / tpot,
@@ -99,6 +100,35 @@ def extract_performance_metrics(
             "generate call entry to first streamed generated text callback"
         ),
     }
+
+
+def generate_decoded_result(
+    pipeline: Any,
+    prompt: str,
+    config: Any,
+    streamer: Any,
+) -> tuple[Any, str]:
+    """Generate a one-item batch so Python preserves ``DecodedResults``.
+
+    The OpenVINO GenAI Python binding converts scalar-prompt results to ``str``.
+    A one-item batch follows the same single-request path while retaining the
+    result object's performance metrics.
+    """
+
+    generation = pipeline.generate([prompt], config, streamer=streamer)
+    if not hasattr(generation, "perf_metrics"):
+        raise TypeError(
+            "OpenVINO generation did not return DecodedResults performance metrics"
+        )
+    texts = list(getattr(generation, "texts", ()))
+    if len(texts) != 1:
+        raise RuntimeError(
+            "one-item OpenVINO generation must return exactly one decoded text"
+        )
+    output = str(texts[0])
+    if not output.strip():
+        raise RuntimeError("generation returned an empty decoded output")
+    return generation, output
 
 
 def _load_spec(path: Path) -> dict[str, Any]:
@@ -157,20 +187,16 @@ def execute(spec: Mapping[str, Any]) -> dict[str, Any]:
         return False
 
     request_started = time.perf_counter_ns()
-    generation = pipeline.generate(
+    generation, output = generate_decoded_result(
+        pipeline,
         spec["prompt"],
         config,
-        streamer=stream,
+        stream,
     )
     request_ended = time.perf_counter_ns()
     if first_token_ns is None:
         raise RuntimeError("streamer did not observe a generated token")
 
-    output = str(generation)
-    if not output.strip():
-        output = "".join(chunks)
-    if not output.strip():
-        raise RuntimeError("generation returned an empty output")
     metrics = extract_performance_metrics(
         generation.perf_metrics,
         request_ttft_ms=(first_token_ns - request_started) / 1_000_000.0,
