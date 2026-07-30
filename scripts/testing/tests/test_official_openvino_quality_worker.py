@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sys
+from collections.abc import Mapping
 from types import SimpleNamespace
 
 import pytest
@@ -170,6 +171,33 @@ def test_non_frozen_generation_settings_reject_before_pipeline_creation(monkeypa
 
 
 @pytest.mark.parametrize(
+    "field, value",
+    [
+        ("max_new_tokens", 256.0),
+        ("max_new_tokens", True),
+        ("do_sample", 0),
+        ("rng_seed", 42.0),
+        ("rng_seed", False),
+        ("apply_chat_template", 0),
+    ],
+)
+def test_generation_settings_require_exact_types_before_pipeline_creation(
+    monkeypatch,
+    field,
+    value,
+):
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+    spec = _spec()
+    spec["generation_settings"][field] = value
+
+    with pytest.raises(ValueError, match="generation settings"):
+        _worker()(spec)
+
+    assert fake.instances == []
+
+
+@pytest.mark.parametrize(
     "mutate, message",
     [
         (
@@ -201,12 +229,36 @@ def test_missing_or_duplicate_prompt_rejects_before_pipeline_creation(
     assert fake.instances == []
 
 
+@pytest.mark.parametrize(
+    "field",
+    (
+        "score",
+        "rubric",
+        "rank",
+        "privateLabel",
+        "private label",
+        "codec",
+        "performanceTarget",
+    ),
+)
 def test_forbidden_quality_or_performance_fields_reject_before_pipeline_creation(
     monkeypatch,
+    field,
 ):
     fake = _FakeGenAI()
     monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
-    spec = _spec(score=10)
+    spec = _spec(**{field: 10})
+
+    with pytest.raises(ValueError, match="forbidden"):
+        _worker()(spec)
+
+    assert fake.instances == []
+
+
+def test_forbidden_fields_inside_tuple_reject_before_pipeline_creation(monkeypatch):
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+    spec = _spec(properties={"NESTED": ({"performance target": 1},)})
 
     with pytest.raises(ValueError, match="forbidden"):
         _worker()(spec)
@@ -239,6 +291,68 @@ def test_worker_preserves_partial_failure_facts_without_scoring(monkeypatch):
     assert len(result["outcomes"]) == 7
 
 
+def test_p6_turn_one_failure_still_makes_a_seventh_real_generation_call(
+    monkeypatch,
+):
+    p6_turn_one = "  remember amber:4821  \n"
+    fake = _FakeGenAI(fail_prompt=p6_turn_one)
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+
+    result = _worker()(_spec())
+
+    assert len(fake.calls) == 7
+    assert fake.calls[-1][0] == (
+        "User: remember amber:4821\n"
+        "Assistant: \n"
+        "User: repeat only the code"
+    )
+    assert "Failure:" not in fake.calls[-1][0]
+    assert result["outcomes"][5]["status"] == "failed"
+    assert result["outcomes"][5]["failure_type"] == "RuntimeError"
+    assert (
+        result["outcomes"][5]["failure_message"]
+        == "synthetic generation failure"
+    )
+    assert result["outcomes"][6]["status"] == "complete"
+    assert result["outcomes"][6]["failure_type"] is None
+
+
+class _ChangingSpec(Mapping):
+    def __init__(self, value):
+        self.value = value
+        self.reads = {"model_path": 0, "device": 0, "properties": 0}
+
+    def __iter__(self):
+        return iter(self.value)
+
+    def __len__(self):
+        return len(self.value)
+
+    def __getitem__(self, key):
+        if key in self.reads:
+            self.reads[key] += 1
+            if self.reads[key] > 1:
+                return {
+                    "model_path": "C:/attacker/model",
+                    "device": "GPU",
+                    "properties": {"CACHE_DIR": "C:/attacker/cache"},
+                }[key]
+        return self.value[key]
+
+
+def test_worker_executes_immutable_normalized_spec_not_a_stateful_mapping(
+    monkeypatch,
+):
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+
+    _worker()(_ChangingSpec(_spec()))
+
+    assert fake.instances == [
+        ("C:/bound/model", "CPU", {"CACHE_DIR": "C:/bound/cache"})
+    ]
+
+
 def test_cli_atomically_publishes_canonical_worker_result(tmp_path, monkeypatch):
     fake = _FakeGenAI()
     monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
@@ -252,6 +366,37 @@ def test_cli_atomically_publishes_canonical_worker_result(tmp_path, monkeypatch)
 
     raw = result_path.read_bytes()
     published = json.loads(raw)
-    assert raw.endswith(b"\n")
+    assert raw == (
+        json.dumps(
+            published,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
     assert published["worker_result_sha256"] == _canonical_worker_hash(published)
+    assert not list(result_path.parent.glob(".result.json.*.tmp"))
+
+
+def test_atomic_result_publication_keeps_existing_result_on_replace_failure(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    result_path = tmp_path / "result.json"
+    result_path.write_bytes(b"previous-result")
+    monkeypatch.setattr(
+        quality_worker.os,
+        "replace",
+        lambda source, destination: (
+            _ for _ in ()
+        ).throw(OSError("replace failed")),
+    )
+
+    with pytest.raises(OSError, match="replace failed"):
+        quality_worker._atomic_write_result(result_path, {"schema": "test"})
+
+    assert result_path.read_bytes() == b"previous-result"
     assert not list(result_path.parent.glob(".result.json.*.tmp"))

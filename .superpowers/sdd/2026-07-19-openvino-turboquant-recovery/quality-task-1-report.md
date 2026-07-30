@@ -66,3 +66,73 @@ git diff --check
 The temporary bytecode prefix is used only because the shared worktree's
 existing `__pycache__` file was locked; production source was not changed to
 work around that environment condition.
+
+## Quality Task 1 fix round 1/5
+
+RED verification:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py
+# 10 failed, 15 passed in 0.17s
+```
+
+The failures proved that numeric lookalikes bypassed frozen settings, camel-
+case/space forbidden fields and tuples bypassed recursive rejection, a P6
+turn-1 failure stopped after six pipeline calls and invented a synthetic
+failure for turn 2, and a stateful mapping could alter pipeline values after
+validation.
+
+GREEN verification:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py
+# 25 passed in 0.08s
+
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py scripts/testing/tests/test_official_openvino_quality.py scripts/testing/tests/test_run_official_openvino_quality.py scripts/testing/tests/test_capture_official_openvino_quality.py scripts/testing/tests/test_adjudicate_official_openvino_quality.py
+# 84 passed in 1.64s
+```
+
+## Fix self-review
+
+- `_validate_spec` first snapshots the input mapping and returns a frozen
+  normalized model path, device, properties, settings, and prompts. Execution
+  never rereads the caller mapping.
+- Frozen settings compare both exact type and value. Forbidden-key detection
+  normalizes camel case, whitespace, hyphens, and underscores, and recurses
+  through non-string sequences.
+- A P6 turn-1 failure remains the original raw failure fact. Turn 2 still
+  performs the seventh real pipeline call with the same canonical
+  `User`/`Assistant`/`User` transcript and an empty assistant segment when no
+  raw turn-one output exists; it does not inject a synthetic failure fact.
+- The CLI tests now prove exact canonical bytes and retain a prior destination
+  while a simulated atomic replacement fails, with temporary cleanup.
+
+Final static verification after formatting-only cleanup:
+
+```powershell
+$env:PYTHONPYCACHEPREFIX='C:\Users\Student\AppData\Local\Temp\quality-worker-pycache-round1'; python -m py_compile scripts/testing/official_openvino/quality_worker.py
+# exit 0
+
+git diff --check
+# exit 0
+```
+
+### P6 transcript correction
+
+The final review required the exact P6 transcript shape even after a failed
+turn 1. The first correction test was RED:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py
+# 1 failed, 24 passed in 0.11s
+```
+
+It exposed the obsolete `Failure:` line. The final GREEN run was:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py scripts/testing/tests/test_official_openvino_quality.py scripts/testing/tests/test_run_official_openvino_quality.py scripts/testing/tests/test_capture_official_openvino_quality.py scripts/testing/tests/test_adjudicate_official_openvino_quality.py
+# 84 passed in 1.70s
+```
+
+The test now asserts the exact empty `Assistant: ` line and absence of a
+`Failure:` transcript while retaining the genuine P6 turn-one failure fields.

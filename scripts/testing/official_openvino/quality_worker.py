@@ -6,9 +6,13 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import tempfile
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 
@@ -39,6 +43,22 @@ _FORBIDDEN_FIELD_TOKENS = (
 )
 
 
+@dataclass(frozen=True)
+class _Prompt:
+    prompt_id: str
+    turn_id: str
+    prompt: str
+
+
+@dataclass(frozen=True)
+class _NormalizedSpec:
+    model_path: str
+    device: str
+    properties: Mapping[str, Any]
+    generation_settings: Mapping[str, Any]
+    prompts: tuple[_Prompt, ...]
+
+
 def _canonical_json(value: Any) -> bytes:
     try:
         return (
@@ -59,7 +79,8 @@ def _sha256_text(value: str) -> str:
 
 
 def _field_is_forbidden(value: str) -> bool:
-    normalized = value.casefold().replace("_", "-")
+    normalized = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", value)
+    normalized = re.sub(r"[^a-z0-9]+", "-", normalized.casefold()).strip("-")
     return any(token in normalized for token in _FORBIDDEN_FIELD_TOKENS)
 
 
@@ -71,7 +92,9 @@ def _reject_forbidden_fields(value: Any) -> None:
             if _field_is_forbidden(key):
                 raise ValueError(f"forbidden quality worker field: {key}")
             _reject_forbidden_fields(item)
-    elif isinstance(value, list):
+    elif isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray)
+    ):
         for item in value:
             _reject_forbidden_fields(item)
 
@@ -82,10 +105,11 @@ def _require_nonblank_text(value: Any, field: str) -> str:
     return value
 
 
-def _validate_spec(spec: Mapping[str, Any]) -> list[dict[str, str]]:
+def _validate_spec(spec: Mapping[str, Any]) -> _NormalizedSpec:
     if not isinstance(spec, Mapping):
         raise ValueError("quality worker spec must be an object")
-    _reject_forbidden_fields(spec)
+    snapshot = dict(spec)
+    _reject_forbidden_fields(snapshot)
     required = {
         "schema",
         "model_path",
@@ -94,23 +118,34 @@ def _validate_spec(spec: Mapping[str, Any]) -> list[dict[str, str]]:
         "generation_settings",
         "prompts",
     }
-    if set(spec) != required:
+    if set(snapshot) != required:
         raise ValueError("quality worker spec fields are invalid")
-    if spec["schema"] != SPEC_SCHEMA:
+    if snapshot["schema"] != SPEC_SCHEMA:
         raise ValueError("quality worker spec schema is invalid")
-    _require_nonblank_text(spec["model_path"], "model path")
-    _require_nonblank_text(spec["device"], "device")
-    properties = spec["properties"]
+    model_path = _require_nonblank_text(snapshot["model_path"], "model path")
+    device = _require_nonblank_text(snapshot["device"], "device")
+    properties = snapshot["properties"]
     if not isinstance(properties, Mapping) or any(
         not isinstance(key, str) or not key.strip() for key in properties
     ):
         raise ValueError("quality worker properties must be an object")
-    if spec["generation_settings"] != GENERATION_SETTINGS:
+    normalized_properties = MappingProxyType(deepcopy(dict(properties)))
+    settings = snapshot["generation_settings"]
+    if (
+        not isinstance(settings, Mapping)
+        or set(settings) != set(GENERATION_SETTINGS)
+    ):
         raise ValueError("quality worker generation settings are not frozen")
-    prompts = spec["prompts"]
+    if any(
+        type(settings[field]) is not type(expected) or settings[field] != expected
+        for field, expected in GENERATION_SETTINGS.items()
+    ):
+        raise ValueError("quality worker generation settings are not frozen")
+    normalized_settings = MappingProxyType(dict(settings))
+    prompts = snapshot["prompts"]
     if not isinstance(prompts, list) or len(prompts) != len(_EXPECTED_PROMPTS):
         raise ValueError("quality worker requires seven ordered prompts")
-    normalized: list[dict[str, str]] = []
+    normalized_prompts: list[_Prompt] = []
     for entry, expected in zip(prompts, _EXPECTED_PROMPTS, strict=True):
         if not isinstance(entry, Mapping) or set(entry) != {
             "prompt_id",
@@ -121,12 +156,22 @@ def _validate_spec(spec: Mapping[str, Any]) -> list[dict[str, str]]:
         prompt_id = entry["prompt_id"]
         turn_id = entry["turn_id"]
         prompt = entry["prompt"]
-        if (prompt_id, turn_id) != expected or not isinstance(prompt, str) or not prompt.strip():
+        if (
+            (prompt_id, turn_id) != expected
+            or not isinstance(prompt, str)
+            or not prompt.strip()
+        ):
             raise ValueError("quality worker requires seven ordered prompts")
-        normalized.append(
-            {"prompt_id": prompt_id, "turn_id": turn_id, "prompt": prompt}
+        normalized_prompts.append(
+            _Prompt(prompt_id=prompt_id, turn_id=turn_id, prompt=prompt)
         )
-    return normalized
+    return _NormalizedSpec(
+        model_path=model_path,
+        device=device,
+        properties=normalized_properties,
+        generation_settings=normalized_settings,
+        prompts=tuple(normalized_prompts),
+    )
 
 
 def _outcome(
@@ -182,54 +227,45 @@ def _generate(
 def execute_quality_worker(spec: Mapping[str, Any]) -> dict[str, Any]:
     """Capture the seven frozen quality turns without applying any judgment."""
 
-    prompts = _validate_spec(spec)
+    normalized = _validate_spec(spec)
     import openvino_genai as ov_genai
 
     pipeline = ov_genai.LLMPipeline(
-        spec["model_path"],
-        spec["device"],
-        **dict(spec["properties"]),
+        normalized.model_path,
+        normalized.device,
+        **dict(normalized.properties),
     )
     config = ov_genai.GenerationConfig()
-    for field, value in GENERATION_SETTINGS.items():
+    for field, value in normalized.generation_settings.items():
         setattr(config, field, value)
 
     outcomes: list[dict[str, Any]] = []
-    for entry in prompts[:6]:
+    for entry in normalized.prompts[:6]:
         outcomes.append(
             _generate(
                 pipeline,
                 config,
-                turn_id=f"{entry['prompt_id']}-{entry['turn_id'].replace('_', '-')}",
-                prompt=entry["prompt"],
+                turn_id=f"{entry.prompt_id}-{entry.turn_id.replace('_', '-')}",
+                prompt=entry.prompt,
             )
         )
 
     p6_turn_one = outcomes[-1]
-    p6_turn_two = prompts[-1]
-    if p6_turn_one["status"] == "complete":
-        p6_prompt = (
-            f"User: {prompts[-2]['prompt'].strip()}\n"
-            f"Assistant: {p6_turn_one['raw_output']}\n"
-            f"User: {p6_turn_two['prompt'].strip()}"
+    p6_turn_one_prompt = normalized.prompts[-2].prompt
+    p6_turn_two_prompt = normalized.prompts[-1].prompt
+    p6_prompt = (
+        f"User: {p6_turn_one_prompt.strip()}\n"
+        f"Assistant: {p6_turn_one['raw_output'] or ''}\n"
+        f"User: {p6_turn_two_prompt.strip()}"
+    )
+    outcomes.append(
+        _generate(
+            pipeline,
+            config,
+            turn_id="P6-turn-2",
+            prompt=p6_prompt,
         )
-        outcomes.append(
-            _generate(
-                pipeline,
-                config,
-                turn_id="P6-turn-2",
-                prompt=p6_prompt,
-            )
-        )
-    else:
-        outcomes.append(
-            _outcome(
-                turn_id="P6-turn-2",
-                prompt=None,
-                status="skipped",
-                failure=RuntimeError("P6 turn 1 did not produce an output"),
-            )
-        )
+    )
 
     result: dict[str, Any] = {
         "schema": RESULT_SCHEMA,
