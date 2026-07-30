@@ -11,17 +11,19 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .matrix import EXPECTED_REJECTION_IDS, execution_contract, load_matrix
+from .matrix import (
+    EXPECTED_REJECTION_IDS,
+    PROPERTY_EXPECTED_REJECTION_IDS,
+    SEMANTIC_SCALAR_REJECTION_IDS,
+    execution_contract,
+    load_matrix,
+)
 from .runtime_measurement import build_runtime_property_spec
 
 
 SCHEMA = "official-openvino-wb04-expected-rejection-evidence/v1"
-RUNTIME_EXPECTED_REJECTION_IDS = frozenset(
-    {f"OV-TQS-{index:02d}" for index in range(5, 13)}
-    | {"OV-TQ-18", "OV-TQ-19", "OV-TQ-20"}
-)
 EXPECTED_PROBE_IDS = frozenset(
-    {"OV-B11-QJL", "OV-B11-POLAR"} | RUNTIME_EXPECTED_REJECTION_IDS
+    {"OV-B11-QJL", "OV-B11-POLAR"} | PROPERTY_EXPECTED_REJECTION_IDS
 )
 _CONTROLLER_PATH = Path(__file__).resolve()
 _REPO_ROOT = _CONTROLLER_PATH.parents[3]
@@ -147,6 +149,10 @@ def _runtime_input(case: Any, contract: Any, probe_id: str) -> dict[str, Any]:
 
 
 def _build_probe(case: Any, probe_id: str) -> dict[str, Any]:
+    if probe_id in SEMANTIC_SCALAR_REJECTION_IDS:
+        raise ValueError(
+            f"{probe_id} is a semantic expected rejection, not a property probe"
+        )
     contract = execution_contract(case)
     runtime_input = _runtime_input(case, contract, probe_id)
     expected_exception = {
@@ -198,18 +204,20 @@ def generate_expected_rejection_evidence(matrix_path: Path) -> dict[str, Any]:
     matrix = Path(matrix_path).resolve()
     if not matrix.is_file():
         raise ValueError(f"matrix file is missing: {matrix}")
-    if EXPECTED_REJECTION_IDS != RUNTIME_EXPECTED_REJECTION_IDS:
+    if EXPECTED_REJECTION_IDS != (
+        PROPERTY_EXPECTED_REJECTION_IDS | SEMANTIC_SCALAR_REJECTION_IDS
+    ):
         raise ValueError("matrix expected-rejection ID contract changed")
     cases = {case.test_id: case for case in load_matrix(matrix)}
     if "OV-B11" not in cases:
         raise ValueError("matrix is missing OV-B11")
-    actual_runtime_rejections = {
+    actual_expected_rejections = {
         case.test_id
         for case in cases.values()
         if execution_contract(case).expected_outcome == "expected-rejection"
     }
-    if actual_runtime_rejections != RUNTIME_EXPECTED_REJECTION_IDS:
-        raise ValueError("matrix runtime expected-rejection set changed")
+    if actual_expected_rejections != EXPECTED_REJECTION_IDS:
+        raise ValueError("matrix expected-rejection set changed")
 
     probes = [
         _build_probe(

@@ -34,9 +34,15 @@ FORMAL_METRICS = frozenset({
     "available_ram_min_mb", "kv_mb", "gpu_memory_peak_mb",
     "cpu_percent", "gpu_percent",
 })
-EXPECTED_REJECTION_IDS = frozenset(
+PROPERTY_EXPECTED_REJECTION_IDS = frozenset(
     {f"OV-TQS-{index:02d}" for index in range(5, 13)}
     | {"OV-TQ-18", "OV-TQ-19", "OV-TQ-20"}
+)
+SEMANTIC_SCALAR_REJECTION_IDS = frozenset(
+    {"OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02"}
+)
+EXPECTED_REJECTION_IDS = (
+    PROPERTY_EXPECTED_REJECTION_IDS | SEMANTIC_SCALAR_REJECTION_IDS
 )
 NORM_DISABLED_ABLATION_IDS = frozenset({"OV-TQ-11", "OV-TQ-12"})
 
@@ -116,7 +122,10 @@ def execution_contract(case: OpenVINOCase) -> OpenVINOExecutionContract:
     else:
         route = "stateful-standard"
 
-    scalar_is_upstream = route == "upstream-scalar"
+    scalar_is_upstream = (
+        route == "upstream-scalar"
+        or case.test_id in SEMANTIC_SCALAR_REJECTION_IDS
+    )
     runtime_key = _runtime_algorithm(
         case.k_algorithm, scalar_is_upstream=scalar_is_upstream
     )

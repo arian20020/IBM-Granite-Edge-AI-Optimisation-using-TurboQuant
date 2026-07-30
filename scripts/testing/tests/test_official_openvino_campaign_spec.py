@@ -86,9 +86,9 @@ def test_generation_expands_every_runnable_context_and_records_gpu_rejection(
     result, build, model, _, output = _generate(tmp_path)
 
     spec_paths = sorted(output.glob("OV-TQ-*/context-*/spec.json"))
-    assert len(spec_paths) == 20
-    assert result["spec_count"] == 20
-    assert result["expected_rejection_count"] == 1
+    assert len(spec_paths) == 19
+    assert result["spec_count"] == 19
+    assert result["expected_rejection_count"] == 2
     assert result["build_root"] == str(build.resolve())
     assert result["model_path"] == str(model.resolve())
     assert {path.parent.name for path in spec_paths} >= {
@@ -97,76 +97,22 @@ def test_generation_expands_every_runnable_context_and_records_gpu_rejection(
         "context-4096",
         "context-8192",
     }
+    assert not (output / "OV-TQ-01").exists()
     assert not (output / "OV-TQ-18").exists()
 
     rejection_path = output / "expected-rejections.json"
     rejection_bytes = rejection_path.read_bytes()
     rejection = json.loads(rejection_bytes)
-    assert rejection == {
-        "matrix_sha256": hashlib.sha256(MATRIX.read_bytes()).hexdigest(),
-        "rejections": [
-            {
-                    "execution_contract": {
-                    "attention_path": "not-produced-by-expected-rejection",
-                    "controlled_test_id": "OV-TQ-18",
-                    "execution_route": "expected-rejection",
-                    "expected_outcome": "expected-rejection",
-                    "norm_correction": True,
-                    "numeric_generation_metrics_expected": False,
-                    "requires_actual_cache_precision_proof": False,
-                    "runtime_key_algorithm": "TBQ4",
-                    "runtime_value_algorithm": "TBQ4",
-                    "suitable_host_required": False,
-                },
-                    "matrix_case": {
-                    "attention_path": "not-produced-by-expected-rejection",
-                    "contexts": [1024],
-                    "description": "GPU TurboQuant gate",
-                        "device": "gpu",
-                    "execution_route": "expected-rejection",
-                    "expected_outcome": "expected-rejection",
-                    "guard": "none",
-                    "k_algorithm": "tbq4",
-                        "k_precision": "u4",
-                    "key_cache_precision": "u4",
-                    "model": "granite-3b",
-                    "norm_correction": True,
-                    "numeric_generation_metrics_expected": False,
-                    "phase": "formal",
-                        "quality_required": True,
-                    "required_metrics": [
-                        "available_ram_min_mb",
-                        "cpu_percent",
-                        "decode_tps",
-                        "generation_duration_ms",
-                        "gpu_memory_peak_mb",
-                        "gpu_percent",
-                        "kv_mb",
-                        "load_ms",
-                        "peak_private_mb",
-                        "peak_working_set_mb",
-                        "prompt_tps",
-                        "tpot_ms",
-                        "ttft_ms",
-                    ],
-                    "requested_device": "GPU",
-                    "runtime_key_algorithm": "TBQ4",
-                    "runtime_value_algorithm": "TBQ4",
-                    "suitable_host_required": False,
-                    "test_id": "OV-TQ-18",
-                    "v_algorithm": "tbq4",
-                        "v_precision": "u4",
-                    "value_cache_precision": "u4",
-                    "weight_precision": "u8",
-                },
-                "reason": (
-                    "matrix execution contract declares expected-rejection; "
-                    "worker spec generation is prohibited"
-                ),
-            }
-        ],
-        "schema": "official-openvino-wb04-expected-rejections/v1",
-    }
+    assert rejection["schema"] == "official-openvino-wb04-expected-rejections/v1"
+    assert rejection["matrix_sha256"] == hashlib.sha256(MATRIX.read_bytes()).hexdigest()
+    assert {
+        item["matrix_case"]["test_id"] for item in rejection["rejections"]
+    } == {"OV-TQ-01", "OV-TQ-18"}
+    for item in rejection["rejections"]:
+        contract = item["execution_contract"]
+        assert contract["execution_route"] == "expected-rejection"
+        assert contract["attention_path"] == "not-produced-by-expected-rejection"
+        assert contract["numeric_generation_metrics_expected"] is False
 
     second_output = tmp_path / "second output"
     generate_formal_u8_granite3b_specs(
@@ -184,34 +130,7 @@ def test_generation_expands_every_runnable_context_and_records_gpu_rejection(
 def test_worker_specs_bind_exact_matrix_runtime_contract(tmp_path):
     _, _, model, cache, output = _generate(tmp_path)
 
-    scalar = _read_spec(output, "OV-TQ-01", 4096)
-    assert set(scalar) == WORKER_FIELDS
-    assert scalar == {
-        "apply_chat_template": False,
-        "context": 4096,
-        "controlled_test_id": "OV-TQ-01",
-        "device": "CPU",
-        "expected_input_tokens": 4096,
-        "ignore_eos": True,
-        "max_new_tokens": 4,
-        "model_path": str(model.resolve()),
-        "prompt": " test" * 4096,
-        "properties": {
-            "ATTENTION_BACKEND": "SDPA",
-            "CACHE_DIR": str(
-                (cache / "OV-TQ-01" / "context-4096").resolve()
-            ),
-            "ENABLE_CPU_PINNING": False,
-            "INFERENCE_NUM_THREADS": 1,
-            "KEY_CACHE_PRECISION": "u8",
-            "NUM_STREAMS": 1,
-            "PERFORMANCE_HINT": "LATENCY",
-            "VALUE_CACHE_PRECISION": "u8",
-        },
-        "role": "pilot",
-        "schema": "official-openvino-wb04-worker-spec/v1",
-        "seed": 42,
-    }
+    assert not (output / "OV-TQ-01").exists()
 
     key_only = _read_spec(output, "OV-TQ-07", 4096)
     assert key_only["properties"]["TURBOQUANT_KEY_ALGORITHM"] == "TBQ4"
@@ -262,28 +181,16 @@ def test_explicit_u4_model_binding_adds_only_tq02_with_exact_scalar_properties(
     )
 
     spec_paths = sorted(output.glob("OV-TQ-*/context-*/spec.json"))
-    assert len(spec_paths) == 21
-    assert result["spec_count"] == 21
+    assert len(spec_paths) == 19
+    assert result["spec_count"] == 19
     assert (output / "OV-TQ-18").exists() is False
+    assert (output / "OV-TQ-01").exists() is False
+    assert (output / "OV-TQ-02").exists() is False
 
-    scalar_u4 = _read_spec(output, "OV-TQ-02", 4096)
-    assert scalar_u4["model_path"] == str(u4_model.resolve())
-    assert scalar_u4["model_path"] != str(u8_model.resolve())
-    assert scalar_u4["properties"] == {
-        "ATTENTION_BACKEND": "SDPA",
-        "CACHE_DIR": str(
-            (cache / "OV-TQ-02" / "context-4096").resolve()
-        ),
-        "ENABLE_CPU_PINNING": False,
-        "INFERENCE_NUM_THREADS": 1,
-        "KEY_CACHE_PRECISION": "u4",
-        "NUM_STREAMS": 1,
-        "PERFORMANCE_HINT": "LATENCY",
-        "VALUE_CACHE_PRECISION": "u4",
-    }
-    assert _read_spec(output, "OV-TQ-01", 4096)["model_path"] == str(
-        u8_model.resolve()
-    )
+    rejection = json.loads((output / "expected-rejections.json").read_text())
+    assert {
+        item["matrix_case"]["test_id"] for item in rejection["rejections"]
+    } == {"OV-TQ-01", "OV-TQ-02", "OV-TQ-18"}
 
 
 def test_explicit_u4_model_binding_fails_closed_when_u4_model_is_missing(
@@ -406,9 +313,9 @@ def test_cli_generates_specs_from_explicit_paths_without_running_inference(
 
     assert result.returncode == 0, result.stderr
     summary = json.loads(result.stdout)
-    assert summary["spec_count"] == 20
-    assert summary["expected_rejection_count"] == 1
-    assert (output / "OV-TQ-01/context-4096/spec.json").is_file()
+    assert summary["spec_count"] == 19
+    assert summary["expected_rejection_count"] == 2
+    assert not (output / "OV-TQ-01/context-4096/spec.json").exists()
     assert (output / "expected-rejections.json").is_file()
 
 
@@ -443,7 +350,8 @@ def test_cli_accepts_explicit_u4_model_binding_without_running_inference(
 
     assert result.returncode == 0, result.stderr
     summary = json.loads(result.stdout)
-    assert summary["spec_count"] == 21
-    assert _read_spec(output, "OV-TQ-02", 4096)["model_path"] == str(
-        u4_model.resolve()
-    )
+    assert summary["spec_count"] == 19
+    rejection = json.loads((output / "expected-rejections.json").read_text())
+    assert {
+        item["matrix_case"]["test_id"] for item in rejection["rejections"]
+    } == {"OV-TQ-01", "OV-TQ-02", "OV-TQ-18"}

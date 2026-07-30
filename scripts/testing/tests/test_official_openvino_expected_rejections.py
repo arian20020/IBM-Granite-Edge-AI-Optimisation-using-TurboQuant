@@ -8,9 +8,14 @@ import unittest
 from pathlib import Path
 
 from scripts.testing.official_openvino.expected_rejections import (
+    PROPERTY_EXPECTED_REJECTION_IDS,
     generate_expected_rejection_evidence,
     validate_expected_rejection_evidence,
     write_expected_rejection_evidence,
+)
+from scripts.testing.official_openvino.matrix import (
+    EXPECTED_REJECTION_IDS,
+    SEMANTIC_SCALAR_REJECTION_IDS,
 )
 
 
@@ -41,6 +46,17 @@ def canonical_bytes(value: object) -> bytes:
 
 
 class OfficialOpenVINOExpectedRejectionTests(unittest.TestCase):
+    def test_property_controller_keeps_semantic_scalar_rejections_out_of_probes(self):
+        self.assertEqual(len(PROPERTY_EXPECTED_REJECTION_IDS), 11)
+        self.assertEqual(len(EXPECTED_PROBE_IDS), 13)
+        self.assertEqual(
+            EXPECTED_REJECTION_IDS,
+            PROPERTY_EXPECTED_REJECTION_IDS | SEMANTIC_SCALAR_REJECTION_IDS,
+        )
+        self.assertTrue(PROPERTY_EXPECTED_REJECTION_IDS.isdisjoint(
+            SEMANTIC_SCALAR_REJECTION_IDS
+        ))
+
     def test_generates_exact_fail_closed_probe_set_without_metrics(self):
         payload = generate_expected_rejection_evidence(MATRIX)
         self.assertEqual(payload["schema"], SCHEMA)

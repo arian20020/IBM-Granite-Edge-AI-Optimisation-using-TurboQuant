@@ -5,6 +5,7 @@ from pathlib import Path
 
 from scripts.testing.official_openvino.matrix import (
     RUNTIME_ALGORITHMS,
+    SEMANTIC_SCALAR_REJECTION_IDS,
     execution_contract,
     load_matrix,
 )
@@ -186,15 +187,31 @@ class OfficialOpenVINOMatrixTests(unittest.TestCase):
                 self.assertIn(contract.runtime_key_algorithm, RUNTIME_ALGORITHMS)
                 self.assertIn(contract.runtime_value_algorithm, RUNTIME_ALGORITHMS)
 
-    def test_scalar_controls_use_upstream_route_not_turboquant_standard_claim(self):
+    def test_semantic_scalar_rejections_declare_standard_state_and_no_runtime_output(self):
         by_id = {case.test_id: case for case in load_matrix(MATRIX)}
-        for test_id in {"OV-04", "OV-05", "OV-08", "OV-09", "OV-TQ-01", "OV-TQ-02"}:
+        self.assertEqual(
+            SEMANTIC_SCALAR_REJECTION_IDS,
+            frozenset({"OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02"}),
+        )
+        for test_id in SEMANTIC_SCALAR_REJECTION_IDS:
             contract = execution_contract(by_id[test_id])
-            self.assertEqual(contract.execution_route, "upstream-scalar")
-            self.assertEqual(contract.expected_outcome, "pass")
+            self.assertEqual(contract.execution_route, "expected-rejection")
+            self.assertEqual(contract.expected_outcome, "expected-rejection")
             self.assertEqual(contract.runtime_key_algorithm, "STANDARD")
             self.assertEqual(contract.runtime_value_algorithm, "STANDARD")
-            self.assertTrue(contract.requires_actual_cache_precision_proof)
+            self.assertFalse(contract.norm_correction)
+            self.assertEqual(
+                contract.attention_path, "not-produced-by-expected-rejection"
+            )
+            self.assertFalse(contract.suitable_host_required)
+            self.assertFalse(contract.numeric_generation_metrics_expected)
+            self.assertFalse(contract.requires_actual_cache_precision_proof)
+
+        for test_id in {"OV-08", "OV-09"}:
+            self.assertEqual(
+                execution_contract(by_id[test_id]).execution_route,
+                "upstream-scalar",
+            )
 
     def test_formal_key_or_value_only_rows_use_standard_on_uncompressed_side(self):
         by_id = {case.test_id: case for case in load_matrix(MATRIX)}
@@ -230,6 +247,7 @@ class OfficialOpenVINOMatrixTests(unittest.TestCase):
         expected_rejections = (
             {f"OV-TQS-{i:02d}" for i in range(5, 13)}
             | {"OV-TQ-18", "OV-TQ-19", "OV-TQ-20"}
+            | set(SEMANTIC_SCALAR_REJECTION_IDS)
         )
         self.assertEqual(
             {
