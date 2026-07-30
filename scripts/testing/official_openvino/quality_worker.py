@@ -105,10 +105,26 @@ def _require_nonblank_text(value: Any, field: str) -> str:
     return value
 
 
+def _detached_snapshot(value: Any) -> Any:
+    """Copy caller-owned mappings and sequences before validating the spec."""
+
+    if isinstance(value, Mapping):
+        return {
+            key: _detached_snapshot(value[key])
+            for key in value
+        }
+    if isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray)
+    ):
+        items = [_detached_snapshot(item) for item in value]
+        return tuple(items) if isinstance(value, tuple) else items
+    return deepcopy(value)
+
+
 def _validate_spec(spec: Mapping[str, Any]) -> _NormalizedSpec:
     if not isinstance(spec, Mapping):
         raise ValueError("quality worker spec must be an object")
-    snapshot = dict(spec)
+    snapshot = _detached_snapshot(spec)
     _reject_forbidden_fields(snapshot)
     required = {
         "schema",
@@ -129,7 +145,7 @@ def _validate_spec(spec: Mapping[str, Any]) -> _NormalizedSpec:
         not isinstance(key, str) or not key.strip() for key in properties
     ):
         raise ValueError("quality worker properties must be an object")
-    normalized_properties = MappingProxyType(deepcopy(dict(properties)))
+    normalized_properties = MappingProxyType(dict(properties))
     settings = snapshot["generation_settings"]
     if (
         not isinstance(settings, Mapping)

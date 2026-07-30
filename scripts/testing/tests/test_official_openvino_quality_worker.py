@@ -353,6 +353,75 @@ def test_worker_executes_immutable_normalized_spec_not_a_stateful_mapping(
     ]
 
 
+class _ChangingNestedMapping(Mapping):
+    def __init__(self, safe, changed, *, safe_reads):
+        self.safe = safe
+        self.changed = changed
+        self.safe_reads = safe_reads
+        self.reads = {key: 0 for key in safe}
+
+    def __iter__(self):
+        return iter(self.safe)
+
+    def __len__(self):
+        return len(self.safe)
+
+    def __getitem__(self, key):
+        self.reads[key] += 1
+        if self.reads[key] <= self.safe_reads:
+            return self.safe[key]
+        return self.changed[key]
+
+
+def test_worker_uses_detached_nested_properties_mapping(monkeypatch):
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+    properties = _ChangingNestedMapping(
+        {"CACHE_DIR": "C:/bound/cache"},
+        {"CACHE_DIR": "C:/attacker/cache"},
+        safe_reads=1,
+    )
+
+    _worker()(_spec(properties=properties))
+
+    assert fake.instances == [
+        ("C:/bound/model", "CPU", {"CACHE_DIR": "C:/bound/cache"})
+    ]
+
+
+def test_worker_uses_detached_nested_settings_mapping(monkeypatch):
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+    settings = _ChangingNestedMapping(
+        {
+            "max_new_tokens": 256,
+            "do_sample": False,
+            "rng_seed": 42,
+            "apply_chat_template": False,
+        },
+        {
+            "max_new_tokens": 0,
+            "do_sample": True,
+            "rng_seed": 7,
+            "apply_chat_template": True,
+        },
+        safe_reads=2,
+    )
+
+    _worker()(_spec(generation_settings=settings))
+
+    assert all(
+        (
+            config.max_new_tokens,
+            config.do_sample,
+            config.rng_seed,
+            config.apply_chat_template,
+        )
+        == (256, False, 42, False)
+        for _, config in fake.calls
+    )
+
+
 def test_cli_atomically_publishes_canonical_worker_result(tmp_path, monkeypatch):
     fake = _FakeGenAI()
     monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)

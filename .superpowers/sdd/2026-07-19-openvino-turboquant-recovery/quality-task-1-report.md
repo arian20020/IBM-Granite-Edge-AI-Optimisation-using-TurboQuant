@@ -136,3 +136,44 @@ python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_open
 
 The test now asserts the exact empty `Assistant: ` line and absence of a
 `Failure:` transcript while retaining the genuine P6 turn-one failure fields.
+
+## Quality Task 1 fix round 2/5
+
+RED verification:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py
+# 2 failed, 25 passed in 0.12s
+```
+
+The nested-properties mapping returned an attacker cache directory during the
+later `dict(properties)` copy. A nested settings mapping returned safe values
+for early inspection and changed values for later consumption, showing that a
+top-level snapshot was not an immutable validation boundary.
+
+GREEN verification:
+
+```powershell
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py
+# 27 passed in 0.08s
+
+python -m pytest -q -p no:cacheprovider scripts/testing/tests/test_official_openvino_quality_worker.py scripts/testing/tests/test_official_openvino_quality.py scripts/testing/tests/test_run_official_openvino_quality.py scripts/testing/tests/test_capture_official_openvino_quality.py scripts/testing/tests/test_adjudicate_official_openvino_quality.py
+# 86 passed in 1.65s
+
+$env:PYTHONPYCACHEPREFIX='C:\Users\Student\AppData\Local\Temp\quality-worker-pycache-round2'; python -m py_compile scripts/testing/official_openvino/quality_worker.py
+# exit 0
+
+git diff --check
+# exit 0
+```
+
+## Round-two self-review
+
+- `_detached_snapshot` recursively materializes mappings and non-string
+  sequences once at `_validate_spec` entry, preserving plain copied mapping,
+  list, and tuple values for downstream OpenVINO kwargs.
+- Forbidden-field, schema, type, and normalization work only on that detached
+  snapshot. No nested caller mapping is reread after validation begins.
+- The two adversarial tests use mappings whose values change after their safe
+  read; the pipeline and generation config retain only the detached safe
+  values. No real pipeline was used.
