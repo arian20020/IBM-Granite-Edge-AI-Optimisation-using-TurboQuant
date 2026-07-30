@@ -131,6 +131,26 @@ def generate_decoded_result(
     return generation, output
 
 
+def validate_input_token_count(actual: Any, expected: Any) -> int:
+    """Require the measured prefill length to match the controlled context."""
+
+    if (
+        isinstance(actual, bool)
+        or not isinstance(actual, int)
+        or actual <= 0
+        or isinstance(expected, bool)
+        or not isinstance(expected, int)
+        or expected <= 0
+    ):
+        raise RuntimeError("input token count contract must use positive integers")
+    if actual != expected:
+        raise RuntimeError(
+            f"OpenVINO input token count {actual} does not match "
+            f"controlled context {expected}"
+        )
+    return actual
+
+
 def _load_spec(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(Path(path).read_text(encoding="utf-8-sig"))
@@ -151,6 +171,13 @@ def _load_spec(path: Path) -> dict[str, Any]:
         or max_new_tokens <= 1
     ):
         raise ValueError("worker max_new_tokens must exceed one")
+    context = value.get("context")
+    if isinstance(context, int) and not isinstance(context, bool):
+        expected_input_tokens = value.get("expected_input_tokens")
+        if expected_input_tokens != context:
+            raise ValueError(
+                "integer worker context requires the same expected_input_tokens"
+            )
     return value
 
 
@@ -202,6 +229,12 @@ def execute(spec: Mapping[str, Any]) -> dict[str, Any]:
         request_ttft_ms=(first_token_ns - request_started) / 1_000_000.0,
         wall_generation_ms=(request_ended - request_started) / 1_000_000.0,
     )
+    expected_input_tokens = spec.get("expected_input_tokens")
+    if expected_input_tokens is not None:
+        validate_input_token_count(
+            metrics["num_input_tokens"],
+            expected_input_tokens,
+        )
     wall_load_ms = (ended_load - started_load) / 1_000_000.0
     result = {
         "schema": WORKER_SCHEMA,
@@ -215,6 +248,7 @@ def execute(spec: Mapping[str, Any]) -> dict[str, Any]:
         "device": spec["device"],
         "controlled_test_id": spec.get("controlled_test_id"),
         "context": spec.get("context"),
+        "expected_input_tokens": expected_input_tokens,
         "role": spec.get("role"),
     }
     return result
