@@ -136,6 +136,43 @@ def _external_hashed_file(
     return path
 
 
+def _strict_json_object(path: Path, *, kind: str) -> dict[str, Any]:
+    def object_without_duplicate_keys(
+        pairs: list[tuple[str, Any]],
+    ) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"{kind} contains duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    def reject_non_finite(value: str) -> None:
+        raise ValueError(f"{kind} contains non-finite JSON value: {value}")
+
+    try:
+        value = json.loads(
+            path.read_text(encoding="utf-8", errors="strict"),
+            object_pairs_hook=object_without_duplicate_keys,
+            parse_constant=reject_non_finite,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{kind} is not strict JSON") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"{kind} must be a JSON object")
+    return value
+
+
+def _command_option(command: list[str], option: str, *, kind: str) -> str:
+    positions = [index for index, token in enumerate(command) if token == option]
+    if len(positions) != 1:
+        raise ValueError(f"{kind} command must contain exactly one {option}")
+    position = positions[0]
+    if position + 1 >= len(command) or not command[position + 1].strip():
+        raise ValueError(f"{kind} command {option} value is missing")
+    return command[position + 1]
+
+
 def validate_artifact_manifest(
     manifest_path: Path,
     *,
@@ -367,9 +404,85 @@ def validate_artifact_manifest(
     if (
         not isinstance(probe_command, list)
         or not probe_command
-        or str(artifact_root) not in probe_command
+        or any(not isinstance(item, str) or not item.strip()
+               for item in probe_command)
     ):
-        raise ValueError("load probe command is not bound to the artifact path")
+        raise ValueError("load probe command is invalid")
+
+    spec: dict[str, Any] | None = None
+    attempt: dict[str, Any] | None = None
+    if "--spec" in probe_command:
+        spec_path = _external_hashed_file(
+            probe,
+            manifest_path,
+            path_field="spec_path",
+            hash_field="spec_sha256",
+            kind="load probe spec",
+        )
+        command_spec_path = _command_option(
+            probe_command, "--spec", kind="load probe"
+        )
+        if command_spec_path != str(spec_path):
+            raise ValueError(
+                "load probe command is not bound to the resolved spec path"
+            )
+        spec = _strict_json_object(spec_path, kind="load probe spec")
+        if spec.get("schema") != "official-openvino-wb04-worker-spec/v1":
+            raise ValueError("load probe spec schema is unsupported")
+        spec_model_path = Path(
+            _require_text(spec.get("model_path"), "load probe spec model path")
+        ).resolve()
+        if not _same_path(spec_model_path, artifact_root):
+            raise ValueError("load probe spec model path does not match the artifact")
+        if spec.get("device") != "CPU":
+            raise ValueError("load probe spec device must be CPU")
+        for field_name in ("controlled_test_id", "role", "context"):
+            _require_text(
+                spec.get(field_name), f"load probe spec {field_name}"
+            )
+        max_new_tokens = spec.get("max_new_tokens")
+        if (
+            isinstance(max_new_tokens, bool)
+            or not isinstance(max_new_tokens, int)
+            or max_new_tokens <= 0
+        ):
+            raise ValueError("load probe spec max_new_tokens must be positive")
+
+        attempt_path = _external_hashed_file(
+            probe,
+            manifest_path,
+            path_field="attempt_path",
+            hash_field="attempt_sha256",
+            kind="load probe attempt",
+        )
+        attempt = _strict_json_object(
+            attempt_path, kind="load probe attempt"
+        )
+    else:
+        if any(
+            field in probe
+            for field in (
+                "spec_path",
+                "spec_sha256",
+                "attempt_path",
+                "attempt_sha256",
+            )
+        ):
+            raise ValueError(
+                "load probe spec evidence requires a --spec command"
+            )
+        command_model_path = _command_option(
+            probe_command, "--model", kind="load probe"
+        )
+        if command_model_path != str(artifact_root):
+            raise ValueError(
+                "load probe command is not bound to the resolved artifact path"
+            )
+        if _command_option(
+            probe_command, "--device", kind="load probe"
+        ) != "CPU":
+            raise ValueError("load probe command device must be CPU")
+
     generated_tokens = probe.get("generated_tokens")
     if (
         isinstance(generated_tokens, bool)
@@ -377,6 +490,8 @@ def validate_artifact_manifest(
         or generated_tokens <= 0
     ):
         raise ValueError("load probe generated tokens must be positive")
+    if spec is not None and spec["max_new_tokens"] != generated_tokens:
+        raise ValueError("load probe generation contract mismatch")
     output = probe.get("output")
     if not isinstance(output, str) or not output.strip():
         raise ValueError("load probe output is empty")
@@ -395,13 +510,63 @@ def validate_artifact_manifest(
         raise ValueError("load probe exit code is not zero")
     if probe.get("cleanup_process_count") != 0:
         raise ValueError("load probe cleanup process count is not zero")
-    _external_hashed_file(
+    log_path = _external_hashed_file(
         probe,
         manifest_path,
         path_field="log_path",
         hash_field="log_sha256",
         kind="load probe log",
     )
+
+    if attempt is not None and spec is not None:
+        if (
+            attempt.get("schema")
+            != "official-openvino-wb04-governed-run/v1"
+            or attempt.get("valid") is not True
+            or attempt.get("validation_errors") != []
+        ):
+            raise ValueError("load probe attempt is not a valid governed run")
+        if (
+            attempt.get("exit_code") != probe.get("exit_code")
+            or attempt.get("cleanup_process_count")
+            != probe.get("cleanup_process_count")
+            or attempt.get("timed_out") is not False
+            or attempt.get("low_memory_stop") is not False
+        ):
+            raise ValueError("load probe attempt did not complete cleanly")
+        if attempt.get("command") != probe_command:
+            raise ValueError("load probe attempt command binding mismatch")
+        if attempt.get("output_sha256") != expected_output_hash:
+            raise ValueError("load probe attempt output hash mismatch")
+        if attempt.get("stdout_sha256") != _sha256(log_path):
+            raise ValueError("load probe attempt log binding mismatch")
+        worker = attempt.get("worker")
+        if (
+            not isinstance(worker, dict)
+            or worker.get("schema") != "official-openvino-wb04-worker/v1"
+            or worker.get("output_valid") is not True
+        ):
+            raise ValueError("load probe attempt worker result is invalid")
+        worker_model_path = Path(
+            _require_text(
+                worker.get("model_path"), "load probe worker model path"
+            )
+        ).resolve()
+        if not _same_path(worker_model_path, artifact_root):
+            raise ValueError(
+                "load probe attempt worker model path does not match the artifact"
+            )
+        if worker.get("device") != "CPU":
+            raise ValueError("load probe attempt worker device must be CPU")
+        if worker.get("num_generated_tokens") != generated_tokens:
+            raise ValueError("load probe attempt generated token mismatch")
+        if worker.get("output") != output:
+            raise ValueError("load probe attempt output mismatch")
+        for field_name in ("controlled_test_id", "role", "context"):
+            if worker.get(field_name) != spec.get(field_name):
+                raise ValueError(
+                    f"load probe attempt {field_name} binding mismatch"
+                )
 
     return {
         "accepted": True,

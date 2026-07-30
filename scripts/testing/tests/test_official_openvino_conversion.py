@@ -240,6 +240,79 @@ class OfficialOpenVINOArtifactTests(unittest.TestCase):
         }
         return self.manifest
 
+    def make_controlled_worker_probe(self):
+        spec_path = self.root / "load-probe-spec.json"
+        spec = {
+            "schema": "official-openvino-wb04-worker-spec/v1",
+            "controlled_test_id": "WB04-U4-LOAD-PROBE",
+            "role": "pilot",
+            "context": "diagnostic-short-prompt",
+            "model_path": str(self.artifact),
+            "device": "CPU",
+            "max_new_tokens": 4,
+        }
+        spec_path.write_text(
+            json.dumps(spec, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        command = [
+            "python.exe",
+            "-m",
+            "scripts.testing.official_openvino.measurement_worker",
+            "--spec",
+            str(spec_path.resolve()),
+        ]
+        self.log.write_text("controlled worker stdout\n", encoding="utf-8")
+        attempt_path = self.root / "attempt.json"
+        attempt = {
+            "schema": "official-openvino-wb04-governed-run/v1",
+            "valid": True,
+            "validation_errors": [],
+            "exit_code": 0,
+            "timed_out": False,
+            "low_memory_stop": False,
+            "cleanup_process_count": 0,
+            "command": command,
+            "output_sha256": hashlib.sha256(
+                self.output.encode("utf-8")
+            ).hexdigest(),
+            "stdout_sha256": hashlib.sha256(self.log.read_bytes()).hexdigest(),
+            "worker": {
+                "schema": "official-openvino-wb04-worker/v1",
+                "controlled_test_id": spec["controlled_test_id"],
+                "role": spec["role"],
+                "context": spec["context"],
+                "model_path": str(self.artifact),
+                "device": "CPU",
+                "num_generated_tokens": 4,
+                "output": self.output,
+                "output_valid": True,
+            },
+        }
+        attempt_path.write_text(
+            json.dumps(attempt, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self.manifest["load_probe"].update({
+            "command": command,
+            "spec_path": str(spec_path.resolve()),
+            "spec_sha256": hashlib.sha256(spec_path.read_bytes()).hexdigest(),
+            "attempt_path": str(attempt_path.resolve()),
+            "attempt_sha256": hashlib.sha256(attempt_path.read_bytes()).hexdigest(),
+            "log_path": str(self.log.resolve()),
+            "log_sha256": hashlib.sha256(self.log.read_bytes()).hexdigest(),
+        })
+        return spec_path, attempt_path
+
+    def rewrite_probe_json(self, path, hash_field, value):
+        path.write_text(
+            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self.manifest["load_probe"][hash_field] = hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
+
     def tearDown(self):
         self.temporary.cleanup()
 
@@ -256,6 +329,137 @@ class OfficialOpenVINOArtifactTests(unittest.TestCase):
         self.assertTrue(result["accepted"])
         self.assertEqual(result["precision"], "u4")
         self.assertEqual(result["inventory_sha256"], self.inventory_sha256)
+
+    def test_accepts_spec_bound_controlled_measurement_worker_probe(self):
+        self.make_controlled_worker_probe()
+        result = self.validate()
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["generated_tokens"], 4)
+
+    def test_spec_bound_probe_rejects_tampered_non_object_or_duplicate_json(self):
+        spec_path, _ = self.make_controlled_worker_probe()
+        original = spec_path.read_text(encoding="utf-8")
+
+        spec_path.write_text(original + " ", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "spec hash mismatch"):
+            self.validate()
+
+        self.rewrite_probe_json(spec_path, "spec_sha256", ["not", "an", "object"])
+        with self.assertRaisesRegex(ValueError, "spec must be a JSON object"):
+            self.validate()
+
+        duplicate = (
+            '{"schema":"official-openvino-wb04-worker-spec/v1",'
+            '"controlled_test_id":"WB04-U4-LOAD-PROBE","role":"pilot",'
+            '"context":"diagnostic-short-prompt",'
+            f'"model_path":{json.dumps(str(self.artifact))},'
+            '"device":"CPU","device":"GPU","max_new_tokens":4}'
+        )
+        spec_path.write_text(duplicate, encoding="utf-8")
+        self.manifest["load_probe"]["spec_sha256"] = hashlib.sha256(
+            spec_path.read_bytes()
+        ).hexdigest()
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            self.validate()
+
+    def test_spec_bound_probe_rejects_command_model_or_device_substitution(self):
+        for mutation, message in (
+            ("command", "resolved spec path"),
+            ("model", "spec model path"),
+            ("device", "spec device"),
+        ):
+            with self.subTest(mutation=mutation):
+                spec_path, _ = self.make_controlled_worker_probe()
+                spec = json.loads(spec_path.read_text(encoding="utf-8"))
+                if mutation == "command":
+                    self.manifest["load_probe"]["command"][-1] = spec_path.name
+                elif mutation == "model":
+                    other_model = self.root / "other-model"
+                    other_model.mkdir(exist_ok=True)
+                    spec["model_path"] = str(other_model)
+                    self.rewrite_probe_json(spec_path, "spec_sha256", spec)
+                else:
+                    spec["device"] = "GPU"
+                    self.rewrite_probe_json(spec_path, "spec_sha256", spec)
+                with self.assertRaisesRegex(ValueError, message):
+                    self.validate()
+
+    def test_spec_bound_probe_rejects_generation_contract_mismatch(self):
+        spec_path, _ = self.make_controlled_worker_probe()
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        spec["max_new_tokens"] = 3
+        self.rewrite_probe_json(spec_path, "spec_sha256", spec)
+        with self.assertRaisesRegex(ValueError, "generation contract"):
+            self.validate()
+
+    def test_spec_bound_probe_rejects_unbound_or_invalid_attempt_evidence(self):
+        for mutation, message in (
+            ("missing_hash", "attempt hash"),
+            ("invalid", "valid governed run"),
+            ("command", "attempt command binding"),
+            ("output", "attempt output hash"),
+            ("log", "attempt log binding"),
+        ):
+            with self.subTest(mutation=mutation):
+                _, attempt_path = self.make_controlled_worker_probe()
+                attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
+                if mutation == "missing_hash":
+                    self.manifest["load_probe"].pop("attempt_sha256")
+                elif mutation == "invalid":
+                    attempt["valid"] = False
+                    self.rewrite_probe_json(
+                        attempt_path, "attempt_sha256", attempt
+                    )
+                elif mutation == "command":
+                    attempt["command"][-1] = "substituted-spec.json"
+                    self.rewrite_probe_json(
+                        attempt_path, "attempt_sha256", attempt
+                    )
+                elif mutation == "output":
+                    attempt["output_sha256"] = "0" * 64
+                    self.rewrite_probe_json(
+                        attempt_path, "attempt_sha256", attempt
+                    )
+                else:
+                    self.log.write_text(
+                        "substituted controlled worker stdout\n",
+                        encoding="utf-8",
+                    )
+                    self.manifest["load_probe"]["log_sha256"] = hashlib.sha256(
+                        self.log.read_bytes()
+                    ).hexdigest()
+                with self.assertRaisesRegex(ValueError, message):
+                    self.validate()
+
+    def test_direct_probe_requires_exact_model_and_cpu_command_options(self):
+        for command, message in (
+            (
+                ["probe", "unrelated", str(self.artifact), "--device", "CPU"],
+                "exactly one --model",
+            ),
+            (
+                [
+                    "probe",
+                    "--model",
+                    str(self.artifact),
+                    "--device",
+                    "CPU",
+                    "--device",
+                    "CPU",
+                ],
+                "exactly one --device",
+            ),
+            (
+                ["probe", "--model", str(self.artifact), "--device", "GPU"],
+                "device must be CPU",
+            ),
+        ):
+            broken = copy.deepcopy(self.manifest)
+            broken["load_probe"]["command"] = command
+            with self.subTest(command=command), self.assertRaisesRegex(
+                ValueError, message
+            ):
+                self.validate(broken)
 
     def test_rejects_missing_tampered_or_uninventoried_required_file(self):
         for mutate, message in (
