@@ -43,6 +43,12 @@ EXPECTED_GENERATION_SETTINGS = {
     "seed": 42,
     "max_output_tokens": 256,
 }
+_GOVERNED_WORKER_GENERATION_SETTINGS = {
+    "max_new_tokens": 256,
+    "do_sample": False,
+    "rng_seed": 42,
+    "apply_chat_template": False,
+}
 FROZEN_PROMPT_SET_SHA256 = (
     "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
 )
@@ -537,6 +543,28 @@ def _record_sha256(record: Mapping[str, Any]) -> str:
     return _sha256_bytes(_canonical_json(unsigned))
 
 
+def _map_governed_generation_settings(
+    worker_settings: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project the exact worker contract into the legacy capture vocabulary."""
+
+    if not isinstance(worker_settings, Mapping):
+        raise ValueError("governed worker generation settings are invalid")
+    actual = dict(worker_settings)
+    if set(actual) != set(_GOVERNED_WORKER_GENERATION_SETTINGS):
+        raise ValueError("governed worker generation settings are not frozen")
+    for field, expected in _GOVERNED_WORKER_GENERATION_SETTINGS.items():
+        value = actual[field]
+        if type(value) is not type(expected) or value != expected:
+            raise ValueError("governed worker generation settings are not frozen")
+    return {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "seed": actual["rng_seed"],
+        "max_output_tokens": actual["max_new_tokens"],
+    }
+
+
 _CAPTURE_RECORD_FIELDS = {
     "schema_version",
     "artifact_type",
@@ -569,6 +597,31 @@ _CAPTURE_FAILURE_FIELDS = {
     "failure_sha256",
     "failed_turn_id",
 }
+_CAPTURE_GOVERNED_FIELDS = {
+    "quality_worker_spec_sha256",
+    "worker_result_sha256",
+    "guard_evidence_sha256",
+}
+_CAPTURE_GOVERNED_FAILURE_FIELDS = {
+    "failure_type",
+    "failure_type_sha256",
+}
+
+
+def _validate_governed_evidence_hashes(
+    evidence_hashes: Mapping[str, Any] | None,
+) -> dict[str, str] | None:
+    if evidence_hashes is None:
+        return None
+    if (
+        not isinstance(evidence_hashes, Mapping)
+        or set(evidence_hashes) != _CAPTURE_GOVERNED_FIELDS
+    ):
+        raise ValueError("governed quality evidence hashes are incomplete")
+    return {
+        field: _validate_sha256(evidence_hashes[field], field=field)
+        for field in sorted(_CAPTURE_GOVERNED_FIELDS)
+    }
 
 
 def _build_capture_record(
@@ -581,7 +634,9 @@ def _build_capture_record(
     runtime_config_sha256: str,
     turn_prompts: Sequence[Mapping[str, str]],
     turn_outputs: Sequence[Mapping[str, str]],
+    evidence_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    governed_hashes = _validate_governed_evidence_hashes(evidence_hashes)
     final_prompt = turn_prompts[-1]["raw_prompt"]
     final_output = turn_outputs[-1]["output"]
     failed_outputs = [
@@ -609,7 +664,7 @@ def _build_capture_record(
         "runtime_config_sha256": runtime_config_sha256,
         "generation_settings": dict(contract["generation_settings"]),
         "generation_settings_sha256": _sha256_bytes(
-            _canonical_json(contract["generation_settings"])
+            _canonical_json(dict(contract["generation_settings"]))
         ),
         "turn_prompts": [dict(prompt) for prompt in turn_prompts],
         "turn_outputs": [dict(output) for output in turn_outputs],
@@ -617,6 +672,8 @@ def _build_capture_record(
         "output_sha256": _sha256_text(final_output),
         "response_sha256": _response_sha256(turn_outputs),
     }
+    if governed_hashes is not None:
+        record.update(governed_hashes)
     if prompt_id == "P6":
         first_output = turn_outputs[0]["output"]
         record["turn_1"] = first_output
@@ -626,6 +683,9 @@ def _build_capture_record(
         record["failure"] = failed["failure"]
         record["failure_sha256"] = failed["failure_sha256"]
         record["failed_turn_id"] = failed["turn_id"]
+        if governed_hashes is not None:
+            record["failure_type"] = failed["failure_type"]
+            record["failure_type_sha256"] = failed["failure_type_sha256"]
     record["record_sha256"] = _record_sha256(record)
     return record
 
@@ -639,7 +699,9 @@ def _validate_capture_record(
     expected_runtime: QualityRuntimeIdentity,
     runtime_summary_sha256: str,
     runtime_config_sha256: str,
+    evidence_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    governed_hashes = _validate_governed_evidence_hashes(evidence_hashes)
     reject_nulls(record)
     if not isinstance(record, dict):
         raise ValueError("quality response record must be a JSON object")
@@ -660,19 +722,25 @@ def _validate_capture_record(
         "runtime_config_sha256": runtime_config_sha256,
         "generation_settings": contract["generation_settings"],
         "generation_settings_sha256": _sha256_bytes(
-            _canonical_json(contract["generation_settings"])
+            _canonical_json(dict(contract["generation_settings"]))
         ),
     }
+    if governed_hashes is not None:
+        fixed.update(governed_hashes)
     for field, expected in fixed.items():
         if record.get(field) != expected:
             raise ValueError(f"quality response {field} mismatch")
     if record.get("status") not in {"complete", "failed"}:
         raise ValueError("quality response status is invalid")
     expected_fields = set(_CAPTURE_RECORD_FIELDS)
+    if governed_hashes is not None:
+        expected_fields.update(_CAPTURE_GOVERNED_FIELDS)
     if prompt_id == "P6":
         expected_fields.update(_CAPTURE_P6_FIELDS)
     if record["status"] == "failed":
         expected_fields.update(_CAPTURE_FAILURE_FIELDS)
+        if governed_hashes is not None:
+            expected_fields.update(_CAPTURE_GOVERNED_FAILURE_FIELDS)
     if set(record) != expected_fields:
         raise ValueError(
             "quality response record has missing or unexpected fields"
@@ -691,6 +759,9 @@ def _validate_capture_record(
         "record_sha256",
     ):
         _validate_sha256(record.get(field), field=field)
+    if governed_hashes is not None:
+        for field in _CAPTURE_GOVERNED_FIELDS:
+            _validate_sha256(record.get(field), field=field)
     if _record_sha256(record) != record["record_sha256"]:
         raise ValueError("quality response record hash mismatch")
 
@@ -763,6 +834,10 @@ def _validate_capture_record(
                 "failure_sha256",
             }
         )
+        if output.get("status") == "failed" and governed_hashes is not None:
+            expected_output_fields.update(
+                {"failure_type", "failure_type_sha256"}
+            )
         if set(output) != expected_output_fields:
             raise ValueError(f"quality turn output {index} fields are invalid")
         if (
@@ -777,6 +852,16 @@ def _validate_capture_record(
             or output["failure_sha256"] != _sha256_text(output["failure"])
         ):
             raise ValueError(f"quality turn output {index} failure mismatch")
+        if output["status"] == "failed" and governed_hashes is not None:
+            if (
+                not isinstance(output["failure_type"], str)
+                or not output["failure_type"].strip()
+                or output["failure_type_sha256"]
+                != _sha256_text(output["failure_type"])
+            ):
+                raise ValueError(
+                    f"quality turn output {index} failure type mismatch"
+                )
 
     final_prompt = turn_prompts[-1]["raw_prompt"]
     final_output = turn_outputs[-1]["output"]
@@ -806,8 +891,13 @@ def _validate_capture_record(
             expected_prompt_sha256=_sha256_text(final_prompt),
         )
     else:
-        if len(failures) != 1:
-            raise ValueError("failed quality response must preserve one failed turn")
+        if (
+            not failures
+            or (governed_hashes is None and len(failures) != 1)
+        ):
+            raise ValueError(
+                "failed quality response must preserve its failed turns"
+            )
         failed = failures[0]
         for field, expected in {
             "failure": failed["failure"],
@@ -816,7 +906,165 @@ def _validate_capture_record(
         }.items():
             if record.get(field) != expected:
                 raise ValueError(f"failed quality response {field} mismatch")
+        if governed_hashes is not None:
+            for field, expected in {
+                "failure_type": failed["failure_type"],
+                "failure_type_sha256": failed["failure_type_sha256"],
+            }.items():
+                if record.get(field) != expected:
+                    raise ValueError(
+                        f"failed quality response {field} mismatch"
+                    )
     return dict(record)
+
+
+def _governed_turn_output(
+    *,
+    turn_id: str,
+    outcome: Mapping[str, Any],
+) -> dict[str, str]:
+    if outcome["status"] == "complete":
+        output = outcome["raw_output"]
+        if (
+            not isinstance(output, str)
+            or outcome["raw_output_sha256"] != _sha256_text(output)
+        ):
+            raise ValueError("governed worker output identity mismatch")
+        return {
+            "turn_id": turn_id,
+            "status": "complete",
+            "output": output,
+            "output_sha256": outcome["raw_output_sha256"],
+        }
+    if (
+        outcome["status"] != "failed"
+        or outcome["raw_output"] is not None
+        or outcome["raw_output_sha256"] is not None
+        or not isinstance(outcome["failure_type"], str)
+        or not outcome["failure_type"].strip()
+        or not isinstance(outcome["failure_message"], str)
+    ):
+        raise ValueError("governed worker failure identity mismatch")
+    failure_type = outcome["failure_type"]
+    failure = outcome["failure_message"]
+    return {
+        "turn_id": turn_id,
+        "status": "failed",
+        "output": "",
+        "output_sha256": _sha256_text(""),
+        "failure": failure,
+        "failure_sha256": _sha256_text(failure),
+        "failure_type": failure_type,
+        "failure_type_sha256": _sha256_text(failure_type),
+    }
+
+
+def _build_governed_capture_records(
+    *,
+    worker_spec: Mapping[str, Any],
+    worker_result: Mapping[str, Any],
+    contract: Mapping[str, Any],
+    rubric_sha256: str,
+    expected_runtime: QualityRuntimeIdentity,
+    runtime_summary_sha256: str,
+    runtime_config_sha256: str,
+    evidence_hashes: Mapping[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Project seven validated worker outcomes into six capture records."""
+
+    if not isinstance(worker_spec, Mapping):
+        raise ValueError("quality worker spec is invalid")
+    mapped_settings = _map_governed_generation_settings(
+        worker_spec.get("generation_settings")
+    )
+    if mapped_settings != dict(contract["generation_settings"]):
+        raise ValueError(
+            "governed worker generation settings do not map to capture contract"
+        )
+    prompts = worker_spec.get("prompts")
+    outcomes = worker_result.get("outcomes")
+    if (
+        not isinstance(prompts, list)
+        or len(prompts) != 7
+        or not isinstance(outcomes, (list, tuple))
+        or len(outcomes) != 7
+    ):
+        raise ValueError("governed worker prompt or outcome sequence is invalid")
+    for index in range(6):
+        prompt = prompts[index]
+        outcome = outcomes[index]
+        if (
+            not isinstance(prompt, Mapping)
+            or not isinstance(outcome, Mapping)
+            or outcome.get("raw_prompt") != prompt.get("prompt")
+            or outcome.get("raw_prompt_sha256")
+            != _sha256_text(prompt.get("prompt", ""))
+        ):
+            raise ValueError("governed worker raw prompt identity mismatch")
+    p6_turn_one_output = (
+        outcomes[5]["raw_output"]
+        if outcomes[5]["status"] == "complete"
+        else ""
+    )
+    if not isinstance(p6_turn_one_output, str):
+        raise ValueError("governed worker P6 turn-one output is invalid")
+    expected_p6_turn_two = _p6_turn_two_prompt(
+        prompts[5]["prompt"],
+        p6_turn_one_output,
+        prompts[6]["prompt"],
+    )
+    if (
+        outcomes[6].get("raw_prompt") != expected_p6_turn_two
+        or outcomes[6].get("raw_prompt_sha256")
+        != _sha256_text(expected_p6_turn_two)
+    ):
+        raise ValueError(
+            "governed worker P6 turn-two prompt does not bind actual history"
+        )
+
+    records: dict[str, dict[str, Any]] = {}
+    for prompt_index, prompt_id in enumerate(PROMPT_IDS):
+        outcome_indexes = (
+            (5, 6) if prompt_id == "P6" else (prompt_index,)
+        )
+        turn_prompts = []
+        turn_outputs = []
+        for turn_index, outcome_index in enumerate(outcome_indexes, start=1):
+            outcome = outcomes[outcome_index]
+            turn_id = f"turn_{turn_index}"
+            raw_prompt = outcome["raw_prompt"]
+            turn_prompts.append(
+                {
+                    "turn_id": turn_id,
+                    "raw_prompt": raw_prompt,
+                    "raw_prompt_sha256": outcome["raw_prompt_sha256"],
+                }
+            )
+            turn_outputs.append(
+                _governed_turn_output(turn_id=turn_id, outcome=outcome)
+            )
+        record = _build_capture_record(
+            prompt_id=prompt_id,
+            contract=contract,
+            rubric_sha256=rubric_sha256,
+            expected_runtime=expected_runtime,
+            runtime_summary_sha256=runtime_summary_sha256,
+            runtime_config_sha256=runtime_config_sha256,
+            turn_prompts=turn_prompts,
+            turn_outputs=turn_outputs,
+            evidence_hashes=evidence_hashes,
+        )
+        records[prompt_id] = _validate_capture_record(
+            record,
+            prompt_id=prompt_id,
+            contract=contract,
+            rubric_sha256=rubric_sha256,
+            expected_runtime=expected_runtime,
+            runtime_summary_sha256=runtime_summary_sha256,
+            runtime_config_sha256=runtime_config_sha256,
+            evidence_hashes=evidence_hashes,
+        )
+    return records
 
 
 def _capture_prompt(
@@ -894,7 +1142,11 @@ def _build_capture_summary(
     expected_runtime: QualityRuntimeIdentity,
     runtime_summary_sha256: str,
     runtime_config_sha256: str,
+    evidence_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    governed_hashes = _validate_governed_evidence_hashes(evidence_hashes)
+    if set(records) != set(PROMPT_IDS):
+        raise ValueError("quality capture requires exactly P1-P6 records")
     failure_count = sum(
         record["status"] == "failed" for record in records.values()
     )
@@ -916,7 +1168,7 @@ def _build_capture_summary(
         "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
         "rubric_sha256": rubric_sha256,
         "generation_settings_sha256": _sha256_bytes(
-            _canonical_json(contract["generation_settings"])
+            _canonical_json(dict(contract["generation_settings"]))
         ),
         "response_count": len(records),
         "failure_count": failure_count,
@@ -929,6 +1181,8 @@ def _build_capture_summary(
             for prompt_id, record in records.items()
         },
     }
+    if governed_hashes is not None:
+        summary.update(governed_hashes)
     summary["capture_sha256"] = _sha256_bytes(_canonical_json(summary))
     return summary
 

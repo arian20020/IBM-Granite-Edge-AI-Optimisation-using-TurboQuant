@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,7 +37,12 @@ from scripts.testing.official_openvino.guarded_build import (
     run_guarded_command,
 )
 from scripts.testing.run_official_openvino_quality import (
+    PROMPT_IDS,
+    QualityRuntimeIdentity,
+    _build_capture_summary,
+    _build_governed_capture_records,
     _load_frozen_rubric,
+    _validate_capture_record,
     load_prompt_contract,
     parse_json_bytes_strict,
 )
@@ -99,6 +105,8 @@ class GovernedQualityWorkerResult:
     worker_result_sha256: str
     guard_evidence: Mapping[str, Any]
     guard_evidence_sha256: str
+    quality_worker_spec_sha256: str
+    worker_log_sha256: str
 
 
 def _canonical_identity_bytes(value: Mapping[str, Any]) -> bytes:
@@ -639,7 +647,380 @@ def run_governed_quality_worker(
         worker_result_sha256=hashlib.sha256(worker_raw).hexdigest(),
         guard_evidence=_freeze(persisted_evidence),
         guard_evidence_sha256=hashlib.sha256(raw_evidence).hexdigest(),
+        quality_worker_spec_sha256=spec_sha256,
+        worker_log_sha256=log_sha256,
     )
+
+
+def _load_governed_quality_worker(
+    campaign: AcceptedQualityCampaign,
+    output_root: Path,
+    timeout_seconds: float,
+) -> GovernedQualityWorkerResult:
+    """Strictly revalidate one persisted Task-3 execution without launching."""
+
+    accepted = load_accepted_quality_campaign(
+        _accepted_input_from_campaign(campaign)
+    )
+    root = Path(output_root).resolve()
+    expected_names = {
+        "worker-spec.json",
+        "worker-result.json",
+        "worker.log",
+        "guard-evidence.json",
+    }
+    try:
+        children = list(root.iterdir())
+    except OSError as error:
+        raise ValueError("governed quality execution is incomplete") from error
+    if (
+        {child.name for child in children} != expected_names
+        or any(child.is_symlink() or not child.is_file() for child in children)
+    ):
+        raise ValueError(
+            "governed quality execution has incomplete or unexpected state"
+        )
+
+    spec_path = root / "worker-spec.json"
+    result_path = root / "worker-result.json"
+    log_path = root / "worker.log"
+    evidence_path = root / "guard-evidence.json"
+    expected_spec = build_quality_worker_spec(accepted)
+    expected_spec_bytes = _canonical_json(expected_spec)
+    try:
+        spec_bytes = spec_path.read_bytes()
+    except OSError as error:
+        raise ValueError("quality worker spec is missing") from error
+    if spec_bytes != expected_spec_bytes:
+        raise ValueError(
+            "quality worker spec bytes do not match accepted campaign"
+        )
+    spec_sha256 = hashlib.sha256(spec_bytes).hexdigest()
+
+    try:
+        worker_raw = result_path.read_bytes()
+    except OSError as error:
+        raise ValueError("quality worker result is missing") from error
+    worker_result = _validate_worker_result(worker_raw, source=result_path)
+
+    try:
+        log_bytes = log_path.read_bytes()
+    except OSError as error:
+        raise RuntimeError("quality worker log is missing") from error
+    log_sha256 = hashlib.sha256(log_bytes).hexdigest()
+
+    try:
+        guard_raw = evidence_path.read_bytes()
+        guard = _strict_object(guard_raw, source=evidence_path)
+    except (OSError, ValueError) as error:
+        raise RuntimeError("guard evidence is missing or invalid") from error
+    if guard_raw != _canonical_identity_bytes(guard):
+        raise RuntimeError("guard evidence bytes are not canonical")
+    command = [
+        str(accepted.python_executable),
+        "-m",
+        "scripts.testing.official_openvino.quality_worker",
+        "--spec",
+        str(spec_path),
+        "--result",
+        str(result_path),
+    ]
+    _validate_guard_evidence(
+        guard,
+        command=command,
+        cwd=accepted.repo_root,
+        log_path=log_path,
+        evidence_path=evidence_path,
+        environment=dict(accepted.worker_environment),
+        timeout_seconds=float(timeout_seconds),
+        log_sha256=log_sha256,
+    )
+    return GovernedQualityWorkerResult(
+        worker_result=worker_result,
+        worker_result_sha256=hashlib.sha256(worker_raw).hexdigest(),
+        guard_evidence=_freeze(guard),
+        guard_evidence_sha256=hashlib.sha256(guard_raw).hexdigest(),
+        quality_worker_spec_sha256=spec_sha256,
+        worker_log_sha256=log_sha256,
+    )
+
+
+_GOVERNED_RECEIPT_SCHEMA = (
+    "official-openvino-wb04-governed-quality-execution/v1"
+)
+
+
+def _accepted_campaign_fingerprint(
+    campaign: AcceptedQualityCampaign,
+) -> tuple[str, ...]:
+    return (
+        campaign.campaign_identity_sha256,
+        campaign.measurement_summary_sha256,
+        campaign.runtime_config_sha256,
+        campaign.prompt_contract["prompt_set_sha256"],
+        campaign.rubric_sha256,
+        _sha256_json(campaign.worker_environment),
+    )
+
+
+def _governed_execution_receipt(
+    campaign: AcceptedQualityCampaign,
+    governed: GovernedQualityWorkerResult,
+) -> dict[str, Any]:
+    guard = governed.guard_evidence
+    job = guard["job_object"]
+    receipt: dict[str, Any] = {
+        "schema": _GOVERNED_RECEIPT_SCHEMA,
+        "status": "valid",
+        "campaign_identity_sha256": campaign.campaign_identity_sha256,
+        "measurement_summary_sha256": campaign.measurement_summary_sha256,
+        "runtime_config_sha256": campaign.runtime_config_sha256,
+        "prompt_set_sha256": campaign.prompt_contract["prompt_set_sha256"],
+        "rubric_sha256": campaign.rubric_sha256,
+        "governed_root": "governed",
+        "quality_worker_spec_path": "governed/worker-spec.json",
+        "quality_worker_spec_sha256": (
+            governed.quality_worker_spec_sha256
+        ),
+        "worker_result_path": "governed/worker-result.json",
+        "worker_result_sha256": governed.worker_result_sha256,
+        "worker_log_path": "governed/worker.log",
+        "worker_log_sha256": governed.worker_log_sha256,
+        "guard_evidence_path": "governed/guard-evidence.json",
+        "guard_evidence_sha256": governed.guard_evidence_sha256,
+        "guard_valid": guard["valid"],
+        "guard_timed_out": guard["timed_out"],
+        "guard_low_memory_stop": guard["low_memory_stop"],
+        "guard_cleanup_process_count": guard["cleanup_process_count"],
+        "guard_exit_code": guard["exit_code"],
+        "guard_queried_active_process_count_after_cleanup": (
+            job["queried_active_process_count_after_cleanup"]
+        ),
+        "guard_survivor_pids_after_cleanup": list(
+            job["survivor_pids_after_cleanup"]
+        ),
+    }
+    receipt["governed_execution_sha256"] = hashlib.sha256(
+        _canonical_json(receipt)
+    ).hexdigest()
+    return receipt
+
+
+def _publish_canonical_json(path: Path, value: Mapping[str, Any]) -> None:
+    destination = Path(path)
+    if destination.exists():
+        raise FileExistsError(f"refusing to overwrite evidence: {destination}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            delete=False,
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(_canonical_json(dict(value)))
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, destination)
+        except FileExistsError as error:
+            raise FileExistsError(
+                f"refusing to overwrite evidence: {destination}"
+            ) from error
+        temporary.unlink()
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _read_canonical_capture_artifact(
+    path: Path,
+    *,
+    label: str,
+) -> dict[str, Any]:
+    try:
+        raw = Path(path).read_bytes()
+    except OSError as error:
+        raise ValueError(f"{label} is missing") from error
+    value = parse_json_bytes_strict(raw, source=path)
+    if not isinstance(value, dict) or raw != _canonical_json(value):
+        raise ValueError(f"{label} bytes are not canonical")
+    return value
+
+
+def _expected_capture_tree() -> set[str]:
+    expected = {
+        "governed",
+        "governed/worker-spec.json",
+        "governed/worker-result.json",
+        "governed/worker.log",
+        "governed/guard-evidence.json",
+        "governed-execution.json",
+        "capture-summary.json",
+    }
+    for prompt_id in PROMPT_IDS:
+        expected.add(prompt_id)
+        expected.add(f"{prompt_id}/response.json")
+    return expected
+
+
+def _validate_complete_capture_tree(root: Path) -> None:
+    try:
+        paths = list(root.rglob("*"))
+    except OSError as error:
+        raise ValueError("governed quality capture state is incomplete") from error
+    actual = {
+        path.relative_to(root).as_posix()
+        for path in paths
+    }
+    if (
+        not root.is_dir()
+        or any(path.is_symlink() for path in paths)
+        or actual != _expected_capture_tree()
+    ):
+        raise ValueError(
+            "governed quality capture has incomplete or unexpected state"
+        )
+
+
+def capture_governed_quality_campaign(
+    input: QualityCampaignInput,
+    *,
+    resume: bool,
+) -> dict[str, Any]:
+    """Capture one accepted campaign through the governed seven-turn worker."""
+
+    if type(resume) is not bool:
+        raise TypeError("resume must be a boolean")
+    accepted = load_accepted_quality_campaign(input)
+    root = accepted.output_root
+    governed_root = root / "governed"
+    if resume:
+        _validate_complete_capture_tree(root)
+        governed = _load_governed_quality_worker(
+            accepted,
+            governed_root,
+            accepted.timeout_seconds,
+        )
+    else:
+        if root.exists():
+            raise FileExistsError(
+                f"refusing to overwrite pre-existing quality evidence: {root}"
+            )
+        launched = run_governed_quality_worker(
+            accepted,
+            governed_root,
+            accepted.timeout_seconds,
+        )
+        if not isinstance(launched, GovernedQualityWorkerResult):
+            raise RuntimeError("governed quality worker result is invalid")
+        governed = _load_governed_quality_worker(
+            accepted,
+            governed_root,
+            accepted.timeout_seconds,
+        )
+        for field in (
+            "quality_worker_spec_sha256",
+            "worker_result_sha256",
+            "worker_log_sha256",
+            "guard_evidence_sha256",
+        ):
+            if getattr(governed, field) != getattr(launched, field):
+                raise RuntimeError(
+                    "governed quality launch result does not match artifacts"
+                )
+    if not isinstance(governed, GovernedQualityWorkerResult):
+        raise RuntimeError("governed quality worker result is invalid")
+
+    refreshed = load_accepted_quality_campaign(input)
+    if _accepted_campaign_fingerprint(refreshed) != (
+        _accepted_campaign_fingerprint(accepted)
+    ):
+        raise ValueError("accepted quality campaign changed during capture")
+    accepted = refreshed
+    receipt = _governed_execution_receipt(accepted, governed)
+    evidence_hashes = {
+        "quality_worker_spec_sha256": (
+            governed.quality_worker_spec_sha256
+        ),
+        "worker_result_sha256": governed.worker_result_sha256,
+        "guard_evidence_sha256": governed.guard_evidence_sha256,
+    }
+    runtime = QualityRuntimeIdentity(
+        test_id=accepted.measurement_summary["test_id"],
+        context_tokens=accepted.measurement_summary["context_tokens"],
+        campaign_identity_sha256=accepted.campaign_identity_sha256,
+    )
+    records = _build_governed_capture_records(
+        worker_spec=build_quality_worker_spec(accepted),
+        worker_result=governed.worker_result,
+        contract=accepted.prompt_contract,
+        rubric_sha256=accepted.rubric_sha256,
+        expected_runtime=runtime,
+        runtime_summary_sha256=accepted.measurement_summary_sha256,
+        runtime_config_sha256=accepted.runtime_config_sha256,
+        evidence_hashes=evidence_hashes,
+    )
+    summary = _build_capture_summary(
+        records=records,
+        contract=accepted.prompt_contract,
+        rubric_sha256=accepted.rubric_sha256,
+        expected_runtime=runtime,
+        runtime_summary_sha256=accepted.measurement_summary_sha256,
+        runtime_config_sha256=accepted.runtime_config_sha256,
+        evidence_hashes=evidence_hashes,
+    )
+
+    receipt_path = root / "governed-execution.json"
+    summary_path = root / "capture-summary.json"
+    if resume:
+        if _read_canonical_capture_artifact(
+            receipt_path,
+            label="governed execution receipt",
+        ) != receipt:
+            raise ValueError("governed execution receipt does not match evidence")
+        for prompt_id in PROMPT_IDS:
+            path = root / prompt_id / "response.json"
+            persisted = _read_canonical_capture_artifact(
+                path,
+                label=f"{prompt_id} quality response",
+            )
+            validated = _validate_capture_record(
+                persisted,
+                prompt_id=prompt_id,
+                contract=accepted.prompt_contract,
+                rubric_sha256=accepted.rubric_sha256,
+                expected_runtime=runtime,
+                runtime_summary_sha256=accepted.measurement_summary_sha256,
+                runtime_config_sha256=accepted.runtime_config_sha256,
+                evidence_hashes=evidence_hashes,
+            )
+            if validated != records[prompt_id]:
+                raise ValueError(
+                    f"{prompt_id} quality response does not match worker evidence"
+                )
+        persisted_summary = _read_canonical_capture_artifact(
+            summary_path,
+            label="quality capture summary",
+        )
+        if persisted_summary != summary:
+            raise ValueError(
+                "quality capture summary does not match response records"
+            )
+        return persisted_summary
+
+    _publish_canonical_json(receipt_path, receipt)
+    for prompt_id in PROMPT_IDS:
+        _publish_canonical_json(
+            root / prompt_id / "response.json",
+            records[prompt_id],
+        )
+    _publish_canonical_json(summary_path, summary)
+    return summary
 
 
 __all__ = [
@@ -647,6 +1028,7 @@ __all__ = [
     "GovernedQualityWorkerResult",
     "QualityCampaignInput",
     "build_quality_worker_spec",
+    "capture_governed_quality_campaign",
     "load_accepted_quality_campaign",
     "run_governed_quality_worker",
 ]

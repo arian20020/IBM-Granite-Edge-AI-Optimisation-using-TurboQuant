@@ -158,6 +158,7 @@ def _governed_guard(
     failed_turn=False,
     mutate=None,
     mutate_result=None,
+    result_factory=None,
     result_suffix=b"",
     post_artifact=None,
 ):
@@ -167,7 +168,11 @@ def _governed_guard(
         )
 
         calls.append(kwargs)
-        result = _worker_result(failed_turn=failed_turn)
+        result = (
+            result_factory(Path(kwargs["command"][-3]))
+            if result_factory is not None
+            else _worker_result(failed_turn=failed_turn)
+        )
         if mutate_result is not None:
             mutate_result(result)
         result_path = Path(kwargs["command"][-1])
@@ -210,6 +215,143 @@ def _governed_guard(
         return guard
 
     return fake_guard
+
+
+def _capture_worker_result(
+    spec_path,
+    *,
+    failed_turn_id=None,
+    failed_turn_ids=(),
+):
+    spec = json.loads(Path(spec_path).read_text(encoding="utf-8"))
+    failed_ids = {*failed_turn_ids}
+    if failed_turn_id is not None:
+        failed_ids.add(failed_turn_id)
+    outcomes = []
+    actual_p6_turn_one = "ACTUAL-SAVED\r\nverbatim"
+    for entry in spec["prompts"][:6]:
+        turn_id = (
+            f"{entry['prompt_id']}-{entry['turn_id'].replace('_', '-')}"
+        )
+        failed = turn_id in failed_ids
+        output = (
+            actual_p6_turn_one
+            if turn_id == "P6-turn-1"
+            else f"  exact {turn_id}\r\n"
+        )
+        outcomes.append(
+            {
+                "turn_id": turn_id,
+                "raw_prompt": entry["prompt"],
+                "raw_prompt_sha256": hashlib.sha256(
+                    entry["prompt"].encode("utf-8")
+                ).hexdigest(),
+                "status": "failed" if failed else "complete",
+                "raw_output": None if failed else output,
+                "raw_output_sha256": (
+                    None
+                    if failed
+                    else hashlib.sha256(output.encode("utf-8")).hexdigest()
+                ),
+                "failure_type": "RuntimeError" if failed else None,
+                "failure_message": (
+                    f"synthetic failure {turn_id}" if failed else None
+                ),
+            }
+        )
+    p6_turn_one = outcomes[-1]["raw_output"] or ""
+    second_prompt = (
+        f"User: {spec['prompts'][5]['prompt'].strip()}\n"
+        f"Assistant: {p6_turn_one}\n"
+        f"User: {spec['prompts'][6]['prompt'].strip()}"
+    )
+    second_failed = "P6-turn-2" in failed_ids
+    second_output = "  exact P6-turn-2\r\n"
+    outcomes.append(
+        {
+            "turn_id": "P6-turn-2",
+            "raw_prompt": second_prompt,
+            "raw_prompt_sha256": hashlib.sha256(
+                second_prompt.encode("utf-8")
+            ).hexdigest(),
+            "status": "failed" if second_failed else "complete",
+            "raw_output": None if second_failed else second_output,
+            "raw_output_sha256": (
+                None
+                if second_failed
+                else hashlib.sha256(
+                    second_output.encode("utf-8")
+                ).hexdigest()
+            ),
+            "failure_type": "RuntimeError" if second_failed else None,
+            "failure_message": (
+                "synthetic failure P6-turn-2"
+                if second_failed
+                else None
+            ),
+        }
+    )
+    value = {
+        "schema": "official-openvino-wb04-quality-worker-result/v1",
+        "outcomes": outcomes,
+    }
+    value["worker_result_sha256"] = hashlib.sha256(
+        _canonical_bytes(value)
+    ).hexdigest()
+    return value
+
+
+def _capture_api():
+    from scripts.testing.official_openvino.quality_campaign import (
+        capture_governed_quality_campaign,
+    )
+
+    return capture_governed_quality_campaign
+
+
+def _install_capture_runner(
+    monkeypatch,
+    *,
+    failed_turn_id=None,
+    failed_turn_ids=(),
+):
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    real_runner = module.run_governed_quality_worker
+    launches = []
+
+    def synthetic_runner(campaign, output_root, timeout_seconds):
+        return real_runner(
+            campaign,
+            output_root,
+            timeout_seconds,
+            run_command=_governed_guard(
+                output_root.parent,
+                launches,
+                result_factory=lambda spec_path: _capture_worker_result(
+                    spec_path,
+                    failed_turn_id=failed_turn_id,
+                    failed_turn_ids=failed_turn_ids,
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(module, "run_governed_quality_worker", synthetic_runner)
+    return launches
+
+
+def _read_capture_json(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _quality_artifact_paths(root):
+    return [
+        root / "governed-execution.json",
+        *(root / prompt_id / "response.json" for prompt_id in (
+            "P1", "P2", "P3", "P4", "P5", "P6",
+        )),
+        root / "capture-summary.json",
+    ]
 
 
 def _skeletal_input(tmp_path):
@@ -590,6 +732,12 @@ def test_governed_worker_binds_the_exact_campaign_command_environment_and_guard(
     assert result.worker_result_sha256 == hashlib.sha256(
         (tmp_path / "governed" / "worker-result.json").read_bytes()
     ).hexdigest()
+    assert result.quality_worker_spec_sha256 == hashlib.sha256(
+        (tmp_path / "governed" / "worker-spec.json").read_bytes()
+    ).hexdigest()
+    assert result.worker_log_sha256 == hashlib.sha256(
+        (tmp_path / "governed" / "worker.log").read_bytes()
+    ).hexdigest()
 
 
 @pytest.mark.parametrize(
@@ -894,3 +1042,351 @@ def test_governed_worker_rejects_preexisting_output_root(target_name, tmp_path):
             1800.0,
             run_command=lambda **_: pytest.fail("guard must not launch"),
         )
+
+
+def test_governed_capture_launches_once_and_publishes_six_hash_bound_records(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    launches = _install_capture_runner(monkeypatch)
+
+    result = _capture_api()(source, resume=False)
+
+    root = source.output_root
+    assert len(launches) == 1
+    assert result["status"] == "captured"
+    assert result["response_count"] == 6
+    assert {
+        path.parent.name
+        for path in root.glob("P*/response.json")
+    } == {"P1", "P2", "P3", "P4", "P5", "P6"}
+    evidence_hashes = {
+        "quality_worker_spec_sha256": hashlib.sha256(
+            (root / "governed" / "worker-spec.json").read_bytes()
+        ).hexdigest(),
+        "worker_result_sha256": hashlib.sha256(
+            (root / "governed" / "worker-result.json").read_bytes()
+        ).hexdigest(),
+        "guard_evidence_sha256": hashlib.sha256(
+            (root / "governed" / "guard-evidence.json").read_bytes()
+        ).hexdigest(),
+    }
+    receipt = _read_capture_json(root / "governed-execution.json")
+    assert {
+        field: receipt[field] for field in evidence_hashes
+    } == evidence_hashes
+    assert receipt["worker_log_sha256"] == hashlib.sha256(
+        (root / "governed" / "worker.log").read_bytes()
+    ).hexdigest()
+    assert receipt["guard_valid"] is True
+    assert receipt["guard_timed_out"] is False
+    assert receipt["guard_cleanup_process_count"] == 0
+    assert receipt["guard_survivor_pids_after_cleanup"] == []
+    worker = _read_capture_json(root / "governed" / "worker-result.json")
+    for path in root.glob("P*/response.json"):
+        record = _read_capture_json(path)
+        assert {
+            field: record[field] for field in evidence_hashes
+        } == evidence_hashes
+        outcome = next(
+            row
+            for row in worker["outcomes"]
+            if row["turn_id"] == f"{record['prompt_id']}-turn-1"
+        )
+        assert record["turn_prompts"][0]["raw_prompt"] == outcome["raw_prompt"]
+        if outcome["status"] == "complete":
+            assert record["turn_outputs"][0]["output"] == outcome["raw_output"]
+            assert (
+                record["turn_outputs"][0]["output_sha256"]
+                == outcome["raw_output_sha256"]
+            )
+    assert {
+        field: result[field] for field in evidence_hashes
+    } == evidence_hashes
+    for path in _quality_artifact_paths(root):
+        value = _read_capture_json(path)
+        assert path.read_bytes() == _canonical_bytes(value)
+
+
+def test_governed_capture_binds_actual_p6_turn_one_and_exact_worker_prompt(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+
+    _capture_api()(source, resume=False)
+
+    root = source.output_root
+    p6 = _read_capture_json(root / "P6" / "response.json")
+    worker = _read_capture_json(root / "governed" / "worker-result.json")
+    turn_one = worker["outcomes"][5]["raw_output"]
+    turn_two_prompt = worker["outcomes"][6]["raw_prompt"]
+    assert turn_one == "ACTUAL-SAVED\r\nverbatim"
+    assert p6["turn_1"] == turn_one
+    assert p6["turn_prompts"][1]["raw_prompt"] == turn_two_prompt
+    assert p6["raw_prompt"] == turn_two_prompt
+    assert f"Assistant: {turn_one}\nUser:" in turn_two_prompt
+
+
+def test_governed_capture_preserves_raw_failure_without_score_or_completion(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch, failed_turn_id="P2-turn-1")
+
+    result = _capture_api()(source, resume=False)
+
+    record = _read_capture_json(source.output_root / "P2" / "response.json")
+    assert result["status"] == "captured-with-failures"
+    assert result["failure_count"] == 1
+    assert record["status"] == "failed"
+    assert record["failure_type"] == "RuntimeError"
+    assert record["failure"] == "synthetic failure P2-turn-1"
+    assert record["turn_outputs"][0]["status"] == "failed"
+    assert record["turn_outputs"][0]["failure"] == record["failure"]
+    assert not any(
+        "score" in key or "pass" in key or "complete" in key
+        for key in record
+    )
+
+
+def test_governed_capture_preserves_both_failed_p6_turns(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(
+        monkeypatch,
+        failed_turn_ids={"P6-turn-1", "P6-turn-2"},
+    )
+
+    result = _capture_api()(source, resume=False)
+
+    record = _read_capture_json(source.output_root / "P6" / "response.json")
+    assert result["status"] == "captured-with-failures"
+    assert record["status"] == "failed"
+    assert [
+        (turn["status"], turn["failure"])
+        for turn in record["turn_outputs"]
+    ] == [
+        ("failed", "synthetic failure P6-turn-1"),
+        ("failed", "synthetic failure P6-turn-2"),
+    ]
+    assert record["failed_turn_id"] == "turn_1"
+    assert record["turn_1"] == ""
+
+
+def test_governed_capture_clean_resume_validates_without_launch_or_rewrite(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    first = _capture_api()(source, resume=False)
+    before = {
+        path.relative_to(source.output_root): path.read_bytes()
+        for path in source.output_root.rglob("*")
+        if path.is_file()
+    }
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+
+    def forbidden_runner(*args, **kwargs):
+        launches.append((args, kwargs))
+        raise AssertionError("resume must not launch the governed worker")
+
+    monkeypatch.setattr(module, "run_governed_quality_worker", forbidden_runner)
+    resumed = _capture_api()(source, resume=True)
+    after = {
+        path.relative_to(source.output_root): path.read_bytes()
+        for path in source.output_root.rglob("*")
+        if path.is_file()
+    }
+
+    assert launches == []
+    assert resumed == first
+    assert after == before
+
+
+def test_governed_capture_revalidates_launch_artifacts_before_publication(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    synthetic_runner = module.run_governed_quality_worker
+
+    def tampering_runner(campaign, output_root, timeout_seconds):
+        result = synthetic_runner(campaign, output_root, timeout_seconds)
+        (Path(output_root) / "worker.log").write_bytes(b"altered after guard")
+        return result
+
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        tampering_runner,
+    )
+    with pytest.raises(RuntimeError, match="log"):
+        _capture_api()(source, resume=False)
+
+    assert not (source.output_root / "governed-execution.json").exists()
+    assert not (source.output_root / "capture-summary.json").exists()
+    assert not list(source.output_root.glob("P*/response.json"))
+
+
+_GOVERNED_RESUME_ARTIFACTS = (
+    "governed/worker-spec.json",
+    "governed/worker-result.json",
+    "governed/worker.log",
+    "governed/guard-evidence.json",
+    "governed-execution.json",
+    "P1/response.json",
+    "capture-summary.json",
+)
+
+
+@pytest.mark.parametrize("relative_path", _GOVERNED_RESUME_ARTIFACTS)
+def test_governed_capture_rejects_tampered_artifact_before_launch(
+    relative_path,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    target = source.output_root / relative_path
+    target.write_bytes(target.read_bytes() + b" ")
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        lambda *args, **kwargs: launches.append((args, kwargs)),
+    )
+    with pytest.raises((ValueError, RuntimeError)):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+@pytest.mark.parametrize("relative_path", _GOVERNED_RESUME_ARTIFACTS)
+def test_governed_capture_rejects_missing_artifact_before_launch(
+    relative_path,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    (source.output_root / relative_path).unlink()
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        lambda *args, **kwargs: launches.append((args, kwargs)),
+    )
+    with pytest.raises((ValueError, RuntimeError)):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    ("campaign", "runtime", "prompt", "rubric"),
+)
+def test_governed_capture_rejects_changed_identity_before_launch(
+    boundary,
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    if boundary == "campaign":
+        _mutate_json(
+            source.spec_path,
+            lambda value: value.update(prompt="changed after capture"),
+        )
+    elif boundary == "runtime":
+        summary = source.campaign_root / "measurement-summary.json"
+        summary.write_bytes(summary.read_bytes() + b" ")
+    elif boundary == "prompt":
+        changed = tmp_path / "changed-prompt-set.json"
+        changed.write_bytes(source.prompt_set_path.read_bytes() + b" ")
+        source = replace(source, prompt_set_path=changed)
+    else:
+        changed = tmp_path / "changed-rubric.json"
+        changed.write_bytes(source.rubric_path.read_bytes() + b" ")
+        source = replace(source, rubric_path=changed)
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        lambda *args, **kwargs: launches.append((args, kwargs)),
+    )
+    with pytest.raises((ValueError, RuntimeError)):
+        _capture_api()(source, resume=True)
+
+    assert launches == []
+
+
+def test_governed_capture_nonresume_rejects_preexisting_output_before_launch(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    source.output_root.mkdir(parents=True)
+    (source.output_root / "pre-existing").write_bytes(b"evidence")
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        lambda *args, **kwargs: launches.append((args, kwargs)),
+    )
+    with pytest.raises(FileExistsError, match="overwrite|pre-existing|fresh"):
+        _capture_api()(source, resume=False)
+
+    assert launches == []
+
+
+def test_governed_capture_resume_rejects_unexpected_state_before_launch(
+    monkeypatch,
+    tmp_path,
+):
+    source = _accepted_input(tmp_path)
+    _install_capture_runner(monkeypatch)
+    _capture_api()(source, resume=False)
+    (source.output_root / "unexpected.json").write_bytes(b"{}")
+
+    import scripts.testing.official_openvino.quality_campaign as module
+
+    launches = []
+    monkeypatch.setattr(
+        module,
+        "run_governed_quality_worker",
+        lambda *args, **kwargs: launches.append((args, kwargs)),
+    )
+    with pytest.raises(ValueError, match="unexpected|state"):
+        _capture_api()(source, resume=True)
+
+    assert launches == []

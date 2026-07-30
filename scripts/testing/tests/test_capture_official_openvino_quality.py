@@ -449,3 +449,33 @@ def test_resume_rejects_scoring_fields_even_with_recomputed_record_hash(
 
     assert calls == []
     assert response.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    ("field", "wrong"),
+    (
+        ("max_new_tokens", 255),
+        ("do_sample", True),
+        ("rng_seed", 41),
+        ("apply_chat_template", True),
+    ),
+)
+def test_governed_settings_projection_requires_the_exact_worker_contract(
+    field,
+    wrong,
+):
+    from scripts.testing.run_official_openvino_quality import (
+        _map_governed_generation_settings,
+    )
+
+    worker_settings = {
+        "max_new_tokens": 256,
+        "do_sample": False,
+        "rng_seed": 42,
+        "apply_chat_template": False,
+    }
+    assert _map_governed_generation_settings(worker_settings) == SETTINGS
+
+    worker_settings[field] = wrong
+    with pytest.raises(ValueError, match="worker generation settings"):
+        _map_governed_generation_settings(worker_settings)
