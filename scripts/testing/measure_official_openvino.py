@@ -161,6 +161,211 @@ def _matrix_case(path: Path, test_id: str, context: int) -> dict[str, Any]:
     }
 
 
+def _matrix_runtime_algorithm(label: Any, *, field: str) -> str:
+    if label in {"standard", "scalar", "frozen"}:
+        return "STANDARD"
+    if label in {"tbq3", "tbq4"}:
+        return str(label).upper()
+    raise ValueError(f"matrix {field} algorithm is not runnable: {label}")
+
+
+def _matrix_norm_correction(case: Mapping[str, Any]) -> bool:
+    turboquant = any(
+        case.get(field) in {"tbq3", "tbq4"}
+        for field in ("k_algorithm", "v_algorithm")
+    )
+    return turboquant and case.get("test_id") not in {
+        "OV-TQ-11",
+        "OV-TQ-12",
+    }
+
+
+def _device_family(value: Any, *, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} is missing")
+    family = value.split(".", 1)[0].upper()
+    if family not in {"CPU", "GPU"}:
+        raise ValueError(f"{field} is unsupported: {value}")
+    return family
+
+
+def validate_worker_spec_against_matrix_case(
+    spec: Mapping[str, Any],
+    case: Mapping[str, Any],
+) -> None:
+    """Fail before launch when a worker spec diverges from its matrix row."""
+
+    if spec.get("controlled_test_id") != case.get("test_id"):
+        raise ValueError("worker spec test ID does not match the matrix case")
+    contexts = case.get("contexts")
+    if not isinstance(contexts, list) or spec.get("context") not in contexts:
+        raise ValueError("worker spec context does not match the matrix case")
+    expected_device = _device_family(
+        case.get("device"), field="matrix device"
+    )
+    if _device_family(spec.get("device"), field="worker spec device") != (
+        expected_device
+    ):
+        raise ValueError("worker spec device does not match the matrix case")
+
+    properties = spec.get("properties")
+    if not isinstance(properties, Mapping):
+        raise ValueError("worker spec properties are missing")
+    expected_key = _matrix_runtime_algorithm(
+        case.get("k_algorithm"), field="key"
+    )
+    expected_value = _matrix_runtime_algorithm(
+        case.get("v_algorithm"), field="value"
+    )
+    turboquant = expected_key != "STANDARD" or expected_value != "STANDARD"
+    if turboquant:
+        if properties.get("TURBOQUANT_KEY_ALGORITHM") != expected_key:
+            raise ValueError(
+                "worker spec TurboQuant key algorithm does not match "
+                "the matrix case"
+            )
+        if properties.get("TURBOQUANT_VALUE_ALGORITHM") != expected_value:
+            raise ValueError(
+                "worker spec TurboQuant value algorithm does not match "
+                "the matrix case"
+            )
+        if properties.get("TURBOQUANT_NORM_CORRECTION") is not (
+            _matrix_norm_correction(case)
+        ):
+            raise ValueError(
+                "worker spec norm correction does not match the matrix case"
+            )
+    elif any(
+        field in properties
+        for field in (
+            "TURBOQUANT_KEY_ALGORITHM",
+            "TURBOQUANT_VALUE_ALGORITHM",
+            "TURBOQUANT_NORM_CORRECTION",
+        )
+    ):
+        raise ValueError(
+            "worker spec requested TurboQuant for a STANDARD matrix case"
+        )
+
+    for side, algorithm_field, precision_field in (
+        ("KEY", "k_algorithm", "k_precision"),
+        ("VALUE", "v_algorithm", "v_precision"),
+    ):
+        if _matrix_runtime_algorithm(
+            case.get(algorithm_field), field=side.lower()
+        ) != "STANDARD":
+            if f"{side}_CACHE_PRECISION" in properties:
+                raise ValueError(
+                    f"worker spec {side.lower()} cache precision must be "
+                    "owned by TurboQuant"
+                )
+            continue
+        precision = case.get(precision_field)
+        if precision in {"f16", "bf16", "u8", "u4"} and (
+            properties.get(f"{side}_CACHE_PRECISION") != precision
+        ):
+            raise ValueError(
+                f"worker spec {side.lower()} cache precision does not match "
+                "the matrix case"
+            )
+
+
+def validate_runtime_record_against_matrix_case(
+    record: Mapping[str, Any],
+    case: Mapping[str, Any],
+) -> None:
+    """Bind accepted activation evidence to the controlled matrix semantics."""
+
+    activation = record.get("activation")
+    if not isinstance(activation, Mapping):
+        raise ValueError("runtime activation evidence is missing")
+    if activation.get("fallback") is not False:
+        raise ValueError("runtime activation reports fallback")
+
+    expected_key = _matrix_runtime_algorithm(
+        case.get("k_algorithm"), field="key"
+    )
+    expected_value = _matrix_runtime_algorithm(
+        case.get("v_algorithm"), field="value"
+    )
+    expected_device = _device_family(
+        case.get("device"), field="matrix device"
+    )
+    if _device_family(
+        activation.get("device"), field="activation requested device"
+    ) != expected_device:
+        raise ValueError("activation requested device differs from the matrix")
+    if _device_family(
+        activation.get("actual_device"), field="activation actual device"
+    ) != expected_device:
+        raise ValueError("activation actual device differs from the matrix")
+
+    for side, expected in (("key", expected_key), ("value", expected_value)):
+        if activation.get(f"requested_{side}_algorithm") != expected:
+            raise ValueError(
+                f"activation requested {side} algorithm differs from the matrix"
+            )
+        if activation.get(f"activated_{side}_algorithm") != expected:
+            raise ValueError(
+                f"activation activated {side} algorithm differs from the matrix"
+            )
+
+    turboquant = expected_key != "STANDARD" or expected_value != "STANDARD"
+    expected_status = "activated" if turboquant else "not_requested"
+    if activation.get("status") != expected_status:
+        raise ValueError("activation status differs from the matrix route")
+    if activation.get("norm_correction") is not _matrix_norm_correction(case):
+        raise ValueError("activation norm correction differs from the matrix")
+    expected_attention = (
+        "stateful_sdpa_reference_codec"
+        if turboquant
+        else "stateful_sdpa_standard"
+    )
+    if activation.get("attention_path") != expected_attention:
+        raise ValueError("activation attention path differs from the matrix")
+
+    scalar_control = (
+        case.get("k_algorithm") == "scalar"
+        and case.get("v_algorithm") == "scalar"
+    )
+    for side, algorithm, precision_field in (
+        ("key", expected_key, "k_precision"),
+        ("value", expected_value, "v_precision"),
+    ):
+        precision = case.get(precision_field)
+        requested = activation.get(
+            f"requested_{side}_cache_precision"
+        )
+        activated = activation.get(
+            f"activated_{side}_cache_precision"
+        )
+        observed = activation.get(f"observed_{side}_state_precision")
+        if precision in {"f16", "bf16", "u8", "u4", "u3"}:
+            if requested != precision:
+                raise ValueError(
+                    f"activation requested {side} cache precision differs "
+                    "from the matrix"
+                )
+            if activated != precision:
+                raise ValueError(
+                    f"activation activated {side} cache precision differs "
+                    "from the matrix"
+                )
+        if algorithm in {"TBQ3", "TBQ4"}:
+            if observed != "u8+f32+i32":
+                raise ValueError(
+                    f"TurboQuant {side} state precision evidence is invalid"
+                )
+        elif scalar_control and observed != precision:
+            raise ValueError(
+                f"scalar cache precision was not concretely observed for {side}"
+            )
+        elif not isinstance(observed, str) or not observed.strip():
+            raise ValueError(
+                f"STANDARD {side} state precision evidence is missing"
+            )
+
+
 def build_campaign_identity(
     *,
     spec_path: Path,
@@ -182,6 +387,7 @@ def build_campaign_identity(
         spec["controlled_test_id"],
         spec["context"],
     )
+    validate_worker_spec_against_matrix_case(spec, matrix["case"])
     expected_precision = matrix["case"].get("weight_precision")
     if expected_precision not in {"f16", "u8", "u4"}:
         raise ValueError("matrix case has no recognized weight precision")
@@ -546,6 +752,7 @@ def _resumable_attempt(
     role: str,
     role_spec: Mapping[str, Any],
     identity_sha256: str,
+    matrix_case: Mapping[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any], Path] | None:
     expected_spec_sha256 = _sha256_json(role_spec)
     role_root = campaign_root / "attempts" / role
@@ -585,6 +792,15 @@ def _resumable_attempt(
             or not _runtime_record_matches_spec(record, role_spec, role)
         ):
             raise RuntimeError(f"{role} accepted attempt is not resumable")
+        try:
+            validate_runtime_record_against_matrix_case(
+                record,
+                matrix_case,
+            )
+        except ValueError as error:
+            raise RuntimeError(
+                f"{role} accepted attempt contradicts the matrix: {error}"
+            ) from error
         accepted.append((receipt, record, record_path))
     if len(accepted) > 1:
         raise RuntimeError(f"{role} has multiple accepted attempts")
@@ -692,6 +908,7 @@ def _run_measurement_sequence_locked(
         openvino_libraries=openvino_libraries,
     )
     identity_sha256 = identity["campaign_identity_sha256"]
+    matrix_case = identity["identity"]["matrix"]["case"]
     _campaign_identity(root, identity)
 
     completed: list[
@@ -704,6 +921,7 @@ def _run_measurement_sequence_locked(
             role=role,
             role_spec=spec_value,
             identity_sha256=identity_sha256,
+            matrix_case=matrix_case,
         )
         if resumed is not None:
             completed.append(resumed)
@@ -746,6 +964,15 @@ def _run_measurement_sequence_locked(
 
         record_path = output_dir / "attempt.json"
         persisted = _persisted_record(record_path)
+        matrix_error: str | None = None
+        if persisted is not None:
+            try:
+                validate_runtime_record_against_matrix_case(
+                    persisted,
+                    matrix_case,
+                )
+            except ValueError as error:
+                matrix_error = str(error)
         accepted = (
             persisted is not None
             and persisted == returned
@@ -753,6 +980,7 @@ def _run_measurement_sequence_locked(
             and persisted.get("valid") is True
             and persisted.get("cleanup_process_count") == 0
             and _runtime_record_matches_spec(persisted, spec_value, role)
+            and matrix_error is None
         )
         receipt = _write_sequence_receipt(
             campaign_root=root,
@@ -766,8 +994,12 @@ def _run_measurement_sequence_locked(
             controller_error=(
                 None
                 if accepted
-                else "runtime record is absent, differs from the returned "
-                "record, or did not pass validation"
+                else (
+                    f"runtime activation contradicts matrix: {matrix_error}"
+                    if matrix_error is not None
+                    else "runtime record is absent, differs from the returned "
+                    "record, or did not pass validation"
+                )
             ),
         )
         if not accepted or persisted is None:
