@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -1048,6 +1049,28 @@ def test_governed_adapter_requires_exactly_six_capture_records(
 
     with pytest.raises(ValueError, match="incomplete or unexpected"):
         _governed_scoring_input(raw_root)
+
+
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="Windows path and handle metadata use different ctime semantics",
+)
+def test_adjudicator_snapshot_accepts_unchanged_hardlink_published_file(
+    tmp_path,
+):
+    temporary = tmp_path / ".evidence.json.tmp"
+    published = tmp_path / "evidence.json"
+    temporary.write_bytes(b'{"evidence":"unchanged"}\n')
+    time.sleep(0.01)
+    os.link(temporary, published)
+    temporary.unlink()
+
+    _, raw = adjudicator._snapshot_capture_entry(
+        published,
+        expect_file=True,
+    )
+
+    assert raw == b'{"evidence":"unchanged"}\n'
 
 
 def test_governed_adapter_rejects_hardlink_aliases_before_projection(

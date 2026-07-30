@@ -522,14 +522,23 @@ def _parse_nullable_json_object(
     return value
 
 
-def _capture_path_identity(value: os.stat_result) -> tuple[int, ...]:
+def _capture_path_identity(
+    value: os.stat_result,
+    *,
+    handle_compatible: bool = False,
+) -> tuple[int, ...]:
+    ctime_ns = (
+        getattr(value, "st_birthtime_ns", value.st_ctime_ns)
+        if handle_compatible and os.name == "nt"
+        else value.st_ctime_ns
+    )
     return (
         int(value.st_dev),
         int(value.st_ino),
         int(value.st_mode),
         int(value.st_size),
         int(value.st_mtime_ns),
-        int(value.st_ctime_ns),
+        int(ctime_ns),
         int(value.st_nlink),
         int(getattr(value, "st_file_attributes", 0)),
         int(getattr(value, "st_reparse_tag", 0)),
@@ -593,6 +602,7 @@ def _snapshot_capture_entry(
     if _is_capture_alias(before):
         raise ValueError(f"governed capture evidence contains an alias: {path}")
     identity = _capture_path_identity(before)
+    handle_identity = _capture_path_identity(before, handle_compatible=True)
     if not expect_file:
         if not stat.S_ISDIR(before.st_mode):
             raise ValueError(f"governed capture directory is invalid: {path}")
@@ -612,7 +622,8 @@ def _snapshot_capture_entry(
                 _is_capture_alias(opened)
                 or not stat.S_ISREG(opened.st_mode)
                 or opened.st_nlink != 1
-                or _capture_path_identity(opened) != identity
+                or _capture_path_identity(opened, handle_compatible=True)
+                != handle_identity
             ):
                 raise ValueError(
                     f"governed capture file identity changed: {path}"
@@ -626,7 +637,8 @@ def _snapshot_capture_entry(
     except OSError as exc:
         raise ValueError(f"governed capture file changed after reading: {path}") from exc
     if (
-        _capture_path_identity(read_complete) != identity
+        _capture_path_identity(read_complete, handle_compatible=True)
+        != handle_identity
         or _is_capture_alias(after)
         or _capture_path_identity(after) != identity
     ):
