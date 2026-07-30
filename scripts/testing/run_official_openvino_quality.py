@@ -23,6 +23,7 @@ import math
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -30,6 +31,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.testing.official_openvino.quality import (
     validate_response_record as validate_scoring_response_record,
@@ -2184,16 +2190,141 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run frozen official OpenVINO P1-P6 quality requests"
     )
-    parser.add_argument("--config-manifest", type=Path, required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--config-manifest", type=Path)
+    mode.add_argument("--campaign-root", type=Path)
+    parser.add_argument("--spec", dest="spec_path", type=Path)
+    parser.add_argument("--matrix", dest="matrix_path", type=Path)
+    parser.add_argument(
+        "--artifact-manifest",
+        dest="artifact_manifest_path",
+        type=Path,
+    )
+    parser.add_argument(
+        "--build-provenance",
+        dest="build_provenance_path",
+        type=Path,
+    )
+    parser.add_argument("--build-root", type=Path)
+    parser.add_argument("--repo-root", type=Path)
+    parser.add_argument("--python-executable", type=Path)
+    parser.add_argument("--python-site-packages", type=Path)
+    parser.add_argument("--openvino-libraries", type=Path)
+    parser.add_argument("--sampler-script", type=Path)
     parser.add_argument("--prompt-set", type=Path, required=True)
     parser.add_argument("--rendered-root", type=Path, required=True)
+    parser.add_argument("--rubric", dest="rubric_path", type=Path)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--timeout-seconds", type=float)
+    parser.add_argument("--minimum-available-ram-mib", type=int)
     parser.add_argument("--resume", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.campaign_root is not None:
+        required_campaign_paths = (
+            ("--spec", args.spec_path),
+            ("--matrix", args.matrix_path),
+            ("--artifact-manifest", args.artifact_manifest_path),
+            ("--build-provenance", args.build_provenance_path),
+            ("--build-root", args.build_root),
+            ("--repo-root", args.repo_root),
+            ("--python-executable", args.python_executable),
+            ("--python-site-packages", args.python_site_packages),
+            ("--openvino-libraries", args.openvino_libraries),
+            ("--sampler-script", args.sampler_script),
+            ("--rubric", args.rubric_path),
+            ("--timeout-seconds", args.timeout_seconds),
+            (
+                "--minimum-available-ram-mib",
+                args.minimum_available_ram_mib,
+            ),
+        )
+        missing = [
+            option
+            for option, value in required_campaign_paths
+            if value is None
+        ]
+        if missing:
+            parser.error(
+                f"{', '.join(missing)} required with --campaign-root"
+            )
+        if args.minimum_available_ram_mib != 2048:
+            parser.error(
+                "--minimum-available-ram-mib must equal exactly 2048 "
+                "with --campaign-root"
+            )
+        if (
+            not math.isfinite(args.timeout_seconds)
+            or args.timeout_seconds <= 0
+        ):
+            parser.error(
+                "--timeout-seconds must be a finite positive number "
+                "with --campaign-root"
+            )
+    else:
+        governed_only = (
+            ("--spec", args.spec_path),
+            ("--matrix", args.matrix_path),
+            ("--artifact-manifest", args.artifact_manifest_path),
+            ("--build-provenance", args.build_provenance_path),
+            ("--build-root", args.build_root),
+            ("--repo-root", args.repo_root),
+            ("--python-executable", args.python_executable),
+            ("--python-site-packages", args.python_site_packages),
+            ("--openvino-libraries", args.openvino_libraries),
+            ("--sampler-script", args.sampler_script),
+            ("--rubric", args.rubric_path),
+            ("--timeout-seconds", args.timeout_seconds),
+            (
+                "--minimum-available-ram-mib",
+                args.minimum_available_ram_mib,
+            ),
+        )
+        invalid = [
+            option for option, value in governed_only if value is not None
+        ]
+        if invalid:
+            parser.error(
+                f"{', '.join(invalid)} can only be used with "
+                "--campaign-root"
+            )
+    return args
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.campaign_root is not None:
+        from scripts.testing.official_openvino.quality_campaign import (
+            QualityCampaignInput,
+            capture_governed_quality_campaign,
+        )
+
+        capture_governed_quality_campaign(
+            QualityCampaignInput(
+                campaign_root=args.campaign_root,
+                spec_path=args.spec_path,
+                matrix_path=args.matrix_path,
+                artifact_manifest_path=args.artifact_manifest_path,
+                build_provenance_path=args.build_provenance_path,
+                build_root=args.build_root,
+                repo_root=args.repo_root,
+                python_executable=args.python_executable,
+                python_site_packages=args.python_site_packages,
+                openvino_libraries=args.openvino_libraries,
+                sampler_script=args.sampler_script,
+                prompt_set_path=args.prompt_set,
+                rendered_root=args.rendered_root,
+                rubric_path=args.rubric_path,
+                output_root=args.output_root,
+                timeout_seconds=args.timeout_seconds,
+            ),
+            resume=args.resume,
+        )
+        print(
+            "completed governed P1-P6 quality capture at "
+            f"{args.output_root}"
+        )
+        return 0
+
     result = run_quality_campaign(
         load_configurations(args.config_manifest),
         prompt_set_path=args.prompt_set,

@@ -3,6 +3,7 @@ import json
 import math
 import os
 import subprocess
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -36,6 +37,23 @@ RUBRIC = (
     / "rubrics"
     / "quality-rubric-v1.json"
 )
+GOVERNED_CLI_PATH_OPTIONS = (
+    "--campaign-root",
+    "--spec",
+    "--matrix",
+    "--artifact-manifest",
+    "--build-provenance",
+    "--build-root",
+    "--repo-root",
+    "--python-executable",
+    "--python-site-packages",
+    "--openvino-libraries",
+    "--sampler-script",
+    "--prompt-set",
+    "--rendered-root",
+    "--rubric",
+    "--output-root",
+)
 
 
 def _write_json(path, value):
@@ -43,6 +61,97 @@ def _write_json(path, value):
     path.write_bytes(
         (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
+
+
+def _full_quality_cli_args(tmp_path, *, floor=2048, resume=True):
+    arguments = [
+        "--campaign-root",
+        str(tmp_path / "campaign"),
+        "--spec",
+        str(tmp_path / "spec.json"),
+        "--matrix",
+        str(tmp_path / "matrix.json"),
+        "--artifact-manifest",
+        str(tmp_path / "artifact-manifest.json"),
+        "--build-provenance",
+        str(tmp_path / "build-provenance.json"),
+        "--build-root",
+        str(tmp_path / "build"),
+        "--repo-root",
+        str(tmp_path / "repo"),
+        "--python-executable",
+        str(tmp_path / "python.exe"),
+        "--python-site-packages",
+        str(tmp_path / "site-packages"),
+        "--openvino-libraries",
+        str(tmp_path / "openvino-libraries"),
+        "--sampler-script",
+        str(tmp_path / "sampler.ps1"),
+        "--prompt-set",
+        str(tmp_path / "prompt-set.json"),
+        "--rendered-root",
+        str(tmp_path / "rendered"),
+        "--rubric",
+        str(tmp_path / "rubric.json"),
+        "--output-root",
+        str(tmp_path / "quality-output"),
+        "--timeout-seconds",
+        "1800",
+        "--minimum-available-ram-mib",
+        str(floor),
+    ]
+    if resume:
+        arguments.append("--resume")
+    return arguments
+
+
+def _without_cli_option(arguments, option):
+    index = arguments.index(option)
+    return arguments[:index] + arguments[index + 2 :]
+
+
+def _legacy_quality_cli_args(tmp_path):
+    return [
+        "--config-manifest",
+        str(tmp_path / "legacy-manifest.json"),
+        "--prompt-set",
+        str(tmp_path / "prompt-set.json"),
+        "--rendered-root",
+        str(tmp_path / "rendered"),
+        "--output-root",
+        str(tmp_path / "legacy-output"),
+        "--resume",
+    ]
+
+
+def test_quality_cli_requires_identity_paths_and_exact_ram_floor(tmp_path):
+    """Reject a bare campaign root and accept only the fixed RAM floor."""
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    with pytest.raises(SystemExit):
+        parse_args(["--campaign-root", "campaign"])
+
+    args = parse_args(_full_quality_cli_args(tmp_path))
+
+    assert args.minimum_available_ram_mib == 2048
+
+
+def test_quality_cli_help_runs_directly_as_a_script():
+    """The documented direct CLI invocation must resolve package imports."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "testing" / "run_official_openvino_quality.py"),
+            "--help",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--campaign-root" in result.stdout
 
 
 def _sha256_json(value):
@@ -1814,3 +1923,240 @@ def test_governed_capture_concurrent_fresh_publication_has_one_owner(
     assert len(errors) == 1
     assert isinstance(errors[0], FileExistsError)
     assert len(runner_calls) == 1
+
+
+def test_quality_cli_parses_every_governed_campaign_input_path(
+    tmp_path,
+):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    args = parse_args(_full_quality_cli_args(tmp_path))
+
+    assert args.campaign_root == tmp_path / "campaign"
+    assert args.spec_path == tmp_path / "spec.json"
+    assert args.matrix_path == tmp_path / "matrix.json"
+    assert (
+        args.artifact_manifest_path
+        == tmp_path / "artifact-manifest.json"
+    )
+    assert (
+        args.build_provenance_path
+        == tmp_path / "build-provenance.json"
+    )
+    assert args.build_root == tmp_path / "build"
+    assert args.repo_root == tmp_path / "repo"
+    assert args.python_executable == tmp_path / "python.exe"
+    assert args.python_site_packages == tmp_path / "site-packages"
+    assert args.openvino_libraries == tmp_path / "openvino-libraries"
+    assert args.sampler_script == tmp_path / "sampler.ps1"
+    assert args.prompt_set == tmp_path / "prompt-set.json"
+    assert args.rendered_root == tmp_path / "rendered"
+    assert args.rubric_path == tmp_path / "rubric.json"
+    assert args.output_root == tmp_path / "quality-output"
+    assert args.timeout_seconds == 1800.0
+    assert args.minimum_available_ram_mib == 2048
+    assert args.resume is True
+
+
+@pytest.mark.parametrize("missing_option", GOVERNED_CLI_PATH_OPTIONS)
+def test_quality_cli_rejects_each_missing_campaign_input_path(
+    tmp_path,
+    missing_option,
+):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    incomplete = _without_cli_option(
+        _full_quality_cli_args(tmp_path),
+        missing_option,
+    )
+
+    with pytest.raises(SystemExit):
+        parse_args(incomplete)
+
+
+@pytest.mark.parametrize(
+    "missing_option",
+    ("--timeout-seconds", "--minimum-available-ram-mib"),
+)
+def test_quality_cli_requires_governed_timeout_and_ram_floor(
+    tmp_path,
+    missing_option,
+):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    incomplete = _without_cli_option(
+        _full_quality_cli_args(tmp_path),
+        missing_option,
+    )
+
+    with pytest.raises(SystemExit):
+        parse_args(incomplete)
+
+
+@pytest.mark.parametrize("floor", [0, 1, 2047, 2049, 4096])
+def test_quality_cli_rejects_any_ram_floor_other_than_2048_mib(
+    tmp_path,
+    floor,
+):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    with pytest.raises(SystemExit):
+        parse_args(_full_quality_cli_args(tmp_path, floor=floor))
+
+
+@pytest.mark.parametrize("timeout", ["0", "-1", "nan", "inf"])
+def test_quality_cli_rejects_nonpositive_or_nonfinite_timeout(
+    tmp_path,
+    timeout,
+):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    arguments = _full_quality_cli_args(tmp_path)
+    timeout_index = arguments.index("--timeout-seconds") + 1
+    arguments[timeout_index] = timeout
+
+    with pytest.raises(SystemExit):
+        parse_args(arguments)
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("--campaign-root", "campaign"),
+        ("--spec", "spec.json"),
+        ("--matrix", "matrix.json"),
+        ("--artifact-manifest", "artifact-manifest.json"),
+        ("--build-provenance", "build-provenance.json"),
+        ("--build-root", "build"),
+        ("--repo-root", "repo"),
+        ("--python-executable", "python.exe"),
+        ("--python-site-packages", "site-packages"),
+        ("--openvino-libraries", "openvino-libraries"),
+        ("--sampler-script", "sampler.ps1"),
+        ("--rubric", "rubric.json"),
+        ("--timeout-seconds", "1800"),
+        ("--minimum-available-ram-mib", "2048"),
+    ],
+)
+def test_quality_cli_rejects_governed_options_in_legacy_mode(
+    tmp_path,
+    option,
+    value,
+):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    arguments = _legacy_quality_cli_args(tmp_path)
+    arguments.extend((option, value))
+
+    with pytest.raises(SystemExit):
+        parse_args(arguments)
+
+
+def test_quality_cli_keeps_legacy_manifest_mode_compatible(tmp_path):
+    from scripts.testing.run_official_openvino_quality import parse_args
+
+    args = parse_args(_legacy_quality_cli_args(tmp_path))
+
+    assert args.config_manifest == tmp_path / "legacy-manifest.json"
+    assert args.campaign_root is None
+    assert args.prompt_set == tmp_path / "prompt-set.json"
+    assert args.rendered_root == tmp_path / "rendered"
+    assert args.output_root == tmp_path / "legacy-output"
+    assert args.resume is True
+
+
+def test_quality_cli_governed_mode_dispatches_only_to_capture(
+    tmp_path,
+    monkeypatch,
+):
+    import scripts.testing.official_openvino.quality_campaign as campaign
+    import scripts.testing.run_official_openvino_quality as quality_cli
+
+    captured = []
+
+    def fake_capture(source, *, resume):
+        captured.append((source, resume))
+        return {}
+
+    def forbidden_legacy(*args, **kwargs):
+        raise AssertionError(
+            "governed campaign mode must not use the legacy runner"
+        )
+
+    monkeypatch.setattr(
+        campaign,
+        "capture_governed_quality_campaign",
+        fake_capture,
+    )
+    monkeypatch.setattr(
+        quality_cli,
+        "load_configurations",
+        forbidden_legacy,
+    )
+    monkeypatch.setattr(
+        quality_cli,
+        "run_quality_campaign",
+        forbidden_legacy,
+    )
+
+    assert quality_cli.main(_full_quality_cli_args(tmp_path)) == 0
+    assert len(captured) == 1
+    source, resume = captured[0]
+    assert isinstance(source, campaign.QualityCampaignInput)
+    assert source.campaign_root == tmp_path / "campaign"
+    assert source.spec_path == tmp_path / "spec.json"
+    assert source.matrix_path == tmp_path / "matrix.json"
+    assert (
+        source.artifact_manifest_path
+        == tmp_path / "artifact-manifest.json"
+    )
+    assert (
+        source.build_provenance_path
+        == tmp_path / "build-provenance.json"
+    )
+    assert source.build_root == tmp_path / "build"
+    assert source.repo_root == tmp_path / "repo"
+    assert source.python_executable == tmp_path / "python.exe"
+    assert source.python_site_packages == tmp_path / "site-packages"
+    assert source.openvino_libraries == tmp_path / "openvino-libraries"
+    assert source.sampler_script == tmp_path / "sampler.ps1"
+    assert source.prompt_set_path == tmp_path / "prompt-set.json"
+    assert source.rendered_root == tmp_path / "rendered"
+    assert source.rubric_path == tmp_path / "rubric.json"
+    assert source.output_root == tmp_path / "quality-output"
+    assert source.timeout_seconds == 1800.0
+    assert resume is True
+
+
+def test_quality_cli_legacy_main_still_uses_manifest_runner(
+    tmp_path,
+    monkeypatch,
+):
+    import scripts.testing.run_official_openvino_quality as quality_cli
+
+    configurations = (object(),)
+    calls = []
+
+    def fake_load(path):
+        assert path == tmp_path / "legacy-manifest.json"
+        return configurations
+
+    def fake_run(received, **kwargs):
+        calls.append((received, kwargs))
+        return {"configuration_count": 1}
+
+    monkeypatch.setattr(quality_cli, "load_configurations", fake_load)
+    monkeypatch.setattr(quality_cli, "run_quality_campaign", fake_run)
+
+    assert quality_cli.main(_legacy_quality_cli_args(tmp_path)) == 0
+    assert calls == [
+        (
+            configurations,
+            {
+                "prompt_set_path": tmp_path / "prompt-set.json",
+                "rendered_root": tmp_path / "rendered",
+                "output_root": tmp_path / "legacy-output",
+                "resume": True,
+            },
+        )
+    ]
