@@ -19,9 +19,12 @@ The ordered series is:
    cache-reorder/dynamic-prefill/GQA handling, failure-atomic graph rewrites,
    exact STANDARD/mixed/TBQ persistent-byte reconciliation, and requested,
    activated, and observed cache-precision telemetry.
+4. `0004-bounded-identity-gpu-standard.patch` — bounded transformed-model
+   identity hashing plus runtime-observed STANDARD cache telemetry on an
+   actual OpenVINO GPU device.
 
-The development checkout used to export the third patch ended at derived
-commit `f485079dfcd4ad1f2cc211dca48d770c2b521f33`, with tree
-`13c1a4672e6ac92e606b923aaaacfa6c5d528353`. Reproducible builds use the
-controller-generated replay commit from all three patch files, not the
+The development checkout used to export the fourth patch ended at derived
+commit `d19c30ea81466dce337eec4ecd1bc037eabee1f0`, with tree
+`2e872dd4817c42d91cb7c3094954d7b56fa12b0a`. Reproducible builds use the
+controller-generated replay commit from all four patch files, not the
 development commit. The replay tree must equal the tree above byte-for-byte.

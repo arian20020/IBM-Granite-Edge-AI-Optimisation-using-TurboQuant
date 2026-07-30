@@ -1,0 +1,381 @@
+diff --git a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+index ab56518..a56220a 100644
+--- a/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
++++ b/src/cpp/src/continuous_batching/cache/turboquant_config.cpp
+@@ -179,12 +179,16 @@ void validate_activation_claim(const ActivationTelemetry& telemetry) {
+             return;
+         }
+ 
++        const bool cpu_observation =
++            telemetry.device == "CPU" && telemetry.actual_device == "CPU";
++        const bool gpu_observation =
++            telemetry.device.rfind("GPU", 0) == 0 &&
++            telemetry.actual_device.rfind("GPU", 0) == 0;
+         OPENVINO_ASSERT(telemetry.attention_path == "stateful_sdpa_standard" &&
+                             telemetry.operation_type == "not_requested" &&
+                             telemetry.transformed_model_hash == "not_requested" &&
+                             telemetry.runtime_layer_type == "not_requested" &&
+-                            telemetry.device == "CPU" &&
+-                            telemetry.actual_device == "CPU",
++                            (cpu_observation || gpu_observation),
+                         "A runtime-observed STANDARD event has an invalid runtime identity");
+         validate_runtime_precision_evidence(telemetry);
+         OPENVINO_ASSERT(telemetry.expected_persistent_standard_bytes > 0u &&
+diff --git a/src/cpp/src/llm/pipeline_stateful.cpp b/src/cpp/src/llm/pipeline_stateful.cpp
+index 014db9d..bfca677 100644
+--- a/src/cpp/src/llm/pipeline_stateful.cpp
++++ b/src/cpp/src/llm/pipeline_stateful.cpp
+@@ -14,8 +14,6 @@
+ #include "lora/helper.hpp"
+ #include "lm_encoding.hpp"
+ #include "openvino/genai/text_streamer.hpp"
+-#include "openvino/pass/serialize.hpp"
+-
+ #include "utils.hpp"
+ 
+ namespace {
+@@ -82,16 +80,6 @@ size_t static_dimension(const ov::PartialShape& shape, size_t axis, const std::s
+     return static_cast<size_t>(shape[axis].get_length());
+ }
+ 
+-std::string transformed_model_hash(const std::shared_ptr<ov::Model>& model) {
+-    std::ostringstream xml;
+-    std::ostringstream bin;
+-    ov::pass::Serialize serializer(xml, bin);
+-    serializer.run_on_model(model);
+-    OPENVINO_ASSERT(xml.good() && bin.good() && !xml.str().empty(),
+-                    "Failed to serialize transformed TurboQuant model for hashing");
+-    return ov::genai::turboquant_model_hash(xml.str() + "\n--turboquant-weights--\n" + bin.str());
+-}
+-
+ std::string actual_execution_device(const ov::CompiledModel& compiled_model) {
+     const auto devices = compiled_model.get_property(ov::execution_devices);
+     OPENVINO_ASSERT(devices.size() == 1u,
+@@ -112,6 +100,29 @@ std::string execution_device_summary(const ov::CompiledModel& compiled_model) {
+     return summary.str();
+ }
+ 
++bool is_gpu_device(const std::string& device) {
++    return device.rfind("GPU", 0) == 0;
++}
++
++bool observation_device_matches(const std::string& requested_device,
++                                const std::string& actual_device) {
++    return (requested_device == "CPU" && actual_device == "CPU") ||
++           (is_gpu_device(requested_device) && is_gpu_device(actual_device));
++}
++
++std::string activated_standard_cache_precision(
++    const ov::CompiledModel& compiled_model,
++    const std::string& property_name,
++    const std::string& observed_state_precision) {
++    const auto supported = compiled_model.get_property(ov::supported_properties);
++    const auto advertised = std::find(supported.begin(), supported.end(), property_name);
++    if (advertised == supported.end())
++        return observed_state_precision;
++    return compiled_model.get_property(property_name)
++        .as<ov::element::Type>()
++        .get_type_name();
++}
++
+ }  // namespace
+ 
+ namespace ov::genai {
+@@ -125,19 +136,32 @@ ActivationTelemetry reconcile_turboquant_activation(
+     const std::string& requested_value_cache_precision) {
+     OPENVINO_ASSERT(!manifest.activated,
+                     "TurboQuant activation manifest must not claim activation before reconciliation");
+-    OPENVINO_ASSERT(manifest.device == "CPU", "TurboQuant activation manifest device must be CPU");
++    const bool requested = turboquant_requested(config);
++    OPENVINO_ASSERT(
++        manifest.device == "CPU" || (!requested && is_gpu_device(manifest.device)),
++        "TurboQuant activation manifest device must be CPU, or GPU for "
++        "STANDARD/STANDARD observation");
+     OPENVINO_ASSERT(!manifest.transformed_model_hash.empty(),
+                     "TurboQuant activation manifest has no transformed-model hash");
+     OPENVINO_ASSERT(!model_hash.empty(), "TurboQuant activation model hash must not be empty");
+ 
+     const auto compiled_model = request.get_compiled_model();
+-    const auto device = actual_execution_device(compiled_model);
+-    OPENVINO_ASSERT(device == "CPU",
++    const auto actual_device = actual_execution_device(compiled_model);
++    OPENVINO_ASSERT(
++        observation_device_matches(manifest.device, actual_device),
++        "TurboQuant activation device mismatch: requested ",
++        manifest.device,
++        ", actual ",
++        actual_device);
++    OPENVINO_ASSERT(!requested || actual_device == "CPU",
+                     "TurboQuant activation requires actual CPU execution, got ",
+-                    device);
++                    actual_device);
+ 
+     std::map<std::string, ov::Tensor> actual_states;
+     for (const auto& state : request.query_state()) {
++        // This is the exact public VariableState tensor. GPU allocator capacity,
++        // padding, and private compression sidecars are not exposed by ov::VariableState
++        // and must not be inferred from model dimensions here.
+         const auto [unused, inserted] = actual_states.emplace(state.get_name(), state.get_state());
+         (void)unused;
+         OPENVINO_ASSERT(inserted, "Duplicate TurboQuant runtime state: ", state.get_name());
+@@ -404,11 +428,15 @@ ActivationTelemetry reconcile_turboquant_activation(
+     telemetry.activated_key_cache_precision =
+         cache_precision_for_algorithm(
+             config.key_algorithm,
+-            compiled_model.get_property(ov::key_cache_precision).get_type_name());
++            activated_standard_cache_precision(compiled_model,
++                                               ov::key_cache_precision.name(),
++                                               *observed_key_state_precision));
+     telemetry.activated_value_cache_precision =
+         cache_precision_for_algorithm(
+             config.value_algorithm,
+-            compiled_model.get_property(ov::value_cache_precision).get_type_name());
++            activated_standard_cache_precision(compiled_model,
++                                               ov::value_cache_precision.name(),
++                                               *observed_value_state_precision));
+     telemetry.observed_key_state_precision = *observed_key_state_precision;
+     telemetry.observed_value_state_precision = *observed_value_state_precision;
+     telemetry.norm_correction = config.norm_correction;
+@@ -448,8 +476,8 @@ ActivationTelemetry reconcile_turboquant_activation(
+         turboquant_requested(config) ? manifest.transformed_model_hash : "not_requested";
+     telemetry.attention_path =
+         turboquant_requested(config) ? "stateful_sdpa_reference_codec" : "stateful_sdpa_standard";
+-    telemetry.device = device;
+-    telemetry.actual_device = device;
++    telemetry.device = manifest.device;
++    telemetry.actual_device = actual_device;
+     telemetry.runtime_layer_type = turboquant_requested(config) ? "Reference" : "not_requested";
+     telemetry.fallback = false;
+     telemetry.build_commit = turboquant_build_commit();
+@@ -528,7 +556,7 @@ StatefulLLMPipeline::StatefulLLMPipeline(
+ 
+     auto [filtered_properties_without_gguf, enable_save_ov_model] = utils::extract_gguf_properties(properties);
+     auto filtered_properties = extract_adapters_from_properties(filtered_properties_without_gguf, &m_generation_config.adapters);
+-    if (device == "CPU") {
++    if (device == "CPU" || is_gpu_device(device)) {
+         m_requested_key_cache_precision =
+             requested_plugin_cache_precision(*filtered_properties, ov::key_cache_precision.name());
+         m_requested_value_cache_precision =
+@@ -546,13 +574,17 @@ StatefulLLMPipeline::StatefulLLMPipeline(
+         m_max_prompt_len = kv_desc.max_prompt_len;
+         m_max_kv_cache_size = kv_desc.max_prompt_len + kv_desc.min_response_len;
+     } else {
+-        if (device == "CPU") {
++        if (device == "CPU" || (!requested && is_gpu_device(device))) {
+             auto transformed =
+                 turboquant::transform_stateful_kv_graph_in_place(
+                     model, turboquant_config, device);
++            transformed.manifest.transformed_model_hash =
++                turboquant::transformed_model_identity(
++                    transformed.manifest,
++                    model_hash,
++                    turboquant_build_commit());
+             compiled_model =
+                 utils::singleton_core().compile_model(transformed.model, device, *filtered_properties);
+-            transformed.manifest.transformed_model_hash = transformed_model_hash(transformed.model);
+             compiled_manifest = std::move(transformed.manifest);
+         } else {
+             compiled_model = utils::singleton_core().compile_model(model, device, *filtered_properties);
+diff --git a/src/cpp/src/llm/turboquant_stateful_graph.cpp b/src/cpp/src/llm/turboquant_stateful_graph.cpp
+index 170e15b..99dd069 100644
+--- a/src/cpp/src/llm/turboquant_stateful_graph.cpp
++++ b/src/cpp/src/llm/turboquant_stateful_graph.cpp
+@@ -12,6 +12,7 @@
+ #include <map>
+ #include <queue>
+ #include <set>
++#include <sstream>
+ #include <unordered_map>
+ #include <unordered_set>
+ #include <utility>
+@@ -646,7 +647,13 @@ GraphTransformResult transform_stateful_kv_graph_impl(
+     const std::string& device,
+     bool preserve_source_model) {
+     OPENVINO_ASSERT(model, "TurboQuant stateful graph discovery requires a model");
+-    OPENVINO_ASSERT(device == "CPU", "TurboQuant stateful graph discovery supports CPU only");
++    const bool standard_gpu =
++        device.rfind("GPU", 0) == 0 &&
++        config.key_algorithm == CacheAlgorithm::STANDARD &&
++        config.value_algorithm == CacheAlgorithm::STANDARD;
++    OPENVINO_ASSERT(device == "CPU" || standard_gpu,
++                    "TurboQuant stateful graph discovery supports CPU, or GPU for "
++                    "unmodified STANDARD/STANDARD observation only");
+     auto transformed_model =
+         preserve_source_model ? model->clone() : std::move(model);
+ 
+@@ -828,4 +835,67 @@ GraphTransformResult transform_stateful_kv_graph_in_place(
+         std::move(model), config, device, false);
+ }
+ 
++std::string transformed_model_identity(
++    const GraphTransformManifest& manifest,
++    const std::string& source_model_hash,
++    const std::string& build_commit) {
++    OPENVINO_ASSERT(!source_model_hash.empty(),
++                    "TurboQuant transformed-model identity requires a source-model hash");
++    OPENVINO_ASSERT(!build_commit.empty(),
++                    "TurboQuant transformed-model identity requires a build commit");
++
++    const auto field = [](std::ostringstream& output,
++                          const std::string& name,
++                          const std::string& value) {
++        output << name.size() << ':' << name << '='
++               << value.size() << ':' << value << '\n';
++    };
++    std::ostringstream canonical;
++    field(canonical, "schema", "turboquant-transform-manifest/v1");
++    field(canonical, "source_model_hash", source_model_hash);
++    field(canonical, "build_commit", build_commit);
++    field(canonical, "device", manifest.device);
++    canonical << "activated=" << (manifest.activated ? 1 : 0) << '\n'
++              << "state_count=" << manifest.states.size() << '\n';
++    for (const auto& state : manifest.states) {
++        canonical << "state\n";
++        field(canonical, "variable_id", state.variable_id);
++        canonical << "layer_index=" << state.layer_index << '\n'
++                  << "kind=" << static_cast<unsigned int>(state.kind) << '\n'
++                  << "algorithm="
++                  << static_cast<unsigned int>(state.algorithm) << '\n';
++        field(canonical,
++              "original_type",
++              state.original_type.get_type_name());
++        field(canonical,
++              "original_shape",
++              state.original_shape.to_string());
++        field(canonical,
++              "payload_shape",
++              state.payload_shape.to_string());
++        canonical << "head_dimension=" << state.head_dimension << '\n'
++                  << "packed_bytes_per_vector="
++                  << state.packed_bytes_per_vector << '\n'
++                  << "norm_bytes_per_vector="
++                  << state.norm_bytes_per_vector << '\n'
++                  << "metadata_bytes_per_vector="
++                  << state.metadata_bytes_per_vector << '\n'
++                  << "scratch_bytes_upper_bound="
++                  << state.scratch_bytes_upper_bound << '\n';
++    }
++    std::uint64_t hash = 14695981039346656037ULL;
++    const auto bytes = canonical.str();
++    for (const unsigned char byte : bytes) {
++        hash ^= byte;
++        hash *= 1099511628211ULL;
++    }
++    static constexpr char HEX[] = "0123456789abcdef";
++    std::string result(16, '0');
++    for (size_t index = result.size(); index-- > 0;) {
++        result[index] = HEX[hash & 0x0f];
++        hash >>= 4u;
++    }
++    return result;
++}
++
+ }  // namespace ov::genai::turboquant
+diff --git a/src/cpp/src/llm/turboquant_stateful_graph.hpp b/src/cpp/src/llm/turboquant_stateful_graph.hpp
+index 477bf06..6a3851a 100644
+--- a/src/cpp/src/llm/turboquant_stateful_graph.hpp
++++ b/src/cpp/src/llm/turboquant_stateful_graph.hpp
+@@ -56,4 +56,9 @@ GraphTransformResult transform_stateful_kv_graph_in_place(
+     const TurboQuantConfig& config,
+     const std::string& device);
+ 
++std::string transformed_model_identity(
++    const GraphTransformManifest& manifest,
++    const std::string& source_model_hash,
++    const std::string& build_commit);
++
+ }  // namespace ov::genai::turboquant
+diff --git a/tests/cpp/turboquant_pipeline_activation.cpp b/tests/cpp/turboquant_pipeline_activation.cpp
+index c433d15..7215139 100644
+--- a/tests/cpp/turboquant_pipeline_activation.cpp
++++ b/tests/cpp/turboquant_pipeline_activation.cpp
+@@ -458,6 +458,46 @@ TEST(TurboQuantPipelineActivation, StandardModelReportsPostGenerationPrecisionAn
+     EXPECT_EQ(events.front().at("full_precision_equivalent_bytes"), 256u);
+ }
+ 
++TEST(TurboQuantPipelineActivation, GpuStandardModelReportsObservedStateOnlyAfterGeneration) {
++    const auto available_devices = ov::genai::utils::singleton_core().get_available_devices();
++    if (std::none_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
++            return device.rfind("GPU", 0) == 0;
++        })) {
++        GTEST_SKIP() << "No OpenVINO GPU device is available";
++    }
++
++    ClogCapture capture;
++    StatefulLLMPipeline pipeline(make_fixture_model(),
++                                 Tokenizer{},
++                                 "GPU",
++                                 {},
++                                 fixture_generation_config(),
++                                 TurboQuantConfig{},
++                                 "fixture-model-hash");
++    EXPECT_TRUE(activation_events(capture.str()).empty())
++        << "GPU STANDARD telemetry must not claim runtime state before generation";
++
++    const auto result =
++        pipeline.generate(EncodedInputs{fixture_tokens()}, std::nullopt, StreamerVariant{std::monostate{}});
++    ASSERT_EQ(result.tokens.size(), 1u);
++    ASSERT_EQ(result.tokens.front().size(), 1u);
++
++    const auto events = activation_events(capture.str());
++    ASSERT_EQ(events.size(), 1u);
++    const auto& event = events.front();
++    EXPECT_EQ(event.at("status"), "not_requested");
++    EXPECT_EQ(event.at("attention_path"), "stateful_sdpa_standard");
++    EXPECT_EQ(event.at("device"), "GPU");
++    EXPECT_EQ(event.at("actual_device").get<std::string>().rfind("GPU", 0), 0u);
++    EXPECT_NE(event.at("observed_key_state_precision"), "not_requested");
++    EXPECT_NE(event.at("observed_value_state_precision"), "not_requested");
++    EXPECT_GT(event.at("actual_persistent_standard_bytes").get<size_t>(), 0u);
++    EXPECT_EQ(event.at("expected_persistent_standard_bytes"),
++              event.at("actual_persistent_standard_bytes"));
++    EXPECT_EQ(event.at("expected_bytes"), event.at("actual_bytes"));
++    EXPECT_EQ(event.at("full_precision_equivalent_bytes"), event.at("actual_bytes"));
++}
++
+ TEST(TurboQuantPipelineActivation, MixedModelIncludesStandardAndTurboQuantPersistentBytes) {
+     const ov::AnyMap properties{
+         {ov::key_cache_precision.name(), ov::element::u8},
+diff --git a/tests/cpp/turboquant_stateful_graph.cpp b/tests/cpp/turboquant_stateful_graph.cpp
+index dd29512..7174631 100644
+--- a/tests/cpp/turboquant_stateful_graph.cpp
++++ b/tests/cpp/turboquant_stateful_graph.cpp
+@@ -1544,6 +1544,38 @@ TEST(TurboQuantStatefulGraph, DiscoversTwoLayersAndIndependentKeyValueState) {
+     }
+ }
+ 
++TEST(TurboQuantStatefulGraph, HashesSourceAndCanonicalManifestWithoutModelSerialization) {
++    const auto transformed =
++        transform_stateful_kv_graph(make_two_layer_stateful_sdpa_model(),
++                                    {CacheAlgorithm::TBQ3, CacheAlgorithm::TBQ4, true},
++                                    "CPU");
++    const std::string source_hash = "source-artifact-hash";
++    const std::string build_commit = "0123456789abcdef0123456789abcdef01234567";
++    const auto identity =
++        ov::genai::turboquant::transformed_model_identity(
++            transformed.manifest, source_hash, build_commit);
++
++    EXPECT_EQ(identity.size(), 16u);
++    EXPECT_EQ(identity.find_first_not_of("0123456789abcdef"), std::string::npos);
++    EXPECT_EQ(identity,
++              ov::genai::turboquant::transformed_model_identity(
++                  transformed.manifest, source_hash, build_commit));
++
++    auto changed_manifest = transformed.manifest;
++    ++changed_manifest.states.front().packed_bytes_per_vector;
++    EXPECT_NE(identity,
++              ov::genai::turboquant::transformed_model_identity(
++                  changed_manifest, source_hash, build_commit));
++    EXPECT_NE(identity,
++              ov::genai::turboquant::transformed_model_identity(
++                  transformed.manifest, "different-source-artifact-hash", build_commit));
++    EXPECT_NE(identity,
++              ov::genai::turboquant::transformed_model_identity(
++                  transformed.manifest,
++                  source_hash,
++                  "1123456789abcdef0123456789abcdef01234567"));
++}
++
+ TEST(TurboQuantStatefulGraph, TransformsOwnedModelInPlaceWithoutCloning) {
+     auto model = make_two_layer_stateful_sdpa_model();
+     const auto* const original_model = model.get();
