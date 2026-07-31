@@ -2808,7 +2808,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema": (
-                            "official-openvino-wb04-static-section-evidence/v1"
+                            "official-openvino-wb04-static-section-evidence/v2"
                         ),
                         "section_number": 1,
                         "body": body,
@@ -2838,12 +2838,46 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             _replace_section_body,
         )
 
-        template = "# 14. Failure log\n\nold\n\n# 15. Decision\n\nstale\n"
-        rendered = _replace_section_body(template, 15, "released")
+        template = "# 7. Quality boundary\n\nold\n\n# 8. Decision\n\nstale\n"
+        rendered = _replace_section_body(template, 8, "released")
         self.assertEqual(
             rendered,
-            "# 14. Failure log\n\nold\n\n# 15. Decision\n\nreleased\n",
+            "# 7. Quality boundary\n\nold\n\n# 8. Decision\n\nreleased\n",
         )
+
+    def test_eight_section_canonical_template_has_exact_section_headings(self):
+        template = (
+            REPO_ROOT
+            / "docs/testing/workbooks/text-templates/"
+            "04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md"
+        ).read_text(encoding="utf-8")
+        headings = re.findall(r"(?m)^# (\d+)\. ", template)
+
+        self.assertEqual(headings, [str(number) for number in range(1, 9)])
+        for number in range(1, 9):
+            self.assertEqual(template.count(f"# {number}."), 1)
+        for number in range(9, 16):
+            self.assertNotIn(f"# {number}.", template)
+        self.assertEqual(template.count("[[PAGEBREAK]]"), 2)
+
+    def test_static_and_dynamic_section_replacement_preserves_pagebreaks(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            _replace_section_body,
+        )
+
+        template = (
+            "# 4. Controls\n\nstale\n\n[[PAGEBREAK]]\n\n"
+            "# 5. Measurements\n\nstale\n\n"
+            "# 6. Incomplete\n\nstale\n\n"
+            "# 7. Quality\n\nstale\n\n[[PAGEBREAK]]\n\n"
+            "# 8. Decision\n\nstale\n"
+        )
+        rendered = _replace_section_body(template, 4, "controls")
+        rendered = _replace_section_body(rendered, 7, "quality")
+
+        self.assertEqual(rendered.count("[[PAGEBREAK]]"), 2)
+        self.assertIn("controls\n\n[[PAGEBREAK]]\n\n# 5.", rendered)
+        self.assertIn("quality\n\n[[PAGEBREAK]]\n\n# 8.", rendered)
 
     def test_section_11_is_replaced_atomically_with_six_tables(self):
         from scripts.testing.finalize_official_openvino_workbook import (
@@ -2931,10 +2965,10 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             release_input.write_text(
                 json.dumps(
                     {
-                        "schema": "official-openvino-wb04-release-input/v1",
+                        "schema": "official-openvino-wb04-release-input/v2",
                         "campaign_date": "2026-07-30",
-                        "workbook_version": "1.7",
-                        "revision_id": "WR-035",
+                        "workbook_version": "1.8",
+                        "revision_id": "WR-036",
                         "matrix_path": str(CANONICAL_MATRIX),
                         "matrix_sha256": CANONICAL_MATRIX_SHA256,
                         "selected_measurement_summaries": [],
@@ -2976,22 +3010,22 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         )
         rendered = apply_release_identity(
             template,
-            workbook_version="1.7",
-            revision_id="WR-035",
+            workbook_version="1.8",
+            revision_id="WR-036",
         )
         self.assertIn(
-            "# 04 Official OpenVINO Controlled Retest Workbook v1.7",
+            "# 04 Official OpenVINO Controlled Retest Workbook v1.8",
             rendered,
         )
-        self.assertIn("Controlled retest revision 1.7 (WR-035).", rendered)
+        self.assertIn("Controlled retest revision 1.8 (WR-036).", rendered)
         self.assertNotIn("v1.6", rendered)
         self.assertNotIn("revision 1.6", rendered)
 
         with self.assertRaisesRegex(ValueError, "release identity"):
             apply_release_identity(
                 template,
-                workbook_version="1.8",
-                revision_id="WR-036",
+                workbook_version="1.7",
+                revision_id="WR-035",
             )
 
     def test_direct_cli_help_is_available(self):
@@ -3038,14 +3072,14 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             },
         )
         self.assertEqual(
-            example["schema"], "official-openvino-wb04-release-input/v1"
+            example["schema"], "official-openvino-wb04-release-input/v2"
         )
         self.assertEqual(example["campaign_date"], "2026-07-30")
-        self.assertEqual(example["workbook_version"], "1.7")
-        self.assertEqual(example["revision_id"], "WR-035")
+        self.assertEqual(example["workbook_version"], "1.8")
+        self.assertEqual(example["revision_id"], "WR-036")
         self.assertEqual(
             set(example["static_section_bodies"]),
-            {str(number) for number in range(1, 11)} | {"13", "14", "15"},
+            {"1", "2", "3", "4"},
         )
         for section in example["static_section_bodies"].values():
             self.assertEqual(set(section), {"body", "evidence"})

@@ -102,7 +102,7 @@ def _copy_builder_sources(destination: Path) -> Path:
 
 
 class StaticSectionParsingTests(unittest.TestCase):
-    def test_canonical_section_4_preserves_build_and_recovery_tables(self):
+    def test_static_draft_has_four_concise_nonblank_tables(self):
         from scripts.testing.build_official_openvino_release_evidence import (
             parse_static_sections,
         )
@@ -112,34 +112,49 @@ class StaticSectionParsingTests(unittest.TestCase):
             / ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
             "wb04-static-sections-draft.md"
         )
-        section = parse_static_sections(
+        sections = parse_static_sections(
             draft_path.read_text(encoding="utf-8")
-        )[4]
-        lines = section.splitlines()
-        table_count = sum(
-            1
-            for index, line in enumerate(lines[:-1])
-            if line.startswith("|")
-            and lines[index + 1].startswith("|")
-            and all(
-                character in "|-: "
-                for character in lines[index + 1]
-            )
         )
 
-        self.assertEqual(table_count, 2)
-        self.assertIn(
-            "## 4.1 Source-build and observer recovery verification",
-            section,
-        )
-        self.assertIn("| Gate | Result | Exact evidence |", section)
+        self.assertEqual(set(sections), {1, 2, 3, 4})
+        for section in sections.values():
+            lines = section.splitlines()
+            table_count = sum(
+                1
+                for index, line in enumerate(lines[:-1])
+                if line.startswith("|")
+                and lines[index + 1].startswith("|")
+                and all(character in "|-: " for character in lines[index + 1])
+            )
+            self.assertEqual(table_count, 1)
+            self.assertNotRegex(section, r"(?m)^\|.*\|\s*N/A\s*\|")
+            self.assertFalse(
+                any(
+                    not cell.strip()
+                    for line in lines
+                    if line.startswith("|")
+                    for cell in line.strip("|").split("|")
+                )
+            )
+        self.assertIn("OV-C02", sections[3])
+        self.assertIn("OV-C03", sections[3])
+        for test_id in (
+            "OV-04",
+            "OV-05",
+            "OV-TQ-01",
+            "OV-TQ-02",
+            "OV-TQ-18",
+            "OV-TQ-19",
+            "OV-TQ-20",
+        ):
+            self.assertIn(test_id, sections[4])
 
     def test_parse_static_sections_returns_only_complete_release_sections(self):
         from scripts.testing.build_official_openvino_release_evidence import (
             parse_static_sections,
         )
 
-        required = tuple(range(1, 11)) + (13, 14, 15)
+        required = (1, 2, 3, 4)
         draft = "\n\n".join(
             f"# {number}. Section {number}\n\nbody {number}"
             for number in required
@@ -155,28 +170,28 @@ class StaticSectionParsingTests(unittest.TestCase):
             parse_static_sections,
         )
 
-        required = tuple(range(1, 11)) + (13, 14, 15)
+        required = (1, 2, 3, 4)
         missing = "\n\n".join(
             f"# {number}. Section {number}\n\nbody {number}"
             for number in required
-            if number != 14
+            if number != 4
         )
         duplicate = (
             "\n\n".join(
                 f"# {number}. Section {number}\n\nbody {number}"
                 for number in required
             )
-            + "\n\n# 14. Section 14 repeated\n\nsecond body"
+            + "\n\n# 4. Section 4 repeated\n\nsecond body"
         )
 
-        with self.assertRaisesRegex(ValueError, "sections 1-10 and 13-15"):
+        with self.assertRaisesRegex(ValueError, "sections 1-4"):
             parse_static_sections(missing)
-        with self.assertRaisesRegex(ValueError, "duplicate section 14"):
+        with self.assertRaisesRegex(ValueError, "duplicate section 4"):
             parse_static_sections(duplicate)
 
 
 class ReleaseEvidenceBuildTests(unittest.TestCase):
-    def test_build_covers_exact_36_runtime_and_33_quality_rows_reproducibly(self):
+    def test_build_identity_static_and_full_evidence_contract_is_reproducible(self):
         from scripts.testing.build_official_openvino_release_evidence import (
             build_release_evidence,
         )
@@ -231,6 +246,11 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
             self.assertEqual(first, second)
             self.assertEqual(first_bytes, second_bytes)
             release = json.loads(release_input.read_text(encoding="utf-8"))
+            self.assertEqual(
+                release["schema"], "official-openvino-wb04-release-input/v2"
+            )
+            self.assertEqual(release["workbook_version"], "1.8")
+            self.assertEqual(release["revision_id"], "WR-036")
             path_fields: list[tuple[str, str]] = []
 
             def collect_path_fields(value: object) -> None:
@@ -343,7 +363,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
             self.assertEqual(len(release["quality_terminal_records"]), 28)
             self.assertEqual(
                 set(release["static_section_bodies"]),
-                {str(number) for number in tuple(range(1, 11)) + (13, 14, 15)},
+                {"1", "2", "3", "4"},
             )
             inventory = json.loads(
                 (output_root / "artifact-spec-inventory.json").read_text(
@@ -507,6 +527,9 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
             self.assertEqual(report["terminal_row_count"], 26)
             self.assertEqual(report["expected_rejection_row_count"], 7)
             self.assertEqual(report["quality_row_count"], 33)
+            self.assertEqual(report["presentation_controlled_id_count"], 60)
+            self.assertEqual(report["presentation_metric_table_count"], 3)
+            self.assertEqual(report["presentation_measured_row_count"], 3)
             self.assertFalse(destination.exists())
 
     def test_cli_builds_the_same_release_contract(self):

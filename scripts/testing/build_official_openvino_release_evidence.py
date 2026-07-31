@@ -16,13 +16,17 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 
-STATIC_SECTION_NUMBERS = tuple(range(1, 11)) + (13, 14, 15)
+STATIC_SECTION_NUMBERS = (1, 2, 3, 4)
 _SECTION_HEADING = re.compile(r"^# ([0-9]+)\. .+$", re.MULTILINE)
 MATRIX_SHA256 = "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42"
 MATRIX_RELATIVE_PATH = "experiments/manifests/official-openvino/retest-matrix.json"
 CAMPAIGN_DATE = "2026-07-30"
-WORKBOOK_VERSION = "1.7"
-REVISION_ID = "WR-035"
+WORKBOOK_VERSION = "1.8"
+REVISION_ID = "WR-036"
+RELEASE_INPUT_SCHEMA = "official-openvino-wb04-release-input/v2"
+STATIC_SECTION_EVIDENCE_SCHEMA = (
+    "official-openvino-wb04-static-section-evidence/v2"
+)
 
 MEASURED_SOURCES = {
     ("OV-TQ-13", 512): (
@@ -1236,7 +1240,7 @@ def build_release_evidence(
     for number in STATIC_SECTION_NUMBERS:
         body = section_bodies[number]
         payload = {
-            "schema": "official-openvino-wb04-static-section-evidence/v1",
+            "schema": STATIC_SECTION_EVIDENCE_SCHEMA,
             "section_number": number,
             "body": body,
             "source_evidence": [draft_ref],
@@ -1252,7 +1256,7 @@ def build_release_evidence(
         runtime_records[key] for key in sorted(DIRECT_TERMINAL_KEYS)
     ]
     release = {
-        "schema": "official-openvino-wb04-release-input/v1",
+        "schema": RELEASE_INPUT_SCHEMA,
         "campaign_date": CAMPAIGN_DATE,
         "workbook_version": WORKBOOK_VERSION,
         "revision_id": REVISION_ID,
@@ -1349,7 +1353,7 @@ def parse_static_sections(text: str) -> dict[int, str]:
             raise ValueError(f"section {number} body is empty")
         sections[number] = body
     if set(sections) != set(STATIC_SECTION_NUMBERS):
-        raise ValueError("static draft must provide sections 1-10 and 13-15")
+        raise ValueError("static draft must provide sections 1-4")
     return sections
 
 

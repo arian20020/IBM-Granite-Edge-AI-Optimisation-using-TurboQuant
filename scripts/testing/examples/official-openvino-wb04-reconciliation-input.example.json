@@ -1,8 +1,8 @@
 {
-  "schema": "official-openvino-wb04-release-input/v1",
+  "schema": "official-openvino-wb04-release-input/v2",
   "campaign_date": "2026-07-30",
-  "workbook_version": "1.7",
-  "revision_id": "WR-035",
+  "workbook_version": "1.8",
+  "revision_id": "WR-036",
   "matrix_path": "experiments/manifests/official-openvino/retest-matrix.json",
   "matrix_sha256": "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42",
   "selected_measurement_summaries": [
@@ -160,69 +160,6 @@
       "body": "Example only: replace with the evidence-backed Section 4 body.",
       "evidence": {
         "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-04-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "5": {
-      "body": "Example only: replace with the evidence-backed Section 5 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-05-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "6": {
-      "body": "Example only: replace with the evidence-backed Section 6 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-06-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "7": {
-      "body": "Example only: replace with the evidence-backed Section 7 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-07-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "8": {
-      "body": "Example only: replace with the evidence-backed Section 8 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-08-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "9": {
-      "body": "Example only: replace with the evidence-backed Section 9 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-09-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "10": {
-      "body": "Example only: replace with the evidence-backed Section 10 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-10-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "13": {
-      "body": "Example only: replace with the evidence-backed Section 13 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-13-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "14": {
-      "body": "Example only: replace with the evidence-backed Section 14 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-14-evidence.json",
-        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    },
-    "15": {
-      "body": "Example only: replace with the evidence-backed Section 15 body.",
-      "evidence": {
-        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-15-evidence.json",
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
       }
     }

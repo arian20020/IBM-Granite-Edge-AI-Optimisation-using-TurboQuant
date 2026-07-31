@@ -127,9 +127,9 @@ QUALITY_PROMPT_SET = (
 QUALITY_RENDERED_PROMPTS = QUALITY_PROMPT_SET.parent / "rendered"
 
 MEASUREMENT_SCHEMA = "official-openvino-wb04-measurement-summary/v1"
-RELEASE_INPUT_SCHEMA = "official-openvino-wb04-release-input/v1"
-TARGET_WORKBOOK_VERSION = "1.7"
-TARGET_REVISION_ID = "WR-035"
+RELEASE_INPUT_SCHEMA = "official-openvino-wb04-release-input/v2"
+TARGET_WORKBOOK_VERSION = "1.8"
+TARGET_REVISION_ID = "WR-036"
 RESOURCE_ENVELOPE_SCHEMA = (
     "official-openvino-wb04-resource-envelope-decision/v1"
 )
@@ -146,8 +146,9 @@ QUALITY_SCORE_EVIDENCE_SCHEMA = (
     "official-openvino-wb04-quality-score-evidence/v1"
 )
 STATIC_SECTION_EVIDENCE_SCHEMA = (
-    "official-openvino-wb04-static-section-evidence/v1"
+    "official-openvino-wb04-static-section-evidence/v2"
 )
+STATIC_SECTION_NUMBERS = (1, 2, 3, 4)
 CONTROLLED_INVENTORY_SCHEMA = (
     "official-openvino-wb04-artifact-spec-inventory/v1"
 )
@@ -3987,7 +3988,7 @@ def _heading_bounds(text: str, section_number: int) -> tuple[int, int]:
         for index in range(start + 1, len(lines))
         if next_pattern.match(lines[index])
     ]
-    if section_number == 15 and not ends:
+    if section_number == 8 and not ends:
         return start, len(lines)
     if len(ends) != 1:
         raise ValueError(
@@ -4000,7 +4001,14 @@ def _replace_section_body(text: str, section_number: int, body: str) -> str:
     _nonempty_text(body, f"section {section_number} body")
     lines = text.splitlines()
     start, end = _heading_bounds(text, section_number)
+    pagebreaks = [
+        line
+        for line in lines[start + 1 : end]
+        if line.strip() == "[[PAGEBREAK]]"
+    ]
     replacement = [lines[start], "", *body.strip().splitlines(), ""]
+    if pagebreaks:
+        replacement.extend([*pagebreaks, ""])
     updated = lines[:start] + replacement + lines[end:]
     return "\n".join(updated).rstrip() + "\n"
 
@@ -4018,7 +4026,7 @@ def apply_release_identity(
         or revision_id != TARGET_REVISION_ID
     ):
         raise ValueError(
-            "release identity must be workbook v1.7 with revision WR-035"
+            "release identity must be workbook v1.8 with revision WR-036"
         )
     title_pattern = re.compile(
         r"(?m)^# 04 Official OpenVINO Controlled Retest Workbook "
@@ -4103,11 +4111,23 @@ def validate_final_workbook_text(
                 for value in row
             ):
                 raise ValueError("workbook contains a failed required status")
-    start, end = _heading_bounds(text, 11)
-    section_report = validate_section_11(
+    presentation_report = validate_presentation_text(text, expected_ids)
+    start, end = _heading_bounds(text, 5)
+    section_5_report = validate_section_5(
         "\n".join(text.splitlines()[start + 1 : end])
     )
-    return {**report, "section_11": section_report}
+    return {
+        **report,
+        "presentation": presentation_report,
+        "section_5": section_5_report,
+        "presentation_controlled_id_count": presentation_report[
+            "controlled_id_count"
+        ],
+        "presentation_metric_table_count": section_5_report["table_count"],
+        "presentation_measured_row_count": section_5_report[
+            "measured_row_count"
+        ],
+    }
 
 
 def write_validated_workbook(
@@ -4160,7 +4180,7 @@ def validate_static_section_body(
 ) -> str:
     if (
         type(section_number) is not int
-        or section_number not in (set(range(1, 11)) | {13, 14, 15})
+        or section_number not in STATIC_SECTION_NUMBERS
         or type(record) is not dict
         or set(record) != {"body", "evidence"}
     ):
@@ -4313,18 +4333,31 @@ def finalize_release(
         revision_id=release["revision_id"],
     )
     bodies = release.get("static_section_bodies")
-    static_sections = set(range(1, 11)) | {13, 14, 15}
+    static_sections = set(STATIC_SECTION_NUMBERS)
     if type(bodies) is not dict or set(bodies) != {
         str(number) for number in static_sections
     }:
-        raise ValueError("static_section_bodies must provide sections 1-10 and 13-15")
+        raise ValueError("static_section_bodies must provide sections 1-4")
     text = template
     for number in sorted(static_sections):
-        body = validate_static_section_body(number, bodies[str(number)])
-        text = _replace_section_body(text, number, body)
-    text = replace_section_11(text, render_section_11(runtime))
-    text = _replace_section_body(text, 12, render_section_12(runtime, quality))
+        text = _replace_section_body(
+            text,
+            number,
+            validate_static_section_body(number, bodies[str(number)]),
+        )
     expected_ids = {str(case["test_id"]) for case in cases}
+    text = _replace_section_body(text, 5, render_section_5(runtime))
+    text = _replace_section_body(
+        text,
+        6,
+        render_section_6(runtime, expected_ids),
+    )
+    text = _replace_section_body(text, 7, render_section_7(quality))
+    text = _replace_section_body(
+        text,
+        8,
+        render_section_8(runtime, release_path),
+    )
     report = validate_final_workbook_text(text, expected_ids)
     if not check_only:
         report = write_validated_workbook(
