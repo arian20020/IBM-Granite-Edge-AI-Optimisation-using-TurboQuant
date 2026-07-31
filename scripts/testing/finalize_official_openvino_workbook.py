@@ -3295,6 +3295,33 @@ UTILISATION_HEADERS = (
     "Accepted runs", "Fallback count", "Evidence ref",
 )
 
+PRESENTATION_INCOMPLETE_GROUPS = (
+    ("Diagnostic only; no formal benchmark", ("OV-01",)),
+    ("Missing validated FP16 artifact", ("OV-C01", "OV-02")),
+    ("RAM safety floor reached", (
+        "OV-B04", "OV-03", "OV-06", "OV-TQ-03", "OV-TQ-04", "OV-TQ-05",
+        "OV-TQ-06", "OV-TQ-07", "OV-TQ-08", "OV-TQ-09", "OV-TQ-10",
+        "OV-TQ-11", "OV-TQ-12", "OV-TQ-13", "OV-TQ-14", "OV-TQ-15",
+    )),
+    ("Larger host required", (
+        "OV-C04", "OV-C05", "OV-C06", "OV-07", "OV-08", "OV-09",
+        "OV-10", "OV-TQ-16", "OV-TQ-17",
+    )),
+    ("Strict activation proof incomplete", (
+        "OV-B08", "OV-B09", "OV-B10", "OV-B12", "OV-TQS-01",
+        "OV-TQS-02", "OV-TQS-03", "OV-TQS-04",
+    )),
+    ("Governed quality campaign stopped at the RAM floor", (
+        "OV-TQ-13/512", "OV-TQ-14/512", "OV-TQ-14/2048",
+    )),
+)
+
+PROHIBITED_PRESENTATION_CLAIMS = (
+    "all tests passed",
+    "quality-qualified pass",
+    "quality winner",
+)
+
 
 def select_presentation_measurements(
     rows: Mapping[RuntimeKey, RuntimeOutcome],
@@ -3441,6 +3468,109 @@ def validate_section_5(text: str) -> dict[str, int]:
     if len({frozenset(keys) for keys in table_keys}) != 1:
         raise ValueError("section 5 measured keys differ between tables")
     return {"table_count": 3, "measured_row_count": 3}
+
+
+def render_section_6(
+    runtime_rows: Mapping[RuntimeKey, RuntimeOutcome],
+    expected_ids: set[str],
+) -> str:
+    """Render the governed non-success outcomes as six compact reason bullets."""
+
+    if not runtime_rows:
+        raise ValueError("section 6 requires reconciled runtime outcomes")
+    grouped_ids = {
+        test_id.split("/", 1)[0]
+        for _, identifiers in PRESENTATION_INCOMPLETE_GROUPS
+        for test_id in identifiers
+    }
+    if not grouped_ids.issubset(expected_ids):
+        raise ValueError("section 6 identifiers are outside the canonical matrix")
+    bullets = []
+    for reason, identifiers in PRESENTATION_INCOMPLETE_GROUPS:
+        suffix = " (larger host required)" if reason == "Larger host required" else ""
+        bullets.append(f"- **{reason}:** {', '.join(identifiers)}{suffix}")
+    return "\n".join(bullets) + "\n"
+
+
+def render_section_7(quality_rows: Mapping[RuntimeKey, QualityOutcome]) -> str:
+    """Render the governed quality boundary without score or winner claims."""
+
+    for quality in quality_rows.values():
+        if isinstance(quality.mean_score, (int, float)) and not isinstance(
+            quality.mean_score, bool
+        ):
+            raise ValueError("section 7 cannot present a numeric quality score")
+    return (
+        "No governed P1-P6 quality campaign completed. The governed evidence "
+        "therefore provides no numeric quality score and no winner.\n"
+    )
+
+
+def render_section_8(
+    runtime_rows: Mapping[RuntimeKey, RuntimeOutcome],
+    release_input_path: Path,
+) -> str:
+    """Render the decision and its four hash-bound sources."""
+
+    selected = select_presentation_measurements(runtime_rows)
+    release_path = Path(release_input_path)
+    release_sha256 = _sha256_file(release_path)
+    evidence_rows = [
+        (f"E{index}", _evidence_cell(row))
+        for index, row in enumerate(selected, 1)
+    ]
+    evidence_rows.append(
+        (
+            "Reconciliation input",
+            f"{release_path.as_posix()}#sha256={release_sha256}",
+        )
+    )
+    return "\n".join(
+        [
+            "**Final decision**",
+            "",
+            _table(
+                ("Decision", "Controlled conclusion"),
+                [
+                    (
+                        "Runtime presentation",
+                        "Only E1-E3 are accepted formal runtime measurements.",
+                    ),
+                    (
+                        "Quality boundary",
+                        "No numeric quality score exists and there is no winner.",
+                    ),
+                ],
+            ),
+            "",
+            "**Evidence index**",
+            "",
+            _table(("Reference", "Hash-bound source"), evidence_rows),
+            "",
+        ]
+    )
+
+
+def validate_presentation_text(
+    text: str, expected_ids: set[str]
+) -> dict[str, int]:
+    """Reject prohibited claims and require every canonical ID to be visible."""
+
+    lowered = text.casefold()
+    for claim in PROHIBITED_PRESENTATION_CLAIMS:
+        if claim in lowered:
+            raise ValueError(f"prohibited presentation claim: {claim}")
+    missing = sorted(
+        test_id
+        for test_id in expected_ids
+        if re.search(
+            rf"(?<![A-Z0-9-]){re.escape(test_id)}(?![A-Z0-9-])", text
+        )
+        is None
+    )
+    if missing:
+        raise ValueError(f"missing canonical test IDs: {', '.join(missing)}")
+    return {"controlled_id_count": len(expected_ids)}
 
 
 def render_section_11(rows: Mapping[RuntimeKey, RuntimeOutcome]) -> str:

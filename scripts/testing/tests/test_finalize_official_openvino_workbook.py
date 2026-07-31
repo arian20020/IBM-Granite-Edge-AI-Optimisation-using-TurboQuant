@@ -2,6 +2,7 @@ import copy
 import hashlib
 import json
 import math
+import re
 import subprocess
 import sys
 import tempfile
@@ -1106,6 +1107,100 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertIn("| E3 |", section)
         self.assertNotIn("Sample ID", section)
         self.assertNotIn("not-produced-by-", section)
+
+    def test_v18_incomplete_tests_are_six_compact_reason_bullets(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            render_section_6,
+        )
+
+        expected_ids = {
+            "OV-01", "OV-C01", "OV-02", "OV-B04", "OV-03", "OV-06",
+            "OV-TQ-03", "OV-TQ-04", "OV-TQ-05", "OV-TQ-06", "OV-TQ-07",
+            "OV-TQ-08", "OV-TQ-09", "OV-TQ-10", "OV-TQ-11", "OV-TQ-12",
+            "OV-TQ-13", "OV-TQ-14", "OV-TQ-15", "OV-C04", "OV-C05",
+            "OV-C06", "OV-07", "OV-08", "OV-09", "OV-10", "OV-TQ-16",
+            "OV-TQ-17", "OV-B08", "OV-B09", "OV-B10", "OV-B12",
+            "OV-TQS-01", "OV-TQS-02", "OV-TQS-03", "OV-TQS-04",
+        }
+
+        section = render_section_6(self._three_measured_runtime_outcomes(), expected_ids)
+        bullets = [line for line in section.splitlines() if line.startswith("- ")]
+        self.assertEqual(len(bullets), 6)
+        self.assertIn("OV-TQ-03, OV-TQ-04", section)
+        self.assertIn("RAM safety floor", section)
+        self.assertIn("Larger host", section)
+        self.assertNotIn("| Test ID |", section)
+        self.assertNotRegex(section, r"[0-9a-f]{64}")
+        for test_id in expected_ids:
+            self.assertIn(test_id, section)
+
+    def test_v18_quality_boundary_refuses_numeric_or_winner_claims(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            QualityOutcome,
+            RuntimeKey,
+            render_section_7,
+        )
+
+        quality_rows = {
+            RuntimeKey("OV-TQ-13", 512): QualityOutcome(
+                key=RuntimeKey("OV-TQ-13", 512),
+                status="host-resource-blocked",
+                prompt_scores={prompt_id: "not-produced" for prompt_id in ("P1", "P2", "P3", "P4", "P5", "P6")},
+                mean_score="not-produced",
+                critical_failure_or_cap="RAM safety floor",
+                evidence_path=Path("quality-terminal.json"),
+                evidence_sha256="a" * 64,
+            )
+        }
+
+        section = render_section_7(quality_rows)
+        self.assertIn("No governed P1-P6 quality campaign completed", section)
+        self.assertIn("no numeric quality score", section)
+        self.assertIn("no winner", section)
+        self.assertNotRegex(section, r"\b[0-9]+(?:\.[0-9]+)?\s*/\s*10\b")
+
+        numeric = QualityOutcome(
+            key=RuntimeKey("OV-TQ-13", 512),
+            status="complete",
+            prompt_scores={prompt_id: 7.0 for prompt_id in ("P1", "P2", "P3", "P4", "P5", "P6")},
+            mean_score=7.0,
+            critical_failure_or_cap="none",
+            evidence_path=Path("quality-score.json"),
+            evidence_sha256="b" * 64,
+        )
+        with self.assertRaisesRegex(ValueError, "numeric quality score"):
+            render_section_7({numeric.key: numeric})
+
+    def test_v18_decision_has_exact_e1_e3_hash_bound_sources(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            render_section_8,
+        )
+
+        release_input_path = REPO_ROOT / "scripts" / "testing" / "examples" / "official-openvino-wb04-reconciliation-input.example.json"
+        section = render_section_8(
+            self._three_measured_runtime_outcomes(), release_input_path
+        )
+        self.assertIn("| E1 |", section)
+        self.assertIn("| E2 |", section)
+        self.assertIn("| E3 |", section)
+        self.assertEqual(len(re.findall(r"[0-9a-f]{64}", section)), 4)
+        self.assertNotIn("quality-qualified winner", section.casefold())
+
+    def test_v18_presentation_validator_rejects_prohibited_claims_and_missing_ids(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            validate_presentation_text,
+        )
+
+        expected_ids = {"OV-01", "OV-C01", "OV-TQ-03"}
+        valid = "OV-01 OV-C01 OV-TQ-03\nNo governed quality campaign completed.\n"
+        self.assertEqual(
+            validate_presentation_text(valid, expected_ids),
+            {"controlled_id_count": 3},
+        )
+        with self.assertRaisesRegex(ValueError, "prohibited presentation claim"):
+            validate_presentation_text(valid + "All tests passed.\n", expected_ids)
+        with self.assertRaisesRegex(ValueError, "missing canonical test IDs"):
+            validate_presentation_text("OV-01 OV-C01\n", expected_ids)
 
     def test_measurements_use_composite_runtime_and_sample_keys(self):
         from scripts.testing.finalize_official_openvino_workbook import (
