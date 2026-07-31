@@ -1270,6 +1270,24 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "non-success runtime key set"):
             render_section_6(extra, expected_ids)
 
+    def test_v18_incomplete_tests_require_all_accepted_presentation_measurements(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            RuntimeKey,
+            render_section_6,
+        )
+
+        expected_ids = self._canonical_presentation_ids()
+        rows = self._presentation_runtime_outcomes()
+        for key in (
+            RuntimeKey("OV-TQ-13", 512),
+            RuntimeKey("OV-TQ-14", 512),
+            RuntimeKey("OV-TQ-14", 2048),
+        ):
+            missing = dict(rows)
+            del missing[key]
+            with self.assertRaisesRegex(ValueError, "measured-key set"):
+                render_section_6(missing, expected_ids)
+
     def test_v18_quality_boundary_refuses_numeric_or_winner_claims(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             QualityOutcome,

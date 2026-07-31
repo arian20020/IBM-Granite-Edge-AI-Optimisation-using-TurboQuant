@@ -3520,6 +3520,7 @@ def render_section_6(
 
     if not runtime_rows:
         raise ValueError("section 6 requires reconciled runtime outcomes")
+    select_presentation_measurements(runtime_rows)
     if not PRESENTATION_INCOMPLETE_IDS.issubset(expected_ids):
         raise ValueError("section 6 identifiers are outside the canonical matrix")
     non_success = {
