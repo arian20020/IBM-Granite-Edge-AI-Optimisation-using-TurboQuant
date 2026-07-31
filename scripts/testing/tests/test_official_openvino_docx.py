@@ -13,17 +13,42 @@ from scripts.testing.official_openvino.docx_audit import audit_docx
 
 
 class OfficialOpenVINODocxAuditTests(unittest.TestCase):
-    def make_auditable_fixture(self, directory: str):
+    def make_auditable_fixture(
+        self,
+        directory: str,
+        *,
+        presentation_suffix: str = "",
+        include_quality_disclosure: bool = True,
+    ):
         root = Path(__file__).resolve().parents[3]
         matrix = root / "experiments/manifests/official-openvino/retest-matrix.json"
         docx = Path(directory) / "04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx"
         document = Document()
-        document.add_paragraph("04 Official OpenVINO Controlled Retest Workbook v1.7")
+        document.add_paragraph("04 Official OpenVINO Controlled Retest Workbook v1.8")
         document.add_paragraph("Document revision history")
         document.add_paragraph(
             " ".join(case.test_id for case in audit_wrapper.load_matrix(matrix))
         )
-        for index in range(22):
+        presentation_lines = [
+            "Accepted formal runtime measurements",
+            "OV-TQ-13 | 512",
+            "OV-TQ-14 | 512",
+            "OV-TQ-14 | 2048",
+            "Tests that did not complete",
+            "Diagnostic only; no formal benchmark",
+            "Missing validated FP16 artifact",
+            "RAM safety floor reached",
+            "Larger host required",
+            "Strict activation proof incomplete",
+            "Governed quality campaign stopped at the RAM floor",
+        ]
+        if include_quality_disclosure:
+            presentation_lines.append(
+                "No numeric quality score exists and there is no winner."
+            )
+        presentation_lines.append(presentation_suffix)
+        document.add_paragraph("\n".join(presentation_lines))
+        for index in range(10):
             table = document.add_table(rows=1, cols=1)
             table.cell(0, 0).text = "Version" if index == 0 else f"table-{index}"
         document.save(docx)
@@ -37,13 +62,13 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
             writer.writerow(
                 {
                     "Workbook_ID": "WB-04",
-                    "Revision": "1.7",
+                    "Revision": "1.8",
                     "Last_Validated_DOCX_SHA256": hashlib.sha256(docx.read_bytes()).hexdigest(),
                 }
             )
         return docx, manifest, matrix
 
-    def test_v17_fixture_passes_control_audit(self):
+    def test_v18_fixture_passes_control_and_presentation_audit(self):
         with tempfile.TemporaryDirectory() as directory:
             docx, manifest, matrix = self.make_auditable_fixture(directory)
             result = audit_docx(
@@ -53,8 +78,49 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
             )
         self.assertTrue(result["accepted"])
         self.assertEqual(result["blank_table_cells"], 0)
-        self.assertEqual(result["visible_revision"], "1.7")
-        self.assertEqual(result["table_count"], 22)
+        self.assertEqual(result["visible_revision"], "1.8")
+        self.assertEqual(result["table_count"], 10)
+        self.assertEqual(result["presentation_measured_row_count"], 3)
+        self.assertEqual(result["presentation_limitation_bullet_count"], 6)
+
+    def test_presentation_rejects_prohibited_claim(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                presentation_suffix="all tests passed",
+            )
+            with self.assertRaisesRegex(ValueError, "prohibited presentation claim"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+
+    def test_presentation_rejects_numeric_quality_score(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                presentation_suffix="Quality score: 8.5 / 10",
+            )
+            with self.assertRaisesRegex(ValueError, "numeric quality score"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+
+    def test_presentation_requires_the_exact_no_score_no_winner_disclosure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                include_quality_disclosure=False,
+            )
+            with self.assertRaisesRegex(ValueError, "no-score/no-winner disclosure"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
 
     def test_blank_table_cell_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -94,8 +160,8 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
                     "--manifest", str(manifest),
                     "--matrix", str(matrix),
                     "--output", str(output),
-                    "--expected-visible-revision", "1.8",
-                    "--expected-table-count", "22",
+                    "--expected-visible-revision", "1.7",
+                    "--expected-table-count", "10",
                 ]
             )
             self.assertEqual(result, 1)
@@ -111,8 +177,8 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
                     "--manifest", str(manifest),
                     "--matrix", str(matrix),
                     "--output", str(output),
-                    "--expected-visible-revision", "1.7",
-                    "--expected-table-count", "21",
+                    "--expected-visible-revision", "1.8",
+                    "--expected-table-count", "9",
                 ]
             )
             self.assertEqual(result, 1)
@@ -142,8 +208,8 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
                 audit_wrapper.DEFAULT_MANIFEST,
                 audit_wrapper.DEFAULT_MATRIX,
                 audit_wrapper.RELEASE_OUTPUT,
-                "1.7",
-                22,
+                "1.8",
+                10,
             ),
         )
         self.assertEqual(

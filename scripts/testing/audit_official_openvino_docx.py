@@ -25,8 +25,8 @@ DEFAULT_MATRIX = ROOT / "experiments/manifests/official-openvino/retest-matrix.j
 # Retained for compatibility; releases should provide a dated 2026-07-30 output.
 DEFAULT_OUTPUT = ROOT / "experiments/raw-results/official-openvino/2026-07-19/docx-structural-qa.json"
 RELEASE_OUTPUT = ROOT / "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/docx-structural-qa.json"
-RELEASE_VISIBLE_REVISION = "1.7"
-RELEASE_TABLE_COUNT = 22
+RELEASE_VISIBLE_REVISION = "1.8"
+RELEASE_TABLE_COUNT = 10
 FROZEN_MATRIX_SHA256 = "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42"
 
 
@@ -85,7 +85,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--release",
         action="store_true",
         help=(
-            "Enforce the controlled WB-04 v1.7 / 22-table release inputs and "
+            "Enforce the controlled WB-04 v1.8 / 10-table release inputs and "
             "2026-07-30 output path."
         ),
     )
@@ -119,9 +119,9 @@ def resolve_audit_configuration(args: argparse.Namespace) -> tuple[Path, Path, P
         if supplied is not None and not _same_path(supplied, expected):
             raise ValueError(f"release mode refuses noncanonical --{name}")
     if revision is not None and revision != RELEASE_VISIBLE_REVISION:
-        raise ValueError("release mode requires visible revision 1.7")
+        raise ValueError("release mode requires visible revision 1.8")
     if table_count is not None and table_count != RELEASE_TABLE_COUNT:
-        raise ValueError("release mode requires table count 22")
+        raise ValueError("release mode requires table count 10")
     if _sha256(matrix) != FROZEN_MATRIX_SHA256:
         raise ValueError("release mode frozen matrix SHA-256 mismatch")
     return (
