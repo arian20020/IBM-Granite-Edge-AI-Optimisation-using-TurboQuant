@@ -71,10 +71,11 @@ def audit_presentation(visible_text: str) -> dict[str, int]:
     for claim in PROHIBITED_PRESENTATION_CLAIMS:
         if claim in lowered:
             raise ValueError(f"prohibited presentation claim: {claim}")
+    quality_score_search_text = re.sub(r"\s+", " ", visible_text)
     if re.search(
-        r"\bquality\s+score\b[^\n|]{0,40}"
+        r"\bquality[-\s]+score\b[^|]{0,40}"
         r"(?<![a-z0-9])[0-9]+(?:\.[0-9]+)?(?:\s*/\s*10)?\b",
-        visible_text,
+        quality_score_search_text,
         re.IGNORECASE,
     ):
         raise ValueError("prohibited numeric quality score")

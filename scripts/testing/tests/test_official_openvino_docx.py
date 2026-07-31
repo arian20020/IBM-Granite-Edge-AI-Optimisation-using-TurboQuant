@@ -19,6 +19,7 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         *,
         presentation_suffix: str = "",
         include_quality_disclosure: bool = True,
+        quality_score_cells: tuple[str, str] | None = None,
     ):
         root = Path(__file__).resolve().parents[3]
         matrix = root / "experiments/manifests/official-openvino/retest-matrix.json"
@@ -51,6 +52,9 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         for index in range(10):
             table = document.add_table(rows=1, cols=1)
             table.cell(0, 0).text = "Version" if index == 0 else f"table-{index}"
+        if quality_score_cells is not None:
+            table = document.add_table(rows=1, cols=2)
+            table.cell(0, 0).text, table.cell(0, 1).text = quality_score_cells
         document.save(docx)
         manifest = Path(directory) / "Controlled-Workbook-Manifest.csv"
         with manifest.open("w", newline="", encoding="utf-8") as handle:
@@ -101,6 +105,32 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
             docx, manifest, matrix = self.make_auditable_fixture(
                 directory,
                 presentation_suffix="Quality score: 8.5 / 10",
+            )
+            with self.assertRaisesRegex(ValueError, "numeric quality score"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+
+    def test_presentation_rejects_quality_score_split_across_docx_cells(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                quality_score_cells=("Quality score", "8.5 / 10"),
+            )
+            with self.assertRaisesRegex(ValueError, "numeric quality score"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+
+    def test_presentation_rejects_hyphenated_quality_score_across_docx_cells(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                quality_score_cells=("Quality-score:", "8.5 / 10"),
             )
             with self.assertRaisesRegex(ValueError, "numeric quality score"):
                 audit_docx(
