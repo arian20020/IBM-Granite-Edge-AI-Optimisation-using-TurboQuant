@@ -1150,24 +1150,45 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             "OV-TQ-19", "OV-TQ-20",
         }
         success = self._canonical_presentation_ids() - incomplete - negative
+        tables = [
+            (
+                "| Check | Value |\n"
+                "| --- | --- |\n"
+                f"| Table {number} | Present |"
+            )
+            for number in range(1, 10)
+        ]
         return "\n".join(
             [
                 "# 1. Repository, runtime and host",
                 " ".join(sorted(success)),
+                tables[0],
                 "# 2. Successful build and recovery checks",
                 "verified",
+                tables[1],
                 "# 3. Successful bounded diagnostics",
                 "verified",
+                tables[2],
                 "# 4. Successful expected-rejection controls",
                 " ".join(sorted(negative)),
+                tables[3],
+                "[[PAGEBREAK]]",
                 "# 5. Accepted formal runtime measurements",
                 "verified",
+                tables[4],
+                "",
+                tables[5],
+                "",
+                tables[6],
                 "# 6. Tests that did not complete",
                 " ".join(sorted(incomplete)),
                 "# 7. Quality boundary",
                 "No numeric quality score and no winner.",
+                tables[7],
+                "[[PAGEBREAK]]",
                 "# 8. Final decision and evidence index",
                 "E1 E2 E3",
+                tables[8],
                 "",
             ]
         )
@@ -1370,6 +1391,83 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         misplaced = valid.replace("OV-TQ-03", "").replace("E1 E2 E3", "E1 E2 E3 OV-TQ-03")
         with self.assertRaisesRegex(ValueError, "section 6"):
             validate_presentation_text(misplaced, expected_ids)
+
+    def test_presentation_validator_rejects_headings_outside_one_through_eight(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            validate_presentation_text,
+        )
+
+        expected_ids = self._canonical_presentation_ids()
+        valid = self._structured_presentation_text()
+        for heading in (
+            "# 0. Unexpected",
+            "# 9. Unexpected",
+            "# 8. Duplicate",
+        ):
+            with self.subTest(heading=heading):
+                with self.assertRaisesRegex(ValueError, "section headings"):
+                    validate_presentation_text(
+                        f"{valid.rstrip()}\n\n{heading}\nextra\n",
+                        expected_ids,
+                    )
+
+    def test_presentation_validator_rejects_noncanonical_pagebreak_count(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            validate_presentation_text,
+        )
+
+        expected_ids = self._canonical_presentation_ids()
+        valid = self._structured_presentation_text()
+        for mutated in (
+            valid.replace("[[PAGEBREAK]]", "", 1),
+            f"{valid.rstrip()}\n[[PAGEBREAK]]\n",
+        ):
+            with self.subTest(pagebreak_count=mutated.count("[[PAGEBREAK]]")):
+                with self.assertRaisesRegex(ValueError, "page breaks"):
+                    validate_presentation_text(mutated, expected_ids)
+
+    def test_presentation_validator_rejects_noncanonical_content_table_count(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            validate_presentation_text,
+        )
+
+        expected_ids = self._canonical_presentation_ids()
+        valid = self._structured_presentation_text()
+        missing_table = valid.replace(
+            "| Check | Value |\n| --- | --- |\n| Table 9 | Present |\n",
+            "",
+            1,
+        )
+        extra_table = (
+            f"{valid.rstrip()}\n\n"
+            "| Check | Value |\n| --- | --- |\n| Table 10 | Present |\n"
+        )
+        for mutated in (missing_table, extra_table):
+            table_count = len(
+                re.findall(r"(?m)^\| Check \| Value \|$", mutated)
+            )
+            with self.subTest(table_count=table_count):
+                with self.assertRaisesRegex(ValueError, "content tables"):
+                    validate_presentation_text(mutated, expected_ids)
+
+    def test_presentation_validator_rejects_numeric_score_and_winner_mutations(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            validate_presentation_text,
+        )
+
+        expected_ids = self._canonical_presentation_ids()
+        valid = self._structured_presentation_text()
+        mutations = (
+            ("Governed quality score: 9/10", "numeric quality score"),
+            ("Winner: E1", "winner claim"),
+        )
+        for claim, error in mutations:
+            with self.subTest(claim=claim):
+                with self.assertRaisesRegex(ValueError, error):
+                    validate_presentation_text(
+                        f"{valid.rstrip()}\n{claim}\n",
+                        expected_ids,
+                    )
 
     def test_measurements_use_composite_runtime_and_sample_keys(self):
         from scripts.testing.finalize_official_openvino_workbook import (

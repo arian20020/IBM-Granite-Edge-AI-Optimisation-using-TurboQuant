@@ -3627,9 +3627,18 @@ def validate_presentation_text(
     canonical_ids = frozenset(case.test_id for case in load_matrix(CANONICAL_MATRIX))
     if len(canonical_ids) != 60 or set(expected_ids) != canonical_ids:
         raise ValueError("presentation requires the canonical 60-ID inventory")
-    headings = list(re.finditer(r"(?m)^# ([1-8])\.", text))
-    if [match.group(1) for match in headings] != [str(number) for number in range(1, 9)]:
-        raise ValueError("presentation requires exactly one ordered heading for sections 1-8")
+    headings = list(re.finditer(r"(?m)^# ([0-9]+)\.", text))
+    if [match.group(1) for match in headings] != [
+        str(number) for number in range(1, 9)
+    ]:
+        raise ValueError(
+            "presentation section headings must be exactly # 1 through # 8 "
+            "once each"
+        )
+    if text.count("[[PAGEBREAK]]") != 2:
+        raise ValueError("presentation must contain exactly two page breaks")
+    if len(_table_blocks(text)) != 9:
+        raise ValueError("presentation must contain exactly nine content tables")
     sections = {
         int(match.group(1)): text[
             match.end() : headings[index + 1].start()
@@ -3673,6 +3682,22 @@ def validate_presentation_text(
     for claim in PROHIBITED_PRESENTATION_CLAIMS:
         if claim in lowered:
             raise ValueError(f"prohibited presentation claim: {claim}")
+    if re.search(
+        r"\bquality\s+score\b[^\n|]{0,40}"
+        r"(?<![a-z0-9])[0-9]+(?:\.[0-9]+)?(?:\s*/\s*10)?\b",
+        text,
+        re.IGNORECASE,
+    ):
+        raise ValueError("prohibited numeric quality score")
+    for line in text.splitlines():
+        without_negative_winner = re.sub(
+            r"\b(?:there\s+is\s+)?no(?:\s+[a-z-]+){0,3}\s+winner\b",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if re.search(r"\bwinner\b", without_negative_winner, re.IGNORECASE):
+            raise ValueError("prohibited winner claim")
     missing = sorted(test_id for test_id in canonical_ids if not contains(text, test_id))
     if missing:
         raise ValueError(f"missing canonical test IDs: {', '.join(missing)}")
