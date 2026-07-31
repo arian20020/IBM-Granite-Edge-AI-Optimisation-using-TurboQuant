@@ -33,6 +33,15 @@ PROHIBITED_PRESENTATION_CLAIMS = (
     "quality winner",
 )
 
+REVISION_HISTORY_HEADERS = (
+    "Version", "Date", "Changed by", "Change", "Affected test IDs",
+    "Reference", "Status",
+)
+CURRENT_REVISION_ID = "WR-036"
+CURRENT_REVISION_VERSION = "1.8"
+CURRENT_REVISION_DATE = "2026-07-31"
+CURRENT_REVISION_STATUS = "Current - pending merge"
+
 
 def _presentation_pair_is_visible(
     visible_text: str, test_id: str, context_tokens: int
@@ -93,6 +102,45 @@ def audit_presentation(visible_text: str) -> dict[str, int]:
     }
 
 
+def audit_revision_history(document: Document, visible_text: str) -> dict[str, int]:
+    """Validate the unique revision-history table and exact current release row."""
+
+    if CURRENT_REVISION_ID not in visible_text:
+        raise ValueError(f"visible {CURRENT_REVISION_ID} revision is missing")
+    history_tables = [
+        table
+        for table in document.tables
+        if tuple(cell.text.strip() for cell in table.rows[0].cells)
+        == REVISION_HISTORY_HEADERS
+    ]
+    if len(history_tables) != 1:
+        raise ValueError(
+            "DOCX must contain exactly one revision-history table with exact headers"
+        )
+    table = history_tables[0]
+    rows = [
+        {
+            header: cell.text.strip()
+            for header, cell in zip(REVISION_HISTORY_HEADERS, row.cells)
+        }
+        for row in table.rows[1:]
+    ]
+    current = [row for row in rows if row["Status"].startswith("Current")]
+    if len(current) != 1:
+        raise ValueError("revision history must contain exactly one current row")
+    row = current[0]
+    for field, expected in (
+        ("Version", CURRENT_REVISION_VERSION),
+        ("Date", CURRENT_REVISION_DATE),
+        ("Status", CURRENT_REVISION_STATUS),
+    ):
+        if row[field] != expected:
+            raise ValueError(
+                f"revision-history current {field} must be {expected}; got {row[field]}"
+            )
+    return {"revision_history_current_rows": 1}
+
+
 def audit_docx(docx_path: Path, manifest_path: Path, required_ids: set[str]) -> dict:
     with zipfile.ZipFile(docx_path) as archive:
         bad_zip_member = archive.testzip()
@@ -115,6 +163,7 @@ def audit_docx(docx_path: Path, manifest_path: Path, required_ids: set[str]) -> 
     if missing_ids:
         raise ValueError(f"missing controlled IDs in DOCX: {missing_ids}")
     presentation = audit_presentation(visible_text)
+    revision_history = audit_revision_history(document, visible_text)
     with manifest_path.open(newline="", encoding="utf-8-sig") as handle:
         manifest_row = next(row for row in csv.DictReader(handle)
                             if row["Workbook_ID"] == "WB-04")
@@ -122,9 +171,9 @@ def audit_docx(docx_path: Path, manifest_path: Path, required_ids: set[str]) -> 
     if not manifest_revision:
         raise ValueError("WB-04 manifest revision is missing")
     visible_revision = f"v{manifest_revision}"
-    if visible_revision not in visible_text or "revision history" not in visible_text.lower():
+    if visible_revision not in visible_text:
         raise ValueError(
-            f"visible {visible_revision} title or revision history is missing"
+            f"visible {visible_revision} title is missing"
         )
 
     actual_hash = hashlib.sha256(docx_path.read_bytes()).hexdigest()
@@ -136,8 +185,9 @@ def audit_docx(docx_path: Path, manifest_path: Path, required_ids: set[str]) -> 
         "controlled_id_count": len(required_ids),
         "blank_table_cells": 0,
         "visible_revision": manifest_revision,
-        "revision_history": "present",
+        "revision_history": "validated",
         "generated_sha256": actual_hash,
         "table_count": len(document.tables),
         **presentation,
+        **revision_history,
     }

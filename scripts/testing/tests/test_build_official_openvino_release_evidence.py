@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -102,6 +103,25 @@ def _copy_builder_sources(destination: Path) -> Path:
 
 
 class StaticSectionParsingTests(unittest.TestCase):
+    def test_openvino_raw_evidence_is_byte_preserved_and_whitespace_exempt(self):
+        evidence = (
+            "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/"
+            "OV-TQ-13/context-512/measurement-summary.json"
+        )
+        result = subprocess.run(
+            ["git", "check-attr", "text", "whitespace", "--", evidence],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertIn(f"{evidence}: text: unset", result.stdout)
+        self.assertIn(
+            f"{evidence}: whitespace: -blank-at-eol,-blank-at-eof",
+            result.stdout,
+        )
+
     def test_static_draft_has_four_concise_nonblank_tables(self):
         from scripts.testing.build_official_openvino_release_evidence import (
             parse_static_sections,
@@ -148,6 +168,78 @@ class StaticSectionParsingTests(unittest.TestCase):
             "OV-TQ-20",
         ):
             self.assertIn(test_id, sections[4])
+
+    def test_static_sections_preserve_the_approved_build_diagnostic_and_control_allocation(self):
+        from scripts.testing.build_official_openvino_release_evidence import (
+            parse_static_sections,
+        )
+
+        draft_path = (
+            REPO_ROOT
+            / ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
+            "wb04-static-sections-draft.md"
+        )
+        sections = parse_static_sections(draft_path.read_text(encoding="utf-8"))
+
+        section_2_ids = set(re.findall(r"\bOV-[A-Z0-9-]+\b", sections[2]))
+        self.assertEqual(
+            section_2_ids,
+            {"OV-B01", "OV-B02", "OV-B03", "OV-B05", "OV-B06", "OV-B07"},
+        )
+        for phrase in (
+            "505/505",
+            "46 tests",
+            "46/46",
+            "CPU plugin",
+            "CPU functional binary",
+            "`query_state()`",
+            "invalid-destination",
+            "fail-closed",
+        ):
+            self.assertIn(phrase, sections[2])
+
+        for test_id, artifact in (("OV-C02", "U8"), ("OV-C03", "U4")):
+            row = next(
+                line for line in sections[3].splitlines() if f"| {test_id} |" in line
+            )
+            for phrase in (
+                artifact,
+                "valid output",
+                "7 input tokens",
+                "4 generated tokens",
+                "`fallback=false`",
+                "cleanup 0",
+                "f32/f32",
+                "Diagnostic only",
+                "not a formal benchmark",
+            ):
+                self.assertIn(phrase, row)
+
+        section_4_rows = [
+            line
+            for line in sections[4].splitlines()[2:]
+            if line.startswith("|")
+        ]
+        self.assertEqual(len(section_4_rows), 3)
+        expected_rows = (
+            (
+                "Scalar-state controls",
+                ("OV-04/4096", "OV-05/4096", "OV-TQ-01/4096", "OV-TQ-02/4096"),
+            ),
+            (
+                "Property-boundary controls",
+                tuple(f"OV-TQS-{number:02d}" for number in range(5, 13)),
+            ),
+            (
+                "Device/codec controls",
+                ("OV-TQ-18/1024", "OV-TQ-19/256", "OV-TQ-20/256", "OV-B11"),
+            ),
+        )
+        for row, (label, identifiers) in zip(section_4_rows, expected_rows):
+            self.assertIn(label, row)
+            for identifier in identifiers:
+                self.assertIn(identifier, row)
+        self.assertIn("not benchmark or quality results", sections[4])
 
     def test_parse_static_sections_returns_only_complete_release_sections(self):
         from scripts.testing.build_official_openvino_release_evidence import (

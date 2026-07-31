@@ -11,6 +11,7 @@ experiments/granite_turboquant_intel/logs/** -text whitespace=-blank-at-eol,-bla
 experiments/granite_turboquant_intel/manifests/** -text
 experiments/granite_turboquant_intel/notes/upstream-llama-cpp/** -text
 experiments/raw-results/openvino-turboquant/2026-07-30/diagnostics/u4-tbq4-load-probe-attempt-001/** -text whitespace=-blank-at-eol,-blank-at-eof
+experiments/raw-results/openvino-turboquant/** -text whitespace=-blank-at-eol,-blank-at-eof
 # END IXN CONTROLLED EXPERIMENT EVIDENCE
 
 # Portable unified diffs contain mandatory one-space context lines. Preserve

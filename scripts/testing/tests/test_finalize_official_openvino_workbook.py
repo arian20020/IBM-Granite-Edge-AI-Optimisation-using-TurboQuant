@@ -1147,7 +1147,9 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         }
         negative = {
             "OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02", "OV-TQ-18",
-            "OV-TQ-19", "OV-TQ-20",
+            "OV-TQ-19", "OV-TQ-20", "OV-B11", "OV-TQS-05", "OV-TQS-06",
+            "OV-TQS-07", "OV-TQS-08", "OV-TQS-09", "OV-TQS-10",
+            "OV-TQS-11", "OV-TQS-12",
         }
         success = self._canonical_presentation_ids() - incomplete - negative
         tables = [
@@ -1232,6 +1234,27 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertIn("| E3 |", section)
         self.assertNotIn("Sample ID", section)
         self.assertNotIn("not-produced-by-", section)
+
+    def test_v18_section_5_explicitly_records_cpu_no_fallback_and_cleanup(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            render_section_5,
+            validate_section_5,
+        )
+
+        section = render_section_5(self._three_measured_runtime_outcomes())
+        required = (
+            "All three accepted rows executed on CPU with `fallback=false`; "
+            "cleanup was verified with zero residual processes."
+        )
+        self.assertIn(required, section)
+        for old, new in (
+            ("on CPU", "on GPU"),
+            ("`fallback=false`", "`fallback=true`"),
+            ("cleanup was verified", "cleanup was not verified"),
+        ):
+            with self.subTest(mutation=new):
+                with self.assertRaisesRegex(ValueError, "execution boundary"):
+                    validate_section_5(section.replace(old, new, 1))
 
     def test_v18_incomplete_tests_are_six_compact_reason_bullets(self):
         from scripts.testing.finalize_official_openvino_workbook import (
@@ -1361,6 +1384,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
     def test_v18_decision_has_exact_e1_e3_hash_bound_sources(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             render_section_8,
+            validate_section_8,
         )
 
         release_input_path = REPO_ROOT / "scripts" / "testing" / "examples" / "official-openvino-wb04-reconciliation-input.example.json"
@@ -1372,6 +1396,54 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertIn("| E3 |", section)
         self.assertEqual(len(re.findall(r"[0-9a-f]{64}", section)), 4)
         self.assertNotIn("quality-qualified winner", section.casefold())
+        self.assertEqual(
+            validate_section_8(section),
+            {"decision_row_count": 7, "evidence_row_count": 4},
+        )
+
+    def test_v18_decision_covers_every_reader_facing_boundary(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            render_section_8,
+            validate_section_8,
+        )
+
+        release_input_path = (
+            REPO_ROOT
+            / "scripts/testing/examples/"
+            "official-openvino-wb04-reconciliation-input.example.json"
+        )
+        section = render_section_8(
+            self._three_measured_runtime_outcomes(), release_input_path
+        )
+        required = {
+            "Proven runtime scope": (
+                "OV-TQ-13/512", "OV-TQ-14/512", "OV-TQ-14/2048"
+            ),
+            "Best observed runtime facts": ("observed", "no winner is declared"),
+            "Execution boundary": ("CPU-only", "fallback=false", "cleanup verified"),
+            "GPU boundary": ("No accepted GPU formal measurement",),
+            "Non-TurboQuant boundary": (
+                "No non-TurboQuant formal benchmark", "U4/U8", "diagnostics"
+            ),
+            "Continuation": ("higher-memory host",),
+            "Quality boundary": ("No numeric quality score", "no winner"),
+        }
+        for label, phrases in required.items():
+            self.assertIn(f"| {label} |", section)
+            for phrase in phrases:
+                self.assertIn(phrase, section)
+        for phrase in (
+            "OV-TQ-13/512",
+            "observed",
+            "CPU-only",
+            "No accepted GPU formal measurement",
+            "No non-TurboQuant formal benchmark",
+            "higher-memory host",
+            "No numeric quality score",
+        ):
+            with self.subTest(phrase=phrase):
+                with self.assertRaisesRegex(ValueError, "decision table"):
+                    validate_section_8(section.replace(phrase, "omitted", 1))
 
     def test_v18_decision_uses_repo_relative_reconciliation_source(self):
         from scripts.testing.finalize_official_openvino_workbook import (
@@ -2952,6 +3024,51 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             changed["body"] = body.replace("passed", "failed")
             with self.assertRaisesRegex(ValueError, "does not bind body content"):
                 validate_static_section_body(1, changed)
+
+    def test_static_section_content_rejects_allocation_and_fact_mutations(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            validate_static_section_content,
+        )
+
+        section_2 = "\n".join(
+            (
+                "| Controlled checks | Verified positive result | Evidence |",
+                "| --- | --- | --- |",
+                "| OV-B01, OV-B02 | Positive build gates. | source |",
+                "| OV-B03, OV-B05, OV-B06, OV-B07 | Positive recovery gates. | source |",
+                "| Official source suite | 505/505 tests passed. | source |",
+                "| Allocation observer recovery | 46 tests discovered; run 1 passed 46/46; run 2 passed 46/46; CPU plugin and CPU functional binary verified; `query_state()` passed; invalid-destination fail-closed check passed. | source |",
+            )
+        )
+        section_3 = "\n".join(
+            (
+                "| Test ID | Verified diagnostic result | Diagnostic-only caveat | Evidence |",
+                "| --- | --- | --- | --- |",
+                "| OV-C02 | U8 valid output; 7 input tokens; 4 generated tokens; `fallback=false`; cleanup 0; f32/f32. | Diagnostic only; not a formal benchmark or quality result. | source |",
+                "| OV-C03 | U4 valid output; 7 input tokens; 4 generated tokens; `fallback=false`; cleanup 0; f32/f32. | Diagnostic only; not a formal benchmark or quality result. | source |",
+            )
+        )
+        section_4 = "\n".join(
+            (
+                "| Control group | Explicit controlled IDs | Verified successful boundary |",
+                "| --- | --- | --- |",
+                "| Scalar-state controls | OV-04/4096, OV-05/4096, OV-TQ-01/4096, OV-TQ-02/4096 | f32/f32 expected rejections; not benchmark or quality results. |",
+                "| Property-boundary controls | OV-TQS-05, OV-TQS-06, OV-TQS-07, OV-TQS-08, OV-TQS-09, OV-TQS-10, OV-TQS-11, OV-TQS-12 | Unsupported combinations rejected; not benchmark or quality results. |",
+                "| Device/codec controls | OV-TQ-18/1024, OV-TQ-19/256, OV-TQ-20/256, OV-B11 | GPU TurboQuant, QJL, Polar, and invalid destination rejected; not benchmark or quality results. |",
+            )
+        )
+        for number, body in ((2, section_2), (3, section_3), (4, section_4)):
+            with self.subTest(section=number):
+                self.assertEqual(validate_static_section_content(number, body), body)
+        for number, mutated in (
+            (2, section_2.replace("OV-B07", "OV-B07, OV-B11")),
+            (2, section_2.replace("`query_state()` passed", "state query omitted")),
+            (3, section_3.replace("7 input tokens", "8 input tokens", 1)),
+            (4, section_4.replace("OV-TQS-12", "OV-TQS-13")),
+        ):
+            with self.subTest(section=number, mutation=mutated):
+                with self.assertRaisesRegex(ValueError, f"section {number} static contract"):
+                    validate_static_section_content(number, mutated)
 
     def test_final_section_replacement_uses_end_of_file_boundary(self):
         from scripts.testing.finalize_official_openvino_workbook import (

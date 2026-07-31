@@ -3296,6 +3296,25 @@ UTILISATION_HEADERS = (
     "Accepted runs", "Fallback count", "Evidence ref",
 )
 
+SECTION_5_EXECUTION_BOUNDARY = (
+    "All three accepted rows executed on CPU with `fallback=false`; cleanup "
+    "was verified with zero residual processes."
+)
+
+SECTION_8_DECISION_REQUIREMENTS = {
+    "Proven runtime scope": (
+        "OV-TQ-13/512", "OV-TQ-14/512", "OV-TQ-14/2048"
+    ),
+    "Best observed runtime facts": ("observed", "no winner is declared"),
+    "Execution boundary": ("CPU-only", "fallback=false", "cleanup verified"),
+    "GPU boundary": ("No accepted GPU formal measurement",),
+    "Non-TurboQuant boundary": (
+        "No non-TurboQuant formal benchmark", "U4/U8", "diagnostics"
+    ),
+    "Continuation": ("higher-memory host",),
+    "Quality boundary": ("No numeric quality score", "no winner"),
+}
+
 PRESENTATION_INCOMPLETE_GROUPS = (
     ("Diagnostic only; no formal benchmark", ("OV-01",)),
     ("Missing validated FP16 artifact", ("OV-C01", "OV-02")),
@@ -3355,7 +3374,9 @@ PRESENTATION_NON_SUCCESS_RUNTIME_KEYS = (
 PRESENTATION_NEGATIVE_CONTROL_IDS = frozenset(
     {
         "OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02", "OV-TQ-18",
-        "OV-TQ-19", "OV-TQ-20",
+        "OV-TQ-19", "OV-TQ-20", "OV-B11", "OV-TQS-05", "OV-TQS-06",
+        "OV-TQS-07", "OV-TQS-08", "OV-TQS-09", "OV-TQS-10",
+        "OV-TQS-11", "OV-TQS-12",
     }
 )
 PRESENTATION_INCOMPLETE_IDS = frozenset(
@@ -3438,6 +3459,8 @@ def render_section_5(rows: Mapping[RuntimeKey, RuntimeOutcome]) -> str:
         )
     section = "\n".join(
         [
+            SECTION_5_EXECUTION_BOUNDARY,
+            "",
             "**Timing metrics — aggregate medians**",
             "",
             _table(TIMING_HEADERS, timing_rows),
@@ -3456,6 +3479,8 @@ def render_section_5(rows: Mapping[RuntimeKey, RuntimeOutcome]) -> str:
 
 
 def validate_section_5(text: str) -> dict[str, int]:
+    if SECTION_5_EXECUTION_BOUNDARY not in text:
+        raise ValueError("section 5 execution boundary is missing or invalid")
     blocks = _table_blocks(text)
     expected_headers = [
         list(TIMING_HEADERS),
@@ -3594,7 +3619,23 @@ def render_section_8(
             f"{release_display_path}#sha256={release_sha256}",
         )
     )
-    return "\n".join(
+    def runtime_label(row: RuntimeOutcome) -> str:
+        return f"{row.key.test_id}/{row.key.context_tokens}"
+
+    lowest_load = min(selected, key=lambda row: row.metrics["load_ms"]["median"])
+    lowest_ttft = min(selected, key=lambda row: row.metrics["ttft_ms"]["median"])
+    highest_decode = max(selected, key=lambda row: row.metrics["decode_tps"]["median"])
+    best_observed = (
+        "The observed runtime facts are: lowest median load "
+        f"{_presentation_display(lowest_load.metrics['load_ms']['median'])} ms "
+        f"({runtime_label(lowest_load)}); lowest median TTFT "
+        f"{_presentation_display(lowest_ttft.metrics['ttft_ms']['median'])} ms "
+        f"({runtime_label(lowest_ttft)}); highest median decode throughput "
+        f"{_presentation_display(highest_decode.metrics['decode_tps']['median'])} "
+        f"tok/s ({runtime_label(highest_decode)}). These are runtime observations; "
+        "no winner is declared from quality evidence."
+    )
+    section = "\n".join(
         [
             "**Final decision**",
             "",
@@ -3602,8 +3643,29 @@ def render_section_8(
                 ("Decision", "Controlled conclusion"),
                 [
                     (
-                        "Runtime presentation",
-                        "Only E1-E3 are accepted formal runtime measurements.",
+                        "Proven runtime scope",
+                        "Exactly OV-TQ-13/512, OV-TQ-14/512, and "
+                        "OV-TQ-14/2048 are accepted formal runtime measurements.",
+                    ),
+                    ("Best observed runtime facts", best_observed),
+                    (
+                        "Execution boundary",
+                        "The accepted formal scope is CPU-only with "
+                        "fallback=false and cleanup verified for every row.",
+                    ),
+                    (
+                        "GPU boundary",
+                        "No accepted GPU formal measurement exists.",
+                    ),
+                    (
+                        "Non-TurboQuant boundary",
+                        "No non-TurboQuant formal benchmark exists; the U4/U8 "
+                        "STANDARD results remain diagnostics only.",
+                    ),
+                    (
+                        "Continuation",
+                        "Continue the blocked larger-context and larger-model "
+                        "campaigns on a higher-memory host.",
                     ),
                     (
                         "Quality boundary",
@@ -3618,6 +3680,39 @@ def render_section_8(
             "",
         ]
     )
+    validate_section_8(section)
+    return section
+
+
+def validate_section_8(text: str) -> dict[str, int]:
+    """Require the complete decision surface and hash-bound evidence index."""
+
+    blocks = _table_blocks(text)
+    if len(blocks) != 2:
+        raise ValueError("section 8 must contain decision and evidence tables")
+    decision, evidence = blocks
+    if decision[0] != ["Decision", "Controlled conclusion"] or len(decision) != 9:
+        raise ValueError("section 8 decision table structure is invalid")
+    rows = {row[0]: row[1] for row in decision[2:] if len(row) == 2}
+    if set(rows) != set(SECTION_8_DECISION_REQUIREMENTS):
+        raise ValueError("section 8 decision table rows are invalid")
+    for label, fragments in SECTION_8_DECISION_REQUIREMENTS.items():
+        if any(fragment not in rows[label] for fragment in fragments):
+            raise ValueError(f"section 8 decision table record is invalid: {label}")
+    if evidence[0] != ["Reference", "Hash-bound source"] or len(evidence) != 6:
+        raise ValueError("section 8 evidence table structure is invalid")
+    evidence_rows = {row[0]: row[1] for row in evidence[2:] if len(row) == 2}
+    if set(evidence_rows) != {"E1", "E2", "E3", "Reconciliation input"}:
+        raise ValueError("section 8 evidence table rows are invalid")
+    if any(
+        re.search(r"#sha256=[0-9a-f]{64}$", source) is None
+        for source in evidence_rows.values()
+    ):
+        raise ValueError("section 8 evidence table hash binding is invalid")
+    reconciliation_source = evidence_rows["Reconciliation input"].split("#", 1)[0]
+    if Path(reconciliation_source).is_absolute() or "\\" in reconciliation_source:
+        raise ValueError("section 8 reconciliation source must be repository-relative")
+    return {"decision_row_count": 7, "evidence_row_count": 4}
 
 
 def validate_presentation_text(
@@ -4200,6 +4295,82 @@ def _normalised_keyed_records(
     return result
 
 
+def validate_static_section_content(section_number: int, body: str) -> str:
+    """Enforce the approved reader-facing allocation for static Sections 2-4."""
+
+    if section_number not in (2, 3, 4):
+        return body
+    blocks = _table_blocks(body)
+    if len(blocks) != 1:
+        raise ValueError(f"section {section_number} static contract requires one table")
+    table = blocks[0]
+    if len(table) < 3 or any(len(row) != len(table[0]) for row in table):
+        raise ValueError(f"section {section_number} static contract table is invalid")
+    for row in table:
+        for cell in row:
+            _cell(cell)
+
+    if section_number == 2:
+        if table[0][:2] != ["Controlled checks", "Verified positive result"]:
+            raise ValueError("section 2 static contract headers are invalid")
+        identifiers = set(re.findall(r"\bOV-[A-Z0-9-]+\b", body))
+        expected = {"OV-B01", "OV-B02", "OV-B03", "OV-B05", "OV-B06", "OV-B07"}
+        required = (
+            "505/505", "46 tests", "46/46", "CPU plugin",
+            "CPU functional binary", "`query_state()`", "invalid-destination",
+            "fail-closed",
+        )
+        if len(table) != 6 or identifiers != expected or any(
+            fragment not in body for fragment in required
+        ):
+            raise ValueError("section 2 static contract facts or allocation are invalid")
+        return body
+
+    if section_number == 3:
+        if table[0] != [
+            "Test ID", "Verified diagnostic result", "Diagnostic-only caveat", "Evidence"
+        ] or len(table) != 4:
+            raise ValueError("section 3 static contract structure is invalid")
+        rows = {row[0]: " | ".join(row[1:]) for row in table[2:]}
+        if set(rows) != {"OV-C02", "OV-C03"}:
+            raise ValueError("section 3 static contract rows are invalid")
+        for test_id, artifact in (("OV-C02", "U8"), ("OV-C03", "U4")):
+            required = (
+                artifact, "valid output", "7 input tokens", "4 generated tokens",
+                "`fallback=false`", "cleanup 0", "f32/f32", "Diagnostic only",
+                "not a formal benchmark",
+            )
+            if any(fragment not in rows[test_id] for fragment in required):
+                raise ValueError(f"section 3 static contract facts are invalid: {test_id}")
+        return body
+
+    if table[0] != [
+        "Control group", "Explicit controlled IDs", "Verified successful boundary"
+    ] or len(table) != 5:
+        raise ValueError("section 4 static contract structure is invalid")
+    expected_rows = (
+        (
+            "Scalar-state controls",
+            {"OV-04/4096", "OV-05/4096", "OV-TQ-01/4096", "OV-TQ-02/4096"},
+        ),
+        (
+            "Property-boundary controls",
+            {f"OV-TQS-{number:02d}" for number in range(5, 13)},
+        ),
+        (
+            "Device/codec controls",
+            {"OV-TQ-18/1024", "OV-TQ-19/256", "OV-TQ-20/256", "OV-B11"},
+        ),
+    )
+    for row, (label, identifiers) in zip(table[2:], expected_rows):
+        actual = set(re.findall(r"\bOV-[A-Z0-9-]+(?:/\d+)?\b", row[1]))
+        if row[0] != label or actual != identifiers:
+            raise ValueError(f"section 4 static contract allocation is invalid: {label}")
+        if "not benchmark or quality results" not in row[2]:
+            raise ValueError(f"section 4 static contract caveat is invalid: {label}")
+    return body
+
+
 def validate_static_section_body(
     section_number: int,
     record: Mapping[str, Any],
@@ -4235,7 +4406,7 @@ def validate_static_section_body(
         evidence["source_evidence"], f"section {section_number} evidence"
     )
     validate_workbook_text(body, set())
-    return body
+    return validate_static_section_content(section_number, body)
 
 
 def finalize_release(

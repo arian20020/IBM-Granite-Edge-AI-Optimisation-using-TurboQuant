@@ -1,11 +1,11 @@
 {
-  "body": "| Test ID | Verified diagnostic result | Diagnostic-only caveat | Evidence |\n| --- | --- | --- | --- |\n| OV-C02 | Granite 3B U8 short CPU STANDARD generation produced valid output with `fallback=false` and cleanup 0. | Diagnostic only; concrete K/V state was f32/f32, so this is not scalar-cache proof, a formal benchmark, or a quality result. | `diagnostics/u8-standard-load-probe-attempt-002/run/attempt.json`; SHA-256 `720741b6eed42475abe6c23fad8a63d0850e78490145dc1368721490f7444605`. |\n| OV-C03 | Granite 3B U4 short CPU STANDARD generation produced valid output with `fallback=false` and cleanup 0. | Diagnostic only; concrete K/V state was f32/f32, so this is not scalar-cache proof, a formal benchmark, or a quality result. | `diagnostics/u4-standard-load-probe-attempt-001/run/attempt.json`; SHA-256 `90a9b83423dcc1dbff7d3eb7a49e57262b23d253541385af937f914a87a0af9c`. |",
+  "body": "| Test ID | Verified diagnostic result | Diagnostic-only caveat | Evidence |\n| --- | --- | --- | --- |\n| OV-C02 | Granite 3B U8 short CPU STANDARD generation produced valid output with 7 input tokens, 4 generated tokens, `fallback=false`, cleanup 0, and concrete K/V state f32/f32. | Diagnostic only; this weight-artifact success is not a formal benchmark, not scalar-cache proof, and not a quality result. | `diagnostics/u8-standard-load-probe-attempt-002/run/attempt.json`; SHA-256 `720741b6eed42475abe6c23fad8a63d0850e78490145dc1368721490f7444605`. |\n| OV-C03 | Granite 3B U4 short CPU STANDARD generation produced valid output with 7 input tokens, 4 generated tokens, `fallback=false`, cleanup 0, and concrete K/V state f32/f32. | Diagnostic only; this weight-artifact success is not a formal benchmark, not scalar-cache proof, and not a quality result. | `diagnostics/u4-standard-load-probe-attempt-001/run/attempt.json`; SHA-256 `90a9b83423dcc1dbff7d3eb7a49e57262b23d253541385af937f914a87a0af9c`. |",
   "schema": "official-openvino-wb04-static-section-evidence/v2",
   "section_number": 3,
   "source_evidence": [
     {
       "path": ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/wb04-static-sections-draft.md",
-      "sha256": "9eed7e13634ba977dc01f02aa239f38072bfb423650e3afe8b84ac8fa94cf659"
+      "sha256": "feb8a8298b0cc79cad5fdaf5f885da4896fb8ce647b78b8202f3854ca58e28eb"
     }
   ]
 }

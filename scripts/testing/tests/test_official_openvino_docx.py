@@ -20,12 +20,21 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         presentation_suffix: str = "",
         include_quality_disclosure: bool = True,
         quality_score_cells: tuple[str, str] | None = None,
+        include_wr036: bool = True,
+        revision_headers: tuple[str, ...] | None = None,
+        current_version: str = "1.8",
+        current_date: str = "2026-07-31",
+        current_status: str = "Current - pending merge",
+        duplicate_current: bool = False,
+        revision_reference: str = "WR-036",
     ):
         root = Path(__file__).resolve().parents[3]
         matrix = root / "experiments/manifests/official-openvino/retest-matrix.json"
         docx = Path(directory) / "04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx"
         document = Document()
         document.add_paragraph("04 Official OpenVINO Controlled Retest Workbook v1.8")
+        if include_wr036:
+            document.add_paragraph("Controlled retest revision 1.8 (WR-036).")
         document.add_paragraph("Document revision history")
         document.add_paragraph(
             " ".join(case.test_id for case in audit_wrapper.load_matrix(matrix))
@@ -49,9 +58,38 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
             )
         presentation_lines.append(presentation_suffix)
         document.add_paragraph("\n".join(presentation_lines))
-        for index in range(10):
+        expected_headers = (
+            "Version", "Date", "Changed by", "Change", "Affected test IDs",
+            "Reference", "Status",
+        )
+        headers = revision_headers or expected_headers
+        history = document.add_table(rows=1, cols=len(headers))
+        for cell, value in zip(history.rows[0].cells, headers):
+            cell.text = value
+        for values in (
+            ("1.7", "2026-07-31", "Student", "Prior", "OV-*", "WR-035", "Superseded"),
+            (
+                current_version,
+                current_date,
+                "Student",
+                "Success-focused release",
+                "OV-*",
+                revision_reference,
+                current_status,
+            ),
+        ):
+            for cell, value in zip(history.add_row().cells, values):
+                cell.text = value
+        if duplicate_current:
+            values = (
+                "1.8", "2026-07-31", "Student", "Duplicate", "OV-*",
+                "WR-036", "Current - pending merge",
+            )
+            for cell, value in zip(history.add_row().cells, values):
+                cell.text = value
+        for index in range(1, 10):
             table = document.add_table(rows=1, cols=1)
-            table.cell(0, 0).text = "Version" if index == 0 else f"table-{index}"
+            table.cell(0, 0).text = f"table-{index}"
         if quality_score_cells is not None:
             table = document.add_table(rows=1, cols=2)
             table.cell(0, 0).text, table.cell(0, 1).text = quality_score_cells
@@ -86,6 +124,56 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         self.assertEqual(result["table_count"], 10)
         self.assertEqual(result["presentation_measured_row_count"], 3)
         self.assertEqual(result["presentation_limitation_bullet_count"], 6)
+        self.assertEqual(result["revision_history_current_rows"], 1)
+
+    def test_revision_history_requires_visible_wr036_and_exact_table_headers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory, include_wr036=False, revision_reference="WR-035"
+            )
+            with self.assertRaisesRegex(ValueError, "WR-036"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                revision_headers=(
+                    "Version", "Date", "Changed by", "Summary", "Affected test IDs",
+                    "Reference", "Status",
+                ),
+            )
+            with self.assertRaisesRegex(ValueError, "revision-history table"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+
+    def test_revision_history_rejects_stale_mismatched_or_duplicate_current_state(self):
+        mutations = (
+            ({"current_version": "1.7"}, "current Version"),
+            ({"current_date": "2026-07-30"}, "current Date"),
+            ({"current_status": "Current"}, "current Status"),
+            ({"duplicate_current": True}, "exactly one current row"),
+        )
+        for arguments, message in mutations:
+            with self.subTest(arguments=arguments):
+                with tempfile.TemporaryDirectory() as directory:
+                    docx, manifest, matrix = self.make_auditable_fixture(
+                        directory, **arguments
+                    )
+                    with self.assertRaisesRegex(ValueError, message):
+                        audit_docx(
+                            docx,
+                            manifest,
+                            {
+                                case.test_id
+                                for case in audit_wrapper.load_matrix(matrix)
+                            },
+                        )
 
     def test_presentation_rejects_prohibited_claim(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,11 +1,11 @@
 {
-  "body": "| Control group | Explicit controlled IDs | Verified successful boundary |\n| --- | --- | --- |\n| Scalar semantic controls | OV-04, OV-05, OV-TQ-01, OV-TQ-02 | Passed expected rejection after bounded STANDARD activation showed concrete f32/f32 K/V state rather than the requested scalar precision. |\n| GPU TurboQuant control | OV-TQ-18 | Passed expected rejection before generation because the governed TurboQuant route is CPU-only. |\n| QJL and Polar controls | OV-TQ-19, OV-TQ-20 | Passed expected rejection before generation for the declared unsupported property combinations. |",
+  "body": "| Control group | Explicit controlled IDs | Verified successful boundary |\n| --- | --- | --- |\n| Scalar-state controls | OV-04/4096, OV-05/4096, OV-TQ-01/4096, OV-TQ-02/4096 | Passed expected rejection after bounded STANDARD activation showed concrete f32/f32 K/V state rather than the requested scalar precision; these are successful boundary checks, not benchmark or quality results. |\n| Property-boundary controls | OV-TQS-05, OV-TQS-06, OV-TQS-07, OV-TQS-08, OV-TQS-09, OV-TQS-10, OV-TQS-11, OV-TQS-12 | Passed the setup/property boundary by rejecting unsupported scalar/TurboQuant combinations before generation; these are successful boundary checks, not benchmark or quality results. |\n| Device/codec controls | OV-TQ-18/1024, OV-TQ-19/256, OV-TQ-20/256, OV-B11 | Passed the device/codec boundary by rejecting GPU TurboQuant, QJL, Polar, and the invalid destination before generation; these are successful boundary checks, not benchmark or quality results. |",
   "schema": "official-openvino-wb04-static-section-evidence/v2",
   "section_number": 4,
   "source_evidence": [
     {
       "path": ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/wb04-static-sections-draft.md",
-      "sha256": "9eed7e13634ba977dc01f02aa239f38072bfb423650e3afe8b84ac8fa94cf659"
+      "sha256": "feb8a8298b0cc79cad5fdaf5f885da4896fb8ce647b78b8202f3854ca58e28eb"
     }
   ]
 }
