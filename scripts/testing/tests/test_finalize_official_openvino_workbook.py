@@ -1373,6 +1373,28 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r"[0-9a-f]{64}", section)), 4)
         self.assertNotIn("quality-qualified winner", section.casefold())
 
+    def test_v18_decision_uses_repo_relative_reconciliation_source(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            render_section_8,
+        )
+
+        release_input_path = (
+            REPO_ROOT
+            / "scripts/testing/examples/"
+            "official-openvino-wb04-reconciliation-input.example.json"
+        )
+        section = render_section_8(
+            self._three_measured_runtime_outcomes(), release_input_path
+        )
+        self.assertIn(
+            "scripts/testing/examples/"
+            "official-openvino-wb04-reconciliation-input.example.json"
+            "#sha256=4ebbd43007d5213b4209a3df5c04dc86"
+            "d6d8b83ece2dda08c3e63f6004887a5a",
+            section,
+        )
+        self.assertNotIn(REPO_ROOT.as_posix(), section)
+
     def test_v18_presentation_validator_requires_canonical_inventory_and_placement(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             validate_presentation_text,

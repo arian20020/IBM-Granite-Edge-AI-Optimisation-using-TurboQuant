@@ -8,25 +8,23 @@ WORKBOOK = ROOT / "docs/testing/workbooks/text-templates/04_Official_OpenVINO_Co
 
 
 class OfficialOpenVINOReconcileTests(unittest.TestCase):
-    def test_workbook_records_only_accepted_rows_as_measured(self):
+    def test_workbook_presents_only_the_three_accepted_runtime_rows(self):
         text = WORKBOOK.read_text(encoding="utf-8")
         self.assertNotIn("Overall status | Terminal-complete", text)
         lines = text.splitlines()
         header = (
-            "| Test ID | Context tokens | Configuration ID | Load ms | "
-            "TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | "
-            "Generation duration ms | Status | Evidence |"
+            "| Test ID | Context | Load ms | TTFT ms | Prompt tok/s | "
+            "TPOT ms | Decode tok/s | Generation ms |"
         )
         start = lines.index(header) + 2
-        measured = set()
+        presented = set()
         for line in lines[start:]:
             if not line.startswith("|"):
                 break
             cells = [cell.strip() for cell in line.strip("|").split("|")]
-            if cells[-2] == "measured":
-                measured.add((cells[0], int(cells[1])))
+            presented.add((cells[0], int(cells[1])))
         self.assertEqual(
-            measured,
+            presented,
             {
                 ("OV-TQ-13", 512),
                 ("OV-TQ-14", 512),
@@ -52,10 +50,10 @@ class OfficialOpenVINOReconcileTests(unittest.TestCase):
         text = WORKBOOK.read_text(encoding="utf-8")
         required = (
             "Load ms", "TTFT ms", "Prompt tok/s", "TPOT ms", "Decode tok/s",
-            "Generation duration ms", "Peak working set MB", "Peak private MB",
-            "Available RAM min MB", "KV MB", "GPU memory peak MB", "CPU mean %",
-            "CPU median %", "CPU peak %", "CPU sample count", "GPU mean %",
-            "GPU median %", "GPU peak %", "GPU sample count",
+            "Generation ms", "Peak WS MiB", "Peak private MiB",
+            "Available RAM min MiB", "KV MiB", "Cleanup",
+            "CPU mean/median/peak %", "GPU mean/median/peak %", "CPU samples",
+            "GPU samples", "Accepted runs", "Fallback count", "Evidence ref",
         )
         for field in required:
             self.assertIn(field, text)

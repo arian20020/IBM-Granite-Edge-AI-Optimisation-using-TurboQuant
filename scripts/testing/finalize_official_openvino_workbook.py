@@ -3583,6 +3583,7 @@ def render_section_8(
     selected = select_presentation_measurements(runtime_rows)
     release_path = Path(release_input_path)
     release_sha256 = _sha256_file(release_path)
+    release_display_path = _repo_relative(release_path)
     evidence_rows = [
         (f"E{index}", _evidence_cell(row))
         for index, row in enumerate(selected, 1)
@@ -3590,7 +3591,7 @@ def render_section_8(
     evidence_rows.append(
         (
             "Reconciliation input",
-            f"{release_path.as_posix()}#sha256={release_sha256}",
+            f"{release_display_path}#sha256={release_sha256}",
         )
     )
     return "\n".join(
