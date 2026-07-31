@@ -73,7 +73,7 @@ def audit_presentation(visible_text: str) -> dict[str, int]:
             raise ValueError(f"prohibited presentation claim: {claim}")
     quality_score_search_text = re.sub(r"\s+", " ", visible_text)
     if re.search(
-        r"\bquality[-\s]+score\b[^|]{0,40}"
+        r"\bquality[ -]score\b(?:\s*[:=|]\s*|\s+)"
         r"(?<![a-z0-9])[0-9]+(?:\.[0-9]+)?(?:\s*/\s*10)?\b",
         quality_score_search_text,
         re.IGNORECASE,

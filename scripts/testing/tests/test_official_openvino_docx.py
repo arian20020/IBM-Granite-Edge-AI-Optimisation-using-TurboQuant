@@ -113,6 +113,32 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
                     {case.test_id for case in audit_wrapper.load_matrix(matrix)},
                 )
 
+    def test_presentation_rejects_pipe_delimited_numeric_quality_score(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                presentation_suffix="Quality score | 8.5 / 10",
+            )
+            with self.assertRaisesRegex(ValueError, "numeric quality score"):
+                audit_docx(
+                    docx,
+                    manifest,
+                    {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+                )
+
+    def test_presentation_accepts_disclosure_followed_by_unrelated_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docx, manifest, matrix = self.make_auditable_fixture(
+                directory,
+                presentation_suffix="Version 1.8",
+            )
+            result = audit_docx(
+                docx,
+                manifest,
+                {case.test_id for case in audit_wrapper.load_matrix(matrix)},
+            )
+        self.assertTrue(result["accepted"])
+
     def test_presentation_rejects_quality_score_split_across_docx_cells(self):
         with tempfile.TemporaryDirectory() as directory:
             docx, manifest, matrix = self.make_auditable_fixture(
