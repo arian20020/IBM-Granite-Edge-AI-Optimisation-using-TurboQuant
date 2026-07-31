@@ -1,0 +1,11 @@
+{
+  "body": "| Fact | Verified record |\n| --- | --- |\n| Frozen matrix | `experiments/manifests/official-openvino/retest-matrix.json`; SHA-256 `7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42`; 60 controlled IDs. |\n| Runtime source | Patched OpenVINO GenAI campaign: upstream `7dea0459b2ac7d8dfd877fd9df6737674`, patch `00edae3bfd40a968c964ea4878128dceeeb22d1a`, derived tree `2e872dd4817c42d91cb7c3094954d7b56fa12b0a`. |\n| Runtime versions | OpenVINO `2026.2.1-21919-ede283a88e3`; OpenVINO GenAI `2026.2.1.0-2-00edae3bfd4`; Python 3.13.14. |\n| Host | Lenovo 83ER; Intel Core i5-12450H; Intel UHD driver 32.0.101.7076; Windows 11 build 26200; 16,857,817,088 installed physical bytes. |\n| Host evidence | `experiments/granite_turboquant_intel/manifests/environments/ENV-20260730-INTEL-LAPTOP-01-WB04/machine-manifest.json`; SHA-256 `23b4fb6e849ae6cf7538d0d3ae17d5859cb88a664a2f83135105146b50488b17`. |",
+  "schema": "official-openvino-wb04-static-section-evidence/v2",
+  "section_number": 1,
+  "source_evidence": [
+    {
+      "path": ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/wb04-static-sections-draft.md",
+      "sha256": "9eed7e13634ba977dc01f02aa239f38072bfb423650e3afe8b84ac8fa94cf659"
+    }
+  ]
+}

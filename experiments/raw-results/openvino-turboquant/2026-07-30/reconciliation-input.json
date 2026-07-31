@@ -1,0 +1,771 @@
+{
+  "campaign_date": "2026-07-30",
+  "expected_rejection_records": [
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-04-context-4096.json",
+      "evidence_sha256": "757dbc61ec558b02cd88f667daeccb196485bc1665e385731c0723082cf70440",
+      "generation_not_launched": false,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "Bounded STANDARD generation completed, but concrete K/V state was f32/f32 rather than the requested scalar cache precision; no numeric benchmark result is admissible.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-04"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-05-context-4096.json",
+      "evidence_sha256": "0165a2abf7b63b3cd37d2bff82cc359ab550a2a3e2759d8eabbf31ea775af3b7",
+      "generation_not_launched": false,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "Bounded STANDARD generation completed, but concrete K/V state was f32/f32 rather than the requested scalar cache precision; no numeric benchmark result is admissible.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-05"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-TQ-01-context-4096.json",
+      "evidence_sha256": "c24195ad0368f7cc6d238ee62945aec1bd0c717f93b98f0e0f41ce06a60577f8",
+      "generation_not_launched": false,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "Bounded STANDARD generation completed, but concrete K/V state was f32/f32 rather than the requested scalar cache precision; no numeric benchmark result is admissible.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-TQ-01"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-TQ-02-context-4096.json",
+      "evidence_sha256": "cb328a31174676310dc48f18fa4443650c213f695383f1d805408dd780bf48ea",
+      "generation_not_launched": false,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "Bounded STANDARD generation completed, but concrete K/V state was f32/f32 rather than the requested scalar cache precision; no numeric benchmark result is admissible.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-TQ-02"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 1024,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-TQ-18-context-1024.json",
+      "evidence_sha256": "350ba5b1dd85ca2fc0933dc2f718aa2cb40e25d71ecf5b5c07043e92aeb7004f",
+      "generation_not_launched": true,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "The frozen unsupported property boundary rejected before generation exactly as declared by the matrix.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-TQ-18"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 256,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-TQ-19-context-256.json",
+      "evidence_sha256": "380ba783efb6b0c1a5ed57989d2d2c048223ae11158254c8cc49d284cb858943",
+      "generation_not_launched": true,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "The frozen unsupported property boundary rejected before generation exactly as declared by the matrix.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-TQ-19"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 256,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/expected-rejections/OV-TQ-20-context-256.json",
+      "evidence_sha256": "bfec35803b1016eb0fa33e40d407448c86a527d91c46153c5240faac76ba2ec5",
+      "generation_not_launched": true,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "reason": "The frozen unsupported property boundary rejected before generation exactly as declared by the matrix.",
+      "sample_count": 0,
+      "status": "passed: expected-rejection",
+      "test_id": "OV-TQ-20"
+    }
+  ],
+  "matrix_path": "experiments/manifests/official-openvino/retest-matrix.json",
+  "matrix_sha256": "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42",
+  "quality_records": [],
+  "quality_terminal_records": [
+    {
+      "context_tokens": 2048,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-02-context-2048.json",
+      "evidence_sha256": "1f8efcbfe7bd82ad3b2956600049da1d24d9970eba7765e5c0d98ec80b8be86e",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as controlled-terminal-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-controlled-terminal",
+      "status": "controlled-terminal-not-launched",
+      "test_id": "OV-02"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-03-context-4096.json",
+      "evidence_sha256": "5f4cdbbd3ef3bb4a75c718f04c5a70984b49c467f5220b4132334d9094c3d671",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-blocked",
+      "status": "host-resource-blocked",
+      "test_id": "OV-03"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-06-context-4096.json",
+      "evidence_sha256": "e7619223ef47e2f2a4ef36396c49a6c27ec35a4426742979e6292893324a5419",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as device-resource-blocked; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-blocked",
+      "status": "device-resource-blocked",
+      "test_id": "OV-06"
+    },
+    {
+      "context_tokens": 2048,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-07-context-2048.json",
+      "evidence_sha256": "d6dc0f0b4b70b344339c2838e18ed7a6be4430c2a099a7bb7ac791f8a88b03f5",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as suitable-host-required-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-suitable-host-requirement",
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-07"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-08-context-4096.json",
+      "evidence_sha256": "a8dcfea65dcbc4028ebd8e65b3f591ccdbc1a75608478a6ac8e19ee2ea6abb52",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as suitable-host-required-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-suitable-host-requirement",
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-08"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-09-context-4096.json",
+      "evidence_sha256": "a2687c5aace71e239735aa34a52cbf334b6d30740faeccfd16a95a0090da5027",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as suitable-host-required-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-suitable-host-requirement",
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-09"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-10-context-4096.json",
+      "evidence_sha256": "c0a0cb043d5e63f71ed7f07029fc54d2df0f7924ce0c23297eacc16657d023a6",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as suitable-host-required-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-suitable-host-requirement",
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-10"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-03-context-4096.json",
+      "evidence_sha256": "6f3dcaf24cf8639abd5352e0a99b0448f35ddbcd92b0ab92ffd0afa5daf7ee29",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-03"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-04-context-4096.json",
+      "evidence_sha256": "c780a10cee51915ecf8cd7ed5a77cf71fd71bf6937046fc998811ca2941ad125",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-04"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-05-context-4096.json",
+      "evidence_sha256": "d10fea289d3507be859bdf529741fc941d91968dcce191f1d6736c5e8f09f0c1",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-05"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-06-context-4096.json",
+      "evidence_sha256": "987e1ca891cf483453e9ee7c7a01eb948c0e48f2e768cb0971f5800ff369000c",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-06"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-07-context-4096.json",
+      "evidence_sha256": "64a6a863a0c39d7453992749bbc33a5542adc84110f063b381d82c79251a2361",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-07"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-08-context-4096.json",
+      "evidence_sha256": "4cf2770765a17569bdb752df4f7cbccdf2460142b089b9c46255108673516065",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-08"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-09-context-4096.json",
+      "evidence_sha256": "5503755daeea3212ceea4c2e8193b022cc918bbba450f1184f71260aed6148ba",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-09"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-10-context-4096.json",
+      "evidence_sha256": "dd64bce91b86fcaab62ed9abf4fc7f5808e1039da92e3c444a2c82f376804940",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-10"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-11-context-4096.json",
+      "evidence_sha256": "70e643a201b436a387280c5dcfbd737776fd823c40eeb7a3dd71d05e155bbbbd",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-11"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-12-context-4096.json",
+      "evidence_sha256": "d9d5d2c9a335dba77df7e46e50c49bd1466171dbf90face636aa08d5e7cc31d7",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-12"
+    },
+    {
+      "context_tokens": 512,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-13-context-512.json",
+      "evidence_sha256": "0cf3062318e0650db4425974abc2d1e62e6d0e4489653cbeed3ce02c58645ae8",
+      "prompt_count": 0,
+      "reason": "Quality was not launched because this measured U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-14/context-512 quality RAM-floor blocker; no P1-P6 score exists.",
+      "score_outcome": "not-produced-by-quality-resource-envelope",
+      "status": "quality-host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-13"
+    },
+    {
+      "context_tokens": 2048,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-13-context-2048.json",
+      "evidence_sha256": "fc30d0058ff8dcfc1a5ae6f2cba4799649402ffa4f6bdac7a96e4339783cbb6d",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-blocked",
+      "status": "host-resource-blocked",
+      "test_id": "OV-TQ-13"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-13-context-4096.json",
+      "evidence_sha256": "20f61ffd1815dd96eb0a1f3b9dfa9c5c27d0b411b0f2ea1d0db6a9d9ad0b1e95",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-13"
+    },
+    {
+      "context_tokens": 8192,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-13-context-8192.json",
+      "evidence_sha256": "adefa1cc9a2ae5c8991c596240f4c4b21a89d9ef2308b733a5f1f61846a33dfc",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-13"
+    },
+    {
+      "context_tokens": 512,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-14-context-512.json",
+      "evidence_sha256": "4bb62407c6e83d95be0f59ca497a34a83c56aaa44b0cfefea30f43c4721474a3",
+      "prompt_count": 0,
+      "reason": "Two governed quality launches for measured OV-TQ-14/context-512 crossed the fixed 2,048 MiB available-RAM floor before any complete P1-P6 capture or score was produced.",
+      "score_outcome": "not-produced-by-quality-resource-blocked",
+      "status": "quality-host-resource-blocked",
+      "test_id": "OV-TQ-14"
+    },
+    {
+      "context_tokens": 2048,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-14-context-2048.json",
+      "evidence_sha256": "c80192b0f118e0efad04458d946723a7d0aacc3c82e9243fa3d77c3ce0e2bf43",
+      "prompt_count": 0,
+      "reason": "Quality was not launched because this measured U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-14/context-512 quality RAM-floor blocker; no P1-P6 score exists.",
+      "score_outcome": "not-produced-by-quality-resource-envelope",
+      "status": "quality-host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-14"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-14-context-4096.json",
+      "evidence_sha256": "fd1b53fbd6dfa7272c7a2b7ffb0f528afdc6ef104085794cd4b278dd6e379c84",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-14"
+    },
+    {
+      "context_tokens": 8192,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-14-context-8192.json",
+      "evidence_sha256": "df30fd17e9681fa76c14e0a08c1557c72045c23add21f1df53b4a5cbe9afd816",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-14"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-15-context-4096.json",
+      "evidence_sha256": "87a48ed5d83d5277b048bb36da369501dfc78402e362b79f6f9b574522caf3b0",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as host-resource-blocked-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-resource-envelope",
+      "status": "host-resource-blocked-not-launched",
+      "test_id": "OV-TQ-15"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-16-context-4096.json",
+      "evidence_sha256": "a90aee88741dd3d3322013c6a56a4a99761141ed7ffaf38523529c88eb4177aa",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as suitable-host-required-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-suitable-host-requirement",
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-TQ-16"
+    },
+    {
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/quality/OV-TQ-17-context-4096.json",
+      "evidence_sha256": "9539f19ada63adcfa0f7daa7cb76232aada464741087c89d9cf6c54c554f8fbc",
+      "prompt_count": 0,
+      "reason": "No quality campaign was launched because the hash-bound runtime row ended as suitable-host-required-not-launched; no P1-P6 responses or score were produced.",
+      "score_outcome": "not-produced-by-suitable-host-requirement",
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-TQ-17"
+    }
+  ],
+  "resource_envelope_decisions": [
+    {
+      "accepted_anchor": {
+        "context_tokens": 2048,
+        "measurement_summary_path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-14/context-2048/measurement-summary.json",
+        "measurement_summary_sha256": "2b3fbde825b91e4768325be0ff58254110de4c5e36981cf9d570806a11e13478",
+        "minimum_available_ram_mib": 2066.9609375,
+        "test_id": "OV-TQ-14"
+      },
+      "blocked_anchor": {
+        "attempt_count": 3,
+        "attempts": [
+          {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-2048/attempts/pilot/attempt-001/run/attempt.json",
+            "sha256": "6c898bfed2a7a146cd628d397638d1e1d2653ec01d99942f5a3bcba6c38f504a"
+          },
+          {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-2048/attempts/pilot/attempt-002/run/attempt.json",
+            "sha256": "549dbce9735b5392f37439a75f9f376555b72a2a82adb258e2bc7bf8174a69c4"
+          },
+          {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-2048/attempts/pilot/attempt-003/run/attempt.json",
+            "sha256": "6b936ea1892dca7beefee7d2803832221737b2dabc40f1d5fcdb4bb745a5e421"
+          }
+        ],
+        "context_tokens": 2048,
+        "terminal_record": {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 2048,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-13-context-2048.json",
+          "evidence_sha256": "323f976353d538c814862f789b5e72395c568c316407433d9badf10feb5297f2",
+          "metric_outcome": "not-produced-by-resource-blocked",
+          "reason": "Three governed OV-TQ-13 context-2048 pilots crossed the fixed 2,048 MiB available-RAM floor with zero cleanup survivors.",
+          "sample_count": 0,
+          "status": "host-resource-blocked",
+          "test_id": "OV-TQ-13"
+        },
+        "test_id": "OV-TQ-13"
+      },
+      "classified_rows": [
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-03-context-4096.json",
+          "evidence_sha256": "7a5bf9a631cac0bd0997d671db2f0269e879067a7fa9f710281e42f5ba0d01b2",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-03"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-04-context-4096.json",
+          "evidence_sha256": "8a9cf9c557453c8319c48be061cf0e509e215d33bb364df3cbceede5f79a9680",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-04"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-05-context-4096.json",
+          "evidence_sha256": "f0dab9641bc862853a99d25683cab44e5f379c3d086bd1c080008e52295a3c30",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-05"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-06-context-4096.json",
+          "evidence_sha256": "59a550524c041509838932cb6460a5464693cfeaa8d935c4b0d14a76546a1e84",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-06"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-07-context-4096.json",
+          "evidence_sha256": "33c6a7b884726cfb536b99a32814ef15c3f4eb78f2244d888ccf20e0c077e2d2",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-07"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-08-context-4096.json",
+          "evidence_sha256": "03604dcf03c194a892982825131744a7d4b3d787fb43822f19452061de94daaf",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-08"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-09-context-4096.json",
+          "evidence_sha256": "3a76a3783640a579b563558c097c756090d16937f82448d65c61d4e36050d0b4",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-09"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-10-context-4096.json",
+          "evidence_sha256": "b4968772dfd06a7e358216e7edee94b0a286af4784fe02b276b986ab4d9b15f3",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-10"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-11-context-4096.json",
+          "evidence_sha256": "371c5d9a3a950d556cdfa22a3cd7acf0fc3950ed7abeb086593bebf4272211d0",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-11"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-12-context-4096.json",
+          "evidence_sha256": "be2fc6d667bcbef68b0a07587c0a1fbf2f89936fc834de540efb4ce94943cb06",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-12"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-13-context-4096.json",
+          "evidence_sha256": "99bbf42f38d2b68ece10fbbdd22165f14fe6c498acac640cb13ccdcf214de10d",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-13"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 8192,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-13-context-8192.json",
+          "evidence_sha256": "c057e2a2d7b9cf9389104b5dbe7deb8ba1c1dfab10448cf2a97b8db9300b8853",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-13"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-14-context-4096.json",
+          "evidence_sha256": "c72f8a87fafba0049f6f2134f6dab4e9b5c202c0559cb50c75931dafd4dc1a02",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-14"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 8192,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-14-context-8192.json",
+          "evidence_sha256": "a591734d516d52f542d8de6e240f3d837bc71103f6e08aa485fde255eac4b460",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-14"
+        },
+        {
+          "accepted": false,
+          "cleanup_process_count": 0,
+          "context_tokens": 4096,
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-15-context-4096.json",
+          "evidence_sha256": "8396713df90b3c3d123869bd676c61749a32fd4918e607aa42f7eaa997fc7b9e",
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "reason": "This explicitly named U8 CPU row has cache-bit×context demand no smaller than the governed OV-TQ-13/context-2048 RAM-floor blocker, so it was not launched locally.",
+          "sample_count": 0,
+          "status": "host-resource-blocked-not-launched",
+          "test_id": "OV-TQ-15"
+        }
+      ],
+      "decision_sha256": "2193724ee7a7810369db248a886a91589b72fdc231ceef2959b4e779bc19d69b",
+      "matrix_sha256": "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42",
+      "minimum_available_ram_mib": 2048,
+      "reason": "The accepted OV-TQ-14/context-2048 lower-demand row stayed above the fixed floor, while three comparable OV-TQ-13/context-2048 pilots crossed it; classification is limited to the 15 explicitly named equal-or-higher-demand U8 CPU rows.",
+      "schema": "official-openvino-wb04-resource-envelope-decision/v1",
+      "status": "accepted"
+    }
+  ],
+  "revision_id": "WR-036",
+  "schema": "official-openvino-wb04-release-input/v2",
+  "selected_measurement_summaries": [
+    "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-512/measurement-summary.json",
+    "experiments/raw-results/openvino-turboquant/2026-07-30/runtime-frozen-85ed31e/OV-TQ-14/context-512/measurement-summary.json",
+    "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-14/context-2048/measurement-summary.json"
+  ],
+  "static_section_bodies": {
+    "1": {
+      "body": "| Fact | Verified record |\n| --- | --- |\n| Frozen matrix | `experiments/manifests/official-openvino/retest-matrix.json`; SHA-256 `7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42`; 60 controlled IDs. |\n| Runtime source | Patched OpenVINO GenAI campaign: upstream `7dea0459b2ac7d8dfd877fd9df6737674`, patch `00edae3bfd40a968c964ea4878128dceeeb22d1a`, derived tree `2e872dd4817c42d91cb7c3094954d7b56fa12b0a`. |\n| Runtime versions | OpenVINO `2026.2.1-21919-ede283a88e3`; OpenVINO GenAI `2026.2.1.0-2-00edae3bfd4`; Python 3.13.14. |\n| Host | Lenovo 83ER; Intel Core i5-12450H; Intel UHD driver 32.0.101.7076; Windows 11 build 26200; 16,857,817,088 installed physical bytes. |\n| Host evidence | `experiments/granite_turboquant_intel/manifests/environments/ENV-20260730-INTEL-LAPTOP-01-WB04/machine-manifest.json`; SHA-256 `23b4fb6e849ae6cf7538d0d3ae17d5859cb88a664a2f83135105146b50488b17`. |",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/static-sections/section-01.json",
+        "sha256": "df323bba7f4529bde2653e54817ce66c65a0445362aa0f46e97b3486760b86d1"
+      }
+    },
+    "2": {
+      "body": "| Controlled checks | Verified positive result | Source-bound evidence |\n| --- | --- | --- |\n| OV-B01, OV-B02 | Pinned source identity and patched GenAI build passed. | `provenance/source-identity-bounded.json` SHA-256 `44f4bfc111c78258320c0788ddba288f0f54840845cefac6fdfcae9b772e6574`; `provenance/build-00edae3b-attempt-001/build-provenance.json` SHA-256 `57fb318a55db56fb409a60f0b1d516a988f8543c0446153e63efdee3a748e262`. |\n| OV-B03, OV-B05, OV-B06, OV-B07 | CPU route, bounded diagnostic execution, metrics controller, and package/environment binding gates passed. | Frozen matrix, build provenance, accepted summary schema, and reviewed host manifest. |\n| Official source suite | 505/505 tests passed across 77 suites; zero failed and zero skipped. | `experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-genai-official-tests/genai-tests-full-005.json`. |\n| Allocation observer recovery | Focused discovery found 46 tests; two focused runs passed 46/46; production CPU plugin markers were present. | `experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-list2.json`, `t3a6-run1.json`, `t3a6-run2.json`, and `t3a6-plugin.json`. |\n| OV-B11, OV-TQS-05, OV-TQS-06, OV-TQS-07, OV-TQS-08, OV-TQS-09, OV-TQS-10, OV-TQS-11, OV-TQS-12 | Property-boundary controller gates passed by rejecting the declared unsupported combinations before generation. | `experiments/raw-results/openvino-turboquant/2026-07-30/expected-rejections/property-expected-rejections-current.json`; SHA-256 `ccb6460aac37e6444054d55cf571ecdd39313d45ae5a72270d3a7a972b7314a6`. |",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/static-sections/section-02.json",
+        "sha256": "e2f42702c196fa29741d86b7e6a0a16a58e47667de62f0a1a30bb1efab07fd5c"
+      }
+    },
+    "3": {
+      "body": "| Test ID | Verified diagnostic result | Diagnostic-only caveat | Evidence |\n| --- | --- | --- | --- |\n| OV-C02 | Granite 3B U8 short CPU STANDARD generation produced valid output with `fallback=false` and cleanup 0. | Diagnostic only; concrete K/V state was f32/f32, so this is not scalar-cache proof, a formal benchmark, or a quality result. | `diagnostics/u8-standard-load-probe-attempt-002/run/attempt.json`; SHA-256 `720741b6eed42475abe6c23fad8a63d0850e78490145dc1368721490f7444605`. |\n| OV-C03 | Granite 3B U4 short CPU STANDARD generation produced valid output with `fallback=false` and cleanup 0. | Diagnostic only; concrete K/V state was f32/f32, so this is not scalar-cache proof, a formal benchmark, or a quality result. | `diagnostics/u4-standard-load-probe-attempt-001/run/attempt.json`; SHA-256 `90a9b83423dcc1dbff7d3eb7a49e57262b23d253541385af937f914a87a0af9c`. |",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/static-sections/section-03.json",
+        "sha256": "0d6d075c297838e91417ff951ae562e61b2b0c25432c39874a130ac5c1ba144b"
+      }
+    },
+    "4": {
+      "body": "| Control group | Explicit controlled IDs | Verified successful boundary |\n| --- | --- | --- |\n| Scalar semantic controls | OV-04, OV-05, OV-TQ-01, OV-TQ-02 | Passed expected rejection after bounded STANDARD activation showed concrete f32/f32 K/V state rather than the requested scalar precision. |\n| GPU TurboQuant control | OV-TQ-18 | Passed expected rejection before generation because the governed TurboQuant route is CPU-only. |\n| QJL and Polar controls | OV-TQ-19, OV-TQ-20 | Passed expected rejection before generation for the declared unsupported property combinations. |",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/static-sections/section-04.json",
+        "sha256": "e69643ea9617cbb799f5244fe2bd55d58fadeb4a8cfbd20296399a37059c309f"
+      }
+    }
+  },
+  "terminal_records": [
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 1024,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-01-context-1024.json",
+      "evidence_sha256": "691459e80fc10287d23529894e81beb72e3ea22e34e021f55a12a56d379e705b",
+      "metric_outcome": "not-produced-by-controlled-terminal",
+      "reason": "The sealed current inventory contains no OV-01 diagnostic campaign spec, so the row remains a controlled terminal and cannot supply performance metrics.",
+      "sample_count": 0,
+      "status": "controlled-terminal-not-launched",
+      "test_id": "OV-01"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 2048,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-02-context-2048.json",
+      "evidence_sha256": "96e2042afcd1012cd4b845e843bc74ced8177b08661d08c2a684f43710b95932",
+      "metric_outcome": "not-produced-by-controlled-terminal",
+      "reason": "The sealed current inventory contains neither an OV-02 campaign spec nor a validated Granite 3B FP16 artifact, so generation was not launched.",
+      "sample_count": 0,
+      "status": "controlled-terminal-not-launched",
+      "test_id": "OV-02"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-03-context-4096.json",
+      "evidence_sha256": "a83d0d22efc8c41cbd2779cc5a94d4d57b06f17281ee8f11ed2881686e80f10c",
+      "metric_outcome": "not-produced-by-resource-blocked",
+      "reason": "Three governed U8 CPU STANDARD pilots crossed the fixed 2,048 MiB available-RAM floor with cleanup_process_count=0; no warm-up or measured sample was launched.",
+      "sample_count": 0,
+      "status": "host-resource-blocked",
+      "test_id": "OV-03"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-06-context-4096.json",
+      "evidence_sha256": "8ce9ff9a64594cf7b6d119dd8d90977e59472b0b617721d919bf54956268f4fd",
+      "metric_outcome": "not-produced-by-resource-blocked",
+      "reason": "GPU calibration reached compilation after property correction, then two governed attempts crossed the fixed 2,048 MiB RAM floor; no formal GPU sample was accepted.",
+      "sample_count": 0,
+      "status": "device-resource-blocked",
+      "test_id": "OV-06"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 2048,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-07-context-2048.json",
+      "evidence_sha256": "8884ec4f1a217113730c25a0f5830cfd101a598d5da9a5d23721da5179757a01",
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "reason": "The frozen matrix requires at least 24 GiB available RAM for OV-07, while the reviewed host has 16857817088 installed physical bytes; local generation was not launched.",
+      "sample_count": 0,
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-07"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-08-context-4096.json",
+      "evidence_sha256": "1916f854a6754856fb09c9fd952b68c68389e885c77ea21ff13d4bf41de20201",
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "reason": "The frozen matrix requires at least 24 GiB available RAM for OV-08, while the reviewed host has 16857817088 installed physical bytes; local generation was not launched.",
+      "sample_count": 0,
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-08"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-09-context-4096.json",
+      "evidence_sha256": "f8db6b23b508fcd206bc7065df0355a7d4a81c14a6c3b34d162224e2390b5d11",
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "reason": "The frozen matrix requires at least 24 GiB available RAM for OV-09, while the reviewed host has 16857817088 installed physical bytes; local generation was not launched.",
+      "sample_count": 0,
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-09"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-10-context-4096.json",
+      "evidence_sha256": "db4b94499dd546f3996cb115ebe201a47bd18630657f24347d7005f43a644c36",
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "reason": "The frozen matrix requires at least 24 GiB available RAM for OV-10, while the reviewed host has 16857817088 installed physical bytes; local generation was not launched.",
+      "sample_count": 0,
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-10"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-16-context-4096.json",
+      "evidence_sha256": "c1256255ba15aa073a7e3de6cc67ee5a9c32ad89fbfdaf8ee51103e88c1140a6",
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "reason": "The frozen matrix requires at least 24 GiB available RAM for OV-TQ-16, while the reviewed host has 16857817088 installed physical bytes; local generation was not launched.",
+      "sample_count": 0,
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-TQ-16"
+    },
+    {
+      "accepted": false,
+      "cleanup_process_count": 0,
+      "context_tokens": 4096,
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release-evidence/runtime/OV-TQ-17-context-4096.json",
+      "evidence_sha256": "d4e5c8d6870bf87756c48ed88ac8b105d2fbfe170e2c96a728d1bc75afdbe774",
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "reason": "The frozen matrix requires at least 24 GiB available RAM for OV-TQ-17, while the reviewed host has 16857817088 installed physical bytes; local generation was not launched.",
+      "sample_count": 0,
+      "status": "suitable-host-required-not-launched",
+      "test_id": "OV-TQ-17"
+    }
+  ],
+  "workbook_version": "1.8"
+}

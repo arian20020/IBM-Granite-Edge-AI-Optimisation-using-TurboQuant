@@ -1,0 +1,11 @@
+{
+  "body": "| Controlled checks | Verified positive result | Source-bound evidence |\n| --- | --- | --- |\n| OV-B01, OV-B02 | Pinned source identity and patched GenAI build passed. | `provenance/source-identity-bounded.json` SHA-256 `44f4bfc111c78258320c0788ddba288f0f54840845cefac6fdfcae9b772e6574`; `provenance/build-00edae3b-attempt-001/build-provenance.json` SHA-256 `57fb318a55db56fb409a60f0b1d516a988f8543c0446153e63efdee3a748e262`. |\n| OV-B03, OV-B05, OV-B06, OV-B07 | CPU route, bounded diagnostic execution, metrics controller, and package/environment binding gates passed. | Frozen matrix, build provenance, accepted summary schema, and reviewed host manifest. |\n| Official source suite | 505/505 tests passed across 77 suites; zero failed and zero skipped. | `experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-genai-official-tests/genai-tests-full-005.json`. |\n| Allocation observer recovery | Focused discovery found 46 tests; two focused runs passed 46/46; production CPU plugin markers were present. | `experiments/raw-results/openvino-turboquant/2026-07-29/guards/task03-attempt-006/t3a6-list2.json`, `t3a6-run1.json`, `t3a6-run2.json`, and `t3a6-plugin.json`. |\n| OV-B11, OV-TQS-05, OV-TQS-06, OV-TQS-07, OV-TQS-08, OV-TQS-09, OV-TQS-10, OV-TQS-11, OV-TQS-12 | Property-boundary controller gates passed by rejecting the declared unsupported combinations before generation. | `experiments/raw-results/openvino-turboquant/2026-07-30/expected-rejections/property-expected-rejections-current.json`; SHA-256 `ccb6460aac37e6444054d55cf571ecdd39313d45ae5a72270d3a7a972b7314a6`. |",
+  "schema": "official-openvino-wb04-static-section-evidence/v2",
+  "section_number": 2,
+  "source_evidence": [
+    {
+      "path": ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/wb04-static-sections-draft.md",
+      "sha256": "9eed7e13634ba977dc01f02aa239f38072bfb423650e3afe8b84ac8fa94cf659"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "body": "| Control group | Explicit controlled IDs | Verified successful boundary |\n| --- | --- | --- |\n| Scalar semantic controls | OV-04, OV-05, OV-TQ-01, OV-TQ-02 | Passed expected rejection after bounded STANDARD activation showed concrete f32/f32 K/V state rather than the requested scalar precision. |\n| GPU TurboQuant control | OV-TQ-18 | Passed expected rejection before generation because the governed TurboQuant route is CPU-only. |\n| QJL and Polar controls | OV-TQ-19, OV-TQ-20 | Passed expected rejection before generation for the declared unsupported property combinations. |",
+  "schema": "official-openvino-wb04-static-section-evidence/v2",
+  "section_number": 4,
+  "source_evidence": [
+    {
+      "path": ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/wb04-static-sections-draft.md",
+      "sha256": "9eed7e13634ba977dc01f02aa239f38072bfb423650e3afe8b84ac8fa94cf659"
+    }
+  ]
+}
