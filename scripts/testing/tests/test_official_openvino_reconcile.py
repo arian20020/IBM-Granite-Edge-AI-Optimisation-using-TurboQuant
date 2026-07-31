@@ -8,10 +8,31 @@ WORKBOOK = ROOT / "docs/testing/workbooks/text-templates/04_Official_OpenVINO_Co
 
 
 class OfficialOpenVINOReconcileTests(unittest.TestCase):
-    def test_workbook_does_not_call_terminal_placeholders_execution_complete(self):
+    def test_workbook_records_only_accepted_rows_as_measured(self):
         text = WORKBOOK.read_text(encoding="utf-8")
         self.assertNotIn("Overall status | Terminal-complete", text)
-        self.assertIn("zero Granite benchmark rows executed", text)
+        lines = text.splitlines()
+        header = (
+            "| Test ID | Context tokens | Configuration ID | Load ms | "
+            "TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | "
+            "Generation duration ms | Status | Evidence |"
+        )
+        start = lines.index(header) + 2
+        measured = set()
+        for line in lines[start:]:
+            if not line.startswith("|"):
+                break
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if cells[-2] == "measured":
+                measured.add((cells[0], int(cells[1])))
+        self.assertEqual(
+            measured,
+            {
+                ("OV-TQ-13", 512),
+                ("OV-TQ-14", 512),
+                ("OV-TQ-14", 2048),
+            },
+        )
 
     def test_rejects_blank_and_bare_na_table_cells(self):
         with self.assertRaisesRegex(ValueError, "blank table cell"):

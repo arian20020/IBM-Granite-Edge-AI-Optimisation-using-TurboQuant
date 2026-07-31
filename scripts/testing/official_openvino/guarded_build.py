@@ -105,6 +105,51 @@ def _validate_inputs(
     return values
 
 
+def _validated_bound_input_paths(
+    bound_inputs: Mapping[str, Path] | None,
+) -> list[tuple[str, Path]]:
+    if bound_inputs is None:
+        return []
+    if isinstance(bound_inputs, bool) or not isinstance(bound_inputs, Mapping):
+        raise TypeError("bound_inputs must be a mapping")
+    result: list[tuple[str, Path]] = []
+    seen: set[str] = set()
+    for name, path_value in bound_inputs.items():
+        if (
+            not isinstance(name, str)
+            or not name
+            or len(name) > 128
+            or not name[0].isalnum()
+            or any(
+                not (character.isalnum() or character in "._-")
+                for character in name
+            )
+        ):
+            raise ValueError("bound input names are invalid")
+        normalized = name.casefold()
+        if normalized in seen:
+            raise ValueError("bound input names must be unique")
+        seen.add(normalized)
+        path = Path(path_value).resolve()
+        if not path.is_file():
+            raise ValueError(f"bound input is not a file: {name}")
+        result.append((name, path))
+    return sorted(result, key=lambda item: item[0])
+
+
+def _hash_bound_inputs(
+    inputs: Sequence[tuple[str, Path]],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "name": name,
+            "path": str(path),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for name, path in inputs
+    ]
+
+
 def _serialize_json_bytes(value: dict[str, object]) -> bytes:
     return (
         json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
@@ -273,6 +318,7 @@ def _run_guarded_command_with_binding(
     expected_exit: Literal["zero", "nonzero"],
     limits: GuardLimits = GuardLimits(),
     environment: Mapping[str, str] | None = None,
+    bound_inputs: Mapping[str, Path] | None = None,
 ) -> _GuardedCommandResult:
     """Run one owned process tree and atomically persist exit/RAM/cleanup evidence."""
     requested_cwd = _absolute_without_resolving(Path(cwd))
@@ -289,6 +335,7 @@ def _run_guarded_command_with_binding(
         expected_exit,
         limits,
     )
+    bound_input_paths = _validated_bound_input_paths(bound_inputs)
     effective_environment, environment_sha256 = _effective_environment(environment)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
@@ -342,6 +389,7 @@ def _run_guarded_command_with_binding(
         "termination_reason": None,
         "msbuild_disable_node_reuse": "1",
         "environment_sha256": environment_sha256,
+        "bound_inputs": [],
         "launch_governance": {
             "created_suspended": False,
             "assigned_before_resume": False,
@@ -409,6 +457,7 @@ def _run_guarded_command_with_binding(
                 )
 
         if not errors:
+            record["bound_inputs"] = _hash_bound_inputs(bound_input_paths)
             job = KillOnCloseJob(
                 f"OfficialOpenVINOGuard-{secrets.token_hex(16)}"
             )
@@ -690,6 +739,7 @@ def run_guarded_command(
     expected_exit: Literal["zero", "nonzero"],
     limits: GuardLimits = GuardLimits(),
     environment: Mapping[str, str] | None = None,
+    bound_inputs: Mapping[str, Path] | None = None,
 ) -> dict[str, object]:
     """Run one owned process tree and return its persisted evidence record."""
     return _run_guarded_command_with_binding(
@@ -700,6 +750,7 @@ def run_guarded_command(
         expected_exit=expected_exit,
         limits=limits,
         environment=environment,
+        bound_inputs=bound_inputs,
     ).record
 
 

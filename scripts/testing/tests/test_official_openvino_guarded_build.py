@@ -98,6 +98,7 @@ def _run(
     expected_exit: str = "zero",
     limits=None,
     environment=None,
+    bound_inputs=None,
 ):
     guard = _guarded_build()
     return guard.run_guarded_command(
@@ -108,6 +109,7 @@ def _run(
         expected_exit=expected_exit,
         limits=limits or _limits(guard),
         environment=environment,
+        bound_inputs=bound_inputs,
     )
 
 
@@ -932,6 +934,32 @@ def test_expected_nonzero_exit_is_valid(tmp_path):
     assert record["expected_exit"] == "nonzero"
     assert record["valid"] is True
     _assert_zero_survivors(record)
+
+
+def test_guard_hash_binds_named_input_bytes_before_launch(tmp_path):
+    worker_spec = tmp_path / "worker-spec.json"
+    worker_spec.write_bytes(b'{"controlled":"quality-worker-spec"}\n')
+    expected_sha256 = hashlib.sha256(worker_spec.read_bytes()).hexdigest()
+
+    record = _run(
+        tmp_path,
+        [sys.executable, "-c", "print('bound input observed')"],
+        bound_inputs={"quality_worker_spec": worker_spec},
+    )
+
+    assert record["bound_inputs"] == [
+        {
+            "name": "quality_worker_spec",
+            "path": str(worker_spec.resolve()),
+            "sha256": expected_sha256,
+        }
+    ]
+    persisted = json.loads(
+        (tmp_path / "evidence.json").read_text(encoding="utf-8")
+    )
+    assert persisted["bound_inputs"] == record["bound_inputs"]
+    worker_spec.write_bytes(b'{"controlled":"replacement"}\n')
+    assert record["bound_inputs"][0]["sha256"] == expected_sha256
 
 
 def test_unexpected_exit_is_invalid_but_persists_evidence(tmp_path):

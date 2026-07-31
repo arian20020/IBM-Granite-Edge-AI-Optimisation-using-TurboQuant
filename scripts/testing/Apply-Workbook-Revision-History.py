@@ -24,6 +24,20 @@ WORKBOOKS = {
 }
 
 
+def select_workbooks(workbook_id: str | None) -> dict[str, str]:
+    """Return all workbooks, or the one controlled workbook explicitly selected."""
+    if workbook_id is None:
+        return WORKBOOKS
+    selected = {
+        filename: candidate_id
+        for filename, candidate_id in WORKBOOKS.items()
+        if candidate_id == workbook_id
+    }
+    if not selected:
+        raise ValueError(f"Unknown workbook ID: {workbook_id}")
+    return selected
+
+
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -153,12 +167,17 @@ def main() -> int:
     parser.add_argument("--repository-root", type=Path, default=repository_root())
     parser.add_argument("--input-directory", type=Path)
     parser.add_argument("--output-directory", type=Path)
+    parser.add_argument(
+        "--workbook-id",
+        choices=tuple(WORKBOOKS.values()),
+        help="Apply history only to one controlled workbook (for example WB-04).",
+    )
     args = parser.parse_args()
     root = args.repository_root.resolve()
     input_dir = (args.input_directory or root / "docs/testing/workbooks/generated").resolve()
     output_dir = (args.output_directory or input_dir).resolve()
     histories = load_history(root / "docs/testing/Workbook-Revision-Register.csv")
-    for filename, workbook_id in WORKBOOKS.items():
+    for filename, workbook_id in select_workbooks(args.workbook_id).items():
         source = input_dir / filename
         if not source.is_file():
             raise FileNotFoundError(source)

@@ -778,6 +778,7 @@ if ($observedLogHash -cne $controllerResult.log_sha256) {
     'termination_reason',
     'msbuild_disable_node_reuse',
     'environment_sha256',
+    'bound_inputs',
     'launch_governance',
     'job_object',
     'cleanup_process_count',
@@ -796,6 +797,10 @@ if ($record.schema -cne 'official-openvino-owned-process-guard/v1') {
   -Name 'Guard environment_sha256'
 if ($record.environment_sha256 -cnotmatch '^[0-9a-f]{64}$') {
   throw 'Guard environment_sha256 is not a lowercase SHA-256'
+}
+& $assertJsonArray -Value $record.bound_inputs -Name 'Guard bound_inputs'
+if ($record.bound_inputs.Count -ne 0) {
+  throw 'Guard wrapper does not accept bound inputs'
 }
 & $assertJsonString -Value $record.run_id -Name 'Guard run_id'
 if ($record.run_id -cnotmatch '^[0-9a-f]{64}$') {

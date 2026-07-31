@@ -302,6 +302,16 @@ def _governed_guard(
             "log_path": str(Path(kwargs["log_path"]).resolve()),
             "evidence_path": str(Path(kwargs["evidence_path"]).resolve()),
             "environment_sha256": environment_sha256,
+            "bound_inputs": [
+                {
+                    "name": name,
+                    "path": str(Path(path).resolve()),
+                    "sha256": hashlib.sha256(
+                        Path(path).read_bytes()
+                    ).hexdigest(),
+                }
+                for name, path in sorted(kwargs["bound_inputs"].items())
+            ],
             "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
             "maximum_runtime_seconds": float(
                 kwargs["limits"].maximum_runtime_seconds
@@ -863,6 +873,11 @@ def test_governed_worker_binds_the_exact_campaign_command_environment_and_guard(
     ]
     assert calls[0]["cwd"] == source.repo_root.resolve()
     assert calls[0]["environment"] == load(source).worker_environment
+    assert calls[0]["bound_inputs"] == {
+        "quality_worker_spec": (
+            tmp_path / "governed" / "worker-spec.json"
+        ).resolve()
+    }
     assert calls[0]["limits"].minimum_available_ram_bytes == 2_048 * 1024 * 1024
     assert calls[0]["limits"].maximum_runtime_seconds == 1800.0
     assert calls[0]["expected_exit"] == "zero"

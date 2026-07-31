@@ -1,0 +1,230 @@
+{
+  "schema": "official-openvino-wb04-release-input/v1",
+  "campaign_date": "2026-07-30",
+  "workbook_version": "1.7",
+  "revision_id": "WR-035",
+  "matrix_path": "experiments/manifests/official-openvino/retest-matrix.json",
+  "matrix_sha256": "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42",
+  "selected_measurement_summaries": [
+    "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-512/measurement-summary.json",
+    "experiments/raw-results/openvino-turboquant/2026-07-30/runtime-frozen-85ed31e/OV-TQ-14/context-512/measurement-summary.json",
+    "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-14/context-2048/measurement-summary.json"
+  ],
+  "terminal_records": [
+    {
+      "test_id": "OV-TQ-16",
+      "context_tokens": 4096,
+      "accepted": false,
+      "status": "suitable-host-required-not-launched",
+      "reason": "Example only: replace with the reviewed suitable-host decision.",
+      "sample_count": 0,
+      "cleanup_process_count": 0,
+      "metric_outcome": "not-produced-by-suitable-host-requirement",
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/classifications/OV-TQ-16-context-4096.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "resource_envelope_decisions": [
+    {
+      "schema": "official-openvino-wb04-resource-envelope-decision/v1",
+      "status": "accepted",
+      "matrix_sha256": "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42",
+      "minimum_available_ram_mib": 2048,
+      "accepted_anchor": {
+        "test_id": "OV-TQ-14",
+        "context_tokens": 2048,
+        "minimum_available_ram_mib": 2066.9609375,
+        "measurement_summary_path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-14/context-2048/measurement-summary.json",
+        "measurement_summary_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "blocked_anchor": {
+        "test_id": "OV-TQ-13",
+        "context_tokens": 2048,
+        "terminal_record": {
+          "test_id": "OV-TQ-13",
+          "context_tokens": 2048,
+          "accepted": false,
+          "status": "host-resource-blocked",
+          "reason": "Example only: three governed attempts crossed the fixed 2,048 MiB floor.",
+          "sample_count": 0,
+          "cleanup_process_count": 0,
+          "metric_outcome": "not-produced-by-resource-blocked",
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/classifications/OV-TQ-13-context-2048.json",
+          "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "attempt_count": 3,
+        "attempts": [
+          {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-2048/attempts/pilot/attempt-001/run/attempt.json",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-2048/attempts/pilot/attempt-002/run/attempt.json",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "path": "experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-2048/attempts/pilot/attempt-003/run/attempt.json",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "classified_rows": [
+        {
+          "test_id": "OV-TQ-14",
+          "context_tokens": 4096,
+          "accepted": false,
+          "status": "host-resource-blocked-not-launched",
+          "reason": "Example only: comparable larger U8 CPU row is outside the bounded host envelope.",
+          "sample_count": 0,
+          "cleanup_process_count": 0,
+          "metric_outcome": "not-produced-by-resource-envelope",
+          "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/classifications/OV-TQ-14-context-4096.json",
+          "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "reason": "Example only: classify only rows explicitly named and supported by the reviewed anchors.",
+      "decision_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "expected_rejection_records": [
+    {
+      "test_id": "OV-TQ-18",
+      "context_tokens": 1024,
+      "accepted": false,
+      "status": "passed: expected-rejection",
+      "reason": "Example only: the declared unsupported GPU property boundary rejected as expected.",
+      "sample_count": 0,
+      "cleanup_process_count": 0,
+      "metric_outcome": "not-produced-by-expected-rejection",
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/classifications/OV-TQ-18-context-1024.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "generation_not_launched": true
+    }
+  ],
+  "quality_records": [],
+  "quality_terminal_records": [
+    {
+      "test_id": "OV-TQ-14",
+      "context_tokens": 512,
+      "status": "quality-host-resource-blocked",
+      "reason": "Example only: two governed quality launches crossed the fixed RAM floor.",
+      "prompt_count": 0,
+      "score_outcome": "not-produced-by-quality-resource-blocked",
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/quality-OV-TQ-14-context-512.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "test_id": "OV-TQ-13",
+      "context_tokens": 512,
+      "status": "quality-host-resource-blocked-not-launched",
+      "reason": "Example only: the measured row has no smaller cache demand than the governed quality blocker.",
+      "prompt_count": 0,
+      "score_outcome": "not-produced-by-quality-resource-envelope",
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/quality-OV-TQ-13-context-512.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "test_id": "OV-TQ-14",
+      "context_tokens": 2048,
+      "status": "quality-host-resource-blocked-not-launched",
+      "reason": "Example only: the larger-context measured row has no smaller cache demand than the governed quality blocker.",
+      "prompt_count": 0,
+      "score_outcome": "not-produced-by-quality-resource-envelope",
+      "evidence_path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/quality-OV-TQ-14-context-2048.json",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "static_section_bodies": {
+    "1": {
+      "body": "Example only: replace with the evidence-backed Section 1 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-01-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "2": {
+      "body": "Example only: replace with the evidence-backed Section 2 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-02-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "3": {
+      "body": "Example only: replace with the evidence-backed Section 3 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-03-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "4": {
+      "body": "Example only: replace with the evidence-backed Section 4 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-04-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "5": {
+      "body": "Example only: replace with the evidence-backed Section 5 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-05-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "6": {
+      "body": "Example only: replace with the evidence-backed Section 6 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-06-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "7": {
+      "body": "Example only: replace with the evidence-backed Section 7 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-07-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "8": {
+      "body": "Example only: replace with the evidence-backed Section 8 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-08-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "9": {
+      "body": "Example only: replace with the evidence-backed Section 9 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-09-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "10": {
+      "body": "Example only: replace with the evidence-backed Section 10 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-10-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "13": {
+      "body": "Example only: replace with the evidence-backed Section 13 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-13-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "14": {
+      "body": "Example only: replace with the evidence-backed Section 14 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-14-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "15": {
+      "body": "Example only: replace with the evidence-backed Section 15 body.",
+      "evidence": {
+        "path": "experiments/raw-results/openvino-turboquant/2026-07-30/release/section-15-evidence.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  }
+}

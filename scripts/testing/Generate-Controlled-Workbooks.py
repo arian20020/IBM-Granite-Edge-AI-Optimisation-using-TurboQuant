@@ -31,6 +31,20 @@ WORKBOOK_TEMPLATES: Sequence[str] = (
     "05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1.md",
     "06_Cross_Route_Controlled_Comparison_Workbook_v1.md",
 )
+WORKBOOK_TEMPLATE_BY_ID = {
+    f"WB-{index:02d}": template_name
+    for index, template_name in enumerate(WORKBOOK_TEMPLATES, start=1)
+}
+
+
+def select_templates(workbook_id: str | None) -> Sequence[str]:
+    """Return all templates, or the one controlled workbook explicitly selected."""
+    if workbook_id is None:
+        return WORKBOOK_TEMPLATES
+    try:
+        return (WORKBOOK_TEMPLATE_BY_ID[workbook_id],)
+    except KeyError as exc:
+        raise ValueError(f"Unknown workbook ID: {workbook_id}") from exc
 
 
 def clean_cell(value: str) -> str:
@@ -242,6 +256,11 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository-root", type=Path, default=default_repository_root())
     parser.add_argument("--output-directory", type=Path, default=None)
+    parser.add_argument(
+        "--workbook-id",
+        choices=tuple(WORKBOOK_TEMPLATE_BY_ID),
+        help="Generate only one controlled workbook (for example WB-04).",
+    )
     arguments = parser.parse_args(list(argv) if argv is not None else None)
     repository_root = arguments.repository_root.resolve()
     template_directory = repository_root / "docs" / "testing" / "workbooks" / "text-templates"
@@ -253,7 +272,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     if not template_directory.is_dir():
         print(f"ERROR: Template directory not found: {template_directory}", file=sys.stderr)
         return 2
-    for template_name in WORKBOOK_TEMPLATES:
+    for template_name in select_templates(arguments.workbook_id):
         template_path = template_directory / template_name
         if not template_path.is_file():
             print(f"ERROR: Required template not found: {template_path}", file=sys.stderr)

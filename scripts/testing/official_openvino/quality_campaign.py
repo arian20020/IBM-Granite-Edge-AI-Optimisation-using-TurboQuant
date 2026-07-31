@@ -452,6 +452,8 @@ def _validate_guard_evidence(
     environment: Mapping[str, str],
     timeout_seconds: float,
     log_sha256: str,
+    quality_worker_spec_path: Path,
+    quality_worker_spec_sha256: str,
 ) -> None:
     _, expected_environment_sha256 = _effective_environment(environment)
     required = {
@@ -462,6 +464,13 @@ def _validate_guard_evidence(
         "log_path": str(log_path),
         "evidence_path": str(evidence_path),
         "environment_sha256": expected_environment_sha256,
+        "bound_inputs": [
+            {
+                "name": "quality_worker_spec",
+                "path": str(Path(quality_worker_spec_path).resolve()),
+                "sha256": quality_worker_spec_sha256,
+            }
+        ],
         "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
         "maximum_runtime_seconds": float(timeout_seconds),
         "timed_out": False,
@@ -623,6 +632,7 @@ def run_governed_quality_worker(
             maximum_runtime_seconds=float(timeout_seconds),
         ),
         environment=environment,
+        bound_inputs={"quality_worker_spec": spec_path},
     )
     if not isinstance(evidence, Mapping):
         raise RuntimeError("guard evidence is invalid")
@@ -668,6 +678,8 @@ def run_governed_quality_worker(
         environment=environment,
         timeout_seconds=float(timeout_seconds),
         log_sha256=log_sha256,
+        quality_worker_spec_path=spec_path,
+        quality_worker_spec_sha256=spec_sha256,
     )
     try:
         worker_raw = result_path.read_bytes()
@@ -784,6 +796,8 @@ def _load_governed_quality_worker(
         environment=dict(accepted.worker_environment),
         timeout_seconds=float(timeout_seconds),
         log_sha256=log_sha256,
+        quality_worker_spec_path=spec_path,
+        quality_worker_spec_sha256=spec_sha256,
     )
     return GovernedQualityWorkerResult(
         worker_result=worker_result,
