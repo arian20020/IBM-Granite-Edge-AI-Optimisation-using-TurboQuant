@@ -3275,6 +3275,174 @@ def _aggregate_utilisation_cell(
     return row.metric_outcome
 
 
+PRESENTATION_MEASURED_KEYS = (
+    RuntimeKey("OV-TQ-13", 512),
+    RuntimeKey("OV-TQ-14", 512),
+    RuntimeKey("OV-TQ-14", 2048),
+)
+
+TIMING_HEADERS = (
+    "Test ID", "Context", "Load ms", "TTFT ms", "Prompt tok/s",
+    "TPOT ms", "Decode tok/s", "Generation ms",
+)
+MEMORY_HEADERS = (
+    "Test ID", "Context", "Peak WS MiB", "Peak private MiB",
+    "Available RAM min MiB", "KV MiB", "Cleanup",
+)
+UTILISATION_HEADERS = (
+    "Test ID", "Context", "CPU mean/median/peak %",
+    "GPU mean/median/peak %", "CPU samples", "GPU samples",
+    "Accepted runs", "Fallback count", "Evidence ref",
+)
+
+
+def select_presentation_measurements(
+    rows: Mapping[RuntimeKey, RuntimeOutcome],
+) -> tuple[RuntimeOutcome, ...]:
+    measured_keys = {key for key, row in rows.items() if row.status == "measured"}
+    if measured_keys != set(PRESENTATION_MEASURED_KEYS):
+        raise ValueError("v1.8 presentation measured-key set is invalid")
+    selected = tuple(rows[key] for key in PRESENTATION_MEASURED_KEYS)
+    for row in selected:
+        if not row.accepted or row.sample_count != 3 or row.cleanup_process_count != 0:
+            raise ValueError(f"{row.key} is not an accepted three-sample measurement")
+        if row.activation.get("fallback") is not False:
+            raise ValueError(f"{row.key} does not prove fallback=false")
+        required = set(REQUIRED_SCALAR_METRICS) | set(UTILISATION_METRICS)
+        if not required.issubset(row.metrics):
+            raise ValueError(f"{row.key} aggregate metrics are incomplete")
+    return selected
+
+
+def _presentation_display(value: Any) -> str:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError("non-finite presentation cell")
+        return f"{numeric:.3f}".rstrip("0").rstrip(".")
+    return _cell(value)
+
+
+def _presentation_utilisation(row: RuntimeOutcome, field: str) -> str:
+    return " / ".join(
+        _presentation_display(row.metrics[field][statistic])
+        for statistic in ("mean", "median", "peak")
+    )
+
+
+def render_section_5(rows: Mapping[RuntimeKey, RuntimeOutcome]) -> str:
+    """Render the three approved measured configurations as compact aggregates."""
+
+    selected = select_presentation_measurements(rows)
+    timing_rows = []
+    memory_rows = []
+    utilisation_rows = []
+    for index, row in enumerate(selected, 1):
+        identity = [row.key.test_id, row.key.context_tokens]
+        timing_rows.append(
+            identity
+            + [
+                _presentation_display(row.metrics[metric]["median"])
+                for metric in PERFORMANCE_METRICS
+            ]
+        )
+        memory_rows.append(
+            identity
+            + [
+                _presentation_display(row.metrics[metric]["median"])
+                for metric in MEMORY_METRICS[:4]
+            ]
+            + [_presentation_display(row.cleanup_process_count)]
+        )
+        utilisation_rows.append(
+            identity
+            + [
+                _presentation_utilisation(row, "cpu_percent"),
+                _presentation_utilisation(row, "gpu_percent"),
+                _presentation_display(row.metrics["cpu_percent"]["count"]),
+                _presentation_display(row.metrics["gpu_percent"]["count"]),
+                _presentation_display(row.sample_count),
+                _presentation_display(int(row.activation["fallback"])),
+                f"E{index}",
+            ]
+        )
+    section = "\n".join(
+        [
+            "**Timing metrics — aggregate medians**",
+            "",
+            _table(TIMING_HEADERS, timing_rows),
+            "",
+            "**Memory metrics — aggregate medians**",
+            "",
+            _table(MEMORY_HEADERS, memory_rows),
+            "",
+            "**CPU/GPU utilisation — aggregate summary**",
+            "",
+            _table(UTILISATION_HEADERS, utilisation_rows),
+        ]
+    ).rstrip() + "\n"
+    validate_section_5(section)
+    return section
+
+
+def validate_section_5(text: str) -> dict[str, int]:
+    blocks = _table_blocks(text)
+    expected_headers = [
+        list(TIMING_HEADERS),
+        list(MEMORY_HEADERS),
+        list(UTILISATION_HEADERS),
+    ]
+    if len(blocks) != 3:
+        raise ValueError(
+            f"section 5 must contain exactly three metric tables; found {len(blocks)}"
+        )
+    expected_keys = {
+        (key.test_id, str(key.context_tokens))
+        for key in PRESENTATION_MEASURED_KEYS
+    }
+    evidence_by_key = {
+        (key.test_id, str(key.context_tokens)): f"E{index}"
+        for index, key in enumerate(PRESENTATION_MEASURED_KEYS, 1)
+    }
+    table_keys = []
+    for table_index, (block, headers) in enumerate(
+        zip(blocks, expected_headers), 1
+    ):
+        if len(block) != 5 or block[0] != headers:
+            raise ValueError(f"section 5 table {table_index} structure is invalid")
+        separator = block[1]
+        if len(separator) != len(headers) or any(
+            re.fullmatch(r":?-{3,}:?", cell) is None for cell in separator
+        ):
+            raise ValueError(f"section 5 table {table_index} separator is invalid")
+        keys: set[tuple[str, str]] = set()
+        labels: set[str] = set()
+        for row in block[2:]:
+            if len(row) != len(headers):
+                raise ValueError(f"section 5 table {table_index} row width mismatch")
+            for cell in row:
+                _cell(cell)
+            key = (row[0], row[1])
+            if key in keys:
+                raise ValueError(f"section 5 table {table_index} duplicate key {key}")
+            keys.add(key)
+            if headers == list(UTILISATION_HEADERS):
+                label = row[-1]
+                if evidence_by_key.get(key) != label:
+                    raise ValueError(
+                        f"section 5 evidence label is invalid for {key}"
+                    )
+                labels.add(label)
+        if keys != expected_keys:
+            raise ValueError(f"section 5 table {table_index} measured keys are invalid")
+        if headers == list(UTILISATION_HEADERS) and labels != {"E1", "E2", "E3"}:
+            raise ValueError("section 5 evidence labels must be E1, E2, E3")
+        table_keys.append(keys)
+    if len({frozenset(keys) for keys in table_keys}) != 1:
+        raise ValueError("section 5 measured keys differ between tables")
+    return {"table_count": 3, "measured_row_count": 3}
+
+
 def render_section_11(rows: Mapping[RuntimeKey, RuntimeOutcome]) -> str:
     """Render six source-separated aggregate/per-sample metric tables."""
 

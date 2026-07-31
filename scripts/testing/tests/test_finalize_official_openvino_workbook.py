@@ -1049,6 +1049,64 @@ def _write_device_resource_terminal(root, case):
 
 
 class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
+    def _three_measured_runtime_outcomes(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            index_measurement_summaries,
+        )
+
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT) as directory:
+            root = Path(directory)
+            first_case = _case("OV-TQ-13", contexts=(512,))
+            second_case = _case("OV-TQ-14", contexts=(512, 2048))
+            return index_measurement_summaries(
+                [
+                    _write_measurement(root, first_case, 512),
+                    _write_measurement(root, second_case, 512, base=100),
+                    _write_measurement(root, second_case, 2048, base=200),
+                ],
+                [first_case, second_case],
+            )
+
+    def test_v18_selector_admits_only_the_three_hash_bound_measurements(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            RuntimeKey,
+            select_presentation_measurements,
+        )
+
+        rows = self._three_measured_runtime_outcomes()
+        selected = select_presentation_measurements(rows)
+        self.assertEqual(
+            [row.key for row in selected],
+            [
+                RuntimeKey("OV-TQ-13", 512),
+                RuntimeKey("OV-TQ-14", 512),
+                RuntimeKey("OV-TQ-14", 2048),
+            ],
+        )
+        self.assertTrue(all(row.sample_count == 3 for row in selected))
+        self.assertTrue(all(row.activation["fallback"] is False for row in selected))
+
+    def test_v18_section_5_contains_three_compact_aggregate_tables(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            render_section_5,
+            validate_section_5,
+        )
+
+        section = render_section_5(self._three_measured_runtime_outcomes())
+        report = validate_section_5(section)
+        self.assertEqual(report, {"table_count": 3, "measured_row_count": 3})
+        self.assertEqual(section.count("| OV-TQ-13 | 512 |"), 3)
+        self.assertEqual(section.count("| OV-TQ-14 | 512 |"), 3)
+        self.assertEqual(section.count("| OV-TQ-14 | 2048 |"), 3)
+        self.assertIn("| Test ID | Context | Load ms | TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | Generation ms |", section)
+        self.assertIn("| Test ID | Context | Peak WS MiB | Peak private MiB | Available RAM min MiB | KV MiB | Cleanup |", section)
+        self.assertIn("| Test ID | Context | CPU mean/median/peak % | GPU mean/median/peak % | CPU samples | GPU samples | Accepted runs | Fallback count | Evidence ref |", section)
+        self.assertIn("| E1 |", section)
+        self.assertIn("| E2 |", section)
+        self.assertIn("| E3 |", section)
+        self.assertNotIn("Sample ID", section)
+        self.assertNotIn("not-produced-by-", section)
+
     def test_measurements_use_composite_runtime_and_sample_keys(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             RuntimeKey,
