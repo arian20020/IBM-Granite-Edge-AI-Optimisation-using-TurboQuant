@@ -3322,6 +3322,48 @@ PROHIBITED_PRESENTATION_CLAIMS = (
     "quality winner",
 )
 
+PRESENTATION_NON_SUCCESS_RUNTIME_KEYS = (
+    RuntimeKey("OV-01", 1024),
+    RuntimeKey("OV-02", 2048),
+    RuntimeKey("OV-03", 4096),
+    RuntimeKey("OV-06", 4096),
+    RuntimeKey("OV-07", 2048),
+    RuntimeKey("OV-08", 4096),
+    RuntimeKey("OV-09", 4096),
+    RuntimeKey("OV-10", 4096),
+    RuntimeKey("OV-TQ-03", 4096),
+    RuntimeKey("OV-TQ-04", 4096),
+    RuntimeKey("OV-TQ-05", 4096),
+    RuntimeKey("OV-TQ-06", 4096),
+    RuntimeKey("OV-TQ-07", 4096),
+    RuntimeKey("OV-TQ-08", 4096),
+    RuntimeKey("OV-TQ-09", 4096),
+    RuntimeKey("OV-TQ-10", 4096),
+    RuntimeKey("OV-TQ-11", 4096),
+    RuntimeKey("OV-TQ-12", 4096),
+    RuntimeKey("OV-TQ-13", 2048),
+    RuntimeKey("OV-TQ-13", 4096),
+    RuntimeKey("OV-TQ-13", 8192),
+    RuntimeKey("OV-TQ-14", 4096),
+    RuntimeKey("OV-TQ-14", 8192),
+    RuntimeKey("OV-TQ-15", 4096),
+    RuntimeKey("OV-TQ-16", 4096),
+    RuntimeKey("OV-TQ-17", 4096),
+)
+
+PRESENTATION_NEGATIVE_CONTROL_IDS = frozenset(
+    {
+        "OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02", "OV-TQ-18",
+        "OV-TQ-19", "OV-TQ-20",
+    }
+)
+PRESENTATION_INCOMPLETE_IDS = frozenset(
+    identifier.split("/", 1)[0]
+    for _, identifiers in PRESENTATION_INCOMPLETE_GROUPS
+    for identifier in identifiers
+)
+PRESENTATION_MIXED_RUNTIME_IDS = frozenset({"OV-TQ-13", "OV-TQ-14"})
+
 
 def select_presentation_measurements(
     rows: Mapping[RuntimeKey, RuntimeOutcome],
@@ -3478,17 +3520,43 @@ def render_section_6(
 
     if not runtime_rows:
         raise ValueError("section 6 requires reconciled runtime outcomes")
-    grouped_ids = {
-        test_id.split("/", 1)[0]
-        for _, identifiers in PRESENTATION_INCOMPLETE_GROUPS
-        for test_id in identifiers
-    }
-    if not grouped_ids.issubset(expected_ids):
+    if not PRESENTATION_INCOMPLETE_IDS.issubset(expected_ids):
         raise ValueError("section 6 identifiers are outside the canonical matrix")
+    non_success = {
+        key
+        for key, row in runtime_rows.items()
+        if not (
+            (row.status == "measured" and row.accepted)
+            or row.status == "passed: expected-rejection"
+        )
+    }
+    if non_success != set(PRESENTATION_NON_SUCCESS_RUNTIME_KEYS):
+        raise ValueError("section 6 non-success runtime key set is invalid")
+    all_contexts: dict[str, set[int]] = {}
+    failed_contexts: dict[str, set[int]] = {}
+    for key in runtime_rows:
+        all_contexts.setdefault(key.test_id, set()).add(key.context_tokens)
+    for key in non_success:
+        failed_contexts.setdefault(key.test_id, set()).add(key.context_tokens)
+
+    def display_identifier(identifier: str) -> list[str]:
+        test_id, separator, context = identifier.partition("/")
+        if separator:
+            return [identifier]
+        failed = failed_contexts.get(test_id, set())
+        if failed and failed != all_contexts.get(test_id, set()):
+            return [f"{test_id}/{value}" for value in sorted(failed)]
+        return [test_id]
+
     bullets = []
     for reason, identifiers in PRESENTATION_INCOMPLETE_GROUPS:
+        displayed = [
+            value
+            for identifier in identifiers
+            for value in display_identifier(identifier)
+        ]
         suffix = " (larger host required)" if reason == "Larger host required" else ""
-        bullets.append(f"- **{reason}:** {', '.join(identifiers)}{suffix}")
+        bullets.append(f"- **{reason}:** {', '.join(displayed)}{suffix}")
     return "\n".join(bullets) + "\n"
 
 
@@ -3496,9 +3564,7 @@ def render_section_7(quality_rows: Mapping[RuntimeKey, QualityOutcome]) -> str:
     """Render the governed quality boundary without score or winner claims."""
 
     for quality in quality_rows.values():
-        if isinstance(quality.mean_score, (int, float)) and not isinstance(
-            quality.mean_score, bool
-        ):
+        if isinstance(quality.mean_score, (int, float)):
             raise ValueError("section 7 cannot present a numeric quality score")
     return (
         "No governed P1-P6 quality campaign completed. The governed evidence "
@@ -3556,18 +3622,56 @@ def validate_presentation_text(
 ) -> dict[str, int]:
     """Reject prohibited claims and require every canonical ID to be visible."""
 
+    canonical_ids = frozenset(case.test_id for case in load_matrix(CANONICAL_MATRIX))
+    if len(canonical_ids) != 60 or set(expected_ids) != canonical_ids:
+        raise ValueError("presentation requires the canonical 60-ID inventory")
+    headings = list(re.finditer(r"(?m)^# ([1-8])\.", text))
+    if [match.group(1) for match in headings] != [str(number) for number in range(1, 9)]:
+        raise ValueError("presentation requires exactly one ordered heading for sections 1-8")
+    sections = {
+        int(match.group(1)): text[
+            match.end() : headings[index + 1].start()
+            if index + 1 < len(headings)
+            else len(text)
+        ]
+        for index, match in enumerate(headings)
+    }
+
+    def contains(body: str, test_id: str) -> bool:
+        return re.search(
+            rf"(?<![A-Z0-9-]){re.escape(test_id)}(?![A-Z0-9-])", body
+        ) is not None
+
+    success_ids = canonical_ids - PRESENTATION_NEGATIVE_CONTROL_IDS - PRESENTATION_INCOMPLETE_IDS
+    placements = (
+        ("success sections 1-3 or 5", success_ids, "".join(sections[number] for number in (1, 2, 3, 5))),
+        ("section 4", PRESENTATION_NEGATIVE_CONTROL_IDS, sections[4]),
+        ("section 6", PRESENTATION_INCOMPLETE_IDS, sections[6]),
+    )
+    for location, identifiers, body in placements:
+        missing = sorted(test_id for test_id in identifiers if not contains(body, test_id))
+        if missing:
+            raise ValueError(
+                f"presentation IDs missing from {location}: {', '.join(missing)}"
+            )
+    success_body = "".join(sections[number] for number in (1, 2, 3, 5))
+    control_body = sections[4]
+    incomplete_body = sections[6]
+    for test_id in success_ids:
+        if contains(control_body, test_id) or contains(incomplete_body, test_id):
+            raise ValueError(f"successful ID is misplaced: {test_id}")
+    for test_id in PRESENTATION_NEGATIVE_CONTROL_IDS:
+        if contains(success_body, test_id) or contains(incomplete_body, test_id):
+            raise ValueError(f"negative-control ID is misplaced: {test_id}")
+    for test_id in PRESENTATION_INCOMPLETE_IDS - PRESENTATION_MIXED_RUNTIME_IDS:
+        if contains(success_body, test_id) or contains(control_body, test_id):
+            raise ValueError(f"incomplete ID is misplaced: {test_id}")
+
     lowered = text.casefold()
     for claim in PROHIBITED_PRESENTATION_CLAIMS:
         if claim in lowered:
             raise ValueError(f"prohibited presentation claim: {claim}")
-    missing = sorted(
-        test_id
-        for test_id in expected_ids
-        if re.search(
-            rf"(?<![A-Z0-9-]){re.escape(test_id)}(?![A-Z0-9-])", text
-        )
-        is None
-    )
+    missing = sorted(test_id for test_id in canonical_ids if not contains(text, test_id))
     if missing:
         raise ValueError(f"missing canonical test IDs: {', '.join(missing)}")
     return {"controlled_id_count": len(expected_ids)}

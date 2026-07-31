@@ -1068,6 +1068,110 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 [first_case, second_case],
             )
 
+    def _presentation_runtime_outcomes(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            RuntimeKey,
+            RuntimeOutcome,
+        )
+
+        rows = dict(self._three_measured_runtime_outcomes())
+        terminal_keys = (
+            ("OV-01", 1024), ("OV-02", 2048), ("OV-03", 4096),
+            ("OV-06", 4096), ("OV-07", 2048), ("OV-08", 4096),
+            ("OV-09", 4096), ("OV-10", 4096), ("OV-TQ-03", 4096),
+            ("OV-TQ-04", 4096), ("OV-TQ-05", 4096), ("OV-TQ-06", 4096),
+            ("OV-TQ-07", 4096), ("OV-TQ-08", 4096), ("OV-TQ-09", 4096),
+            ("OV-TQ-10", 4096), ("OV-TQ-11", 4096), ("OV-TQ-12", 4096),
+            ("OV-TQ-13", 2048), ("OV-TQ-13", 4096), ("OV-TQ-13", 8192),
+            ("OV-TQ-14", 4096), ("OV-TQ-14", 8192), ("OV-TQ-15", 4096),
+            ("OV-TQ-16", 4096), ("OV-TQ-17", 4096),
+        )
+        for test_id, context in terminal_keys:
+            key = RuntimeKey(test_id, context)
+            rows[key] = RuntimeOutcome(
+                key=key,
+                status="host-resource-blocked",
+                configuration_id=f"{test_id}-{context}",
+                accepted=False,
+                sample_count=0,
+                cleanup_process_count=0,
+                metric_outcome="not-produced-by-resource-blocked",
+                reason="RAM safety floor reached",
+                evidence_path=Path(f"{test_id}-{context}.json"),
+                evidence_sha256="d" * 64,
+                summary_path=None,
+                summary_sha256="d" * 64,
+                campaign_identity_sha256="d" * 64,
+                runtime_config_sha256="d" * 64,
+                metrics={},
+                activation={},
+                samples={},
+            )
+        expected_rejection = RuntimeKey("OV-04", 4096)
+        rows[expected_rejection] = RuntimeOutcome(
+            key=expected_rejection,
+            status="passed: expected-rejection",
+            configuration_id="OV-04-4096",
+            accepted=False,
+            sample_count=0,
+            cleanup_process_count=0,
+            metric_outcome="not-produced-by-expected-rejection",
+            reason="governed expected rejection",
+            evidence_path=Path("OV-04-4096.json"),
+            evidence_sha256="e" * 64,
+            summary_path=None,
+            summary_sha256="e" * 64,
+            campaign_identity_sha256="e" * 64,
+            runtime_config_sha256="e" * 64,
+            metrics={},
+            activation={},
+            samples={},
+        )
+        return rows
+
+    def _canonical_presentation_ids(self):
+        matrix = json.loads(
+            (REPO_ROOT / "experiments" / "manifests" / "official-openvino" / "retest-matrix.json").read_text(encoding="utf-8")
+        )
+        return {case["test_id"] for case in matrix["cases"]}
+
+    def _structured_presentation_text(self):
+        incomplete = {
+            "OV-01", "OV-C01", "OV-02", "OV-B04", "OV-03", "OV-06",
+            "OV-TQ-03", "OV-TQ-04", "OV-TQ-05", "OV-TQ-06", "OV-TQ-07",
+            "OV-TQ-08", "OV-TQ-09", "OV-TQ-10", "OV-TQ-11", "OV-TQ-12",
+            "OV-TQ-13", "OV-TQ-14", "OV-TQ-15", "OV-C04", "OV-C05",
+            "OV-C06", "OV-07", "OV-08", "OV-09", "OV-10", "OV-TQ-16",
+            "OV-TQ-17", "OV-B08", "OV-B09", "OV-B10", "OV-B12",
+            "OV-TQS-01", "OV-TQS-02", "OV-TQS-03", "OV-TQS-04",
+        }
+        negative = {
+            "OV-04", "OV-05", "OV-TQ-01", "OV-TQ-02", "OV-TQ-18",
+            "OV-TQ-19", "OV-TQ-20",
+        }
+        success = self._canonical_presentation_ids() - incomplete - negative
+        return "\n".join(
+            [
+                "# 1. Repository, runtime and host",
+                " ".join(sorted(success)),
+                "# 2. Successful build and recovery checks",
+                "verified",
+                "# 3. Successful bounded diagnostics",
+                "verified",
+                "# 4. Successful expected-rejection controls",
+                " ".join(sorted(negative)),
+                "# 5. Accepted formal runtime measurements",
+                "verified",
+                "# 6. Tests that did not complete",
+                " ".join(sorted(incomplete)),
+                "# 7. Quality boundary",
+                "No numeric quality score and no winner.",
+                "# 8. Final decision and evidence index",
+                "E1 E2 E3",
+                "",
+            ]
+        )
+
     def test_v18_selector_admits_only_the_three_hash_bound_measurements(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             RuntimeKey,
@@ -1113,17 +1217,9 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             render_section_6,
         )
 
-        expected_ids = {
-            "OV-01", "OV-C01", "OV-02", "OV-B04", "OV-03", "OV-06",
-            "OV-TQ-03", "OV-TQ-04", "OV-TQ-05", "OV-TQ-06", "OV-TQ-07",
-            "OV-TQ-08", "OV-TQ-09", "OV-TQ-10", "OV-TQ-11", "OV-TQ-12",
-            "OV-TQ-13", "OV-TQ-14", "OV-TQ-15", "OV-C04", "OV-C05",
-            "OV-C06", "OV-07", "OV-08", "OV-09", "OV-10", "OV-TQ-16",
-            "OV-TQ-17", "OV-B08", "OV-B09", "OV-B10", "OV-B12",
-            "OV-TQS-01", "OV-TQS-02", "OV-TQS-03", "OV-TQS-04",
-        }
+        expected_ids = self._canonical_presentation_ids()
 
-        section = render_section_6(self._three_measured_runtime_outcomes(), expected_ids)
+        section = render_section_6(self._presentation_runtime_outcomes(), expected_ids)
         bullets = [line for line in section.splitlines() if line.startswith("- ")]
         self.assertEqual(len(bullets), 6)
         self.assertIn("OV-TQ-03, OV-TQ-04", section)
@@ -1131,8 +1227,48 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertIn("Larger host", section)
         self.assertNotIn("| Test ID |", section)
         self.assertNotRegex(section, r"[0-9a-f]{64}")
-        for test_id in expected_ids:
-            self.assertIn(test_id, section)
+
+    def test_v18_incomplete_tests_refuse_missing_or_unexpected_non_success_rows(self):
+        from scripts.testing.finalize_official_openvino_workbook import (
+            RuntimeKey,
+            RuntimeOutcome,
+            render_section_6,
+        )
+
+        expected_ids = self._canonical_presentation_ids()
+        rows = self._presentation_runtime_outcomes()
+        section = render_section_6(rows, expected_ids)
+        self.assertIn("OV-TQ-13/2048, OV-TQ-13/4096, OV-TQ-13/8192", section)
+        self.assertIn("OV-TQ-14/4096, OV-TQ-14/8192", section)
+
+        missing = dict(rows)
+        del missing[RuntimeKey("OV-TQ-13", 8192)]
+        with self.assertRaisesRegex(ValueError, "non-success runtime key set"):
+            render_section_6(missing, expected_ids)
+
+        extra = dict(rows)
+        unexpected = RuntimeKey("OV-TQ-99", 4096)
+        extra[unexpected] = RuntimeOutcome(
+            key=unexpected,
+            status="host-resource-blocked",
+            configuration_id="OV-TQ-99-4096",
+            accepted=False,
+            sample_count=0,
+            cleanup_process_count=0,
+            metric_outcome="not-produced-by-resource-blocked",
+            reason="unexpected",
+            evidence_path=Path("OV-TQ-99-4096.json"),
+            evidence_sha256="f" * 64,
+            summary_path=None,
+            summary_sha256="f" * 64,
+            campaign_identity_sha256="f" * 64,
+            runtime_config_sha256="f" * 64,
+            metrics={},
+            activation={},
+            samples={},
+        )
+        with self.assertRaisesRegex(ValueError, "non-success runtime key set"):
+            render_section_6(extra, expected_ids)
 
     def test_v18_quality_boundary_refuses_numeric_or_winner_claims(self):
         from scripts.testing.finalize_official_openvino_workbook import (
@@ -1171,6 +1307,18 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "numeric quality score"):
             render_section_7({numeric.key: numeric})
 
+        boolean = QualityOutcome(
+            key=numeric.key,
+            status="complete",
+            prompt_scores={prompt_id: True for prompt_id in numeric.prompt_scores},
+            mean_score=True,
+            critical_failure_or_cap="none",
+            evidence_path=Path("quality-boolean.json"),
+            evidence_sha256="c" * 64,
+        )
+        with self.assertRaisesRegex(ValueError, "numeric quality score"):
+            render_section_7({boolean.key: boolean})
+
     def test_v18_decision_has_exact_e1_e3_hash_bound_sources(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             render_section_8,
@@ -1186,21 +1334,24 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r"[0-9a-f]{64}", section)), 4)
         self.assertNotIn("quality-qualified winner", section.casefold())
 
-    def test_v18_presentation_validator_rejects_prohibited_claims_and_missing_ids(self):
+    def test_v18_presentation_validator_requires_canonical_inventory_and_placement(self):
         from scripts.testing.finalize_official_openvino_workbook import (
             validate_presentation_text,
         )
 
-        expected_ids = {"OV-01", "OV-C01", "OV-TQ-03"}
-        valid = "OV-01 OV-C01 OV-TQ-03\nNo governed quality campaign completed.\n"
+        expected_ids = self._canonical_presentation_ids()
+        valid = self._structured_presentation_text()
         self.assertEqual(
             validate_presentation_text(valid, expected_ids),
-            {"controlled_id_count": 3},
+            {"controlled_id_count": 60},
         )
         with self.assertRaisesRegex(ValueError, "prohibited presentation claim"):
             validate_presentation_text(valid + "All tests passed.\n", expected_ids)
-        with self.assertRaisesRegex(ValueError, "missing canonical test IDs"):
-            validate_presentation_text("OV-01 OV-C01\n", expected_ids)
+        with self.assertRaisesRegex(ValueError, "canonical 60-ID inventory"):
+            validate_presentation_text(valid, {"OV-01"})
+        misplaced = valid.replace("OV-TQ-03", "").replace("E1 E2 E3", "E1 E2 E3 OV-TQ-03")
+        with self.assertRaisesRegex(ValueError, "section 6"):
+            validate_presentation_text(misplaced, expected_ids)
 
     def test_measurements_use_composite_runtime_and_sample_keys(self):
         from scripts.testing.finalize_official_openvino_workbook import (
