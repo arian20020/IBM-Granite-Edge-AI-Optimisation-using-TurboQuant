@@ -17,6 +17,21 @@ if ($GpuIntervalMilliseconds -lt $CpuIntervalMilliseconds) {
     throw 'GpuIntervalMilliseconds must be at least the CPU interval'
 }
 
+function Format-BinaryMiB {
+    param([UInt64]$ByteCount)
+
+    $value = [decimal]$ByteCount / [decimal]1MB
+    $rounded = [Math]::Round(
+        $value,
+        6,
+        [MidpointRounding]::AwayFromZero
+    )
+    return $rounded.ToString(
+        'F6',
+        [Globalization.CultureInfo]::InvariantCulture
+    )
+}
+
 $logicalProcessors = [Environment]::ProcessorCount
 $target = [Diagnostics.Process]::GetProcessById($ProcessId)
 $encoding = [Text.UTF8Encoding]::new($true)
@@ -110,18 +125,9 @@ $finishGpuObservation = {
             $sharedBytes += [UInt64]$memoryRow.SharedUsage
         }
         [UInt64]$combinedBytes = $dedicatedBytes + $sharedBytes
-        $dedicated = ($dedicatedBytes / 1MB).ToString(
-            'F6',
-            [Globalization.CultureInfo]::InvariantCulture
-        )
-        $shared = ($sharedBytes / 1MB).ToString(
-            'F6',
-            [Globalization.CultureInfo]::InvariantCulture
-        )
-        $combined = ($combinedBytes / 1MB).ToString(
-            'F6',
-            [Globalization.CultureInfo]::InvariantCulture
-        )
+        $dedicated = Format-BinaryMiB $dedicatedBytes
+        $shared = Format-BinaryMiB $sharedBytes
+        $combined = Format-BinaryMiB $combinedBytes
         $dedicatedByteText = $dedicatedBytes.ToString(
             [Globalization.CultureInfo]::InvariantCulture
         )

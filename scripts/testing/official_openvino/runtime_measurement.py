@@ -15,6 +15,7 @@ import re
 import statistics
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,19 @@ CACHE_PRECISIONS = frozenset({"f16", "bf16", "f32", "u8", "u4", "u3"})
 PERSISTENT_COMPONENTS = ("standard", "payload", "norm", "metadata")
 RUNTIME_DEVICE_PATTERN = re.compile(r"(?:CPU|GPU(?:\.(?:0|[1-9][0-9]*))?)\Z")
 MIB = 1024**2
-GPU_MIB_DECIMAL_PLACES = 6
+_SIX_DECIMAL_PLACES = Decimal("0.000001")
+
+
+def format_binary_mib(byte_count: int) -> str:
+    """Serialize non-negative bytes as six-decimal MiB, rounding halves up."""
+
+    if isinstance(byte_count, bool) or not isinstance(byte_count, int):
+        raise ValueError("binary MiB byte count must be an integer")
+    if byte_count < 0 or byte_count > 2**64 - 1:
+        raise ValueError("binary MiB byte count must fit the UInt64 domain")
+    mib_value = Decimal(byte_count) / Decimal(MIB)
+    rounded = mib_value.quantize(_SIX_DECIMAL_PLACES, rounding=ROUND_HALF_UP)
+    return format(rounded, ".6f")
 
 
 def _finite_number(value: Any, field: str, *, maximum: float | None = None) -> float:
@@ -562,12 +575,8 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
                 raise ValueError(
                     f"GPU combined byte proof {index} does not equal components"
                 )
-            expected_dedicated_display = format(
-                dedicated_bytes / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
-            )
-            expected_shared_display = format(
-                shared_bytes / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
-            )
+            expected_dedicated_display = format_binary_mib(dedicated_bytes)
+            expected_shared_display = format_binary_mib(shared_bytes)
             if (
                 row["gpu_dedicated_mb"] != expected_dedicated_display
                 or row["gpu_shared_mb"] != expected_shared_display
@@ -575,9 +584,7 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
                 raise ValueError(
                     f"GPU component MiB display {index} does not match byte proof"
                 )
-            expected_display = format(
-                combined_bytes_value / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
-            )
+            expected_display = format_binary_mib(combined_bytes_value)
             if (
                 byte_proof_format == "combined"
                 and row["gpu_memory_mb"] != expected_display
@@ -706,6 +713,7 @@ __all__ = [
     "atomic_write_json",
     "build_runtime_property_spec",
     "execute_attempt_sequence",
+    "format_binary_mib",
     "parse_cpu_samples",
     "parse_gpu_samples",
     "parse_worker_output",

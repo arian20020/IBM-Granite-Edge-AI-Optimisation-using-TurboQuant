@@ -28,6 +28,7 @@ from .owned_process_guard import (
 )
 from .runtime_measurement import (
     atomic_write_json,
+    format_binary_mib,
     parse_cpu_samples,
     parse_gpu_samples,
     parse_worker_output,
@@ -176,7 +177,7 @@ def _validate_gpu_observability(record: Mapping[str, Any]) -> None:
             paired_values.append(value)
         if combined_bytes != sum(paired_values):
             raise ValueError("GPU paired peak bytes do not equal combined peak")
-        expected_display = float(format(combined_bytes / MIB, ".6f"))
+        expected_display = float(format_binary_mib(combined_bytes))
         if record.get("gpu_memory_peak_mb") != expected_display:
             raise ValueError(
                 "GPU combined memory display does not match byte serialization"

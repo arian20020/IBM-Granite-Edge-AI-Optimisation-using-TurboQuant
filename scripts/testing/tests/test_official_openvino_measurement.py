@@ -1,11 +1,15 @@
 import csv
 import json
+import os
+import shutil
 import statistics
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.testing.official_openvino import runtime_measurement
 from scripts.testing.official_openvino.runtime_measurement import (
     RESULT_MARKER,
     build_runtime_property_spec,
@@ -732,6 +736,140 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "component MiB display"):
                     parse_gpu_samples(path)
 
+    def test_binary_mib_serializer_uses_six_digit_half_up_rounding(self):
+        cases = (
+            (0, "0.000000"),
+            (8191, "0.007812"),
+            (8192, "0.007813"),
+            (8193, "0.007813"),
+            (1024**2, "1.000000"),
+            (9007199254749183, "8589934592.007812"),
+            (2**64 - 1, "17592186044415.999999"),
+        )
+        for byte_count, expected in cases:
+            with self.subTest(byte_count=byte_count):
+                self.assertEqual(
+                    runtime_measurement.format_binary_mib(byte_count),
+                    expected,
+                )
+
+    def test_binary_mib_serializer_rejects_outside_uint64_domain(self):
+        for byte_count in (-1, 2**64):
+            with self.subTest(byte_count=byte_count):
+                with self.assertRaisesRegex(ValueError, "UInt64"):
+                    runtime_measurement.format_binary_mib(byte_count)
+
+    def test_gpu_parser_accepts_half_up_midpoint_in_both_byte_proof_formats(self):
+        two_byte_row = {
+            "timestamp_utc": "2026-07-29T00:00:01Z",
+            "gpu_percent": 0,
+            "gpu_engine_count": 0,
+            "gpu_dedicated_mb": "0.007813",
+            "gpu_shared_mb": "0.000000",
+            "gpu_dedicated_bytes": 8192,
+            "gpu_shared_bytes": 0,
+            "gpu_engine_query_ok": "true",
+            "gpu_memory_query_ok": "true",
+        }
+        rows_by_format = {
+            "two-byte": two_byte_row,
+            "combined": {
+                **two_byte_row,
+                "gpu_memory_mb": "0.007813",
+                "gpu_memory_bytes": 8192,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            for proof_format, row in rows_by_format.items():
+                with self.subTest(proof_format=proof_format):
+                    write_csv(path, [row, row])
+                    parsed = parse_gpu_samples(path)
+                    self.assertEqual(parsed["gpu_memory_peak_bytes"], 8192)
+                    self.assertEqual(parsed["gpu_memory_peak_mb"], 0.007813)
+
+    def test_gpu_parser_rejects_ties_to_even_midpoint_in_both_proof_formats(self):
+        two_byte_row = {
+            "timestamp_utc": "2026-07-29T00:00:01Z",
+            "gpu_percent": 0,
+            "gpu_engine_count": 0,
+            "gpu_dedicated_mb": "0.007812",
+            "gpu_shared_mb": "0.000000",
+            "gpu_dedicated_bytes": 8192,
+            "gpu_shared_bytes": 0,
+            "gpu_engine_query_ok": "true",
+            "gpu_memory_query_ok": "true",
+        }
+        cases = (
+            ("two-byte", two_byte_row, "component MiB display"),
+            (
+                "combined",
+                {
+                    **two_byte_row,
+                    "gpu_dedicated_mb": "0.007813",
+                    "gpu_memory_mb": "0.007812",
+                    "gpu_memory_bytes": 8192,
+                },
+                "combined MiB display",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            for proof_format, row, message in cases:
+                with self.subTest(proof_format=proof_format):
+                    write_csv(path, [row, row])
+                    with self.assertRaisesRegex(ValueError, message):
+                        parse_gpu_samples(path)
+
+    def test_powershell_sampler_binary_mib_helper_matches_python_contract(self):
+        powershell = shutil.which("powershell")
+        if powershell is None:
+            self.skipTest("Windows PowerShell is unavailable")
+        sampler = (
+            Path(__file__).parents[1]
+            / "collect_openvino_runtime_utilization.ps1"
+        )
+        command = """
+$tokens = $null
+$errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile(
+    $env:OPENVINO_SAMPLER_PATH,
+    [ref]$tokens,
+    [ref]$errors
+)
+if ($errors.Count -ne 0) { throw 'sampler script has parse errors' }
+$helper = $ast.Find({
+    param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -eq 'Format-BinaryMiB'
+}, $true)
+if ($null -eq $helper) { throw 'Format-BinaryMiB helper is missing' }
+Invoke-Expression $helper.Extent.Text
+0, 8191, 8192, 8193, 1048576, 9007199254749183, 18446744073709551615 |
+    ForEach-Object { Format-BinaryMiB $_ }
+"""
+        environment = {**os.environ, "OPENVINO_SAMPLER_PATH": str(sampler)}
+        completed = subprocess.run(
+            [powershell, "-NoProfile", "-Command", command],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(
+            completed.stdout.splitlines(),
+            [
+                "0.000000",
+                "0.007812",
+                "0.007813",
+                "0.007813",
+                "1.000000",
+                "8589934592.007812",
+                "17592186044415.999999",
+            ],
+        )
+
     def test_gpu_parser_rejects_missing_or_invalid_combined_byte_proof(self):
         row = {
             "timestamp_utc": "2026-07-29T00:00:01Z",
@@ -1111,6 +1249,27 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                     mutate(record)
                     with self.assertRaisesRegex(ValueError, expected_error):
                         measurement_sample(record, source)
+
+    def test_gpu_measurement_sample_accepts_half_up_midpoint_byte_receipt(self):
+        record = governed_record(
+            standard_cpu_telemetry(device="GPU", actual_device="GPU.0")
+        )
+        record.update(
+            gpu_dedicated_memory_peak_mb=0.007813,
+            gpu_shared_memory_peak_mb=0.0,
+            gpu_memory_peak_mb=0.007813,
+            gpu_dedicated_memory_peak_bytes=8192,
+            gpu_shared_memory_peak_bytes=0,
+            gpu_memory_peak_dedicated_bytes=8192,
+            gpu_memory_peak_shared_bytes=0,
+            gpu_memory_peak_bytes=8192,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            sample = measurement_sample(record, source)
+
+        self.assertEqual(sample["gpu_memory_peak_mb"], 0.007813)
 
     def test_cpu_measurement_sample_allows_honest_zero_gpu_evidence(self):
         record = governed_record(activation_telemetry())

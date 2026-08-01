@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .runtime_measurement import format_binary_mib
 from .runtime_process import measurement_sample
 
 
@@ -45,7 +46,6 @@ RAW_MIB_FIELDS = {
 }
 _SHA256_LENGTH = 64
 _MEMORY_RECEIPT_SCHEMA = "official-openvino-memory-unit-receipt/v2"
-_GPU_MIB_DECIMAL_PLACES = 6
 _MIB_PROJECTION_PROVENANCE = {
     "peak_working_set_mb": (
         "owned_process_memory.working_set_bytes",
@@ -178,9 +178,7 @@ def _require_binary_mib_receipt(
         raise ValueError(
             "gpu_memory_peak_mb byte components do not equal combined proof"
         )
-    expected_gpu_mib_display = float(
-        format(gpu_memory_bytes / (1024**2), f".{_GPU_MIB_DECIMAL_PLACES}f")
-    )
+    expected_gpu_mib_display = float(format_binary_mib(gpu_memory_bytes))
     if (
         _finite_nonnegative(record.get("gpu_memory_peak_mb"), "gpu_memory_peak_mb")
         != expected_gpu_mib_display

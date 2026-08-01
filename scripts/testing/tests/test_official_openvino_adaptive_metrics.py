@@ -356,6 +356,22 @@ def test_adaptive_sample_projects_gpu_mib_from_combined_byte_proof(tmp_path: Pat
     assert sample["gpu_memory_peak_mib"] == 12_288.00055217743
 
 
+def test_adaptive_sample_accepts_half_up_midpoint_byte_display(tmp_path: Path) -> None:
+    record = complete_record()
+    record.update(
+        gpu_dedicated_memory_peak_mb=0.007813,
+        gpu_memory_peak_mb=0.007813,
+        gpu_memory_peak_dedicated_bytes=8192,
+        gpu_memory_peak_shared_bytes=0,
+        gpu_memory_peak_bytes=8192,
+    )
+
+    sample = _sample(record, tmp_path)
+
+    assert sample["gpu_memory_peak_mb"] == 0.007813
+    assert sample["gpu_memory_peak_mib"] == 0.0078125
+
+
 @pytest.mark.parametrize(
     "mutate",
     [
