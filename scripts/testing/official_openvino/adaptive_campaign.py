@@ -93,37 +93,6 @@ def _campaign_job_name(campaign_root: Path) -> str:
     return f"WB04-adaptive-campaign-{identity}"
 
 
-def _require_open_campaign_job(campaign_job: KillOnCloseJob) -> KillOnCloseJob:
-    if type(campaign_job) is not KillOnCloseJob:
-        raise RuntimeError("real campaign Job Object is required")
-    handle = getattr(campaign_job, "_handle", None)
-    if type(handle) is not int or handle <= 0:
-        raise RuntimeError("real campaign Job Object handle is not open")
-    return campaign_job
-
-
-class _CampaignOwnedJobProbe:
-    """Own the one containing Job Object for the complete campaign lifetime."""
-
-    def __init__(self, campaign_root: Path):
-        self.name = _campaign_job_name(campaign_root)
-        self.job: KillOnCloseJob | None = None
-
-    def __enter__(self) -> "_CampaignOwnedJobProbe":
-        self.job = KillOnCloseJob(self.name)
-        return self
-
-    def __exit__(self, *_: Any) -> None:
-        if self.job is not None:
-            self.job.close()
-            self.job = None
-
-    def require_job(self) -> KillOnCloseJob:
-        if self.job is None:
-            raise RuntimeError("real campaign Job Object is not open")
-        return _require_open_campaign_job(self.job)
-
-
 def build_ladder(matrix_path: Path) -> tuple[tuple[str, int], ...]:
     """Validate the matrix and return the fixed context-major run order."""
 
@@ -1387,55 +1356,33 @@ def _set_campaign_halt(
         }
 
 
-def _record_live_survivor_probe(
+def _record_job_query_receipt(
     *,
     config: AdaptiveCampaignConfig,
     state: dict[str, Any],
     stage: str,
-    campaign_job: KillOnCloseJob,
+    query_ok: bool,
+    active_pids: list[int] | None,
+    error: str | None,
 ) -> bool:
+    """Serialize one already-completed campaign Job query into state."""
+
     root = Path(config.campaign_root).resolve()
-    try:
-        real_job = _require_open_campaign_job(campaign_job)
-        active = KillOnCloseJob.active_pids(real_job)
-        raw: Mapping[str, Any] = {
-            "schema": JOB_PROBE_SCHEMA,
-            "job_name": _campaign_job_name(root),
-            "query_ok": True,
-            "active_pids": sorted(active),
-        }
-    except (OSError, RuntimeError) as error:
-        raw = {
-            "schema": JOB_PROBE_SCHEMA,
-            "job_name": _campaign_job_name(root),
-            "query_ok": False,
-            "active_pids": None,
-            "error": f"{type(error).__name__}: {error}",
-        }
-    raw_mapping = dict(raw) if isinstance(raw, Mapping) else {}
-    query_ok = raw_mapping.get("query_ok")
-    active_value = raw_mapping.get("active_pids")
-    active_pids = (
-        sorted(active_value)
-        if isinstance(active_value, list)
-        and all(type(pid) is int and pid > 0 for pid in active_value)
+    normalized_active_pids = (
+        sorted(active_pids)
+        if isinstance(active_pids, list)
+        and all(type(pid) is int and pid > 0 for pid in active_pids)
         else None
     )
     missing = (
-        "query_ok" not in raw_mapping
-        or "active_pids" not in raw_mapping
-        or type(query_ok) is not bool
-        or (query_ok is True and active_pids is None)
-        or (
-            query_ok is True
-            and raw_mapping.get("schema") != JOB_PROBE_SCHEMA
-        )
+        type(query_ok) is not bool
+        or (query_ok is True and normalized_active_pids is None)
     )
     if missing:
         failure_reason = "owned-survivor-proof-missing"
     elif query_ok is not True:
         failure_reason = "owned-survivor-proof-query-failed"
-    elif active_pids:
+    elif normalized_active_pids:
         failure_reason = "owned-survivor-proof-survivors-present"
     else:
         failure_reason = None
@@ -1452,10 +1399,10 @@ def _record_live_survivor_probe(
         "schema": JOB_PROBE_SCHEMA,
         "probe_number": number,
         "stage": stage,
-        "job_name": raw_mapping.get("job_name"),
+        "job_name": _campaign_job_name(root),
         "query_ok": query_ok if type(query_ok) is bool else False,
-        "active_pids": active_pids,
-        "error": raw_mapping.get("error"),
+        "active_pids": normalized_active_pids,
+        "error": error if isinstance(error, str) else None,
     }
     destination.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_json(destination, receipt)
@@ -1463,7 +1410,7 @@ def _record_live_survivor_probe(
         "probe_number": number,
         "stage": stage,
         "query_ok": receipt["query_ok"],
-        "active_pids": active_pids,
+        "active_pids": normalized_active_pids,
         "receipt_path": relative.as_posix(),
         "receipt_sha256": _sha256_file(destination),
     }
@@ -1943,353 +1890,6 @@ def _validate_state_receipts(
             raise ValueError("controller receipt attempt count drift prevents resume")
 
 
-def _runtime_kwargs(
-    config: AdaptiveCampaignConfig,
-    *,
-    spec_path: Path,
-    spec: Mapping[str, Any],
-    test_id: str,
-    context: int,
-    campaign_job: KillOnCloseJob,
-) -> dict[str, Any]:
-    campaign_job = _require_open_campaign_job(campaign_job)
-    return {
-        "spec_path": spec_path,
-        "campaign_root": (
-            Path(config.campaign_root).resolve()
-            / "runtime"
-            / test_id
-            / f"context-{context}"
-        ),
-        "matrix_path": Path(config.matrix_path).resolve(),
-        "artifact_manifest_path": Path(str(spec["artifact_manifest_path"])).resolve(),
-        "build_provenance_path": Path(config.build_provenance_path).resolve(),
-        "build_root": Path(config.build_root).resolve(),
-        "repo_root": _ROOT,
-        "python_executable": Path(config.python_executable).resolve(),
-        "python_site_packages": Path(config.python_site_packages).resolve(),
-        "openvino_libraries": Path(config.openvino_libraries).resolve(),
-        "sampler_script": Path(config.sampler_script).resolve(),
-        "launch_minimum_available_ram_mib": START_RESERVE_MIB,
-        "emergency_minimum_available_ram_mib": RUNTIME_FLOOR_MIB,
-        "campaign_job": campaign_job,
-    }
-
-
-def _execute_runtime_step(
-    state: dict[str, Any],
-    *,
-    config: AdaptiveCampaignConfig,
-    test_id: str,
-    context: int,
-    spec_path: Path,
-    spec: Mapping[str, Any],
-    run_runtime: Callable[..., Mapping[str, Any]],
-    available_ram: Callable[[], int | None],
-    campaign_job: KillOnCloseJob,
-) -> dict[str, Any]:
-    campaign_job = _require_open_campaign_job(campaign_job)
-    attempts = _controller_attempts(config, test_id, context)
-    attempts = _reconcile_native_runtime_failures(
-        config=config,
-        state=state,
-        test_id=test_id,
-        context=context,
-        adaptive_spec=spec,
-        controller_attempts=attempts,
-    )
-    failure_fingerprints = [
-        attempt["failure_fingerprint"]
-        for attempt in attempts
-        if attempt["status"] == "retryable-failure"
-    ]
-    runtime_root = _runtime_kwargs(
-        config,
-        spec_path=spec_path,
-        spec=spec,
-        test_id=test_id,
-        context=context,
-        campaign_job=campaign_job,
-    )["campaign_root"]
-    if state.get("campaign_halt") is not None and not attempts:
-        return state
-    if attempts:
-        last = attempts[-1]
-        if last["status"] == "passed":
-            state["steps"][f"{test_id}:{context}"] = {
-                "test_id": test_id,
-                "context_tokens": context,
-                "runtime_status": "passed",
-                "quality_status": "not-run",
-                "attempt_count": len(attempts),
-                "failure_fingerprint": None,
-                "evidence_path": last["evidence_path"],
-                "evidence_sha256": last["evidence_sha256"],
-                "attempts": attempts,
-            }
-            return state
-        if state.get("campaign_halt") is not None:
-            status = "safety-boundary"
-        elif last["status"] == "safety-boundary":
-            status = "safety-boundary"
-        elif len(attempts) == MAX_GUARDED_ATTEMPTS:
-            status = (
-                "boundary-confirmed"
-                if failure_fingerprints[0] == failure_fingerprints[1]
-                else "inconclusive-safety-boundary"
-            )
-        else:
-            status = "retryable-failure"
-        if status != "retryable-failure":
-            state["steps"][f"{test_id}:{context}"] = {
-                "test_id": test_id,
-                "context_tokens": context,
-                "runtime_status": status,
-                "quality_status": "not-run",
-                "attempt_count": len(attempts),
-                "failure_fingerprint": (
-                    last["failure_fingerprint"]
-                    if status == "boundary-confirmed"
-                    else None
-                ),
-                "evidence_path": last["evidence_path"],
-                "evidence_sha256": last["evidence_sha256"],
-                "attempts": attempts,
-            }
-            return state
-
-    for attempt_number in range(len(attempts) + 1, MAX_GUARDED_ATTEMPTS + 1):
-        try:
-            _require_zero_recorded_survivors(state)
-            if not _record_live_survivor_probe(
-                config=config,
-                state=state,
-                stage=f"before-launch:{test_id}:{context}:{attempt_number}",
-                campaign_job=campaign_job,
-            ):
-                return state
-            _require_start_reserve(available_ram)
-            campaign_job = _require_open_campaign_job(campaign_job)
-        except RuntimeError as error:
-            _set_campaign_halt(
-                state,
-                reason="unsafe-ram-or-survivor-admission",
-                detail={"stage": "before-launch", "error": str(error)},
-            )
-            save_state_atomically(
-                Path(config.campaign_root).resolve()
-                / "adaptive-campaign-state.json",
-                state,
-            )
-            return state
-        try:
-            result = dict(
-                run_runtime(
-                    **_runtime_kwargs(
-                        config,
-                        spec_path=spec_path,
-                        spec=spec,
-                        test_id=test_id,
-                        context=context,
-                        campaign_job=campaign_job,
-                    )
-                )
-            )
-        except MeasurementSequenceFailure as error:
-            raw_failure = error.failure
-            raw_record = (
-                dict(raw_failure.record)
-                if isinstance(raw_failure.record, Mapping)
-                else {}
-            )
-            raw_record.setdefault("controlled_test_id", test_id)
-            raw_record.setdefault("context_tokens", context)
-            raw_record.setdefault("artifact_id", spec.get("artifact_id"))
-            raw_record.setdefault(
-                "artifact_manifest_sha256",
-                spec.get("artifact_manifest_sha256"),
-            )
-            case = next(
-                item
-                for item in load_adaptive_comparison_matrix(config.matrix_path)
-                if item.test_id == test_id
-            )
-            raw_record.setdefault("model", case.model)
-            raw_record.setdefault("device", case.device)
-            raw_record.setdefault("execution_route", case.execution_route)
-            raw_record.setdefault(
-                "launch_minimum_available_ram_mib", START_RESERVE_MIB
-            )
-            raw_record.setdefault(
-                "emergency_minimum_available_ram_mib", RUNTIME_FLOOR_MIB
-            )
-            failure = MeasurementFailureRecord(
-                role=raw_failure.role,
-                record_path=raw_failure.record_path,
-                record=raw_record,
-                fingerprint=raw_failure.fingerprint,
-            )
-            outcome = classify_runtime_failure(failure)
-            record = raw_record
-            receipt = _write_controller_receipt(
-                config=config,
-                test_id=test_id,
-                context=context,
-                attempt_number=attempt_number,
-                status=outcome.runtime_status,
-                evidence_path=outcome.evidence_path,
-                evidence_sha256=outcome.evidence_sha256,
-                failure_fingerprint=outcome.failure_fingerprint,
-                residual_owned_process_count=int(
-                    record.get("residual_owned_process_count", -1)
-                ),
-            )
-            attempts.append(receipt)
-            failure_fingerprints.append(outcome.failure_fingerprint)
-            if outcome.runtime_status != "retryable-failure":
-                status = "safety-boundary"
-                break
-            if attempt_number == MAX_GUARDED_ATTEMPTS:
-                status = (
-                    "boundary-confirmed"
-                    if failure_fingerprints[0] == failure_fingerprints[1]
-                    else "inconclusive-safety-boundary"
-                )
-                break
-            try:
-                _require_zero_recorded_survivors(
-                    {"steps": {"current": {"attempts": attempts}}}
-                )
-                if not _record_live_survivor_probe(
-                    config=config,
-                    state=state,
-                    stage=f"before-retry:{test_id}:{context}:{attempt_number + 1}",
-                    campaign_job=campaign_job,
-                ):
-                    status = "safety-boundary"
-                    break
-                _require_start_reserve(available_ram)
-                campaign_job = _require_open_campaign_job(campaign_job)
-            except RuntimeError as error:
-                _set_campaign_halt(
-                    state,
-                    reason="unsafe-retry-admission",
-                    detail={"stage": "before-retry", "error": str(error)},
-                )
-                status = "safety-boundary"
-                break
-            continue
-        evidence_path = Path(runtime_root) / "attempt-sequence.json"
-        if not evidence_path.is_file() or _load_json(
-            evidence_path, "measurement sequence evidence"
-        ) != result:
-            raise RuntimeError("runtime sequence result is not immutable evidence")
-        if (
-            result.get("accepted_sample_count") != 3
-            or result.get("cleanup_process_count") != 0
-        ):
-            raise RuntimeError("runtime sequence did not pass formal validation")
-        evidence_sha256 = _sha256_file(evidence_path)
-        attempts.append(
-            _write_controller_receipt(
-                config=config,
-                test_id=test_id,
-                context=context,
-                attempt_number=attempt_number,
-                status="passed",
-                evidence_path=evidence_path,
-                evidence_sha256=evidence_sha256,
-                failure_fingerprint=None,
-                residual_owned_process_count=0,
-            )
-        )
-        state["steps"][f"{test_id}:{context}"] = {
-            "test_id": test_id,
-            "context_tokens": context,
-            "runtime_status": "passed",
-            "quality_status": "not-run",
-            "attempt_count": attempt_number,
-            "failure_fingerprint": None,
-            "evidence_path": str(evidence_path.resolve()),
-            "evidence_sha256": evidence_sha256,
-            "attempts": attempts,
-        }
-        return state
-    else:  # pragma: no cover - the fixed two-attempt loop always returns or breaks
-        raise AssertionError("unreachable guarded attempt state")
-
-    last_outcome_fingerprint = attempts[-1]["failure_fingerprint"]
-    last_evidence_path = Path(attempts[-1]["evidence_path"])
-    last_evidence_sha256 = attempts[-1]["evidence_sha256"]
-    state["steps"][f"{test_id}:{context}"] = {
-        "test_id": test_id,
-        "context_tokens": context,
-        "runtime_status": status,
-        "quality_status": "not-run",
-        "attempt_count": len(attempts),
-        "failure_fingerprint": (
-            last_outcome_fingerprint
-            if status == "boundary-confirmed"
-            else None
-        ),
-        "evidence_path": str(last_evidence_path.resolve()),
-        "evidence_sha256": last_evidence_sha256,
-        "attempts": attempts,
-    }
-    if status == "boundary-confirmed":
-        state["boundaries"][test_id] = {
-            "context_tokens": context,
-            "failure_fingerprint": last_outcome_fingerprint,
-            "source": "matching-guarded-attempts",
-        }
-    elif status == "safety-boundary":
-        _set_campaign_halt(
-            state,
-            reason="unsafe-runtime-failure",
-            detail={
-                "test_id": test_id,
-                "context_tokens": context,
-                "evidence_path": str(last_evidence_path.resolve()),
-                "evidence_sha256": last_evidence_sha256,
-            },
-        )
-    return state
-
-
-def _execute_quality_step(
-    state: dict[str, Any],
-    *,
-    config: AdaptiveCampaignConfig,
-    test_id: str,
-    context: int,
-    run_quality: Callable[..., Mapping[str, Any]] | None,
-) -> dict[str, Any]:
-    step = state["steps"][f"{test_id}:{context}"]
-    if run_quality is None:
-        step["quality_status"] = "quality-blocked"
-        step["quality_recovery"] = {
-            "test_id": test_id,
-            "context_tokens": context,
-            "runtime_evidence_path": step["evidence_path"],
-            "runtime_evidence_sha256": step["evidence_sha256"],
-        }
-        return state
-    quality_input = {
-        "test_id": test_id,
-        "context_tokens": context,
-        "runtime_evidence_path": step["evidence_path"],
-        "runtime_evidence_sha256": step["evidence_sha256"],
-        "campaign_root": str(Path(config.campaign_root).resolve()),
-    }
-    result = dict(run_quality(quality_input, resume=False))
-    status = result.get("status")
-    if status not in {"passed", "quality-blocked"}:
-        raise RuntimeError("quality callback returned an invalid status")
-    step["quality_status"] = status
-    step["quality_result"] = result
-    return state
-
-
 def run_adaptive_campaign(
     config: AdaptiveCampaignConfig,
     *,
@@ -2300,9 +1900,378 @@ def run_adaptive_campaign(
 ) -> dict[str, Any]:
     """Run or resume the fixed ladder while checkpointing each final step."""
 
-    with _CampaignOwnedJobProbe(config.campaign_root) as guard:
-        campaign_job = guard.require_job()
-        campaign_root = Path(config.campaign_root).resolve()
+    campaign_root = Path(config.campaign_root).resolve()
+    campaign_job = KillOnCloseJob(_campaign_job_name(campaign_root))
+    try:
+        def require_owned_job_open() -> KillOnCloseJob:
+            if type(campaign_job) is not KillOnCloseJob:
+                raise RuntimeError("real campaign Job Object is required")
+            handle = getattr(campaign_job, "_handle", None)
+            if type(handle) is not int or handle <= 0:
+                raise RuntimeError("real campaign Job Object handle is not open")
+            return campaign_job
+
+        def record_live_survivors(
+            state: dict[str, Any],
+            stage: str,
+        ) -> bool:
+            try:
+                owned_job = require_owned_job_open()
+                active_pids = KillOnCloseJob.active_pids(owned_job)
+                query_ok = True
+                query_error = None
+            except (OSError, RuntimeError) as error:
+                active_pids = None
+                query_ok = False
+                query_error = f"{type(error).__name__}: {error}"
+            return _record_job_query_receipt(
+                config=config,
+                state=state,
+                stage=stage,
+                query_ok=query_ok,
+                active_pids=active_pids,
+                error=query_error,
+            )
+
+        def execute_runtime_step(
+            state: dict[str, Any],
+            *,
+            test_id: str,
+            context: int,
+            spec_path: Path,
+            spec: Mapping[str, Any],
+        ) -> dict[str, Any]:
+            attempts = _controller_attempts(config, test_id, context)
+            attempts = _reconcile_native_runtime_failures(
+                config=config,
+                state=state,
+                test_id=test_id,
+                context=context,
+                adaptive_spec=spec,
+                controller_attempts=attempts,
+            )
+            failure_fingerprints = [
+                attempt["failure_fingerprint"]
+                for attempt in attempts
+                if attempt["status"] == "retryable-failure"
+            ]
+            runtime_root = (
+                campaign_root / "runtime" / test_id / f"context-{context}"
+            )
+            if state.get("campaign_halt") is not None and not attempts:
+                return state
+            if attempts:
+                last = attempts[-1]
+                if last["status"] == "passed":
+                    state["steps"][f"{test_id}:{context}"] = {
+                        "test_id": test_id,
+                        "context_tokens": context,
+                        "runtime_status": "passed",
+                        "quality_status": "not-run",
+                        "attempt_count": len(attempts),
+                        "failure_fingerprint": None,
+                        "evidence_path": last["evidence_path"],
+                        "evidence_sha256": last["evidence_sha256"],
+                        "attempts": attempts,
+                    }
+                    return state
+                if state.get("campaign_halt") is not None:
+                    status = "safety-boundary"
+                elif last["status"] == "safety-boundary":
+                    status = "safety-boundary"
+                elif len(attempts) == MAX_GUARDED_ATTEMPTS:
+                    status = (
+                        "boundary-confirmed"
+                        if failure_fingerprints[0] == failure_fingerprints[1]
+                        else "inconclusive-safety-boundary"
+                    )
+                else:
+                    status = "retryable-failure"
+                if status != "retryable-failure":
+                    state["steps"][f"{test_id}:{context}"] = {
+                        "test_id": test_id,
+                        "context_tokens": context,
+                        "runtime_status": status,
+                        "quality_status": "not-run",
+                        "attempt_count": len(attempts),
+                        "failure_fingerprint": (
+                            last["failure_fingerprint"]
+                            if status == "boundary-confirmed"
+                            else None
+                        ),
+                        "evidence_path": last["evidence_path"],
+                        "evidence_sha256": last["evidence_sha256"],
+                        "attempts": attempts,
+                    }
+                    return state
+
+            for attempt_number in range(
+                len(attempts) + 1,
+                MAX_GUARDED_ATTEMPTS + 1,
+            ):
+                try:
+                    _require_zero_recorded_survivors(state)
+                    if not record_live_survivors(
+                        state,
+                        f"before-launch:{test_id}:{context}:{attempt_number}",
+                    ):
+                        return state
+                    _require_start_reserve(available_ram)
+                    require_owned_job_open()
+                    arguments = {
+                        "spec_path": spec_path,
+                        "campaign_root": runtime_root,
+                        "matrix_path": Path(config.matrix_path).resolve(),
+                        "artifact_manifest_path": Path(
+                            str(spec["artifact_manifest_path"])
+                        ).resolve(),
+                        "build_provenance_path": Path(
+                            config.build_provenance_path
+                        ).resolve(),
+                        "build_root": Path(config.build_root).resolve(),
+                        "repo_root": _ROOT,
+                        "python_executable": Path(
+                            config.python_executable
+                        ).resolve(),
+                        "python_site_packages": Path(
+                            config.python_site_packages
+                        ).resolve(),
+                        "openvino_libraries": Path(
+                            config.openvino_libraries
+                        ).resolve(),
+                        "sampler_script": Path(
+                            config.sampler_script
+                        ).resolve(),
+                        "launch_minimum_available_ram_mib": (
+                            START_RESERVE_MIB
+                        ),
+                        "emergency_minimum_available_ram_mib": (
+                            RUNTIME_FLOOR_MIB
+                        ),
+                        "campaign_job": campaign_job,
+                    }
+                except RuntimeError as error:
+                    _set_campaign_halt(
+                        state,
+                        reason="unsafe-ram-or-survivor-admission",
+                        detail={
+                            "stage": "before-launch",
+                            "error": str(error),
+                        },
+                    )
+                    save_state_atomically(
+                        campaign_root / "adaptive-campaign-state.json",
+                        state,
+                    )
+                    return state
+                try:
+                    result = dict(run_runtime(**arguments))
+                except MeasurementSequenceFailure as error:
+                    raw_failure = error.failure
+                    raw_record = (
+                        dict(raw_failure.record)
+                        if isinstance(raw_failure.record, Mapping)
+                        else {}
+                    )
+                    raw_record.setdefault("controlled_test_id", test_id)
+                    raw_record.setdefault("context_tokens", context)
+                    raw_record.setdefault("artifact_id", spec.get("artifact_id"))
+                    raw_record.setdefault(
+                        "artifact_manifest_sha256",
+                        spec.get("artifact_manifest_sha256"),
+                    )
+                    case = next(
+                        item
+                        for item in load_adaptive_comparison_matrix(
+                            config.matrix_path
+                        )
+                        if item.test_id == test_id
+                    )
+                    raw_record.setdefault("model", case.model)
+                    raw_record.setdefault("device", case.device)
+                    raw_record.setdefault(
+                        "execution_route", case.execution_route
+                    )
+                    raw_record.setdefault(
+                        "launch_minimum_available_ram_mib",
+                        START_RESERVE_MIB,
+                    )
+                    raw_record.setdefault(
+                        "emergency_minimum_available_ram_mib",
+                        RUNTIME_FLOOR_MIB,
+                    )
+                    failure = MeasurementFailureRecord(
+                        role=raw_failure.role,
+                        record_path=raw_failure.record_path,
+                        record=raw_record,
+                        fingerprint=raw_failure.fingerprint,
+                    )
+                    outcome = classify_runtime_failure(failure)
+                    receipt = _write_controller_receipt(
+                        config=config,
+                        test_id=test_id,
+                        context=context,
+                        attempt_number=attempt_number,
+                        status=outcome.runtime_status,
+                        evidence_path=outcome.evidence_path,
+                        evidence_sha256=outcome.evidence_sha256,
+                        failure_fingerprint=outcome.failure_fingerprint,
+                        residual_owned_process_count=int(
+                            raw_record.get("residual_owned_process_count", -1)
+                        ),
+                    )
+                    attempts.append(receipt)
+                    failure_fingerprints.append(outcome.failure_fingerprint)
+                    if outcome.runtime_status != "retryable-failure":
+                        status = "safety-boundary"
+                        break
+                    if attempt_number == MAX_GUARDED_ATTEMPTS:
+                        status = (
+                            "boundary-confirmed"
+                            if failure_fingerprints[0]
+                            == failure_fingerprints[1]
+                            else "inconclusive-safety-boundary"
+                        )
+                        break
+                    try:
+                        _require_zero_recorded_survivors(
+                            {"steps": {"current": {"attempts": attempts}}}
+                        )
+                        if not record_live_survivors(
+                            state,
+                            (
+                                f"before-retry:{test_id}:{context}:"
+                                f"{attempt_number + 1}"
+                            ),
+                        ):
+                            status = "safety-boundary"
+                            break
+                        _require_start_reserve(available_ram)
+                        require_owned_job_open()
+                    except RuntimeError as error:
+                        _set_campaign_halt(
+                            state,
+                            reason="unsafe-retry-admission",
+                            detail={
+                                "stage": "before-retry",
+                                "error": str(error),
+                            },
+                        )
+                        status = "safety-boundary"
+                        break
+                    continue
+                evidence_path = runtime_root / "attempt-sequence.json"
+                if not evidence_path.is_file() or _load_json(
+                    evidence_path,
+                    "measurement sequence evidence",
+                ) != result:
+                    raise RuntimeError(
+                        "runtime sequence result is not immutable evidence"
+                    )
+                if (
+                    result.get("accepted_sample_count") != 3
+                    or result.get("cleanup_process_count") != 0
+                ):
+                    raise RuntimeError(
+                        "runtime sequence did not pass formal validation"
+                    )
+                evidence_sha256 = _sha256_file(evidence_path)
+                attempts.append(
+                    _write_controller_receipt(
+                        config=config,
+                        test_id=test_id,
+                        context=context,
+                        attempt_number=attempt_number,
+                        status="passed",
+                        evidence_path=evidence_path,
+                        evidence_sha256=evidence_sha256,
+                        failure_fingerprint=None,
+                        residual_owned_process_count=0,
+                    )
+                )
+                state["steps"][f"{test_id}:{context}"] = {
+                    "test_id": test_id,
+                    "context_tokens": context,
+                    "runtime_status": "passed",
+                    "quality_status": "not-run",
+                    "attempt_count": attempt_number,
+                    "failure_fingerprint": None,
+                    "evidence_path": str(evidence_path.resolve()),
+                    "evidence_sha256": evidence_sha256,
+                    "attempts": attempts,
+                }
+                return state
+            else:  # pragma: no cover - fixed loop returns or breaks
+                raise AssertionError("unreachable guarded attempt state")
+
+            last_outcome_fingerprint = attempts[-1]["failure_fingerprint"]
+            last_evidence_path = Path(attempts[-1]["evidence_path"])
+            last_evidence_sha256 = attempts[-1]["evidence_sha256"]
+            state["steps"][f"{test_id}:{context}"] = {
+                "test_id": test_id,
+                "context_tokens": context,
+                "runtime_status": status,
+                "quality_status": "not-run",
+                "attempt_count": len(attempts),
+                "failure_fingerprint": (
+                    last_outcome_fingerprint
+                    if status == "boundary-confirmed"
+                    else None
+                ),
+                "evidence_path": str(last_evidence_path.resolve()),
+                "evidence_sha256": last_evidence_sha256,
+                "attempts": attempts,
+            }
+            if status == "boundary-confirmed":
+                state["boundaries"][test_id] = {
+                    "context_tokens": context,
+                    "failure_fingerprint": last_outcome_fingerprint,
+                    "source": "matching-guarded-attempts",
+                }
+            elif status == "safety-boundary":
+                _set_campaign_halt(
+                    state,
+                    reason="unsafe-runtime-failure",
+                    detail={
+                        "test_id": test_id,
+                        "context_tokens": context,
+                        "evidence_path": str(last_evidence_path.resolve()),
+                        "evidence_sha256": last_evidence_sha256,
+                    },
+                )
+            return state
+
+        def execute_quality_step(
+            state: dict[str, Any],
+            *,
+            test_id: str,
+            context: int,
+        ) -> dict[str, Any]:
+            step = state["steps"][f"{test_id}:{context}"]
+            if run_quality is None:
+                step["quality_status"] = "quality-blocked"
+                step["quality_recovery"] = {
+                    "test_id": test_id,
+                    "context_tokens": context,
+                    "runtime_evidence_path": step["evidence_path"],
+                    "runtime_evidence_sha256": step["evidence_sha256"],
+                }
+                return state
+            quality_input = {
+                "test_id": test_id,
+                "context_tokens": context,
+                "runtime_evidence_path": step["evidence_path"],
+                "runtime_evidence_sha256": step["evidence_sha256"],
+                "campaign_root": str(campaign_root),
+            }
+            result = dict(run_quality(quality_input, resume=False))
+            status = result.get("status")
+            if status not in {"passed", "quality-blocked"}:
+                raise RuntimeError("quality callback returned an invalid status")
+            step["quality_status"] = status
+            step["quality_result"] = result
+            return state
+
         with CampaignLock(campaign_root):
             state = load_or_create_state(config)
             if state.get("campaign_halt") is not None:
@@ -2331,25 +2300,19 @@ def run_adaptive_campaign(
                         if publish_checkpoint is not None:
                             publish_checkpoint(state_path, False)
                     continue
-                if not _record_live_survivor_probe(
-                    config=config,
-                    state=state,
-                    stage=f"before-next-step:{test_id}:{context}",
-                    campaign_job=campaign_job,
+                if not record_live_survivors(
+                    state,
+                    f"before-next-step:{test_id}:{context}",
                 ):
                     if publish_checkpoint is not None:
                         publish_checkpoint(state_path, False)
                     return state
-                state = _execute_runtime_step(
+                state = execute_runtime_step(
                     state,
-                    config=config,
                     test_id=test_id,
                     context=context,
                     spec_path=spec_entry[0],
                     spec=spec_entry[1],
-                    run_runtime=run_runtime,
-                    available_ram=available_ram,
-                    campaign_job=campaign_job,
                 )
                 if state.get("campaign_halt") is not None and (
                     f"{test_id}:{context}" not in state["steps"]
@@ -2361,12 +2324,10 @@ def run_adaptive_campaign(
                     state["steps"][f"{test_id}:{context}"]["runtime_status"]
                     == "passed"
                 ):
-                    state = _execute_quality_step(
+                    state = execute_quality_step(
                         state,
-                        config=config,
                         test_id=test_id,
                         context=context,
-                        run_quality=run_quality,
                     )
                 save_state_atomically(state_path, state)
                 if publish_checkpoint is not None:
@@ -2377,6 +2338,8 @@ def run_adaptive_campaign(
                 ):
                     break
             return state
+    finally:
+        campaign_job.close()
 
 
 def preflight_adaptive_campaign(
@@ -2386,9 +2349,36 @@ def preflight_adaptive_campaign(
 ) -> dict[str, Any]:
     """Validate all bindings and safety gates without creating an attempt."""
 
-    with _CampaignOwnedJobProbe(config.campaign_root) as guard:
-        campaign_job = guard.require_job()
-        root = Path(config.campaign_root).resolve()
+    root = Path(config.campaign_root).resolve()
+    campaign_job = KillOnCloseJob(_campaign_job_name(root))
+    try:
+        def require_owned_job_open() -> KillOnCloseJob:
+            if type(campaign_job) is not KillOnCloseJob:
+                raise RuntimeError("real campaign Job Object is required")
+            handle = getattr(campaign_job, "_handle", None)
+            if type(handle) is not int or handle <= 0:
+                raise RuntimeError("real campaign Job Object handle is not open")
+            return campaign_job
+
+        def record_live_survivors(state: dict[str, Any]) -> bool:
+            try:
+                owned_job = require_owned_job_open()
+                active_pids = KillOnCloseJob.active_pids(owned_job)
+                query_ok = True
+                query_error = None
+            except (OSError, RuntimeError) as error:
+                active_pids = None
+                query_ok = False
+                query_error = f"{type(error).__name__}: {error}"
+            return _record_job_query_receipt(
+                config=config,
+                state=state,
+                stage="preflight",
+                query_ok=query_ok,
+                active_pids=active_pids,
+                error=query_error,
+            )
+
         with CampaignLock(root):
             state = load_or_create_state(config)
             if state.get("campaign_halt") is not None:
@@ -2397,12 +2387,7 @@ def preflight_adaptive_campaign(
                 )
             try:
                 _require_zero_recorded_survivors(state)
-                if not _record_live_survivor_probe(
-                    config=config,
-                    state=state,
-                    stage="preflight",
-                    campaign_job=campaign_job,
-                ):
+                if not record_live_survivors(state):
                     raise RuntimeError(
                         "adaptive campaign is halted: "
                         f"{state['campaign_halt']['reason']}"
@@ -2419,6 +2404,8 @@ def preflight_adaptive_campaign(
                 )
                 raise
             return state
+    finally:
+        campaign_job.close()
 
 
 def campaign_status(

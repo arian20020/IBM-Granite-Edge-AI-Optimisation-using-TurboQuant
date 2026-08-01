@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from types import CodeType
 
 import pytest
 
@@ -905,8 +906,19 @@ def test_checkpoint_is_published_after_each_completed_or_terminal_step(
     assert all(step["quality_status"] == "quality-blocked" for step in result["steps"].values())
 
 
-def test_preflight_validates_and_does_not_launch_or_create_attempts(tmp_path: Path) -> None:
+def test_preflight_validates_and_does_not_launch_or_create_attempts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     config = _campaign_inputs(tmp_path)
+    real_active_pids = KillOnCloseJob.active_pids
+    queried_jobs: list[KillOnCloseJob] = []
+
+    def record_query(job: KillOnCloseJob) -> list[int]:
+        queried_jobs.append(job)
+        return real_active_pids(job)
+
+    monkeypatch.setattr(KillOnCloseJob, "active_pids", record_query)
 
     state = preflight_adaptive_campaign(
         config,
@@ -915,6 +927,9 @@ def test_preflight_validates_and_does_not_launch_or_create_attempts(tmp_path: Pa
     status = campaign_status(config, state)
 
     assert status["next_eligible_step"] == ["OV-11", 512]
+    assert len(queried_jobs) == 1
+    assert type(queried_jobs[0]) is KillOnCloseJob
+    assert getattr(queried_jobs[0], "_handle", object()) is None
     assert not any(config.campaign_root.rglob("attempt-*"))
 
 
@@ -1242,8 +1257,59 @@ def test_resume_reopens_actual_artifact_inventory_bytes(tmp_path: Path) -> None:
         load_or_create_state(config)
 
 
-def test_orchestration_api_exposes_no_guard_probe_job_or_factory() -> None:
+def test_module_exposes_no_private_runtime_launcher_or_job_ownership_helper() -> None:
+    assert not hasattr(adaptive_controller, "_execute_runtime_step")
     assert not hasattr(adaptive_controller, "_run_adaptive_campaign_with_probe")
+    assert not hasattr(adaptive_controller, "_CampaignOwnedJobProbe")
+
+    module_functions = {
+        name: value
+        for name, value in vars(adaptive_controller).items()
+        if inspect.isfunction(value)
+        and value.__module__ == adaptive_controller.__name__
+    }
+    module_classes = {
+        name
+        for name, value in vars(adaptive_controller).items()
+        if inspect.isclass(value)
+        and value.__module__ == adaptive_controller.__name__
+    }
+    private_runtime_launchers = []
+    job_accepting_functions = []
+    callback_accepting_functions = []
+    for name, function in module_functions.items():
+        signature = inspect.signature(function)
+        if name != "run_adaptive_campaign" and (
+            "run_runtime" in signature.parameters
+            or "run_runtime" in function.__code__.co_names
+            or "run_measurement_sequence" in function.__code__.co_names
+        ):
+            private_runtime_launchers.append(name)
+        if any(
+            parameter.annotation is KillOnCloseJob
+            or "KillOnCloseJob" in str(parameter.annotation)
+            or any(
+                ownership_word in parameter_name.lower()
+                for ownership_word in ("job", "guard", "probe")
+            )
+            for parameter_name, parameter in signature.parameters.items()
+        ) or "KillOnCloseJob" in str(signature.return_annotation):
+            job_accepting_functions.append(name)
+        if any(
+            "Callable" in str(parameter.annotation)
+            for parameter in signature.parameters.values()
+        ):
+            callback_accepting_functions.append(name)
+
+    assert module_classes == {"AdaptiveCampaignConfig", "StepOutcome"}
+    assert private_runtime_launchers == []
+    assert job_accepting_functions == []
+    assert set(callback_accepting_functions) == {
+        "_require_start_reserve",
+        "run_adaptive_campaign",
+        "preflight_adaptive_campaign",
+    }
+
     for entry_point in (run_adaptive_campaign, preflight_adaptive_campaign):
         parameters = inspect.signature(entry_point).parameters
         assert not {
@@ -1253,6 +1319,32 @@ def test_orchestration_api_exposes_no_guard_probe_job_or_factory() -> None:
             "owned_survivor_probe",
             "probe",
         }.intersection(parameters)
+
+
+def test_nested_runtime_launcher_captures_owned_job_without_ownership_parameters() -> None:
+    nested_launcher = next(
+        constant
+        for constant in run_adaptive_campaign.__code__.co_consts
+        if isinstance(constant, CodeType)
+        and constant.co_name == "execute_runtime_step"
+    )
+    parameters = set(
+        nested_launcher.co_varnames[
+            : nested_launcher.co_argcount + nested_launcher.co_kwonlyargcount
+        ]
+    )
+
+    assert not {
+        "campaign_guard",
+        "campaign_job",
+        "campaign_job_factory",
+        "owned_survivor_probe",
+        "probe",
+        "run_runtime",
+    }.intersection(parameters)
+    assert {"campaign_job", "run_runtime"}.issubset(
+        nested_launcher.co_freevars
+    )
 
 
 def test_former_private_fake_guard_exploit_cannot_launch(
@@ -1294,6 +1386,38 @@ def test_former_private_fake_guard_exploit_cannot_launch(
             pass
 
     assert runner.calls == []
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
+def test_unrelated_real_job_has_no_private_runtime_launcher_target(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    state = load_or_create_state(config)
+    spec_path = config.spec_root / "OV-11" / "512" / "runtime-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    runner = _FakeRunner([{}])
+    suffix = hashlib.sha256(str(tmp_path).encode("utf-8")).hexdigest()[:16]
+    unrelated_job = KillOnCloseJob(f"WB04-unrelated-adaptive-job-{suffix}")
+    private_launcher = getattr(adaptive_controller, "_execute_runtime_step", None)
+    try:
+        if private_launcher is not None:
+            private_launcher(
+                state,
+                config=config,
+                test_id="OV-11",
+                context=512,
+                spec_path=spec_path,
+                spec=spec,
+                run_runtime=runner,
+                available_ram=lambda: START_RESERVE_MIB * 1024**2,
+                campaign_job=unrelated_job,
+            )
+    finally:
+        unrelated_job.close()
+
+    assert runner.calls == []
+    assert private_launcher is None
 
 
 def test_public_fake_campaign_job_factory_is_rejected_before_launch(
@@ -1351,33 +1475,37 @@ def test_live_campaign_job_proof_fails_closed_before_launch(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
-def test_closed_real_campaign_job_is_rejected_before_query(
+def test_closed_internally_created_campaign_job_is_rejected_before_query(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = _campaign_inputs(tmp_path)
-    state = load_or_create_state(config)
-    campaign_job = KillOnCloseJob("WB04-test-closed-adaptive-campaign-job")
-    campaign_job.close()
+    runner = _FakeRunner([{} for _ in range(5)])
+    real_init = KillOnCloseJob.__init__
     query_called = False
+
+    def create_closed_job(job: KillOnCloseJob, name: str) -> None:
+        real_init(job, name)
+        job.close()
 
     def fabricated_query(_job: KillOnCloseJob) -> list[int]:
         nonlocal query_called
         query_called = True
         return []
 
+    monkeypatch.setattr(KillOnCloseJob, "__init__", create_closed_job)
     monkeypatch.setattr(KillOnCloseJob, "active_pids", fabricated_query)
 
-    accepted = adaptive_controller._record_live_survivor_probe(
-        config=config,
-        state=state,
-        stage="closed-handle-regression",
-        campaign_job=campaign_job,
+    result = run_adaptive_campaign(
+        config,
+        run_runtime=runner,
+        run_quality=None,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
     )
 
-    assert accepted is False
+    assert runner.calls == []
     assert query_called is False
-    assert state["campaign_halt"]["reason"] == (
+    assert result["campaign_halt"]["reason"] == (
         "owned-survivor-proof-query-failed"
     )
 
@@ -1481,6 +1609,7 @@ def test_real_campaign_job_is_exact_object_passed_to_every_runtime_launch(
     assert all(job is runner.campaign_jobs[0] for job in runner.campaign_jobs)
     assert queried_jobs
     assert all(job is runner.campaign_jobs[0] for job in queried_jobs)
+    assert getattr(runner.campaign_jobs[0], "_handle", object()) is None
     assert result["campaign_halt"] is None
 
 
