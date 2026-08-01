@@ -25,6 +25,7 @@ RUNTIME_ALGORITHMS = frozenset({"STANDARD", "TBQ3", "TBQ4"})
 CACHE_PRECISIONS = frozenset({"f16", "bf16", "f32", "u8", "u4", "u3"})
 PERSISTENT_COMPONENTS = ("standard", "payload", "norm", "metadata")
 RUNTIME_DEVICE_PATTERN = re.compile(r"(?:CPU|GPU(?:\.(?:0|[1-9][0-9]*))?)\Z")
+MIB = 1024**2
 
 
 def _finite_number(value: Any, field: str, *, maximum: float | None = None) -> float:
@@ -484,6 +485,13 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             }
             if reader.fieldnames is None or not required.issubset(reader.fieldnames):
                 raise ValueError("GPU CSV is missing required columns")
+            byte_columns = {
+                "gpu_dedicated_bytes",
+                "gpu_shared_bytes",
+            }
+            has_byte_proof = byte_columns.issubset(reader.fieldnames)
+            if byte_columns.intersection(reader.fieldnames) and not has_byte_proof:
+                raise ValueError("GPU CSV has incomplete binary byte proof")
             rows = list(reader)
     except OSError as error:
         raise ValueError(f"GPU CSV could not be read: {error}") from error
@@ -494,6 +502,7 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
     dedicated: list[float] = []
     shared: list[float] = []
     combined: list[float] = []
+    combined_bytes: list[int] = []
     engines: list[int] = []
     for index, row in enumerate(rows, start=1):
         if not _parse_bool(row["gpu_engine_query_ok"], "GPU engine query"):
@@ -519,7 +528,32 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
         )
         shared.append(_finite_number(shared_value, "GPU shared memory"))
         combined.append(dedicated[-1] + shared[-1])
-    return {
+        if has_byte_proof:
+            try:
+                dedicated_bytes = int(row["gpu_dedicated_bytes"])
+                shared_bytes = int(row["gpu_shared_bytes"])
+            except (TypeError, ValueError) as error:
+                raise ValueError(
+                    f"GPU byte proof {index} contains a non-integer value"
+                ) from error
+            if dedicated_bytes < 0 or shared_bytes < 0:
+                raise ValueError(f"GPU byte proof {index} is negative")
+            if not math.isclose(
+                dedicated[-1] * MIB,
+                dedicated_bytes,
+                rel_tol=0.0,
+                abs_tol=1.0,
+            ) or not math.isclose(
+                shared[-1] * MIB,
+                shared_bytes,
+                rel_tol=0.0,
+                abs_tol=1.0,
+            ):
+                raise ValueError(
+                    f"GPU MiB observation {index} does not match binary byte proof"
+                )
+            combined_bytes.append(dedicated_bytes + shared_bytes)
+    result = {
         "gpu_percent": _summarize(gpu),
         "gpu_engine_count": _summarize(engines),
         "gpu_dedicated_memory_peak_mb": max(dedicated),
@@ -527,6 +561,15 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
         "gpu_memory_peak_mb": max(combined),
         "observation_count": len(rows),
     }
+    if has_byte_proof:
+        result["gpu_dedicated_memory_peak_bytes"] = max(
+            int(row["gpu_dedicated_bytes"]) for row in rows
+        )
+        result["gpu_shared_memory_peak_bytes"] = max(
+            int(row["gpu_shared_bytes"]) for row in rows
+        )
+        result["gpu_memory_peak_bytes"] = max(combined_bytes)
+    return result
 
 
 def atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:

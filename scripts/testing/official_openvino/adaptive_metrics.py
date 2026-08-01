@@ -148,12 +148,16 @@ def _require_binary_mib_receipt(
             else None
         ),
         "kv_mb": activation.get("actual_bytes") if isinstance(activation, Mapping) else None,
+        "gpu_memory_peak_mb": record.get("gpu_memory_peak_bytes"),
     }
     for field, raw_value in raw_values.items():
         raw_bytes = _finite_nonnegative(raw_value, f"{field} source bytes")
         projected = _finite_nonnegative(sample.get(field), field)
+        # The GPU sampler serializes its MiB projection to six decimal places,
+        # which can differ from the retained byte proof by at most 0.524288 B.
+        absolute_tolerance = 0.53 if field == "gpu_memory_peak_mb" else 1e-6
         if not math.isclose(
-            projected * (1024**2), raw_bytes, rel_tol=1e-9, abs_tol=1e-6
+            projected * (1024**2), raw_bytes, rel_tol=1e-9, abs_tol=absolute_tolerance
         ):
             raise ValueError(f"{field} does not match binary MiB source conversion")
 

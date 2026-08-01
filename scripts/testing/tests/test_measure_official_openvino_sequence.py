@@ -359,6 +359,7 @@ def _record(role: str, ordinal: int, spec: dict) -> dict:
         "gpu_dedicated_memory_peak_mb": 48 + ordinal,
         "gpu_shared_memory_peak_mb": 16 + ordinal,
         "gpu_memory_peak_mb": 64 + (2 * ordinal),
+        "gpu_memory_peak_bytes": (64 + (2 * ordinal)) * MIB,
         "cpu_percent": _utilization([40 + ordinal, 42 + ordinal]),
         "gpu_percent": _utilization([20 + ordinal, 22 + ordinal]),
         "command": ["python", "-m", "worker", "--role", role],

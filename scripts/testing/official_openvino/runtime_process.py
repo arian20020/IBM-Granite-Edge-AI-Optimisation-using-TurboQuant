@@ -288,6 +288,9 @@ def run_governed_process(
         "gpu_dedicated_memory_peak_mb": None,
         "gpu_shared_memory_peak_mb": None,
         "gpu_memory_peak_mb": None,
+        "gpu_dedicated_memory_peak_bytes": None,
+        "gpu_shared_memory_peak_bytes": None,
+        "gpu_memory_peak_bytes": None,
         "gpu_sampler_supported": False,
         "memory_unit_receipt": {
             "schema": "official-openvino-memory-unit-receipt/v2",
@@ -639,8 +642,11 @@ def run_governed_process(
                 "gpu_dedicated_memory_peak_mb",
                 "gpu_shared_memory_peak_mb",
                 "gpu_memory_peak_mb",
+                "gpu_dedicated_memory_peak_bytes",
+                "gpu_shared_memory_peak_bytes",
+                "gpu_memory_peak_bytes",
             ):
-                record[field] = gpu[field]
+                record[field] = gpu.get(field)
             record["worker"] = parsed["result"]
             record["activation"] = parsed["activation"]
             _validate_gpu_observability(record)

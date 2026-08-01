@@ -633,6 +633,33 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "query failed"):
                 parse_gpu_samples(path)
 
+    def test_gpu_parser_retains_binary_byte_proof_for_peak_memory(self):
+        mib = 1024**2
+        rows = [
+            {
+                "timestamp_utc": f"2026-07-29T00:00:0{index}Z",
+                "gpu_percent": 0,
+                "gpu_engine_count": 0,
+                "gpu_dedicated_mb": dedicated / mib,
+                "gpu_shared_mb": shared / mib,
+                "gpu_dedicated_bytes": dedicated,
+                "gpu_shared_bytes": shared,
+                "gpu_engine_query_ok": "true",
+                "gpu_memory_query_ok": "true",
+            }
+            for index, dedicated, shared in (
+                (1, 2 * mib, 1 * mib),
+                (2, 3 * mib, 4 * mib),
+            )
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            write_csv(path, rows)
+            parsed = parse_gpu_samples(path)
+
+        self.assertEqual(parsed["gpu_memory_peak_mb"], 7.0)
+        self.assertEqual(parsed["gpu_memory_peak_bytes"], 7 * mib)
+
     def test_attempt_sequence_is_resume_safe_and_excludes_pilot_and_warmup(self):
         calls: list[str] = []
 

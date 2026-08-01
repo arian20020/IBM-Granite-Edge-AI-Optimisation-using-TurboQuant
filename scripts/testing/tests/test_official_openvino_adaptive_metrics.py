@@ -147,6 +147,7 @@ def complete_record(ordinal: int = 0) -> dict:
         "gpu_dedicated_memory_peak_mb": 0.0,
         "gpu_shared_memory_peak_mb": 0.0,
         "gpu_memory_peak_mb": 0.0,
+        "gpu_memory_peak_bytes": 0,
         "cpu_percent": _utilization([10 + ordinal, 20 + ordinal, 30 + ordinal]),
         "gpu_percent": _utilization([0.0, 0.0, 0.0]),
         "gpu_engine_count": _utilization([0.0, 0.0, 0.0]),
@@ -286,4 +287,51 @@ def test_adaptive_summary_rejects_zero_gpu_without_supported_sampler(
     samples[1]["gpu_sampler_supported"] = False
 
     with pytest.raises(ValueError, match="zero GPU utilization"):
+        summarize_adaptive_runtime_samples(samples)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda record: record.pop("gpu_memory_peak_bytes"),
+        lambda record: record.update(gpu_memory_peak_mb=2.5),
+        lambda record: record.update(gpu_memory_peak_bytes=2_000_000),
+    ],
+)
+def test_adaptive_sample_rejects_unproven_or_mismatched_gpu_mib(
+    tmp_path: Path,
+    mutate,
+) -> None:
+    record = complete_record()
+    record.update(gpu_memory_peak_mb=2.0, gpu_memory_peak_bytes=2 * MIB)
+    mutate(record)
+
+    with pytest.raises(ValueError, match="gpu_memory_peak_mb"):
+        _sample(record, tmp_path)
+
+
+def test_adaptive_sample_accepts_gpu_mib_rounded_by_sampler_csv(tmp_path: Path) -> None:
+    record = complete_record()
+    gpu_memory_bytes = (2 * MIB) + 1
+    record.update(
+        gpu_memory_peak_mb=round(gpu_memory_bytes / MIB, 6),
+        gpu_memory_peak_bytes=gpu_memory_bytes,
+    )
+
+    assert _sample(record, tmp_path)["gpu_memory_peak_mb"] == pytest.approx(
+        gpu_memory_bytes / MIB
+    )
+
+
+def test_adaptive_summary_rejects_supported_zero_gpu_without_observations(
+    tmp_path: Path,
+) -> None:
+    samples = three_complete_samples(tmp_path)
+    samples[1]["gpu_percent"] = {
+        "values": [],
+        "count": 0,
+        "query_succeeded": True,
+    }
+
+    with pytest.raises(ValueError, match="gpu_percent sampler observations"):
         summarize_adaptive_runtime_samples(samples)
