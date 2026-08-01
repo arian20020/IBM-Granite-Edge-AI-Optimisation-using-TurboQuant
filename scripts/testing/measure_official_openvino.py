@@ -1072,14 +1072,22 @@ def _adaptive_record(
 
     value = dict(record)
     boundaries = _identity_boundary_hashes(identity)
+    command = value.get("command")
+    if (
+        not isinstance(command, list)
+        or not command
+        or not all(isinstance(item, str) and item for item in command)
+    ):
+        raise ValueError("accepted runtime record has no canonical command payload")
     value["identity_hashes"] = {
         "artifact_manifest_sha256": boundaries["artifact_manifest_sha256"],
         "prompt_sha256": boundaries["prompt_sha256"],
         "matrix_sha256": boundaries["matrix_sha256"],
         "build_provenance_sha256": boundaries["build_provenance_sha256"],
-        "command_sha256": boundaries["runtime_property_sha256"],
+        "command_sha256": _sha256_json(command),
         "evidence_sha256": identity["campaign_identity_sha256"],
     }
+    value["runtime_property_sha256"] = boundaries["runtime_property_sha256"]
     return value
 
 
@@ -1260,18 +1268,38 @@ def _run_measurement_sequence_locked(
             )
         completed.append((receipt, persisted, record_path))
 
-    formal_samples = [
-        measurement_sample(record, source)
-        for _, record, source in completed[2:]
-    ]
-    adaptive_samples = [
-        build_adaptive_runtime_sample(
-            _adaptive_record(record, identity),
-            source,
-        )
-        for _, record, source in completed[2:]
-    ]
-    metrics = summarize_samples(formal_samples)
+    formal_completed = completed[2:]
+    formal_samples: list[dict[str, Any]] = []
+    adaptive_samples: list[dict[str, Any]] = []
+    for _, record, source in formal_completed:
+        try:
+            formal_samples.append(measurement_sample(record, source))
+            adaptive_samples.append(
+                build_adaptive_runtime_sample(
+                    _adaptive_record(record, identity),
+                    source,
+                )
+            )
+        except Exception as error:
+            raise _sequence_failure(
+                f"{record['role']} accepted formal record could not be summarized",
+                role=record["role"],
+                record_path=source,
+                record=record,
+                fingerprint=identity_sha256,
+            ) from error
+    try:
+        metrics = summarize_samples(formal_samples)
+        adaptive_summary = summarize_adaptive_runtime_samples(adaptive_samples)
+    except Exception as error:
+        _, record, source = formal_completed[-1]
+        raise _sequence_failure(
+            "accepted formal runtime aggregation failed",
+            role=record["role"],
+            record_path=source,
+            record=record,
+            fingerprint=identity_sha256,
+        ) from error
     metrics.update(
         {
             "accepted": True,
@@ -1289,7 +1317,7 @@ def _run_measurement_sequence_locked(
     adaptive_metrics_path = root / "adaptive-runtime-summary.json"
     atomic_write_json(
         adaptive_metrics_path,
-        summarize_adaptive_runtime_samples(adaptive_samples),
+        adaptive_summary,
     )
     receipts = [receipt for receipt, _, _ in completed]
     sequence = {

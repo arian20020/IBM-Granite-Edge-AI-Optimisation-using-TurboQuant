@@ -9,6 +9,7 @@ import pytest
 from scripts.testing.measure_official_openvino import (
     CampaignLock,
     MeasurementSequenceFailure,
+    _adaptive_record,
     _persisted_record,
     build_campaign_identity,
     run_measurement_sequence,
@@ -21,6 +22,46 @@ from scripts.testing.official_openvino.matrix import (
 
 MIB = 1024**2
 ROLES = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
+
+
+def _binary_mib_receipt() -> dict:
+    sources = {
+        "peak_working_set_mb": (
+            "owned_process_memory.working_set_bytes",
+            "owned-process memory sampler",
+        ),
+        "peak_private_mb": (
+            "owned_process_memory.private_bytes",
+            "owned-process memory sampler",
+        ),
+        "available_ram_min_mb": (
+            "available_ram_bytes.minimum",
+            "available-RAM sampler",
+        ),
+        "kv_mb": (
+            "activation.actual_bytes",
+            "OpenVINO activation telemetry",
+        ),
+        "gpu_memory_peak_mb": (
+            "GPUProcessMemory.DedicatedUsage+SharedUsage",
+            "Windows GPUProcessMemory sampler",
+        ),
+    }
+    return {
+        "schema": "official-openvino-memory-unit-receipt/v2",
+        "binary_mib_bytes": MIB,
+        "projections": {
+            field: {
+                "collector": collector,
+                "source_field": source,
+                "source_unit": "bytes",
+                "conversion": "divide-by-binary-mib",
+                "conversion_divisor_bytes": MIB,
+                "projected_unit": "MiB",
+            }
+            for field, (source, collector) in sources.items()
+        },
+    }
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -307,13 +348,7 @@ def _record(role: str, ordinal: int, spec: dict) -> dict:
         "fallback_count": 0,
         "exit_code": 0,
         "gpu_sampler_supported": True,
-        "memory_unit_receipt": {
-            "peak_working_set_mb": "MiB",
-            "peak_private_mb": "MiB",
-            "available_ram_min_mb": "MiB",
-            "kv_mb": "MiB",
-            "gpu_memory_peak_mb": "MiB",
-        },
+        "memory_unit_receipt": _binary_mib_receipt(),
         "peak_working_set_bytes": (1000 + ordinal) * MIB,
         "peak_private_bytes": (900 + ordinal) * MIB,
         "available_ram_bytes": {
@@ -326,6 +361,7 @@ def _record(role: str, ordinal: int, spec: dict) -> dict:
         "gpu_memory_peak_mb": 64 + (2 * ordinal),
         "cpu_percent": _utilization([40 + ordinal, 42 + ordinal]),
         "gpu_percent": _utilization([20 + ordinal, 22 + ordinal]),
+        "command": ["python", "-m", "worker", "--role", role],
         "worker": {
             "load_ms": 100 + ordinal,
             "ttft_ms": 50 + ordinal,
@@ -528,6 +564,76 @@ def test_sequence_passes_distinct_launch_and_emergency_floors(tmp_path):
     )
 
     assert seen == [(4096, 2048)] * 5
+
+
+def test_adaptive_record_hashes_actual_command_and_keeps_property_hash(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+    identity = build_campaign_identity(**_identity_kwargs(kwargs))
+    spec = json.loads(kwargs["spec_path"].read_text(encoding="utf-8"))
+    record = _record("sample-1", 2, spec)
+    expected_command_hash = hashlib.sha256(
+        json.dumps(
+            record["command"],
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    expected_property_hash = hashlib.sha256(
+        json.dumps(
+            identity["identity"]["config"],
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+    sample_record = _adaptive_record(record, identity)
+
+    assert sample_record["identity_hashes"]["command_sha256"] == expected_command_hash
+    assert sample_record["runtime_property_sha256"] == expected_property_hash
+
+
+def test_post_role_adaptive_sample_failure_is_typed(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+
+    def malformed_sample(**run_kwargs):
+        role = run_kwargs["role"]
+        spec = json.loads(run_kwargs["spec_path"].read_text(encoding="utf-8"))
+        record = _record(role, ROLES.index(role), spec)
+        if role == "sample-1":
+            record["memory_unit_receipt"] = None
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    with pytest.raises(MeasurementSequenceFailure) as raised:
+        run_measurement_sequence(**kwargs, run_measurement=malformed_sample)
+
+    assert raised.value.failure.role == "sample-1"
+    assert raised.value.failure.record_path is not None
+    assert raised.value.failure.record_path.name == "attempt.json"
+    assert isinstance(raised.value.__cause__, ValueError)
+
+
+def test_post_role_adaptive_aggregation_failure_is_typed(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+
+    def mismatched_tokens(**run_kwargs):
+        role = run_kwargs["role"]
+        spec = json.loads(run_kwargs["spec_path"].read_text(encoding="utf-8"))
+        record = _record(role, ROLES.index(role), spec)
+        if role == "sample-2":
+            record["worker"]["num_generated_tokens"] = 3
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    with pytest.raises(MeasurementSequenceFailure) as raised:
+        run_measurement_sequence(**kwargs, run_measurement=mismatched_tokens)
+
+    assert raised.value.failure.record_path is not None
+    assert isinstance(raised.value.__cause__, ValueError)
 
 
 @pytest.mark.parametrize(

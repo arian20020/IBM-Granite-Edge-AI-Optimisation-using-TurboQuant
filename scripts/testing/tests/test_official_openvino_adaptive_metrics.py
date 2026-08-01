@@ -1,3 +1,5 @@
+import hashlib
+import json
 import statistics
 from pathlib import Path
 
@@ -10,6 +12,46 @@ from scripts.testing.official_openvino.adaptive_metrics import (
 
 
 MIB = 1024**2
+
+
+def _binary_mib_receipt() -> dict:
+    sources = {
+        "peak_working_set_mb": (
+            "owned_process_memory.working_set_bytes",
+            "owned-process memory sampler",
+        ),
+        "peak_private_mb": (
+            "owned_process_memory.private_bytes",
+            "owned-process memory sampler",
+        ),
+        "available_ram_min_mb": (
+            "available_ram_bytes.minimum",
+            "available-RAM sampler",
+        ),
+        "kv_mb": (
+            "activation.actual_bytes",
+            "OpenVINO activation telemetry",
+        ),
+        "gpu_memory_peak_mb": (
+            "GPUProcessMemory.DedicatedUsage+SharedUsage",
+            "Windows GPUProcessMemory sampler",
+        ),
+    }
+    return {
+        "schema": "official-openvino-memory-unit-receipt/v2",
+        "binary_mib_bytes": MIB,
+        "projections": {
+            field: {
+                "collector": collector,
+                "source_field": source,
+                "source_unit": "bytes",
+                "conversion": "divide-by-binary-mib",
+                "conversion_divisor_bytes": MIB,
+                "projected_unit": "MiB",
+            }
+            for field, (source, collector) in sources.items()
+        },
+    }
 
 
 def _utilization(values: list[float]) -> dict:
@@ -63,7 +105,20 @@ def _activation() -> dict:
     }
 
 
+def _command_hash(command: list[str]) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            command,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
 def complete_record(ordinal: int = 0) -> dict:
+    command = ["python", "-m", "worker", "--spec", "sample.json"]
     return {
         "valid": True,
         "role": f"sample-{ordinal + 1}",
@@ -72,22 +127,17 @@ def complete_record(ordinal: int = 0) -> dict:
         "residual_owned_process_count": 0,
         "cleanup_process_count": 0,
         "gpu_sampler_supported": True,
-        "memory_unit_receipt": {
-            "peak_working_set_mb": "MiB",
-            "peak_private_mb": "MiB",
-            "available_ram_min_mb": "MiB",
-            "kv_mb": "MiB",
-            "gpu_memory_peak_mb": "MiB",
-        },
+        "memory_unit_receipt": _binary_mib_receipt(),
         "identity_hashes": {
             "artifact_manifest_sha256": "1" * 64,
             "prompt_sha256": "2" * 64,
             "matrix_sha256": "3" * 64,
             "build_provenance_sha256": "4" * 64,
-            "command_sha256": "5" * 64,
+            "command_sha256": _command_hash(command),
             "evidence_sha256": "6" * 64,
         },
         "peak_working_set_bytes": (2900 + 100 * ordinal) * MIB,
+        "command": command,
         "peak_private_bytes": (1900 + 100 * ordinal) * MIB,
         "available_ram_bytes": {
             "before": 3400 * MIB,
@@ -176,4 +226,64 @@ def test_adaptive_summary_rejects_invalid_formal_samples(
     samples[1][field] = value
 
     with pytest.raises(ValueError, match=field):
+        summarize_adaptive_runtime_samples(samples)
+
+
+def test_adaptive_sample_rejects_legacy_label_only_memory_receipt(
+    tmp_path: Path,
+) -> None:
+    record = complete_record()
+    record["memory_unit_receipt"] = {
+        "peak_working_set_mb": "MiB",
+        "peak_private_mb": "MiB",
+        "available_ram_min_mb": "MiB",
+        "kv_mb": "MiB",
+        "gpu_memory_peak_mb": "MiB",
+    }
+
+    with pytest.raises(ValueError, match="provenance"):
+        _sample(record, tmp_path)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda receipt: receipt.update(binary_mib_bytes=1_000_000),
+        lambda receipt: receipt["projections"]["kv_mb"].update(
+            conversion_divisor_bytes=1_000_000
+        ),
+        lambda receipt: receipt["projections"]["gpu_memory_peak_mb"].update(
+            source_field="forged.decimal_mb"
+        ),
+    ],
+)
+def test_adaptive_sample_rejects_forged_or_decimal_mib_provenance(
+    tmp_path: Path,
+    mutate,
+) -> None:
+    record = complete_record()
+    mutate(record["memory_unit_receipt"])
+
+    with pytest.raises(ValueError, match="(binary MiB|provenance)"):
+        _sample(record, tmp_path)
+
+
+def test_adaptive_sample_rejects_command_hash_that_does_not_match_payload(
+    tmp_path: Path,
+) -> None:
+    record = complete_record()
+    record["command"] = ["python", "-m", "worker", "--spec", "sample.json"]
+    record["identity_hashes"]["command_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="command_sha256"):
+        _sample(record, tmp_path)
+
+
+def test_adaptive_summary_rejects_zero_gpu_without_supported_sampler(
+    tmp_path: Path,
+) -> None:
+    samples = three_complete_samples(tmp_path)
+    samples[1]["gpu_sampler_supported"] = False
+
+    with pytest.raises(ValueError, match="zero GPU utilization"):
         summarize_adaptive_runtime_samples(samples)

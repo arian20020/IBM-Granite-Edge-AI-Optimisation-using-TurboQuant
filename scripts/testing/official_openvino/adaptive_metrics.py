@@ -44,6 +44,29 @@ RAW_MIB_FIELDS = {
     "gpu_memory_peak_mb": "gpu_memory_peak_mib",
 }
 _SHA256_LENGTH = 64
+_MEMORY_RECEIPT_SCHEMA = "official-openvino-memory-unit-receipt/v2"
+_MIB_PROJECTION_PROVENANCE = {
+    "peak_working_set_mb": (
+        "owned_process_memory.working_set_bytes",
+        "owned-process memory sampler",
+    ),
+    "peak_private_mb": (
+        "owned_process_memory.private_bytes",
+        "owned-process memory sampler",
+    ),
+    "available_ram_min_mb": (
+        "available_ram_bytes.minimum",
+        "available-RAM sampler",
+    ),
+    "kv_mb": (
+        "activation.actual_bytes",
+        "OpenVINO activation telemetry",
+    ),
+    "gpu_memory_peak_mb": (
+        "GPUProcessMemory.DedicatedUsage+SharedUsage",
+        "Windows GPUProcessMemory sampler",
+    ),
+}
 
 
 def _sha256_file(path: Path) -> str:
@@ -87,14 +110,52 @@ def _zero_integer(value: Any, field: str) -> int:
     return value
 
 
-def _require_binary_mib_receipt(record: Mapping[str, Any]) -> None:
+def _require_binary_mib_receipt(
+    record: Mapping[str, Any], sample: Mapping[str, Any]
+) -> None:
     receipt = record.get("memory_unit_receipt")
     if not isinstance(receipt, Mapping):
         raise ValueError("memory unit receipt is required")
-    if set(receipt) != set(RAW_MIB_FIELDS):
-        raise ValueError("memory unit receipt does not cover every raw MiB field")
-    if any(receipt.get(field) != "MiB" for field in RAW_MIB_FIELDS):
+    if receipt.get("schema") != _MEMORY_RECEIPT_SCHEMA:
+        raise ValueError(
+            "legacy memory unit receipt has no verifiable binary MiB provenance"
+        )
+    if receipt.get("binary_mib_bytes") != 1024**2:
         raise ValueError("memory unit receipt does not prove binary MiB")
+    projections = receipt.get("projections")
+    if not isinstance(projections, Mapping) or set(projections) != set(RAW_MIB_FIELDS):
+        raise ValueError("memory unit receipt provenance is incomplete")
+    for field, (source_field, collector) in _MIB_PROJECTION_PROVENANCE.items():
+        projection = projections.get(field)
+        if not isinstance(projection, Mapping) or projection != {
+            "collector": collector,
+            "source_field": source_field,
+            "source_unit": "bytes",
+            "conversion": "divide-by-binary-mib",
+            "conversion_divisor_bytes": 1024**2,
+            "projected_unit": "MiB",
+        }:
+            raise ValueError(
+                f"{field} memory unit provenance is not a binary MiB conversion"
+            )
+    activation = record.get("activation")
+    raw_values = {
+        "peak_working_set_mb": record.get("peak_working_set_bytes"),
+        "peak_private_mb": record.get("peak_private_bytes"),
+        "available_ram_min_mb": (
+            record.get("available_ram_bytes", {}).get("minimum")
+            if isinstance(record.get("available_ram_bytes"), Mapping)
+            else None
+        ),
+        "kv_mb": activation.get("actual_bytes") if isinstance(activation, Mapping) else None,
+    }
+    for field, raw_value in raw_values.items():
+        raw_bytes = _finite_nonnegative(raw_value, f"{field} source bytes")
+        projected = _finite_nonnegative(sample.get(field), field)
+        if not math.isclose(
+            projected * (1024**2), raw_bytes, rel_tol=1e-9, abs_tol=1e-6
+        ):
+            raise ValueError(f"{field} does not match binary MiB source conversion")
 
 
 def _identity_hashes(record: Mapping[str, Any], source: Path) -> dict[str, str]:
@@ -102,7 +163,16 @@ def _identity_hashes(record: Mapping[str, Any], source: Path) -> dict[str, str]:
     if not isinstance(supplied, Mapping):
         raise ValueError("identity hashes are required")
     values = dict(supplied)
-    values.setdefault("command_sha256", _sha256_json(record.get("command")))
+    command = record.get("command")
+    if (
+        not isinstance(command, list)
+        or not command
+        or not all(isinstance(item, str) and item for item in command)
+    ):
+        raise ValueError("command payload is required")
+    expected_command_hash = _sha256_json(command)
+    if values.get("command_sha256") != expected_command_hash:
+        raise ValueError("command_sha256 does not match the canonical command payload")
     values.setdefault("evidence_sha256", _sha256_file(source))
     if set(values) != set(IDENTITY_HASH_FIELDS):
         raise ValueError("identity hashes are incomplete")
@@ -141,7 +211,7 @@ def _validate_and_enrich_sample(
     record: Mapping[str, Any],
     source: Path,
 ) -> dict[str, Any]:
-    _require_binary_mib_receipt(record)
+    _require_binary_mib_receipt(record, sample)
     worker = record.get("worker")
     activation = sample.get("activation")
     if not isinstance(worker, Mapping) or not isinstance(activation, Mapping):
@@ -177,6 +247,15 @@ def _validate_and_enrich_sample(
     if not values["gpu_sampler_supported"]:
         raise ValueError("gpu sampler support receipt is required")
     values["identity_hashes"] = _identity_hashes(record, source)
+    property_hash = record.get("runtime_property_sha256")
+    if property_hash is not None:
+        if (
+            not isinstance(property_hash, str)
+            or len(property_hash) != _SHA256_LENGTH
+            or any(character not in "0123456789abcdef" for character in property_hash)
+        ):
+            raise ValueError("runtime_property_sha256 must be a lowercase SHA-256")
+        values["runtime_property_sha256"] = property_hash
     return values
 
 
@@ -246,16 +325,29 @@ def _summarize_pooled_utilisation(
     return result
 
 
-def _require_consistent_hashes(samples: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+def _require_consistent_hashes(samples: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     hashes = [sample.get("identity_hashes") for sample in samples]
     if not all(isinstance(value, Mapping) for value in hashes):
         raise ValueError("identity_hashes are required")
     first = dict(hashes[0])
-    if any(dict(value) != first for value in hashes[1:]):
+    constant_fields = tuple(
+        field for field in IDENTITY_HASH_FIELDS if field != "command_sha256"
+    )
+    if any(
+        any(dict(value).get(field) != first[field] for field in constant_fields)
+        for value in hashes[1:]
+    ):
         raise ValueError("identity hashes differ between formal samples")
     if set(first) != set(IDENTITY_HASH_FIELDS):
         raise ValueError("identity hashes are incomplete")
-    return {field: first[field] for field in IDENTITY_HASH_FIELDS}
+    commands = [dict(value)["command_sha256"] for value in hashes]
+    result: dict[str, Any] = {
+        field: first[field] for field in constant_fields
+    }
+    result["command_sha256"] = (
+        commands[0] if len(set(commands)) == 1 else commands
+    )
+    return result
 
 
 def _summarize_activation(samples: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
