@@ -156,6 +156,16 @@ def _validate_gpu_observability(record: Mapping[str, Any]) -> None:
     if max(gpu_values) <= 0:
         raise ValueError("GPU utilization peak must be positive")
 
+    combined_bytes = record.get("gpu_memory_peak_bytes")
+    if combined_bytes is not None:
+        if (
+            isinstance(combined_bytes, bool)
+            or not isinstance(combined_bytes, int)
+            or combined_bytes <= 0
+        ):
+            raise ValueError("GPU combined memory byte peak must be positive")
+        return
+
     dedicated = _finite_nonnegative(
         record.get("gpu_dedicated_memory_peak_mb"),
         "GPU dedicated memory peak",
@@ -733,7 +743,7 @@ def measurement_sample(record: dict[str, Any], source_path: Path) -> dict[str, A
         "scratch_peak_bytes": activation["decoded_scratch_bytes"],
         "kv_mb": actual_bytes / MIB,
         "cpu_percent": record["cpu_percent"],
-        "gpu_percent": record["gpu_percent"],
+        "gpu_percent": record.get("gpu_percent"),
         "activation": {
             "status": activation["status"],
             "requested_key_algorithm": activation[

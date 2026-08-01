@@ -310,28 +310,56 @@ def test_adaptive_sample_rejects_unproven_or_mismatched_gpu_mib(
         _sample(record, tmp_path)
 
 
-def test_adaptive_sample_accepts_gpu_mib_rounded_by_sampler_csv(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("gpu_memory_bytes", "gpu_memory_peak_mb"),
+    [
+        (12_000_000_000, 12_000.0),
+        (8 * 1024**4, 8_388_608.001),
+    ],
+)
+def test_adaptive_sample_rejects_noncanonical_gpu_mib_display(
+    tmp_path: Path,
+    gpu_memory_bytes: int,
+    gpu_memory_peak_mb: float,
+) -> None:
     record = complete_record()
-    gpu_memory_bytes = (2 * MIB) + 1
     record.update(
-        gpu_memory_peak_mb=round(gpu_memory_bytes / MIB, 6),
+        gpu_memory_peak_mb=gpu_memory_peak_mb,
         gpu_memory_peak_bytes=gpu_memory_bytes,
     )
 
-    assert _sample(record, tmp_path)["gpu_memory_peak_mb"] == pytest.approx(
-        gpu_memory_bytes / MIB
+    with pytest.raises(ValueError, match="gpu_memory_peak_mb"):
+        _sample(record, tmp_path)
+
+
+def test_adaptive_sample_projects_gpu_mib_from_combined_byte_proof(tmp_path: Path) -> None:
+    record = complete_record()
+    record.update(
+        gpu_memory_peak_mb=12_288.000552,
+        gpu_memory_peak_bytes=12_884_902_467,
     )
 
+    sample = _sample(record, tmp_path)
 
-def test_adaptive_summary_rejects_supported_zero_gpu_without_observations(
+    assert sample["gpu_memory_peak_mb"] == 12_288.000552
+    assert sample["gpu_memory_peak_mib"] == 12_288.00055217743
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda record: record.update(
+            gpu_percent={"values": [], "count": 0, "query_succeeded": True}
+        ),
+        lambda record: record.pop("gpu_percent"),
+    ],
+)
+def test_adaptive_sample_rejects_supported_zero_gpu_without_observations(
     tmp_path: Path,
+    mutate,
 ) -> None:
-    samples = three_complete_samples(tmp_path)
-    samples[1]["gpu_percent"] = {
-        "values": [],
-        "count": 0,
-        "query_succeeded": True,
-    }
+    record = complete_record()
+    mutate(record)
 
     with pytest.raises(ValueError, match="gpu_percent sampler observations"):
-        summarize_adaptive_runtime_samples(samples)
+        _sample(record, tmp_path)

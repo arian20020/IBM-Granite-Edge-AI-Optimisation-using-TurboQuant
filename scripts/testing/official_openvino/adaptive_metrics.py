@@ -45,6 +45,7 @@ RAW_MIB_FIELDS = {
 }
 _SHA256_LENGTH = 64
 _MEMORY_RECEIPT_SCHEMA = "official-openvino-memory-unit-receipt/v2"
+_GPU_MIB_DECIMAL_PLACES = 6
 _MIB_PROJECTION_PROVENANCE = {
     "peak_working_set_mb": (
         "owned_process_memory.working_set_bytes",
@@ -110,9 +111,15 @@ def _zero_integer(value: Any, field: str) -> int:
     return value
 
 
+def _nonnegative_integer(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field} must be a non-negative integer")
+    return value
+
+
 def _require_binary_mib_receipt(
     record: Mapping[str, Any], sample: Mapping[str, Any]
-) -> None:
+) -> int:
     receipt = record.get("memory_unit_receipt")
     if not isinstance(receipt, Mapping):
         raise ValueError("memory unit receipt is required")
@@ -148,18 +155,30 @@ def _require_binary_mib_receipt(
             else None
         ),
         "kv_mb": activation.get("actual_bytes") if isinstance(activation, Mapping) else None,
-        "gpu_memory_peak_mb": record.get("gpu_memory_peak_bytes"),
     }
     for field, raw_value in raw_values.items():
         raw_bytes = _finite_nonnegative(raw_value, f"{field} source bytes")
         projected = _finite_nonnegative(sample.get(field), field)
-        # The GPU sampler serializes its MiB projection to six decimal places,
-        # which can differ from the retained byte proof by at most 0.524288 B.
-        absolute_tolerance = 0.53 if field == "gpu_memory_peak_mb" else 1e-6
         if not math.isclose(
-            projected * (1024**2), raw_bytes, rel_tol=1e-9, abs_tol=absolute_tolerance
+            projected * (1024**2), raw_bytes, rel_tol=0.0, abs_tol=1e-6
         ):
             raise ValueError(f"{field} does not match binary MiB source conversion")
+    gpu_memory_bytes = _nonnegative_integer(
+        record.get("gpu_memory_peak_bytes"), "gpu_memory_peak_mb source bytes"
+    )
+    expected_gpu_mib_display = float(
+        format(gpu_memory_bytes / (1024**2), f".{_GPU_MIB_DECIMAL_PLACES}f")
+    )
+    if (
+        _finite_nonnegative(record.get("gpu_memory_peak_mb"), "gpu_memory_peak_mb")
+        != expected_gpu_mib_display
+        or _finite_nonnegative(sample.get("gpu_memory_peak_mb"), "gpu_memory_peak_mb")
+        != expected_gpu_mib_display
+    ):
+        raise ValueError(
+            "gpu_memory_peak_mb does not match combined byte proof serialization"
+        )
+    return gpu_memory_bytes
 
 
 def _identity_hashes(record: Mapping[str, Any], source: Path) -> dict[str, str]:
@@ -215,7 +234,7 @@ def _validate_and_enrich_sample(
     record: Mapping[str, Any],
     source: Path,
 ) -> dict[str, Any]:
-    _require_binary_mib_receipt(record, sample)
+    gpu_memory_bytes = _require_binary_mib_receipt(record, sample)
     worker = record.get("worker")
     activation = sample.get("activation")
     if not isinstance(worker, Mapping) or not isinstance(activation, Mapping):
@@ -223,6 +242,7 @@ def _validate_and_enrich_sample(
     values = dict(sample)
     for raw, target in RAW_MIB_FIELDS.items():
         values[target] = _finite_nonnegative(values.get(raw), target)
+    values["gpu_memory_peak_mib"] = gpu_memory_bytes / (1024**2)
     values["num_input_tokens"] = _positive_integer(
         worker.get("num_input_tokens"), "num_input_tokens"
     )

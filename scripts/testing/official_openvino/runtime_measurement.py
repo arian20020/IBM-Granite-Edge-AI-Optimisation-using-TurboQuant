@@ -26,6 +26,7 @@ CACHE_PRECISIONS = frozenset({"f16", "bf16", "f32", "u8", "u4", "u3"})
 PERSISTENT_COMPONENTS = ("standard", "payload", "norm", "metadata")
 RUNTIME_DEVICE_PATTERN = re.compile(r"(?:CPU|GPU(?:\.(?:0|[1-9][0-9]*))?)\Z")
 MIB = 1024**2
+GPU_MIB_DECIMAL_PLACES = 6
 
 
 def _finite_number(value: Any, field: str, *, maximum: float | None = None) -> float:
@@ -488,10 +489,13 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             byte_columns = {
                 "gpu_dedicated_bytes",
                 "gpu_shared_bytes",
+                "gpu_memory_bytes",
             }
-            has_byte_proof = byte_columns.issubset(reader.fieldnames)
-            if byte_columns.intersection(reader.fieldnames) and not has_byte_proof:
-                raise ValueError("GPU CSV has incomplete binary byte proof")
+            has_byte_proof = bool(byte_columns.intersection(reader.fieldnames))
+            if has_byte_proof and not byte_columns.issubset(reader.fieldnames):
+                raise ValueError("GPU CSV has incomplete combined byte proof")
+            if has_byte_proof and "gpu_memory_mb" not in reader.fieldnames:
+                raise ValueError("GPU CSV is missing combined MiB display")
             rows = list(reader)
     except OSError as error:
         raise ValueError(f"GPU CSV could not be read: {error}") from error
@@ -527,32 +531,32 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             _finite_number(dedicated_value, "GPU dedicated memory")
         )
         shared.append(_finite_number(shared_value, "GPU shared memory"))
-        combined.append(dedicated[-1] + shared[-1])
         if has_byte_proof:
             try:
                 dedicated_bytes = int(row["gpu_dedicated_bytes"])
                 shared_bytes = int(row["gpu_shared_bytes"])
+                combined_bytes_value = int(row["gpu_memory_bytes"])
             except (TypeError, ValueError) as error:
                 raise ValueError(
-                    f"GPU byte proof {index} contains a non-integer value"
+                    f"GPU combined byte proof {index} contains a non-integer value"
                 ) from error
-            if dedicated_bytes < 0 or shared_bytes < 0:
-                raise ValueError(f"GPU byte proof {index} is negative")
-            if not math.isclose(
-                dedicated[-1] * MIB,
-                dedicated_bytes,
-                rel_tol=0.0,
-                abs_tol=1.0,
-            ) or not math.isclose(
-                shared[-1] * MIB,
-                shared_bytes,
-                rel_tol=0.0,
-                abs_tol=1.0,
-            ):
+            if min(dedicated_bytes, shared_bytes, combined_bytes_value) < 0:
+                raise ValueError(f"GPU combined byte proof {index} is negative")
+            if combined_bytes_value != dedicated_bytes + shared_bytes:
                 raise ValueError(
-                    f"GPU MiB observation {index} does not match binary byte proof"
+                    f"GPU combined byte proof {index} does not equal components"
                 )
-            combined_bytes.append(dedicated_bytes + shared_bytes)
+            expected_display = format(
+                combined_bytes_value / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
+            )
+            if row["gpu_memory_mb"] != expected_display:
+                raise ValueError(
+                    f"GPU combined MiB display {index} does not match byte proof"
+                )
+            combined.append(float(expected_display))
+            combined_bytes.append(combined_bytes_value)
+        else:
+            combined.append(dedicated[-1] + shared[-1])
     result = {
         "gpu_percent": _summarize(gpu),
         "gpu_engine_count": _summarize(engines),

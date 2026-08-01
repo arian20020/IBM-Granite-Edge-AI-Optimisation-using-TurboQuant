@@ -25,7 +25,7 @@ $gpuWriter = [IO.StreamWriter]::new($GpuOutputPath, $false, $encoding)
 $cpuWriter.AutoFlush = $true
 $gpuWriter.AutoFlush = $true
 $cpuWriter.WriteLine('timestamp_utc,cpu_percent,cpu_sample_definition')
-$gpuWriter.WriteLine('timestamp_utc,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb,gpu_dedicated_bytes,gpu_shared_bytes,gpu_engine_query_ok,gpu_memory_query_ok')
+$gpuWriter.WriteLine('timestamp_utc,gpu_percent,gpu_engine_count,gpu_dedicated_mb,gpu_shared_mb,gpu_memory_mb,gpu_dedicated_bytes,gpu_shared_bytes,gpu_memory_bytes,gpu_engine_query_ok,gpu_memory_query_ok')
 
 $previousCpu = $null
 $previousTime = $null
@@ -98,17 +98,18 @@ $finishGpuObservation = {
 
     $dedicated = ''
     $shared = ''
+    $combined = ''
     $dedicatedByteText = ''
     $sharedByteText = ''
+    $combinedByteText = ''
     if ($memoryOk) {
-        $dedicatedBytes = [double]((
-            $memoryRows |
-                Measure-Object -Property DedicatedUsage -Sum
-        ).Sum)
-        $sharedBytes = [double]((
-            $memoryRows |
-                Measure-Object -Property SharedUsage -Sum
-        ).Sum)
+        [UInt64]$dedicatedBytes = 0
+        [UInt64]$sharedBytes = 0
+        foreach ($memoryRow in $memoryRows) {
+            $dedicatedBytes += [UInt64]$memoryRow.DedicatedUsage
+            $sharedBytes += [UInt64]$memoryRow.SharedUsage
+        }
+        [UInt64]$combinedBytes = $dedicatedBytes + $sharedBytes
         $dedicated = ($dedicatedBytes / 1MB).ToString(
             'F6',
             [Globalization.CultureInfo]::InvariantCulture
@@ -117,24 +118,31 @@ $finishGpuObservation = {
             'F6',
             [Globalization.CultureInfo]::InvariantCulture
         )
+        $combined = ($combinedBytes / 1MB).ToString(
+            'F6',
+            [Globalization.CultureInfo]::InvariantCulture
+        )
         $dedicatedByteText = $dedicatedBytes.ToString(
-            'F0',
             [Globalization.CultureInfo]::InvariantCulture
         )
         $sharedByteText = $sharedBytes.ToString(
-            'F0',
+            [Globalization.CultureInfo]::InvariantCulture
+        )
+        $combinedByteText = $combinedBytes.ToString(
             [Globalization.CultureInfo]::InvariantCulture
         )
     }
 
-    $line = '{0},{1},{2},{3},{4},{5},{6},{7},{8}' -f (
+    $line = '{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10}' -f (
         [DateTime]::UtcNow.ToString('o'),
         $gpuPercent,
         $engineCount,
         $dedicated,
         $shared,
+        $combined,
         $dedicatedByteText,
         $sharedByteText,
+        $combinedByteText,
         $engineOk.ToString().ToLowerInvariant(),
         $memoryOk.ToString().ToLowerInvariant()
     )

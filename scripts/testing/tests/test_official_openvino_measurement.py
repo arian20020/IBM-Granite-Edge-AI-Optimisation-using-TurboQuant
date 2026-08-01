@@ -642,8 +642,10 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 "gpu_engine_count": 0,
                 "gpu_dedicated_mb": dedicated / mib,
                 "gpu_shared_mb": shared / mib,
+                "gpu_memory_mb": f"{(dedicated + shared) / mib:.6f}",
                 "gpu_dedicated_bytes": dedicated,
                 "gpu_shared_bytes": shared,
+                "gpu_memory_bytes": dedicated + shared,
                 "gpu_engine_query_ok": "true",
                 "gpu_memory_query_ok": "true",
             }
@@ -659,6 +661,32 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
 
         self.assertEqual(parsed["gpu_memory_peak_mb"], 7.0)
         self.assertEqual(parsed["gpu_memory_peak_bytes"], 7 * mib)
+
+    def test_gpu_parser_rejects_missing_or_invalid_combined_byte_proof(self):
+        row = {
+            "timestamp_utc": "2026-07-29T00:00:01Z",
+            "gpu_percent": 0,
+            "gpu_engine_count": 0,
+            "gpu_dedicated_mb": 8192.000117,
+            "gpu_shared_mb": 4096.000435,
+            "gpu_memory_mb": 12288.000552,
+            "gpu_dedicated_bytes": 8589934715,
+            "gpu_shared_bytes": 4294967752,
+            "gpu_memory_bytes": 12884902467,
+            "gpu_engine_query_ok": "true",
+            "gpu_memory_query_ok": "true",
+        }
+        invalid_rows = [
+            {key: value for key, value in row.items() if key != "gpu_memory_bytes"},
+            {**row, "gpu_memory_bytes": 12884902466},
+            {**row, "gpu_memory_bytes": "not-an-integer"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            for invalid in invalid_rows:
+                write_csv(path, [invalid, invalid])
+                with self.assertRaisesRegex(ValueError, "combined.*byte proof"):
+                    parse_gpu_samples(path)
 
     def test_attempt_sequence_is_resume_safe_and_excludes_pilot_and_warmup(self):
         calls: list[str] = []
@@ -825,9 +853,12 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         gpu_evidence = {
             "gpu_percent": utilization_summary([4.0, 8.0]),
             "gpu_engine_count": utilization_summary([1.0, 2.0]),
-            "gpu_dedicated_memory_peak_mb": 0.0,
-            "gpu_shared_memory_peak_mb": 24.0,
-            "gpu_memory_peak_mb": 24.0,
+            "gpu_dedicated_memory_peak_mb": 10.000010,
+            "gpu_shared_memory_peak_mb": 1.000010,
+            "gpu_memory_peak_mb": 11.000021,
+            "gpu_dedicated_memory_peak_bytes": (10 * 1024**2) + 11,
+            "gpu_shared_memory_peak_bytes": 1024**2 + 11,
+            "gpu_memory_peak_bytes": (11 * 1024**2) + 22,
             "observation_count": 2,
         }
         parsed_worker = {
@@ -875,6 +906,10 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(
             record["gpu_engine_count"],
             gpu_evidence["gpu_engine_count"],
+        )
+        self.assertNotIn(
+            "GPU combined memory peak is outside component bounds",
+            record["validation_errors"],
         )
 
     def test_gpu_measurement_sample_requires_repeated_nonzero_observability(self):
