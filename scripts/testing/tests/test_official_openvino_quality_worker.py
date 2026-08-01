@@ -1,7 +1,9 @@
+import builtins
 import hashlib
 import json
 import sys
 from collections.abc import Mapping
+from pathlib import Path
 from types import SimpleNamespace
 from types import MappingProxyType
 
@@ -104,6 +106,103 @@ def _worker():
 
 def test_quality_worker_module_imports():
     assert callable(_worker())
+
+
+def test_prompt_worker_rejects_copied_bound_file_before_openvino_import(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing.official_openvino.adaptive_quality import (
+        build_quality_prompt_worker_spec,
+    )
+    from scripts.testing.official_openvino.quality_campaign import (
+        load_accepted_quality_campaign,
+    )
+    from scripts.testing.official_openvino.quality_worker import (
+        execute_quality_prompt_worker,
+    )
+    from scripts.testing.tests.test_official_openvino_quality_campaign import (
+        _accepted_input,
+    )
+
+    source = _accepted_input(tmp_path)
+    campaign = load_accepted_quality_campaign(source)
+    spec = build_quality_prompt_worker_spec(campaign, "P1")
+    copied_prompt_set = tmp_path / "copied-prompt-set.json"
+    copied_prompt_set.write_bytes(source.prompt_set_path.read_bytes())
+    spec["bindings"]["prompt_set_path"] = str(copied_prompt_set.resolve())
+    assert spec["bindings"]["prompt_set_sha256"] == hashlib.sha256(
+        copied_prompt_set.read_bytes()
+    ).hexdigest()
+
+    imported = []
+    real_import = builtins.__import__
+
+    def reject_openvino_import(name, *args, **kwargs):
+        if name == "openvino_genai":
+            imported.append(name)
+            raise AssertionError("OpenVINO import must follow binding validation")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
+
+    with pytest.raises(ValueError, match="prompt_set path"):
+        execute_quality_prompt_worker(spec)
+
+    assert imported == []
+
+
+@pytest.mark.parametrize(
+    "binding",
+    (
+        "runtime_summary",
+        "raw_sample",
+        "attempt_sequence",
+        "adaptive_runtime_spec",
+        "pilot_spec",
+        "spec_index",
+        "artifact_inventory",
+        "matrix",
+        "artifact_manifest",
+        "prompt_set",
+        "rubric",
+        "build_provenance",
+        "quality_worker",
+    ),
+)
+def test_prompt_worker_rejects_same_bound_bytes_at_any_other_path(
+    tmp_path, binding
+):
+    from scripts.testing.official_openvino.adaptive_quality import (
+        build_quality_prompt_worker_spec,
+    )
+    from scripts.testing.official_openvino.quality_campaign import (
+        load_accepted_quality_campaign,
+    )
+    from scripts.testing.official_openvino.quality_worker import (
+        _validate_prompt_worker_spec,
+    )
+    from scripts.testing.tests.test_official_openvino_quality_campaign import (
+        _accepted_input,
+    )
+
+    source = _accepted_input(tmp_path)
+    campaign = load_accepted_quality_campaign(source)
+    spec = build_quality_prompt_worker_spec(campaign, "P1")
+    if binding == "raw_sample":
+        original = Path(spec["bindings"]["raw_samples"][0]["path"])
+    else:
+        original = Path(spec["bindings"][f"{binding}_path"])
+    copied = tmp_path / "copied-bindings" / binding / original.name
+    copied.parent.mkdir(parents=True)
+    copied.write_bytes(original.read_bytes())
+    if binding == "raw_sample":
+        spec["bindings"]["raw_samples"][0]["path"] = str(copied.resolve())
+    else:
+        spec["bindings"][f"{binding}_path"] = str(copied.resolve())
+
+    with pytest.raises(ValueError):
+        _validate_prompt_worker_spec(spec)
 
 
 def test_worker_executes_one_pipeline_and_seven_frozen_ordered_turns(monkeypatch):

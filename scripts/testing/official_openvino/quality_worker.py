@@ -44,6 +44,7 @@ _FORBIDDEN_FIELD_TOKENS = (
     "codec",
     "performance-target",
 )
+_UNSET = object()
 
 
 @dataclass(frozen=True)
@@ -333,7 +334,362 @@ def _reopen_bound_file(bindings: Mapping[str, Any], stem: str) -> Path:
     return source
 
 
-def _validate_prompt_bindings(bindings: Any) -> dict[str, Any]:
+def _load_bound_object(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(Path(path).read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"quality prompt worker {label} is invalid") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"quality prompt worker {label} must be an object")
+    return value
+
+
+def _bound_reference(value: Any, *, parent: Path, label: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"quality prompt worker {label} path is invalid")
+    candidate = Path(value)
+    return (
+        (parent / candidate).resolve()
+        if not candidate.is_absolute()
+        else candidate.resolve()
+    )
+
+
+def _require_expected_binding(
+    bindings: Mapping[str, Any],
+    reopened: Mapping[str, Path],
+    stem: str,
+    *,
+    path: Path,
+    sha256: Any = _UNSET,
+) -> None:
+    if reopened[stem] != Path(path).resolve():
+        raise ValueError(f"quality prompt worker {stem} path is not expected")
+    if sha256 is not _UNSET and bindings[f"{stem}_sha256"] != _require_sha256(
+        sha256, f"expected {stem}_sha256"
+    ):
+        raise ValueError(f"quality prompt worker {stem} hash is not expected")
+
+
+def _validate_expected_prompt_bindings(
+    bindings: Mapping[str, Any],
+    reopened: Mapping[str, Path],
+    reopened_samples: list[dict[str, str]],
+    *,
+    prompt_id: str,
+    model_path: str,
+    device: str,
+    properties: Mapping[str, Any],
+    private_controller: Mapping[str, Any],
+) -> None:
+    summary_path = reopened["runtime_summary"]
+    campaign_root = summary_path.parent
+    if summary_path.name != "measurement-summary.json":
+        raise ValueError("quality prompt worker runtime_summary path is not expected")
+    _require_expected_binding(
+        bindings,
+        reopened,
+        "attempt_sequence",
+        path=campaign_root / "attempt-sequence.json",
+    )
+
+    summary = _load_bound_object(summary_path, "runtime summary")
+    sequence = _load_bound_object(
+        reopened["attempt_sequence"], "attempt sequence"
+    )
+    identity_path = campaign_root / "campaign-identity.json"
+    if not identity_path.is_file():
+        raise ValueError("quality prompt worker campaign identity is missing")
+    identity_document = _load_bound_object(identity_path, "campaign identity")
+    identity = identity_document.get("identity")
+    if not isinstance(identity, Mapping):
+        raise ValueError("quality prompt worker campaign identity is invalid")
+    campaign_sha256 = _identity_sha256(identity)
+    if (
+        identity_document.get("campaign_identity_sha256") != campaign_sha256
+        or summary.get("campaign_identity_sha256") != campaign_sha256
+        or sequence.get("campaign_identity_sha256") != campaign_sha256
+    ):
+        raise ValueError("quality prompt worker campaign identity hash mismatch")
+    summary_reference = _bound_reference(
+        sequence.get("measurement_summary_path"),
+        parent=campaign_root,
+        label="attempt sequence runtime_summary",
+    )
+    if (
+        summary_reference != summary_path
+        or sequence.get("measurement_summary_sha256")
+        != bindings["runtime_summary_sha256"]
+    ):
+        raise ValueError("quality prompt worker runtime_summary binding is invalid")
+
+    expected_samples: list[dict[str, str]] = []
+    sources = summary.get("sources")
+    if not isinstance(sources, list) or len(sources) != 3:
+        raise ValueError("quality prompt worker runtime raw samples are invalid")
+    for source in sources:
+        if not isinstance(source, Mapping):
+            raise ValueError("quality prompt worker runtime raw sample is invalid")
+        path_value = source.get("path")
+        expected_hash = _require_sha256(
+            source.get("sha256"), "expected raw sample sha256"
+        )
+        expected_path = _bound_reference(
+            path_value,
+            parent=campaign_root,
+            label="runtime raw sample",
+        )
+        expected_samples.append(
+            {"path": str(expected_path), "sha256": expected_hash}
+        )
+    if reopened_samples != expected_samples:
+        raise ValueError("quality prompt worker raw sample paths are not expected")
+
+    test_id = private_controller["test_id"]
+    context_tokens = private_controller["context_tokens"]
+    if (
+        summary.get("test_id") != test_id
+        or summary.get("context_tokens") != context_tokens
+    ):
+        raise ValueError("quality prompt worker private controller binding is invalid")
+    pilot = sequence.get("pilot")
+    if not isinstance(pilot, Mapping):
+        raise ValueError("quality prompt worker pilot binding is invalid")
+    _require_expected_binding(
+        bindings,
+        reopened,
+        "pilot_spec",
+        path=_bound_reference(
+            pilot.get("spec_path"),
+            parent=campaign_root,
+            label="pilot spec",
+        ),
+        sha256=pilot.get("spec_file_sha256"),
+    )
+
+    matrix = identity.get("matrix")
+    model = identity.get("model")
+    build = identity.get("build")
+    config = identity.get("config")
+    runtime = identity.get("runtime")
+    if not all(
+        isinstance(item, Mapping)
+        for item in (matrix, model, build, config, runtime)
+    ):
+        raise ValueError("quality prompt worker campaign identity sections are invalid")
+    matrix_case = matrix.get("case")
+    validated_artifact = model.get("validated_artifact")
+    python_identity = runtime.get("python_executable")
+    if (
+        not isinstance(matrix_case, Mapping)
+        or not isinstance(validated_artifact, Mapping)
+        or not isinstance(python_identity, Mapping)
+    ):
+        raise ValueError("quality prompt worker campaign identity detail is invalid")
+    if (
+        matrix_case.get("test_id") != test_id
+        or identity.get("context") != context_tokens
+    ):
+        raise ValueError("quality prompt worker matrix row binding is invalid")
+    _require_expected_binding(
+        bindings,
+        reopened,
+        "matrix",
+        path=_bound_reference(
+            matrix.get("path"), parent=campaign_root, label="matrix"
+        ),
+        sha256=matrix.get("file_sha256"),
+    )
+    _require_expected_binding(
+        bindings,
+        reopened,
+        "artifact_manifest",
+        path=_bound_reference(
+            model.get("artifact_manifest_path"),
+            parent=campaign_root,
+            label="artifact manifest",
+        ),
+        sha256=model.get("artifact_manifest_sha256"),
+    )
+    _require_expected_binding(
+        bindings,
+        reopened,
+        "build_provenance",
+        path=_bound_reference(
+            build.get("provenance_path"),
+            parent=campaign_root,
+            label="build provenance",
+        ),
+        sha256=build.get("provenance_sha256"),
+    )
+    expected_model_path = _bound_reference(
+        validated_artifact.get("artifact_root"),
+        parent=campaign_root,
+        label="model",
+    )
+    if Path(model_path).resolve() != expected_model_path:
+        raise ValueError("quality prompt worker model path is not expected")
+    if (
+        dict(bindings["build_identity"]) != dict(build)
+        or dict(bindings["runtime_property"]) != dict(config)
+        or device != config.get("device")
+        or dict(properties) != config.get("properties")
+    ):
+        raise ValueError("quality prompt worker runtime identity is invalid")
+
+    source_root = Path(__file__).resolve().parents[3]
+    fixed_repository_bindings = {
+        "prompt_set": (
+            source_root
+            / "experiments"
+            / "granite_turboquant_intel"
+            / "prompts"
+            / "fixed-feasibility-prompt-set-v1.json"
+        ),
+        "rubric": (
+            source_root
+            / "experiments"
+            / "granite_turboquant_intel"
+            / "rubrics"
+            / "quality-rubric-v1.json"
+        ),
+        "quality_worker": Path(__file__).resolve(),
+    }
+    for stem, expected_path in fixed_repository_bindings.items():
+        _require_expected_binding(
+            bindings,
+            reopened,
+            stem,
+            path=expected_path,
+        )
+
+    index = _load_bound_object(reopened["spec_index"], "spec index")
+    adaptive_spec = _load_bound_object(
+        reopened["adaptive_runtime_spec"], "adaptive runtime spec"
+    )
+    if index.get("schema") == "official-openvino-adaptive-comparison-spec-index/v1":
+        entries = index.get("runtime_specs")
+        matches = (
+            [
+                entry
+                for entry in entries
+                if isinstance(entry, Mapping)
+                and entry.get("test_id") == test_id
+                and entry.get("context_tokens") == context_tokens
+            ]
+            if isinstance(entries, list)
+            else []
+        )
+        if len(matches) != 1:
+            raise ValueError("quality prompt worker adaptive spec-index row is invalid")
+        expected_adaptive_path = _bound_reference(
+            matches[0].get("path"),
+            parent=reopened["spec_index"].parent,
+            label="adaptive runtime spec",
+        )
+        if (
+            len(expected_adaptive_path.parents) < 3
+            or reopened["spec_index"]
+            != expected_adaptive_path.parents[2] / "spec-index.json"
+        ):
+            raise ValueError("quality prompt worker spec_index path is not expected")
+        _require_expected_binding(
+            bindings,
+            reopened,
+            "adaptive_runtime_spec",
+            path=expected_adaptive_path,
+            sha256=matches[0].get("sha256"),
+        )
+        _require_expected_binding(
+            bindings,
+            reopened,
+            "artifact_inventory",
+            path=_bound_reference(
+                index.get("artifact_inventory_path"),
+                parent=reopened["spec_index"].parent,
+                label="artifact inventory",
+            ),
+            sha256=index.get("artifact_inventory_sha256"),
+        )
+        if index.get("matrix_sha256") != bindings["matrix_sha256"]:
+            raise ValueError("quality prompt worker spec-index matrix hash mismatch")
+    else:
+        if reopened["spec_index"] != reopened["adaptive_runtime_spec"]:
+            raise ValueError("quality prompt worker spec_index path is not expected")
+        _require_expected_binding(
+            bindings,
+            reopened,
+            "artifact_inventory",
+            path=reopened["artifact_manifest"],
+            sha256=bindings["artifact_manifest_sha256"],
+        )
+    adaptive_context = adaptive_spec.get(
+        "context_tokens", adaptive_spec.get("context")
+    )
+    if (
+        adaptive_spec.get("controlled_test_id") != test_id
+        or adaptive_context != context_tokens
+        or _bound_reference(
+            adaptive_spec.get("model_path"),
+            parent=reopened["adaptive_runtime_spec"].parent,
+            label="adaptive model",
+        )
+        != expected_model_path
+    ):
+        raise ValueError("quality prompt worker adaptive runtime spec is invalid")
+    if "artifact_manifest_path" in adaptive_spec and (
+        _bound_reference(
+            adaptive_spec.get("artifact_manifest_path"),
+            parent=reopened["adaptive_runtime_spec"].parent,
+            label="adaptive artifact manifest",
+        )
+        != reopened["artifact_manifest"]
+        or adaptive_spec.get("artifact_manifest_sha256")
+        != bindings["artifact_manifest_sha256"]
+    ):
+        raise ValueError("quality prompt worker adaptive artifact binding is invalid")
+
+    command = bindings["command"]
+    python_path = _bound_reference(
+        python_identity.get("path"),
+        parent=campaign_root,
+        label="Python executable",
+    )
+    expected_prefix = [
+        str(python_path),
+        "-m",
+        "scripts.testing.official_openvino.quality_worker",
+        "--spec",
+    ]
+    if (
+        len(command) != 7
+        or command[:4] != expected_prefix
+        or command[5:6] != ["--result"]
+    ):
+        raise ValueError("quality prompt worker command is not expected")
+    spec_path = Path(command[4]).resolve()
+    result_path = Path(command[6]).resolve()
+    if (
+        str(spec_path) != command[4]
+        or str(result_path) != command[6]
+        or spec_path.name != "worker-spec.json"
+        or result_path.name != "worker-result.json"
+        or spec_path.parent != result_path.parent
+        or spec_path.parent.name
+        not in {prompt_id, f"{prompt_id}-recovery-001"}
+    ):
+        raise ValueError("quality prompt worker command paths are not expected")
+
+
+def _validate_prompt_bindings(
+    bindings: Any,
+    *,
+    prompt_id: str,
+    model_path: str,
+    device: str,
+    properties: Mapping[str, Any],
+    private_controller: Mapping[str, Any],
+) -> dict[str, Any]:
     fields = {
         "runtime_summary_path",
         "runtime_summary_sha256",
@@ -370,6 +726,7 @@ def _validate_prompt_bindings(bindings: Any) -> dict[str, Any]:
     if not isinstance(bindings, Mapping) or set(bindings) != fields:
         raise ValueError("quality prompt worker bindings are invalid")
     snapshot = dict(bindings)
+    reopened: dict[str, Path] = {}
     for stem in (
         "runtime_summary",
         "attempt_sequence",
@@ -385,6 +742,7 @@ def _validate_prompt_bindings(bindings: Any) -> dict[str, Any]:
         "quality_worker",
     ):
         source = _reopen_bound_file(snapshot, stem)
+        reopened[stem] = source
         if stem == "quality_worker" and source != Path(__file__).resolve():
             raise ValueError("quality prompt worker source binding is invalid")
     raw_samples = snapshot.get("raw_samples")
@@ -433,6 +791,16 @@ def _validate_prompt_bindings(bindings: Any) -> dict[str, Any]:
     snapshot["build_identity"] = dict(build_identity)
     snapshot["runtime_property"] = dict(runtime_property)
     snapshot["command"] = list(command)
+    _validate_expected_prompt_bindings(
+        snapshot,
+        reopened,
+        reopened_samples,
+        prompt_id=prompt_id,
+        model_path=model_path,
+        device=device,
+        properties=properties,
+        private_controller=private_controller,
+    )
     return snapshot
 
 
@@ -485,7 +853,14 @@ def _validate_prompt_worker_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
         or controller["context_tokens"] <= 0
     ):
         raise ValueError("quality prompt worker private controller is invalid")
-    bindings = _validate_prompt_bindings(snapshot.get("bindings"))
+    bindings = _validate_prompt_bindings(
+        snapshot.get("bindings"),
+        prompt_id=prompt_id,
+        model_path=snapshot["model_path"],
+        device=snapshot["device"],
+        properties=properties,
+        private_controller=controller,
+    )
     turns = snapshot.get("turns")
     expected_ids = (
         ("P6-turn-1", "P6-turn-2") if prompt_id == "P6" else (prompt_id,)

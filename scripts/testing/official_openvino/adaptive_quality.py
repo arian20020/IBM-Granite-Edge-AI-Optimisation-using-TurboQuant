@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,7 @@ from scripts.testing.official_openvino.quality_worker import (
 PROMPT_IDS = ("P1", "P2", "P3", "P4", "P5", "P6")
 CAPTURE_SCHEMA = "official-openvino-adaptive-quality-capture/v1"
 TERMINAL_GUARD_SCHEMA = "official-openvino-adaptive-quality-terminal-guard/v1"
+TERMINAL_GUARD_FILENAME = "terminal-guard-evidence.json"
 QUALITY_RECOVERY_SCHEMA = "official-openvino-adaptive-quality-recovery/v1"
 SPEC_INDEX_SCHEMA = "official-openvino-adaptive-comparison-spec-index/v1"
 MIB = 1024**2
@@ -361,6 +363,9 @@ def _publish_terminal_prompt_evidence(
     result_path = root / "worker-result.json"
     log_path = root / "worker.log"
     evidence_path = root / "guard-evidence.json"
+    terminal_path = (
+        root / TERMINAL_GUARD_FILENAME if evidence_path.exists() else evidence_path
+    )
     message = f"{type(error).__name__}: {error}"
     if not result_path.exists():
         _write_fresh(
@@ -375,7 +380,7 @@ def _publish_terminal_prompt_evidence(
         )
     if not log_path.exists():
         _write_fresh(log_path, b"")
-    if not evidence_path.exists():
+    if not terminal_path.exists():
         unsigned = {
             "schema": TERMINAL_GUARD_SCHEMA,
             "status": "quality-blocked",
@@ -390,13 +395,20 @@ def _publish_terminal_prompt_evidence(
             "cleanup_process_count": cleanup_process_count,
             "active_pids": active_pids,
         }
+        if terminal_path != evidence_path:
+            unsigned.update(
+                {
+                    "preserved_guard_evidence_path": str(evidence_path.resolve()),
+                    "preserved_guard_evidence_sha256": _sha256_file(evidence_path),
+                }
+            )
         evidence = {
             **unsigned,
             "terminal_guard_sha256": hashlib.sha256(
                 _canonical_json(unsigned)
             ).hexdigest(),
         }
-        _write_fresh(evidence_path, _canonical_json(evidence))
+        _write_fresh(terminal_path, _canonical_json(evidence))
 
 
 def _validate_worker_result(
@@ -587,6 +599,7 @@ def _validate_guard(
 def _validate_terminal_guard(
     evidence: Mapping[str, Any],
     *,
+    source: Path,
     spec_sha256: str,
     result_sha256: str,
     log_sha256: str,
@@ -604,8 +617,27 @@ def _validate_terminal_guard(
         "active_pids",
         "terminal_guard_sha256",
     }
-    if set(evidence) != fields:
+    preserved_fields = {
+        "preserved_guard_evidence_path",
+        "preserved_guard_evidence_sha256",
+    }
+    actual_fields = set(evidence)
+    if actual_fields != fields and actual_fields != fields | preserved_fields:
         raise ValueError("quality prompt terminal guard fields are invalid")
+    has_preserved_guard = actual_fields == fields | preserved_fields
+    if has_preserved_guard:
+        preserved_path = source.with_name("guard-evidence.json").resolve()
+        if (
+            source.name != TERMINAL_GUARD_FILENAME
+            or evidence.get("preserved_guard_evidence_path") != str(preserved_path)
+            or not preserved_path.is_file()
+            or preserved_path.is_symlink()
+            or evidence.get("preserved_guard_evidence_sha256")
+            != _sha256_file(preserved_path)
+        ):
+            raise ValueError("quality prompt preserved guard evidence is invalid")
+    elif source.name == TERMINAL_GUARD_FILENAME:
+        raise ValueError("quality prompt terminal guard preservation is missing")
     if (
         evidence.get("schema") != TERMINAL_GUARD_SCHEMA
         or evidence.get("status") != "quality-blocked"
@@ -660,6 +692,9 @@ def _load_prompt_execution(
         "worker.log",
         "guard-evidence.json",
     }
+    terminal_path = root / TERMINAL_GUARD_FILENAME
+    if terminal_path.is_file():
+        expected_names.add(TERMINAL_GUARD_FILENAME)
     children = list(root.iterdir())
     if (
         {child.name for child in children} != expected_names
@@ -681,8 +716,11 @@ def _load_prompt_execution(
         result_raw, spec=spec, source=root / "worker-result.json"
     )
     log_sha256 = _sha256_file(root / "worker.log")
-    evidence_raw = (root / "guard-evidence.json").read_bytes()
-    evidence = _strict_object(evidence_raw, source=root / "guard-evidence.json")
+    evidence_path = (
+        terminal_path if terminal_path.is_file() else root / "guard-evidence.json"
+    )
+    evidence_raw = evidence_path.read_bytes()
+    evidence = _strict_object(evidence_raw, source=evidence_path)
     command = [
         str(campaign.python_executable),
         "-m",
@@ -697,6 +735,7 @@ def _load_prompt_execution(
             raise ValueError("quality prompt terminal guard bytes are not canonical")
         cleanup = _validate_terminal_guard(
             evidence,
+            source=evidence_path,
             spec_sha256=spec_sha256,
             result_sha256=hashlib.sha256(result_raw).hexdigest(),
             log_sha256=log_sha256,
@@ -775,6 +814,8 @@ def _run_governed_quality_prompt(
     active_pids: list[int] | None = None
     cleanup_process_count = -1
     stage = "containing-job-creation"
+    execution: GovernedQualityPromptResult | None = None
+    terminal_error: BaseException | None = None
     try:
         containing_job = KillOnCloseJob(_quality_prompt_job_name(root))
         if type(containing_job) is not KillOnCloseJob:
@@ -815,7 +856,7 @@ def _run_governed_quality_prompt(
         persisted = _strict_object(evidence_path.read_bytes(), source=evidence_path)
         if dict(returned) != persisted:
             raise RuntimeError("quality prompt guard return does not match evidence")
-        return _load_prompt_execution(
+        execution = _load_prompt_execution(
             accepted,
             checked,
             root,
@@ -823,6 +864,7 @@ def _run_governed_quality_prompt(
             evidence_paths=evidence_paths,
         )
     except Exception as error:
+        terminal_error = error
         if containing_job is not None:
             try:
                 active_pids = sorted(KillOnCloseJob.active_pids(containing_job))
@@ -830,11 +872,24 @@ def _run_governed_quality_prompt(
             except (OSError, RuntimeError):
                 active_pids = None
                 cleanup_process_count = -1
+    if containing_job is not None:
+        try:
+            containing_job.close()
+        except Exception as error:
+            stage = "containing-job-close"
+            terminal_error = error
+            active_pids = None
+            cleanup_process_count = -1
+        finally:
+            containing_job = None
+    if terminal_error is not None:
+        if evidence_path.exists() and stage != "containing-job-close":
+            cleanup_process_count = -1
         _publish_terminal_prompt_evidence(
             root=root,
             spec=spec,
             stage=stage,
-            error=error,
+            error=terminal_error,
             cleanup_process_count=cleanup_process_count,
             active_pids=active_pids,
         )
@@ -845,9 +900,9 @@ def _run_governed_quality_prompt(
             float(timeout_seconds),
             evidence_paths=evidence_paths,
         )
-    finally:
-        if containing_job is not None:
-            containing_job.close()
+    if execution is None:
+        raise RuntimeError("quality prompt execution produced no result")
+    return execution
 
 
 def run_governed_quality_prompt(
@@ -872,10 +927,14 @@ def run_governed_quality_prompt(
 def _receipt(result: GovernedQualityPromptResult | None, prompt_id: str, root: Path) -> dict[str, Any]:
     prompt_root = result.prompt_root if result is not None else root / prompt_id
     process_identity = None
+    evidence_path = prompt_root / "guard-evidence.json"
+    terminal_path = prompt_root / TERMINAL_GUARD_FILENAME
+    if result is not None and terminal_path.is_file():
+        evidence_path = terminal_path
     if result is not None:
         evidence = _strict_object(
-            (prompt_root / "guard-evidence.json").read_bytes(),
-            source=prompt_root / "guard-evidence.json",
+            evidence_path.read_bytes(),
+            source=evidence_path,
         )
         process_identity = evidence.get("run_id")
     return {
@@ -890,7 +949,7 @@ def _receipt(result: GovernedQualityPromptResult | None, prompt_id: str, root: P
         "worker_log_sha256": (
             _sha256_file(prompt_root / "worker.log") if result else None
         ),
-        "guard_evidence_path": str((prompt_root / "guard-evidence.json").resolve()),
+        "guard_evidence_path": str(evidence_path.resolve()),
         "guard_evidence_sha256": result.guard_evidence_sha256 if result else None,
         "cleanup_process_count": result.cleanup_process_count if result else None,
         "process_identity": process_identity,
@@ -955,8 +1014,31 @@ def _validate_summary(
     evidence_paths: Mapping[str, Any] | None = None,
     previous_summary_path: Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, GovernedQualityPromptResult]]:
-    raw = Path(path).read_bytes()
-    value = _strict_object(raw, source=path)
+    summary_path = Path(path).resolve()
+    campaign_root = Path(campaign.output_root).resolve()
+    primary_path = campaign_root / "capture-summary.json"
+    if summary_path == primary_path:
+        if previous_summary_path is not None:
+            raise ValueError("adaptive quality primary summary is not anchored")
+    else:
+        match = re.fullmatch(
+            r"capture-summary-recovery-(\d{3})\.json", summary_path.name
+        )
+        if summary_path.parent != campaign_root or match is None:
+            raise ValueError("adaptive quality recovery summary path is invalid")
+        number = int(match.group(1))
+        expected_previous = (
+            primary_path
+            if number == 1
+            else campaign_root / f"capture-summary-recovery-{number - 1:03d}.json"
+        )
+        if (
+            previous_summary_path is None
+            or Path(previous_summary_path).resolve() != expected_previous
+        ):
+            raise ValueError("adaptive quality recovery summary chain is incomplete")
+    raw = summary_path.read_bytes()
+    value = _strict_object(raw, source=summary_path)
     if raw != _canonical_json(value):
         raise ValueError("adaptive quality capture summary is not canonical")
     receipts = value.get("prompt_receipts")
@@ -968,6 +1050,19 @@ def _validate_summary(
         != list(PROMPT_IDS)
     ):
         raise ValueError("adaptive quality capture summary is invalid")
+    if value.get("capture_summary_path") != str(summary_path):
+        raise ValueError("adaptive quality capture summary path is invalid")
+    if summary_path == primary_path:
+        for receipt in receipts:
+            if not isinstance(receipt, Mapping) or receipt.get("status") == "not-run":
+                continue
+            prompt_id = receipt.get("prompt_id")
+            if Path(str(receipt.get("prompt_root"))).resolve() != (
+                campaign_root / str(prompt_id)
+            ):
+                raise ValueError(
+                    "adaptive quality primary summary references recovery evidence"
+                )
     unsigned = {
         key: item for key, item in value.items() if key != "capture_summary_sha256"
     }
@@ -1010,7 +1105,7 @@ def _validate_summary(
     expected = _summary(
         campaign,
         loaded,
-        summary_path=path,
+        summary_path=summary_path,
         previous_summary_path=previous_summary_path,
     )
     if value != expected:

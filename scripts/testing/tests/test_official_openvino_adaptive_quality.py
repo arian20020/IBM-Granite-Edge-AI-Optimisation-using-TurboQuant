@@ -172,6 +172,22 @@ class RecordingGuardRunner:
         return evidence
 
 
+def _capture_three_summary_history(source, adaptive_quality):
+    adaptive_quality.capture_isolated_quality_campaign(
+        source,
+        resume=False,
+        run_command=RecordingGuardRunner(failed_prompt="P2"),
+    )
+    adaptive_quality.capture_isolated_quality_campaign(
+        source,
+        resume=True,
+        run_command=RecordingGuardRunner(failed_prompt="P3"),
+    )
+    adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=True, run_command=RecordingGuardRunner()
+    )
+
+
 def test_prompt_worker_uses_one_pipeline_and_actual_p6_history(tmp_path, monkeypatch):
     from scripts.testing.official_openvino import adaptive_quality
     from scripts.testing.official_openvino.quality_campaign import (
@@ -432,6 +448,119 @@ def test_guard_admission_failure_persists_terminal_four_file_evidence(
     assert guard["cleanup_process_count"] == 0
 
 
+def test_partial_guard_is_preserved_and_terminal_sidecar_is_reopenable(
+    tmp_path, monkeypatch
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = _accepted_input(tmp_path)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    partial = b'{"schema":"partial-guard"'
+
+    def partial_guard(**kwargs):
+        Path(kwargs["evidence_path"]).write_bytes(partial)
+        raise RuntimeError("synthetic runner failure after partial evidence")
+
+    result = adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=False, run_command=partial_guard
+    )
+
+    prompt_root = source.output_root / "P1"
+    terminal_path = prompt_root / "terminal-guard-evidence.json"
+    terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+    assert result["status"] == "quality-blocked"
+    assert result["completed_prompt_ids"] == []
+    assert "quality_mean" not in result
+    assert (prompt_root / "guard-evidence.json").read_bytes() == partial
+    assert {
+        "worker-spec.json",
+        "worker-result.json",
+        "worker.log",
+        "terminal-guard-evidence.json",
+    }.issubset({path.name for path in prompt_root.iterdir()})
+    assert terminal["preserved_guard_evidence_path"] == str(
+        (prompt_root / "guard-evidence.json").resolve()
+    )
+    assert terminal["preserved_guard_evidence_sha256"] == hashlib.sha256(
+        partial
+    ).hexdigest()
+    unsigned = {
+        key: value
+        for key, value in terminal.items()
+        if key != "terminal_guard_sha256"
+    }
+    assert terminal["terminal_guard_sha256"] == hashlib.sha256(
+        _canonical(unsigned)
+    ).hexdigest()
+    assert result["prompt_receipts"][0]["guard_evidence_path"] == str(
+        terminal_path.resolve()
+    )
+
+    forbidden = RecordingGuardRunner()
+    reopened = adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=True, run_command=forbidden
+    )
+    assert reopened == result
+    assert forbidden.calls == []
+
+
+def test_job_close_failure_returns_terminal_blocked_evidence_once(
+    tmp_path, monkeypatch
+):
+    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.official_openvino.owned_process_guard import KillOnCloseJob
+
+    source = _accepted_input(tmp_path)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    real_close = KillOnCloseJob.close
+    close_calls = []
+
+    def close_then_raise(job):
+        close_calls.append(job)
+        real_close(job)
+        raise OSError("synthetic containing Job close failure")
+
+    monkeypatch.setattr(KillOnCloseJob, "close", close_then_raise)
+
+    result = adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=False, run_command=RecordingGuardRunner()
+    )
+
+    assert result["status"] == "quality-blocked"
+    assert result["completed_prompt_ids"] == []
+    assert result["prompt_receipts"][0]["cleanup_process_count"] == -1
+    assert "quality_mean" not in result
+    assert len(close_calls) == 1
+    prompt_root = source.output_root / "P1"
+    preserved_guard = json.loads(
+        (prompt_root / "guard-evidence.json").read_text(encoding="utf-8")
+    )
+    terminal = json.loads(
+        (prompt_root / "terminal-guard-evidence.json").read_text(encoding="utf-8")
+    )
+    assert preserved_guard["schema"] == GUARD_SCHEMA
+    assert terminal["failure_stage"] == "containing-job-close"
+    assert terminal["cleanup_process_count"] == -1
+    assert terminal["active_pids"] is None
+    assert terminal["terminal_guard_sha256"] == hashlib.sha256(
+        _canonical(
+            {
+                key: value
+                for key, value in terminal.items()
+                if key != "terminal_guard_sha256"
+            }
+        )
+    ).hexdigest()
+
+    forbidden = RecordingGuardRunner()
+    reopened = adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=True, run_command=forbidden
+    )
+    assert reopened == result
+    assert forbidden.calls == []
+    assert len(close_calls) == 1
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
 def test_nonempty_named_quality_job_blocks_before_worker_launch(
     tmp_path, monkeypatch
@@ -555,6 +684,79 @@ def test_resume_revalidates_oldest_summary_and_superseded_prompt(
         adaptive_quality.capture_isolated_quality_campaign(
             source, resume=True, run_command=RecordingGuardRunner()
         )
+
+
+def test_resume_rejects_deleted_primary_rewritten_from_latest_summary(
+    tmp_path, monkeypatch
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = _accepted_input(tmp_path)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    adaptive_quality.capture_isolated_quality_campaign(
+        source,
+        resume=False,
+        run_command=RecordingGuardRunner(failed_prompt="P4"),
+    )
+    adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=True, run_command=RecordingGuardRunner()
+    )
+    primary_path = source.output_root / "capture-summary.json"
+    recovery_path = source.output_root / "capture-summary-recovery-001.json"
+    rewritten = json.loads(recovery_path.read_text(encoding="utf-8"))
+    rewritten["capture_summary_path"] = str(primary_path.resolve())
+    rewritten["previous_capture_summary_path"] = None
+    rewritten["previous_capture_summary_sha256"] = None
+    rewritten.pop("capture_summary_sha256")
+    rewritten["capture_summary_sha256"] = hashlib.sha256(
+        _canonical(rewritten)
+    ).hexdigest()
+    primary_path.write_bytes(_canonical(rewritten))
+    recovery_path.unlink()
+    forbidden = RecordingGuardRunner()
+
+    with pytest.raises(ValueError, match="primary summary"):
+        adaptive_quality.capture_isolated_quality_campaign(
+            source, resume=True, run_command=forbidden
+        )
+    assert forbidden.calls == []
+
+
+def test_resume_rejects_deleted_intermediate_summary_before_launch(
+    tmp_path, monkeypatch
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = _accepted_input(tmp_path)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    _capture_three_summary_history(source, adaptive_quality)
+    (source.output_root / "capture-summary-recovery-001.json").unlink()
+    forbidden = RecordingGuardRunner()
+
+    with pytest.raises(ValueError, match="numbering has a gap"):
+        adaptive_quality.capture_isolated_quality_campaign(
+            source, resume=True, run_command=forbidden
+        )
+    assert forbidden.calls == []
+
+
+def test_resume_reopens_intermediate_superseded_evidence_before_launch(
+    tmp_path, monkeypatch
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = _accepted_input(tmp_path)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    _capture_three_summary_history(source, adaptive_quality)
+    superseded_log = source.output_root / "P3" / "worker.log"
+    superseded_log.write_bytes(superseded_log.read_bytes() + b"tampered\n")
+    forbidden = RecordingGuardRunner()
+
+    with pytest.raises(ValueError, match="evidence"):
+        adaptive_quality.capture_isolated_quality_campaign(
+            source, resume=True, run_command=forbidden
+        )
+    assert forbidden.calls == []
 
 
 def test_resume_reconciles_p4_recovery_p5_and_p6_after_summary_interrupt(
