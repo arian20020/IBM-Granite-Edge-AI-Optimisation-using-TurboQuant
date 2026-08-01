@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -137,6 +138,8 @@ def _write_terminal_receipt(
     launch_reserve_mib: int,
     emergency_floor_mib: int,
     memory_before: int | None,
+    memory_samples: list[int | None] | None = None,
+    memory_after: int | None = None,
     command: list[str],
     environment: Mapping[str, str],
     stdout: bytes = b"",
@@ -159,6 +162,8 @@ def _write_terminal_receipt(
         memory_path,
         {
             "available_ram_bytes_before": memory_before,
+            "available_ram_bytes_samples": memory_samples or [],
+            "available_ram_bytes_after": memory_after,
             "launch_reserve_bytes": launch_reserve_mib * MIB,
             "emergency_floor_bytes": emergency_floor_mib * MIB,
         },
@@ -201,10 +206,15 @@ def run_guarded_fp16_preparation(
     A caller that already has an FP16 artifact supplies its validated manifest instead.
     """
 
+    if launch_reserve_mib < MIN_LAUNCH_RESERVE_MIB:
+        raise ValueError("launch reserve cannot be below 4096 MiB")
+    if emergency_floor_mib < MIN_EMERGENCY_FLOOR_MIB:
+        raise ValueError("emergency floor cannot be below 2048 MiB")
     root = Path(output_root).resolve()
     reserve = launch_reserve_mib * MIB
+    floor = emergency_floor_mib * MIB
     before = available_ram_bytes()
-    environment = {"PYTHONPATH": os.environ.get("PYTHONPATH", "")}
+    environment = dict(os.environ)
     command = [
         sys.executable,
         "-m",
@@ -229,6 +239,8 @@ def run_guarded_fp16_preparation(
     root.mkdir(parents=True, exist_ok=True)
     errors: list[str] = []
     emergency_actions: list[dict[str, object]] = []
+    memory_samples: list[int | None] = []
+    emergency_floor_triggered = False
     job: KillOnCloseJob | None = None
     process: subprocess.Popen[bytes] | None = None
     handles: list[object] = []
@@ -243,11 +255,27 @@ def run_guarded_fp16_preparation(
             stdout=stdout_handle,
             stderr=stderr_handle,
             cwd=Path(__file__).resolve().parents[3],
+            env=environment,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED,
         )
         job.assign_pid(process.pid)
         _resume_suspended_process(process.pid)
-        _wait_process(process, 60.0, "FP16 preparation", errors)
+        while process.poll() is None:
+            available = available_ram_bytes()
+            memory_samples.append(available)
+            if available is None:
+                _append_error(errors, "available RAM query failed during FP16 preparation")
+                job.terminate(137)
+                break
+            if available < floor:
+                emergency_floor_triggered = True
+                job.terminate(137)
+                break
+            try:
+                process.wait(timeout=0.05)
+            except subprocess.TimeoutExpired:
+                time.sleep(0.01)
+        _wait_process(process, 10.0, "FP16 preparation", errors)
     except Exception as error:
         _append_error(errors, f"FP16 preparation launch failed: {type(error).__name__}: {error}")
     finally:
@@ -258,9 +286,31 @@ def run_guarded_fp16_preparation(
         **cleanup,
         "emergency_actions": emergency_actions,
         "available_ram_bytes_after": after,
+        "emergency_floor_triggered": emergency_floor_triggered,
     }
-    if errors or process is None or process.returncode != 0 or not result_path.is_file():
+    if errors:
         raise RuntimeError("uncategorized FP16 preparation crash: " + "; ".join(errors))
+    if emergency_floor_triggered or after is None or after < floor:
+        return _write_terminal_receipt(
+            root,
+            classification=(
+                "memory-emergency-floor-stop"
+                if emergency_floor_triggered
+                else "memory-emergency-floor-post-run"
+            ),
+            launch_reserve_mib=launch_reserve_mib,
+            emergency_floor_mib=emergency_floor_mib,
+            memory_before=before,
+            memory_samples=memory_samples,
+            memory_after=after,
+            command=command,
+            environment=environment,
+            stdout=stdout_path.read_bytes(),
+            stderr=stderr_path.read_bytes(),
+            cleanup=cleanup,
+        )
+    if process is None or process.returncode != 0 or not result_path.is_file():
+        raise RuntimeError("uncategorized FP16 preparation crash")
     try:
         worker_result = json.loads(result_path.read_text(encoding="utf-8"))
         classification = worker_result["classification"]
@@ -274,6 +324,8 @@ def run_guarded_fp16_preparation(
         launch_reserve_mib=launch_reserve_mib,
         emergency_floor_mib=emergency_floor_mib,
         memory_before=before,
+        memory_samples=memory_samples,
+        memory_after=after,
         command=command,
         environment=environment,
         stdout=stdout_path.read_bytes(),

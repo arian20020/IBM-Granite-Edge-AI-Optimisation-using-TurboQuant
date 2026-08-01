@@ -8,9 +8,11 @@ from pathlib import Path
 
 import pytest
 
+import scripts.testing.official_openvino.artifact_inventory as artifact_inventory
 from scripts.testing.official_openvino.artifact_inventory import (
     ArtifactBinding,
     prepare_adaptive_artifacts,
+    run_guarded_fp16_preparation,
 )
 
 
@@ -193,3 +195,119 @@ def test_fp16_executor_requires_4096_mib_and_never_lowers_runtime_floor(
             launch_reserve_mib=4096,
             emergency_floor_mib=2047,
         )
+
+
+def test_direct_fp16_executor_rejects_unsafe_thresholds(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="launch reserve"):
+        run_guarded_fp16_preparation(
+            tmp_path / "launch",
+            launch_reserve_mib=4095,
+            emergency_floor_mib=2048,
+        )
+    with pytest.raises(ValueError, match="emergency floor"):
+        run_guarded_fp16_preparation(
+            tmp_path / "floor",
+            launch_reserve_mib=4096,
+            emergency_floor_mib=2047,
+        )
+
+
+def test_fp16_child_stops_at_emergency_floor_and_records_sampled_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeProcess:
+        pid = 1234
+        returncode = 0
+
+        def poll(self):
+            return None
+
+        def wait(self, timeout: float) -> None:
+            return None
+
+    class FakeJob:
+        def __init__(self, name: str) -> None:
+            self.terminated = []
+
+        def assign_pid(self, pid: int) -> None:
+            assert pid == 1234
+
+        def terminate(self, exit_code: int) -> None:
+            self.terminated.append(exit_code)
+
+    job = FakeJob("test")
+
+    def fake_popen(command: list[str], **kwargs: object) -> FakeProcess:
+        result = Path(command[command.index("--result") + 1])
+        write_canonical_json(result, {"classification": "fp16-manifest-not-provided"})
+        return FakeProcess()
+
+    samples = iter([4096 * artifact_inventory.MIB, 2047 * artifact_inventory.MIB, 4096 * artifact_inventory.MIB])
+    monkeypatch.setattr(artifact_inventory, "available_ram_bytes", lambda: next(samples))
+    monkeypatch.setattr(artifact_inventory, "KillOnCloseJob", lambda name: job)
+    monkeypatch.setattr(artifact_inventory.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(artifact_inventory, "_resume_suspended_process", lambda pid: None)
+    monkeypatch.setattr(artifact_inventory, "_wait_process", lambda *args: True)
+    monkeypatch.setattr(
+        artifact_inventory,
+        "_cleanup_job",
+        lambda *args: ({"queried_active_process_count_after_cleanup": 0}, False),
+    )
+    monkeypatch.setattr(artifact_inventory, "_close_run_resources", lambda *args: None)
+
+    binding = run_guarded_fp16_preparation(tmp_path / "prepared")
+
+    memory = json.loads((tmp_path / "prepared" / "memory.json").read_text(encoding="utf-8"))
+    cleanup = json.loads((tmp_path / "prepared" / "cleanup.json").read_text(encoding="utf-8"))
+    assert job.terminated == [137]
+    assert memory["available_ram_bytes_samples"] == [2047 * artifact_inventory.MIB]
+    assert cleanup["emergency_floor_triggered"] is True
+    assert binding.terminal_receipt_sha256 == sha256_file(binding.terminal_receipt_path)
+
+
+def test_fp16_child_passes_and_hashes_exact_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeProcess:
+        pid = 1234
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+        def wait(self, timeout: float) -> None:
+            return None
+
+    class FakeJob:
+        def assign_pid(self, pid: int) -> None:
+            pass
+
+    def fake_popen(command: list[str], **kwargs: object) -> FakeProcess:
+        captured["environment"] = kwargs.get("env")
+        result = Path(command[command.index("--result") + 1])
+        write_canonical_json(result, {"classification": "fp16-manifest-not-provided"})
+        return FakeProcess()
+
+    expected_environment = dict(artifact_inventory.os.environ)
+    monkeypatch.setattr(artifact_inventory, "available_ram_bytes", lambda: 4096 * artifact_inventory.MIB)
+    monkeypatch.setattr(artifact_inventory, "KillOnCloseJob", lambda name: FakeJob())
+    monkeypatch.setattr(artifact_inventory.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(artifact_inventory, "_resume_suspended_process", lambda pid: None)
+    monkeypatch.setattr(
+        artifact_inventory,
+        "_cleanup_job",
+        lambda *args: ({"queried_active_process_count_after_cleanup": 0}, False),
+    )
+    monkeypatch.setattr(artifact_inventory, "_close_run_resources", lambda *args: None)
+
+    run_guarded_fp16_preparation(tmp_path / "prepared")
+
+    environment_path = tmp_path / "prepared" / "environment.json"
+    receipt = json.loads((tmp_path / "prepared" / "terminal-receipt.json").read_text(encoding="utf-8"))
+    assert captured["environment"] == expected_environment
+    assert json.loads(environment_path.read_text(encoding="utf-8")) == expected_environment
+    assert receipt["environment_sha256"] == sha256_file(environment_path)
