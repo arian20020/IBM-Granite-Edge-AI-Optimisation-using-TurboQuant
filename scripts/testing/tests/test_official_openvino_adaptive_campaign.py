@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ import pytest
 
 from scripts.testing import build_official_openvino_boundary_index as boundary_cli
 from scripts.testing import run_official_openvino_adaptive_comparison as campaign_cli
+from scripts.testing.official_openvino import adaptive_campaign as adaptive_controller
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
@@ -1240,6 +1242,60 @@ def test_resume_reopens_actual_artifact_inventory_bytes(tmp_path: Path) -> None:
         load_or_create_state(config)
 
 
+def test_orchestration_api_exposes_no_guard_probe_job_or_factory() -> None:
+    assert not hasattr(adaptive_controller, "_run_adaptive_campaign_with_probe")
+    for entry_point in (run_adaptive_campaign, preflight_adaptive_campaign):
+        parameters = inspect.signature(entry_point).parameters
+        assert not {
+            "campaign_guard",
+            "campaign_job",
+            "campaign_job_factory",
+            "owned_survivor_probe",
+            "probe",
+        }.intersection(parameters)
+
+
+def test_former_private_fake_guard_exploit_cannot_launch(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    runner = _FakeRunner([{} for _ in range(5)])
+
+    class FabricatedZeroGuard:
+        fake_job = object()
+
+        def require_job(self) -> object:
+            return self.fake_job
+
+        def __call__(self, _campaign_root: Path) -> dict[str, object]:
+            return {
+                "schema": "official-openvino-adaptive-job-probe/v1",
+                "job_name": "fabricated",
+                "query_ok": True,
+                "active_pids": [],
+            }
+
+    private_runner = getattr(
+        adaptive_controller,
+        "_run_adaptive_campaign_with_probe",
+        None,
+    )
+    if private_runner is not None:
+        try:
+            private_runner(
+                config,
+                run_runtime=runner,
+                run_quality=None,
+                publish_checkpoint=None,
+                available_ram=lambda: START_RESERVE_MIB * 1024**2,
+                campaign_guard=FabricatedZeroGuard(),
+            )
+        except (RuntimeError, TypeError):
+            pass
+
+    assert runner.calls == []
+
+
 def test_public_fake_campaign_job_factory_is_rejected_before_launch(
     tmp_path: Path,
 ) -> None:
@@ -1294,6 +1350,73 @@ def test_live_campaign_job_proof_fails_closed_before_launch(
     assert "query" in result["campaign_halt"]["reason"]
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
+def test_closed_real_campaign_job_is_rejected_before_query(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    state = load_or_create_state(config)
+    campaign_job = KillOnCloseJob("WB04-test-closed-adaptive-campaign-job")
+    campaign_job.close()
+    query_called = False
+
+    def fabricated_query(_job: KillOnCloseJob) -> list[int]:
+        nonlocal query_called
+        query_called = True
+        return []
+
+    monkeypatch.setattr(KillOnCloseJob, "active_pids", fabricated_query)
+
+    accepted = adaptive_controller._record_live_survivor_probe(
+        config=config,
+        state=state,
+        stage="closed-handle-regression",
+        campaign_job=campaign_job,
+    )
+
+    assert accepted is False
+    assert query_called is False
+    assert state["campaign_halt"]["reason"] == (
+        "owned-survivor-proof-query-failed"
+    )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
+def test_campaign_job_handle_is_revalidated_before_task_three(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    runner = _FakeRunner([{} for _ in range(5)])
+    real_active_pids = KillOnCloseJob.active_pids
+    query_count = 0
+
+    def close_after_launch_query(job: KillOnCloseJob) -> list[int]:
+        nonlocal query_count
+        active = real_active_pids(job)
+        query_count += 1
+        if query_count == 2:
+            job.close()
+        return active
+
+    monkeypatch.setattr(
+        KillOnCloseJob,
+        "active_pids",
+        close_after_launch_query,
+    )
+
+    result = run_adaptive_campaign(
+        config,
+        run_runtime=runner,
+        run_quality=None,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
+    )
+
+    assert runner.calls == []
+    assert "handle is not open" in result["campaign_halt"]["detail"]["error"]
+
+
 def test_live_zero_campaign_job_proof_is_required_for_every_launch(
     tmp_path: Path,
 ) -> None:
@@ -1333,9 +1456,18 @@ def test_legacy_zero_callback_cannot_bypass_real_campaign_job(tmp_path: Path) ->
 
 def test_real_campaign_job_is_exact_object_passed_to_every_runtime_launch(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = _campaign_inputs(tmp_path)
     runner = _FakeRunner([{} for _ in range(5)])
+    real_active_pids = KillOnCloseJob.active_pids
+    queried_jobs: list[KillOnCloseJob] = []
+
+    def record_query(job: KillOnCloseJob) -> list[int]:
+        queried_jobs.append(job)
+        return real_active_pids(job)
+
+    monkeypatch.setattr(KillOnCloseJob, "active_pids", record_query)
 
     result = run_adaptive_campaign(
         config,
@@ -1347,6 +1479,8 @@ def test_real_campaign_job_is_exact_object_passed_to_every_runtime_launch(
     assert len(runner.calls) == 5
     assert all(type(job) is KillOnCloseJob for job in runner.campaign_jobs)
     assert all(job is runner.campaign_jobs[0] for job in runner.campaign_jobs)
+    assert queried_jobs
+    assert all(job is runner.campaign_jobs[0] for job in queried_jobs)
     assert result["campaign_halt"] is None
 
 
@@ -1357,14 +1491,20 @@ def test_nonempty_real_campaign_job_blocks_controller_launch(tmp_path: Path) -> 
         str(config.campaign_root.resolve()).encode("utf-8")
     ).hexdigest()[:24]
     campaign_job = KillOnCloseJob(f"WB04-adaptive-campaign-{identity}")
-    child = subprocess.Popen(
-        [sys.executable, "-c", "import time; time.sleep(30)"],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED,
-    )
-    campaign_job.assign_pid(child.pid)
+    children = [
+        subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=(
+                subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED
+            ),
+        )
+        for _ in range(2)
+    ]
+    for child in children:
+        campaign_job.assign_pid(child.pid)
     runner = _FakeRunner([{}])
     try:
         result = run_adaptive_campaign(
@@ -1378,13 +1518,17 @@ def test_nonempty_real_campaign_job_blocks_controller_launch(tmp_path: Path) -> 
             campaign_job.close()
         except OSError:
             pass
-        try:
-            child.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            child.kill()
-            child.wait(timeout=5)
+        for child in children:
+            try:
+                child.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait(timeout=5)
 
     assert runner.calls == []
+    assert result["safety_probes"][0]["active_pids"] == sorted(
+        child.pid for child in children
+    )
     assert result["campaign_halt"]["reason"] == (
         "owned-survivor-proof-survivors-present"
     )

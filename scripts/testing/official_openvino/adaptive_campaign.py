@@ -86,14 +86,27 @@ class StepOutcome:
     evidence_sha256: str
 
 
+def _campaign_job_name(campaign_root: Path) -> str:
+    identity = hashlib.sha256(
+        str(Path(campaign_root).resolve()).encode("utf-8")
+    ).hexdigest()[:24]
+    return f"WB04-adaptive-campaign-{identity}"
+
+
+def _require_open_campaign_job(campaign_job: KillOnCloseJob) -> KillOnCloseJob:
+    if type(campaign_job) is not KillOnCloseJob:
+        raise RuntimeError("real campaign Job Object is required")
+    handle = getattr(campaign_job, "_handle", None)
+    if type(handle) is not int or handle <= 0:
+        raise RuntimeError("real campaign Job Object handle is not open")
+    return campaign_job
+
+
 class _CampaignOwnedJobProbe:
-    """Own and query the containing Job Object for every campaign worker."""
+    """Own the one containing Job Object for the complete campaign lifetime."""
 
     def __init__(self, campaign_root: Path):
-        identity = hashlib.sha256(
-            str(Path(campaign_root).resolve()).encode("utf-8")
-        ).hexdigest()[:24]
-        self.name = f"WB04-adaptive-campaign-{identity}"
+        self.name = _campaign_job_name(campaign_root)
         self.job: KillOnCloseJob | None = None
 
     def __enter__(self) -> "_CampaignOwnedJobProbe":
@@ -106,35 +119,9 @@ class _CampaignOwnedJobProbe:
             self.job = None
 
     def require_job(self) -> KillOnCloseJob:
-        if type(self.job) is not KillOnCloseJob:
-            raise RuntimeError("real campaign Job Object is not open")
-        return self.job
-
-    def __call__(self, _campaign_root: Path) -> dict[str, Any]:
         if self.job is None:
-            return {
-                "schema": JOB_PROBE_SCHEMA,
-                "job_name": self.name,
-                "query_ok": False,
-                "active_pids": None,
-                "error": "campaign Job Object is not open",
-            }
-        try:
-            active = self.require_job().active_pids()
-        except (OSError, RuntimeError) as error:
-            return {
-                "schema": JOB_PROBE_SCHEMA,
-                "job_name": self.name,
-                "query_ok": False,
-                "active_pids": None,
-                "error": f"{type(error).__name__}: {error}",
-            }
-        return {
-            "schema": JOB_PROBE_SCHEMA,
-            "job_name": self.name,
-            "query_ok": True,
-            "active_pids": sorted(active),
-        }
+            raise RuntimeError("real campaign Job Object is not open")
+        return _require_open_campaign_job(self.job)
 
 
 def build_ladder(matrix_path: Path) -> tuple[tuple[str, int], ...]:
@@ -1405,13 +1392,22 @@ def _record_live_survivor_probe(
     config: AdaptiveCampaignConfig,
     state: dict[str, Any],
     stage: str,
-    probe: _CampaignOwnedJobProbe,
+    campaign_job: KillOnCloseJob,
 ) -> bool:
     root = Path(config.campaign_root).resolve()
     try:
-        raw = probe(root)
-    except Exception as error:
+        real_job = _require_open_campaign_job(campaign_job)
+        active = KillOnCloseJob.active_pids(real_job)
+        raw: Mapping[str, Any] = {
+            "schema": JOB_PROBE_SCHEMA,
+            "job_name": _campaign_job_name(root),
+            "query_ok": True,
+            "active_pids": sorted(active),
+        }
+    except (OSError, RuntimeError) as error:
         raw = {
+            "schema": JOB_PROBE_SCHEMA,
+            "job_name": _campaign_job_name(root),
             "query_ok": False,
             "active_pids": None,
             "error": f"{type(error).__name__}: {error}",
@@ -1956,6 +1952,7 @@ def _runtime_kwargs(
     context: int,
     campaign_job: KillOnCloseJob,
 ) -> dict[str, Any]:
+    campaign_job = _require_open_campaign_job(campaign_job)
     return {
         "spec_path": spec_path,
         "campaign_root": (
@@ -1989,9 +1986,9 @@ def _execute_runtime_step(
     spec: Mapping[str, Any],
     run_runtime: Callable[..., Mapping[str, Any]],
     available_ram: Callable[[], int | None],
-    campaign_guard: _CampaignOwnedJobProbe,
+    campaign_job: KillOnCloseJob,
 ) -> dict[str, Any]:
-    campaign_job = campaign_guard.require_job()
+    campaign_job = _require_open_campaign_job(campaign_job)
     attempts = _controller_attempts(config, test_id, context)
     attempts = _reconcile_native_runtime_failures(
         config=config,
@@ -2068,10 +2065,11 @@ def _execute_runtime_step(
                 config=config,
                 state=state,
                 stage=f"before-launch:{test_id}:{context}:{attempt_number}",
-                probe=campaign_guard,
+                campaign_job=campaign_job,
             ):
                 return state
             _require_start_reserve(available_ram)
+            campaign_job = _require_open_campaign_job(campaign_job)
         except RuntimeError as error:
             _set_campaign_halt(
                 state,
@@ -2166,11 +2164,12 @@ def _execute_runtime_step(
                     config=config,
                     state=state,
                     stage=f"before-retry:{test_id}:{context}:{attempt_number + 1}",
-                    probe=campaign_guard,
+                    campaign_job=campaign_job,
                 ):
                     status = "safety-boundary"
                     break
                 _require_start_reserve(available_ram)
+                campaign_job = _require_open_campaign_job(campaign_job)
             except RuntimeError as error:
                 _set_campaign_halt(
                     state,
@@ -2291,90 +2290,6 @@ def _execute_quality_step(
     return state
 
 
-def _run_adaptive_campaign_with_probe(
-    config: AdaptiveCampaignConfig,
-    *,
-    run_runtime: Callable[..., Mapping[str, Any]],
-    run_quality: Callable[..., Mapping[str, Any]] | None,
-    publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None,
-    available_ram: Callable[[], int | None],
-    campaign_guard: _CampaignOwnedJobProbe,
-) -> dict[str, Any]:
-    campaign_guard.require_job()
-    campaign_root = Path(config.campaign_root).resolve()
-    with CampaignLock(campaign_root):
-        state = load_or_create_state(config)
-        if state.get("campaign_halt") is not None:
-            return state
-        _cases, index, specs, _bindings = _validate_config(config)
-        terminals = {
-            terminal["test_id"]: terminal
-            for terminal in index["terminals"]
-        }
-        state_path = campaign_root / "adaptive-campaign-state.json"
-        for test_id, context in build_ladder(config.matrix_path):
-            if context > config.max_context or not step_is_eligible(
-                state, test_id, context
-            ):
-                continue
-            spec_entry = specs.get((test_id, context))
-            if spec_entry is None:
-                terminal = terminals.get(test_id)
-                if terminal is not None and context == CONTEXTS[0]:
-                    state = _record_artifact_preparation_terminal(
-                        config=config,
-                        state=state,
-                        terminal=terminal,
-                    )
-                    save_state_atomically(state_path, state)
-                    if publish_checkpoint is not None:
-                        publish_checkpoint(state_path, False)
-                continue
-            if not _record_live_survivor_probe(
-                config=config,
-                state=state,
-                stage=f"before-next-step:{test_id}:{context}",
-                probe=campaign_guard,
-            ):
-                if publish_checkpoint is not None:
-                    publish_checkpoint(state_path, False)
-                return state
-            state = _execute_runtime_step(
-                state,
-                config=config,
-                test_id=test_id,
-                context=context,
-                spec_path=spec_entry[0],
-                spec=spec_entry[1],
-                run_runtime=run_runtime,
-                available_ram=available_ram,
-                campaign_guard=campaign_guard,
-            )
-            if state.get("campaign_halt") is not None and (
-                f"{test_id}:{context}" not in state["steps"]
-            ):
-                if publish_checkpoint is not None:
-                    publish_checkpoint(state_path, False)
-                return state
-            if state["steps"][f"{test_id}:{context}"]["runtime_status"] == "passed":
-                state = _execute_quality_step(
-                    state,
-                    config=config,
-                    test_id=test_id,
-                    context=context,
-                    run_quality=run_quality,
-                )
-            save_state_atomically(state_path, state)
-            if publish_checkpoint is not None:
-                publish_checkpoint(state_path, False)
-            if (
-                state["steps"][f"{test_id}:{context}"]["runtime_status"]
-                == "safety-boundary"
-            ):
-                break
-        return state
-
-
 def run_adaptive_campaign(
     config: AdaptiveCampaignConfig,
     *,
@@ -2386,14 +2301,82 @@ def run_adaptive_campaign(
     """Run or resume the fixed ladder while checkpointing each final step."""
 
     with _CampaignOwnedJobProbe(config.campaign_root) as guard:
-        return _run_adaptive_campaign_with_probe(
-            config,
-            run_runtime=run_runtime,
-            run_quality=run_quality,
-            publish_checkpoint=publish_checkpoint,
-            available_ram=available_ram,
-            campaign_guard=guard,
-        )
+        campaign_job = guard.require_job()
+        campaign_root = Path(config.campaign_root).resolve()
+        with CampaignLock(campaign_root):
+            state = load_or_create_state(config)
+            if state.get("campaign_halt") is not None:
+                return state
+            _cases, index, specs, _bindings = _validate_config(config)
+            terminals = {
+                terminal["test_id"]: terminal
+                for terminal in index["terminals"]
+            }
+            state_path = campaign_root / "adaptive-campaign-state.json"
+            for test_id, context in build_ladder(config.matrix_path):
+                if context > config.max_context or not step_is_eligible(
+                    state, test_id, context
+                ):
+                    continue
+                spec_entry = specs.get((test_id, context))
+                if spec_entry is None:
+                    terminal = terminals.get(test_id)
+                    if terminal is not None and context == CONTEXTS[0]:
+                        state = _record_artifact_preparation_terminal(
+                            config=config,
+                            state=state,
+                            terminal=terminal,
+                        )
+                        save_state_atomically(state_path, state)
+                        if publish_checkpoint is not None:
+                            publish_checkpoint(state_path, False)
+                    continue
+                if not _record_live_survivor_probe(
+                    config=config,
+                    state=state,
+                    stage=f"before-next-step:{test_id}:{context}",
+                    campaign_job=campaign_job,
+                ):
+                    if publish_checkpoint is not None:
+                        publish_checkpoint(state_path, False)
+                    return state
+                state = _execute_runtime_step(
+                    state,
+                    config=config,
+                    test_id=test_id,
+                    context=context,
+                    spec_path=spec_entry[0],
+                    spec=spec_entry[1],
+                    run_runtime=run_runtime,
+                    available_ram=available_ram,
+                    campaign_job=campaign_job,
+                )
+                if state.get("campaign_halt") is not None and (
+                    f"{test_id}:{context}" not in state["steps"]
+                ):
+                    if publish_checkpoint is not None:
+                        publish_checkpoint(state_path, False)
+                    return state
+                if (
+                    state["steps"][f"{test_id}:{context}"]["runtime_status"]
+                    == "passed"
+                ):
+                    state = _execute_quality_step(
+                        state,
+                        config=config,
+                        test_id=test_id,
+                        context=context,
+                        run_quality=run_quality,
+                    )
+                save_state_atomically(state_path, state)
+                if publish_checkpoint is not None:
+                    publish_checkpoint(state_path, False)
+                if (
+                    state["steps"][f"{test_id}:{context}"]["runtime_status"]
+                    == "safety-boundary"
+                ):
+                    break
+            return state
 
 
 def preflight_adaptive_campaign(
@@ -2404,6 +2387,7 @@ def preflight_adaptive_campaign(
     """Validate all bindings and safety gates without creating an attempt."""
 
     with _CampaignOwnedJobProbe(config.campaign_root) as guard:
+        campaign_job = guard.require_job()
         root = Path(config.campaign_root).resolve()
         with CampaignLock(root):
             state = load_or_create_state(config)
@@ -2417,7 +2401,7 @@ def preflight_adaptive_campaign(
                     config=config,
                     state=state,
                     stage="preflight",
-                    probe=guard,
+                    campaign_job=campaign_job,
                 ):
                     raise RuntimeError(
                         "adaptive campaign is halted: "
