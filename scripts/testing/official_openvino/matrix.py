@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from pathlib import Path
 
 
@@ -86,12 +86,49 @@ class OpenVINOCase:
     expected_outcome: str | None
     suitable_host_required: bool | None
     numeric_generation_metrics_expected: bool | None
-    artifact_id: str | None = None
-    artifact_manifest_path: str | None = None
-    artifact_manifest_sha256: str | None = None
-    artifact_status: str | None = None
-    artifact_terminal_path: str | None = None
-    artifact_terminal_sha256: str | None = None
+    artifact_id: InitVar[str | None] = None
+    artifact_manifest_path: InitVar[str | None] = None
+    artifact_manifest_sha256: InitVar[str | None] = None
+    artifact_status: InitVar[str | None] = None
+    artifact_terminal_path: InitVar[str | None] = None
+    artifact_terminal_sha256: InitVar[str | None] = None
+
+    def __post_init__(
+        self,
+        artifact_id: str | None,
+        artifact_manifest_path: str | None,
+        artifact_manifest_sha256: str | None,
+        artifact_status: str | None,
+        artifact_terminal_path: str | None,
+        artifact_terminal_sha256: str | None,
+    ) -> None:
+        object.__setattr__(
+            self,
+            "_artifact_fields",
+            {
+                "artifact_id": artifact_id,
+                "artifact_manifest_path": artifact_manifest_path,
+                "artifact_manifest_sha256": artifact_manifest_sha256,
+                "artifact_status": artifact_status,
+                "artifact_terminal_path": artifact_terminal_path,
+                "artifact_terminal_sha256": artifact_terminal_sha256,
+            },
+        )
+
+
+def _artifact_field(name: str) -> property:
+    return property(lambda self: self._artifact_fields[name])
+
+
+for _artifact_name in (
+    "artifact_id",
+    "artifact_manifest_path",
+    "artifact_manifest_sha256",
+    "artifact_status",
+    "artifact_terminal_path",
+    "artifact_terminal_sha256",
+):
+    setattr(OpenVINOCase, _artifact_name, _artifact_field(_artifact_name))
 
 
 @dataclass(frozen=True)

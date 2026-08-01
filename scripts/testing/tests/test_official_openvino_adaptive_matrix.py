@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -156,3 +157,15 @@ def test_comparison_matrix_allows_only_fp16_preparation_terminal(tmp_path: Path,
 def test_historical_matrix_contract_is_unchanged() -> None:
     assert len(load_matrix(HISTORICAL_MATRIX)) == 60
     assert sha256_file(HISTORICAL_MATRIX) == HISTORICAL_MATRIX_SHA256
+
+
+def test_historical_case_serialization_excludes_additive_artifact_fields() -> None:
+    serialized = asdict(load_matrix(HISTORICAL_MATRIX)[0])
+    assert not {
+        "artifact_id",
+        "artifact_manifest_path",
+        "artifact_manifest_sha256",
+        "artifact_status",
+        "artifact_terminal_path",
+        "artifact_terminal_sha256",
+    }.intersection(serialized)
