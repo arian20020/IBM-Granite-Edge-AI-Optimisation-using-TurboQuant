@@ -17,7 +17,10 @@ from scripts.testing.official_openvino.guarded_build import (
     _effective_environment,
     run_guarded_command,
 )
-from scripts.testing.official_openvino.owned_process_guard import available_ram_bytes
+from scripts.testing.official_openvino.owned_process_guard import (
+    KillOnCloseJob,
+    available_ram_bytes,
+)
 from scripts.testing.official_openvino.quality_campaign import (
     AcceptedQualityCampaign,
     QualityCampaignInput,
@@ -38,6 +41,9 @@ from scripts.testing.official_openvino.quality_worker import (
 
 PROMPT_IDS = ("P1", "P2", "P3", "P4", "P5", "P6")
 CAPTURE_SCHEMA = "official-openvino-adaptive-quality-capture/v1"
+TERMINAL_GUARD_SCHEMA = "official-openvino-adaptive-quality-terminal-guard/v1"
+QUALITY_RECOVERY_SCHEMA = "official-openvino-adaptive-quality-recovery/v1"
+SPEC_INDEX_SCHEMA = "official-openvino-adaptive-comparison-spec-index/v1"
 MIB = 1024**2
 LAUNCH_FLOOR_BYTES = 4096 * MIB
 EMERGENCY_FLOOR_BYTES = 2048 * MIB
@@ -54,12 +60,46 @@ class GovernedQualityPromptResult:
     cleanup_process_count: int
 
 
+@dataclass(frozen=True)
+class AdaptiveQualityCampaignInput(QualityCampaignInput):
+    attempt_sequence_path: Path
+    adaptive_runtime_spec_path: Path
+    pilot_spec_path: Path
+    spec_index_path: Path
+    artifact_inventory_path: Path
+
+
+def _input_evidence_paths(
+    campaign_input: QualityCampaignInput,
+) -> dict[str, Path] | None:
+    if not isinstance(campaign_input, AdaptiveQualityCampaignInput):
+        return None
+    return {
+        field: Path(getattr(campaign_input, field)).resolve()
+        for field in (
+            "attempt_sequence_path",
+            "adaptive_runtime_spec_path",
+            "pilot_spec_path",
+            "spec_index_path",
+            "artifact_inventory_path",
+        )
+    }
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _plain_json(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _plain_json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain_json(item) for item in value]
+    return value
 
 
 def _require_prompt_id(prompt_id: Any) -> str:
@@ -72,11 +112,58 @@ def _prompt_root(campaign: AcceptedQualityCampaign, prompt_id: str) -> Path:
     return Path(campaign.output_root).resolve() / prompt_id
 
 
+def _prompt_evidence_paths(
+    campaign: AcceptedQualityCampaign,
+    evidence_paths: Mapping[str, Any] | None,
+) -> dict[str, Path]:
+    expected = {
+        "attempt_sequence_path",
+        "adaptive_runtime_spec_path",
+        "pilot_spec_path",
+        "spec_index_path",
+        "artifact_inventory_path",
+    }
+    if evidence_paths is None:
+        attempt_sequence = (campaign.campaign_root / "attempt-sequence.json").resolve()
+        sequence = _strict_object(
+            attempt_sequence.read_bytes(), source=attempt_sequence
+        )
+        pilot = sequence.get("pilot")
+        if not isinstance(pilot, Mapping) or not isinstance(
+            pilot.get("spec_path"), str
+        ):
+            raise ValueError("quality prompt pilot spec binding is missing")
+        pilot_spec = (campaign.campaign_root / pilot["spec_path"]).resolve()
+        candidate_index = campaign.spec_path.parent / "spec-index.json"
+        return {
+            "attempt_sequence_path": attempt_sequence,
+            "adaptive_runtime_spec_path": Path(campaign.spec_path).resolve(),
+            "pilot_spec_path": pilot_spec,
+            "spec_index_path": (
+                candidate_index.resolve()
+                if candidate_index.is_file()
+                else Path(campaign.spec_path).resolve()
+            ),
+            "artifact_inventory_path": Path(
+                campaign.artifact_manifest_path
+            ).resolve(),
+        }
+    if not isinstance(evidence_paths, Mapping) or set(evidence_paths) != expected:
+        raise ValueError("quality prompt evidence path bindings are invalid")
+    normalized = {
+        field: Path(str(evidence_paths[field])).resolve() for field in expected
+    }
+    if any(not path.is_file() for path in normalized.values()):
+        raise ValueError("quality prompt evidence path binding is missing")
+    return normalized
+
+
 def _build_prompt_spec(
     campaign: AcceptedQualityCampaign,
     prompt_id: str,
     *,
     prompt_root: Path,
+    evidence_paths: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     accepted = load_accepted_quality_campaign(
         _accepted_input_from_campaign(campaign)
@@ -109,11 +196,20 @@ def _build_prompt_spec(
     build = identity["build"]
     model = identity["model"]
     summary_sources = accepted.measurement_summary.get("sources", ())
-    raw_hashes = [
-        source.get("sha256")
-        for source in summary_sources
-        if isinstance(source, Mapping)
-    ]
+    if not isinstance(summary_sources, (list, tuple)) or len(summary_sources) != 3:
+        raise ValueError("quality prompt runtime raw samples are incomplete")
+    raw_samples = []
+    for source in summary_sources:
+        if not isinstance(source, Mapping):
+            raise ValueError("quality prompt runtime raw sample is invalid")
+        raw_path = Path(str(source.get("path"))).resolve()
+        raw_samples.append(
+            {"path": str(raw_path), "sha256": str(source.get("sha256"))}
+        )
+    evidence = _prompt_evidence_paths(accepted, evidence_paths)
+    build_identity = _plain_json(build)
+    runtime_property = _plain_json(config)
+    quality_worker_path = Path(__file__).resolve().with_name("quality_worker.py")
     return {
         "schema": PROMPT_SPEC_SCHEMA,
         "prompt_id": prompt_id,
@@ -133,7 +229,27 @@ def _build_prompt_spec(
                 (accepted.campaign_root / "measurement-summary.json").resolve()
             ),
             "runtime_summary_sha256": accepted.measurement_summary_sha256,
-            "raw_sample_hashes": raw_hashes,
+            "raw_samples": raw_samples,
+            "attempt_sequence_path": str(evidence["attempt_sequence_path"]),
+            "attempt_sequence_sha256": _sha256_file(
+                evidence["attempt_sequence_path"]
+            ),
+            "adaptive_runtime_spec_path": str(
+                evidence["adaptive_runtime_spec_path"]
+            ),
+            "adaptive_runtime_spec_sha256": _sha256_file(
+                evidence["adaptive_runtime_spec_path"]
+            ),
+            "pilot_spec_path": str(evidence["pilot_spec_path"]),
+            "pilot_spec_sha256": _sha256_file(evidence["pilot_spec_path"]),
+            "spec_index_path": str(evidence["spec_index_path"]),
+            "spec_index_sha256": _sha256_file(evidence["spec_index_path"]),
+            "artifact_inventory_path": str(
+                evidence["artifact_inventory_path"]
+            ),
+            "artifact_inventory_sha256": _sha256_file(
+                evidence["artifact_inventory_path"]
+            ),
             "matrix_path": str(accepted.matrix_path),
             "matrix_sha256": _sha256_file(accepted.matrix_path),
             "artifact_manifest_path": str(accepted.artifact_manifest_path),
@@ -144,8 +260,13 @@ def _build_prompt_spec(
             "rubric_sha256": accepted.rubric_sha256,
             "build_provenance_path": str(accepted.build_provenance_path),
             "build_provenance_sha256": build["provenance_sha256"],
-            "build_identity_sha256": _sha256_json(build),
+            "quality_worker_path": str(quality_worker_path),
+            "quality_worker_sha256": _sha256_file(quality_worker_path),
+            "build_identity": build_identity,
+            "build_identity_sha256": _sha256_json(build_identity),
+            "runtime_property": runtime_property,
             "runtime_property_sha256": accepted.runtime_config_sha256,
+            "command": command,
             "command_sha256": _sha256_json(command),
         },
     }
@@ -174,6 +295,108 @@ def _write_fresh(path: Path, raw: bytes) -> None:
         handle.write(raw)
         handle.flush()
         os.fsync(handle.fileno())
+
+
+def _quality_prompt_job_name(prompt_root: Path) -> str:
+    identity = hashlib.sha256(
+        str(Path(prompt_root).resolve()).casefold().encode("utf-8")
+    ).hexdigest()[:24]
+    return f"WB04-adaptive-quality-{identity}"
+
+
+def _terminal_worker_result(
+    spec: Mapping[str, Any],
+    *,
+    failure_type: str,
+    failure_message: str,
+) -> dict[str, Any]:
+    outcomes: list[dict[str, Any]] = []
+    first_output = ""
+    for index, turn in enumerate(spec["turns"]):
+        raw_prompt = turn["prompt"]
+        if spec["prompt_id"] == "P6" and index == 1:
+            raw_prompt = (
+                f"User: {spec['turns'][0]['prompt'].strip()}\n"
+                f"Assistant: {first_output}\n"
+                f"User: {turn['prompt'].strip()}"
+            )
+        outcome = {
+            "turn_id": turn["turn_id"],
+            "raw_prompt": raw_prompt,
+            "raw_prompt_sha256": hashlib.sha256(
+                raw_prompt.encode("utf-8")
+            ).hexdigest(),
+            "status": "failed",
+            "raw_output": None,
+            "raw_output_sha256": None,
+            "failure_type": failure_type,
+            "failure_message": failure_message,
+        }
+        if spec["prompt_id"] == "P6" and index == 1:
+            outcome["history_source_sha256"] = hashlib.sha256(b"").hexdigest()
+        outcomes.append(outcome)
+    unsigned = {
+        "schema": PROMPT_RESULT_SCHEMA,
+        "prompt_id": spec["prompt_id"],
+        "worker_spec_sha256": hashlib.sha256(_canonical_json(spec)).hexdigest(),
+        "outcomes": outcomes,
+    }
+    return {
+        **unsigned,
+        "worker_result_sha256": hashlib.sha256(
+            _canonical_json(unsigned)
+        ).hexdigest(),
+    }
+
+
+def _publish_terminal_prompt_evidence(
+    *,
+    root: Path,
+    spec: Mapping[str, Any],
+    stage: str,
+    error: BaseException,
+    cleanup_process_count: int = -1,
+    active_pids: list[int] | None = None,
+) -> None:
+    result_path = root / "worker-result.json"
+    log_path = root / "worker.log"
+    evidence_path = root / "guard-evidence.json"
+    message = f"{type(error).__name__}: {error}"
+    if not result_path.exists():
+        _write_fresh(
+            result_path,
+            _canonical_json(
+                _terminal_worker_result(
+                    spec,
+                    failure_type="QualityAdmissionFailure",
+                    failure_message=message,
+                )
+            ),
+        )
+    if not log_path.exists():
+        _write_fresh(log_path, b"")
+    if not evidence_path.exists():
+        unsigned = {
+            "schema": TERMINAL_GUARD_SCHEMA,
+            "status": "quality-blocked",
+            "failure_stage": stage,
+            "failure_type": type(error).__name__,
+            "failure_message": str(error),
+            "worker_spec_sha256": hashlib.sha256(
+                _canonical_json(spec)
+            ).hexdigest(),
+            "worker_result_sha256": _sha256_file(result_path),
+            "worker_log_sha256": _sha256_file(log_path),
+            "cleanup_process_count": cleanup_process_count,
+            "active_pids": active_pids,
+        }
+        evidence = {
+            **unsigned,
+            "terminal_guard_sha256": hashlib.sha256(
+                _canonical_json(unsigned)
+            ).hexdigest(),
+        }
+        _write_fresh(evidence_path, _canonical_json(evidence))
 
 
 def _validate_worker_result(
@@ -323,8 +546,26 @@ def _validate_guard(
         raise ValueError("quality prompt guard run identity is invalid")
     cleanup = evidence.get("cleanup_process_count")
     job = evidence.get("job_object")
+    containing = evidence.get("containing_job_assignment")
+    containing_proven = (
+        isinstance(containing, Mapping)
+        and set(containing)
+        == {
+            "requested",
+            "assigned_before_fine_job",
+            "assigned_pid",
+            "query_ok_after_cleanup",
+            "active_pids_after_cleanup",
+        }
+        and containing.get("requested") is True
+        and containing.get("assigned_before_fine_job") is True
+        and containing.get("assigned_pid") == root_pid
+        and containing.get("query_ok_after_cleanup") is True
+        and containing.get("active_pids_after_cleanup") == []
+    )
     cleanup_proven = (
         cleanup == 0
+        and containing_proven
         and isinstance(job, Mapping)
         and job.get("setup_ok") is True
         and job.get("query_ok") is True
@@ -343,11 +584,74 @@ def _validate_guard(
     return ("passed" if passed else "failed"), (0 if cleanup_proven else -1)
 
 
+def _validate_terminal_guard(
+    evidence: Mapping[str, Any],
+    *,
+    spec_sha256: str,
+    result_sha256: str,
+    log_sha256: str,
+) -> int:
+    fields = {
+        "schema",
+        "status",
+        "failure_stage",
+        "failure_type",
+        "failure_message",
+        "worker_spec_sha256",
+        "worker_result_sha256",
+        "worker_log_sha256",
+        "cleanup_process_count",
+        "active_pids",
+        "terminal_guard_sha256",
+    }
+    if set(evidence) != fields:
+        raise ValueError("quality prompt terminal guard fields are invalid")
+    if (
+        evidence.get("schema") != TERMINAL_GUARD_SCHEMA
+        or evidence.get("status") != "quality-blocked"
+        or not isinstance(evidence.get("failure_stage"), str)
+        or not evidence["failure_stage"].strip()
+        or not isinstance(evidence.get("failure_type"), str)
+        or not evidence["failure_type"].strip()
+        or not isinstance(evidence.get("failure_message"), str)
+        or evidence.get("worker_spec_sha256") != spec_sha256
+        or evidence.get("worker_result_sha256") != result_sha256
+        or evidence.get("worker_log_sha256") != log_sha256
+    ):
+        raise ValueError("quality prompt terminal guard identity is invalid")
+    cleanup = evidence.get("cleanup_process_count")
+    active_pids = evidence.get("active_pids")
+    if cleanup not in {0, -1} or (
+        active_pids is not None
+        and (
+            not isinstance(active_pids, list)
+            or any(
+                isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0
+                for pid in active_pids
+            )
+            or active_pids != sorted(set(active_pids))
+        )
+    ):
+        raise ValueError("quality prompt terminal cleanup evidence is invalid")
+    if cleanup == 0 and active_pids != []:
+        raise ValueError("quality prompt terminal zero-survivor proof is invalid")
+    unsigned = {
+        key: item for key, item in evidence.items() if key != "terminal_guard_sha256"
+    }
+    if evidence.get("terminal_guard_sha256") != hashlib.sha256(
+        _canonical_json(unsigned)
+    ).hexdigest():
+        raise ValueError("quality prompt terminal guard hash is invalid")
+    return cleanup
+
+
 def _load_prompt_execution(
     campaign: AcceptedQualityCampaign,
     prompt_id: str,
     prompt_root: Path,
     timeout_seconds: float,
+    *,
+    evidence_paths: Mapping[str, Any] | None = None,
 ) -> GovernedQualityPromptResult:
     root = Path(prompt_root).resolve()
     expected_names = {
@@ -362,7 +666,12 @@ def _load_prompt_execution(
         or any(child.is_symlink() or not child.is_file() for child in children)
     ):
         raise ValueError("quality prompt evidence is incomplete or unexpected")
-    spec = _build_prompt_spec(campaign, prompt_id, prompt_root=root)
+    spec = _build_prompt_spec(
+        campaign,
+        prompt_id,
+        prompt_root=root,
+        evidence_paths=evidence_paths,
+    )
     spec_raw = (root / "worker-spec.json").read_bytes()
     if spec_raw != _canonical_json(spec):
         raise ValueError("quality prompt worker spec does not match accepted campaign")
@@ -374,8 +683,6 @@ def _load_prompt_execution(
     log_sha256 = _sha256_file(root / "worker.log")
     evidence_raw = (root / "guard-evidence.json").read_bytes()
     evidence = _strict_object(evidence_raw, source=root / "guard-evidence.json")
-    if evidence_raw != _canonical_identity_bytes(evidence):
-        raise ValueError("quality prompt guard evidence bytes are not canonical")
     command = [
         str(campaign.python_executable),
         "-m",
@@ -385,15 +692,28 @@ def _load_prompt_execution(
         "--result",
         str((root / "worker-result.json").resolve()),
     ]
-    guard_status, cleanup = _validate_guard(
-        evidence,
-        command=command,
-        campaign=campaign,
-        prompt_root=root,
-        timeout_seconds=timeout_seconds,
-        spec_sha256=spec_sha256,
-        log_sha256=log_sha256,
-    )
+    if evidence.get("schema") == TERMINAL_GUARD_SCHEMA:
+        if evidence_raw != _canonical_json(evidence):
+            raise ValueError("quality prompt terminal guard bytes are not canonical")
+        cleanup = _validate_terminal_guard(
+            evidence,
+            spec_sha256=spec_sha256,
+            result_sha256=hashlib.sha256(result_raw).hexdigest(),
+            log_sha256=log_sha256,
+        )
+        guard_status = "failed"
+    else:
+        if evidence_raw != _canonical_identity_bytes(evidence):
+            raise ValueError("quality prompt guard evidence bytes are not canonical")
+        guard_status, cleanup = _validate_guard(
+            evidence,
+            command=command,
+            campaign=campaign,
+            prompt_root=root,
+            timeout_seconds=timeout_seconds,
+            spec_sha256=spec_sha256,
+            log_sha256=log_sha256,
+        )
     return GovernedQualityPromptResult(
         prompt_id=prompt_id,
         status="passed" if guard_status == worker_status == "passed" else "failed",
@@ -405,13 +725,14 @@ def _load_prompt_execution(
     )
 
 
-def run_governed_quality_prompt(
+def _run_governed_quality_prompt(
     campaign: AcceptedQualityCampaign,
     prompt_id: str,
     output_root: Path,
     timeout_seconds: float,
     *,
     run_command: Callable[..., Mapping[str, Any]] = run_guarded_command,
+    evidence_paths: Mapping[str, Any] | None = None,
 ) -> GovernedQualityPromptResult:
     """Launch one fresh prompt worker and reopen every persisted byte."""
 
@@ -425,17 +746,17 @@ def run_governed_quality_prompt(
         or timeout_seconds <= 0
     ):
         raise ValueError("quality prompt timeout must be finite and positive")
-    available = available_ram_bytes()
-    if not isinstance(available, int) or isinstance(available, bool):
-        raise RuntimeError("quality prompt available RAM query failed")
-    if available < LAUNCH_FLOOR_BYTES:
-        raise RuntimeError("quality prompt launch requires at least 4096 MiB RAM")
     accepted = load_accepted_quality_campaign(
         _accepted_input_from_campaign(campaign)
     )
     root = Path(output_root).resolve()
     root.mkdir(parents=True, exist_ok=False)
-    spec = _build_prompt_spec(accepted, checked, prompt_root=root)
+    spec = _build_prompt_spec(
+        accepted,
+        checked,
+        prompt_root=root,
+        evidence_paths=evidence_paths,
+    )
     spec_path = root / "worker-spec.json"
     result_path = root / "worker-result.json"
     log_path = root / "worker.log"
@@ -450,26 +771,101 @@ def run_governed_quality_prompt(
         "--result",
         str(result_path),
     ]
-    returned = run_command(
-        command=command,
-        cwd=accepted.repo_root,
-        log_path=log_path,
-        evidence_path=evidence_path,
-        expected_exit="zero",
-        limits=GuardLimits(
-            minimum_available_ram_bytes=EMERGENCY_FLOOR_BYTES,
-            maximum_runtime_seconds=float(timeout_seconds),
-        ),
-        environment=dict(accepted.worker_environment),
-        bound_inputs={"quality_worker_spec": spec_path},
-    )
-    if not isinstance(returned, Mapping):
-        raise RuntimeError("quality prompt guard returned invalid evidence")
-    persisted = _strict_object(evidence_path.read_bytes(), source=evidence_path)
-    if dict(returned) != persisted:
-        raise RuntimeError("quality prompt guard return does not match evidence")
-    return _load_prompt_execution(
-        accepted, checked, root, float(timeout_seconds)
+    containing_job: KillOnCloseJob | None = None
+    active_pids: list[int] | None = None
+    cleanup_process_count = -1
+    stage = "containing-job-creation"
+    try:
+        containing_job = KillOnCloseJob(_quality_prompt_job_name(root))
+        if type(containing_job) is not KillOnCloseJob:
+            raise RuntimeError("quality prompt containing Job type is invalid")
+        stage = "containing-job-survivor-query"
+        active_pids = KillOnCloseJob.active_pids(containing_job)
+        if active_pids:
+            raise RuntimeError(
+                "quality prompt containing Job has pre-launch survivors"
+            )
+        cleanup_process_count = 0
+        stage = "available-ram-admission"
+        available = available_ram_bytes()
+        if not isinstance(available, int) or isinstance(available, bool):
+            raise RuntimeError("quality prompt available RAM query failed")
+        if available < LAUNCH_FLOOR_BYTES:
+            raise RuntimeError(
+                "quality prompt launch requires at least 4096 MiB RAM"
+            )
+        stage = "guarded-worker-launch"
+        returned = run_command(
+            command=command,
+            cwd=accepted.repo_root,
+            log_path=log_path,
+            evidence_path=evidence_path,
+            expected_exit="zero",
+            limits=GuardLimits(
+                minimum_available_ram_bytes=EMERGENCY_FLOOR_BYTES,
+                maximum_runtime_seconds=float(timeout_seconds),
+            ),
+            environment=dict(accepted.worker_environment),
+            bound_inputs={"quality_worker_spec": spec_path},
+            _containing_job=containing_job,
+        )
+        stage = "guard-evidence-reopen"
+        if not isinstance(returned, Mapping):
+            raise RuntimeError("quality prompt guard returned invalid evidence")
+        persisted = _strict_object(evidence_path.read_bytes(), source=evidence_path)
+        if dict(returned) != persisted:
+            raise RuntimeError("quality prompt guard return does not match evidence")
+        return _load_prompt_execution(
+            accepted,
+            checked,
+            root,
+            float(timeout_seconds),
+            evidence_paths=evidence_paths,
+        )
+    except Exception as error:
+        if containing_job is not None:
+            try:
+                active_pids = sorted(KillOnCloseJob.active_pids(containing_job))
+                cleanup_process_count = 0 if active_pids == [] else -1
+            except (OSError, RuntimeError):
+                active_pids = None
+                cleanup_process_count = -1
+        _publish_terminal_prompt_evidence(
+            root=root,
+            spec=spec,
+            stage=stage,
+            error=error,
+            cleanup_process_count=cleanup_process_count,
+            active_pids=active_pids,
+        )
+        return _load_prompt_execution(
+            accepted,
+            checked,
+            root,
+            float(timeout_seconds),
+            evidence_paths=evidence_paths,
+        )
+    finally:
+        if containing_job is not None:
+            containing_job.close()
+
+
+def run_governed_quality_prompt(
+    campaign: AcceptedQualityCampaign,
+    prompt_id: str,
+    output_root: Path,
+    timeout_seconds: float,
+    *,
+    run_command: Callable[..., Mapping[str, Any]] = run_guarded_command,
+) -> GovernedQualityPromptResult:
+    """Launch one fresh prompt worker using internally derived bindings."""
+
+    return _run_governed_quality_prompt(
+        campaign,
+        prompt_id,
+        output_root,
+        timeout_seconds,
+        run_command=run_command,
     )
 
 
@@ -506,6 +902,7 @@ def _summary(
     results: Mapping[str, GovernedQualityPromptResult],
     *,
     summary_path: Path,
+    previous_summary_path: Path | None = None,
 ) -> dict[str, Any]:
     completed = [
         prompt_id
@@ -523,6 +920,16 @@ def _summary(
         "prompt_receipt_count": 6,
         "prompt_receipts": receipts,
         "capture_summary_path": str(Path(summary_path).resolve()),
+        "previous_capture_summary_path": (
+            str(Path(previous_summary_path).resolve())
+            if previous_summary_path is not None
+            else None
+        ),
+        "previous_capture_summary_sha256": (
+            _sha256_file(previous_summary_path)
+            if previous_summary_path is not None
+            else None
+        ),
         "campaign_identity_sha256": campaign.campaign_identity_sha256,
         "runtime_summary_sha256": campaign.measurement_summary_sha256,
         "matrix_sha256": _sha256_file(campaign.matrix_path),
@@ -544,6 +951,9 @@ def _summary(
 def _validate_summary(
     campaign: AcceptedQualityCampaign,
     path: Path,
+    *,
+    evidence_paths: Mapping[str, Any] | None = None,
+    previous_summary_path: Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, GovernedQualityPromptResult]]:
     raw = Path(path).read_bytes()
     value = _strict_object(raw, source=path)
@@ -583,7 +993,11 @@ def _validate_summary(
         ):
             raise ValueError("adaptive quality prompt path is invalid")
         result = _load_prompt_execution(
-            campaign, prompt_id, prompt_root, campaign.timeout_seconds
+            campaign,
+            prompt_id,
+            prompt_root,
+            campaign.timeout_seconds,
+            evidence_paths=evidence_paths,
         )
         if _receipt(result, prompt_id, campaign.output_root) != receipt:
             raise ValueError("adaptive quality prompt receipt does not match evidence")
@@ -593,7 +1007,12 @@ def _validate_summary(
             seen_absent = True
     if len(process_identities) != len(set(process_identities)):
         raise ValueError("adaptive quality workers did not use fresh processes")
-    expected = _summary(campaign, loaded, summary_path=path)
+    expected = _summary(
+        campaign,
+        loaded,
+        summary_path=path,
+        previous_summary_path=previous_summary_path,
+    )
     if value != expected:
         raise ValueError("adaptive quality capture summary does not match evidence")
     return value, loaded
@@ -603,6 +1022,89 @@ def _latest_summary(root: Path) -> Path | None:
     primary = root / "capture-summary.json"
     recovery = sorted(root.glob("capture-summary-recovery-*.json"))
     return recovery[-1] if recovery else (primary if primary.is_file() else None)
+
+
+def _summary_history(root: Path) -> list[Path]:
+    primary = root / "capture-summary.json"
+    recovery = sorted(root.glob("capture-summary-recovery-*.json"))
+    return ([primary] if primary.is_file() else []) + recovery
+
+
+def _validate_summary_transition(
+    previous: Mapping[str, Any],
+    current: Mapping[str, Any],
+) -> None:
+    previous_receipts = previous["prompt_receipts"]
+    current_receipts = current["prompt_receipts"]
+    changed = False
+    for prompt_id, old, new in zip(
+        PROMPT_IDS, previous_receipts, current_receipts, strict=True
+    ):
+        if old == new:
+            continue
+        changed = True
+        old_status = old.get("status")
+        new_root = Path(str(new.get("prompt_root"))).resolve()
+        if old_status == "passed":
+            raise ValueError("adaptive quality history replaced passed evidence")
+        if old_status == "failed":
+            old_root = Path(str(old.get("prompt_root"))).resolve()
+            if (
+                old_root.name != prompt_id
+                or new_root.name != f"{prompt_id}-recovery-001"
+                or new.get("status") not in {"passed", "failed"}
+            ):
+                raise ValueError("adaptive quality history recovery is invalid")
+        elif old_status == "not-run":
+            if (
+                new_root.name != prompt_id
+                or new.get("status") not in {"passed", "failed"}
+            ):
+                raise ValueError("adaptive quality history append is invalid")
+        else:
+            raise ValueError("adaptive quality history status is invalid")
+    if not changed:
+        raise ValueError("adaptive quality recovery summary adds no evidence")
+
+
+def _validate_summary_history(
+    campaign: AcceptedQualityCampaign,
+    root: Path,
+    *,
+    evidence_paths: Mapping[str, Any] | None,
+) -> tuple[
+    Path | None,
+    dict[str, Any] | None,
+    dict[str, GovernedQualityPromptResult],
+]:
+    paths = _summary_history(root)
+    previous_path: Path | None = None
+    previous_value: dict[str, Any] | None = None
+    latest_results: dict[str, GovernedQualityPromptResult] = {}
+    process_roots: dict[str, Path] = {}
+    for path in paths:
+        value, loaded = _validate_summary(
+            campaign,
+            path,
+            evidence_paths=evidence_paths,
+            previous_summary_path=previous_path,
+        )
+        if previous_value is not None:
+            _validate_summary_transition(previous_value, value)
+        for receipt in value["prompt_receipts"]:
+            identity = receipt.get("process_identity")
+            if not isinstance(identity, str):
+                continue
+            prompt_root = Path(str(receipt["prompt_root"])).resolve()
+            earlier = process_roots.setdefault(identity, prompt_root)
+            if earlier != prompt_root:
+                raise ValueError(
+                    "adaptive quality history reused a worker process identity"
+                )
+        previous_path = path
+        previous_value = value
+        latest_results = loaded
+    return previous_path, previous_value, latest_results
 
 
 def _validate_root_entries(root: Path) -> None:
@@ -638,20 +1140,33 @@ def quality_campaign_input_from_recovery(
     """Reopen a complete Task-4 recovery object without path discovery."""
 
     required = {
+        "schema",
         "test_id",
         "context_tokens",
         "runtime_evidence_path",
         "runtime_evidence_sha256",
         "runtime_summary",
         "runtime_summary_sha256",
+        "adaptive_runtime_spec_path",
+        "adaptive_runtime_spec_sha256",
+        "pilot_spec_path",
+        "pilot_spec_sha256",
+        "spec_index_path",
+        "spec_index_sha256",
+        "artifact_inventory_path",
+        "artifact_inventory_sha256",
         "matrix",
         "matrix_sha256",
+        "artifact_manifest_path",
+        "artifact_manifest_sha256",
         "prompt_set",
         "prompt_set_sha256",
         "rubric",
         "rubric_sha256",
         "model_path",
         "build_root",
+        "build_provenance_path",
+        "build_provenance_sha256",
         "python_executable",
         "python_site_packages",
         "openvino_libraries",
@@ -659,9 +1174,23 @@ def quality_campaign_input_from_recovery(
         "sampler_script_sha256",
         "output_root",
         "timeout_seconds",
+        "quality_recovery_sha256",
     }
-    if not isinstance(recovery, Mapping) or set(recovery) != required:
+    if (
+        not isinstance(recovery, Mapping)
+        or set(recovery) != required
+        or recovery.get("schema") != QUALITY_RECOVERY_SCHEMA
+    ):
         raise ValueError("quality recovery arguments are incomplete or unexpected")
+    unsigned_recovery = {
+        key: item
+        for key, item in recovery.items()
+        if key != "quality_recovery_sha256"
+    }
+    if recovery.get("quality_recovery_sha256") != _sha256_json(
+        unsigned_recovery
+    ):
+        raise ValueError("quality recovery self-hash is invalid")
 
     def bound_file(path_field: str, hash_field: str) -> Path:
         path = Path(str(recovery[path_field])).resolve()
@@ -673,9 +1202,23 @@ def quality_campaign_input_from_recovery(
         "runtime_evidence_path", "runtime_evidence_sha256"
     )
     runtime_summary = bound_file("runtime_summary", "runtime_summary_sha256")
+    adaptive_runtime_spec = bound_file(
+        "adaptive_runtime_spec_path", "adaptive_runtime_spec_sha256"
+    )
+    pilot_spec = bound_file("pilot_spec_path", "pilot_spec_sha256")
+    spec_index = bound_file("spec_index_path", "spec_index_sha256")
+    artifact_inventory = bound_file(
+        "artifact_inventory_path", "artifact_inventory_sha256"
+    )
     matrix = bound_file("matrix", "matrix_sha256")
+    bound_artifact_manifest = bound_file(
+        "artifact_manifest_path", "artifact_manifest_sha256"
+    )
     prompt_set = bound_file("prompt_set", "prompt_set_sha256")
     rubric = bound_file("rubric", "rubric_sha256")
+    bound_build_provenance = bound_file(
+        "build_provenance_path", "build_provenance_sha256"
+    )
     sampler = bound_file("sampler_script", "sampler_script_sha256")
     campaign_root = runtime_summary.parent
     if runtime_evidence != campaign_root / "attempt-sequence.json":
@@ -686,10 +1229,52 @@ def quality_campaign_input_from_recovery(
         raise ValueError("quality recovery pilot spec binding is missing")
     spec_path = (campaign_root / pilot["spec_path"]).resolve()
     if (
-        not spec_path.is_file()
+        spec_path != pilot_spec
+        or not spec_path.is_file()
         or _sha256_file(spec_path) != pilot.get("spec_file_sha256")
     ):
         raise ValueError("quality recovery pilot spec hash drift")
+    index = _strict_object(spec_index.read_bytes(), source=spec_index)
+    entries = index.get("runtime_specs")
+    matches = (
+        [
+            entry
+            for entry in entries
+            if isinstance(entry, Mapping)
+            and entry.get("test_id") == recovery["test_id"]
+            and entry.get("context_tokens") == recovery["context_tokens"]
+        ]
+        if isinstance(entries, list)
+        else []
+    )
+    if (
+        index.get("schema") != SPEC_INDEX_SCHEMA
+        or index.get("matrix_sha256") != recovery["matrix_sha256"]
+        or Path(str(index.get("artifact_inventory_path"))).resolve()
+        != artifact_inventory
+        or index.get("artifact_inventory_sha256")
+        != recovery["artifact_inventory_sha256"]
+        or len(matches) != 1
+        or (spec_index.parent / str(matches[0].get("path"))).resolve()
+        != adaptive_runtime_spec
+        or matches[0].get("sha256")
+        != recovery["adaptive_runtime_spec_sha256"]
+    ):
+        raise ValueError("quality recovery spec-index row binding is invalid")
+    adaptive_spec = _strict_object(
+        adaptive_runtime_spec.read_bytes(), source=adaptive_runtime_spec
+    )
+    if (
+        adaptive_spec.get("controlled_test_id") != recovery["test_id"]
+        or adaptive_spec.get("context_tokens") != recovery["context_tokens"]
+        or Path(str(adaptive_spec.get("artifact_manifest_path"))).resolve()
+        != bound_artifact_manifest
+        or adaptive_spec.get("artifact_manifest_sha256")
+        != recovery["artifact_manifest_sha256"]
+        or Path(str(adaptive_spec.get("model_path"))).resolve()
+        != Path(str(recovery["model_path"])).resolve()
+    ):
+        raise ValueError("quality recovery adaptive runtime spec binding is invalid")
     identity_path = campaign_root / "campaign-identity.json"
     identity = _strict_object(identity_path.read_bytes(), source=identity_path)
     native = identity.get("identity")
@@ -719,6 +1304,36 @@ def quality_campaign_input_from_recovery(
     for field, expected in expected_paths.items():
         if Path(str(recovery[field])).resolve() != expected:
             raise ValueError(f"quality recovery {field} differs from runtime identity")
+    if (
+        artifact_manifest != bound_artifact_manifest
+        or model.get("artifact_manifest_sha256")
+        != recovery["artifact_manifest_sha256"]
+        or build_provenance != bound_build_provenance
+        or build.get("provenance_sha256")
+        != recovery["build_provenance_sha256"]
+    ):
+        raise ValueError("quality recovery artifact or build identity drift")
+    expected_prompt_set = (
+        Path(__file__).resolve().parents[3]
+        / "experiments"
+        / "granite_turboquant_intel"
+        / "prompts"
+        / "fixed-feasibility-prompt-set-v1.json"
+    ).resolve()
+    expected_rubric = (
+        Path(__file__).resolve().parents[3]
+        / "experiments"
+        / "granite_turboquant_intel"
+        / "rubrics"
+        / "quality-rubric-v1.json"
+    ).resolve()
+    if prompt_set != expected_prompt_set or rubric != expected_rubric:
+        raise ValueError("quality recovery prompt or rubric substitution")
+    if (
+        type(recovery.get("timeout_seconds")) is not float
+        or recovery["timeout_seconds"] != 1800.0
+    ):
+        raise ValueError("quality recovery timeout is not frozen")
     summary = _strict_object(runtime_summary.read_bytes(), source=runtime_summary)
     if (
         summary.get("test_id") != recovery["test_id"]
@@ -737,7 +1352,7 @@ def quality_campaign_input_from_recovery(
         raw_path = Path(str(source.get("path"))).resolve()
         if not raw_path.is_file() or _sha256_file(raw_path) != source.get("sha256"):
             raise ValueError("quality recovery runtime raw sample hash drift")
-    return QualityCampaignInput(
+    return AdaptiveQualityCampaignInput(
         campaign_root=campaign_root,
         spec_path=spec_path,
         matrix_path=matrix,
@@ -754,6 +1369,11 @@ def quality_campaign_input_from_recovery(
         rubric_path=rubric,
         output_root=Path(str(recovery["output_root"])).resolve(),
         timeout_seconds=float(recovery["timeout_seconds"]),
+        attempt_sequence_path=runtime_evidence,
+        adaptive_runtime_spec_path=adaptive_runtime_spec,
+        pilot_spec_path=pilot_spec,
+        spec_index_path=spec_index,
+        artifact_inventory_path=artifact_inventory,
     )
 
 
@@ -771,123 +1391,190 @@ def capture_isolated_quality_campaign(
         campaign_input = quality_campaign_input_from_recovery(campaign_input)
     if not isinstance(campaign_input, QualityCampaignInput):
         raise TypeError("campaign_input must be QualityCampaignInput or recovery mapping")
+    evidence_paths = _input_evidence_paths(campaign_input)
     accepted = load_accepted_quality_campaign(campaign_input)
     root = Path(accepted.output_root).resolve()
     results: dict[str, GovernedQualityPromptResult] = {}
-    summary_number = 0
-    latest = _latest_summary(root) if root.is_dir() else None
+    latest_path: Path | None = None
+    latest_value: dict[str, Any] | None = None
     reconciled_append = False
     if resume:
         if not root.is_dir():
             raise ValueError("adaptive quality resume root is missing")
         _validate_root_entries(root)
-        if latest is not None:
-            persisted, results = _validate_summary(accepted, latest)
-            if persisted["status"] == "passed":
-                return persisted
-            summary_number = len(list(root.glob("capture-summary-recovery-*.json"))) + 1
-        else:
-            for prompt_id in PROMPT_IDS:
-                prompt_root = root / prompt_id
-                if not prompt_root.exists():
-                    break
-                result = _load_prompt_execution(
-                    accepted, prompt_id, prompt_root, accepted.timeout_seconds
-                )
-                results[prompt_id] = result
-                if result.status != "passed":
-                    break
+        latest_path, latest_value, results = _validate_summary_history(
+            accepted, root, evidence_paths=evidence_paths
+        )
 
-        # Reconcile only the next append-only evidence after the latest receipt.
-        # This covers a controller interruption between prompt persistence and
-        # summary publication without ever replacing the older receipt.
-        for prompt_id in PROMPT_IDS:
-            current = results.get(prompt_id)
-            if current is not None and current.status == "passed":
-                continue
-            if current is not None:
-                recovery_root = root / f"{prompt_id}-recovery-001"
-                if recovery_root.is_dir() and current.prompt_root != recovery_root:
-                    results[prompt_id] = _load_prompt_execution(
-                        accepted,
-                        prompt_id,
-                        recovery_root,
-                        accepted.timeout_seconds,
+        def require_no_later_prompt_artifacts(index: int) -> None:
+            for later in PROMPT_IDS[index + 1 :]:
+                if (root / later).exists() or (
+                    root / f"{later}-recovery-001"
+                ).exists():
+                    raise ValueError(
+                        "adaptive quality prompt evidence has a gap"
                     )
-                    reconciled_append = True
-                break
+
+        # Reconcile every consecutive append that survived a controller
+        # interruption. This deliberately continues through P5 and P6.
+        for index, prompt_id in enumerate(PROMPT_IDS):
+            current = results.get(prompt_id)
             primary_root = root / prompt_id
-            if primary_root.is_dir():
-                results[prompt_id] = _load_prompt_execution(
+            recovery_root = root / f"{prompt_id}-recovery-001"
+            primary_exists = primary_root.is_dir()
+            recovery_exists = recovery_root.is_dir()
+            if current is not None:
+                if current.prompt_root == primary_root:
+                    if current.status == "passed":
+                        if recovery_exists:
+                            raise ValueError(
+                                "adaptive quality passed prompt has ambiguous recovery"
+                            )
+                        continue
+                    if recovery_exists:
+                        if current.cleanup_process_count != 0:
+                            raise ValueError(
+                                "adaptive quality cleanup uncertainty prohibits recovery"
+                            )
+                        current = _load_prompt_execution(
+                            accepted,
+                            prompt_id,
+                            recovery_root,
+                            accepted.timeout_seconds,
+                            evidence_paths=evidence_paths,
+                        )
+                        results[prompt_id] = current
+                        reconciled_append = True
+                        if current.status == "passed":
+                            continue
+                    require_no_later_prompt_artifacts(index)
+                    break
+                if current.prompt_root != recovery_root or not primary_exists:
+                    raise ValueError("adaptive quality recovery evidence is ambiguous")
+                if current.status == "passed":
+                    continue
+                require_no_later_prompt_artifacts(index)
+                break
+            if not primary_exists:
+                if recovery_exists:
+                    raise ValueError("adaptive quality recovery has no primary evidence")
+                require_no_later_prompt_artifacts(index)
+                break
+            current = _load_prompt_execution(
+                accepted,
+                prompt_id,
+                primary_root,
+                accepted.timeout_seconds,
+                evidence_paths=evidence_paths,
+            )
+            results[prompt_id] = current
+            reconciled_append = True
+            if recovery_exists:
+                if current.status == "passed":
+                    raise ValueError(
+                        "adaptive quality passed prompt has ambiguous recovery"
+                    )
+                if current.cleanup_process_count != 0:
+                    raise ValueError(
+                        "adaptive quality cleanup uncertainty prohibits recovery"
+                    )
+                current = _load_prompt_execution(
                     accepted,
                     prompt_id,
-                    primary_root,
+                    recovery_root,
                     accepted.timeout_seconds,
+                    evidence_paths=evidence_paths,
                 )
-                reconciled_append = True
-                if results[prompt_id].status != "passed":
-                    break
+                results[prompt_id] = current
+            if current.status == "passed":
                 continue
+            require_no_later_prompt_artifacts(index)
             break
+
+        if (
+            latest_value is not None
+            and latest_value["status"] == "passed"
+            and not reconciled_append
+        ):
+            return latest_value
     else:
         root.mkdir(parents=True, exist_ok=False)
 
     failed = next(
-        (prompt_id for prompt_id in PROMPT_IDS if prompt_id in results and results[prompt_id].status != "passed"),
+        (
+            prompt_id
+            for prompt_id in PROMPT_IDS
+            if prompt_id in results and results[prompt_id].status != "passed"
+        ),
         None,
     )
+    terminal_without_launch = False
     if failed is not None:
         failed_result = results[failed]
         if failed_result.cleanup_process_count != 0:
-            if latest is not None and not reconciled_append:
-                return _validate_summary(accepted, latest)[0]
-            summary_path = (
-                root / "capture-summary.json"
-                if latest is None
-                else root / f"capture-summary-recovery-{summary_number:03d}.json"
-            )
-            unsafe = _summary(accepted, results, summary_path=summary_path)
-            _write_fresh(summary_path, _canonical_json(unsafe))
-            return _validate_summary(accepted, summary_path)[0]
-        if failed_result.prompt_root.name.startswith(f"{failed}-recovery-"):
-            if not reconciled_append and latest is not None:
-                return _validate_summary(accepted, latest)[0]
-            summary_path = root / f"capture-summary-recovery-{summary_number:03d}.json"
-            blocked = _summary(accepted, results, summary_path=summary_path)
-            _write_fresh(summary_path, _canonical_json(blocked))
-            return _validate_summary(accepted, summary_path)[0]
-        del results[failed]
+            if latest_value is not None and not reconciled_append:
+                return latest_value
+            terminal_without_launch = True
+        elif failed_result.prompt_root.name.startswith(f"{failed}-recovery-"):
+            if latest_value is not None and not reconciled_append:
+                return latest_value
+            terminal_without_launch = True
+        elif latest_path is None and reconciled_append:
+            # Preserve the interrupted primary failure in the first summary;
+            # a later resume may append its single recovery.
+            terminal_without_launch = True
+        else:
+            del results[failed]
 
-    start = next((index for index, prompt_id in enumerate(PROMPT_IDS) if prompt_id not in results), 6)
-    for prompt_id in PROMPT_IDS[start:]:
-        for prior in results.values():
-            if prior.cleanup_process_count != 0:
-                raise RuntimeError("prior quality prompt cleanup proof is invalid")
-        prompt_root = root / prompt_id
-        if failed == prompt_id:
-            prompt_root = root / f"{prompt_id}-recovery-001"
-        result = run_governed_quality_prompt(
-            accepted,
-            prompt_id,
-            prompt_root,
-            accepted.timeout_seconds,
-            run_command=run_command,
+    if not terminal_without_launch:
+        start = next(
+            (
+                index
+                for index, prompt_id in enumerate(PROMPT_IDS)
+                if prompt_id not in results
+            ),
+            6,
         )
-        results[prompt_id] = result
-        if result.status != "passed" or result.cleanup_process_count != 0:
-            break
+        for prompt_id in PROMPT_IDS[start:]:
+            for prior in results.values():
+                if prior.cleanup_process_count != 0:
+                    raise RuntimeError("prior quality prompt cleanup proof is invalid")
+            prompt_root = root / prompt_id
+            if failed == prompt_id:
+                prompt_root = root / f"{prompt_id}-recovery-001"
+            result = _run_governed_quality_prompt(
+                accepted,
+                prompt_id,
+                prompt_root,
+                accepted.timeout_seconds,
+                run_command=run_command,
+                evidence_paths=evidence_paths,
+            )
+            results[prompt_id] = result
+            if result.status != "passed" or result.cleanup_process_count != 0:
+                break
 
     refreshed = load_accepted_quality_campaign(campaign_input)
     if _accepted_campaign_fingerprint(refreshed) != _accepted_campaign_fingerprint(accepted):
         raise ValueError("accepted quality campaign changed during capture")
+    recovery_count = len(list(root.glob("capture-summary-recovery-*.json")))
     summary_path = (
         root / "capture-summary.json"
-        if latest is None and summary_number == 0
-        else root / f"capture-summary-recovery-{summary_number:03d}.json"
+        if latest_path is None
+        else root / f"capture-summary-recovery-{recovery_count + 1:03d}.json"
     )
-    result = _summary(refreshed, results, summary_path=summary_path)
+    result = _summary(
+        refreshed,
+        results,
+        summary_path=summary_path,
+        previous_summary_path=latest_path,
+    )
     _write_fresh(summary_path, _canonical_json(result))
-    persisted, _loaded = _validate_summary(refreshed, summary_path)
+    validated_path, persisted, _loaded = _validate_summary_history(
+        refreshed, root, evidence_paths=evidence_paths
+    )
+    if validated_path != summary_path or persisted is None:
+        raise RuntimeError("adaptive quality summary history publication failed")
     return persisted
 
 

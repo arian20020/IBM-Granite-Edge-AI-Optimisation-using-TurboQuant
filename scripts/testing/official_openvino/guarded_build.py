@@ -105,6 +105,19 @@ def _validate_inputs(
     return values
 
 
+def _require_open_containing_job(
+    containing_job: KillOnCloseJob | None,
+) -> KillOnCloseJob | None:
+    if containing_job is None:
+        return None
+    if type(containing_job) is not KillOnCloseJob:
+        raise TypeError("containing Job Object must be an exact KillOnCloseJob")
+    handle = getattr(containing_job, "_handle", None)
+    if type(handle) is not int or handle <= 0:
+        raise RuntimeError("containing Job Object handle is not open")
+    return containing_job
+
+
 def _validated_bound_input_paths(
     bound_inputs: Mapping[str, Path] | None,
 ) -> list[tuple[str, Path]]:
@@ -319,6 +332,7 @@ def _run_guarded_command_with_binding(
     limits: GuardLimits = GuardLimits(),
     environment: Mapping[str, str] | None = None,
     bound_inputs: Mapping[str, Path] | None = None,
+    _containing_job: KillOnCloseJob | None = None,
 ) -> _GuardedCommandResult:
     """Run one owned process tree and atomically persist exit/RAM/cleanup evidence."""
     requested_cwd = _absolute_without_resolving(Path(cwd))
@@ -335,6 +349,7 @@ def _run_guarded_command_with_binding(
         expected_exit,
         limits,
     )
+    containing_job = _require_open_containing_job(_containing_job)
     bound_input_paths = _validated_bound_input_paths(bound_inputs)
     effective_environment, environment_sha256 = _effective_environment(environment)
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -395,6 +410,13 @@ def _run_guarded_command_with_binding(
             "assigned_before_resume": False,
             "cpu_affinity_mask": None,
             "cpu_rate_hard_cap_percent": None,
+        },
+        "containing_job_assignment": {
+            "requested": containing_job is not None,
+            "assigned_before_fine_job": False,
+            "assigned_pid": None,
+            "query_ok_after_cleanup": None,
+            "active_pids_after_cleanup": None,
         },
         "job_object": {
             "setup_ok": False,
@@ -476,6 +498,12 @@ def _run_guarded_command_with_binding(
             record["launch_governance"]["created_suspended"] = True
             record["root_pid"] = process.pid
             observed_pids.add(process.pid)
+            if containing_job is not None:
+                _require_open_containing_job(containing_job).assign_pid(process.pid)
+                record["containing_job_assignment"][
+                    "assigned_before_fine_job"
+                ] = True
+                record["containing_job_assignment"]["assigned_pid"] = process.pid
             job.assign_pid(process.pid)
             assigned = True
             (
@@ -711,6 +739,28 @@ def _run_guarded_command_with_binding(
     if retained_log_sha256 is None:
         _append_error(errors, "retained private log SHA-256 is missing")
 
+    containing_evidence = record["containing_job_assignment"]
+    if containing_job is not None:
+        try:
+            active_containing_pids = KillOnCloseJob.active_pids(
+                _require_open_containing_job(containing_job)
+            )
+            containing_evidence["query_ok_after_cleanup"] = True
+            containing_evidence["active_pids_after_cleanup"] = sorted(
+                active_containing_pids
+            )
+            if active_containing_pids:
+                _append_error(
+                    errors,
+                    "containing Job Object cleanup left survivors",
+                )
+        except (OSError, RuntimeError) as error:
+            containing_evidence["query_ok_after_cleanup"] = False
+            _append_error(
+                errors,
+                f"containing Job Object cleanup query failed: {error}",
+            )
+
     path_identity_verified["evidence_path"] = (
         _verify_evidence_destination_identity(
             requested_evidence_path,
@@ -740,6 +790,7 @@ def run_guarded_command(
     limits: GuardLimits = GuardLimits(),
     environment: Mapping[str, str] | None = None,
     bound_inputs: Mapping[str, Path] | None = None,
+    _containing_job: KillOnCloseJob | None = None,
 ) -> dict[str, object]:
     """Run one owned process tree and return its persisted evidence record."""
     return _run_guarded_command_with_binding(
@@ -751,6 +802,7 @@ def run_guarded_command(
         limits=limits,
         environment=environment,
         bound_inputs=bound_inputs,
+        _containing_job=_containing_job,
     ).record
 
 

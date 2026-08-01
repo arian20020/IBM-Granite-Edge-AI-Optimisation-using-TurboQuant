@@ -1332,6 +1332,58 @@ def test_powershell_51_wrapper_preserves_command_array(tmp_path):
     _assert_zero_survivors(record)
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
+def test_guard_assigns_containing_job_before_fine_job_and_resume(
+    tmp_path,
+    monkeypatch,
+):
+    guard = _guarded_build()
+    containing = guard.KillOnCloseJob(
+        f"WB04-test-containing-{hashlib.sha256(str(tmp_path).encode()).hexdigest()[:16]}"
+    )
+    real_assign = guard.KillOnCloseJob.assign_pid
+    real_resume = guard._resume_suspended_process
+    events = []
+
+    def record_assign(job, pid):
+        events.append(("containing" if job is containing else "fine", pid, job))
+        return real_assign(job, pid)
+
+    def record_resume(pid):
+        events.append(("resume", pid, None))
+        return real_resume(pid)
+
+    monkeypatch.setattr(guard.KillOnCloseJob, "assign_pid", record_assign)
+    monkeypatch.setattr(guard, "_resume_suspended_process", record_resume)
+    try:
+        record = guard.run_guarded_command(
+            [sys.executable, "-c", "print('contained', flush=True)"],
+            cwd=ROOT,
+            log_path=tmp_path / "contained.log",
+            evidence_path=tmp_path / "contained.json",
+            expected_exit="zero",
+            limits=_limits(guard),
+            _containing_job=containing,
+        )
+        assert containing.active_pids() == []
+    finally:
+        containing.close()
+
+    assert [event[0] for event in events[:3]] == [
+        "containing",
+        "fine",
+        "resume",
+    ]
+    assert events[0][1] == events[1][1] == events[2][1]
+    assert record["containing_job_assignment"] == {
+        "requested": True,
+        "assigned_before_fine_job": True,
+        "assigned_pid": record["root_pid"],
+        "query_ok_after_cleanup": True,
+        "active_pids_after_cleanup": [],
+    }
+
+
 def test_powershell_wrapper_has_no_pre_guard_helper_launch():
     wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
     source = wrapper.read_text(encoding="utf-8")

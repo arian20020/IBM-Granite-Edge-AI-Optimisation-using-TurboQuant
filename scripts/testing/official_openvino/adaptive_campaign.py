@@ -35,6 +35,7 @@ STATE_SCHEMA = "official-openvino-adaptive-campaign-state/v1"
 CONTROLLER_RECEIPT_SCHEMA = "official-openvino-adaptive-controller-receipt/v1"
 BOUNDARY_INDEX_SCHEMA = "official-openvino-adaptive-boundary-index/v1"
 SPEC_INDEX_SCHEMA = "official-openvino-adaptive-comparison-spec-index/v1"
+QUALITY_RECOVERY_SCHEMA = "official-openvino-adaptive-quality-recovery/v1"
 JOB_PROBE_SCHEMA = "official-openvino-adaptive-job-probe/v1"
 ARTIFACT_TERMINAL_RECEIPT_SCHEMA = (
     "official-openvino-adaptive-controller-terminal-receipt/v1"
@@ -45,6 +46,21 @@ TASK_THREE_SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
 TASK_THREE_RUN_SCHEMA = "official-openvino-wb04-governed-run/v1"
 MIB = 1024**2
 _ROOT = Path(__file__).resolve().parents[3]
+QUALITY_PROMPT_SET = (
+    _ROOT
+    / "experiments"
+    / "granite_turboquant_intel"
+    / "prompts"
+    / "fixed-feasibility-prompt-set-v1.json"
+).resolve()
+QUALITY_RUBRIC = (
+    _ROOT
+    / "experiments"
+    / "granite_turboquant_intel"
+    / "rubrics"
+    / "quality-rubric-v1.json"
+).resolve()
+QUALITY_TIMEOUT_SECONDS = 1800.0
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 _PASSING_RUNTIME_STATUS = "passed"
@@ -963,6 +979,18 @@ def _validate_config(
         "build_provenance_sha256": _sha256_file(provenance),
         "sampler_script_path": str(sampler),
         "sampler_script_sha256": _sha256_file(sampler),
+        "quality_prompt_set_path": str(
+            _require_file(QUALITY_PROMPT_SET, "quality prompt set")
+        ),
+        "quality_prompt_set_sha256": _sha256_file(QUALITY_PROMPT_SET),
+        "quality_rubric_path": str(
+            _require_file(QUALITY_RUBRIC, "quality rubric")
+        ),
+        "quality_rubric_sha256": _sha256_file(QUALITY_RUBRIC),
+        "quality_output_root": str(
+            (Path(config.campaign_root).resolve() / "quality").resolve()
+        ),
+        "quality_timeout_seconds": QUALITY_TIMEOUT_SECONDS,
         "reference_boundary_index_path": str(reference) if reference else None,
         "reference_boundary_index_sha256": (
             _sha256_file(reference) if reference else None
@@ -1836,6 +1864,133 @@ def _validate_state_receipts(
         ):
             raise ValueError("safety probe receipt identity drift")
     for key, step in state["steps"].items():
+        if step.get("runtime_status") == "passed":
+            recovery = step.get("quality_recovery")
+            recovery_fields = {
+                "schema",
+                "test_id",
+                "context_tokens",
+                "runtime_evidence_path",
+                "runtime_evidence_sha256",
+                "runtime_summary",
+                "runtime_summary_sha256",
+                "adaptive_runtime_spec_path",
+                "adaptive_runtime_spec_sha256",
+                "pilot_spec_path",
+                "pilot_spec_sha256",
+                "spec_index_path",
+                "spec_index_sha256",
+                "artifact_inventory_path",
+                "artifact_inventory_sha256",
+                "matrix",
+                "matrix_sha256",
+                "artifact_manifest_path",
+                "artifact_manifest_sha256",
+                "prompt_set",
+                "prompt_set_sha256",
+                "rubric",
+                "rubric_sha256",
+                "model_path",
+                "build_root",
+                "build_provenance_path",
+                "build_provenance_sha256",
+                "python_executable",
+                "python_site_packages",
+                "openvino_libraries",
+                "sampler_script",
+                "sampler_script_sha256",
+                "output_root",
+                "timeout_seconds",
+                "quality_recovery_sha256",
+            }
+            expected_step_fields = {
+                "test_id",
+                "context_tokens",
+                "runtime_status",
+                "quality_status",
+                "attempt_count",
+                "failure_fingerprint",
+                "evidence_path",
+                "evidence_sha256",
+                "attempts",
+                "quality_recovery",
+            }
+            if "quality_result" in step:
+                expected_step_fields.add("quality_result")
+            test_id, context_text = key.split(":", 1)
+            context = int(context_text)
+            if (
+                not isinstance(recovery, Mapping)
+                or set(recovery) != recovery_fields
+                or set(step) != expected_step_fields
+                or recovery.get("schema") != QUALITY_RECOVERY_SCHEMA
+                or recovery.get("test_id") != test_id
+                or recovery.get("context_tokens") != context
+                or recovery.get("runtime_evidence_path")
+                != step.get("evidence_path")
+                or recovery.get("runtime_evidence_sha256")
+                != step.get("evidence_sha256")
+                or recovery.get("matrix") != state["bindings"]["matrix_path"]
+                or recovery.get("matrix_sha256")
+                != state["bindings"]["matrix_sha256"]
+                or recovery.get("spec_index_path")
+                != state["bindings"]["spec_index_path"]
+                or recovery.get("spec_index_sha256")
+                != state["bindings"]["spec_index_sha256"]
+                or recovery.get("artifact_inventory_path")
+                != state["bindings"]["artifact_inventory_path"]
+                or recovery.get("artifact_inventory_sha256")
+                != state["bindings"]["artifact_inventory_sha256"]
+                or recovery.get("build_root") != state["bindings"]["build_root"]
+                or recovery.get("build_provenance_path")
+                != state["bindings"]["build_provenance_path"]
+                or recovery.get("build_provenance_sha256")
+                != state["bindings"]["build_provenance_sha256"]
+                or recovery.get("sampler_script")
+                != state["bindings"]["sampler_script_path"]
+                or recovery.get("sampler_script_sha256")
+                != state["bindings"]["sampler_script_sha256"]
+                or recovery.get("prompt_set")
+                != state["bindings"]["quality_prompt_set_path"]
+                or recovery.get("prompt_set_sha256")
+                != state["bindings"]["quality_prompt_set_sha256"]
+                or recovery.get("rubric")
+                != state["bindings"]["quality_rubric_path"]
+                or recovery.get("rubric_sha256")
+                != state["bindings"]["quality_rubric_sha256"]
+                or recovery.get("output_root")
+                != str(
+                    Path(state["bindings"]["quality_output_root"])
+                    / test_id
+                    / str(context)
+                )
+                or recovery.get("timeout_seconds")
+                != state["bindings"]["quality_timeout_seconds"]
+            ):
+                raise ValueError("adaptive quality recovery state binding drift")
+            unsigned_recovery = {
+                field: value
+                for field, value in recovery.items()
+                if field != "quality_recovery_sha256"
+            }
+            if recovery.get("quality_recovery_sha256") != _sha256_json(
+                unsigned_recovery
+            ):
+                raise ValueError("adaptive quality recovery self-hash drift")
+            for path_field, hash_field in (
+                ("runtime_summary", "runtime_summary_sha256"),
+                ("adaptive_runtime_spec_path", "adaptive_runtime_spec_sha256"),
+                ("pilot_spec_path", "pilot_spec_sha256"),
+                ("artifact_manifest_path", "artifact_manifest_sha256"),
+            ):
+                source = _require_file(
+                    Path(str(recovery[path_field])),
+                    f"adaptive quality recovery {path_field}",
+                )
+                if _sha256_file(source) != recovery[hash_field]:
+                    raise ValueError(
+                        f"adaptive quality recovery {path_field} hash drift"
+                    )
         if step.get("runtime_status") == "artifact-preparation-terminal":
             receipt_path = _resolved_child(
                 root,
@@ -2251,71 +2406,97 @@ def run_adaptive_campaign(
         ) -> dict[str, Any]:
             step = state["steps"][f"{test_id}:{context}"]
             runtime_root = Path(step["evidence_path"]).resolve().parent
-            adaptive_spec = specs[(test_id, context)][1]
-            prompt_set = (
-                _ROOT
-                / "experiments"
-                / "granite_turboquant_intel"
-                / "prompts"
-                / "fixed-feasibility-prompt-set-v1.json"
-            ).resolve()
-            rubric = (
-                _ROOT
-                / "experiments"
-                / "granite_turboquant_intel"
-                / "rubrics"
-                / "quality-rubric-v1.json"
-            ).resolve()
+            adaptive_spec_path, adaptive_spec = specs[(test_id, context)]
             measurement_summary = runtime_root / "measurement-summary.json"
-            quality_recovery = {
+            if not measurement_summary.is_file():
+                raise RuntimeError(
+                    "passed runtime row has no immutable measurement summary"
+                )
+            sequence = _load_json(
+                Path(step["evidence_path"]), "quality recovery attempt sequence"
+            )
+            pilot = sequence.get("pilot")
+            if not isinstance(pilot, Mapping) or not isinstance(
+                pilot.get("spec_path"), str
+            ):
+                raise RuntimeError("quality recovery pilot spec binding is missing")
+            pilot_spec = (runtime_root / pilot["spec_path"]).resolve()
+            if (
+                not pilot_spec.is_file()
+                or _sha256_file(pilot_spec) != pilot.get("spec_file_sha256")
+            ):
+                raise RuntimeError("quality recovery pilot spec hash drift")
+            artifact_manifest = _require_file(
+                Path(str(adaptive_spec["artifact_manifest_path"])),
+                "quality recovery artifact manifest",
+            )
+            unsigned_recovery = {
+                "schema": QUALITY_RECOVERY_SCHEMA,
                 "test_id": test_id,
                 "context_tokens": context,
                 "runtime_evidence_path": step["evidence_path"],
                 "runtime_evidence_sha256": step["evidence_sha256"],
+                "runtime_summary": str(measurement_summary.resolve()),
+                "runtime_summary_sha256": _sha256_file(measurement_summary),
+                "adaptive_runtime_spec_path": str(adaptive_spec_path.resolve()),
+                "adaptive_runtime_spec_sha256": _sha256_file(adaptive_spec_path),
+                "pilot_spec_path": str(pilot_spec),
+                "pilot_spec_sha256": _sha256_file(pilot_spec),
+                "spec_index_path": state["bindings"]["spec_index_path"],
+                "spec_index_sha256": state["bindings"]["spec_index_sha256"],
+                "artifact_inventory_path": state["bindings"][
+                    "artifact_inventory_path"
+                ],
+                "artifact_inventory_sha256": state["bindings"][
+                    "artifact_inventory_sha256"
+                ],
+                "matrix": state["bindings"]["matrix_path"],
+                "matrix_sha256": state["bindings"]["matrix_sha256"],
+                "artifact_manifest_path": str(artifact_manifest),
+                "artifact_manifest_sha256": _sha256_file(artifact_manifest),
+                "prompt_set": state["bindings"]["quality_prompt_set_path"],
+                "prompt_set_sha256": state["bindings"][
+                    "quality_prompt_set_sha256"
+                ],
+                "rubric": state["bindings"]["quality_rubric_path"],
+                "rubric_sha256": state["bindings"]["quality_rubric_sha256"],
+                "model_path": str(
+                    Path(str(adaptive_spec["model_path"])).resolve()
+                ),
+                "build_root": state["bindings"]["build_root"],
+                "build_provenance_path": state["bindings"][
+                    "build_provenance_path"
+                ],
+                "build_provenance_sha256": state["bindings"][
+                    "build_provenance_sha256"
+                ],
+                "python_executable": str(Path(config.python_executable).resolve()),
+                "python_site_packages": str(
+                    Path(config.python_site_packages).resolve()
+                ),
+                "openvino_libraries": str(
+                    Path(config.openvino_libraries).resolve()
+                ),
+                "sampler_script": state["bindings"]["sampler_script_path"],
+                "sampler_script_sha256": state["bindings"][
+                    "sampler_script_sha256"
+                ],
+                "output_root": str(
+                    Path(state["bindings"]["quality_output_root"])
+                    / test_id
+                    / str(context)
+                ),
+                "timeout_seconds": state["bindings"][
+                    "quality_timeout_seconds"
+                ],
             }
-            if measurement_summary.is_file():
-                quality_recovery = {
-                    "test_id": test_id,
-                    "context_tokens": context,
-                    "runtime_evidence_path": step["evidence_path"],
-                    "runtime_evidence_sha256": step["evidence_sha256"],
-                    "runtime_summary": str(measurement_summary),
-                    "runtime_summary_sha256": _sha256_file(
-                        measurement_summary
-                    ),
-                    "matrix": str(Path(config.matrix_path).resolve()),
-                    "matrix_sha256": state["bindings"]["matrix_sha256"],
-                    "prompt_set": str(prompt_set),
-                    "prompt_set_sha256": _sha256_file(prompt_set),
-                    "rubric": str(rubric),
-                    "rubric_sha256": _sha256_file(rubric),
-                    "model_path": str(
-                        Path(str(adaptive_spec["model_path"])).resolve()
-                    ),
-                    "build_root": str(Path(config.build_root).resolve()),
-                    "python_executable": str(
-                        Path(config.python_executable).resolve()
-                    ),
-                    "python_site_packages": str(
-                        Path(config.python_site_packages).resolve()
-                    ),
-                    "openvino_libraries": str(
-                        Path(config.openvino_libraries).resolve()
-                    ),
-                    "sampler_script": str(
-                        Path(config.sampler_script).resolve()
-                    ),
-                    "sampler_script_sha256": state["bindings"][
-                        "sampler_script_sha256"
-                    ],
-                    "output_root": str(
-                        campaign_root / "quality" / test_id / str(context)
-                    ),
-                    "timeout_seconds": 1800.0,
-                }
+            quality_recovery = {
+                **unsigned_recovery,
+                "quality_recovery_sha256": _sha256_json(unsigned_recovery),
+            }
+            step["quality_recovery"] = quality_recovery
             if run_quality is None:
                 step["quality_status"] = "quality-blocked"
-                step["quality_recovery"] = quality_recovery
                 return state
             result = dict(run_quality(quality_recovery, resume=False))
             status = result.get("status")

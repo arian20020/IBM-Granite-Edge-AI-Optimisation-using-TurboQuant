@@ -780,6 +780,7 @@ if ($observedLogHash -cne $controllerResult.log_sha256) {
     'environment_sha256',
     'bound_inputs',
     'launch_governance',
+    'containing_job_assignment',
     'job_object',
     'cleanup_process_count',
     'emergency_actions',
@@ -1090,6 +1091,41 @@ if (
 & $assertJsonNull `
   -Value $record.launch_governance.cpu_rate_hard_cap_percent `
   -Name 'Guard launch_governance.cpu_rate_hard_cap_percent'
+
+& $assertJsonObjectShape `
+  -Value $record.containing_job_assignment `
+  -Name 'Guard containing_job_assignment' `
+  -Properties @(
+    'requested',
+    'assigned_before_fine_job',
+    'assigned_pid',
+    'query_ok_after_cleanup',
+    'active_pids_after_cleanup'
+  )
+foreach (
+  $containingBooleanField in @('requested', 'assigned_before_fine_job')
+) {
+  & $assertJsonBoolean `
+    -Value $record.containing_job_assignment.$containingBooleanField `
+    -Name "Guard containing_job_assignment.$containingBooleanField"
+}
+if (
+  $record.containing_job_assignment.requested -ne $false -or
+  $record.containing_job_assignment.assigned_before_fine_job -ne $false
+) {
+  throw 'Standalone guard unexpectedly used a containing Job Object'
+}
+foreach (
+  $containingNullField in @(
+    'assigned_pid',
+    'query_ok_after_cleanup',
+    'active_pids_after_cleanup'
+  )
+) {
+  & $assertJsonNull `
+    -Value $record.containing_job_assignment.$containingNullField `
+    -Name "Guard containing_job_assignment.$containingNullField"
+}
 
 & $assertJsonObjectShape `
   -Value $record.job_object `

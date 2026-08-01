@@ -79,6 +79,13 @@ def _validate_recovery_against_step(
     step: Mapping[str, Any],
     bindings: Mapping[str, Any],
 ) -> None:
+    expected_output = (
+        Path(str(bindings["quality_output_root"])) / test_id / str(context)
+    ).resolve()
+    expected_summary = (
+        Path(str(step.get("evidence_path"))).resolve().parent
+        / "measurement-summary.json"
+    ).resolve()
     if (
         recovery.get("test_id") != test_id
         or recovery.get("context_tokens") != context
@@ -86,10 +93,31 @@ def _validate_recovery_against_step(
         or recovery.get("runtime_evidence_sha256") != step.get("evidence_sha256")
         or recovery.get("matrix") != bindings.get("matrix_path")
         or recovery.get("matrix_sha256") != bindings.get("matrix_sha256")
+        or recovery.get("spec_index_path") != bindings.get("spec_index_path")
+        or recovery.get("spec_index_sha256") != bindings.get("spec_index_sha256")
+        or recovery.get("artifact_inventory_path")
+        != bindings.get("artifact_inventory_path")
+        or recovery.get("artifact_inventory_sha256")
+        != bindings.get("artifact_inventory_sha256")
         or recovery.get("build_root") != bindings.get("build_root")
+        or recovery.get("build_provenance_path")
+        != bindings.get("build_provenance_path")
+        or recovery.get("build_provenance_sha256")
+        != bindings.get("build_provenance_sha256")
         or recovery.get("sampler_script") != bindings.get("sampler_script_path")
         or recovery.get("sampler_script_sha256")
         != bindings.get("sampler_script_sha256")
+        or recovery.get("prompt_set")
+        != bindings.get("quality_prompt_set_path")
+        or recovery.get("prompt_set_sha256")
+        != bindings.get("quality_prompt_set_sha256")
+        or recovery.get("rubric") != bindings.get("quality_rubric_path")
+        or recovery.get("rubric_sha256")
+        != bindings.get("quality_rubric_sha256")
+        or recovery.get("runtime_summary") != str(expected_summary)
+        or recovery.get("output_root") != str(expected_output)
+        or recovery.get("timeout_seconds")
+        != bindings.get("quality_timeout_seconds")
     ):
         raise ValueError("quality recovery differs from adaptive campaign state")
     load_accepted_quality_campaign(quality_campaign_input_from_recovery(recovery))
@@ -125,8 +153,16 @@ def _validate_campaign_state(path: Path) -> tuple[dict[str, Any], list[tuple[str
         "build_provenance_sha256",
         "sampler_script_path",
         "sampler_script_sha256",
+        "quality_prompt_set_path",
+        "quality_prompt_set_sha256",
+        "quality_rubric_path",
+        "quality_rubric_sha256",
+        "quality_output_root",
+        "quality_timeout_seconds",
+        "reference_boundary_index_path",
+        "reference_boundary_index_sha256",
     }
-    if not required_bindings.issubset(bindings):
+    if set(bindings) != required_bindings:
         raise ValueError("adaptive campaign bindings are incomplete")
     for path_field, hash_field in (
         ("matrix_path", "matrix_sha256"),
@@ -134,6 +170,8 @@ def _validate_campaign_state(path: Path) -> tuple[dict[str, Any], list[tuple[str
         ("artifact_inventory_path", "artifact_inventory_sha256"),
         ("build_provenance_path", "build_provenance_sha256"),
         ("sampler_script_path", "sampler_script_sha256"),
+        ("quality_prompt_set_path", "quality_prompt_set_sha256"),
+        ("quality_rubric_path", "quality_rubric_sha256"),
     ):
         source = Path(str(bindings[path_field])).resolve()
         if not source.is_file() or _sha256_file(source) != bindings[hash_field]:
@@ -144,6 +182,21 @@ def _validate_campaign_state(path: Path) -> tuple[dict[str, Any], list[tuple[str
         or _directory_sha256(build_root) != bindings["build_root_sha256"]
     ):
         raise ValueError("adaptive campaign build root hash drift")
+    expected_quality_root = (state_path.parent / "quality").resolve()
+    if (
+        bindings.get("quality_output_root") != str(expected_quality_root)
+        or type(bindings.get("quality_timeout_seconds")) is not float
+        or bindings.get("quality_timeout_seconds") != 1800.0
+    ):
+        raise ValueError("adaptive campaign quality output or timeout binding drift")
+    reference_path = bindings.get("reference_boundary_index_path")
+    reference_hash = bindings.get("reference_boundary_index_sha256")
+    if (reference_path is None) != (reference_hash is None):
+        raise ValueError("adaptive campaign reference boundary binding is invalid")
+    if reference_path is not None:
+        source = Path(str(reference_path)).resolve()
+        if not source.is_file() or _sha256_file(source) != reference_hash:
+            raise ValueError("adaptive campaign reference boundary hash drift")
     recoveries: list[tuple[str, int, dict[str, Any]]] = []
     for test_id, context in build_ladder(Path(str(bindings["matrix_path"]))):
         step = state["steps"].get(f"{test_id}:{context}")
@@ -156,6 +209,22 @@ def _validate_campaign_state(path: Path) -> tuple[dict[str, Any], list[tuple[str
         recovery = step.get("quality_recovery")
         if not isinstance(recovery, Mapping):
             raise ValueError("quality-blocked step has no recovery arguments")
+        expected_step_fields = {
+            "test_id",
+            "context_tokens",
+            "runtime_status",
+            "quality_status",
+            "attempt_count",
+            "failure_fingerprint",
+            "evidence_path",
+            "evidence_sha256",
+            "attempts",
+            "quality_recovery",
+        }
+        if "quality_result" in step:
+            expected_step_fields.add("quality_result")
+        if set(step) != expected_step_fields:
+            raise ValueError("quality-blocked adaptive row subtree is invalid")
         _validate_recovery_against_step(
             recovery,
             test_id=test_id,

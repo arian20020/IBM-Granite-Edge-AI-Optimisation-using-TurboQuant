@@ -775,13 +775,30 @@ class _FakeRunner:
         outcome = self.outcomes.pop(0) if self.outcomes else {}
         if isinstance(outcome, MeasurementFailureRecord):
             raise MeasurementSequenceFailure("guarded failure", outcome)
+        runtime_root = Path(kwargs["campaign_root"])
+        pilot_spec = runtime_root / "synthetic-pilot-spec.json"
+        _write_json(pilot_spec, spec)
+        measurement_summary = runtime_root / "measurement-summary.json"
+        _write_json(
+            measurement_summary,
+            {
+                "schema": "synthetic-task-four-measurement-summary/v1",
+                "test_id": test_id,
+                "context_tokens": context,
+                "cleanup_process_count": 0,
+            },
+        )
         result = {
             "schema": "official-openvino-wb04-attempt-sequence/v1",
+            "pilot": {
+                "spec_path": pilot_spec.relative_to(runtime_root).as_posix(),
+                "spec_file_sha256": _sha256(pilot_spec),
+            },
             "accepted_sample_count": 3,
             "cleanup_process_count": 0,
             **dict(outcome),
         }
-        evidence = Path(kwargs["campaign_root"]) / "attempt-sequence.json"
+        evidence = runtime_root / "attempt-sequence.json"
         _write_json(evidence, result)
         return result
 
@@ -904,6 +921,119 @@ def test_checkpoint_is_published_after_each_completed_or_terminal_step(
     assert len(checkpoints) == 5
     assert all(final is False for _, final in checkpoints)
     assert all(step["quality_status"] == "quality-blocked" for step in result["steps"].values())
+
+
+def test_passed_row_stores_complete_self_hashed_quality_recovery(tmp_path: Path) -> None:
+    config = _campaign_inputs(tmp_path)
+
+    result = _run(config, _FakeRunner([{} for _ in range(5)]))
+
+    recovery = result["steps"]["OV-11:512"]["quality_recovery"]
+    assert recovery["schema"] == "official-openvino-adaptive-quality-recovery/v1"
+    assert recovery["quality_recovery_sha256"] == _sha256_json(
+        {
+            key: value
+            for key, value in recovery.items()
+            if key != "quality_recovery_sha256"
+        }
+    )
+    assert recovery["adaptive_runtime_spec_path"] == str(
+        (config.spec_root / "OV-11" / "512" / "runtime-spec.json").resolve()
+    )
+    assert recovery["spec_index_path"] == str(
+        (config.spec_root / "spec-index.json").resolve()
+    )
+    assert recovery["artifact_inventory_path"] == str(
+        (tmp_path / "artifact-inventory.json").resolve()
+    )
+    assert recovery["timeout_seconds"] == 1800.0
+    assert recovery["output_root"] == str(
+        (config.campaign_root / "quality" / "OV-11" / "512").resolve()
+    )
+
+
+def test_resume_rejects_quality_recovery_state_or_self_hash_substitution(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    _run(config, _FakeRunner([{} for _ in range(5)]))
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["steps"]["OV-11:512"]["quality_recovery"][
+        "timeout_seconds"
+    ] = 1801.0
+    _write_json(state_path, state)
+
+    with pytest.raises(ValueError, match="quality recovery"):
+        load_or_create_state(config)
+
+
+def test_task_five_state_recovery_is_exact_and_keeps_ladder_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+
+    config = _campaign_inputs(tmp_path)
+    _run(config, _FakeRunner([{} for _ in range(5)]))
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    monkeypatch.setattr(
+        quality_cli,
+        "quality_campaign_input_from_recovery",
+        lambda recovery: recovery,
+    )
+    monkeypatch.setattr(
+        quality_cli,
+        "load_accepted_quality_campaign",
+        lambda recovery: recovery,
+    )
+
+    _state, recoveries = quality_cli._validate_campaign_state(state_path)
+
+    assert [(test_id, context) for test_id, context, _ in recoveries] == [
+        ("OV-11", 512),
+        ("OV-TQ-22", 512),
+        ("OV-TQ-21", 512),
+        ("OV-12", 512),
+        ("OV-13", 512),
+    ]
+
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    recovery = state["steps"]["OV-11:512"]["quality_recovery"]
+    recovery["output_root"] = str(tmp_path / "substituted-quality-output")
+    recovery.pop("quality_recovery_sha256")
+    recovery["quality_recovery_sha256"] = _sha256_json(recovery)
+    _write_json(state_path, state)
+    with pytest.raises(ValueError, match="adaptive campaign state"):
+        quality_cli._validate_campaign_state(state_path)
+
+
+def test_quality_callback_receives_and_state_retains_same_complete_recovery(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    received = []
+
+    def quality(recovery, *, resume):
+        assert resume is False
+        received.append(dict(recovery))
+        return {"status": "passed"}
+
+    result = run_adaptive_campaign(
+        config,
+        run_runtime=_FakeRunner([{} for _ in range(5)]),
+        run_quality=quality,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
+    )
+
+    assert len(received) == 5
+    assert result["steps"]["OV-11:512"]["quality_recovery"] == received[0]
+    assert received[0]["quality_recovery_sha256"] == _sha256_json(
+        {
+            key: value
+            for key, value in received[0].items()
+            if key != "quality_recovery_sha256"
+        }
+    )
 
 
 def test_preflight_validates_and_does_not_launch_or_create_attempts(

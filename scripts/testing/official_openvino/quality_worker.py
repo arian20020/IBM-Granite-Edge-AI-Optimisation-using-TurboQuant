@@ -306,6 +306,136 @@ def _require_sha256(value: Any, field: str) -> str:
     return value
 
 
+def _identity_sha256(value: Any) -> str:
+    try:
+        raw = json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        raise ValueError("quality prompt worker binding is not canonical JSON") from error
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _reopen_bound_file(bindings: Mapping[str, Any], stem: str) -> Path:
+    path_value = bindings.get(f"{stem}_path")
+    if not isinstance(path_value, str) or not path_value.strip():
+        raise ValueError(f"quality prompt worker {stem} path is invalid")
+    source = Path(path_value).resolve()
+    if str(source) != path_value or not source.is_file():
+        raise ValueError(f"quality prompt worker {stem} file is missing")
+    expected = _require_sha256(bindings.get(f"{stem}_sha256"), f"{stem}_sha256")
+    if hashlib.sha256(source.read_bytes()).hexdigest() != expected:
+        raise ValueError(f"quality prompt worker {stem} hash mismatch")
+    return source
+
+
+def _validate_prompt_bindings(bindings: Any) -> dict[str, Any]:
+    fields = {
+        "runtime_summary_path",
+        "runtime_summary_sha256",
+        "raw_samples",
+        "attempt_sequence_path",
+        "attempt_sequence_sha256",
+        "adaptive_runtime_spec_path",
+        "adaptive_runtime_spec_sha256",
+        "pilot_spec_path",
+        "pilot_spec_sha256",
+        "spec_index_path",
+        "spec_index_sha256",
+        "artifact_inventory_path",
+        "artifact_inventory_sha256",
+        "matrix_path",
+        "matrix_sha256",
+        "artifact_manifest_path",
+        "artifact_manifest_sha256",
+        "prompt_set_path",
+        "prompt_set_sha256",
+        "rubric_path",
+        "rubric_sha256",
+        "build_provenance_path",
+        "build_provenance_sha256",
+        "quality_worker_path",
+        "quality_worker_sha256",
+        "build_identity",
+        "build_identity_sha256",
+        "runtime_property",
+        "runtime_property_sha256",
+        "command",
+        "command_sha256",
+    }
+    if not isinstance(bindings, Mapping) or set(bindings) != fields:
+        raise ValueError("quality prompt worker bindings are invalid")
+    snapshot = dict(bindings)
+    for stem in (
+        "runtime_summary",
+        "attempt_sequence",
+        "adaptive_runtime_spec",
+        "pilot_spec",
+        "spec_index",
+        "artifact_inventory",
+        "matrix",
+        "artifact_manifest",
+        "prompt_set",
+        "rubric",
+        "build_provenance",
+        "quality_worker",
+    ):
+        source = _reopen_bound_file(snapshot, stem)
+        if stem == "quality_worker" and source != Path(__file__).resolve():
+            raise ValueError("quality prompt worker source binding is invalid")
+    raw_samples = snapshot.get("raw_samples")
+    if not isinstance(raw_samples, list) or len(raw_samples) != 3:
+        raise ValueError("quality prompt worker raw sample bindings are invalid")
+    reopened_samples: list[dict[str, str]] = []
+    seen_paths: set[Path] = set()
+    for sample in raw_samples:
+        if not isinstance(sample, Mapping) or set(sample) != {"path", "sha256"}:
+            raise ValueError("quality prompt worker raw sample binding is invalid")
+        path_value = sample.get("path")
+        if not isinstance(path_value, str) or not path_value.strip():
+            raise ValueError("quality prompt worker raw sample path is invalid")
+        source = Path(path_value).resolve()
+        expected = _require_sha256(sample.get("sha256"), "raw sample sha256")
+        if (
+            str(source) != path_value
+            or source in seen_paths
+            or not source.is_file()
+            or hashlib.sha256(source.read_bytes()).hexdigest() != expected
+        ):
+            raise ValueError("quality prompt worker raw sample hash mismatch")
+        seen_paths.add(source)
+        reopened_samples.append({"path": path_value, "sha256": expected})
+    build_identity = snapshot.get("build_identity")
+    runtime_property = snapshot.get("runtime_property")
+    command = snapshot.get("command")
+    if not isinstance(build_identity, Mapping) or not build_identity:
+        raise ValueError("quality prompt worker build identity is invalid")
+    if not isinstance(runtime_property, Mapping) or not runtime_property:
+        raise ValueError("quality prompt worker runtime property is invalid")
+    if (
+        not isinstance(command, list)
+        or not command
+        or any(not isinstance(item, str) or not item for item in command)
+    ):
+        raise ValueError("quality prompt worker command is invalid")
+    for field, value in (
+        ("build identity", build_identity),
+        ("runtime property", runtime_property),
+        ("command", command),
+    ):
+        if snapshot.get(f"{field.replace(' ', '_')}_sha256") != _identity_sha256(value):
+            raise ValueError(f"quality prompt worker {field} hash mismatch")
+    snapshot["raw_samples"] = reopened_samples
+    snapshot["build_identity"] = dict(build_identity)
+    snapshot["runtime_property"] = dict(runtime_property)
+    snapshot["command"] = list(command)
+    return snapshot
+
+
 def _validate_prompt_worker_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(spec, Mapping):
         raise ValueError("quality prompt worker spec must be an object")
@@ -355,14 +485,7 @@ def _validate_prompt_worker_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
         or controller["context_tokens"] <= 0
     ):
         raise ValueError("quality prompt worker private controller is invalid")
-    bindings = snapshot.get("bindings")
-    if not isinstance(bindings, Mapping) or not bindings:
-        raise ValueError("quality prompt worker bindings are invalid")
-    for field, value in bindings.items():
-        if not isinstance(field, str) or not field.strip():
-            raise ValueError("quality prompt worker binding name is invalid")
-        if field.endswith("_sha256"):
-            _require_sha256(value, field)
+    bindings = _validate_prompt_bindings(snapshot.get("bindings"))
     turns = snapshot.get("turns")
     expected_ids = (
         ("P6-turn-1", "P6-turn-2") if prompt_id == "P6" else (prompt_id,)
@@ -385,7 +508,7 @@ def _validate_prompt_worker_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
     snapshot["properties"] = dict(properties)
     snapshot["generation_settings"] = dict(settings)
     snapshot["private_controller"] = dict(controller)
-    snapshot["bindings"] = dict(bindings)
+    snapshot["bindings"] = bindings
     snapshot["turns"] = normalized_turns
     return snapshot
 
