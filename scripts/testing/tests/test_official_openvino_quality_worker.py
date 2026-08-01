@@ -104,6 +104,27 @@ def _worker():
     return execute_quality_worker
 
 
+def _prompt_worker_cli_fixture(tmp_path):
+    from scripts.testing.official_openvino.adaptive_quality import (
+        build_quality_prompt_worker_spec,
+    )
+    from scripts.testing.official_openvino.quality_campaign import (
+        load_accepted_quality_campaign,
+    )
+    from scripts.testing.tests.test_official_openvino_quality_campaign import (
+        _accepted_input,
+    )
+
+    campaign = load_accepted_quality_campaign(_accepted_input(tmp_path))
+    spec = build_quality_prompt_worker_spec(campaign, "P1")
+    command = spec["bindings"]["command"]
+    spec_path = Path(command[4])
+    result_path = Path(command[6])
+    spec_path.parent.mkdir(parents=True, exist_ok=True)
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    return spec_path, result_path
+
+
 def test_quality_worker_module_imports():
     assert callable(_worker())
 
@@ -150,6 +171,71 @@ def test_prompt_worker_rejects_copied_bound_file_before_openvino_import(
         execute_quality_prompt_worker(spec)
 
     assert imported == []
+
+
+@pytest.mark.parametrize("substitution", ("spec", "result", "interpreter"))
+def test_prompt_worker_cli_rejects_bound_command_substitution_before_import(
+    tmp_path,
+    monkeypatch,
+    substitution,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
+    actual_spec_path = spec_path
+    actual_result_path = result_path
+    if substitution == "spec":
+        actual_spec_path = tmp_path / "copied" / "worker-spec.json"
+        actual_spec_path.parent.mkdir(parents=True)
+        actual_spec_path.write_bytes(spec_path.read_bytes())
+    elif substitution == "result":
+        actual_result_path = tmp_path / "copied" / "worker-result.json"
+    else:
+        monkeypatch.setattr(
+            sys,
+            "executable",
+            str(tmp_path / "substituted-python.exe"),
+        )
+
+    imported = []
+    real_import = builtins.__import__
+
+    def reject_openvino_import(name, *args, **kwargs):
+        if name == "openvino_genai":
+            imported.append(name)
+            raise AssertionError("OpenVINO import must follow CLI binding validation")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
+
+    with pytest.raises(ValueError, match="bound command"):
+        quality_worker.main(
+            [
+                "--spec",
+                str(actual_spec_path),
+                "--result",
+                str(actual_result_path),
+            ]
+        )
+
+    assert imported == []
+    assert not actual_result_path.exists()
+
+
+def test_prompt_worker_cli_accepts_exact_bound_command(tmp_path, monkeypatch):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+
+    assert quality_worker.main(
+        ["--spec", str(spec_path), "--result", str(result_path)]
+    ) == 0
+
+    published = json.loads(result_path.read_text(encoding="utf-8"))
+    assert published["schema"] == quality_worker.PROMPT_RESULT_SCHEMA
+    assert published["prompt_id"] == "P1"
 
 
 @pytest.mark.parametrize(

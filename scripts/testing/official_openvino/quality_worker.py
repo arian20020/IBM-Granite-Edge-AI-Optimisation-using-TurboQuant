@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
@@ -957,6 +958,30 @@ def _load_spec(path: Path) -> dict[str, Any]:
     return value
 
 
+def _validate_prompt_worker_invocation(
+    spec: Mapping[str, Any],
+    *,
+    spec_path: Path,
+    result_path: Path,
+) -> None:
+    normalized = _validate_prompt_worker_spec(spec)
+    command = normalized["bindings"]["command"]
+    expected = (
+        Path(command[0]).resolve(),
+        Path(command[4]).resolve(),
+        Path(command[6]).resolve(),
+    )
+    actual = (
+        Path(sys.executable).resolve(),
+        Path(spec_path).resolve(),
+        Path(result_path).resolve(),
+    )
+    if actual != expected:
+        raise ValueError(
+            "quality prompt worker invocation does not match bound command"
+        )
+
+
 def _atomic_write_result(path: Path, result: Mapping[str, Any]) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -986,11 +1011,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--result", type=Path, required=True)
     args = parser.parse_args(argv)
     spec = _load_spec(args.spec)
-    result = (
-        execute_quality_prompt_worker(spec)
-        if spec.get("schema") == PROMPT_SPEC_SCHEMA
-        else execute_quality_worker(spec)
-    )
+    if spec.get("schema") == PROMPT_SPEC_SCHEMA:
+        _validate_prompt_worker_invocation(
+            spec,
+            spec_path=args.spec,
+            result_path=args.result,
+        )
+        result = execute_quality_prompt_worker(spec)
+    else:
+        result = execute_quality_worker(spec)
     _atomic_write_result(args.result, result)
     return 0
 
