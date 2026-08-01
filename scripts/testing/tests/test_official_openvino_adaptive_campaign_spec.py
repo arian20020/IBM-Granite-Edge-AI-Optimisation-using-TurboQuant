@@ -129,6 +129,9 @@ def test_generation_records_missing_fp16_as_artifact_preparation_boundary(tmp_pa
     assert result["terminals"][0]["stage"] == "artifact-preparation"
     index = json.loads((tmp_path / "specs" / "spec-index.json").read_text(encoding="utf-8"))
     assert index["matrix_sha256"] == _sha256(tmp_path / "matrix.json")
+    assert index["artifact_inventory_path"] == str(
+        (tmp_path / "artifact-inventory.json").resolve()
+    )
     assert index["artifact_inventory_sha256"] == _sha256(tmp_path / "artifact-inventory.json")
 
 

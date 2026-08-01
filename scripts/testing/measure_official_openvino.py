@@ -22,6 +22,7 @@ from scripts.testing.official_openvino.conversion import (
     validate_artifact_manifest,
 )
 from scripts.testing.official_openvino.metrics import summarize_samples
+from scripts.testing.official_openvino.owned_process_guard import KillOnCloseJob
 from scripts.testing.official_openvino.adaptive_metrics import (
     build_adaptive_runtime_sample,
     summarize_adaptive_runtime_samples,
@@ -750,6 +751,7 @@ def run_single_measurement(
     timeout_seconds: float = 900.0,
     launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
     emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
+    campaign_job: KillOnCloseJob | None = None,
     run_process: Callable[..., dict[str, Any]] = run_governed_process,
 ) -> dict[str, Any]:
     """Execute one role in a fresh process and return its persisted record."""
@@ -793,6 +795,7 @@ def run_single_measurement(
         emergency_minimum_available_ram_bytes=(
             emergency_minimum_available_ram_mib * MIB
         ),
+        campaign_job=campaign_job,
         sample_interval_seconds=0.25,
     )
 
@@ -1107,6 +1110,7 @@ def _run_measurement_sequence_locked(
     timeout_seconds: float = 900.0,
     launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
     emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
+    campaign_job: KillOnCloseJob | None = None,
     run_measurement: Callable[..., dict[str, Any]] = run_single_measurement,
 ) -> dict[str, Any]:
     """Run or resume a complete five-role measurement campaign."""
@@ -1195,6 +1199,7 @@ def _run_measurement_sequence_locked(
                     emergency_minimum_available_ram_mib=(
                         emergency_minimum_available_ram_mib
                     ),
+                    campaign_job=campaign_job,
                 )
             )
         except Exception as error:
@@ -1353,6 +1358,7 @@ def run_measurement_sequence(
     timeout_seconds: float = 900.0,
     launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
     emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
+    campaign_job: KillOnCloseJob | None = None,
     run_measurement: Callable[..., dict[str, Any]] = run_single_measurement,
 ) -> dict[str, Any]:
     """Run or resume a locked complete five-role measurement campaign."""
@@ -1379,6 +1385,7 @@ def run_measurement_sequence(
             emergency_minimum_available_ram_mib=(
                 emergency_minimum_available_ram_mib
             ),
+            campaign_job=campaign_job,
             run_measurement=run_measurement,
         )
 

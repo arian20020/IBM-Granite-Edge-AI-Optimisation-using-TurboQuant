@@ -98,6 +98,7 @@ def test_single_measurement_binds_worker_command_and_returns_guard_record(tmp_pa
     )
     output = tmp_path / "output"
     observed = {}
+    campaign_job = object()
 
     def fake_run_process(**kwargs):
         observed.update(kwargs)
@@ -120,6 +121,7 @@ def test_single_measurement_binds_worker_command_and_returns_guard_record(tmp_pa
         timeout_seconds=123,
         launch_minimum_available_ram_mib=4096,
         emergency_minimum_available_ram_mib=2048,
+        campaign_job=campaign_job,
         run_process=fake_run_process,
     )
 
@@ -128,6 +130,7 @@ def test_single_measurement_binds_worker_command_and_returns_guard_record(tmp_pa
     assert observed["timeout_seconds"] == 123
     assert observed["launch_minimum_available_ram_bytes"] == 4096 * 1024**2
     assert observed["emergency_minimum_available_ram_bytes"] == 2048 * 1024**2
+    assert observed["campaign_job"] is campaign_job
     assert observed["command"] == [
         str(Path(sys.executable).resolve()),
         "-m",

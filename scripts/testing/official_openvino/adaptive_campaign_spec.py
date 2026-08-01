@@ -186,6 +186,7 @@ def generate_adaptive_format_comparison_specs(
     index = {
         "schema": SPEC_INDEX_SCHEMA,
         "matrix_sha256": sha256_file(matrix),
+        "artifact_inventory_path": str(inventory),
         "artifact_inventory_sha256": sha256_file(inventory),
         "runtime_specs": index_specs,
         "terminals": terminals,

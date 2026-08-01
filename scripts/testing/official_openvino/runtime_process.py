@@ -216,6 +216,7 @@ def run_governed_process(
     emergency_minimum_available_ram_bytes: int = (
         MIN_EMERGENCY_AVAILABLE_RAM_BYTES
     ),
+    campaign_job: KillOnCloseJob | None = None,
     sample_interval_seconds: float = 0.25,
 ) -> dict[str, Any]:
     """Run one fresh process behind a kill-on-close Job Object."""
@@ -378,6 +379,10 @@ def run_governed_process(
         "telemetry_sha256": None,
         "workload_job": None,
         "sampler_job": None,
+        "campaign_job_assignment": {
+            "requested": campaign_job is not None,
+            "assigned_pids": [],
+        },
         "cleanup_process_count": None,
         "emergency_actions": [],
         "validation_errors": [],
@@ -434,6 +439,11 @@ def run_governed_process(
             )
             record["root_pid"] = workload.pid
             workload_job.assign_pid(workload.pid)
+            if campaign_job is not None:
+                campaign_job.assign_pid(workload.pid)
+                record["campaign_job_assignment"]["assigned_pids"].append(
+                    workload.pid
+                )
 
             powershell = shutil.which("powershell.exe") or "powershell.exe"
             sampler_command = [
@@ -472,6 +482,11 @@ def run_governed_process(
                 ),
             )
             sampler_job.assign_pid(counter.pid)
+            if campaign_job is not None:
+                campaign_job.assign_pid(counter.pid)
+                record["campaign_job_assignment"]["assigned_pids"].append(
+                    counter.pid
+                )
             _resume_suspended_process(counter.pid)
 
             ready_deadline = min(

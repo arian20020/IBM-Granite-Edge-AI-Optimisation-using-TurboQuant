@@ -44,6 +44,17 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _sha256_json(value: object) -> str:
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -158,8 +169,53 @@ def test_no_intermediate_level_can_be_skipped() -> None:
     assert ("OV-11", 2048) not in eligible_steps(state)
 
 
-def _campaign_inputs(tmp_path: Path, *, max_context: int = 512) -> AdaptiveCampaignConfig:
-    matrix_path = matrix.__wrapped__(tmp_path)  # type: ignore[attr-defined]
+def _campaign_inputs(
+    tmp_path: Path,
+    *,
+    max_context: int = 512,
+    fp16_terminal: bool = False,
+) -> AdaptiveCampaignConfig:
+    if fp16_terminal:
+        terminal_receipt = tmp_path / "f16-terminal.json"
+        _write_json(
+            terminal_receipt,
+            {
+                "schema": "official-openvino-artifact-preparation-terminal/v1",
+                "status": "artifact-preparation-terminal",
+            },
+        )
+        inventory_path = tmp_path / "artifact-inventory.json"
+        _write_json(
+            inventory_path,
+            {
+                "schema": "official-openvino-adaptive-artifact-inventory/v1",
+                "launch_reserve_mib": 4096,
+                "emergency_floor_mib": 2048,
+                "bindings": {
+                    "u4": _binding(tmp_path, "u4"),
+                    "u8": _binding(tmp_path, "u8"),
+                    "f16": {
+                        "precision": "f16",
+                        "status": "artifact-preparation-terminal",
+                        "artifact_id": None,
+                        "model_root": None,
+                        "manifest_path": None,
+                        "manifest_sha256": None,
+                        "terminal_stage": "artifact-preparation",
+                        "terminal_receipt_path": str(terminal_receipt),
+                        "terminal_receipt_sha256": _sha256(terminal_receipt),
+                    },
+                },
+            },
+        )
+        matrix_path = tmp_path / "matrix.json"
+        build_adaptive_comparison_matrix(
+            artifact_inventory_path=inventory_path,
+            historical_matrix_path=HISTORICAL_MATRIX,
+            output_path=matrix_path,
+        )
+    else:
+        matrix_path = matrix.__wrapped__(tmp_path)  # type: ignore[attr-defined]
     inventory_path = tmp_path / "artifact-inventory.json"
     build_root = tmp_path / "build"
     package = build_root / "openvino_genai"
@@ -236,6 +292,20 @@ def _failure_record(
         "os_instability": os_instability,
         "ram_query_succeeded": ram_query_succeeded,
         "launch_reserve_restored": launch_reserve_restored,
+        "workload_job": {
+            "setup_ok": True,
+            "query_ok": True,
+            "terminate_job_called": False,
+            "queried_active_process_count_after_cleanup": 0,
+            "survivor_pids_after_cleanup": [],
+        },
+        "sampler_job": {
+            "setup_ok": True,
+            "query_ok": True,
+            "terminate_job_called": False,
+            "queried_active_process_count_after_cleanup": 0,
+            "survivor_pids_after_cleanup": [],
+        },
     }
     path = config.campaign_root.parent / f"failure-{test_id}-{context}-{code}.json"
     _write_json(path, record)
@@ -245,6 +315,172 @@ def _failure_record(
         record=record,
         fingerprint="task-three-sequence-identity",
     )
+
+
+def _write_native_task_three_failure(
+    config: AdaptiveCampaignConfig,
+    campaign_root: Path,
+    *,
+    attempt_number: int,
+    test_id: str = "OV-12",
+    context: int = 4096,
+    identity_artifact_id: str | None = None,
+    include_convenience_identity: bool = False,
+    launch_floor_bytes: int = START_RESERVE_MIB * 1024**2,
+    emergency_floor_bytes: int = 2048 * 1024**2,
+) -> Path:
+    matrix_payload = json.loads(config.matrix_path.read_text(encoding="utf-8"))
+    case = next(item for item in matrix_payload["cases"] if item["test_id"] == test_id)
+    adaptive_spec_path = (
+        config.spec_root / test_id / str(context) / "runtime-spec.json"
+    )
+    adaptive_spec = json.loads(adaptive_spec_path.read_text(encoding="utf-8"))
+    role = "pilot"
+    identity = {
+        "config": {
+            "device": adaptive_spec["device"],
+            "max_new_tokens": adaptive_spec["max_new_tokens"],
+            "expected_input_tokens": context,
+            "ignore_eos": adaptive_spec["ignore_eos"],
+            "seed": adaptive_spec["seed"],
+            "apply_chat_template": adaptive_spec["apply_chat_template"],
+            "properties": adaptive_spec["properties"],
+        },
+        "context": context,
+        "matrix": {
+            "path": str(config.matrix_path.resolve()),
+            "file_sha256": _sha256(config.matrix_path),
+            "schema_version": matrix_payload.get("schema_version"),
+            "source_identity": matrix_payload["source_identity"],
+            "build_identity": matrix_payload["build_identity"],
+            "case": case,
+        },
+        "model": {
+            "artifact_manifest_path": adaptive_spec["artifact_manifest_path"],
+            "artifact_manifest_sha256": adaptive_spec[
+                "artifact_manifest_sha256"
+            ],
+            "validated_artifact": {
+                "artifact_id": (
+                    identity_artifact_id
+                    if identity_artifact_id is not None
+                    else adaptive_spec["artifact_id"]
+                ),
+                "artifact_root": adaptive_spec["model_path"],
+            },
+        },
+    }
+    identity_hash = _sha256_json(identity)
+    campaign_identity = {
+        "schema": "official-openvino-wb04-campaign-identity/v1",
+        "identity": identity,
+        "campaign_identity_sha256": identity_hash,
+    }
+    identity_path = campaign_root / "campaign-identity.json"
+    if identity_path.exists():
+        assert json.loads(identity_path.read_text(encoding="utf-8")) == campaign_identity
+    else:
+        _write_json(identity_path, campaign_identity)
+
+    role_spec = {
+        "schema": "official-openvino-wb04-worker-spec/v1",
+        "role": role,
+        "controlled_test_id": test_id,
+        "model_path": adaptive_spec["model_path"],
+        "device": adaptive_spec["device"],
+        "prompt": adaptive_spec["workload"]["prompt"],
+        "context": context,
+        "expected_input_tokens": context,
+        "properties": adaptive_spec["properties"],
+        "max_new_tokens": adaptive_spec["max_new_tokens"],
+        "ignore_eos": adaptive_spec["ignore_eos"],
+        "seed": adaptive_spec["seed"],
+        "apply_chat_template": adaptive_spec["apply_chat_template"],
+        "campaign_identity_sha256": identity_hash,
+    }
+    attempt_dir = (
+        campaign_root
+        / "attempts"
+        / role
+        / f"attempt-{attempt_number:03d}"
+    )
+    spec_path = attempt_dir / "spec.json"
+    _write_json(spec_path, role_spec)
+    record = {
+        "schema": "official-openvino-wb04-governed-run/v1",
+        "role": role,
+        "run_nonce": f"native-failure-{attempt_number}",
+        "worker": {
+            "role": role,
+            "controlled_test_id": test_id,
+            "context": context,
+            "expected_input_tokens": context,
+            "device": adaptive_spec["device"],
+            "model_path": adaptive_spec["model_path"],
+        },
+        "low_memory_stop": True,
+        "exit_code": 137,
+        "launch_minimum_available_ram_bytes": launch_floor_bytes,
+        "emergency_minimum_available_ram_bytes": emergency_floor_bytes,
+        "available_ram_bytes": {
+            "before": 5000 * 1024**2,
+            "minimum": 1900 * 1024**2,
+            "after": 4500 * 1024**2,
+        },
+        "cleanup_process_count": 0,
+        "residual_owned_process_count": 0,
+        "emergency_actions": [],
+        "os_instability": False,
+        "workload_job": {
+            "setup_ok": True,
+            "query_ok": True,
+            "terminate_job_called": True,
+            "queried_active_process_count_after_cleanup": 0,
+            "survivor_pids_after_cleanup": [],
+        },
+        "sampler_job": {
+            "setup_ok": True,
+            "query_ok": True,
+            "terminate_job_called": True,
+            "queried_active_process_count_after_cleanup": 0,
+            "survivor_pids_after_cleanup": [],
+        },
+        "validation_errors": ["available RAM is below the emergency floor"],
+    }
+    if include_convenience_identity:
+        record.update(
+            {
+                "controlled_test_id": test_id,
+                "context_tokens": context,
+                "artifact_id": case["artifact_id"],
+                "artifact_manifest_sha256": case[
+                    "artifact_manifest_sha256"
+                ],
+                "model": case["model"],
+                "device": case["device"],
+                "execution_route": case["execution_route"],
+                "launch_minimum_available_ram_mib": START_RESERVE_MIB,
+                "emergency_minimum_available_ram_mib": 2048,
+            }
+        )
+    record_path = attempt_dir / "run" / "attempt.json"
+    _write_json(record_path, record)
+    root = campaign_root.resolve()
+    receipt = {
+        "schema": "official-openvino-wb04-sequence-receipt/v1",
+        "role": role,
+        "attempt_number": attempt_number,
+        "campaign_identity_sha256": identity_hash,
+        "spec_sha256": _sha256_json(role_spec),
+        "spec_path": spec_path.resolve().relative_to(root).as_posix(),
+        "spec_file_sha256": _sha256(spec_path),
+        "runtime_record_path": record_path.resolve().relative_to(root).as_posix(),
+        "runtime_record_sha256": _sha256(record_path),
+        "accepted": False,
+        "controller_error": "RuntimeError: guarded low-memory failure",
+    }
+    _write_json(attempt_dir / "sequence-receipt.json", receipt)
+    return record_path
 
 
 class _FakeRunner:
@@ -407,13 +643,14 @@ def test_preflight_validates_and_does_not_launch_or_create_attempts(tmp_path: Pa
 def test_explicit_equivalent_boundary_skips_dangerous_relaunch(tmp_path: Path) -> None:
     config = _campaign_inputs(tmp_path, max_context=4096)
     historical = tmp_path / "historical"
-    first = _failure_record(config, test_id="OV-12", context=4096)
-    second = _failure_record(config, test_id="OV-12", context=4096)
-    for number, failure in enumerate((first, second), 1):
-        attempt = historical / f"attempt-{number:03d}" / "run" / "attempt.json"
-        _write_json(attempt, failure.record)
-        receipt = attempt.parents[1] / "sequence-receipt.json"
-        _write_json(receipt, {"runtime_record_sha256": _sha256(attempt)})
+    for number in (1, 2):
+        _write_native_task_three_failure(
+            config,
+            historical,
+            attempt_number=number,
+            test_id="OV-12",
+            context=4096,
+        )
     index_path = tmp_path / "boundary-index.json"
     build_boundary_index(
         matrix_path=config.matrix_path,
@@ -664,3 +901,320 @@ def test_preflight_rejects_hash_updated_runtime_property_tamper(
             config,
             available_ram=lambda: START_RESERVE_MIB * 1024**2,
         )
+
+
+def test_unsafe_boundary_persists_campaign_halt_across_resume(tmp_path: Path) -> None:
+    config = _campaign_inputs(tmp_path)
+    unsafe = _failure_record(config, cleanup=1)
+    first_runner = _FakeRunner([unsafe])
+
+    first = _run(config, first_runner)
+
+    assert first["campaign_halt"]["reason"] == "unsafe-runtime-failure"
+    assert eligible_steps(first) == ()
+    assert campaign_status(config, first)["next_eligible_step"] is None
+
+    resumed_runner = _FakeRunner([{} for _ in range(5)])
+    resumed = _run(config, resumed_runner)
+
+    assert resumed_runner.calls == []
+    assert resumed["campaign_halt"] == first["campaign_halt"]
+    with pytest.raises(RuntimeError, match="halted"):
+        preflight_adaptive_campaign(
+            config,
+            available_ram=lambda: START_RESERVE_MIB * 1024**2,
+        )
+
+
+def test_resume_reopens_actual_artifact_inventory_bytes(tmp_path: Path) -> None:
+    config = _campaign_inputs(tmp_path)
+    load_or_create_state(config)
+    inventory = tmp_path / "artifact-inventory.json"
+    inventory.write_bytes(inventory.read_bytes() + b" ")
+
+    with pytest.raises(ValueError, match="artifact inventory.*drift"):
+        load_or_create_state(config)
+
+
+@pytest.mark.parametrize(
+    ("proof", "reason"),
+    [
+        ({}, "missing"),
+        ({"query_ok": False, "active_pids": []}, "query"),
+        ({"query_ok": True, "active_pids": [4321]}, "survivor"),
+    ],
+)
+def test_live_campaign_job_proof_fails_closed_before_launch(
+    tmp_path: Path,
+    proof: dict[str, object],
+    reason: str,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    runner = _FakeRunner([{} for _ in range(5)])
+
+    result = run_adaptive_campaign(
+        config,
+        run_runtime=runner,
+        run_quality=None,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
+        owned_survivor_probe=lambda _: proof,
+    )
+
+    assert runner.calls == []
+    assert reason in result["campaign_halt"]["reason"]
+
+
+def test_live_zero_campaign_job_proof_is_required_for_every_launch(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    runner = _FakeRunner([{} for _ in range(5)])
+    proof_calls: list[Path] = []
+
+    def prove_zero(campaign_root: Path) -> dict[str, object]:
+        proof_calls.append(campaign_root)
+        return {
+            "schema": "official-openvino-adaptive-job-probe/v1",
+            "query_ok": True,
+            "active_pids": [],
+        }
+
+    result = run_adaptive_campaign(
+        config,
+        run_runtime=runner,
+        run_quality=None,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
+        owned_survivor_probe=prove_zero,
+    )
+
+    assert len(runner.calls) == 5
+    assert len(proof_calls) >= len(runner.calls)
+    assert all(item["query_ok"] is True for item in result["safety_probes"])
+
+
+def test_missing_task_three_job_cleanup_proof_is_unsafe(tmp_path: Path) -> None:
+    config = _campaign_inputs(tmp_path)
+    failure = _failure_record(config)
+    record = dict(failure.record)
+    record.pop("workload_job", None)
+    record.pop("sampler_job", None)
+    _write_json(failure.record_path, record)
+    native = MeasurementFailureRecord(
+        role=failure.role,
+        record_path=failure.record_path,
+        record=record,
+        fingerprint=failure.fingerprint,
+    )
+    runner = _FakeRunner([native, {}])
+
+    result = _run(config, runner)
+
+    assert runner.calls == [("OV-11", 512)]
+    assert result["steps"]["OV-11:512"]["runtime_status"] == "safety-boundary"
+
+
+def test_boundary_builder_normalizes_native_task_three_identity_and_byte_floors(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path, max_context=4096)
+    historical = tmp_path / "native-historical"
+    for number in (1, 2):
+        _write_native_task_three_failure(
+            config,
+            historical,
+            attempt_number=number,
+        )
+
+    result = build_boundary_index(
+        matrix_path=config.matrix_path,
+        spec_root=config.spec_root,
+        historical_root=historical,
+        output_path=tmp_path / "native-boundaries.json",
+    )
+
+    assert len(result["boundaries"]) == 1
+    boundary = result["boundaries"][0]
+    assert (boundary["test_id"], boundary["context_tokens"]) == ("OV-12", 4096)
+    assert boundary["identity"]["launch_reserve_mib"] == 4096
+    assert boundary["identity"]["emergency_floor_mib"] == 2048
+
+
+def test_boundary_builder_rejects_unbound_top_level_convenience_identity(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path, max_context=4096)
+    historical = tmp_path / "mismatched-native-historical"
+    for number in (1, 2):
+        _write_native_task_three_failure(
+            config,
+            historical,
+            attempt_number=number,
+            identity_artifact_id="different-artifact",
+            include_convenience_identity=True,
+        )
+
+    result = build_boundary_index(
+        matrix_path=config.matrix_path,
+        spec_root=config.spec_root,
+        historical_root=historical,
+        output_path=tmp_path / "mismatched-native-boundaries.json",
+    )
+
+    assert result["boundaries"] == []
+
+
+def test_boundary_builder_rejects_convenience_mib_when_native_byte_floor_differs(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path, max_context=4096)
+    historical = tmp_path / "wrong-byte-floor-historical"
+    for number in (1, 2):
+        _write_native_task_three_failure(
+            config,
+            historical,
+            attempt_number=number,
+            include_convenience_identity=True,
+            launch_floor_bytes=START_RESERVE_MIB * 1024**2 + 1,
+        )
+
+    result = build_boundary_index(
+        matrix_path=config.matrix_path,
+        spec_root=config.spec_root,
+        historical_root=historical,
+        output_path=tmp_path / "wrong-byte-floor-boundaries.json",
+    )
+
+    assert result["boundaries"] == []
+
+
+def test_artifact_preparation_terminal_is_receipted_checkpointed_and_resumable(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path, fp16_terminal=True)
+    runner = _FakeRunner([{} for _ in range(4)])
+    checkpoints: list[tuple[Path, bool]] = []
+
+    result = _run(config, runner, checkpoints=checkpoints)
+
+    assert len(runner.calls) == 4
+    terminal = result["steps"]["OV-13:512"]
+    assert terminal["runtime_status"] == "artifact-preparation-terminal"
+    assert terminal["attempt_count"] == 0
+    terminal_receipt = config.campaign_root / terminal["terminal_receipt_path"]
+    assert terminal_receipt.is_file()
+    assert _sha256(terminal_receipt) == terminal["terminal_receipt_sha256"]
+    before = terminal_receipt.read_bytes()
+    assert len(checkpoints) == 5
+
+    resumed_runner = _FakeRunner([{}])
+    resumed_checkpoints: list[tuple[Path, bool]] = []
+    resumed = _run(
+        config,
+        resumed_runner,
+        checkpoints=resumed_checkpoints,
+    )
+
+    assert resumed_runner.calls == []
+    assert resumed_checkpoints == []
+    assert terminal_receipt.read_bytes() == before
+    assert resumed["steps"]["OV-13:512"] == terminal
+
+
+def _zero_survivor_proof(_campaign_root: Path) -> dict[str, object]:
+    return {
+        "schema": "official-openvino-adaptive-job-probe/v1",
+        "query_ok": True,
+        "active_pids": [],
+    }
+
+
+class _CrashAfterNativeTaskThreeFailure:
+    def __init__(self, config: AdaptiveCampaignConfig, attempt_number: int):
+        self.config = config
+        self.attempt_number = attempt_number
+        self.calls: list[tuple[str, int]] = []
+
+    def __call__(self, **kwargs: object) -> dict[str, object]:
+        spec = json.loads(Path(kwargs["spec_path"]).read_text(encoding="utf-8"))
+        test_id = spec["controlled_test_id"]
+        context = spec["context_tokens"]
+        self.calls.append((test_id, context))
+        _write_native_task_three_failure(
+            self.config,
+            Path(kwargs["campaign_root"]),
+            attempt_number=self.attempt_number,
+            test_id=test_id,
+            context=context,
+        )
+        raise KeyboardInterrupt("simulated crash before controller receipt")
+
+
+def test_resume_reconciles_native_failure_persisted_before_controller_receipt(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    crash = _CrashAfterNativeTaskThreeFailure(config, 1)
+
+    with pytest.raises(KeyboardInterrupt):
+        run_adaptive_campaign(
+            config,
+            run_runtime=crash,
+            run_quality=None,
+            available_ram=lambda: START_RESERVE_MIB * 1024**2,
+            owned_survivor_probe=_zero_survivor_proof,
+        )
+
+    resumed_runner = _FakeRunner([{} for _ in range(5)])
+    resumed = run_adaptive_campaign(
+        config,
+        run_runtime=resumed_runner,
+        run_quality=None,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
+        owned_survivor_probe=_zero_survivor_proof,
+    )
+
+    assert resumed_runner.calls.count(("OV-11", 512)) == 1
+    assert resumed["steps"]["OV-11:512"]["attempt_count"] == 2
+    assert [
+        item["attempt_number"]
+        for item in resumed["steps"]["OV-11:512"]["attempts"]
+    ] == [1, 2]
+
+
+def test_two_unreceipted_native_failures_close_boundary_without_third_launch(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    first_crash = _CrashAfterNativeTaskThreeFailure(config, 1)
+    with pytest.raises(KeyboardInterrupt):
+        run_adaptive_campaign(
+            config,
+            run_runtime=first_crash,
+            run_quality=None,
+            available_ram=lambda: START_RESERVE_MIB * 1024**2,
+            owned_survivor_probe=_zero_survivor_proof,
+        )
+
+    second_crash = _CrashAfterNativeTaskThreeFailure(config, 2)
+    with pytest.raises(KeyboardInterrupt):
+        run_adaptive_campaign(
+            config,
+            run_runtime=second_crash,
+            run_quality=None,
+            available_ram=lambda: START_RESERVE_MIB * 1024**2,
+            owned_survivor_probe=_zero_survivor_proof,
+        )
+
+    forbidden_runner = _FakeRunner([{}])
+    resumed = run_adaptive_campaign(
+        config,
+        run_runtime=forbidden_runner,
+        run_quality=None,
+        available_ram=lambda: START_RESERVE_MIB * 1024**2,
+        owned_survivor_probe=_zero_survivor_proof,
+    )
+
+    assert forbidden_runner.calls.count(("OV-11", 512)) == 0
+    step = resumed["steps"]["OV-11:512"]
+    assert step["attempt_count"] == 2
+    assert step["runtime_status"] == "boundary-confirmed"

@@ -20,7 +20,7 @@ from scripts.testing.measure_official_openvino import (
 )
 
 from .matrix import OpenVINOCase, load_adaptive_comparison_matrix
-from .owned_process_guard import available_ram_bytes
+from .owned_process_guard import KillOnCloseJob, available_ram_bytes
 from .runtime_measurement import atomic_write_json, build_runtime_property_spec
 
 
@@ -34,6 +34,14 @@ STATE_SCHEMA = "official-openvino-adaptive-campaign-state/v1"
 CONTROLLER_RECEIPT_SCHEMA = "official-openvino-adaptive-controller-receipt/v1"
 BOUNDARY_INDEX_SCHEMA = "official-openvino-adaptive-boundary-index/v1"
 SPEC_INDEX_SCHEMA = "official-openvino-adaptive-comparison-spec-index/v1"
+JOB_PROBE_SCHEMA = "official-openvino-adaptive-job-probe/v1"
+ARTIFACT_TERMINAL_RECEIPT_SCHEMA = (
+    "official-openvino-adaptive-controller-terminal-receipt/v1"
+)
+TASK_THREE_CAMPAIGN_SCHEMA = "official-openvino-wb04-campaign-identity/v1"
+TASK_THREE_RECEIPT_SCHEMA = "official-openvino-wb04-sequence-receipt/v1"
+TASK_THREE_SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
+TASK_THREE_RUN_SCHEMA = "official-openvino-wb04-governed-run/v1"
 MIB = 1024**2
 _ROOT = Path(__file__).resolve().parents[3]
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -77,6 +85,52 @@ class StepOutcome:
     evidence_sha256: str
 
 
+class _CampaignOwnedJobProbe:
+    """Own and query the containing Job Object for every campaign worker."""
+
+    def __init__(self, campaign_root: Path):
+        identity = hashlib.sha256(
+            str(Path(campaign_root).resolve()).encode("utf-8")
+        ).hexdigest()[:24]
+        self.name = f"WB04-adaptive-campaign-{identity}"
+        self.job: KillOnCloseJob | None = None
+
+    def __enter__(self) -> "_CampaignOwnedJobProbe":
+        self.job = KillOnCloseJob(self.name)
+        return self
+
+    def __exit__(self, *_: Any) -> None:
+        if self.job is not None:
+            self.job.close()
+            self.job = None
+
+    def __call__(self, _campaign_root: Path) -> dict[str, Any]:
+        if self.job is None:
+            return {
+                "schema": JOB_PROBE_SCHEMA,
+                "job_name": self.name,
+                "query_ok": False,
+                "active_pids": None,
+                "error": "campaign Job Object is not open",
+            }
+        try:
+            active = self.job.active_pids()
+        except (OSError, RuntimeError) as error:
+            return {
+                "schema": JOB_PROBE_SCHEMA,
+                "job_name": self.name,
+                "query_ok": False,
+                "active_pids": None,
+                "error": f"{type(error).__name__}: {error}",
+            }
+        return {
+            "schema": JOB_PROBE_SCHEMA,
+            "job_name": self.name,
+            "query_ok": True,
+            "active_pids": sorted(active),
+        }
+
+
 def build_ladder(matrix_path: Path) -> tuple[tuple[str, int], ...]:
     """Validate the matrix and return the fixed context-major run order."""
 
@@ -118,12 +172,28 @@ def _validate_state(state: Mapping[str, Any]) -> dict[str, Any]:
         validated_steps[key] = dict(raw)
     validated = dict(state)
     validated["steps"] = validated_steps
+    halt = state.get("campaign_halt")
+    if halt is not None and (
+        not isinstance(halt, Mapping)
+        or not isinstance(halt.get("reason"), str)
+        or not halt["reason"]
+    ):
+        raise ValueError("adaptive campaign halt record is invalid")
+    probes = state.get("safety_probes", [])
+    if not isinstance(probes, list) or any(
+        not isinstance(probe, Mapping) for probe in probes
+    ):
+        raise ValueError("adaptive campaign safety probe chain is invalid")
+    validated["campaign_halt"] = dict(halt) if halt is not None else None
+    validated["safety_probes"] = [dict(probe) for probe in probes]
     return validated
 
 
 def _eligible_breadth_first_steps(
     state: Mapping[str, Any],
 ) -> tuple[tuple[str, int], ...]:
+    if state.get("campaign_halt") is not None:
+        return ()
     steps = state["steps"]
     eligible: list[tuple[str, int]] = []
     for test_id in CANDIDATE_ORDER:
@@ -286,6 +356,248 @@ def _spec_identity(case: OpenVINOCase, context: int) -> dict[str, Any]:
     }
 
 
+def _paths_are_equal(first: object, second: object) -> bool:
+    if not isinstance(first, str) or not first:
+        return False
+    try:
+        return Path(first).resolve() == Path(str(second)).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
+def _native_task_three_failure_evidence(
+    *,
+    attempt_path: Path,
+    scan_root: Path,
+    matrix_path: Path,
+    matrix_payload: Mapping[str, Any],
+    case_payload: Mapping[str, Any],
+    adaptive_spec: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    """Reopen one native Task 3 failure and normalize only hash-bound facts."""
+
+    attempt = Path(attempt_path).resolve()
+    scope = Path(scan_root).resolve()
+    if scope != attempt and scope not in attempt.parents:
+        raise ValueError("native Task 3 attempt escapes the caller-provided root")
+    if (
+        attempt.name != "attempt.json"
+        or attempt.parent.name != "run"
+        or re.fullmatch(r"attempt-(\d{3})", attempt.parents[1].name) is None
+        or attempt.parents[3].name != "attempts"
+    ):
+        return None
+    attempt_dir = attempt.parents[1]
+    role = attempt.parents[2].name
+    attempt_number = int(attempt_dir.name.removeprefix("attempt-"))
+    campaign_root = attempt.parents[4].resolve()
+    if scope != campaign_root and scope not in campaign_root.parents:
+        return None
+
+    receipt_path = attempt_dir / "sequence-receipt.json"
+    spec_path = attempt_dir / "spec.json"
+    identity_path = campaign_root / "campaign-identity.json"
+    receipt = _load_json(receipt_path, "native Task 3 sequence receipt")
+    role_spec = _load_json(spec_path, "native Task 3 role spec")
+    campaign_identity = _load_json(
+        identity_path, "native Task 3 campaign identity"
+    )
+    record = _load_json(attempt, "native Task 3 runtime attempt")
+
+    receipt_spec = _resolved_child(
+        campaign_root, receipt.get("spec_path"), "native Task 3 receipt spec"
+    )
+    receipt_record = _resolved_child(
+        campaign_root,
+        receipt.get("runtime_record_path"),
+        "native Task 3 receipt runtime record",
+    )
+    if receipt_spec != spec_path.resolve() or receipt_record != attempt:
+        raise ValueError("native Task 3 receipt path binding is invalid")
+    if (
+        _require_hash(
+            receipt.get("spec_file_sha256"),
+            "native Task 3 spec file hash",
+        )
+        != _sha256_file(spec_path)
+        or _require_hash(
+            receipt.get("runtime_record_sha256"),
+            "native Task 3 runtime record hash",
+        )
+        != _sha256_file(attempt)
+        or _require_hash(
+            receipt.get("spec_sha256"),
+            "native Task 3 canonical spec hash",
+        )
+        != _sha256_json(role_spec)
+    ):
+        raise ValueError("native Task 3 attempt hash validation failed")
+
+    identity = campaign_identity.get("identity")
+    identity_hash = campaign_identity.get("campaign_identity_sha256")
+    if (
+        campaign_identity.get("schema") != TASK_THREE_CAMPAIGN_SCHEMA
+        or not isinstance(identity, Mapping)
+        or _require_hash(identity_hash, "native Task 3 campaign identity hash")
+        != _sha256_json(identity)
+        or receipt.get("schema") != TASK_THREE_RECEIPT_SCHEMA
+        or receipt.get("role") != role
+        or receipt.get("attempt_number") != attempt_number
+        or receipt.get("campaign_identity_sha256") != identity_hash
+        or receipt.get("accepted") is not False
+        or role_spec.get("schema") != TASK_THREE_SPEC_SCHEMA
+        or role_spec.get("role") != role
+        or role_spec.get("campaign_identity_sha256") != identity_hash
+        or record.get("schema") != TASK_THREE_RUN_SCHEMA
+        or record.get("role") != role
+    ):
+        return None
+
+    test_id = role_spec.get("controlled_test_id")
+    context = role_spec.get("context")
+    if (
+        test_id != case_payload.get("test_id")
+        or context != adaptive_spec.get("context_tokens")
+        or role_spec.get("expected_input_tokens") != context
+        or role_spec.get("device") != adaptive_spec.get("device")
+        or role_spec.get("properties") != adaptive_spec.get("properties")
+        or role_spec.get("max_new_tokens") != adaptive_spec.get("max_new_tokens")
+        or role_spec.get("ignore_eos") != adaptive_spec.get("ignore_eos")
+        or role_spec.get("seed") != adaptive_spec.get("seed")
+        or role_spec.get("apply_chat_template")
+        != adaptive_spec.get("apply_chat_template")
+        or not _paths_are_equal(
+            role_spec.get("model_path"), adaptive_spec.get("model_path")
+        )
+    ):
+        return None
+    workload = adaptive_spec.get("workload")
+    if (
+        not isinstance(workload, Mapping)
+        or role_spec.get("prompt") != workload.get("prompt")
+        or workload.get("actual_input_tokens") != context
+    ):
+        return None
+
+    expected_config = {
+        field: role_spec.get(field)
+        for field in (
+            "device",
+            "max_new_tokens",
+            "expected_input_tokens",
+            "ignore_eos",
+            "seed",
+            "apply_chat_template",
+            "properties",
+        )
+    }
+    matrix_identity = identity.get("matrix")
+    model_identity = identity.get("model")
+    validated_artifact = (
+        model_identity.get("validated_artifact")
+        if isinstance(model_identity, Mapping)
+        else None
+    )
+    expected_matrix = Path(matrix_path).resolve()
+    if (
+        identity.get("context") != context
+        or identity.get("config") != expected_config
+        or not isinstance(matrix_identity, Mapping)
+        or not _paths_are_equal(matrix_identity.get("path"), expected_matrix)
+        or matrix_identity.get("file_sha256") != _sha256_file(expected_matrix)
+        or matrix_identity.get("schema_version")
+        != matrix_payload.get("schema_version")
+        or matrix_identity.get("source_identity")
+        != matrix_payload.get("source_identity")
+        or matrix_identity.get("build_identity")
+        != matrix_payload.get("build_identity")
+        or matrix_identity.get("case") != dict(case_payload)
+        or not isinstance(model_identity, Mapping)
+        or not _paths_are_equal(
+            model_identity.get("artifact_manifest_path"),
+            adaptive_spec.get("artifact_manifest_path"),
+        )
+        or model_identity.get("artifact_manifest_sha256")
+        != adaptive_spec.get("artifact_manifest_sha256")
+        or not isinstance(validated_artifact, Mapping)
+        or validated_artifact.get("artifact_id") != adaptive_spec.get("artifact_id")
+        or not _paths_are_equal(
+            validated_artifact.get("artifact_root"),
+            adaptive_spec.get("model_path"),
+        )
+    ):
+        return None
+
+    launch_bytes = record.get("launch_minimum_available_ram_bytes")
+    emergency_bytes = record.get("emergency_minimum_available_ram_bytes")
+    if (
+        type(launch_bytes) is not int
+        or launch_bytes != START_RESERVE_MIB * MIB
+        or type(emergency_bytes) is not int
+        or emergency_bytes != RUNTIME_FLOOR_MIB * MIB
+    ):
+        return None
+    worker = record.get("worker")
+    if worker is not None:
+        if not isinstance(worker, Mapping):
+            return None
+        expected_worker = {
+            "role": role,
+            "controlled_test_id": test_id,
+            "context": context,
+            "expected_input_tokens": context,
+            "device": role_spec.get("device"),
+        }
+        if any(worker.get(field) != value for field, value in expected_worker.items()):
+            return None
+        if not _paths_are_equal(
+            worker.get("model_path"), role_spec.get("model_path")
+        ):
+            return None
+
+    normalized = dict(record)
+    normalized.update(
+        {
+            "controlled_test_id": test_id,
+            "context_tokens": context,
+            "stage": role,
+            "artifact_id": validated_artifact["artifact_id"],
+            "artifact_manifest_sha256": model_identity[
+                "artifact_manifest_sha256"
+            ],
+            "model": case_payload.get("model"),
+            "device": case_payload.get("device"),
+            "execution_route": case_payload.get("execution_route"),
+            "launch_minimum_available_ram_mib": launch_bytes // MIB,
+            "emergency_minimum_available_ram_mib": emergency_bytes // MIB,
+        }
+    )
+    boundary_identity = {
+        "artifact_id": normalized["artifact_id"],
+        "artifact_manifest_sha256": normalized[
+            "artifact_manifest_sha256"
+        ],
+        "model": normalized["model"],
+        "device": normalized["device"],
+        "execution_route": normalized["execution_route"],
+        "context_tokens": context,
+        "launch_reserve_mib": launch_bytes // MIB,
+        "emergency_floor_mib": emergency_bytes // MIB,
+    }
+    return {
+        "test_id": test_id,
+        "context_tokens": context,
+        "role": role,
+        "record": normalized,
+        "record_path": attempt,
+        "record_sha256": _sha256_file(attempt),
+        "receipt_path": receipt_path.resolve(),
+        "receipt_sha256": _sha256_file(receipt_path),
+        "campaign_identity_sha256": identity_hash,
+        "boundary_identity": boundary_identity,
+    }
+
+
 def _load_matrix_and_specs(
     matrix_path: Path,
     spec_root: Path,
@@ -303,7 +615,15 @@ def _load_matrix_and_specs(
         raise ValueError("adaptive spec index schema is invalid")
     if index.get("matrix_sha256") != _sha256_file(matrix):
         raise ValueError("adaptive spec index matrix hash drift")
-    _require_hash(index.get("artifact_inventory_sha256"), "artifact inventory hash")
+    inventory_hash = _require_hash(
+        index.get("artifact_inventory_sha256"), "artifact inventory hash"
+    )
+    inventory_value = index.get("artifact_inventory_path")
+    if not isinstance(inventory_value, str) or not inventory_value:
+        raise ValueError("adaptive spec index artifact inventory path is missing")
+    inventory = _require_file(Path(inventory_value), "artifact inventory")
+    if _sha256_file(inventory) != inventory_hash:
+        raise ValueError("artifact inventory hash drift")
     raw_specs = index.get("runtime_specs")
     if not isinstance(raw_specs, list):
         raise ValueError("adaptive spec index runtime_specs must be a list")
@@ -424,6 +744,9 @@ def _validate_config(
         "matrix_sha256": _sha256_file(matrix),
         "spec_index_path": str((spec_root / "spec-index.json").resolve()),
         "spec_index_sha256": _sha256_file(spec_root / "spec-index.json"),
+        "artifact_inventory_path": str(
+            Path(str(index["artifact_inventory_path"])).resolve()
+        ),
         "artifact_inventory_sha256": index["artifact_inventory_sha256"],
         "build_root": str(build_root),
         "build_root_sha256": _directory_sha256(build_root),
@@ -512,6 +835,8 @@ def _initial_state(
         "bindings": dict(bindings),
         "steps": {},
         "boundaries": {},
+        "campaign_halt": None,
+        "safety_probes": [],
     }
     if reference_boundary_index is not None:
         for boundary in _boundary_entries(
@@ -687,6 +1012,29 @@ def _failure_identity(
     return identity, _sha256_json(identity)
 
 
+def _task_three_cleanup_is_proven(record: Mapping[str, Any]) -> bool:
+    expected_fields = {
+        "setup_ok",
+        "query_ok",
+        "terminate_job_called",
+        "queried_active_process_count_after_cleanup",
+        "survivor_pids_after_cleanup",
+    }
+    for field in ("workload_job", "sampler_job"):
+        evidence = record.get(field)
+        if (
+            not isinstance(evidence, Mapping)
+            or set(evidence) != expected_fields
+            or evidence.get("setup_ok") is not True
+            or evidence.get("query_ok") is not True
+            or type(evidence.get("terminate_job_called")) is not bool
+            or evidence.get("queried_active_process_count_after_cleanup") != 0
+            or evidence.get("survivor_pids_after_cleanup") != []
+        ):
+            return False
+    return True
+
+
 def _retryable_failure(record: Mapping[str, Any]) -> bool:
     available = record.get("available_ram_bytes")
     inferred_ram_query = (
@@ -713,6 +1061,7 @@ def _retryable_failure(record: Mapping[str, Any]) -> bool:
         and record.get("os_instability", False) is False
         and ram_query_succeeded is True
         and launch_reserve_restored is True
+        and _task_three_cleanup_is_proven(record)
     )
     return clean and _failure_category(record) in {"ram-floor", "functional"}
 
@@ -762,15 +1111,113 @@ def _require_start_reserve(available_ram: Callable[[], int | None]) -> int:
 
 def _require_zero_recorded_survivors(state: Mapping[str, Any]) -> None:
     for step in state["steps"].values():
+        if step.get("boundary_source") == "explicit-reference-index":
+            continue
         attempts = step.get("attempts", [])
         if not isinstance(attempts, list):
             raise ValueError("adaptive controller attempt chain is invalid")
         for attempt in attempts:
-            if (
-                isinstance(attempt, Mapping)
-                and attempt.get("residual_owned_process_count", 0) != 0
-            ):
+            if not isinstance(attempt, Mapping) or type(
+                attempt.get("residual_owned_process_count")
+            ) is not int:
+                raise RuntimeError("owned survivor history proof is missing")
+            if attempt["residual_owned_process_count"] != 0:
                 raise RuntimeError("campaign Job Object reports owned survivors")
+
+
+def _set_campaign_halt(
+    state: dict[str, Any],
+    *,
+    reason: str,
+    detail: Mapping[str, Any],
+) -> None:
+    if state.get("campaign_halt") is None:
+        state["campaign_halt"] = {
+            "reason": reason,
+            "detail": dict(detail),
+        }
+
+
+def _record_live_survivor_probe(
+    *,
+    config: AdaptiveCampaignConfig,
+    state: dict[str, Any],
+    stage: str,
+    probe: Callable[[Path], Mapping[str, Any]],
+) -> bool:
+    root = Path(config.campaign_root).resolve()
+    try:
+        raw = probe(root)
+    except Exception as error:
+        raw = {
+            "query_ok": False,
+            "active_pids": None,
+            "error": f"{type(error).__name__}: {error}",
+        }
+    raw_mapping = dict(raw) if isinstance(raw, Mapping) else {}
+    query_ok = raw_mapping.get("query_ok")
+    active_value = raw_mapping.get("active_pids")
+    active_pids = (
+        sorted(active_value)
+        if isinstance(active_value, list)
+        and all(type(pid) is int and pid > 0 for pid in active_value)
+        else None
+    )
+    missing = (
+        "query_ok" not in raw_mapping
+        or "active_pids" not in raw_mapping
+        or type(query_ok) is not bool
+        or (query_ok is True and active_pids is None)
+        or (
+            query_ok is True
+            and raw_mapping.get("schema") != JOB_PROBE_SCHEMA
+        )
+    )
+    if missing:
+        failure_reason = "owned-survivor-proof-missing"
+    elif query_ok is not True:
+        failure_reason = "owned-survivor-proof-query-failed"
+    elif active_pids:
+        failure_reason = "owned-survivor-proof-survivors-present"
+    else:
+        failure_reason = None
+
+    probes = state.setdefault("safety_probes", [])
+    if not isinstance(probes, list):
+        raise ValueError("adaptive campaign safety probe chain is invalid")
+    number = len(probes) + 1
+    relative = Path("safety-probes") / f"probe-{number:03d}.json"
+    destination = root / relative
+    if destination.exists():
+        raise RuntimeError("safety probe receipt is immutable")
+    receipt = {
+        "schema": JOB_PROBE_SCHEMA,
+        "probe_number": number,
+        "stage": stage,
+        "job_name": raw_mapping.get("job_name"),
+        "query_ok": query_ok if type(query_ok) is bool else False,
+        "active_pids": active_pids,
+        "error": raw_mapping.get("error"),
+    }
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_json(destination, receipt)
+    entry = {
+        "probe_number": number,
+        "stage": stage,
+        "query_ok": receipt["query_ok"],
+        "active_pids": active_pids,
+        "receipt_path": relative.as_posix(),
+        "receipt_sha256": _sha256_file(destination),
+    }
+    probes.append(entry)
+    if failure_reason is not None:
+        _set_campaign_halt(
+            state,
+            reason=failure_reason,
+            detail={"stage": stage, "probe_receipt": entry},
+        )
+    save_state_atomically(root / "adaptive-campaign-state.json", state)
+    return failure_reason is None
 
 
 def _write_controller_receipt(
@@ -820,6 +1267,68 @@ def _write_controller_receipt(
         "failure_fingerprint": failure_fingerprint,
         "residual_owned_process_count": residual_owned_process_count,
     }
+
+
+def _record_artifact_preparation_terminal(
+    *,
+    config: AdaptiveCampaignConfig,
+    state: dict[str, Any],
+    terminal: Mapping[str, Any],
+) -> dict[str, Any]:
+    test_id = terminal.get("test_id")
+    if test_id != "OV-13" or terminal.get("stage") != "artifact-preparation":
+        raise ValueError("adaptive artifact terminal identity is invalid")
+    context = CONTEXTS[0]
+    source = _require_file(
+        Path(str(terminal.get("receipt_path"))),
+        "artifact preparation terminal source receipt",
+    )
+    source_hash = _require_hash(
+        terminal.get("receipt_sha256"),
+        "artifact preparation terminal source receipt hash",
+    )
+    if _sha256_file(source) != source_hash:
+        raise ValueError("adaptive artifact terminal source receipt hash drift")
+
+    root = Path(config.campaign_root).resolve()
+    relative = (
+        Path("controller-receipts")
+        / test_id
+        / "artifact-preparation-terminal.json"
+    )
+    destination = root / relative
+    receipt = {
+        "schema": ARTIFACT_TERMINAL_RECEIPT_SCHEMA,
+        "test_id": test_id,
+        "context_tokens": context,
+        "status": "artifact-preparation-terminal",
+        "stage": "artifact-preparation",
+        "source_receipt_path": str(source),
+        "source_receipt_sha256": source_hash,
+        "matrix_sha256": state["bindings"]["matrix_sha256"],
+        "spec_index_sha256": state["bindings"]["spec_index_sha256"],
+    }
+    if destination.exists():
+        if _load_json(destination, "artifact terminal controller receipt") != receipt:
+            raise ValueError("artifact terminal controller receipt is non-identical")
+    else:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(destination, receipt)
+    step = {
+        "test_id": test_id,
+        "context_tokens": context,
+        "runtime_status": "artifact-preparation-terminal",
+        "quality_status": "not-run",
+        "attempt_count": 0,
+        "failure_fingerprint": None,
+        "evidence_path": str(source),
+        "evidence_sha256": source_hash,
+        "attempts": [],
+        "terminal_receipt_path": relative.as_posix(),
+        "terminal_receipt_sha256": _sha256_file(destination),
+    }
+    state["steps"][f"{test_id}:{context}"] = step
+    return state
 
 
 def _controller_attempts(
@@ -886,11 +1395,273 @@ def _controller_attempts(
     return attempts
 
 
+def _native_runtime_failures_for_step(
+    *,
+    config: AdaptiveCampaignConfig,
+    test_id: str,
+    context: int,
+    adaptive_spec: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    runtime_root = (
+        Path(config.campaign_root).resolve()
+        / "runtime"
+        / test_id
+        / f"context-{context}"
+    )
+    attempts_root = runtime_root / "attempts"
+    if not attempts_root.exists():
+        return []
+    if not attempts_root.is_dir():
+        raise ValueError("native Task 3 attempts root is invalid")
+    matrix_path = Path(config.matrix_path).resolve()
+    matrix_payload = _load_json(matrix_path, "adaptive comparison matrix")
+    raw_cases = matrix_payload.get("cases")
+    if not isinstance(raw_cases, list):
+        raise ValueError("adaptive comparison matrix cases are invalid")
+    matches = [
+        case
+        for case in raw_cases
+        if isinstance(case, Mapping) and case.get("test_id") == test_id
+    ]
+    if len(matches) != 1:
+        raise ValueError("adaptive comparison matrix case identity is invalid")
+
+    role_order = {
+        role: index
+        for index, role in enumerate(
+            ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
+        )
+    }
+    discovered: list[tuple[int, int, Path]] = []
+    for receipt_path in attempts_root.glob("*/attempt-*/sequence-receipt.json"):
+        receipt = _load_json(receipt_path, "native Task 3 sequence receipt")
+        if receipt.get("accepted") is True:
+            continue
+        if receipt.get("accepted") is not False:
+            raise ValueError("native Task 3 failed receipt status is invalid")
+        role = receipt_path.parents[1].name
+        match = re.fullmatch(r"attempt-(\d{3})", receipt_path.parent.name)
+        relative_record = receipt.get("runtime_record_path")
+        if role not in role_order or match is None or not isinstance(
+            relative_record, str
+        ):
+            raise ValueError("native Task 3 failed receipt identity is invalid")
+        record_path = _resolved_child(
+            runtime_root,
+            relative_record,
+            "native Task 3 failed runtime record",
+        )
+        discovered.append((role_order[role], int(match.group(1)), record_path))
+
+    failures: list[dict[str, Any]] = []
+    seen_paths: set[Path] = set()
+    for _, _, record_path in sorted(discovered):
+        if record_path in seen_paths:
+            raise ValueError("native Task 3 failed receipt is duplicated")
+        seen_paths.add(record_path)
+        native = _native_task_three_failure_evidence(
+            attempt_path=record_path,
+            scan_root=runtime_root,
+            matrix_path=matrix_path,
+            matrix_payload=matrix_payload,
+            case_payload=matches[0],
+            adaptive_spec=adaptive_spec,
+        )
+        if native is None:
+            raise ValueError("native Task 3 failed attempt lacks exact identity proof")
+        failures.append(native)
+    return failures
+
+
+def _reconcile_native_runtime_failures(
+    *,
+    config: AdaptiveCampaignConfig,
+    state: dict[str, Any],
+    test_id: str,
+    context: int,
+    adaptive_spec: Mapping[str, Any],
+    controller_attempts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    try:
+        native_failures = _native_runtime_failures_for_step(
+            config=config,
+            test_id=test_id,
+            context=context,
+            adaptive_spec=adaptive_spec,
+        )
+    except ValueError as error:
+        _set_campaign_halt(
+            state,
+            reason="native-runtime-failure-proof-invalid",
+            detail={
+                "test_id": test_id,
+                "context_tokens": context,
+                "error": str(error),
+            },
+        )
+        save_state_atomically(
+            Path(config.campaign_root).resolve()
+            / "adaptive-campaign-state.json",
+            state,
+        )
+        return controller_attempts
+
+    represented: dict[tuple[str, str], dict[str, Any]] = {
+        (
+            str(Path(attempt["evidence_path"]).resolve()),
+            str(attempt["evidence_sha256"]),
+        ): attempt
+        for attempt in controller_attempts
+        if attempt.get("status") in {"retryable-failure", "safety-boundary"}
+    }
+    missing: list[tuple[dict[str, Any], StepOutcome]] = []
+    for native in native_failures:
+        failure = MeasurementFailureRecord(
+            native["role"],
+            native["record_path"],
+            native["record"],
+            native["campaign_identity_sha256"],
+        )
+        outcome = classify_runtime_failure(failure)
+        identity = (str(native["record_path"]), native["record_sha256"])
+        existing = represented.get(identity)
+        residual_value = native["record"].get("residual_owned_process_count")
+        residual = residual_value if type(residual_value) is int else -1
+        if existing is not None:
+            if (
+                existing.get("status") != outcome.runtime_status
+                or existing.get("failure_fingerprint")
+                != outcome.failure_fingerprint
+                or existing.get("residual_owned_process_count") != residual
+            ):
+                _set_campaign_halt(
+                    state,
+                    reason="native-runtime-controller-receipt-mismatch",
+                    detail={
+                        "test_id": test_id,
+                        "context_tokens": context,
+                        "evidence_path": str(native["record_path"]),
+                    },
+                )
+                save_state_atomically(
+                    Path(config.campaign_root).resolve()
+                    / "adaptive-campaign-state.json",
+                    state,
+                )
+                return controller_attempts
+            continue
+        missing.append((native, outcome))
+
+    capacity = MAX_GUARDED_ATTEMPTS - len(controller_attempts)
+    for native, outcome in missing[: max(capacity, 0)]:
+        residual_value = native["record"].get("residual_owned_process_count")
+        residual = residual_value if type(residual_value) is int else -1
+        controller_attempts.append(
+            _write_controller_receipt(
+                config=config,
+                test_id=test_id,
+                context=context,
+                attempt_number=len(controller_attempts) + 1,
+                status=outcome.runtime_status,
+                evidence_path=native["record_path"],
+                evidence_sha256=native["record_sha256"],
+                failure_fingerprint=outcome.failure_fingerprint,
+                residual_owned_process_count=residual,
+            )
+        )
+        if outcome.runtime_status == "safety-boundary":
+            _set_campaign_halt(
+                state,
+                reason="unsafe-reconciled-runtime-failure",
+                detail={
+                    "test_id": test_id,
+                    "context_tokens": context,
+                    "evidence_path": str(native["record_path"]),
+                    "evidence_sha256": native["record_sha256"],
+                },
+            )
+
+    if len(missing) > max(capacity, 0):
+        _set_campaign_halt(
+            state,
+            reason="native-runtime-attempt-limit-exceeded",
+            detail={
+                "test_id": test_id,
+                "context_tokens": context,
+                "native_failed_attempt_count": len(native_failures),
+                "maximum_guarded_attempts": MAX_GUARDED_ATTEMPTS,
+            },
+        )
+    if state.get("campaign_halt") is not None:
+        save_state_atomically(
+            Path(config.campaign_root).resolve()
+            / "adaptive-campaign-state.json",
+            state,
+        )
+    return controller_attempts
+
+
 def _validate_state_receipts(
     config: AdaptiveCampaignConfig,
     state: Mapping[str, Any],
 ) -> None:
+    root = Path(config.campaign_root).resolve()
+    for expected_number, entry in enumerate(state.get("safety_probes", []), 1):
+        if entry.get("probe_number") != expected_number:
+            raise ValueError("safety probe receipt numbering is not monotonic")
+        receipt_path = _resolved_child(
+            root, entry.get("receipt_path"), "safety probe receipt"
+        )
+        if _sha256_file(receipt_path) != entry.get("receipt_sha256"):
+            raise ValueError("safety probe receipt hash drift")
+        receipt = _load_json(receipt_path, "safety probe receipt")
+        if (
+            receipt.get("schema") != JOB_PROBE_SCHEMA
+            or receipt.get("probe_number") != expected_number
+            or receipt.get("stage") != entry.get("stage")
+            or receipt.get("query_ok") != entry.get("query_ok")
+            or receipt.get("active_pids") != entry.get("active_pids")
+        ):
+            raise ValueError("safety probe receipt identity drift")
     for key, step in state["steps"].items():
+        if step.get("runtime_status") == "artifact-preparation-terminal":
+            receipt_path = _resolved_child(
+                root,
+                step.get("terminal_receipt_path"),
+                "artifact terminal controller receipt",
+            )
+            if _sha256_file(receipt_path) != step.get("terminal_receipt_sha256"):
+                raise ValueError("artifact terminal controller receipt hash drift")
+            receipt = _load_json(
+                receipt_path, "artifact terminal controller receipt"
+            )
+            evidence = _require_file(
+                Path(str(step.get("evidence_path"))),
+                "artifact terminal source receipt",
+            )
+            evidence_hash = _require_hash(
+                step.get("evidence_sha256"),
+                "artifact terminal source receipt hash",
+            )
+            test_id, context_text = key.split(":", 1)
+            if (
+                _sha256_file(evidence) != evidence_hash
+                or step.get("attempt_count") != 0
+                or step.get("attempts") != []
+                or receipt.get("schema") != ARTIFACT_TERMINAL_RECEIPT_SCHEMA
+                or receipt.get("test_id") != test_id
+                or receipt.get("context_tokens") != int(context_text)
+                or receipt.get("status") != "artifact-preparation-terminal"
+                or receipt.get("stage") != "artifact-preparation"
+                or receipt.get("source_receipt_path") != str(evidence)
+                or receipt.get("source_receipt_sha256") != evidence_hash
+                or receipt.get("matrix_sha256")
+                != state["bindings"]["matrix_sha256"]
+                or receipt.get("spec_index_sha256")
+                != state["bindings"]["spec_index_sha256"]
+            ):
+                raise ValueError("artifact terminal controller receipt identity drift")
+            continue
         if step.get("boundary_source") == "explicit-reference-index":
             for attempt in step.get("attempts", []):
                 if not isinstance(attempt, Mapping):
@@ -916,6 +1687,7 @@ def _runtime_kwargs(
     spec: Mapping[str, Any],
     test_id: str,
     context: int,
+    campaign_job: KillOnCloseJob | None,
 ) -> dict[str, Any]:
     return {
         "spec_path": spec_path,
@@ -936,6 +1708,7 @@ def _runtime_kwargs(
         "sampler_script": Path(config.sampler_script).resolve(),
         "launch_minimum_available_ram_mib": START_RESERVE_MIB,
         "emergency_minimum_available_ram_mib": RUNTIME_FLOOR_MIB,
+        "campaign_job": campaign_job,
     }
 
 
@@ -949,8 +1722,18 @@ def _execute_runtime_step(
     spec: Mapping[str, Any],
     run_runtime: Callable[..., Mapping[str, Any]],
     available_ram: Callable[[], int | None],
+    owned_survivor_probe: Callable[[Path], Mapping[str, Any]],
+    campaign_job: KillOnCloseJob | None,
 ) -> dict[str, Any]:
     attempts = _controller_attempts(config, test_id, context)
+    attempts = _reconcile_native_runtime_failures(
+        config=config,
+        state=state,
+        test_id=test_id,
+        context=context,
+        adaptive_spec=spec,
+        controller_attempts=attempts,
+    )
     failure_fingerprints = [
         attempt["failure_fingerprint"]
         for attempt in attempts
@@ -962,7 +1745,10 @@ def _execute_runtime_step(
         spec=spec,
         test_id=test_id,
         context=context,
+        campaign_job=campaign_job,
     )["campaign_root"]
+    if state.get("campaign_halt") is not None and not attempts:
+        return state
     if attempts:
         last = attempts[-1]
         if last["status"] == "passed":
@@ -978,7 +1764,9 @@ def _execute_runtime_step(
                 "attempts": attempts,
             }
             return state
-        if last["status"] == "safety-boundary":
+        if state.get("campaign_halt") is not None:
+            status = "safety-boundary"
+        elif last["status"] == "safety-boundary":
             status = "safety-boundary"
         elif len(attempts) == MAX_GUARDED_ATTEMPTS:
             status = (
@@ -1007,8 +1795,28 @@ def _execute_runtime_step(
             return state
 
     for attempt_number in range(len(attempts) + 1, MAX_GUARDED_ATTEMPTS + 1):
-        _require_zero_recorded_survivors(state)
-        _require_start_reserve(available_ram)
+        try:
+            _require_zero_recorded_survivors(state)
+            if not _record_live_survivor_probe(
+                config=config,
+                state=state,
+                stage=f"before-launch:{test_id}:{context}:{attempt_number}",
+                probe=owned_survivor_probe,
+            ):
+                return state
+            _require_start_reserve(available_ram)
+        except RuntimeError as error:
+            _set_campaign_halt(
+                state,
+                reason="unsafe-ram-or-survivor-admission",
+                detail={"stage": "before-launch", "error": str(error)},
+            )
+            save_state_atomically(
+                Path(config.campaign_root).resolve()
+                / "adaptive-campaign-state.json",
+                state,
+            )
+            return state
         try:
             result = dict(
                 run_runtime(
@@ -1018,6 +1826,7 @@ def _execute_runtime_step(
                         spec=spec,
                         test_id=test_id,
                         context=context,
+                        campaign_job=campaign_job,
                     )
                 )
             )
@@ -1086,8 +1895,21 @@ def _execute_runtime_step(
                 _require_zero_recorded_survivors(
                     {"steps": {"current": {"attempts": attempts}}}
                 )
+                if not _record_live_survivor_probe(
+                    config=config,
+                    state=state,
+                    stage=f"before-retry:{test_id}:{context}:{attempt_number + 1}",
+                    probe=owned_survivor_probe,
+                ):
+                    status = "safety-boundary"
+                    break
                 _require_start_reserve(available_ram)
-            except RuntimeError:
+            except RuntimeError as error:
+                _set_campaign_halt(
+                    state,
+                    reason="unsafe-retry-admission",
+                    detail={"stage": "before-retry", "error": str(error)},
+                )
                 status = "safety-boundary"
                 break
             continue
@@ -1154,6 +1976,17 @@ def _execute_runtime_step(
             "failure_fingerprint": last_outcome_fingerprint,
             "source": "matching-guarded-attempts",
         }
+    elif status == "safety-boundary":
+        _set_campaign_halt(
+            state,
+            reason="unsafe-runtime-failure",
+            detail={
+                "test_id": test_id,
+                "context_tokens": context,
+                "evidence_path": str(last_evidence_path.resolve()),
+                "evidence_sha256": last_evidence_sha256,
+            },
+        )
     return state
 
 
@@ -1191,20 +2024,26 @@ def _execute_quality_step(
     return state
 
 
-def run_adaptive_campaign(
+def _run_adaptive_campaign_with_probe(
     config: AdaptiveCampaignConfig,
     *,
-    run_runtime: Callable[..., Mapping[str, Any]] = run_measurement_sequence,
-    run_quality: Callable[..., Mapping[str, Any]] | None = None,
-    publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None = None,
-    available_ram: Callable[[], int | None] = available_ram_bytes,
+    run_runtime: Callable[..., Mapping[str, Any]],
+    run_quality: Callable[..., Mapping[str, Any]] | None,
+    publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None,
+    available_ram: Callable[[], int | None],
+    owned_survivor_probe: Callable[[Path], Mapping[str, Any]],
+    campaign_job: KillOnCloseJob | None,
 ) -> dict[str, Any]:
-    """Run or resume the fixed ladder while checkpointing each final step."""
-
     campaign_root = Path(config.campaign_root).resolve()
     with CampaignLock(campaign_root):
         state = load_or_create_state(config)
-        _cases, _index, specs, _bindings = _validate_config(config)
+        if state.get("campaign_halt") is not None:
+            return state
+        _cases, index, specs, _bindings = _validate_config(config)
+        terminals = {
+            terminal["test_id"]: terminal
+            for terminal in index["terminals"]
+        }
         state_path = campaign_root / "adaptive-campaign-state.json"
         for test_id, context in build_ladder(config.matrix_path):
             if context > config.max_context or not step_is_eligible(
@@ -1213,7 +2052,26 @@ def run_adaptive_campaign(
                 continue
             spec_entry = specs.get((test_id, context))
             if spec_entry is None:
+                terminal = terminals.get(test_id)
+                if terminal is not None and context == CONTEXTS[0]:
+                    state = _record_artifact_preparation_terminal(
+                        config=config,
+                        state=state,
+                        terminal=terminal,
+                    )
+                    save_state_atomically(state_path, state)
+                    if publish_checkpoint is not None:
+                        publish_checkpoint(state_path, False)
                 continue
+            if not _record_live_survivor_probe(
+                config=config,
+                state=state,
+                stage=f"before-next-step:{test_id}:{context}",
+                probe=owned_survivor_probe,
+            ):
+                if publish_checkpoint is not None:
+                    publish_checkpoint(state_path, False)
+                return state
             state = _execute_runtime_step(
                 state,
                 config=config,
@@ -1223,7 +2081,15 @@ def run_adaptive_campaign(
                 spec=spec_entry[1],
                 run_runtime=run_runtime,
                 available_ram=available_ram,
+                owned_survivor_probe=owned_survivor_probe,
+                campaign_job=campaign_job,
             )
+            if state.get("campaign_halt") is not None and (
+                f"{test_id}:{context}" not in state["steps"]
+            ):
+                if publish_checkpoint is not None:
+                    publish_checkpoint(state_path, False)
+                return state
             if state["steps"][f"{test_id}:{context}"]["runtime_status"] == "passed":
                 state = _execute_quality_step(
                     state,
@@ -1243,17 +2109,81 @@ def run_adaptive_campaign(
         return state
 
 
+def run_adaptive_campaign(
+    config: AdaptiveCampaignConfig,
+    *,
+    run_runtime: Callable[..., Mapping[str, Any]] = run_measurement_sequence,
+    run_quality: Callable[..., Mapping[str, Any]] | None = None,
+    publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None = None,
+    available_ram: Callable[[], int | None] = available_ram_bytes,
+    owned_survivor_probe: Callable[[Path], Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run or resume the fixed ladder while checkpointing each final step."""
+
+    if owned_survivor_probe is not None:
+        return _run_adaptive_campaign_with_probe(
+            config,
+            run_runtime=run_runtime,
+            run_quality=run_quality,
+            publish_checkpoint=publish_checkpoint,
+            available_ram=available_ram,
+            owned_survivor_probe=owned_survivor_probe,
+            campaign_job=None,
+        )
+    with _CampaignOwnedJobProbe(config.campaign_root) as guard:
+        return _run_adaptive_campaign_with_probe(
+            config,
+            run_runtime=run_runtime,
+            run_quality=run_quality,
+            publish_checkpoint=publish_checkpoint,
+            available_ram=available_ram,
+            owned_survivor_probe=guard,
+            campaign_job=guard.job,
+        )
+
+
 def preflight_adaptive_campaign(
     config: AdaptiveCampaignConfig,
     *,
     available_ram: Callable[[], int | None] = available_ram_bytes,
+    owned_survivor_probe: Callable[[Path], Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Validate all bindings and safety gates without creating an attempt."""
 
-    with CampaignLock(Path(config.campaign_root).resolve()):
+    if owned_survivor_probe is None:
+        with _CampaignOwnedJobProbe(config.campaign_root) as guard:
+            return preflight_adaptive_campaign(
+                config,
+                available_ram=available_ram,
+                owned_survivor_probe=guard,
+            )
+    root = Path(config.campaign_root).resolve()
+    with CampaignLock(root):
         state = load_or_create_state(config)
-        _require_zero_recorded_survivors(state)
-        _require_start_reserve(available_ram)
+        if state.get("campaign_halt") is not None:
+            raise RuntimeError(
+                f"adaptive campaign is halted: {state['campaign_halt']['reason']}"
+            )
+        try:
+            _require_zero_recorded_survivors(state)
+            if not _record_live_survivor_probe(
+                config=config,
+                state=state,
+                stage="preflight",
+                probe=owned_survivor_probe,
+            ):
+                raise RuntimeError(
+                    f"adaptive campaign is halted: {state['campaign_halt']['reason']}"
+                )
+            _require_start_reserve(available_ram)
+        except RuntimeError as error:
+            _set_campaign_halt(
+                state,
+                reason="unsafe-preflight-admission",
+                detail={"error": str(error)},
+            )
+            save_state_atomically(root / "adaptive-campaign-state.json", state)
+            raise
         return state
 
 
@@ -1279,38 +2209,9 @@ def campaign_status(
             step["runtime_status"] in _TERMINAL_RUNTIME_STATUSES
             for step in steps
         ),
+        "campaign_halt": validated.get("campaign_halt"),
         "next_eligible_step": list(candidates[0]) if candidates else None,
     }
-
-
-def _attempt_boundary_identity(
-    record: Mapping[str, Any],
-) -> tuple[str | None, int | None, dict[str, Any]]:
-    test_id = _nested(record, ("controlled_test_id",), ("test_id",))
-    context = _nested(record, ("context_tokens",), ("context",), ("worker", "context"))
-    identity = {
-        "artifact_id": _nested(record, ("artifact_id",)),
-        "artifact_manifest_sha256": _nested(
-            record,
-            ("artifact_manifest_sha256",),
-            ("identity_hashes", "artifact_manifest_sha256"),
-        ),
-        "model": _nested(record, ("model",), ("model_name",)),
-        "device": _nested(record, ("device",), ("worker", "device")),
-        "execution_route": _nested(record, ("execution_route",)),
-        "context_tokens": context,
-        "launch_reserve_mib": _nested(
-            record,
-            ("launch_minimum_available_ram_mib",),
-            ("launch_reserve_mib",),
-        ),
-        "emergency_floor_mib": _nested(
-            record,
-            ("emergency_minimum_available_ram_mib",),
-            ("emergency_floor_mib",),
-        ),
-    }
-    return test_id, context, identity
 
 
 def build_boundary_index(
@@ -1327,6 +2228,17 @@ def build_boundary_index(
     historical = _require_directory(historical_root, "historical root")
     cases, _index, specs = _load_matrix_and_specs(matrix, root)
     by_case = {case.test_id: case for case in cases}
+    matrix_payload = _load_json(matrix, "adaptive comparison matrix")
+    raw_cases = matrix_payload.get("cases")
+    if not isinstance(raw_cases, list) or any(
+        not isinstance(case, Mapping) for case in raw_cases
+    ):
+        raise ValueError("adaptive comparison matrix cases are invalid")
+    case_payloads = {
+        str(case["test_id"]): case
+        for case in raw_cases
+        if case.get("test_id") in by_case
+    }
     groups: defaultdict[
         tuple[str, int, str, str], list[dict[str, Any]]
     ] = defaultdict(list)
@@ -1334,30 +2246,52 @@ def build_boundary_index(
         attempt = discovered.resolve()
         if historical != attempt and historical not in attempt.parents:
             raise ValueError("historical attempt escapes caller-provided root")
-        record = _load_json(attempt, "historical attempt")
-        if _failure_category(record) not in {"ram-floor", "functional"}:
+        if (
+            attempt.parent.name != "run"
+            or re.fullmatch(r"attempt-(\d{3})", attempt.parents[1].name)
+            is None
+            or attempt.parents[3].name != "attempts"
+        ):
             continue
-        receipt_path = attempt.parents[1] / "sequence-receipt.json"
-        receipt = _load_json(receipt_path, "historical sequence receipt")
-        attempt_hash = _sha256_file(attempt)
-        if receipt.get("runtime_record_sha256") != attempt_hash:
-            raise ValueError("historical attempt hash validation failed")
-        role = _nested(record, ("stage",), ("role",)) or "pilot"
-        failure = MeasurementFailureRecord(role, attempt, record, "historical")
+        worker_spec_path = attempt.parents[1] / "spec.json"
+        worker_spec = _load_json(worker_spec_path, "historical Task 3 role spec")
+        test_id = worker_spec.get("controlled_test_id")
+        context = worker_spec.get("context")
+        key = (test_id, context)
+        if (
+            key not in specs
+            or test_id not in by_case
+            or test_id not in case_payloads
+        ):
+            continue
+        native = _native_task_three_failure_evidence(
+            attempt_path=attempt,
+            scan_root=historical,
+            matrix_path=matrix,
+            matrix_payload=matrix_payload,
+            case_payload=case_payloads[test_id],
+            adaptive_spec=specs[key][1],
+        )
+        if native is None:
+            continue
+        record = native["record"]
         if not _retryable_failure(record):
             continue
+        failure = MeasurementFailureRecord(
+            native["role"],
+            native["record_path"],
+            record,
+            native["campaign_identity_sha256"],
+        )
         _fingerprint_identity, fingerprint = _failure_identity(failure)
-        test_id, context, identity = _attempt_boundary_identity(record)
-        key = (test_id, context)
-        if key not in specs or test_id not in by_case:
-            continue
+        identity = native["boundary_identity"]
         expected = _spec_identity(by_case[test_id], context)
         if identity != expected:
             continue
         groups[(test_id, context, fingerprint, _sha256_json(identity))].append(
             {
                 "path": str(attempt),
-                "sha256": attempt_hash,
+                "sha256": native["record_sha256"],
                 "failure_fingerprint": fingerprint,
             }
         )
