@@ -641,8 +641,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 "timestamp_utc": f"2026-07-29T00:00:0{index}Z",
                 "gpu_percent": 0,
                 "gpu_engine_count": 0,
-                "gpu_dedicated_mb": dedicated / mib,
-                "gpu_shared_mb": shared / mib,
+                "gpu_dedicated_mb": f"{dedicated / mib:.6f}",
+                "gpu_shared_mb": f"{shared / mib:.6f}",
                 "gpu_memory_mb": f"{(dedicated + shared) / mib:.6f}",
                 "gpu_dedicated_bytes": dedicated,
                 "gpu_shared_bytes": shared,
@@ -670,8 +670,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 "timestamp_utc": "2026-07-29T00:00:01Z",
                 "gpu_percent": 0,
                 "gpu_engine_count": 0,
-                "gpu_dedicated_mb": 1.0,
-                "gpu_shared_mb": 0.0,
+                "gpu_dedicated_mb": "1.000000",
+                "gpu_shared_mb": "0.000000",
                 "gpu_dedicated_bytes": mib,
                 "gpu_shared_bytes": 0,
                 "gpu_engine_query_ok": "true",
@@ -681,8 +681,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 "timestamp_utc": "2026-07-29T00:00:02Z",
                 "gpu_percent": 0,
                 "gpu_engine_count": 0,
-                "gpu_dedicated_mb": 0.0,
-                "gpu_shared_mb": 1.0,
+                "gpu_dedicated_mb": "0.000000",
+                "gpu_shared_mb": "1.000000",
                 "gpu_dedicated_bytes": 0,
                 "gpu_shared_bytes": mib,
                 "gpu_engine_query_ok": "true",
@@ -700,6 +700,37 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(parsed["gpu_memory_peak_bytes"], mib)
         self.assertEqual(parsed["gpu_memory_peak_dedicated_bytes"], mib)
         self.assertEqual(parsed["gpu_memory_peak_shared_bytes"], 0)
+
+    def test_gpu_parser_rejects_forged_component_displays_with_byte_proof(self):
+        mib = 1024**2
+        two_byte_row = {
+            "timestamp_utc": "2026-07-29T00:00:01Z",
+            "gpu_percent": 0,
+            "gpu_engine_count": 0,
+            "gpu_dedicated_mb": "1.000000",
+            "gpu_shared_mb": "2.000000",
+            "gpu_dedicated_bytes": mib,
+            "gpu_shared_bytes": 2 * mib,
+            "gpu_engine_query_ok": "true",
+            "gpu_memory_query_ok": "true",
+        }
+        combined_row = {
+            **two_byte_row,
+            "gpu_memory_mb": "3.000000",
+            "gpu_memory_bytes": 3 * mib,
+        }
+        invalid_rows = (
+            {**two_byte_row, "gpu_dedicated_mb": "1000.000000"},
+            {**two_byte_row, "gpu_shared_mb": "2.500000"},
+            {**combined_row, "gpu_dedicated_mb": "1000.000000"},
+            {**combined_row, "gpu_shared_mb": "2.500000"},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            for invalid in invalid_rows:
+                write_csv(path, [invalid, invalid])
+                with self.assertRaisesRegex(ValueError, "component MiB display"):
+                    parse_gpu_samples(path)
 
     def test_gpu_parser_rejects_missing_or_invalid_combined_byte_proof(self):
         row = {

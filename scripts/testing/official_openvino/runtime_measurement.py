@@ -562,6 +562,19 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
                 raise ValueError(
                     f"GPU combined byte proof {index} does not equal components"
                 )
+            expected_dedicated_display = format(
+                dedicated_bytes / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
+            )
+            expected_shared_display = format(
+                shared_bytes / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
+            )
+            if (
+                row["gpu_dedicated_mb"] != expected_dedicated_display
+                or row["gpu_shared_mb"] != expected_shared_display
+            ):
+                raise ValueError(
+                    f"GPU component MiB display {index} does not match byte proof"
+                )
             expected_display = format(
                 combined_bytes_value / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
             )
