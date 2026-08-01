@@ -63,6 +63,29 @@ def _json_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
+def _directory_sha256(path: Path) -> str:
+    root = _directory(path, "build root")
+    inventory = [
+        {
+            "path": source.relative_to(root).as_posix(),
+            "size_bytes": source.stat().st_size,
+            "sha256": sha256_file(source),
+        }
+        for source in sorted(root.rglob("*"))
+        if source.is_file()
+        and "__pycache__" not in source.parts
+        and source.suffix != ".pyc"
+    ]
+    encoded = json.dumps(
+        inventory,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _validate_existing_output(
     output: Path,
     expected_files: dict[Path, bytes],
@@ -188,6 +211,8 @@ def generate_adaptive_format_comparison_specs(
         "matrix_sha256": sha256_file(matrix),
         "artifact_inventory_path": str(inventory),
         "artifact_inventory_sha256": sha256_file(inventory),
+        "build_root_path": str(build),
+        "build_root_sha256": _directory_sha256(build),
         "runtime_specs": index_specs,
         "terminals": terminals,
     }

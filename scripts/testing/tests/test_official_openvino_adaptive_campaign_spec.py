@@ -24,6 +24,29 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _directory_sha256(path: Path) -> str:
+    root = path.resolve()
+    inventory = [
+        {
+            "path": source.relative_to(root).as_posix(),
+            "size_bytes": source.stat().st_size,
+            "sha256": _sha256(source),
+        }
+        for source in sorted(root.rglob("*"))
+        if source.is_file()
+        and "__pycache__" not in source.parts
+        and source.suffix != ".pyc"
+    ]
+    encoded = json.dumps(
+        inventory,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
@@ -133,6 +156,8 @@ def test_generation_records_missing_fp16_as_artifact_preparation_boundary(tmp_pa
         (tmp_path / "artifact-inventory.json").resolve()
     )
     assert index["artifact_inventory_sha256"] == _sha256(tmp_path / "artifact-inventory.json")
+    assert index["build_root_path"] == str((tmp_path / "build").resolve())
+    assert index["build_root_sha256"] == _directory_sha256(tmp_path / "build")
 
 
 def test_generation_is_idempotent_for_an_identical_complete_output(tmp_path: Path) -> None:

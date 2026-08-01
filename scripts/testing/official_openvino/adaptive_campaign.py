@@ -88,15 +88,23 @@ class StepOutcome:
 class _CampaignOwnedJobProbe:
     """Own and query the containing Job Object for every campaign worker."""
 
-    def __init__(self, campaign_root: Path):
+    def __init__(
+        self,
+        campaign_root: Path,
+        *,
+        job_factory: Callable[[str], KillOnCloseJob] = KillOnCloseJob,
+    ):
         identity = hashlib.sha256(
             str(Path(campaign_root).resolve()).encode("utf-8")
         ).hexdigest()[:24]
         self.name = f"WB04-adaptive-campaign-{identity}"
+        self._job_factory = job_factory
         self.job: KillOnCloseJob | None = None
 
     def __enter__(self) -> "_CampaignOwnedJobProbe":
-        self.job = KillOnCloseJob(self.name)
+        self.job = self._job_factory(self.name)
+        if self.job is None:
+            raise RuntimeError("campaign Job Object factory returned no job")
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -325,6 +333,79 @@ def _directory_sha256(path: Path) -> str:
     return _sha256_json(inventory)
 
 
+def _task_three_directory_identity(
+    path: Path,
+    *,
+    allow_missing: bool = False,
+) -> dict[str, Any] | None:
+    root = Path(path).resolve()
+    if not root.is_dir():
+        if not allow_missing:
+            return None
+        files: list[dict[str, Any]] = []
+    else:
+        files = [
+            {
+                "path": source.relative_to(root).as_posix(),
+                "bytes": source.stat().st_size,
+                "sha256": _sha256_file(source),
+            }
+            for source in sorted(
+                root.rglob("*"),
+                key=lambda candidate: candidate.relative_to(root).as_posix(),
+            )
+            if source.is_file()
+            and "__pycache__" not in source.relative_to(root).parts
+            and source.suffix.lower() not in {".pyc", ".pyo"}
+        ]
+    return {
+        "path": str(root),
+        "files": files,
+        "content_sha256": _sha256_json(files),
+    }
+
+
+def _file_identity_matches(
+    value: object,
+    *,
+    expected_path: Path | None = None,
+) -> bool:
+    if not isinstance(value, Mapping) or set(value) != {"path", "sha256"}:
+        return False
+    path_value = value.get("path")
+    if not isinstance(path_value, str) or not path_value:
+        return False
+    path = Path(path_value).resolve()
+    if expected_path is not None and path != Path(expected_path).resolve():
+        return False
+    return (
+        path.is_file()
+        and isinstance(value.get("sha256"), str)
+        and value["sha256"] == _sha256_file(path)
+    )
+
+
+def _directory_identity_matches(
+    value: object,
+    *,
+    expected_path: Path | None = None,
+    allow_missing: bool = False,
+) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    path_value = value.get("path")
+    if not isinstance(path_value, str) or not path_value:
+        return False
+    path = Path(path_value).resolve()
+    if expected_path is not None and path != Path(expected_path).resolve():
+        return False
+    expected = _task_three_directory_identity(
+        path,
+        allow_missing=allow_missing,
+    )
+    return expected is not None and dict(value) == expected
+
+
 def _require_hash(value: object, field: str) -> str:
     if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
         raise ValueError(f"{field} must be a SHA-256 hex digest")
@@ -373,6 +454,11 @@ def _native_task_three_failure_evidence(
     matrix_payload: Mapping[str, Any],
     case_payload: Mapping[str, Any],
     adaptive_spec: Mapping[str, Any],
+    task_two_build_root: Path,
+    expected_build_provenance_path: Path | None = None,
+    expected_python_executable: Path | None = None,
+    expected_python_site_packages: Path | None = None,
+    expected_openvino_libraries: Path | None = None,
 ) -> dict[str, Any] | None:
     """Reopen one native Task 3 failure and normalize only hash-bound facts."""
 
@@ -436,8 +522,12 @@ def _native_task_three_failure_evidence(
     identity = campaign_identity.get("identity")
     identity_hash = campaign_identity.get("campaign_identity_sha256")
     if (
-        campaign_identity.get("schema") != TASK_THREE_CAMPAIGN_SCHEMA
+        set(campaign_identity)
+        != {"schema", "identity", "campaign_identity_sha256"}
+        or campaign_identity.get("schema") != TASK_THREE_CAMPAIGN_SCHEMA
         or not isinstance(identity, Mapping)
+        or set(identity)
+        != {"config", "context", "matrix", "build", "model", "prompt", "runtime"}
         or _require_hash(identity_hash, "native Task 3 campaign identity hash")
         != _sha256_json(identity)
         or receipt.get("schema") != TASK_THREE_RECEIPT_SCHEMA
@@ -479,6 +569,124 @@ def _native_task_three_failure_evidence(
     ):
         return None
 
+    build_identity = identity.get("build")
+    prompt_identity = identity.get("prompt")
+    runtime_identity = identity.get("runtime")
+    task_two_build = Path(task_two_build_root).resolve()
+    package = task_two_build / "openvino_genai"
+    modules = sorted(package.glob("py_openvino_genai*.pyd"))
+    runtime_dll = package / "openvino_genai.dll"
+    if (
+        not isinstance(build_identity, Mapping)
+        or set(build_identity)
+        != {
+            "root",
+            "provenance_path",
+            "provenance_sha256",
+            "python_module",
+            "runtime_dll",
+        }
+        or not _paths_are_equal(build_identity.get("root"), task_two_build)
+        or len(modules) != 1
+        or not _file_identity_matches(
+            build_identity.get("python_module"), expected_path=modules[0]
+        )
+        or not _file_identity_matches(
+            build_identity.get("runtime_dll"), expected_path=runtime_dll
+        )
+    ):
+        return None
+    provenance_value = build_identity.get("provenance_path")
+    if not isinstance(provenance_value, str) or not provenance_value:
+        return None
+    provenance_path = Path(provenance_value).resolve()
+    if (
+        expected_build_provenance_path is not None
+        and provenance_path != Path(expected_build_provenance_path).resolve()
+    ):
+        return None
+    if (
+        not provenance_path.is_file()
+        or build_identity.get("provenance_sha256")
+        != _sha256_file(provenance_path)
+        or _load_json(provenance_path, "native Task 3 build provenance").get(
+            "status"
+        )
+        != "passed"
+    ):
+        return None
+
+    prompt = role_spec.get("prompt")
+    if not isinstance(prompt, str):
+        return None
+    if (
+        not isinstance(prompt_identity, Mapping)
+        or set(prompt_identity) != {"utf8_bytes", "sha256"}
+        or prompt_identity.get("utf8_bytes") != len(prompt.encode("utf-8"))
+        or prompt_identity.get("sha256")
+        != hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    ):
+        return None
+
+    repository = _ROOT.resolve()
+    runtime_sources = repository / "scripts" / "testing" / "official_openvino"
+    controller_source = repository / "scripts" / "testing" / "measure_official_openvino.py"
+    if (
+        not isinstance(runtime_identity, Mapping)
+        or set(runtime_identity)
+        != {
+            "repository_root",
+            "repository_runtime_sources",
+            "controller_source",
+            "python_executable",
+            "python_openvino_package",
+            "openvino_libraries",
+        }
+        or not _paths_are_equal(runtime_identity.get("repository_root"), repository)
+        or not _directory_identity_matches(
+            runtime_identity.get("repository_runtime_sources"),
+            expected_path=runtime_sources,
+        )
+        or not _file_identity_matches(
+            runtime_identity.get("controller_source"),
+            expected_path=controller_source,
+        )
+        or not _file_identity_matches(
+            runtime_identity.get("python_executable"),
+            expected_path=expected_python_executable,
+        )
+    ):
+        return None
+    package_identity = runtime_identity.get("python_openvino_package")
+    package_path = (
+        Path(expected_python_site_packages).resolve() / "openvino"
+        if expected_python_site_packages is not None
+        else (
+            Path(str(package_identity.get("path"))).resolve()
+            if isinstance(package_identity, Mapping)
+            else Path()
+        )
+    )
+    libraries_identity = runtime_identity.get("openvino_libraries")
+    libraries_path = (
+        Path(expected_openvino_libraries).resolve()
+        if expected_openvino_libraries is not None
+        else (
+            Path(str(libraries_identity.get("path"))).resolve()
+            if isinstance(libraries_identity, Mapping)
+            else Path()
+        )
+    )
+    if not _directory_identity_matches(
+        package_identity,
+        expected_path=package_path,
+        allow_missing=True,
+    ) or not _directory_identity_matches(
+        libraries_identity,
+        expected_path=libraries_path,
+    ):
+        return None
+
     expected_config = {
         field: role_spec.get(field)
         for field in (
@@ -499,10 +707,26 @@ def _native_task_three_failure_evidence(
         else None
     )
     expected_matrix = Path(matrix_path).resolve()
+    manifest_path = Path(str(adaptive_spec.get("artifact_manifest_path"))).resolve()
+    manifest_payload = _load_json(
+        manifest_path,
+        "native Task 3 artifact manifest",
+    )
+    manifest_model = manifest_payload.get("model")
+    manifest_probe = manifest_payload.get("load_probe")
     if (
         identity.get("context") != context
         or identity.get("config") != expected_config
         or not isinstance(matrix_identity, Mapping)
+        or set(matrix_identity)
+        != {
+            "path",
+            "file_sha256",
+            "schema_version",
+            "source_identity",
+            "build_identity",
+            "case",
+        }
         or not _paths_are_equal(matrix_identity.get("path"), expected_matrix)
         or matrix_identity.get("file_sha256") != _sha256_file(expected_matrix)
         or matrix_identity.get("schema_version")
@@ -513,18 +737,60 @@ def _native_task_three_failure_evidence(
         != matrix_payload.get("build_identity")
         or matrix_identity.get("case") != dict(case_payload)
         or not isinstance(model_identity, Mapping)
+        or set(model_identity)
+        != {
+            "artifact_manifest_path",
+            "artifact_manifest_sha256",
+            "validated_artifact",
+        }
         or not _paths_are_equal(
             model_identity.get("artifact_manifest_path"),
             adaptive_spec.get("artifact_manifest_path"),
         )
         or model_identity.get("artifact_manifest_sha256")
         != adaptive_spec.get("artifact_manifest_sha256")
+        or model_identity.get("artifact_manifest_sha256")
+        != _sha256_file(manifest_path)
         or not isinstance(validated_artifact, Mapping)
+        or set(validated_artifact)
+        != {
+            "accepted",
+            "status",
+            "artifact_id",
+            "artifact_root",
+            "precision",
+            "inventory_sha256",
+            "generated_tokens",
+        }
+        or validated_artifact.get("accepted") is not True
+        or validated_artifact.get("status") != "load-proven"
+        or manifest_payload.get("status") != validated_artifact.get("status")
         or validated_artifact.get("artifact_id") != adaptive_spec.get("artifact_id")
+        or validated_artifact.get("artifact_id")
+        != manifest_payload.get("artifact_id")
         or not _paths_are_equal(
             validated_artifact.get("artifact_root"),
             adaptive_spec.get("model_path"),
         )
+        or not _paths_are_equal(
+            validated_artifact.get("artifact_root"),
+            manifest_payload.get("artifact_root"),
+        )
+        or validated_artifact.get("precision")
+        != case_payload.get("weight_precision")
+        or not isinstance(manifest_model, Mapping)
+        or validated_artifact.get("precision") != manifest_model.get("precision")
+        or _SHA256.fullmatch(
+            str(validated_artifact.get("inventory_sha256"))
+        )
+        is None
+        or validated_artifact.get("inventory_sha256")
+        != manifest_payload.get("inventory_sha256")
+        or type(validated_artifact.get("generated_tokens")) is not int
+        or validated_artifact["generated_tokens"] <= 0
+        or not isinstance(manifest_probe, Mapping)
+        or validated_artifact.get("generated_tokens")
+        != manifest_probe.get("generated_tokens")
     ):
         return None
 
@@ -556,6 +822,7 @@ def _native_task_three_failure_evidence(
             return None
 
     normalized = dict(record)
+    native_case = matrix_identity["case"]
     normalized.update(
         {
             "controlled_test_id": test_id,
@@ -565,9 +832,9 @@ def _native_task_three_failure_evidence(
             "artifact_manifest_sha256": model_identity[
                 "artifact_manifest_sha256"
             ],
-            "model": case_payload.get("model"),
-            "device": case_payload.get("device"),
-            "execution_route": case_payload.get("execution_route"),
+            "model": native_case.get("model"),
+            "device": native_case.get("device"),
+            "execution_route": native_case.get("execution_route"),
             "launch_minimum_available_ram_mib": launch_bytes // MIB,
             "emergency_minimum_available_ram_mib": emergency_bytes // MIB,
         }
@@ -624,6 +891,17 @@ def _load_matrix_and_specs(
     inventory = _require_file(Path(inventory_value), "artifact inventory")
     if _sha256_file(inventory) != inventory_hash:
         raise ValueError("artifact inventory hash drift")
+    build_root_value = index.get("build_root_path")
+    if not isinstance(build_root_value, str) or not build_root_value:
+        raise ValueError("adaptive spec index build root path is missing")
+    indexed_build_root = _require_directory(
+        Path(build_root_value), "adaptive spec index build root"
+    )
+    indexed_build_hash = _require_hash(
+        index.get("build_root_sha256"), "adaptive spec index build root hash"
+    )
+    if _directory_sha256(indexed_build_root) != indexed_build_hash:
+        raise ValueError("adaptive spec index build root hash drift")
     raw_specs = index.get("runtime_specs")
     if not isinstance(raw_specs, list):
         raise ValueError("adaptive spec index runtime_specs must be a list")
@@ -728,6 +1006,11 @@ def _validate_config(
     spec_root = _require_directory(config.spec_root, "adaptive spec root")
     cases, index, specs = _load_matrix_and_specs(matrix, spec_root)
     build_root = _require_directory(config.build_root, "build root")
+    if (
+        build_root != Path(str(index["build_root_path"])).resolve()
+        or _directory_sha256(build_root) != index["build_root_sha256"]
+    ):
+        raise ValueError("adaptive spec index build binding drift")
     provenance = _require_file(config.build_provenance_path, "build provenance")
     _load_json(provenance, "build provenance")
     _require_file(config.python_executable, "Python executable")
@@ -792,6 +1075,15 @@ def _boundary_entries(
         fingerprint = _require_hash(
             raw.get("failure_fingerprint"), "boundary failure fingerprint"
         )
+        native_identity_sha256 = raw.get("native_campaign_identity_sha256")
+        if (
+            not isinstance(native_identity_sha256, str)
+            or _SHA256.fullmatch(native_identity_sha256) is None
+        ):
+            raise ValueError(
+                "reference boundary native campaign identity is not an "
+                "equivalent boundary"
+            )
         attempts = raw.get("attempts")
         count = raw.get("matching_attempt_count")
         if (
@@ -1466,6 +1758,11 @@ def _native_runtime_failures_for_step(
             matrix_payload=matrix_payload,
             case_payload=matches[0],
             adaptive_spec=adaptive_spec,
+            task_two_build_root=config.build_root,
+            expected_build_provenance_path=config.build_provenance_path,
+            expected_python_executable=config.python_executable,
+            expected_python_site_packages=config.python_site_packages,
+            expected_openvino_libraries=config.openvino_libraries,
         )
         if native is None:
             raise ValueError("native Task 3 failed attempt lacks exact identity proof")
@@ -1687,7 +1984,7 @@ def _runtime_kwargs(
     spec: Mapping[str, Any],
     test_id: str,
     context: int,
-    campaign_job: KillOnCloseJob | None,
+    campaign_job: KillOnCloseJob,
 ) -> dict[str, Any]:
     return {
         "spec_path": spec_path,
@@ -1723,7 +2020,7 @@ def _execute_runtime_step(
     run_runtime: Callable[..., Mapping[str, Any]],
     available_ram: Callable[[], int | None],
     owned_survivor_probe: Callable[[Path], Mapping[str, Any]],
-    campaign_job: KillOnCloseJob | None,
+    campaign_job: KillOnCloseJob,
 ) -> dict[str, Any]:
     attempts = _controller_attempts(config, test_id, context)
     attempts = _reconcile_native_runtime_failures(
@@ -2032,8 +2329,10 @@ def _run_adaptive_campaign_with_probe(
     publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None,
     available_ram: Callable[[], int | None],
     owned_survivor_probe: Callable[[Path], Mapping[str, Any]],
-    campaign_job: KillOnCloseJob | None,
+    campaign_job: KillOnCloseJob,
 ) -> dict[str, Any]:
+    if campaign_job is None:
+        raise RuntimeError("campaign Job Object is required")
     campaign_root = Path(config.campaign_root).resolve()
     with CampaignLock(campaign_root):
         state = load_or_create_state(config)
@@ -2116,21 +2415,16 @@ def run_adaptive_campaign(
     run_quality: Callable[..., Mapping[str, Any]] | None = None,
     publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None = None,
     available_ram: Callable[[], int | None] = available_ram_bytes,
-    owned_survivor_probe: Callable[[Path], Mapping[str, Any]] | None = None,
+    campaign_job_factory: Callable[[str], KillOnCloseJob] = KillOnCloseJob,
 ) -> dict[str, Any]:
     """Run or resume the fixed ladder while checkpointing each final step."""
 
-    if owned_survivor_probe is not None:
-        return _run_adaptive_campaign_with_probe(
-            config,
-            run_runtime=run_runtime,
-            run_quality=run_quality,
-            publish_checkpoint=publish_checkpoint,
-            available_ram=available_ram,
-            owned_survivor_probe=owned_survivor_probe,
-            campaign_job=None,
-        )
-    with _CampaignOwnedJobProbe(config.campaign_root) as guard:
+    with _CampaignOwnedJobProbe(
+        config.campaign_root,
+        job_factory=campaign_job_factory,
+    ) as guard:
+        if guard.job is None:  # pragma: no cover - enforced by __enter__
+            raise RuntimeError("campaign Job Object is missing")
         return _run_adaptive_campaign_with_probe(
             config,
             run_runtime=run_runtime,
@@ -2146,45 +2440,45 @@ def preflight_adaptive_campaign(
     config: AdaptiveCampaignConfig,
     *,
     available_ram: Callable[[], int | None] = available_ram_bytes,
-    owned_survivor_probe: Callable[[Path], Mapping[str, Any]] | None = None,
+    campaign_job_factory: Callable[[str], KillOnCloseJob] = KillOnCloseJob,
 ) -> dict[str, Any]:
     """Validate all bindings and safety gates without creating an attempt."""
 
-    if owned_survivor_probe is None:
-        with _CampaignOwnedJobProbe(config.campaign_root) as guard:
-            return preflight_adaptive_campaign(
-                config,
-                available_ram=available_ram,
-                owned_survivor_probe=guard,
-            )
-    root = Path(config.campaign_root).resolve()
-    with CampaignLock(root):
-        state = load_or_create_state(config)
-        if state.get("campaign_halt") is not None:
-            raise RuntimeError(
-                f"adaptive campaign is halted: {state['campaign_halt']['reason']}"
-            )
-        try:
-            _require_zero_recorded_survivors(state)
-            if not _record_live_survivor_probe(
-                config=config,
-                state=state,
-                stage="preflight",
-                probe=owned_survivor_probe,
-            ):
+    with _CampaignOwnedJobProbe(
+        config.campaign_root,
+        job_factory=campaign_job_factory,
+    ) as guard:
+        root = Path(config.campaign_root).resolve()
+        with CampaignLock(root):
+            state = load_or_create_state(config)
+            if state.get("campaign_halt") is not None:
                 raise RuntimeError(
                     f"adaptive campaign is halted: {state['campaign_halt']['reason']}"
                 )
-            _require_start_reserve(available_ram)
-        except RuntimeError as error:
-            _set_campaign_halt(
-                state,
-                reason="unsafe-preflight-admission",
-                detail={"error": str(error)},
-            )
-            save_state_atomically(root / "adaptive-campaign-state.json", state)
-            raise
-        return state
+            try:
+                _require_zero_recorded_survivors(state)
+                if not _record_live_survivor_probe(
+                    config=config,
+                    state=state,
+                    stage="preflight",
+                    probe=guard,
+                ):
+                    raise RuntimeError(
+                        "adaptive campaign is halted: "
+                        f"{state['campaign_halt']['reason']}"
+                    )
+                _require_start_reserve(available_ram)
+            except RuntimeError as error:
+                _set_campaign_halt(
+                    state,
+                    reason="unsafe-preflight-admission",
+                    detail={"error": str(error)},
+                )
+                save_state_atomically(
+                    root / "adaptive-campaign-state.json", state
+                )
+                raise
+            return state
 
 
 def campaign_status(
@@ -2226,7 +2520,7 @@ def build_boundary_index(
     matrix = _require_file(matrix_path, "adaptive comparison matrix")
     root = _require_directory(spec_root, "adaptive spec root")
     historical = _require_directory(historical_root, "historical root")
-    cases, _index, specs = _load_matrix_and_specs(matrix, root)
+    cases, index, specs = _load_matrix_and_specs(matrix, root)
     by_case = {case.test_id: case for case in cases}
     matrix_payload = _load_json(matrix, "adaptive comparison matrix")
     raw_cases = matrix_payload.get("cases")
@@ -2271,6 +2565,7 @@ def build_boundary_index(
             matrix_payload=matrix_payload,
             case_payload=case_payloads[test_id],
             adaptive_spec=specs[key][1],
+            task_two_build_root=Path(str(index["build_root_path"])),
         )
         if native is None:
             continue
@@ -2288,7 +2583,14 @@ def build_boundary_index(
         expected = _spec_identity(by_case[test_id], context)
         if identity != expected:
             continue
-        groups[(test_id, context, fingerprint, _sha256_json(identity))].append(
+        groups[
+            (
+                test_id,
+                context,
+                fingerprint,
+                native["campaign_identity_sha256"],
+            )
+        ].append(
             {
                 "path": str(attempt),
                 "sha256": native["record_sha256"],
@@ -2296,7 +2598,12 @@ def build_boundary_index(
             }
         )
     boundaries = []
-    for (test_id, context, fingerprint, _), attempts in sorted(groups.items()):
+    for (
+        test_id,
+        context,
+        fingerprint,
+        native_identity_sha256,
+    ), attempts in sorted(groups.items()):
         if len(attempts) < 2:
             continue
         boundaries.append(
@@ -2304,6 +2611,7 @@ def build_boundary_index(
                 "test_id": test_id,
                 "context_tokens": context,
                 "failure_fingerprint": fingerprint,
+                "native_campaign_identity_sha256": native_identity_sha256,
                 "matching_attempt_count": len(attempts),
                 "identity": _spec_identity(by_case[test_id], context),
                 "attempts": attempts,

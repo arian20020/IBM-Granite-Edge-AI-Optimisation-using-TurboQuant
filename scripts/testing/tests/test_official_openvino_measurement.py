@@ -4,12 +4,18 @@ import os
 import shutil
 import statistics
 import subprocess
+import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from unittest import mock
 
-from scripts.testing.official_openvino import runtime_measurement
+from scripts.testing.official_openvino import runtime_measurement, runtime_process
+from scripts.testing.official_openvino.owned_process_guard import (
+    CREATE_SUSPENDED,
+    KillOnCloseJob,
+)
 from scripts.testing.official_openvino.runtime_measurement import (
     RESULT_MARKER,
     build_runtime_property_spec,
@@ -166,6 +172,63 @@ def governed_record(activation: dict) -> dict:
 
 
 class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows Job Objects are required")
+    def test_campaign_job_contains_two_separate_role_jobs(self):
+        suffix = uuid.uuid4().hex
+        campaign_job = KillOnCloseJob(f"WB04-test-campaign-{suffix}")
+        role_jobs = [
+            KillOnCloseJob(f"WB04-test-role-{index}-{suffix}")
+            for index in (1, 2)
+        ]
+        processes: list[subprocess.Popen] = []
+        try:
+            for role_job in role_jobs:
+                process = subprocess.Popen(
+                    [sys.executable, "-c", "import time; time.sleep(30)"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=(
+                        subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED
+                    ),
+                )
+                processes.append(process)
+                runtime_process._assign_suspended_pid_to_jobs(
+                    process.pid,
+                    campaign_job=campaign_job,
+                    role_job=role_job,
+                )
+
+            pids = [process.pid for process in processes]
+            self.assertCountEqual(campaign_job.active_pids(), pids)
+            self.assertEqual(role_jobs[0].active_pids(), [pids[0]])
+            self.assertEqual(role_jobs[1].active_pids(), [pids[1]])
+        finally:
+            for role_job in role_jobs:
+                try:
+                    role_job.terminate(91)
+                except OSError:
+                    pass
+            try:
+                campaign_job.terminate(92)
+            except OSError:
+                pass
+            for role_job in role_jobs:
+                try:
+                    role_job.close()
+                except OSError:
+                    pass
+            try:
+                campaign_job.close()
+            except OSError:
+                pass
+            for process in processes:
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+
     def test_worker_uses_one_item_batch_to_preserve_decoded_perf_metrics(self):
         class Result:
             texts = ["measured output"]

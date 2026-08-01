@@ -42,6 +42,19 @@ MIN_EMERGENCY_AVAILABLE_RAM_BYTES = 2048 * MIB
 RUN_SCHEMA = "official-openvino-wb04-governed-run/v1"
 
 
+def _assign_suspended_pid_to_jobs(
+    pid: int,
+    *,
+    campaign_job: KillOnCloseJob | None,
+    role_job: KillOnCloseJob,
+) -> None:
+    """Assign a suspended PID from the containing Job into its role child."""
+
+    if campaign_job is not None:
+        campaign_job.assign_pid(pid)
+    role_job.assign_pid(pid)
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace(
         "+00:00", "Z"
@@ -438,9 +451,12 @@ def run_governed_process(
                 ),
             )
             record["root_pid"] = workload.pid
-            workload_job.assign_pid(workload.pid)
+            _assign_suspended_pid_to_jobs(
+                workload.pid,
+                campaign_job=campaign_job,
+                role_job=workload_job,
+            )
             if campaign_job is not None:
-                campaign_job.assign_pid(workload.pid)
                 record["campaign_job_assignment"]["assigned_pids"].append(
                     workload.pid
                 )
@@ -481,9 +497,12 @@ def run_governed_process(
                     subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED
                 ),
             )
-            sampler_job.assign_pid(counter.pid)
+            _assign_suspended_pid_to_jobs(
+                counter.pid,
+                campaign_job=campaign_job,
+                role_job=sampler_job,
+            )
             if campaign_job is not None:
-                campaign_job.assign_pid(counter.pid)
                 record["campaign_job_assignment"]["assigned_pids"].append(
                     counter.pid
                 )
