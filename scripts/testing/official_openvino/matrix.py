@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,6 +46,17 @@ EXPECTED_REJECTION_IDS = (
     PROPERTY_EXPECTED_REJECTION_IDS | SEMANTIC_SCALAR_REJECTION_IDS
 )
 NORM_DISABLED_ABLATION_IDS = frozenset({"OV-TQ-11", "OV-TQ-12"})
+COMPARISON_IDS = frozenset({"OV-11", "OV-12", "OV-13", "OV-TQ-21", "OV-TQ-22"})
+COMPARISON_CONTEXTS = (512, 1024, 2048, 4096, 8192)
+COMPARISON_RUN_ORDER = ("OV-11", "OV-TQ-22", "OV-TQ-21", "OV-12", "OV-13")
+_COMPARISON_IDENTITIES = {
+    "OV-11": ("u4", "standard", "standard", "f16", "f16", "STANDARD", "STANDARD", "stateful-standard", "stateful_sdpa_standard"),
+    "OV-TQ-22": ("u8", "tbq3", "tbq3", "u3", "u3", "TBQ3", "TBQ3", "patched-stateful", "stateful_sdpa_reference_codec"),
+    "OV-TQ-21": ("u8", "tbq4", "tbq4", "u4", "u4", "TBQ4", "TBQ4", "patched-stateful", "stateful_sdpa_reference_codec"),
+    "OV-12": ("u8", "standard", "standard", "f16", "f16", "STANDARD", "STANDARD", "stateful-standard", "stateful_sdpa_standard"),
+    "OV-13": ("f16", "standard", "standard", "f16", "f16", "STANDARD", "STANDARD", "stateful-standard", "stateful_sdpa_standard"),
+}
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -74,6 +86,12 @@ class OpenVINOCase:
     expected_outcome: str | None
     suitable_host_required: bool | None
     numeric_generation_metrics_expected: bool | None
+    artifact_id: str | None = None
+    artifact_manifest_path: str | None = None
+    artifact_manifest_sha256: str | None = None
+    artifact_status: str | None = None
+    artifact_terminal_path: str | None = None
+    artifact_terminal_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -265,7 +283,88 @@ def load_matrix(path: Path) -> list[OpenVINOCase]:
             numeric_generation_metrics_expected=raw.get(
                 "numeric_generation_metrics_expected"
             ),
+            artifact_id=raw.get("artifact_id"),
+            artifact_manifest_path=raw.get("artifact_manifest_path"),
+            artifact_manifest_sha256=raw.get("artifact_manifest_sha256"),
+            artifact_status=raw.get("artifact_status"),
+            artifact_terminal_path=raw.get("artifact_terminal_path"),
+            artifact_terminal_sha256=raw.get("artifact_terminal_sha256"),
         )
         _validate_explicit_execution_contract(case)
         cases.append(case)
     return cases
+
+
+def _require_hash(value: str | None, field: str, test_id: str) -> None:
+    if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
+        raise ValueError(f"{test_id} {field} must be a SHA-256 hex digest")
+
+
+def _validate_comparison_artifact_bindings(
+    cases: tuple[OpenVINOCase, ...],
+) -> tuple[OpenVINOCase, ...]:
+    for case in cases:
+        if case.artifact_status == "artifact-preparation-terminal":
+            if case.test_id != "OV-13":
+                raise ValueError("only OV-13 may be an artifact-preparation terminal")
+            if any(
+                value is not None
+                for value in (
+                    case.artifact_id,
+                    case.artifact_manifest_path,
+                    case.artifact_manifest_sha256,
+                )
+            ):
+                raise ValueError("FP16 preparation terminal cannot claim an artifact")
+            if not isinstance(case.artifact_terminal_path, str) or not case.artifact_terminal_path:
+                raise ValueError("OV-13 terminal receipt path is required")
+            _require_hash(case.artifact_terminal_sha256, "terminal receipt hash", case.test_id)
+            continue
+        if case.artifact_status != "available":
+            raise ValueError(f"{case.test_id} requires an available artifact binding")
+        if not isinstance(case.artifact_id, str) or not case.artifact_id:
+            raise ValueError(f"{case.test_id} artifact id is required")
+        if not isinstance(case.artifact_manifest_path, str) or not case.artifact_manifest_path:
+            raise ValueError(f"{case.test_id} artifact manifest path is required")
+        _require_hash(case.artifact_manifest_sha256, "artifact manifest hash", case.test_id)
+        if case.artifact_terminal_path is not None or case.artifact_terminal_sha256 is not None:
+            raise ValueError(f"{case.test_id} available artifact cannot carry a terminal receipt")
+    return cases
+
+
+def load_adaptive_comparison_matrix(path: Path) -> tuple[OpenVINOCase, ...]:
+    """Load the isolated five-identity adaptive format comparison contract."""
+
+    cases = tuple(load_matrix(path))
+    if tuple(case.test_id for case in cases) != COMPARISON_RUN_ORDER:
+        raise ValueError("adaptive comparison identities or run order are invalid")
+    if any(case.contexts != COMPARISON_CONTEXTS for case in cases):
+        raise ValueError("adaptive comparison contexts are invalid")
+    if any(case.model != "granite-3b" or case.device != "cpu" for case in cases):
+        raise ValueError("adaptive comparison must use Granite 3B on CPU")
+    if any(case.guard != "ram-2048-mib" for case in cases):
+        raise ValueError("adaptive comparison requires the 2048 MiB runtime guard")
+    if any(
+        case.phase != "formal"
+        or not case.quality_required
+        or not case.numeric_generation_metrics_expected
+        or case.required_metrics != FORMAL_METRICS
+        for case in cases
+    ):
+        raise ValueError("adaptive comparison formal quality and metrics are invalid")
+    for case in cases:
+        expected = _COMPARISON_IDENTITIES[case.test_id]
+        actual = (
+            case.weight_precision,
+            case.k_algorithm,
+            case.v_algorithm,
+            case.k_precision,
+            case.v_precision,
+            case.runtime_key_algorithm,
+            case.runtime_value_algorithm,
+            case.execution_route,
+            case.attention_path,
+        )
+        if actual != expected:
+            raise ValueError(f"{case.test_id} adaptive comparison identity is invalid")
+    return _validate_comparison_artifact_bindings(cases)
