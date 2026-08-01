@@ -372,6 +372,61 @@ def test_prompt_worker_cli_rejects_resigned_copied_spec_before_import(
     assert not copied_result_path.exists()
 
 
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    (
+        ("paths", "bound command"),
+        ("interpreter", "command is not expected"),
+    ),
+)
+def test_prompt_worker_cli_rejects_resigned_bound_command_before_import(
+    tmp_path,
+    monkeypatch,
+    mutation,
+    expected_error,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    command = spec["bindings"]["command"]
+    if mutation == "paths":
+        alternate_root = tmp_path / "resigned-command" / "P1"
+        command[4] = str((alternate_root / "worker-spec.json").resolve())
+        command[6] = str((alternate_root / "worker-result.json").resolve())
+    else:
+        command[0] = str((tmp_path / "resigned-python.exe").resolve())
+    spec["bindings"]["command_sha256"] = hashlib.sha256(
+        json.dumps(
+            command,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    _set_prompt_worker_authority(monkeypatch, spec_path)
+
+    imported = []
+    real_import = builtins.__import__
+
+    def reject_openvino_import(name, *args, **kwargs):
+        if name == "openvino_genai":
+            imported.append(name)
+            raise AssertionError("OpenVINO import must follow command validation")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
+
+    with pytest.raises(ValueError, match=expected_error):
+        quality_worker.main(
+            ["--spec", str(spec_path), "--result", str(result_path)]
+        )
+
+    assert imported == []
+    assert not result_path.exists()
+
+
 def test_prompt_worker_publishes_to_canonical_derived_result_path(
     tmp_path,
     monkeypatch,

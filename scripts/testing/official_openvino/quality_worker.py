@@ -981,7 +981,7 @@ def _require_prompt_worker_guard_authority(
     spec_path: Path,
     result_path: Path,
     spec_bytes: bytes,
-) -> Path:
+) -> tuple[Path, Path]:
     authority_path_value = os.environ.get(QUALITY_WORKER_SPEC_PATH_ENV)
     authority_sha256 = _require_sha256(
         os.environ.get(QUALITY_WORKER_SPEC_SHA256_ENV),
@@ -1015,7 +1015,7 @@ def _require_prompt_worker_guard_authority(
         ) from error
     if actual_result_path != canonical_result_path:
         raise ValueError("quality prompt worker result path authority mismatch")
-    return canonical_result_path
+    return anchored_spec_path, canonical_result_path
 
 
 def _validate_prompt_worker_invocation(
@@ -1025,14 +1025,22 @@ def _validate_prompt_worker_invocation(
     result_path: Path,
     spec_bytes: bytes,
 ) -> Path:
-    canonical_result_path = _require_prompt_worker_guard_authority(
-        spec_path=spec_path,
-        result_path=result_path,
-        spec_bytes=spec_bytes,
+    anchored_spec_path, canonical_result_path = (
+        _require_prompt_worker_guard_authority(
+            spec_path=spec_path,
+            result_path=result_path,
+            spec_bytes=spec_bytes,
+        )
     )
     normalized = _validate_prompt_worker_spec(spec)
     command = normalized["bindings"]["command"]
-    if Path(sys.executable).resolve() != Path(command[0]).resolve():
+    expected = tuple(Path(command[index]).resolve() for index in (0, 4, 6))
+    actual = (
+        Path(sys.executable).resolve(),
+        anchored_spec_path,
+        canonical_result_path,
+    )
+    if actual != expected:
         raise ValueError(
             "quality prompt worker invocation does not match bound command"
         )
@@ -1082,10 +1090,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             key.casefold() in _QUALITY_WORKER_AUTHORITY_ENV_KEYS
             for key in os.environ
         ):
-            publication_path = _require_prompt_worker_guard_authority(
-                spec_path=args.spec,
-                result_path=args.result,
-                spec_bytes=spec_bytes,
+            _anchored_spec_path, publication_path = (
+                _require_prompt_worker_guard_authority(
+                    spec_path=args.spec,
+                    result_path=args.result,
+                    spec_bytes=spec_bytes,
+                )
             )
         result = execute_quality_worker(spec)
     _atomic_write_result(publication_path, result)
