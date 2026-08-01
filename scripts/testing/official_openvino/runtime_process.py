@@ -36,6 +36,8 @@ from .runtime_measurement import (
 
 
 MIB = 1024**2
+MIN_LAUNCH_AVAILABLE_RAM_BYTES = 4096 * MIB
+MIN_EMERGENCY_AVAILABLE_RAM_BYTES = 2048 * MIB
 RUN_SCHEMA = "official-openvino-wb04-governed-run/v1"
 
 
@@ -182,7 +184,10 @@ def run_governed_process(
     environment: dict[str, str],
     sampler_script: Path,
     timeout_seconds: float = 900.0,
-    minimum_available_ram_bytes: int = 2048 * MIB,
+    launch_minimum_available_ram_bytes: int = MIN_LAUNCH_AVAILABLE_RAM_BYTES,
+    emergency_minimum_available_ram_bytes: int = (
+        MIN_EMERGENCY_AVAILABLE_RAM_BYTES
+    ),
     sample_interval_seconds: float = 0.25,
 ) -> dict[str, Any]:
     """Run one fresh process behind a kill-on-close Job Object."""
@@ -193,8 +198,20 @@ def run_governed_process(
         raise ValueError("role is invalid")
     if timeout_seconds <= 0 or sample_interval_seconds <= 0:
         raise ValueError("timeouts and sampling intervals must be positive")
-    if minimum_available_ram_bytes < 0:
-        raise ValueError("minimum available RAM must be non-negative")
+    if (
+        isinstance(launch_minimum_available_ram_bytes, bool)
+        or not isinstance(launch_minimum_available_ram_bytes, int)
+        or launch_minimum_available_ram_bytes
+        < MIN_LAUNCH_AVAILABLE_RAM_BYTES
+    ):
+        raise ValueError("launch available RAM must be at least 4096 MiB")
+    if (
+        isinstance(emergency_minimum_available_ram_bytes, bool)
+        or not isinstance(emergency_minimum_available_ram_bytes, int)
+        or emergency_minimum_available_ram_bytes
+        < MIN_EMERGENCY_AVAILABLE_RAM_BYTES
+    ):
+        raise ValueError("emergency available RAM must be at least 2048 MiB")
     sampler = Path(sampler_script).resolve()
     if not sampler.is_file():
         raise ValueError(f"utilization sampler is missing: {sampler}")
@@ -222,7 +239,12 @@ def run_governed_process(
             "working_directory": str(Path.cwd().resolve()),
             "role": role,
             "timeout_seconds": timeout_seconds,
-            "minimum_available_ram_bytes": minimum_available_ram_bytes,
+            "launch_minimum_available_ram_bytes": (
+                launch_minimum_available_ram_bytes
+            ),
+            "emergency_minimum_available_ram_bytes": (
+                emergency_minimum_available_ram_bytes
+            ),
             "sample_interval_seconds": sample_interval_seconds,
             "sampler_script": str(sampler),
         },
@@ -252,7 +274,10 @@ def run_governed_process(
         "sampler_exit_code": None,
         "timed_out": False,
         "low_memory_stop": False,
-        "minimum_available_ram_bytes": minimum_available_ram_bytes,
+        "launch_minimum_available_ram_bytes": launch_minimum_available_ram_bytes,
+        "emergency_minimum_available_ram_bytes": (
+            emergency_minimum_available_ram_bytes
+        ),
         "available_ram_bytes": {"before": None, "minimum": None, "after": None},
         "peak_working_set_bytes": 0,
         "peak_private_bytes": 0,
@@ -263,6 +288,16 @@ def run_governed_process(
         "gpu_dedicated_memory_peak_mb": None,
         "gpu_shared_memory_peak_mb": None,
         "gpu_memory_peak_mb": None,
+        "gpu_sampler_supported": False,
+        "memory_unit_receipt": {
+            "peak_working_set_mb": "MiB",
+            "peak_private_mb": "MiB",
+            "available_ram_min_mb": "MiB",
+            "kv_mb": "MiB",
+            "gpu_memory_peak_mb": "MiB",
+        },
+        "fallback_count": 0,
+        "residual_owned_process_count": None,
         "worker": None,
         "activation": None,
         "stdout_sha256": None,
@@ -281,7 +316,7 @@ def run_governed_process(
     record["available_ram_bytes"]["before"] = before
     if before is None:
         _append_error(errors, "available RAM query failed before launch")
-    elif before < minimum_available_ram_bytes:
+    elif before < launch_minimum_available_ram_bytes:
         _append_error(errors, "available RAM is below the pre-launch floor")
 
     workload_job: KillOnCloseJob | None = None
@@ -450,7 +485,7 @@ def run_governed_process(
                     record["peak_private_bytes"] = max(
                         record["peak_private_bytes"], private
                     )
-                    if available < minimum_available_ram_bytes:
+                    if available < emergency_minimum_available_ram_bytes:
                         record["low_memory_stop"] = True
                         break
                     while next_sample <= now:
@@ -508,7 +543,7 @@ def run_governed_process(
     record["available_ram_bytes"]["after"] = after
     if after is None:
         _append_error(errors, "available RAM query failed after run")
-    elif after < minimum_available_ram_bytes:
+    elif after < emergency_minimum_available_ram_bytes:
         _append_error(errors, "available RAM is below the post-run floor")
     available_values = [
         value
@@ -535,6 +570,9 @@ def run_governed_process(
                 survivor_counts.append(count)
     if len(survivor_counts) == 2:
         record["cleanup_process_count"] = sum(survivor_counts)
+        record["residual_owned_process_count"] = record[
+            "cleanup_process_count"
+        ]
     else:
         _append_error(errors, "cleanup survivor count is incomplete")
 
@@ -556,6 +594,7 @@ def run_governed_process(
             )
             record["cpu_percent"] = cpu
             record["gpu_percent"] = gpu["gpu_percent"]
+            record["gpu_sampler_supported"] = True
             record["gpu_engine_count"] = gpu["gpu_engine_count"]
             for field in (
                 "gpu_dedicated_memory_peak_mb",
@@ -718,4 +757,10 @@ def measurement_sample(record: dict[str, Any], source_path: Path) -> dict[str, A
     }
 
 
-__all__ = ["MIB", "measurement_sample", "run_governed_process"]
+__all__ = [
+    "MIB",
+    "MIN_EMERGENCY_AVAILABLE_RAM_BYTES",
+    "MIN_LAUNCH_AVAILABLE_RAM_BYTES",
+    "measurement_sample",
+    "run_governed_process",
+]

@@ -10,6 +10,7 @@ import os
 import re
 import sys
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,10 @@ from scripts.testing.official_openvino.conversion import (
     validate_artifact_manifest,
 )
 from scripts.testing.official_openvino.metrics import summarize_samples
+from scripts.testing.official_openvino.adaptive_metrics import (
+    build_adaptive_runtime_sample,
+    summarize_adaptive_runtime_samples,
+)
 from scripts.testing.official_openvino.matrix import (
     load_matrix,
     load_matrix_metadata,
@@ -35,6 +40,8 @@ from scripts.testing.official_openvino.runtime_process import (
 
 
 MIB = 1024**2
+MIN_LAUNCH_AVAILABLE_RAM_MIB = 4096
+MIN_EMERGENCY_AVAILABLE_RAM_MIB = 2048
 SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
 ROLES = frozenset({"pilot", "warmup", "sample-1", "sample-2", "sample-3"})
 SEQUENCE_ROLES = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
@@ -69,6 +76,39 @@ _FROZEN_EXECUTION_FIELDS = (
     "suitable_host_required",
     "numeric_generation_metrics_expected",
 )
+
+
+@dataclass(frozen=True)
+class MeasurementFailureRecord:
+    role: str
+    record_path: Path | None
+    record: Mapping[str, Any] | None
+    fingerprint: str
+
+
+class MeasurementSequenceFailure(RuntimeError):
+    def __init__(self, message: str, failure: MeasurementFailureRecord):
+        super().__init__(message)
+        self.failure = failure
+
+
+def _validate_ram_thresholds(
+    launch_minimum_available_ram_mib: int,
+    emergency_minimum_available_ram_mib: int,
+) -> None:
+    if (
+        isinstance(launch_minimum_available_ram_mib, bool)
+        or not isinstance(launch_minimum_available_ram_mib, int)
+        or launch_minimum_available_ram_mib < MIN_LAUNCH_AVAILABLE_RAM_MIB
+    ):
+        raise ValueError("launch available RAM must be at least 4096 MiB")
+    if (
+        isinstance(emergency_minimum_available_ram_mib, bool)
+        or not isinstance(emergency_minimum_available_ram_mib, int)
+        or emergency_minimum_available_ram_mib
+        < MIN_EMERGENCY_AVAILABLE_RAM_MIB
+    ):
+        raise ValueError("emergency available RAM must be at least 2048 MiB")
 
 
 def _directory(path: Path, field: str) -> Path:
@@ -708,7 +748,8 @@ def run_single_measurement(
     openvino_libraries: Path,
     sampler_script: Path,
     timeout_seconds: float = 900.0,
-    minimum_available_ram_mib: int = 2048,
+    launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
+    emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
     run_process: Callable[..., dict[str, Any]] = run_governed_process,
 ) -> dict[str, Any]:
     """Execute one role in a fresh process and return its persisted record."""
@@ -721,12 +762,10 @@ def run_single_measurement(
         raise ValueError(f"output directory already exists: {output}")
     if timeout_seconds <= 0:
         raise ValueError("timeout seconds must be positive")
-    if (
-        isinstance(minimum_available_ram_mib, bool)
-        or not isinstance(minimum_available_ram_mib, int)
-        or minimum_available_ram_mib < 2048
-    ):
-        raise ValueError("minimum available RAM must be at least 2048 MiB")
+    _validate_ram_thresholds(
+        launch_minimum_available_ram_mib,
+        emergency_minimum_available_ram_mib,
+    )
 
     environment = build_worker_environment(
         build_root=build_root,
@@ -748,7 +787,12 @@ def run_single_measurement(
         environment=environment,
         sampler_script=sampler,
         timeout_seconds=float(timeout_seconds),
-        minimum_available_ram_bytes=minimum_available_ram_mib * MIB,
+        launch_minimum_available_ram_bytes=(
+            launch_minimum_available_ram_mib * MIB
+        ),
+        emergency_minimum_available_ram_bytes=(
+            emergency_minimum_available_ram_mib * MIB
+        ),
         sample_interval_seconds=0.25,
     )
 
@@ -986,6 +1030,59 @@ def _campaign_identity(
     atomic_write_json(destination, identity)
 
 
+def _identity_boundary_hashes(identity: Mapping[str, Any]) -> dict[str, str]:
+    """Return the individual receipts that must remain stable mid-campaign."""
+
+    value = identity["identity"]
+    return {
+        "artifact_manifest_sha256": value["model"][
+            "artifact_manifest_sha256"
+        ],
+        "build_provenance_sha256": value["build"]["provenance_sha256"],
+        "matrix_sha256": _sha256_json(value["matrix"]),
+        "prompt_sha256": value["prompt"]["sha256"],
+        "runtime_property_sha256": _sha256_json(value["config"]),
+    }
+
+
+def _sequence_failure(
+    message: str,
+    *,
+    role: str,
+    record_path: Path | None,
+    record: Mapping[str, Any] | None,
+    fingerprint: str,
+) -> MeasurementSequenceFailure:
+    return MeasurementSequenceFailure(
+        message,
+        MeasurementFailureRecord(
+            role=role,
+            record_path=record_path,
+            record=dict(record) if record is not None else None,
+            fingerprint=fingerprint,
+        ),
+    )
+
+
+def _adaptive_record(
+    record: Mapping[str, Any],
+    identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Bind one immutable governed record to the campaign identity receipts."""
+
+    value = dict(record)
+    boundaries = _identity_boundary_hashes(identity)
+    value["identity_hashes"] = {
+        "artifact_manifest_sha256": boundaries["artifact_manifest_sha256"],
+        "prompt_sha256": boundaries["prompt_sha256"],
+        "matrix_sha256": boundaries["matrix_sha256"],
+        "build_provenance_sha256": boundaries["build_provenance_sha256"],
+        "command_sha256": boundaries["runtime_property_sha256"],
+        "evidence_sha256": identity["campaign_identity_sha256"],
+    }
+    return value
+
+
 def _run_measurement_sequence_locked(
     *,
     spec_path: Path,
@@ -1000,11 +1097,16 @@ def _run_measurement_sequence_locked(
     openvino_libraries: Path,
     sampler_script: Path,
     timeout_seconds: float = 900.0,
-    minimum_available_ram_mib: int = 2048,
+    launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
+    emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
     run_measurement: Callable[..., dict[str, Any]] = run_single_measurement,
 ) -> dict[str, Any]:
     """Run or resume a complete five-role measurement campaign."""
 
+    _validate_ram_thresholds(
+        launch_minimum_available_ram_mib,
+        emergency_minimum_available_ram_mib,
+    )
     root = Path(campaign_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     template = _sequence_spec(spec_path)
@@ -1027,6 +1129,29 @@ def _run_measurement_sequence_locked(
         tuple[dict[str, Any], dict[str, Any], Path]
     ] = []
     for role in SEQUENCE_ROLES:
+        refreshed_identity = build_campaign_identity(
+            spec_path=spec_path,
+            matrix_path=matrix_path,
+            artifact_manifest_path=artifact_manifest_path,
+            build_provenance_path=build_provenance_path,
+            build_root=build_root,
+            repo_root=repo_root,
+            python_executable=python_executable,
+            python_site_packages=python_site_packages,
+            openvino_libraries=openvino_libraries,
+        )
+        if (
+            refreshed_identity["campaign_identity_sha256"] != identity_sha256
+            or _identity_boundary_hashes(refreshed_identity)
+            != _identity_boundary_hashes(identity)
+        ):
+            raise _sequence_failure(
+                "campaign root belongs to a different canonical identity",
+                role=role,
+                record_path=None,
+                record=None,
+                fingerprint=refreshed_identity["campaign_identity_sha256"],
+            )
         spec_value = _role_spec(template, role, identity_sha256)
         resumed = _resumable_attempt(
             campaign_root=root,
@@ -1056,7 +1181,12 @@ def _run_measurement_sequence_locked(
                     openvino_libraries=openvino_libraries,
                     sampler_script=sampler_script,
                     timeout_seconds=timeout_seconds,
-                    minimum_available_ram_mib=minimum_available_ram_mib,
+                    launch_minimum_available_ram_mib=(
+                        launch_minimum_available_ram_mib
+                    ),
+                    emergency_minimum_available_ram_mib=(
+                        emergency_minimum_available_ram_mib
+                    ),
                 )
             )
         except Exception as error:
@@ -1072,7 +1202,13 @@ def _run_measurement_sequence_locked(
                 accepted=False,
                 controller_error=f"{type(error).__name__}: {error}",
             )
-            raise
+            raise _sequence_failure(
+                f"{type(error).__name__}: {error}",
+                role=role,
+                record_path=record_path if record_path.is_file() else None,
+                record=_persisted_record(record_path),
+                fingerprint=identity_sha256,
+            ) from error
 
         record_path = output_dir / "attempt.json"
         persisted = _persisted_record(record_path)
@@ -1115,11 +1251,24 @@ def _run_measurement_sequence_locked(
             ),
         )
         if not accepted or persisted is None:
-            raise RuntimeError(f"{role} attempt did not pass validation")
+            raise _sequence_failure(
+                f"{role} attempt did not pass validation",
+                role=role,
+                record_path=record_path if record_path.is_file() else None,
+                record=persisted,
+                fingerprint=identity_sha256,
+            )
         completed.append((receipt, persisted, record_path))
 
     formal_samples = [
         measurement_sample(record, source)
+        for _, record, source in completed[2:]
+    ]
+    adaptive_samples = [
+        build_adaptive_runtime_sample(
+            _adaptive_record(record, identity),
+            source,
+        )
         for _, record, source in completed[2:]
     ]
     metrics = summarize_samples(formal_samples)
@@ -1137,6 +1286,11 @@ def _run_measurement_sequence_locked(
     )
     metrics_path = root / "measurement-summary.json"
     atomic_write_json(metrics_path, metrics)
+    adaptive_metrics_path = root / "adaptive-runtime-summary.json"
+    atomic_write_json(
+        adaptive_metrics_path,
+        summarize_adaptive_runtime_samples(adaptive_samples),
+    )
     receipts = [receipt for receipt, _, _ in completed]
     sequence = {
         "schema": SEQUENCE_SCHEMA,
@@ -1169,11 +1323,16 @@ def run_measurement_sequence(
     openvino_libraries: Path,
     sampler_script: Path,
     timeout_seconds: float = 900.0,
-    minimum_available_ram_mib: int = 2048,
+    launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
+    emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
     run_measurement: Callable[..., dict[str, Any]] = run_single_measurement,
 ) -> dict[str, Any]:
     """Run or resume a locked complete five-role measurement campaign."""
 
+    _validate_ram_thresholds(
+        launch_minimum_available_ram_mib,
+        emergency_minimum_available_ram_mib,
+    )
     with CampaignLock(campaign_root):
         return _run_measurement_sequence_locked(
             spec_path=spec_path,
@@ -1188,7 +1347,10 @@ def run_measurement_sequence(
             openvino_libraries=openvino_libraries,
             sampler_script=sampler_script,
             timeout_seconds=timeout_seconds,
-            minimum_available_ram_mib=minimum_available_ram_mib,
+            launch_minimum_available_ram_mib=launch_minimum_available_ram_mib,
+            emergency_minimum_available_ram_mib=(
+                emergency_minimum_available_ram_mib
+            ),
             run_measurement=run_measurement,
         )
 
@@ -1218,7 +1380,16 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--openvino-libraries", type=Path, required=True)
     parser.add_argument("--sampler-script", type=Path, required=True)
     parser.add_argument("--timeout-seconds", type=float, default=900.0)
-    parser.add_argument("--minimum-available-ram-mib", type=int, default=2048)
+    parser.add_argument(
+        "--launch-minimum-available-ram-mib",
+        type=int,
+        default=MIN_LAUNCH_AVAILABLE_RAM_MIB,
+    )
+    parser.add_argument(
+        "--emergency-minimum-available-ram-mib",
+        type=int,
+        default=MIN_EMERGENCY_AVAILABLE_RAM_MIB,
+    )
     return parser
 
 
@@ -1234,7 +1405,12 @@ def main(argv: list[str] | None = None) -> int:
         "openvino_libraries": args.openvino_libraries,
         "sampler_script": args.sampler_script,
         "timeout_seconds": args.timeout_seconds,
-        "minimum_available_ram_mib": args.minimum_available_ram_mib,
+        "launch_minimum_available_ram_mib": (
+            args.launch_minimum_available_ram_mib
+        ),
+        "emergency_minimum_available_ram_mib": (
+            args.emergency_minimum_available_ram_mib
+        ),
     }
     if args.output_dir is not None:
         if args.role is None:

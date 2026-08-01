@@ -681,14 +681,15 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 execute_attempt_sequence(Path(directory), run)
 
     def test_guard_rejects_missing_post_run_available_ram(self):
-        floor = 2 * 1024**3
+        launch_floor = 4 * 1024**3
+        emergency_floor = 2 * 1024**3
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sampler = root / "sampler.ps1"
             sampler.write_text("", encoding="utf-8")
             with mock.patch(
                 "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
-                side_effect=[floor - 1, None],
+                side_effect=[launch_floor - 1, None],
             ):
                 record = run_governed_process(
                     command=["never-launched"],
@@ -696,7 +697,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                     role="pilot",
                     environment={},
                     sampler_script=sampler,
-                    minimum_available_ram_bytes=floor,
+                    launch_minimum_available_ram_bytes=launch_floor,
+                    emergency_minimum_available_ram_bytes=emergency_floor,
                 )
         self.assertFalse(record["valid"])
         self.assertIn(
@@ -704,15 +706,15 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
             record["validation_errors"],
         )
 
-    def test_guard_rejects_post_run_available_ram_below_floor(self):
-        floor = 2 * 1024**3
+    def test_guard_uses_4096_launch_reserve_and_2048_emergency_floor(self):
+        mib = 1024**2
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             sampler = root / "sampler.ps1"
             sampler.write_text("", encoding="utf-8")
             with mock.patch(
                 "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
-                side_effect=[floor - 1, floor - 1],
+                side_effect=[4095 * mib, 4095 * mib],
             ):
                 record = run_governed_process(
                     command=["never-launched"],
@@ -720,7 +722,69 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                     role="pilot",
                     environment={},
                     sampler_script=sampler,
-                    minimum_available_ram_bytes=floor,
+                    launch_minimum_available_ram_bytes=4096 * mib,
+                    emergency_minimum_available_ram_bytes=2048 * mib,
+                )
+        self.assertEqual(record["launch_minimum_available_ram_bytes"], 4096 * mib)
+        self.assertEqual(record["emergency_minimum_available_ram_bytes"], 2048 * mib)
+        self.assertIn(
+            "available RAM is below the pre-launch floor",
+            record["validation_errors"],
+        )
+
+    def test_guard_rejects_lower_configured_launch_floor(self):
+        mib = 1024**2
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sampler = root / "sampler.ps1"
+            sampler.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "launch"):
+                run_governed_process(
+                    command=["never-launched"],
+                    output_dir=root / "run",
+                    role="pilot",
+                    environment={},
+                    sampler_script=sampler,
+                    launch_minimum_available_ram_bytes=4095 * mib,
+                    emergency_minimum_available_ram_bytes=2048 * mib,
+                )
+
+    def test_guard_rejects_lower_configured_emergency_floor(self):
+        mib = 1024**2
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sampler = root / "sampler.ps1"
+            sampler.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "emergency"):
+                run_governed_process(
+                    command=["never-launched"],
+                    output_dir=root / "run",
+                    role="pilot",
+                    environment={},
+                    sampler_script=sampler,
+                    launch_minimum_available_ram_bytes=4096 * mib,
+                    emergency_minimum_available_ram_bytes=2047 * mib,
+                )
+
+    def test_guard_rejects_post_run_available_ram_below_floor(self):
+        launch_floor = 4 * 1024**3
+        emergency_floor = 2 * 1024**3
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sampler = root / "sampler.ps1"
+            sampler.write_text("", encoding="utf-8")
+            with mock.patch(
+                "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
+                side_effect=[launch_floor - 1, emergency_floor - 1],
+            ):
+                record = run_governed_process(
+                    command=["never-launched"],
+                    output_dir=root / "run",
+                    role="pilot",
+                    environment={},
+                    sampler_script=sampler,
+                    launch_minimum_available_ram_bytes=launch_floor,
+                    emergency_minimum_available_ram_bytes=emergency_floor,
                 )
         self.assertFalse(record["valid"])
         self.assertIn(
@@ -729,7 +793,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         )
 
     def test_governed_process_persists_parsed_gpu_engine_evidence(self):
-        floor = 2 * 1024**3
+        launch_floor = 4 * 1024**3
+        emergency_floor = 2 * 1024**3
         gpu_evidence = {
             "gpu_percent": utilization_summary([4.0, 8.0]),
             "gpu_engine_count": utilization_summary([1.0, 2.0]),
@@ -753,7 +818,7 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                 mock.patch(
                     "scripts.testing.official_openvino.runtime_process."
                     "available_ram_bytes",
-                    side_effect=[floor - 1, floor],
+                    side_effect=[launch_floor - 1, emergency_floor],
                 ),
                 mock.patch(
                     "scripts.testing.official_openvino.runtime_process."
@@ -777,7 +842,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
                     role="pilot",
                     environment={},
                     sampler_script=sampler,
-                    minimum_available_ram_bytes=floor,
+                    launch_minimum_available_ram_bytes=launch_floor,
+                    emergency_minimum_available_ram_bytes=emergency_floor,
                 )
         self.assertEqual(
             record["gpu_engine_count"],

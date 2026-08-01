@@ -118,14 +118,16 @@ def test_single_measurement_binds_worker_command_and_returns_guard_record(tmp_pa
         openvino_libraries=libraries,
         sampler_script=sampler,
         timeout_seconds=123,
-        minimum_available_ram_mib=2048,
+        launch_minimum_available_ram_mib=4096,
+        emergency_minimum_available_ram_mib=2048,
         run_process=fake_run_process,
     )
 
     assert record["valid"] is True
     assert observed["role"] == "pilot"
     assert observed["timeout_seconds"] == 123
-    assert observed["minimum_available_ram_bytes"] == 2048 * 1024**2
+    assert observed["launch_minimum_available_ram_bytes"] == 4096 * 1024**2
+    assert observed["emergency_minimum_available_ram_bytes"] == 2048 * 1024**2
     assert observed["command"] == [
         str(Path(sys.executable).resolve()),
         "-m",

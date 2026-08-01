@@ -8,6 +8,7 @@ import pytest
 
 from scripts.testing.measure_official_openvino import (
     CampaignLock,
+    MeasurementSequenceFailure,
     _persisted_record,
     build_campaign_identity,
     run_measurement_sequence,
@@ -260,7 +261,8 @@ def _setup_campaign(tmp_path: Path) -> dict:
         "openvino_libraries": libraries,
         "sampler_script": sampler,
         "timeout_seconds": 60,
-        "minimum_available_ram_mib": 2048,
+        "launch_minimum_available_ram_mib": 4096,
+        "emergency_minimum_available_ram_mib": 2048,
     }
 
 
@@ -301,6 +303,17 @@ def _record(role: str, ordinal: int, spec: dict) -> dict:
         "role": role,
         "valid": True,
         "cleanup_process_count": 0,
+        "residual_owned_process_count": 0,
+        "fallback_count": 0,
+        "exit_code": 0,
+        "gpu_sampler_supported": True,
+        "memory_unit_receipt": {
+            "peak_working_set_mb": "MiB",
+            "peak_private_mb": "MiB",
+            "available_ram_min_mb": "MiB",
+            "kv_mb": "MiB",
+            "gpu_memory_peak_mb": "MiB",
+        },
         "peak_working_set_bytes": (1000 + ordinal) * MIB,
         "peak_private_bytes": (900 + ordinal) * MIB,
         "available_ram_bytes": {
@@ -320,6 +333,8 @@ def _record(role: str, ordinal: int, spec: dict) -> dict:
             "tpot_ms": 25 + ordinal,
             "decode_tps": 40 + ordinal,
             "generation_duration_ms": 500 + ordinal,
+            "num_input_tokens": 4096,
+            "num_generated_tokens": 4,
             "output_valid": True,
             "model_path": str(Path(spec["model_path"]).resolve()),
             "device": spec["device"],
@@ -484,6 +499,103 @@ def test_sequence_runs_five_roles_once_and_atomically_summarizes_only_samples(
             allow_nan=False,
         ).encode("utf-8")
     ).hexdigest()
+
+
+def test_sequence_passes_distinct_launch_and_emergency_floors(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+    kwargs.pop("launch_minimum_available_ram_mib")
+    kwargs.pop("emergency_minimum_available_ram_mib")
+    seen: list[tuple[int, int]] = []
+
+    def fake_measurement(**run_kwargs):
+        seen.append(
+            (
+                run_kwargs["launch_minimum_available_ram_mib"],
+                run_kwargs["emergency_minimum_available_ram_mib"],
+            )
+        )
+        role = run_kwargs["role"]
+        spec = json.loads(run_kwargs["spec_path"].read_text(encoding="utf-8"))
+        record = _record(role, ROLES.index(role), spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    run_measurement_sequence(
+        **kwargs,
+        launch_minimum_available_ram_mib=4096,
+        emergency_minimum_available_ram_mib=2048,
+        run_measurement=fake_measurement,
+    )
+
+    assert seen == [(4096, 2048)] * 5
+
+
+@pytest.mark.parametrize(
+    ("launch_mib", "emergency_mib", "message"),
+    [(4095, 2048, "launch"), (4096, 2047, "emergency")],
+)
+def test_sequence_rejects_configured_floor_below_safety_minimum(
+    tmp_path,
+    launch_mib,
+    emergency_mib,
+    message,
+):
+    kwargs = _setup_campaign(tmp_path)
+    kwargs.pop("launch_minimum_available_ram_mib")
+    kwargs.pop("emergency_minimum_available_ram_mib")
+
+    with pytest.raises(ValueError, match=message):
+        run_measurement_sequence(
+            **kwargs,
+            launch_minimum_available_ram_mib=launch_mib,
+            emergency_minimum_available_ram_mib=emergency_mib,
+            run_measurement=lambda **_: pytest.fail("unsafe campaign launched"),
+        )
+
+
+def test_sequence_identity_change_before_warmup_raises_typed_failure(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+
+    def mutate_after_pilot(**run_kwargs):
+        role = run_kwargs["role"]
+        spec = json.loads(run_kwargs["spec_path"].read_text(encoding="utf-8"))
+        record = _record(role, ROLES.index(role), spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        if role == "pilot":
+            _mutate_json(
+                kwargs["spec_path"],
+                lambda value: value.update(prompt="changed during sequence"),
+            )
+        return record
+
+    with pytest.raises(MeasurementSequenceFailure) as raised:
+        run_measurement_sequence(**kwargs, run_measurement=mutate_after_pilot)
+
+    assert "campaign root belongs to a different canonical identity" in str(raised.value)
+    assert raised.value.failure.role == "warmup"
+    assert raised.value.failure.record_path is None
+    assert raised.value.failure.record is None
+    assert len(raised.value.failure.fingerprint) == 64
+
+
+def test_invalid_role_record_raises_typed_failure_with_canonical_record(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+
+    def invalid_pilot(**run_kwargs):
+        record = {"role": run_kwargs["role"], "valid": False, "cleanup_process_count": 0}
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    with pytest.raises(MeasurementSequenceFailure) as raised:
+        run_measurement_sequence(**kwargs, run_measurement=invalid_pilot)
+
+    assert "pilot attempt did not pass validation" in str(raised.value)
+    assert raised.value.failure.role == "pilot"
+    assert raised.value.failure.record == {
+        "role": "pilot", "valid": False, "cleanup_process_count": 0
+    }
+    assert raised.value.failure.record_path is not None
+    assert raised.value.failure.record_path.is_file()
 
 
 @pytest.mark.parametrize("raw", (b'{"role":"pilot","role":"pilot"}', b'{"value":NaN}', b'{"value":1e999}'))
