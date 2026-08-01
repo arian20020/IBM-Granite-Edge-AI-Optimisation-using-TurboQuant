@@ -19,6 +19,7 @@ from scripts.testing.measure_official_openvino import (
     run_measurement_sequence,
 )
 
+from .conversion import validate_artifact_manifest
 from .matrix import OpenVINOCase, load_adaptive_comparison_matrix
 from .owned_process_guard import KillOnCloseJob, available_ram_bytes
 from .runtime_measurement import atomic_write_json, build_runtime_property_spec
@@ -88,29 +89,26 @@ class StepOutcome:
 class _CampaignOwnedJobProbe:
     """Own and query the containing Job Object for every campaign worker."""
 
-    def __init__(
-        self,
-        campaign_root: Path,
-        *,
-        job_factory: Callable[[str], KillOnCloseJob] = KillOnCloseJob,
-    ):
+    def __init__(self, campaign_root: Path):
         identity = hashlib.sha256(
             str(Path(campaign_root).resolve()).encode("utf-8")
         ).hexdigest()[:24]
         self.name = f"WB04-adaptive-campaign-{identity}"
-        self._job_factory = job_factory
         self.job: KillOnCloseJob | None = None
 
     def __enter__(self) -> "_CampaignOwnedJobProbe":
-        self.job = self._job_factory(self.name)
-        if self.job is None:
-            raise RuntimeError("campaign Job Object factory returned no job")
+        self.job = KillOnCloseJob(self.name)
         return self
 
     def __exit__(self, *_: Any) -> None:
         if self.job is not None:
             self.job.close()
             self.job = None
+
+    def require_job(self) -> KillOnCloseJob:
+        if type(self.job) is not KillOnCloseJob:
+            raise RuntimeError("real campaign Job Object is not open")
+        return self.job
 
     def __call__(self, _campaign_root: Path) -> dict[str, Any]:
         if self.job is None:
@@ -122,7 +120,7 @@ class _CampaignOwnedJobProbe:
                 "error": "campaign Job Object is not open",
             }
         try:
-            active = self.job.active_pids()
+            active = self.require_job().active_pids()
         except (OSError, RuntimeError) as error:
             return {
                 "schema": JOB_PROBE_SCHEMA,
@@ -708,12 +706,16 @@ def _native_task_three_failure_evidence(
     )
     expected_matrix = Path(matrix_path).resolve()
     manifest_path = Path(str(adaptive_spec.get("artifact_manifest_path"))).resolve()
-    manifest_payload = _load_json(
-        manifest_path,
-        "native Task 3 artifact manifest",
-    )
-    manifest_model = manifest_payload.get("model")
-    manifest_probe = manifest_payload.get("load_probe")
+    expected_precision = case_payload.get("weight_precision")
+    if not isinstance(expected_precision, str):
+        return None
+    try:
+        task_three_validated_artifact = validate_artifact_manifest(
+            manifest_path,
+            expected_precision=expected_precision,
+        )
+    except ValueError:
+        return None
     if (
         identity.get("context") != context
         or identity.get("config") != expected_config
@@ -752,45 +754,13 @@ def _native_task_three_failure_evidence(
         or model_identity.get("artifact_manifest_sha256")
         != _sha256_file(manifest_path)
         or not isinstance(validated_artifact, Mapping)
-        or set(validated_artifact)
-        != {
-            "accepted",
-            "status",
-            "artifact_id",
-            "artifact_root",
-            "precision",
-            "inventory_sha256",
-            "generated_tokens",
-        }
-        or validated_artifact.get("accepted") is not True
-        or validated_artifact.get("status") != "load-proven"
-        or manifest_payload.get("status") != validated_artifact.get("status")
+        or dict(validated_artifact) != task_three_validated_artifact
         or validated_artifact.get("artifact_id") != adaptive_spec.get("artifact_id")
-        or validated_artifact.get("artifact_id")
-        != manifest_payload.get("artifact_id")
         or not _paths_are_equal(
             validated_artifact.get("artifact_root"),
             adaptive_spec.get("model_path"),
         )
-        or not _paths_are_equal(
-            validated_artifact.get("artifact_root"),
-            manifest_payload.get("artifact_root"),
-        )
-        or validated_artifact.get("precision")
-        != case_payload.get("weight_precision")
-        or not isinstance(manifest_model, Mapping)
-        or validated_artifact.get("precision") != manifest_model.get("precision")
-        or _SHA256.fullmatch(
-            str(validated_artifact.get("inventory_sha256"))
-        )
-        is None
-        or validated_artifact.get("inventory_sha256")
-        != manifest_payload.get("inventory_sha256")
-        or type(validated_artifact.get("generated_tokens")) is not int
-        or validated_artifact["generated_tokens"] <= 0
-        or not isinstance(manifest_probe, Mapping)
-        or validated_artifact.get("generated_tokens")
-        != manifest_probe.get("generated_tokens")
+        or validated_artifact.get("precision") != expected_precision
     ):
         return None
 
@@ -1435,7 +1405,7 @@ def _record_live_survivor_probe(
     config: AdaptiveCampaignConfig,
     state: dict[str, Any],
     stage: str,
-    probe: Callable[[Path], Mapping[str, Any]],
+    probe: _CampaignOwnedJobProbe,
 ) -> bool:
     root = Path(config.campaign_root).resolve()
     try:
@@ -2019,9 +1989,9 @@ def _execute_runtime_step(
     spec: Mapping[str, Any],
     run_runtime: Callable[..., Mapping[str, Any]],
     available_ram: Callable[[], int | None],
-    owned_survivor_probe: Callable[[Path], Mapping[str, Any]],
-    campaign_job: KillOnCloseJob,
+    campaign_guard: _CampaignOwnedJobProbe,
 ) -> dict[str, Any]:
+    campaign_job = campaign_guard.require_job()
     attempts = _controller_attempts(config, test_id, context)
     attempts = _reconcile_native_runtime_failures(
         config=config,
@@ -2098,7 +2068,7 @@ def _execute_runtime_step(
                 config=config,
                 state=state,
                 stage=f"before-launch:{test_id}:{context}:{attempt_number}",
-                probe=owned_survivor_probe,
+                probe=campaign_guard,
             ):
                 return state
             _require_start_reserve(available_ram)
@@ -2196,7 +2166,7 @@ def _execute_runtime_step(
                     config=config,
                     state=state,
                     stage=f"before-retry:{test_id}:{context}:{attempt_number + 1}",
-                    probe=owned_survivor_probe,
+                    probe=campaign_guard,
                 ):
                     status = "safety-boundary"
                     break
@@ -2328,11 +2298,9 @@ def _run_adaptive_campaign_with_probe(
     run_quality: Callable[..., Mapping[str, Any]] | None,
     publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None,
     available_ram: Callable[[], int | None],
-    owned_survivor_probe: Callable[[Path], Mapping[str, Any]],
-    campaign_job: KillOnCloseJob,
+    campaign_guard: _CampaignOwnedJobProbe,
 ) -> dict[str, Any]:
-    if campaign_job is None:
-        raise RuntimeError("campaign Job Object is required")
+    campaign_guard.require_job()
     campaign_root = Path(config.campaign_root).resolve()
     with CampaignLock(campaign_root):
         state = load_or_create_state(config)
@@ -2366,7 +2334,7 @@ def _run_adaptive_campaign_with_probe(
                 config=config,
                 state=state,
                 stage=f"before-next-step:{test_id}:{context}",
-                probe=owned_survivor_probe,
+                probe=campaign_guard,
             ):
                 if publish_checkpoint is not None:
                     publish_checkpoint(state_path, False)
@@ -2380,8 +2348,7 @@ def _run_adaptive_campaign_with_probe(
                 spec=spec_entry[1],
                 run_runtime=run_runtime,
                 available_ram=available_ram,
-                owned_survivor_probe=owned_survivor_probe,
-                campaign_job=campaign_job,
+                campaign_guard=campaign_guard,
             )
             if state.get("campaign_halt") is not None and (
                 f"{test_id}:{context}" not in state["steps"]
@@ -2415,24 +2382,17 @@ def run_adaptive_campaign(
     run_quality: Callable[..., Mapping[str, Any]] | None = None,
     publish_checkpoint: Callable[[Path, bool], Mapping[str, Any]] | None = None,
     available_ram: Callable[[], int | None] = available_ram_bytes,
-    campaign_job_factory: Callable[[str], KillOnCloseJob] = KillOnCloseJob,
 ) -> dict[str, Any]:
     """Run or resume the fixed ladder while checkpointing each final step."""
 
-    with _CampaignOwnedJobProbe(
-        config.campaign_root,
-        job_factory=campaign_job_factory,
-    ) as guard:
-        if guard.job is None:  # pragma: no cover - enforced by __enter__
-            raise RuntimeError("campaign Job Object is missing")
+    with _CampaignOwnedJobProbe(config.campaign_root) as guard:
         return _run_adaptive_campaign_with_probe(
             config,
             run_runtime=run_runtime,
             run_quality=run_quality,
             publish_checkpoint=publish_checkpoint,
             available_ram=available_ram,
-            owned_survivor_probe=guard,
-            campaign_job=guard.job,
+            campaign_guard=guard,
         )
 
 
@@ -2440,14 +2400,10 @@ def preflight_adaptive_campaign(
     config: AdaptiveCampaignConfig,
     *,
     available_ram: Callable[[], int | None] = available_ram_bytes,
-    campaign_job_factory: Callable[[str], KillOnCloseJob] = KillOnCloseJob,
 ) -> dict[str, Any]:
     """Validate all bindings and safety gates without creating an attempt."""
 
-    with _CampaignOwnedJobProbe(
-        config.campaign_root,
-        job_factory=campaign_job_factory,
-    ) as guard:
+    with _CampaignOwnedJobProbe(config.campaign_root) as guard:
         root = Path(config.campaign_root).resolve()
         with CampaignLock(root):
             state = load_or_create_state(config)

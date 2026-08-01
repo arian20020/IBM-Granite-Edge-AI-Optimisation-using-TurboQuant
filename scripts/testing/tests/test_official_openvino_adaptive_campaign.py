@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import uuid
 
 import pytest
 
@@ -38,6 +37,7 @@ from scripts.testing.official_openvino.adaptive_campaign import (
     preflight_adaptive_campaign,
     run_adaptive_campaign,
 )
+from scripts.testing.official_openvino.conversion import validate_artifact_manifest
 from scripts.testing.official_openvino.owned_process_guard import (
     CREATE_SUSPENDED,
     KillOnCloseJob,
@@ -71,27 +71,155 @@ def _write_json(path: Path, value: object) -> None:
     )
 
 
-def _binding(tmp_path: Path, precision: str) -> dict[str, object | None]:
+def _binding(
+    tmp_path: Path,
+    precision: str,
+    *,
+    manifest_change: str | None = None,
+) -> dict[str, object | None]:
     model_root = tmp_path / f"{precision}-model"
     model_root.mkdir()
-    manifest = tmp_path / f"{precision}-manifest.json"
-    _write_json(
-        manifest,
+    element_type = {"f16": "f16", "u8": "u8", "u4": "i4"}[precision]
+    files = {
+        "openvino_model.xml": (
+            f'<net><data element_type="{element_type}"/></net>'
+        ),
+        "openvino_model.bin": "packed model",
+        "openvino_tokenizer.xml": "<net/>",
+        "openvino_tokenizer.bin": "tokenizer IR",
+        "openvino_detokenizer.xml": "<net/>",
+        "openvino_detokenizer.bin": "detokenizer IR",
+        "tokenizer.json": '{"version":"1.0"}',
+        "tokenizer_config.json": '{"model_max_length":4096}',
+        "config.json": '{"model_type":"granite"}',
+        "generation_config.json": '{"do_sample":false}',
+        "README.md": "---\nlicense: apache-2.0\n---\nConverted model.\n",
+    }
+    if precision != "f16":
+        files["openvino_config.json"] = '{"optimum_version":"2.1.0"}'
+    for name, contents in files.items():
+        (model_root / name).write_text(contents, encoding="utf-8")
+    inventory = [
         {
+            "path": source.name,
+            "size_bytes": source.stat().st_size,
+            "sha256": _sha256(source),
+        }
+        for source in sorted(model_root.iterdir())
+        if source.is_file()
+    ]
+    inventory.sort(key=lambda item: item["path"])
+    inventory_sha256 = _sha256_json(inventory)
+    readme_sha256 = next(
+        item["sha256"] for item in inventory if item["path"] == "README.md"
+    )
+    xml_sha256 = next(
+        item["sha256"]
+        for item in inventory
+        if item["path"] == "openvino_model.xml"
+    )
+    load_probe_log = tmp_path / f"{precision}-load-probe.log"
+    load_probe_log.write_text("CPU generation passed\n", encoding="utf-8")
+    output = f"Granite {precision} probe output"
+    artifact_id = f"artifact-{precision}"
+    manifest_payload: dict[str, object] = {
+        "schema_version": 1,
+        "status": "load-proven",
+        "artifact_id": artifact_id,
+        "artifact_root": str(model_root.resolve()),
+        "model": {
+            "family": "granite-4.1",
+            "parameter_scale": "3b",
+            "precision": precision,
+            "source_repository": "ibm-granite/granite-4.1-3b",
+            "source_revision": "a" * 40,
+            "artifact_repository": f"publisher/granite-4.1-3b-{precision}-ov",
+            "artifact_revision": "b" * 40,
+        },
+        "conversion": {
+            "kind": "published-preconverted",
+            "command": [
+                "optimum-cli",
+                "export",
+                "openvino",
+                "--weight-format",
+                precision,
+            ],
+            "tool_versions": {
+                "optimum-intel": "2.1.0",
+                "transformers": "5.5.0",
+            },
+            "provenance_path": "README.md",
+            "provenance_sha256": readme_sha256,
+        },
+        "files": inventory,
+        "inventory_sha256": inventory_sha256,
+        "precision_proof": {
+            "path": "openvino_model.xml",
+            "sha256": xml_sha256,
+            "element_type": element_type,
+            "element_type_count": 1,
+        },
+        "license": {
+            "spdx": "Apache-2.0",
+            "path": "README.md",
+            "sha256": readme_sha256,
+        },
+        "load_probe": {
+            "status": "passed",
+            "device_requested": "CPU",
+            "device_actual": "CPU",
+            "fallback": False,
+            "model_path": str(model_root.resolve()),
+            "command": [
+                "probe.exe",
+                "--model",
+                str(model_root.resolve()),
+                "--device",
+                "CPU",
+            ],
+            "generated_tokens": 4,
+            "output": output,
+            "output_sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
+            "artifact_inventory_sha256": inventory_sha256,
+            "runtime_build_manifest_sha256": "c" * 64,
+            "exit_code": 0,
+            "cleanup_process_count": 0,
+            "log_path": str(load_probe_log.resolve()),
+            "log_sha256": _sha256(load_probe_log),
+        },
+    }
+    if manifest_change == "minimal":
+        manifest_payload = {
             "status": "load-proven",
-            "artifact_id": f"artifact-{precision}",
+            "artifact_id": artifact_id,
             "artifact_root": str(model_root.resolve()),
             "model": {"precision": precision},
-            "inventory_sha256": hashlib.sha256(
-                f"{precision}-inventory".encode("utf-8")
-            ).hexdigest(),
-            "load_probe": {"generated_tokens": 1},
-        },
-    )
+            "inventory_sha256": inventory_sha256,
+            "load_probe": {"generated_tokens": 4},
+        }
+    elif manifest_change == "missing-schema":
+        manifest_payload.pop("schema_version")
+    elif manifest_change == "missing-status":
+        manifest_payload.pop("status")
+    elif manifest_change == "missing-conversion-provenance":
+        conversion = manifest_payload["conversion"]
+        assert isinstance(conversion, dict)
+        conversion.pop("provenance_path")
+    elif manifest_change == "missing-file-inventory":
+        manifest_payload.pop("files")
+    elif manifest_change == "invalid-cpu-load-probe-binding":
+        load_probe = manifest_payload["load_probe"]
+        assert isinstance(load_probe, dict)
+        load_probe["device_actual"] = "GPU"
+    elif manifest_change is not None:  # pragma: no cover - test helper contract
+        raise AssertionError(f"unsupported manifest mutation: {manifest_change}")
+    manifest = tmp_path / f"{precision}-manifest.json"
+    _write_json(manifest, manifest_payload)
     return {
         "precision": precision,
         "status": "available",
-        "artifact_id": f"artifact-{precision}",
+        "artifact_id": artifact_id,
         "model_root": str(model_root),
         "manifest_path": str(manifest),
         "manifest_sha256": _sha256(manifest),
@@ -101,8 +229,11 @@ def _binding(tmp_path: Path, precision: str) -> dict[str, object | None]:
     }
 
 
-@pytest.fixture
-def matrix(tmp_path: Path) -> Path:
+def _build_matrix(
+    tmp_path: Path,
+    *,
+    u8_manifest_change: str | None = None,
+) -> Path:
     inventory = tmp_path / "artifact-inventory.json"
     _write_json(
         inventory,
@@ -111,7 +242,13 @@ def matrix(tmp_path: Path) -> Path:
             "launch_reserve_mib": 4096,
             "emergency_floor_mib": 2048,
             "bindings": {
-                precision: _binding(tmp_path, precision)
+                precision: _binding(
+                    tmp_path,
+                    precision,
+                    manifest_change=(
+                        u8_manifest_change if precision == "u8" else None
+                    ),
+                )
                 for precision in ("u4", "u8", "f16")
             },
         },
@@ -123,6 +260,11 @@ def matrix(tmp_path: Path) -> Path:
         output_path=output,
     )
     return output
+
+
+@pytest.fixture
+def matrix(tmp_path: Path) -> Path:
+    return _build_matrix(tmp_path)
 
 
 def _empty_state() -> dict[str, object]:
@@ -194,6 +336,7 @@ def _campaign_inputs(
     *,
     max_context: int = 512,
     fp16_terminal: bool = False,
+    u8_manifest_change: str | None = None,
 ) -> AdaptiveCampaignConfig:
     if fp16_terminal:
         terminal_receipt = tmp_path / "f16-terminal.json"
@@ -213,7 +356,11 @@ def _campaign_inputs(
                 "emergency_floor_mib": 2048,
                 "bindings": {
                     "u4": _binding(tmp_path, "u4"),
-                    "u8": _binding(tmp_path, "u8"),
+                    "u8": _binding(
+                        tmp_path,
+                        "u8",
+                        manifest_change=u8_manifest_change,
+                    ),
                     "f16": {
                         "precision": "f16",
                         "status": "artifact-preparation-terminal",
@@ -235,7 +382,10 @@ def _campaign_inputs(
             output_path=matrix_path,
         )
     else:
-        matrix_path = matrix.__wrapped__(tmp_path)  # type: ignore[attr-defined]
+        matrix_path = _build_matrix(
+            tmp_path,
+            u8_manifest_change=u8_manifest_change,
+        )
     inventory_path = tmp_path / "artifact-inventory.json"
     build_root = tmp_path / "build"
     package = build_root / "openvino_genai"
@@ -369,6 +519,7 @@ def _write_native_task_three_failure(
     launch_floor_bytes: int = START_RESERVE_MIB * 1024**2,
     emergency_floor_bytes: int = 2048 * 1024**2,
     identity_section_change: tuple[str, str] | None = None,
+    allow_invalid_artifact_manifest: bool = False,
 ) -> Path:
     matrix_payload = json.loads(config.matrix_path.read_text(encoding="utf-8"))
     case = next(item for item in matrix_payload["cases"] if item["test_id"] == test_id)
@@ -379,6 +530,28 @@ def _write_native_task_three_failure(
     artifact_manifest = json.loads(
         Path(adaptive_spec["artifact_manifest_path"]).read_text(encoding="utf-8")
     )
+    if allow_invalid_artifact_manifest:
+        validated_artifact = {
+            "accepted": True,
+            "status": "load-proven",
+            "artifact_id": adaptive_spec["artifact_id"],
+            "artifact_root": adaptive_spec["model_path"],
+            "precision": case["weight_precision"],
+            "inventory_sha256": artifact_manifest["inventory_sha256"],
+            "generated_tokens": artifact_manifest["load_probe"][
+                "generated_tokens"
+            ],
+        }
+    else:
+        validated_artifact = validate_artifact_manifest(
+            Path(adaptive_spec["artifact_manifest_path"]),
+            expected_precision=case["weight_precision"],
+        )
+    if identity_artifact_id is not None:
+        validated_artifact = {
+            **validated_artifact,
+            "artifact_id": identity_artifact_id,
+        }
     role = "pilot"
     prompt = adaptive_spec["workload"]["prompt"]
     package = config.build_root / "openvino_genai"
@@ -424,21 +597,7 @@ def _write_native_task_three_failure(
             "artifact_manifest_sha256": adaptive_spec[
                 "artifact_manifest_sha256"
             ],
-            "validated_artifact": {
-                "accepted": True,
-                "status": "load-proven",
-                "artifact_id": (
-                    identity_artifact_id
-                    if identity_artifact_id is not None
-                    else adaptive_spec["artifact_id"]
-                ),
-                "artifact_root": adaptive_spec["model_path"],
-                "precision": case["weight_precision"],
-                "inventory_sha256": artifact_manifest["inventory_sha256"],
-                "generated_tokens": artifact_manifest["load_probe"][
-                    "generated_tokens"
-                ],
-            },
+            "validated_artifact": validated_artifact,
         },
         "prompt": {
             "utf8_bytes": len(prompt.encode("utf-8")),
@@ -1081,51 +1240,58 @@ def test_resume_reopens_actual_artifact_inventory_bytes(tmp_path: Path) -> None:
         load_or_create_state(config)
 
 
-def test_missing_campaign_job_fails_closed_before_launch(
+def test_public_fake_campaign_job_factory_is_rejected_before_launch(
     tmp_path: Path,
 ) -> None:
     config = _campaign_inputs(tmp_path)
     runner = _FakeRunner([{} for _ in range(5)])
 
-    with pytest.raises(RuntimeError, match="factory returned no job"):
+    with pytest.raises(TypeError, match="campaign_job_factory"):
         run_adaptive_campaign(
             config,
             run_runtime=runner,
             run_quality=None,
             available_ram=lambda: START_RESERVE_MIB * 1024**2,
-            campaign_job_factory=lambda _: None,
+            campaign_job_factory=lambda _: object(),
         )
 
     assert runner.calls == []
 
 
-@pytest.mark.parametrize(
-    ("active", "reason"),
-    [
-        (OSError("query failed"), "query"),
-        ([4321], "survivor"),
-    ],
-)
+def test_preflight_public_fake_campaign_job_factory_is_rejected(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+
+    with pytest.raises(TypeError, match="campaign_job_factory"):
+        preflight_adaptive_campaign(
+            config,
+            available_ram=lambda: START_RESERVE_MIB * 1024**2,
+            campaign_job_factory=lambda _: object(),
+        )
+
+
 def test_live_campaign_job_proof_fails_closed_before_launch(
     tmp_path: Path,
-    active: list[int] | BaseException,
-    reason: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = _campaign_inputs(tmp_path)
     runner = _FakeRunner([{} for _ in range(5)])
-    campaign_job = _FakeCampaignJob(active)
+
+    def fail_query(_job: KillOnCloseJob) -> list[int]:
+        raise OSError("simulated real Job Object query failure")
+
+    monkeypatch.setattr(KillOnCloseJob, "active_pids", fail_query)
 
     result = run_adaptive_campaign(
         config,
         run_runtime=runner,
         run_quality=None,
         available_ram=lambda: START_RESERVE_MIB * 1024**2,
-        campaign_job_factory=lambda _: campaign_job,
     )
 
     assert runner.calls == []
-    assert reason in result["campaign_halt"]["reason"]
-    assert campaign_job.closed is True
+    assert "query" in result["campaign_halt"]["reason"]
 
 
 def test_live_zero_campaign_job_proof_is_required_for_every_launch(
@@ -1133,18 +1299,15 @@ def test_live_zero_campaign_job_proof_is_required_for_every_launch(
 ) -> None:
     config = _campaign_inputs(tmp_path)
     runner = _FakeRunner([{} for _ in range(5)])
-    campaign_job = _FakeCampaignJob([])
 
     result = run_adaptive_campaign(
         config,
         run_runtime=runner,
         run_quality=None,
         available_ram=lambda: START_RESERVE_MIB * 1024**2,
-        campaign_job_factory=lambda _: campaign_job,
     )
 
     assert len(runner.calls) == 5
-    assert campaign_job.query_count >= len(runner.calls)
     assert all(item["query_ok"] is True for item in result["safety_probes"])
 
 
@@ -1168,27 +1331,10 @@ def test_legacy_zero_callback_cannot_bypass_real_campaign_job(tmp_path: Path) ->
     assert runner.calls == []
 
 
-class _FakeCampaignJob:
-    def __init__(self, active: list[int] | BaseException):
-        self.active = active
-        self.query_count = 0
-        self.closed = False
-
-    def active_pids(self) -> list[int]:
-        self.query_count += 1
-        if isinstance(self.active, BaseException):
-            raise self.active
-        return list(self.active)
-
-    def close(self) -> None:
-        self.closed = True
-
-
-def test_job_factory_passes_the_same_non_null_job_to_every_runtime_launch(
+def test_real_campaign_job_is_exact_object_passed_to_every_runtime_launch(
     tmp_path: Path,
 ) -> None:
     config = _campaign_inputs(tmp_path)
-    campaign_job = _FakeCampaignJob([])
     runner = _FakeRunner([{} for _ in range(5)])
 
     result = run_adaptive_campaign(
@@ -1196,21 +1342,21 @@ def test_job_factory_passes_the_same_non_null_job_to_every_runtime_launch(
         run_runtime=runner,
         run_quality=None,
         available_ram=lambda: START_RESERVE_MIB * 1024**2,
-        campaign_job_factory=lambda _: campaign_job,
     )
 
     assert len(runner.calls) == 5
-    assert runner.campaign_jobs == [campaign_job] * 5
-    assert campaign_job.query_count >= len(runner.calls)
-    assert campaign_job.closed is True
+    assert all(type(job) is KillOnCloseJob for job in runner.campaign_jobs)
+    assert all(job is runner.campaign_jobs[0] for job in runner.campaign_jobs)
     assert result["campaign_halt"] is None
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows Job Objects are required")
 def test_nonempty_real_campaign_job_blocks_controller_launch(tmp_path: Path) -> None:
     config = _campaign_inputs(tmp_path)
-    suffix = uuid.uuid4().hex
-    campaign_job = KillOnCloseJob(f"WB04-test-nonempty-{suffix}")
+    identity = hashlib.sha256(
+        str(config.campaign_root.resolve()).encode("utf-8")
+    ).hexdigest()[:24]
+    campaign_job = KillOnCloseJob(f"WB04-adaptive-campaign-{identity}")
     child = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(30)"],
         stdin=subprocess.DEVNULL,
@@ -1226,7 +1372,6 @@ def test_nonempty_real_campaign_job_blocks_controller_launch(tmp_path: Path) -> 
             run_runtime=runner,
             run_quality=None,
             available_ram=lambda: START_RESERVE_MIB * 1024**2,
-            campaign_job_factory=lambda _: campaign_job,
         )
     finally:
         try:
@@ -1266,7 +1411,7 @@ def test_missing_task_three_job_cleanup_proof_is_unsafe(tmp_path: Path) -> None:
     assert result["steps"]["OV-11:512"]["runtime_status"] == "safety-boundary"
 
 
-def test_boundary_builder_normalizes_native_task_three_identity_and_byte_floors(
+def test_boundary_builder_accepts_genuine_task_three_validated_manifest_pair(
     tmp_path: Path,
 ) -> None:
     config = _campaign_inputs(tmp_path, max_context=4096)
@@ -1295,6 +1440,45 @@ def test_boundary_builder_normalizes_native_task_three_identity_and_byte_floors(
             (historical / "campaign-identity.json").read_text(encoding="utf-8")
         )["identity"]
     )
+
+
+@pytest.mark.parametrize(
+    "manifest_change",
+    [
+        "minimal",
+        "missing-schema",
+        "missing-status",
+        "missing-conversion-provenance",
+        "missing-file-inventory",
+        "invalid-cpu-load-probe-binding",
+    ],
+)
+def test_boundary_builder_rejects_manifest_that_task_three_rejects(
+    tmp_path: Path,
+    manifest_change: str,
+) -> None:
+    config = _campaign_inputs(
+        tmp_path,
+        max_context=4096,
+        u8_manifest_change=manifest_change,
+    )
+    historical = tmp_path / f"invalid-manifest-{manifest_change}"
+    for number in (1, 2):
+        _write_native_task_three_failure(
+            config,
+            historical,
+            attempt_number=number,
+            allow_invalid_artifact_manifest=True,
+        )
+
+    result = build_boundary_index(
+        matrix_path=config.matrix_path,
+        spec_root=config.spec_root,
+        historical_root=historical,
+        output_path=tmp_path / f"invalid-manifest-{manifest_change}.json",
+    )
+
+    assert result["boundaries"] == []
 
 
 def test_boundary_builder_rejects_unbound_top_level_convenience_identity(
@@ -1447,7 +1631,6 @@ def test_resume_reconciles_native_failure_persisted_before_controller_receipt(
             run_runtime=crash,
             run_quality=None,
             available_ram=lambda: START_RESERVE_MIB * 1024**2,
-            campaign_job_factory=lambda _: _FakeCampaignJob([]),
         )
 
     resumed_runner = _FakeRunner([{} for _ in range(5)])
@@ -1456,7 +1639,6 @@ def test_resume_reconciles_native_failure_persisted_before_controller_receipt(
         run_runtime=resumed_runner,
         run_quality=None,
         available_ram=lambda: START_RESERVE_MIB * 1024**2,
-        campaign_job_factory=lambda _: _FakeCampaignJob([]),
     )
 
     assert resumed_runner.calls.count(("OV-11", 512)) == 1
@@ -1478,7 +1660,6 @@ def test_two_unreceipted_native_failures_close_boundary_without_third_launch(
             run_runtime=first_crash,
             run_quality=None,
             available_ram=lambda: START_RESERVE_MIB * 1024**2,
-            campaign_job_factory=lambda _: _FakeCampaignJob([]),
         )
 
     second_crash = _CrashAfterNativeTaskThreeFailure(config, 2)
@@ -1488,7 +1669,6 @@ def test_two_unreceipted_native_failures_close_boundary_without_third_launch(
             run_runtime=second_crash,
             run_quality=None,
             available_ram=lambda: START_RESERVE_MIB * 1024**2,
-            campaign_job_factory=lambda _: _FakeCampaignJob([]),
         )
 
     forbidden_runner = _FakeRunner([{}])
@@ -1497,7 +1677,6 @@ def test_two_unreceipted_native_failures_close_boundary_without_third_launch(
         run_runtime=forbidden_runner,
         run_quality=None,
         available_ram=lambda: START_RESERVE_MIB * 1024**2,
-        campaign_job_factory=lambda _: _FakeCampaignJob([]),
     )
 
     assert forbidden_runner.calls.count(("OV-11", 512)) == 0
