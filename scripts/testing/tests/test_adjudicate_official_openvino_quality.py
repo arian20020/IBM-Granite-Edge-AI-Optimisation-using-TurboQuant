@@ -749,6 +749,28 @@ def test_governed_capture_projects_six_blind_rows_without_private_identity(
     assert p6["turn_outputs"][1]["output"] == "  exact P6-turn-2\r\n"
 
 
+def test_governed_raw_root_allows_unrelated_sibling_creation_but_rejects_replacement(
+    tmp_path: Path,
+):
+    raw_root = tmp_path / "raw" / "quality"
+    raw_root.mkdir(parents=True)
+    resolved, ancestry = adjudicator._snapshot_lexical_raw_root(raw_root)
+    (tmp_path / "rendered").mkdir()
+    assert adjudicator._snapshot_lexical_raw_root(raw_root)[0] == resolved
+    assert adjudicator._same_lexical_ancestry(
+        ancestry,
+        adjudicator._snapshot_lexical_raw_root(raw_root)[1],
+    )
+    moved = tmp_path / "raw-moved"
+    raw_root.parent.rename(moved)
+    (tmp_path / "raw").mkdir()
+    (tmp_path / "raw" / "quality").mkdir()
+    assert not adjudicator._same_lexical_ancestry(
+        ancestry,
+        adjudicator._snapshot_lexical_raw_root(tmp_path / "raw" / "quality")[1],
+    )
+
+
 def test_governed_capture_preserves_scoring_caps_and_unblinding(
     tmp_path,
     monkeypatch,

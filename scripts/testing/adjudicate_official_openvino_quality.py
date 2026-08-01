@@ -590,6 +590,24 @@ def _snapshot_lexical_raw_root(
     return absolute, tuple(identities)
 
 
+def _stable_path_identity(value: tuple[int, ...]) -> tuple[int, ...]:
+    dev, ino, mode, _size, _mtime, ctime, nlink, attrs, tag = value
+    return dev, ino, mode, ctime, nlink, attrs, tag
+
+
+def _same_lexical_ancestry(
+    before: tuple[tuple[str, tuple[int, ...]], ...],
+    after: tuple[tuple[str, tuple[int, ...]], ...],
+) -> bool:
+    return len(before) == len(after) and all(
+        left_path == right_path
+        and _stable_path_identity(left_identity)
+        == _stable_path_identity(right_identity)
+        for (left_path, left_identity), (right_path, right_identity)
+        in zip(before, after, strict=True)
+    )
+
+
 def _snapshot_capture_entry(
     path: Path,
     *,
@@ -1471,7 +1489,10 @@ def _require_governed_raw_root_unchanged(
     ],
 ) -> None:
     current_root, current_ancestry = _snapshot_lexical_raw_root(raw_root)
-    if current_root != raw_root or current_ancestry != ancestry_snapshot:
+    if current_root != raw_root or not _same_lexical_ancestry(
+        current_ancestry,
+        ancestry_snapshot,
+    ):
         raise ValueError(
             "raw quality root ancestry changed during validation"
         )
@@ -1497,7 +1518,7 @@ def _require_governed_raw_root_unchanged(
     final_aggregate, final_rows = _snapshot_raw_root(raw_root)
     if (
         final_root != raw_root
-        or final_ancestry != ancestry_snapshot
+        or not _same_lexical_ancestry(final_ancestry, ancestry_snapshot)
         or final_aggregate != aggregate_snapshot
         or final_rows != tuple(row_roots)
     ):
