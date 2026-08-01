@@ -116,6 +116,16 @@ def test_comparison_matrix_binds_one_u8_artifact_to_standard_tbq4_and_tbq3(matri
     assert len(identities) == 1
 
 
+def test_comparison_matrix_rejects_divergent_u8_artifact_binding(matrix: Path) -> None:
+    payload = json.loads(matrix.read_text(encoding="utf-8"))
+    row = next(item for item in payload["cases"] if item["test_id"] == "OV-TQ-21")
+    row["artifact_id"] = "different-u8-artifact"
+    write_json(matrix, payload)
+
+    with pytest.raises(ValueError, match="same U8 artifact binding"):
+        load_adaptive_comparison_matrix(matrix)
+
+
 def test_comparison_matrix_separates_weight_precision_from_standard_kv_request(matrix: Path) -> None:
     by_id = {case.test_id: case for case in load_adaptive_comparison_matrix(matrix)}
     assert by_id["OV-11"].weight_precision == "u4"

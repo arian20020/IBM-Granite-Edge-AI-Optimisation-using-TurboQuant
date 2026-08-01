@@ -366,6 +366,19 @@ def _validate_comparison_artifact_bindings(
         _require_hash(case.artifact_manifest_sha256, "artifact manifest hash", case.test_id)
         if case.artifact_terminal_path is not None or case.artifact_terminal_sha256 is not None:
             raise ValueError(f"{case.test_id} available artifact cannot carry a terminal receipt")
+    u8_bindings = {
+        (
+            case.artifact_id,
+            case.artifact_manifest_path,
+            case.artifact_manifest_sha256,
+        )
+        for case in cases
+        if case.test_id in {"OV-12", "OV-TQ-21", "OV-TQ-22"}
+    }
+    if len(u8_bindings) != 1:
+        raise ValueError(
+            "OV-12, OV-TQ-21, and OV-TQ-22 must share the same U8 artifact binding"
+        )
     return cases
 
 

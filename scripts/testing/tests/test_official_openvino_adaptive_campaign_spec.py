@@ -6,6 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
@@ -128,3 +130,34 @@ def test_generation_records_missing_fp16_as_artifact_preparation_boundary(tmp_pa
     index = json.loads((tmp_path / "specs" / "spec-index.json").read_text(encoding="utf-8"))
     assert index["matrix_sha256"] == _sha256(tmp_path / "matrix.json")
     assert index["artifact_inventory_sha256"] == _sha256(tmp_path / "artifact-inventory.json")
+
+
+def test_generation_is_idempotent_for_an_identical_complete_output(tmp_path: Path) -> None:
+    first = _generate_specs(tmp_path)
+    matrix, inventory, build = tmp_path / "matrix.json", tmp_path / "artifact-inventory.json", tmp_path / "build"
+    repeated = generate_adaptive_format_comparison_specs(
+        matrix_path=matrix,
+        build_root=build,
+        artifact_inventory_path=inventory,
+        cache_root=tmp_path / "cache",
+        output_root=tmp_path / "specs",
+    )
+
+    assert repeated == first
+
+
+def test_generation_refuses_tampered_existing_output_without_overwriting(tmp_path: Path) -> None:
+    _generate_specs(tmp_path)
+    matrix, inventory, build = tmp_path / "matrix.json", tmp_path / "artifact-inventory.json", tmp_path / "build"
+    tampered = tmp_path / "specs" / "OV-11" / "512" / "runtime-spec.json"
+    tampered.write_text("tampered\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="existing output"):
+        generate_adaptive_format_comparison_specs(
+            matrix_path=matrix,
+            build_root=build,
+            artifact_inventory_path=inventory,
+            cache_root=tmp_path / "cache",
+            output_root=tmp_path / "specs",
+        )
+    assert tampered.read_text(encoding="utf-8") == "tampered\n"

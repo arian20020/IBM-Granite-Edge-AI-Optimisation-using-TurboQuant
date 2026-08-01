@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -46,14 +47,36 @@ def _paths_overlap(first: Path, second: Path) -> bool:
     return first == second or first in second.parents or second in first.parents
 
 
-def _fresh_output(path: Path, protected: tuple[Path, ...]) -> Path:
+def _output_path(path: Path, protected: tuple[Path, ...]) -> Path:
     output = Path(path).resolve()
     if any(_paths_overlap(output, item.resolve()) for item in protected):
         raise ValueError("output root must not overlap an input path")
-    if output.exists():
-        raise ValueError(f"output root must not exist: {output}")
+    if output.exists() and not output.is_dir():
+        raise ValueError(f"existing output root is not a directory: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     return output
+
+
+def _json_bytes(value: object) -> bytes:
+    return (
+        json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    ).encode("utf-8")
+
+
+def _validate_existing_output(
+    output: Path,
+    expected_files: dict[Path, bytes],
+) -> None:
+    actual_files = {
+        path.relative_to(output)
+        for path in output.rglob("*")
+        if path.is_file()
+    }
+    if actual_files != set(expected_files):
+        raise ValueError("existing output is incomplete or non-identical")
+    for relative, expected in expected_files.items():
+        if (output / relative).read_bytes() != expected:
+            raise ValueError("existing output is non-identical or hash-drifted")
 
 
 def _bound_model_root(
@@ -104,7 +127,7 @@ def generate_adaptive_format_comparison_specs(
     build = _build_root(build_root)
     inventory, bindings = load_adaptive_artifact_inventory(artifact_inventory_path)
     cache = _directory(cache_root, "cache root")
-    output = _fresh_output(output_root, (matrix, build, inventory, cache))
+    output = _output_path(output_root, (matrix, build, inventory, cache))
 
     planned_specs: list[tuple[Path, dict[str, Any], str, int]] = []
     terminals: list[dict[str, str]] = []
@@ -151,37 +174,28 @@ def generate_adaptive_format_comparison_specs(
                 (Path(case.test_id) / str(context) / "runtime-spec.json", spec, case.test_id, context)
             )
 
-    staging = Path(tempfile.mkdtemp(dir=output.parent, prefix=f".{output.name}."))
-    try:
-        index_specs: list[dict[str, object]] = []
-        for relative, spec, test_id, context in planned_specs:
-            destination = staging / relative
-            atomic_write_json(destination, spec)
-            index_specs.append(
-                {
-                    "test_id": test_id,
-                    "context_tokens": context,
-                    "path": str(relative).replace("\\", "/"),
-                    "sha256": sha256_file(destination),
-                }
-            )
-        atomic_write_json(
-            staging / "spec-index.json",
-            {
-                "schema": SPEC_INDEX_SCHEMA,
-                "matrix_sha256": sha256_file(matrix),
-                "artifact_inventory_sha256": sha256_file(inventory),
-                "runtime_specs": index_specs,
-                "terminals": terminals,
-            },
-        )
-        staging.rename(output)
-    except BaseException:
-        if staging.exists():
-            shutil.rmtree(staging)
-        raise
-
-    return {
+    index_specs = [
+        {
+            "test_id": test_id,
+            "context_tokens": context,
+            "path": str(relative).replace("\\", "/"),
+            "sha256": hashlib.sha256(_json_bytes(spec)).hexdigest(),
+        }
+        for relative, spec, test_id, context in planned_specs
+    ]
+    index = {
+        "schema": SPEC_INDEX_SCHEMA,
+        "matrix_sha256": sha256_file(matrix),
+        "artifact_inventory_sha256": sha256_file(inventory),
+        "runtime_specs": index_specs,
+        "terminals": terminals,
+    }
+    expected_files = {
+        relative: _json_bytes(spec)
+        for relative, spec, _, _ in planned_specs
+    }
+    expected_files[Path("spec-index.json")] = _json_bytes(index)
+    result = {
         "build_root": str(build),
         "output_root": str(output),
         "runtime_spec_count": len(planned_specs),
@@ -190,6 +204,23 @@ def generate_adaptive_format_comparison_specs(
         "terminals": terminals,
         "spec_index_path": str(output / "spec-index.json"),
     }
+    if output.exists():
+        _validate_existing_output(output, expected_files)
+        return result
+
+    staging = Path(tempfile.mkdtemp(dir=output.parent, prefix=f".{output.name}."))
+    try:
+        for relative, spec, test_id, context in planned_specs:
+            destination = staging / relative
+            atomic_write_json(destination, spec)
+        atomic_write_json(staging / "spec-index.json", index)
+        staging.rename(output)
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
+
+    return result
 
 
 __all__ = ["generate_adaptive_format_comparison_specs"]
