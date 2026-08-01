@@ -1,0 +1,833 @@
+........................................................................ [ 29%]
+........................................................................ [ 59%]
+........................................................................ [ 89%]
+.........................                                                [100%]
+241 passed in 158.83s (0:02:38)
+
+=== Focused baseline run 1 ===
+$ python -m pytest -q scripts/testing/tests/test_official_openvino_metrics.py scripts/testing/tests/test_official_openvino_quality_worker.py scripts/testing/tests/test_official_openvino_quality_campaign.py scripts/testing/tests/test_adjudicate_official_openvino_quality.py
+........................................................................ [ 29%]
+........................................................................ [ 59%]
+........................................................................ [ 89%]
+.........................                                                [100%]
+241 passed in 160.04s (0:02:40)
+=== Full-suite baseline run ===
+$ python -m pytest -q
+Traceback (most recent call last):
+  File "C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\pybind11-src\tests\conftest.py", line 25, in <module>
+    import pybind11_tests
+ModuleNotFoundError: No module named 'pybind11_tests'
+
+=================================== ERRORS ====================================
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googlemock/test/gmock_leak_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googlemock\test\gmock_leak_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googlemock\test\gmock_leak_test.py:34: in <module>
+    from googlemock.test import gmock_test_utils
+E   ModuleNotFoundError: No module named 'googlemock'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googlemock/test/gmock_output_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googlemock\test\gmock_output_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googlemock\test\gmock_output_test.py:46: in <module>
+    from googlemock.test import gmock_test_utils
+E   ModuleNotFoundError: No module named 'googlemock'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_help_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_help_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_help_test.py:43: in <module>
+    from googletest.test import gtest_test_utils
+E   ModuleNotFoundError: No module named 'googletest'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_skip_check_output_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_skip_check_output_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_skip_check_output_test.py:38: in <module>
+    from googletest.test import gtest_test_utils
+E   ModuleNotFoundError: No module named 'googletest'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_skip_environment_check_output_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_skip_environment_check_output_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_skip_environment_check_output_test.py:36: in <module>
+    from googletest.test import gtest_test_utils
+E   ModuleNotFoundError: No module named 'googletest'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_testbridge_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_testbridge_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_testbridge_test.py:34: in <module>
+    from googletest.test import gtest_test_utils
+E   ModuleNotFoundError: No module named 'googletest'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_xml_outfiles_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_xml_outfiles_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\googletest-src\googletest\test\gtest_xml_outfiles_test.py:36: in <module>
+    from googletest.test import gtest_test_utils
+E   ModuleNotFoundError: No module named 'googletest'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/opencv-src/apps/python_app_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\opencv-src\apps\python_app_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\opencv-src\apps\python_app_test.py:21: in <module>
+    from tests_common import NewOpenCVTests
+E   ModuleNotFoundError: No module named 'tests_common'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/pybind11-src/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\pybind11-src\tests\conftest.py:25: in <module>
+    import pybind11_tests
+E   ModuleNotFoundError: No module named 'pybind11_tests'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/sentencepiece-src/test/sentencepiece_test.py _
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\sentencepiece-src\test\sentencepiece_test.py:30: in <module>
+    print('VERSION={}'.format(spm.__version__))
+                              ^^^^^^^^^^^^^^^
+E   AttributeError: module 'sentencepiece' has no attribute '__version__'
+------------------------------- Captured stdout -------------------------------
+C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\sentencepiece-src\test
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_function_calling_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_function_calling_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_function_calling_converter.py:5: in <module>
+    from xgrammar.testing import _is_grammar_accept_string, _qwen_xml_tool_calling_to_ebnf
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_compiler.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_compiler.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_compiler.py:9: in <module>
+    from pydantic import BaseModel
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_basic.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_basic.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_basic.py:9: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_ebnf.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_ebnf.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_ebnf.py:10: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_json.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_json.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_json.py:8: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_json_schema.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_json_schema.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_json_schema.py:7: in <module>
+    from pydantic import BaseModel, Field
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_macro.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_macro.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_macro.py:5: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_regex.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_regex.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_regex.py:5: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_structural_tag.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_structural_tag.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_matcher_structural_tag.py:8: in <module>
+    from pydantic import BaseModel
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_parser.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_parser.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_parser.py:6: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_parser_macro.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_parser_macro.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_parser_macro.py:8: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_union_concat.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_union_concat.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_grammar_union_concat.py:7: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_json_schema_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_json_schema_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_json_schema_converter.py:7: in <module>
+    from pydantic import BaseModel, Field, TypeAdapter, create_model
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_recursion_depth.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_recursion_depth.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_recursion_depth.py:5: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_regex_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_regex_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_regex_converter.py:5: in <module>
+    from transformers import AutoTokenizer
+E   ModuleNotFoundError: No module named 'transformers'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_serialization.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_serialization.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_serialization.py:7: in <module>
+    from pydantic import BaseModel, RootModel
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_speculative_decoding.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_speculative_decoding.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_speculative_decoding.py:6: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_structural_tag_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_structural_tag_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_structural_tag_converter.py:6: in <module>
+    from transformers import AutoTokenizer
+E   ModuleNotFoundError: No module named 'transformers'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_token_bitmask_operations.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_token_bitmask_operations.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_token_bitmask_operations.py:8: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_tokenizer_info.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_tokenizer_info.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\xgrammar-src\tests\python\test_tokenizer_info.py:6: in <module>
+    from transformers import AutoTokenizer, PreTrainedTokenizerBase
+E   ModuleNotFoundError: No module named 'transformers'
+_ ERROR collecting external/official-openvino/2026-07-19/openvino.genai-turboquant/tests/python_tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python_tests\conftest.py:12: in <module>
+    from utils.constants import (
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python_tests\utils\constants.py:4: in <module>
+    import openvino.properties.hint as hints
+E   ModuleNotFoundError: No module named 'openvino'
+_ ERROR collecting external/official-openvino/2026-07-19/openvino.genai-turboquant/thirdparty/openvino_tokenizers/tests/tokenizers_test.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\openvino.genai-turboquant\thirdparty\openvino_tokenizers\tests\tokenizers_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\openvino.genai-turboquant\thirdparty\openvino_tokenizers\tests\tokenizers_test.py:11: in <module>
+    import numpy as np
+E   ModuleNotFoundError: No module named 'numpy'
+_ ERROR collecting external/official-openvino/2026-07-19/openvino.genai-turboquant/tools/who_what_benchmark/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tools\who_what_benchmark\tests\conftest.py:10: in <module>
+    from ov_utils import AtomicDownloadManager, get_ov_cache_dir, retry_request  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tools\who_what_benchmark\tests\ov_utils.py:16: in <module>
+    from huggingface_hub.utils import HfHubHTTPError
+E   ModuleNotFoundError: No module named 'huggingface_hub'
+_ ERROR collecting external/official-openvino/2026-07-19/openvino.genai-turboquant-capability-adb5fbe/tests/python/test_turboquant_activation_schema.py _
+import file mismatch:
+imported module 'test_turboquant_activation_schema' has this __file__ attribute:
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python\test_turboquant_activation_schema.py
+which is not the same as the test file we want to collect:
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\openvino.genai-turboquant-capability-adb5fbe\tests\python\test_turboquant_activation_schema.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+_ ERROR collecting external/official-openvino/2026-07-19/openvino.genai-turboquant-capability-adb5fbe/tests/python_tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-19\openvino.genai-turboquant-capability-adb5fbe\tests\python_tests\conftest.py:12: in <module>
+    from utils.constants import (
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python_tests\utils\constants.py:4: in <module>
+    import openvino.properties.hint as hints
+E   ModuleNotFoundError: No module named 'openvino'
+_ ERROR collecting external/official-openvino/2026-07-19/openvino.genai-turboquant-capability-adb5fbe/tools/who_what_benchmark/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-19\openvino.genai-turboquant-capability-adb5fbe\tools\who_what_benchmark\tests\conftest.py:10: in <module>
+    from ov_utils import AtomicDownloadManager, get_ov_cache_dir, retry_request  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-19\openvino.genai-turboquant-capability-adb5fbe\tools\who_what_benchmark\tests\ov_utils.py:16: in <module>
+    from huggingface_hub.utils import HfHubHTTPError
+E   ModuleNotFoundError: No module named 'huggingface_hub'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/sentencepiece-src/test/sentencepiece_test.py _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-19\build-genai-turboquant\_deps\sentencepiece-src\test\sentencepiece_test.py:30: in <module>
+    print('VERSION={}'.format(spm.__version__))
+                              ^^^^^^^^^^^^^^^
+E   AttributeError: module 'sentencepiece' has no attribute '__version__'
+------------------------------- Captured stdout -------------------------------
+C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\build-genai-turboquant\_deps\sentencepiece-src\test
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_function_calling_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_function_calling_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_function_calling_converter.py:5: in <module>
+    from xgrammar.testing import _is_grammar_accept_string, _qwen_xml_tool_calling_to_ebnf
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_compiler.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_compiler.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_compiler.py:9: in <module>
+    from pydantic import BaseModel
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_basic.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_basic.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_basic.py:9: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_ebnf.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_ebnf.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_ebnf.py:10: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_json.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_json.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_json.py:8: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_json_schema.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_json_schema.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_json_schema.py:7: in <module>
+    from pydantic import BaseModel, Field
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_macro.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_macro.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_macro.py:5: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_regex.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_regex.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_regex.py:5: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_structural_tag.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_structural_tag.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_matcher_structural_tag.py:8: in <module>
+    from pydantic import BaseModel
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_parser.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_parser.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_parser.py:6: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_parser_macro.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_parser_macro.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_parser_macro.py:8: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_union_concat.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_union_concat.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_grammar_union_concat.py:7: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_json_schema_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_json_schema_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_json_schema_converter.py:7: in <module>
+    from pydantic import BaseModel, Field, TypeAdapter, create_model
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_recursion_depth.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_recursion_depth.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_recursion_depth.py:5: in <module>
+    import xgrammar as xgr
+E   ModuleNotFoundError: No module named 'xgrammar'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_regex_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_regex_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_regex_converter.py:5: in <module>
+    from transformers import AutoTokenizer
+E   ModuleNotFoundError: No module named 'transformers'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_serialization.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_serialization.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_serialization.py:7: in <module>
+    from pydantic import BaseModel, RootModel
+E   ModuleNotFoundError: No module named 'pydantic'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_speculative_decoding.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_speculative_decoding.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_speculative_decoding.py:6: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_structural_tag_converter.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_structural_tag_converter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_structural_tag_converter.py:6: in <module>
+    from transformers import AutoTokenizer
+E   ModuleNotFoundError: No module named 'transformers'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_token_bitmask_operations.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_token_bitmask_operations.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_token_bitmask_operations.py:8: in <module>
+    import torch
+E   ModuleNotFoundError: No module named 'torch'
+_ ERROR collecting external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_tokenizer_info.py _
+ImportError while importing test module 'C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_tokenizer_info.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\build-genai-tq-43c518fc-r1\_deps\xgrammar-src\tests\python\test_tokenizer_info.py:6: in <module>
+    from transformers import AutoTokenizer, PreTrainedTokenizerBase
+E   ModuleNotFoundError: No module named 'transformers'
+_ ERROR collecting external/official-openvino/2026-07-29/genai-tq-replay/tests/python/test_turboquant_activation_schema.py _
+import file mismatch:
+imported module 'test_turboquant_activation_schema' has this __file__ attribute:
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python\test_turboquant_activation_schema.py
+which is not the same as the test file we want to collect:
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\genai-tq-replay\tests\python\test_turboquant_activation_schema.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+_ ERROR collecting external/official-openvino/2026-07-29/genai-tq-replay/tests/python_tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-29\genai-tq-replay\tests\python_tests\conftest.py:12: in <module>
+    from utils.constants import (
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python_tests\utils\constants.py:4: in <module>
+    import openvino.properties.hint as hints
+E   ModuleNotFoundError: No module named 'openvino'
+_ ERROR collecting external/official-openvino/2026-07-29/genai-tq-replay/thirdparty/openvino_tokenizers/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\config\__init__.py:712: in _importconftest
+    mod = import_path(
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\pathlib.py:610: in import_path
+    raise ImportPathMismatchError(module_name, module_file, path)
+E   _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', 'C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant\\thirdparty\\openvino_tokenizers\\tests\\conftest.py', WindowsPath('C:/Users/Student/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/.worktrees/openvino-turboquant-recovery/external/official-openvino/2026-07-29/genai-tq-replay/thirdparty/openvino_tokenizers/tests/conftest.py'))
+_ ERROR collecting external/official-openvino/2026-07-29/genai-tq-replay/tools/who_what_benchmark/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-29\genai-tq-replay\tools\who_what_benchmark\tests\conftest.py:10: in <module>
+    from ov_utils import AtomicDownloadManager, get_ov_cache_dir, retry_request  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-29\genai-tq-replay\tools\who_what_benchmark\tests\ov_utils.py:16: in <module>
+    from huggingface_hub.utils import HfHubHTTPError
+E   ModuleNotFoundError: No module named 'huggingface_hub'
+_ ERROR collecting external/official-openvino/2026-07-30/genai-tq-replay-bounded/tests/python/test_turboquant_activation_schema.py _
+import file mismatch:
+imported module 'test_turboquant_activation_schema' has this __file__ attribute:
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python\test_turboquant_activation_schema.py
+which is not the same as the test file we want to collect:
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-30\genai-tq-replay-bounded\tests\python\test_turboquant_activation_schema.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+_ ERROR collecting external/official-openvino/2026-07-30/genai-tq-replay-bounded/tests/python_tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-30\genai-tq-replay-bounded\tests\python_tests\conftest.py:12: in <module>
+    from utils.constants import (
+external\official-openvino\2026-07-19\openvino.genai-turboquant\tests\python_tests\utils\constants.py:4: in <module>
+    import openvino.properties.hint as hints
+E   ModuleNotFoundError: No module named 'openvino'
+_ ERROR collecting external/official-openvino/2026-07-30/genai-tq-replay-bounded/thirdparty/openvino_tokenizers/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\config\__init__.py:712: in _importconftest
+    mod = import_path(
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\pathlib.py:610: in import_path
+    raise ImportPathMismatchError(module_name, module_file, path)
+E   _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', 'C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-19\\openvino.genai-turboquant\\thirdparty\\openvino_tokenizers\\tests\\conftest.py', WindowsPath('C:/Users/Student/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/.worktrees/openvino-turboquant-recovery/external/official-openvino/2026-07-30/genai-tq-replay-bounded/thirdparty/openvino_tokenizers/tests/conftest.py'))
+_ ERROR collecting external/official-openvino/2026-07-30/genai-tq-replay-bounded/tools/who_what_benchmark/tests _
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\assertion\rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+external\official-openvino\2026-07-30\genai-tq-replay-bounded\tools\who_what_benchmark\tests\conftest.py:10: in <module>
+    from ov_utils import AtomicDownloadManager, get_ov_cache_dir, retry_request  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+external\official-openvino\2026-07-30\genai-tq-replay-bounded\tools\who_what_benchmark\tests\ov_utils.py:16: in <module>
+    from huggingface_hub.utils import HfHubHTTPError
+E   ModuleNotFoundError: No module named 'huggingface_hub'
+============================== warnings summary ===============================
+scripts\testing\animehacker\matrix.py:17
+  C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\scripts\testing\animehacker\matrix.py:17: PytestCollectionWarning: cannot collect test class 'TestCase' because it has a __init__ constructor (from: scripts/testing/tests/test_animehacker_runner.py)
+    @dataclass(frozen=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googlemock/test/gmock_leak_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googlemock/test/gmock_output_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_help_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_skip_check_output_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_skip_environment_check_output_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_testbridge_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/googletest-src/googletest/test/gtest_xml_outfiles_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/opencv-src/apps/python_app_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/pybind11-src/tests
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/sentencepiece-src/test/sentencepiece_test.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_function_calling_converter.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_compiler.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_basic.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_ebnf.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_json.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_json_schema.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_macro.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_regex.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_matcher_structural_tag.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_parser.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_parser_macro.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_grammar_union_concat.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_json_schema_converter.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_recursion_depth.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_regex_converter.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_serialization.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_speculative_decoding.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_structural_tag_converter.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_token_bitmask_operations.py
+ERROR external/official-openvino/2026-07-19/build-genai-turboquant/_deps/xgrammar-src/tests/python/test_tokenizer_info.py
+ERROR external/official-openvino/2026-07-19/openvino.genai-turboquant/tests/python_tests
+ERROR external/official-openvino/2026-07-19/openvino.genai-turboquant/thirdparty/openvino_tokenizers/tests/tokenizers_test.py
+ERROR external/official-openvino/2026-07-19/openvino.genai-turboquant/tools/who_what_benchmark/tests
+ERROR external/official-openvino/2026-07-19/openvino.genai-turboquant-capability-adb5fbe/tests/python/test_turboquant_activation_schema.py
+ERROR external/official-openvino/2026-07-19/openvino.genai-turboquant-capability-adb5fbe/tests/python_tests
+ERROR external/official-openvino/2026-07-19/openvino.genai-turboquant-capability-adb5fbe/tools/who_what_benchmark/tests
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/sentencepiece-src/test/sentencepiece_test.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_function_calling_converter.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_compiler.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_basic.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_ebnf.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_json.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_json_schema.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_macro.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_regex.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_matcher_structural_tag.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_parser.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_parser_macro.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_grammar_union_concat.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_json_schema_converter.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_recursion_depth.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_regex_converter.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_serialization.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_speculative_decoding.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_structural_tag_converter.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_token_bitmask_operations.py
+ERROR external/official-openvino/2026-07-29/build-genai-tq-43c518fc-r1/_deps/xgrammar-src/tests/python/test_tokenizer_info.py
+ERROR external/official-openvino/2026-07-29/genai-tq-replay/tests/python/test_turboquant_activation_schema.py
+ERROR external/official-openvino/2026-07-29/genai-tq-replay/tests/python_tests
+ERROR external/official-openvino/2026-07-29/genai-tq-replay/thirdparty/openvino_tokenizers/tests
+ERROR external/official-openvino/2026-07-29/genai-tq-replay/tools/who_what_benchmark/tests
+ERROR external/official-openvino/2026-07-30/genai-tq-replay-bounded/tests/python/test_turboquant_activation_schema.py
+ERROR external/official-openvino/2026-07-30/genai-tq-replay-bounded/tests/python_tests
+ERROR external/official-openvino/2026-07-30/genai-tq-replay-bounded/thirdparty/openvino_tokenizers/tests
+ERROR external/official-openvino/2026-07-30/genai-tq-replay-bounded/tools/who_what_benchmark/tests
+!!!!!!!!!!!!!!!!!! Interrupted: 65 errors during collection !!!!!!!!!!!!!!!!!!!
+1 warning, 65 errors in 22.39s
+
+=== Corrected repository-harness full-suite run ===
+$ python -m pytest -q
+........................................................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 36%]
+........................................................................ [ 45%]
+........................................................................ [ 54%]
+........................................................................ [ 63%]
+........................................................................ [ 73%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+....................................................................     [100%]
+788 passed in 294.93s (0:04:54)
