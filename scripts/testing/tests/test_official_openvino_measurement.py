@@ -561,6 +561,7 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(parsed["gpu_engine_count"]["count"], 3)
         self.assertEqual(parsed["gpu_dedicated_memory_peak_mb"], 6)
         self.assertEqual(parsed["gpu_shared_memory_peak_mb"], 9)
+        self.assertNotIn("gpu_memory_peak_bytes", parsed)
 
     def test_gpu_memory_peak_uses_one_observation_not_independent_maxima(self):
         rows = [
@@ -662,6 +663,44 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(parsed["gpu_memory_peak_mb"], 7.0)
         self.assertEqual(parsed["gpu_memory_peak_bytes"], 7 * mib)
 
+    def test_gpu_parser_accepts_two_byte_proof_and_retains_peak_components(self):
+        mib = 1024**2
+        rows = [
+            {
+                "timestamp_utc": "2026-07-29T00:00:01Z",
+                "gpu_percent": 0,
+                "gpu_engine_count": 0,
+                "gpu_dedicated_mb": 1.0,
+                "gpu_shared_mb": 0.0,
+                "gpu_dedicated_bytes": mib,
+                "gpu_shared_bytes": 0,
+                "gpu_engine_query_ok": "true",
+                "gpu_memory_query_ok": "true",
+            },
+            {
+                "timestamp_utc": "2026-07-29T00:00:02Z",
+                "gpu_percent": 0,
+                "gpu_engine_count": 0,
+                "gpu_dedicated_mb": 0.0,
+                "gpu_shared_mb": 1.0,
+                "gpu_dedicated_bytes": 0,
+                "gpu_shared_bytes": mib,
+                "gpu_engine_query_ok": "true",
+                "gpu_memory_query_ok": "true",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gpu.csv"
+            write_csv(path, rows)
+            parsed = parse_gpu_samples(path)
+
+        self.assertEqual(parsed["gpu_dedicated_memory_peak_mb"], 1.0)
+        self.assertEqual(parsed["gpu_shared_memory_peak_mb"], 1.0)
+        self.assertEqual(parsed["gpu_memory_peak_mb"], 1.0)
+        self.assertEqual(parsed["gpu_memory_peak_bytes"], mib)
+        self.assertEqual(parsed["gpu_memory_peak_dedicated_bytes"], mib)
+        self.assertEqual(parsed["gpu_memory_peak_shared_bytes"], 0)
+
     def test_gpu_parser_rejects_missing_or_invalid_combined_byte_proof(self):
         row = {
             "timestamp_utc": "2026-07-29T00:00:01Z",
@@ -678,6 +717,11 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         }
         invalid_rows = [
             {key: value for key, value in row.items() if key != "gpu_memory_bytes"},
+            {
+                key: value
+                for key, value in row.items()
+                if key not in {"gpu_shared_bytes", "gpu_memory_bytes", "gpu_memory_mb"}
+            },
             {**row, "gpu_memory_bytes": 12884902466},
             {**row, "gpu_memory_bytes": "not-an-integer"},
         ]
@@ -858,6 +902,8 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
             "gpu_memory_peak_mb": 11.000021,
             "gpu_dedicated_memory_peak_bytes": (10 * 1024**2) + 11,
             "gpu_shared_memory_peak_bytes": 1024**2 + 11,
+            "gpu_memory_peak_dedicated_bytes": (10 * 1024**2) + 11,
+            "gpu_memory_peak_shared_bytes": 1024**2 + 11,
             "gpu_memory_peak_bytes": (11 * 1024**2) + 22,
             "observation_count": 2,
         }
@@ -993,6 +1039,47 @@ class OfficialOpenVINORuntimeMeasurementTests(unittest.TestCase):
         self.assertEqual(sample["gpu_dedicated_memory_peak_mb"], 0.0)
         self.assertEqual(sample["gpu_shared_memory_peak_mb"], 24.0)
         self.assertEqual(sample["gpu_memory_peak_mb"], 24.0)
+
+    def test_gpu_measurement_sample_rejects_incomplete_peak_byte_receipt(self):
+        cases = (
+            (
+                "missing paired dedicated bytes",
+                lambda record: record.pop("gpu_memory_peak_dedicated_bytes"),
+                "paired",
+            ),
+            (
+                "mismatched paired bytes",
+                lambda record: record.update(gpu_memory_peak_shared_bytes=1),
+                "do not equal",
+            ),
+            (
+                "noncanonical combined display",
+                lambda record: record.update(gpu_memory_peak_mb=1.5),
+                "serialization",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "attempt.json"
+            source.write_text("{}", encoding="utf-8")
+            for name, mutate, expected_error in cases:
+                with self.subTest(name=name):
+                    record = governed_record(
+                        standard_cpu_telemetry(
+                            device="GPU",
+                            actual_device="GPU.0",
+                        )
+                    )
+                    record.update(
+                        gpu_dedicated_memory_peak_mb=1.0,
+                        gpu_shared_memory_peak_mb=0.0,
+                        gpu_memory_peak_mb=1.0,
+                        gpu_memory_peak_bytes=1024**2,
+                        gpu_memory_peak_dedicated_bytes=1024**2,
+                        gpu_memory_peak_shared_bytes=0,
+                    )
+                    mutate(record)
+                    with self.assertRaisesRegex(ValueError, expected_error):
+                        measurement_sample(record, source)
 
     def test_cpu_measurement_sample_allows_honest_zero_gpu_evidence(self):
         record = governed_record(activation_telemetry())

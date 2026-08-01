@@ -166,6 +166,18 @@ def _require_binary_mib_receipt(
     gpu_memory_bytes = _nonnegative_integer(
         record.get("gpu_memory_peak_bytes"), "gpu_memory_peak_mb source bytes"
     )
+    gpu_peak_dedicated_bytes = _nonnegative_integer(
+        record.get("gpu_memory_peak_dedicated_bytes"),
+        "gpu_memory_peak_dedicated_bytes",
+    )
+    gpu_peak_shared_bytes = _nonnegative_integer(
+        record.get("gpu_memory_peak_shared_bytes"),
+        "gpu_memory_peak_shared_bytes",
+    )
+    if gpu_memory_bytes != gpu_peak_dedicated_bytes + gpu_peak_shared_bytes:
+        raise ValueError(
+            "gpu_memory_peak_mb byte components do not equal combined proof"
+        )
     expected_gpu_mib_display = float(
         format(gpu_memory_bytes / (1024**2), f".{_GPU_MIB_DECIMAL_PLACES}f")
     )

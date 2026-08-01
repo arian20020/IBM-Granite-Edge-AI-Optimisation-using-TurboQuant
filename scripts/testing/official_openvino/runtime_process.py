@@ -164,6 +164,23 @@ def _validate_gpu_observability(record: Mapping[str, Any]) -> None:
             or combined_bytes <= 0
         ):
             raise ValueError("GPU combined memory byte peak must be positive")
+        paired_components = (
+            "gpu_memory_peak_dedicated_bytes",
+            "gpu_memory_peak_shared_bytes",
+        )
+        paired_values: list[int] = []
+        for field in paired_components:
+            value = record.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"GPU paired peak byte receipt {field} is invalid")
+            paired_values.append(value)
+        if combined_bytes != sum(paired_values):
+            raise ValueError("GPU paired peak bytes do not equal combined peak")
+        expected_display = float(format(combined_bytes / MIB, ".6f"))
+        if record.get("gpu_memory_peak_mb") != expected_display:
+            raise ValueError(
+                "GPU combined memory display does not match byte serialization"
+            )
         return
 
     dedicated = _finite_nonnegative(
@@ -300,6 +317,8 @@ def run_governed_process(
         "gpu_memory_peak_mb": None,
         "gpu_dedicated_memory_peak_bytes": None,
         "gpu_shared_memory_peak_bytes": None,
+        "gpu_memory_peak_dedicated_bytes": None,
+        "gpu_memory_peak_shared_bytes": None,
         "gpu_memory_peak_bytes": None,
         "gpu_sampler_supported": False,
         "memory_unit_receipt": {
@@ -654,6 +673,8 @@ def run_governed_process(
                 "gpu_memory_peak_mb",
                 "gpu_dedicated_memory_peak_bytes",
                 "gpu_shared_memory_peak_bytes",
+                "gpu_memory_peak_dedicated_bytes",
+                "gpu_memory_peak_shared_bytes",
                 "gpu_memory_peak_bytes",
             ):
                 record[field] = gpu.get(field)

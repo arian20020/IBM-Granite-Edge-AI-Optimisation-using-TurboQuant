@@ -147,6 +147,8 @@ def complete_record(ordinal: int = 0) -> dict:
         "gpu_dedicated_memory_peak_mb": 0.0,
         "gpu_shared_memory_peak_mb": 0.0,
         "gpu_memory_peak_mb": 0.0,
+        "gpu_memory_peak_dedicated_bytes": 0,
+        "gpu_memory_peak_shared_bytes": 0,
         "gpu_memory_peak_bytes": 0,
         "cpu_percent": _utilization([10 + ordinal, 20 + ordinal, 30 + ordinal]),
         "gpu_percent": _utilization([0.0, 0.0, 0.0]),
@@ -303,7 +305,12 @@ def test_adaptive_sample_rejects_unproven_or_mismatched_gpu_mib(
     mutate,
 ) -> None:
     record = complete_record()
-    record.update(gpu_memory_peak_mb=2.0, gpu_memory_peak_bytes=2 * MIB)
+    record.update(
+        gpu_memory_peak_mb=2.0,
+        gpu_memory_peak_dedicated_bytes=2 * MIB,
+        gpu_memory_peak_shared_bytes=0,
+        gpu_memory_peak_bytes=2 * MIB,
+    )
     mutate(record)
 
     with pytest.raises(ValueError, match="gpu_memory_peak_mb"):
@@ -325,6 +332,8 @@ def test_adaptive_sample_rejects_noncanonical_gpu_mib_display(
     record = complete_record()
     record.update(
         gpu_memory_peak_mb=gpu_memory_peak_mb,
+        gpu_memory_peak_dedicated_bytes=gpu_memory_bytes,
+        gpu_memory_peak_shared_bytes=0,
         gpu_memory_peak_bytes=gpu_memory_bytes,
     )
 
@@ -336,6 +345,8 @@ def test_adaptive_sample_projects_gpu_mib_from_combined_byte_proof(tmp_path: Pat
     record = complete_record()
     record.update(
         gpu_memory_peak_mb=12_288.000552,
+        gpu_memory_peak_dedicated_bytes=12_884_902_467,
+        gpu_memory_peak_shared_bytes=0,
         gpu_memory_peak_bytes=12_884_902_467,
     )
 

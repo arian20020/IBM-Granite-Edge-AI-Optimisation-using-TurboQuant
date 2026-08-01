@@ -486,16 +486,26 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             }
             if reader.fieldnames is None or not required.issubset(reader.fieldnames):
                 raise ValueError("GPU CSV is missing required columns")
-            byte_columns = {
+            component_byte_columns = {
                 "gpu_dedicated_bytes",
                 "gpu_shared_bytes",
-                "gpu_memory_bytes",
             }
-            has_byte_proof = bool(byte_columns.intersection(reader.fieldnames))
-            if has_byte_proof and not byte_columns.issubset(reader.fieldnames):
+            combined_byte_column = "gpu_memory_bytes"
+            byte_columns = component_byte_columns | {combined_byte_column}
+            present_byte_columns = byte_columns.intersection(reader.fieldnames)
+            if not present_byte_columns:
+                byte_proof_format = None
+            elif present_byte_columns == component_byte_columns and (
+                "gpu_memory_mb" not in reader.fieldnames
+            ):
+                byte_proof_format = "component-only"
+            elif (
+                present_byte_columns == byte_columns
+                and "gpu_memory_mb" in reader.fieldnames
+            ):
+                byte_proof_format = "combined"
+            else:
                 raise ValueError("GPU CSV has incomplete combined byte proof")
-            if has_byte_proof and "gpu_memory_mb" not in reader.fieldnames:
-                raise ValueError("GPU CSV is missing combined MiB display")
             rows = list(reader)
     except OSError as error:
         raise ValueError(f"GPU CSV could not be read: {error}") from error
@@ -506,6 +516,8 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
     dedicated: list[float] = []
     shared: list[float] = []
     combined: list[float] = []
+    dedicated_bytes_observations: list[int] = []
+    shared_bytes_observations: list[int] = []
     combined_bytes: list[int] = []
     engines: list[int] = []
     for index, row in enumerate(rows, start=1):
@@ -531,11 +543,15 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             _finite_number(dedicated_value, "GPU dedicated memory")
         )
         shared.append(_finite_number(shared_value, "GPU shared memory"))
-        if has_byte_proof:
+        if byte_proof_format is not None:
             try:
                 dedicated_bytes = int(row["gpu_dedicated_bytes"])
                 shared_bytes = int(row["gpu_shared_bytes"])
-                combined_bytes_value = int(row["gpu_memory_bytes"])
+                combined_bytes_value = (
+                    int(row["gpu_memory_bytes"])
+                    if byte_proof_format == "combined"
+                    else dedicated_bytes + shared_bytes
+                )
             except (TypeError, ValueError) as error:
                 raise ValueError(
                     f"GPU combined byte proof {index} contains a non-integer value"
@@ -549,11 +565,16 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
             expected_display = format(
                 combined_bytes_value / MIB, f".{GPU_MIB_DECIMAL_PLACES}f"
             )
-            if row["gpu_memory_mb"] != expected_display:
+            if (
+                byte_proof_format == "combined"
+                and row["gpu_memory_mb"] != expected_display
+            ):
                 raise ValueError(
                     f"GPU combined MiB display {index} does not match byte proof"
                 )
             combined.append(float(expected_display))
+            dedicated_bytes_observations.append(dedicated_bytes)
+            shared_bytes_observations.append(shared_bytes)
             combined_bytes.append(combined_bytes_value)
         else:
             combined.append(dedicated[-1] + shared[-1])
@@ -565,14 +586,15 @@ def parse_gpu_samples(path: Path) -> dict[str, Any]:
         "gpu_memory_peak_mb": max(combined),
         "observation_count": len(rows),
     }
-    if has_byte_proof:
-        result["gpu_dedicated_memory_peak_bytes"] = max(
-            int(row["gpu_dedicated_bytes"]) for row in rows
-        )
-        result["gpu_shared_memory_peak_bytes"] = max(
-            int(row["gpu_shared_bytes"]) for row in rows
-        )
-        result["gpu_memory_peak_bytes"] = max(combined_bytes)
+    if byte_proof_format is not None:
+        peak_index = max(range(len(combined_bytes)), key=combined_bytes.__getitem__)
+        result["gpu_dedicated_memory_peak_bytes"] = max(dedicated_bytes_observations)
+        result["gpu_shared_memory_peak_bytes"] = max(shared_bytes_observations)
+        result["gpu_memory_peak_dedicated_bytes"] = dedicated_bytes_observations[
+            peak_index
+        ]
+        result["gpu_memory_peak_shared_bytes"] = shared_bytes_observations[peak_index]
+        result["gpu_memory_peak_bytes"] = combined_bytes[peak_index]
     return result
 
 
