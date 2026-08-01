@@ -780,6 +780,62 @@ def test_task_four_recovery_object_reopens_exact_native_runtime(tmp_path):
     ).resolve()
     assert reopened.output_root == source.output_root.resolve()
 
+    from scripts.testing.run_official_openvino_adaptive_quality import (
+        _direct_recovery,
+    )
+
+    wrapper_summary = tmp_path / "passed-runtime-wrapper.json"
+    wrapper_summary.write_bytes(
+        _canonical(
+            {
+                "status": "passed",
+                "test_id": summary["test_id"],
+                "context_tokens": summary["context_tokens"],
+                "fallback_count": 0,
+                "residual_owned_process_count": 0,
+                "cleanup_process_count": 0,
+                "raw_samples": summary["sources"],
+                "measurement_summary_path": str(summary_path.resolve()),
+                "measurement_summary_sha256": hashlib.sha256(
+                    summary_path.read_bytes()
+                ).hexdigest(),
+                "runtime_evidence_path": str(sequence_path.resolve()),
+                "runtime_evidence_sha256": hashlib.sha256(
+                    sequence_path.read_bytes()
+                ).hexdigest(),
+                "adaptive_runtime_spec_path": str(adaptive_spec.resolve()),
+                "adaptive_runtime_spec_sha256": hashlib.sha256(
+                    adaptive_spec.read_bytes()
+                ).hexdigest(),
+                "spec_index_path": str(spec_index.resolve()),
+                "spec_index_sha256": hashlib.sha256(
+                    spec_index.read_bytes()
+                ).hexdigest(),
+                "artifact_inventory_path": str(inventory.resolve()),
+                "artifact_inventory_sha256": hashlib.sha256(
+                    inventory.read_bytes()
+                ).hexdigest(),
+            }
+        )
+    )
+    direct = _direct_recovery(
+        SimpleNamespace(
+            runtime_summary=wrapper_summary,
+            matrix=source.matrix_path,
+            prompt_set=source.prompt_set_path,
+            rubric=source.rubric_path,
+            model_path=Path(recovery["model_path"]),
+            build_root=source.build_root,
+            python_executable=source.python_executable,
+            python_site_packages=source.python_site_packages,
+            openvino_libraries=source.openvino_libraries,
+            sampler_script=source.sampler_script,
+            output_root=source.output_root,
+            timeout_seconds=1800.0,
+        )
+    )
+    assert direct == recovery
+
     timeout_substitution = json.loads(json.dumps(recovery))
     timeout_substitution["timeout_seconds"] = 1801.0
     _resign_recovery(timeout_substitution)

@@ -44,6 +44,18 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_json(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-summary", type=Path)
@@ -258,21 +270,90 @@ def _direct_recovery(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError("runtime summary raw sample hash mismatch")
     measurement_path = Path(str(summary.get("measurement_summary_path"))).resolve()
     runtime_evidence = Path(str(summary.get("runtime_evidence_path"))).resolve()
-    return {
+    if (
+        not measurement_path.is_file()
+        or _sha256_file(measurement_path)
+        != summary.get("measurement_summary_sha256")
+        or not runtime_evidence.is_file()
+        or _sha256_file(runtime_evidence)
+        != summary.get("runtime_evidence_sha256")
+    ):
+        raise ValueError("runtime summary native evidence hash mismatch")
+
+    def wrapper_bound_file(path_field: str, hash_field: str) -> Path:
+        source = Path(str(summary.get(path_field))).resolve()
+        if not source.is_file() or _sha256_file(source) != summary.get(hash_field):
+            raise ValueError(f"runtime summary {path_field} hash mismatch")
+        return source
+
+    adaptive_runtime_spec = wrapper_bound_file(
+        "adaptive_runtime_spec_path", "adaptive_runtime_spec_sha256"
+    )
+    spec_index = wrapper_bound_file("spec_index_path", "spec_index_sha256")
+    artifact_inventory = wrapper_bound_file(
+        "artifact_inventory_path", "artifact_inventory_sha256"
+    )
+    sequence = _load(runtime_evidence, "runtime attempt sequence")
+    pilot = sequence.get("pilot")
+    if not isinstance(pilot, Mapping) or not isinstance(
+        pilot.get("spec_path"), str
+    ):
+        raise ValueError("runtime attempt sequence pilot binding is missing")
+    pilot_spec = (measurement_path.parent / pilot["spec_path"]).resolve()
+    if (
+        not pilot_spec.is_file()
+        or _sha256_file(pilot_spec) != pilot.get("spec_file_sha256")
+    ):
+        raise ValueError("runtime attempt sequence pilot spec hash mismatch")
+    identity = _load(
+        measurement_path.parent / "campaign-identity.json",
+        "native campaign identity",
+    )
+    native = identity.get("identity")
+    if not isinstance(native, Mapping):
+        raise ValueError("native campaign identity is invalid")
+    model = native.get("model")
+    build = native.get("build")
+    if not isinstance(model, Mapping) or not isinstance(build, Mapping):
+        raise ValueError("native artifact or build identity is missing")
+    artifact_manifest = Path(str(model.get("artifact_manifest_path"))).resolve()
+    build_provenance = Path(str(build.get("provenance_path"))).resolve()
+    if (
+        not artifact_manifest.is_file()
+        or _sha256_file(artifact_manifest)
+        != model.get("artifact_manifest_sha256")
+        or not build_provenance.is_file()
+        or _sha256_file(build_provenance) != build.get("provenance_sha256")
+    ):
+        raise ValueError("native artifact or build evidence hash mismatch")
+    unsigned = {
+        "schema": "official-openvino-adaptive-quality-recovery/v1",
         "test_id": summary.get("test_id"),
         "context_tokens": summary.get("context_tokens"),
         "runtime_evidence_path": str(runtime_evidence),
         "runtime_evidence_sha256": summary.get("runtime_evidence_sha256"),
         "runtime_summary": str(measurement_path),
         "runtime_summary_sha256": summary.get("measurement_summary_sha256"),
+        "adaptive_runtime_spec_path": str(adaptive_runtime_spec),
+        "adaptive_runtime_spec_sha256": _sha256_file(adaptive_runtime_spec),
+        "pilot_spec_path": str(pilot_spec),
+        "pilot_spec_sha256": _sha256_file(pilot_spec),
+        "spec_index_path": str(spec_index),
+        "spec_index_sha256": _sha256_file(spec_index),
+        "artifact_inventory_path": str(artifact_inventory),
+        "artifact_inventory_sha256": _sha256_file(artifact_inventory),
         "matrix": str(Path(args.matrix).resolve()),
         "matrix_sha256": _sha256_file(args.matrix),
+        "artifact_manifest_path": str(artifact_manifest),
+        "artifact_manifest_sha256": _sha256_file(artifact_manifest),
         "prompt_set": str(Path(args.prompt_set).resolve()),
         "prompt_set_sha256": _sha256_file(args.prompt_set),
         "rubric": str(Path(args.rubric).resolve()),
         "rubric_sha256": _sha256_file(args.rubric),
         "model_path": str(Path(args.model_path).resolve()),
         "build_root": str(Path(args.build_root).resolve()),
+        "build_provenance_path": str(build_provenance),
+        "build_provenance_sha256": _sha256_file(build_provenance),
         "python_executable": str(Path(args.python_executable).resolve()),
         "python_site_packages": str(Path(args.python_site_packages).resolve()),
         "openvino_libraries": str(Path(args.openvino_libraries).resolve()),
@@ -280,6 +361,10 @@ def _direct_recovery(args: argparse.Namespace) -> dict[str, Any]:
         "sampler_script_sha256": _sha256_file(args.sampler_script),
         "output_root": str(Path(args.output_root).resolve()),
         "timeout_seconds": float(args.timeout_seconds),
+    }
+    return {
+        **unsigned,
+        "quality_recovery_sha256": _sha256_json(unsigned),
     }
 
 
