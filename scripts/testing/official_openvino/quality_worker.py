@@ -21,6 +21,18 @@ SPEC_SCHEMA = "official-openvino-wb04-quality-worker-spec/v1"
 RESULT_SCHEMA = "official-openvino-wb04-quality-worker-result/v1"
 PROMPT_SPEC_SCHEMA = "official-openvino-adaptive-quality-prompt-spec/v1"
 PROMPT_RESULT_SCHEMA = "official-openvino-adaptive-quality-prompt-result/v1"
+QUALITY_WORKER_SPEC_PATH_ENV = (
+    "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH"
+)
+QUALITY_WORKER_SPEC_SHA256_ENV = (
+    "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256"
+)
+_QUALITY_WORKER_AUTHORITY_ENV_KEYS = frozenset(
+    {
+        QUALITY_WORKER_SPEC_PATH_ENV.casefold(),
+        QUALITY_WORKER_SPEC_SHA256_ENV.casefold(),
+    }
+)
 _FIXED_GENERATION_SETTINGS = (
     ("max_new_tokens", 256),
     ("do_sample", False),
@@ -947,15 +959,63 @@ def execute_quality_prompt_worker(spec: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _load_spec(path: Path) -> dict[str, Any]:
+def _load_spec_document(path: Path) -> tuple[dict[str, Any], bytes]:
     source = Path(path)
     try:
-        value = json.loads(source.read_text(encoding="utf-8-sig"))
-    except (OSError, json.JSONDecodeError) as error:
+        raw = source.read_bytes()
+        value = json.loads(raw.decode("utf-8-sig"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"quality worker spec is unreadable: {source}") from error
     if not isinstance(value, dict):
         raise ValueError("quality worker spec must contain an object")
+    return value, raw
+
+
+def _load_spec(path: Path) -> dict[str, Any]:
+    value, _raw = _load_spec_document(path)
     return value
+
+
+def _require_prompt_worker_guard_authority(
+    *,
+    spec_path: Path,
+    result_path: Path,
+    spec_bytes: bytes,
+) -> Path:
+    authority_path_value = os.environ.get(QUALITY_WORKER_SPEC_PATH_ENV)
+    authority_sha256 = _require_sha256(
+        os.environ.get(QUALITY_WORKER_SPEC_SHA256_ENV),
+        "guard authority SHA-256",
+    )
+    if not isinstance(authority_path_value, str) or not authority_path_value:
+        raise ValueError("quality prompt worker guard authority path is missing")
+    authority_path = Path(authority_path_value)
+    try:
+        anchored_spec_path = authority_path.resolve(strict=True)
+        actual_spec_path = Path(spec_path).resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise ValueError(
+            "quality prompt worker spec path authority is invalid"
+        ) from error
+    if (
+        not authority_path.is_absolute()
+        or str(anchored_spec_path) != authority_path_value
+        or not anchored_spec_path.is_file()
+        or actual_spec_path != anchored_spec_path
+    ):
+        raise ValueError("quality prompt worker spec path authority mismatch")
+    if hashlib.sha256(spec_bytes).hexdigest() != authority_sha256:
+        raise ValueError("quality prompt worker guard authority SHA-256 mismatch")
+    canonical_result_path = anchored_spec_path.parent / "worker-result.json"
+    try:
+        actual_result_path = Path(result_path).resolve()
+    except (OSError, RuntimeError) as error:
+        raise ValueError(
+            "quality prompt worker result path authority is invalid"
+        ) from error
+    if actual_result_path != canonical_result_path:
+        raise ValueError("quality prompt worker result path authority mismatch")
+    return canonical_result_path
 
 
 def _validate_prompt_worker_invocation(
@@ -963,23 +1023,20 @@ def _validate_prompt_worker_invocation(
     *,
     spec_path: Path,
     result_path: Path,
-) -> None:
+    spec_bytes: bytes,
+) -> Path:
+    canonical_result_path = _require_prompt_worker_guard_authority(
+        spec_path=spec_path,
+        result_path=result_path,
+        spec_bytes=spec_bytes,
+    )
     normalized = _validate_prompt_worker_spec(spec)
     command = normalized["bindings"]["command"]
-    expected = (
-        Path(command[0]).resolve(),
-        Path(command[4]).resolve(),
-        Path(command[6]).resolve(),
-    )
-    actual = (
-        Path(sys.executable).resolve(),
-        Path(spec_path).resolve(),
-        Path(result_path).resolve(),
-    )
-    if actual != expected:
+    if Path(sys.executable).resolve() != Path(command[0]).resolve():
         raise ValueError(
             "quality prompt worker invocation does not match bound command"
         )
+    return canonical_result_path
 
 
 def _atomic_write_result(path: Path, result: Mapping[str, Any]) -> None:
@@ -1010,17 +1067,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--result", type=Path, required=True)
     args = parser.parse_args(argv)
-    spec = _load_spec(args.spec)
+    spec, spec_bytes = _load_spec_document(args.spec)
+    publication_path = args.result
     if spec.get("schema") == PROMPT_SPEC_SCHEMA:
-        _validate_prompt_worker_invocation(
+        publication_path = _validate_prompt_worker_invocation(
             spec,
             spec_path=args.spec,
             result_path=args.result,
+            spec_bytes=spec_bytes,
         )
         result = execute_quality_prompt_worker(spec)
     else:
+        if any(
+            key.casefold() in _QUALITY_WORKER_AUTHORITY_ENV_KEYS
+            for key in os.environ
+        ):
+            publication_path = _require_prompt_worker_guard_authority(
+                spec_path=args.spec,
+                result_path=args.result,
+                spec_bytes=spec_bytes,
+            )
         result = execute_quality_worker(spec)
-    _atomic_write_result(args.result, result)
+    _atomic_write_result(publication_path, result)
     return 0
 
 

@@ -1,6 +1,7 @@
 import builtins
 import hashlib
 import json
+import os
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -125,6 +126,24 @@ def _prompt_worker_cli_fixture(tmp_path):
     return spec_path, result_path
 
 
+def _set_prompt_worker_authority(
+    monkeypatch,
+    spec_path,
+    *,
+    authority_path=None,
+    authority_sha256=None,
+):
+    source = Path(spec_path)
+    monkeypatch.setenv(
+        "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH",
+        str(Path(authority_path or source).resolve()),
+    )
+    monkeypatch.setenv(
+        "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256",
+        authority_sha256 or hashlib.sha256(source.read_bytes()).hexdigest(),
+    )
+
+
 def test_quality_worker_module_imports():
     assert callable(_worker())
 
@@ -173,11 +192,19 @@ def test_prompt_worker_rejects_copied_bound_file_before_openvino_import(
     assert imported == []
 
 
-@pytest.mark.parametrize("substitution", ("spec", "result", "interpreter"))
+@pytest.mark.parametrize(
+    ("substitution", "expected_error"),
+    (
+        ("spec", "spec path authority"),
+        ("result", "result path authority"),
+        ("interpreter", "bound command"),
+    ),
+)
 def test_prompt_worker_cli_rejects_bound_command_substitution_before_import(
     tmp_path,
     monkeypatch,
     substitution,
+    expected_error,
 ):
     from scripts.testing.official_openvino import quality_worker
 
@@ -196,6 +223,7 @@ def test_prompt_worker_cli_rejects_bound_command_substitution_before_import(
             "executable",
             str(tmp_path / "substituted-python.exe"),
         )
+    _set_prompt_worker_authority(monkeypatch, spec_path)
 
     imported = []
     real_import = builtins.__import__
@@ -208,7 +236,7 @@ def test_prompt_worker_cli_rejects_bound_command_substitution_before_import(
 
     monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
 
-    with pytest.raises(ValueError, match="bound command"):
+    with pytest.raises(ValueError, match=expected_error):
         quality_worker.main(
             [
                 "--spec",
@@ -226,6 +254,7 @@ def test_prompt_worker_cli_accepts_exact_bound_command(tmp_path, monkeypatch):
     from scripts.testing.official_openvino import quality_worker
 
     spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
+    _set_prompt_worker_authority(monkeypatch, spec_path)
     fake = _FakeGenAI()
     monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
 
@@ -236,6 +265,229 @@ def test_prompt_worker_cli_accepts_exact_bound_command(tmp_path, monkeypatch):
     published = json.loads(result_path.read_text(encoding="utf-8"))
     assert published["schema"] == quality_worker.PROMPT_RESULT_SCHEMA
     assert published["prompt_id"] == "P1"
+
+
+@pytest.mark.parametrize(
+    "authority_failure",
+    ("missing_path", "missing_sha256", "wrong_path", "wrong_sha256"),
+)
+def test_prompt_worker_cli_rejects_missing_or_wrong_guard_authority_before_import(
+    tmp_path,
+    monkeypatch,
+    authority_failure,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
+    _set_prompt_worker_authority(monkeypatch, spec_path)
+    if authority_failure == "missing_path":
+        monkeypatch.delenv(
+            "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH"
+        )
+    elif authority_failure == "missing_sha256":
+        monkeypatch.delenv(
+            "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256"
+        )
+    elif authority_failure == "wrong_path":
+        copied = tmp_path / "wrong-authority" / "worker-spec.json"
+        copied.parent.mkdir(parents=True)
+        copied.write_bytes(spec_path.read_bytes())
+        monkeypatch.setenv(
+            "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH",
+            str(copied.resolve()),
+        )
+    else:
+        monkeypatch.setenv(
+            "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256",
+            "0" * 64,
+        )
+
+    imported = []
+    real_import = builtins.__import__
+
+    def reject_openvino_import(name, *args, **kwargs):
+        if name == "openvino_genai":
+            imported.append(name)
+            raise AssertionError("OpenVINO import must follow guard authority")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
+
+    with pytest.raises(ValueError, match="authority"):
+        quality_worker.main(
+            ["--spec", str(spec_path), "--result", str(result_path)]
+        )
+
+    assert imported == []
+    assert not result_path.exists()
+
+
+def test_prompt_worker_cli_rejects_resigned_copied_spec_before_import(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path, _result_path = _prompt_worker_cli_fixture(tmp_path)
+    copied_spec_path = tmp_path / "copied" / "P1" / "worker-spec.json"
+    copied_result_path = copied_spec_path.with_name("worker-result.json")
+    copied_spec_path.parent.mkdir(parents=True)
+    copied_spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    copied_command = copied_spec["bindings"]["command"]
+    copied_command[4] = str(copied_spec_path.resolve())
+    copied_command[6] = str(copied_result_path.resolve())
+    copied_spec["bindings"]["command_sha256"] = hashlib.sha256(
+        json.dumps(
+            copied_command,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    copied_spec_path.write_text(json.dumps(copied_spec), encoding="utf-8")
+    _set_prompt_worker_authority(monkeypatch, spec_path)
+
+    imported = []
+    real_import = builtins.__import__
+
+    def reject_openvino_import(name, *args, **kwargs):
+        if name == "openvino_genai":
+            imported.append(name)
+            raise AssertionError("OpenVINO import must follow guard authority")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
+
+    with pytest.raises(ValueError, match="spec path authority"):
+        quality_worker.main(
+            [
+                "--spec",
+                str(copied_spec_path),
+                "--result",
+                str(copied_result_path),
+            ]
+        )
+
+    assert imported == []
+    assert not copied_result_path.exists()
+
+
+def test_prompt_worker_publishes_to_canonical_derived_result_path(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
+    _set_prompt_worker_authority(monkeypatch, spec_path)
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+    monkeypatch.chdir(tmp_path)
+    lexical_result = Path(os.path.relpath(result_path, tmp_path))
+    published_paths = []
+    real_publish = quality_worker._atomic_write_result
+
+    def capture_publish(path, result):
+        published_paths.append(Path(path))
+        real_publish(path, result)
+
+    monkeypatch.setattr(quality_worker, "_atomic_write_result", capture_publish)
+
+    assert quality_worker.main(
+        [
+            "--spec",
+            os.path.relpath(spec_path, tmp_path),
+            "--result",
+            str(lexical_result),
+        ]
+    ) == 0
+
+    assert published_paths == [result_path.resolve()]
+    assert result_path.is_file()
+
+
+def test_prompt_worker_rejects_result_alias_instead_of_deriving_through_it(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path = tmp_path / "P1" / "worker-spec.json"
+    spec_path.parent.mkdir(parents=True)
+    spec_bytes = b'{"schema":"prompt"}\n'
+    spec_path.write_bytes(spec_bytes)
+    result_path = spec_path.with_name("worker-result.json")
+    alias_target = tmp_path / "outside" / "redirected-result.json"
+    _set_prompt_worker_authority(monkeypatch, spec_path)
+    real_resolve = Path.resolve
+
+    def resolve_result_alias(path, *args, **kwargs):
+        if path == result_path:
+            return alias_target
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", resolve_result_alias)
+
+    with pytest.raises(ValueError, match="result path authority"):
+        quality_worker._require_prompt_worker_guard_authority(
+            spec_path=spec_path,
+            result_path=result_path,
+            spec_bytes=spec_bytes,
+        )
+
+
+def test_guarded_worker_rejects_schema_downgrade_with_wrong_authority_before_import(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path = tmp_path / "governed" / "worker-spec.json"
+    result_path = spec_path.with_name("worker-result.json")
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_text(json.dumps(_spec()), encoding="utf-8")
+    _set_prompt_worker_authority(
+        monkeypatch,
+        spec_path,
+        authority_sha256="0" * 64,
+    )
+    imported = []
+    real_import = builtins.__import__
+
+    def reject_openvino_import(name, *args, **kwargs):
+        if name == "openvino_genai":
+            imported.append(name)
+            raise AssertionError("OpenVINO import must follow guard authority")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_openvino_import)
+
+    with pytest.raises(ValueError, match="authority"):
+        quality_worker.main(
+            ["--spec", str(spec_path), "--result", str(result_path)]
+        )
+
+    assert imported == []
+    assert not result_path.exists()
+
+
+def test_historical_worker_accepts_complete_guard_authority(tmp_path, monkeypatch):
+    from scripts.testing.official_openvino import quality_worker
+
+    spec_path = tmp_path / "governed" / "worker-spec.json"
+    result_path = spec_path.with_name("worker-result.json")
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_text(json.dumps(_spec()), encoding="utf-8")
+    _set_prompt_worker_authority(monkeypatch, spec_path)
+    fake = _FakeGenAI()
+    monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
+
+    assert quality_worker.main(
+        ["--spec", str(spec_path), "--result", str(result_path)]
+    ) == 0
+    assert json.loads(result_path.read_text(encoding="utf-8"))["schema"] == (
+        quality_worker.RESULT_SCHEMA
+    )
 
 
 @pytest.mark.parametrize(

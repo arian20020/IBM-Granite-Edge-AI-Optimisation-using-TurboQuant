@@ -16,6 +16,8 @@ from scripts.testing.official_openvino.guarded_build import (
     GUARD_SCHEMA,
     GuardLimits,
     _effective_environment,
+    _environment_sha256,
+    _inject_bound_input_authority,
     run_guarded_command,
 )
 from scripts.testing.official_openvino.owned_process_guard import (
@@ -529,8 +531,22 @@ def _validate_guard(
     spec_sha256: str,
     log_sha256: str,
 ) -> tuple[str, int]:
-    _, environment_sha256 = _effective_environment(campaign.worker_environment)
     spec_path = prompt_root / "worker-spec.json"
+    bound_inputs = [
+        {
+            "name": "quality_worker_spec",
+            "path": str(spec_path.resolve()),
+            "sha256": spec_sha256,
+        }
+    ]
+    effective_environment, _caller_environment_sha256 = _effective_environment(
+        campaign.worker_environment
+    )
+    launch_environment = _inject_bound_input_authority(
+        effective_environment,
+        bound_inputs,
+    )
+    environment_sha256 = _environment_sha256(launch_environment)
     expected = {
         "schema": GUARD_SCHEMA,
         "command": command,
@@ -538,13 +554,7 @@ def _validate_guard(
         "log_path": str((prompt_root / "worker.log").resolve()),
         "evidence_path": str((prompt_root / "guard-evidence.json").resolve()),
         "environment_sha256": environment_sha256,
-        "bound_inputs": [
-            {
-                "name": "quality_worker_spec",
-                "path": str(spec_path.resolve()),
-                "sha256": spec_sha256,
-            }
-        ],
+        "bound_inputs": bound_inputs,
         "configured_minimum_available_ram_bytes": EMERGENCY_FLOOR_BYTES,
         "maximum_runtime_seconds": float(timeout_seconds),
     }

@@ -962,6 +962,90 @@ def test_guard_hash_binds_named_input_bytes_before_launch(tmp_path):
     assert record["bound_inputs"][0]["sha256"] == expected_sha256
 
 
+def test_guard_injects_quality_worker_authority_from_reopened_bound_input(
+    tmp_path,
+):
+    worker_spec = tmp_path / "worker-spec.json"
+    worker_spec.write_bytes(b'{"controlled":"quality-worker-spec"}\n')
+    observed_path = tmp_path / "observed-authority.json"
+    program = (
+        "import hashlib,json,os,pathlib,sys;"
+        "pathlib.Path(sys.argv[1]).write_text(json.dumps({"
+        "'path':os.environ.get("
+        "'OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH'),"
+        "'sha256':os.environ.get("
+        "'OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256'),"
+        "'environment_sha256':hashlib.sha256(json.dumps(dict(os.environ),"
+        "ensure_ascii=False,sort_keys=True,separators=(',',':'),"
+        "allow_nan=False).encode('utf-8')).hexdigest()"
+        "},sort_keys=True),encoding='utf-8')"
+    )
+
+    record = _run(
+        tmp_path,
+        [sys.executable, "-c", program, str(observed_path)],
+        bound_inputs={"quality_worker_spec": worker_spec},
+    )
+
+    observed = json.loads(observed_path.read_text(encoding="utf-8"))
+    assert observed == {
+        "path": str(worker_spec.resolve()),
+        "sha256": hashlib.sha256(worker_spec.read_bytes()).hexdigest(),
+        "environment_sha256": record["environment_sha256"],
+    }
+    assert record["valid"] is True
+
+
+def test_guard_does_not_inject_quality_authority_for_other_bound_inputs(
+    tmp_path,
+):
+    other_input = tmp_path / "other-input.json"
+    other_input.write_text("{}\n", encoding="utf-8")
+    program = (
+        "import os;"
+        "print(os.environ.get("
+        "'OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH','absent'));"
+        "print(os.environ.get("
+        "'OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256','absent'))"
+    )
+
+    record = _run(
+        tmp_path,
+        [sys.executable, "-c", program],
+        bound_inputs={"other_input": other_input},
+    )
+
+    assert (tmp_path / "child.log").read_text(encoding="utf-8").splitlines() == [
+        "absent",
+        "absent",
+    ]
+    assert record["valid"] is True
+
+
+@pytest.mark.parametrize(
+    "reserved_key",
+    (
+        "official_openvino_guard_bound_quality_worker_spec_path",
+        "Official_OpenVINO_Guard_Bound_Quality_Worker_Spec_Sha256",
+    ),
+)
+def test_guard_rejects_case_insensitive_quality_authority_override(
+    tmp_path,
+    reserved_key,
+):
+    with pytest.raises(ValueError, match="reserved guard-owned"):
+        _run(
+            tmp_path,
+            [sys.executable, "-c", "raise SystemExit(0)"],
+            environment={
+                "SYSTEMROOT": os.environ["SYSTEMROOT"],
+                reserved_key: "caller-controlled",
+            },
+        )
+
+    assert not (tmp_path / "child.log").exists()
+
+
 def test_unexpected_exit_is_invalid_but_persists_evidence(tmp_path):
     record = _run(tmp_path, [sys.executable, "-c", "raise SystemExit(9)"])
     assert record["exit_code"] == 9

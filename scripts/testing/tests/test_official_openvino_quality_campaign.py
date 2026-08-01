@@ -278,6 +278,8 @@ def _governed_guard(
     def fake_guard(**kwargs):
         from scripts.testing.official_openvino.guarded_build import (
             _effective_environment,
+            _environment_sha256,
+            _inject_bound_input_authority,
         )
 
         calls.append(kwargs)
@@ -291,7 +293,22 @@ def _governed_guard(
         result_path = Path(kwargs["command"][-1])
         result_path.write_bytes(_canonical_bytes(result) + result_suffix)
         environment = dict(kwargs["environment"])
-        _, environment_sha256 = _effective_environment(environment)
+        bound_inputs = [
+            {
+                "name": name,
+                "path": str(Path(path).resolve()),
+                "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+            }
+            for name, path in sorted(kwargs["bound_inputs"].items())
+        ]
+        effective_environment, _caller_environment_sha256 = (
+            _effective_environment(environment)
+        )
+        launch_environment = _inject_bound_input_authority(
+            effective_environment,
+            bound_inputs,
+        )
+        environment_sha256 = _environment_sha256(launch_environment)
         log_bytes = b"synthetic guard\n"
         Path(kwargs["log_path"]).write_bytes(log_bytes)
         guard = {
@@ -302,16 +319,7 @@ def _governed_guard(
             "log_path": str(Path(kwargs["log_path"]).resolve()),
             "evidence_path": str(Path(kwargs["evidence_path"]).resolve()),
             "environment_sha256": environment_sha256,
-            "bound_inputs": [
-                {
-                    "name": name,
-                    "path": str(Path(path).resolve()),
-                    "sha256": hashlib.sha256(
-                        Path(path).read_bytes()
-                    ).hexdigest(),
-                }
-                for name, path in sorted(kwargs["bound_inputs"].items())
-            ],
+            "bound_inputs": bound_inputs,
             "configured_minimum_available_ram_bytes": 2_048 * 1024 * 1024,
             "maximum_runtime_seconds": float(
                 kwargs["limits"].maximum_runtime_seconds

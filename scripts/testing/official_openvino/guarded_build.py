@@ -35,6 +35,19 @@ from scripts.testing.official_openvino.owned_process_guard import (
 
 GUARD_SCHEMA = "official-openvino-owned-process-guard/v1"
 CONTROLLER_RESULT_SCHEMA = "official-openvino-controller-result/v1"
+QUALITY_WORKER_SPEC_PATH_ENV = (
+    "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_PATH"
+)
+QUALITY_WORKER_SPEC_SHA256_ENV = (
+    "OFFICIAL_OPENVINO_GUARD_BOUND_QUALITY_WORKER_SPEC_SHA256"
+)
+_QUALITY_WORKER_BOUND_INPUT = "quality_worker_spec"
+_RESERVED_GUARD_ENVIRONMENT_KEYS = frozenset(
+    {
+        QUALITY_WORKER_SPEC_PATH_ENV.casefold(),
+        QUALITY_WORKER_SPEC_SHA256_ENV.casefold(),
+    }
+)
 MIB = 1024 * 1024
 
 
@@ -169,6 +182,17 @@ def _serialize_json_bytes(value: dict[str, object]) -> bytes:
     ).encode("utf-8")
 
 
+def _environment_sha256(environment: Mapping[str, str]) -> str:
+    encoded = json.dumps(
+        environment,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _effective_environment(
     environment: Mapping[str, str] | None,
 ) -> tuple[dict[str, str], str]:
@@ -192,19 +216,30 @@ def _effective_environment(
                 raise ValueError("environment contains duplicate Windows keys")
             seen.add(normalized)
             value[key] = item
+    if any(
+        key.casefold() in _RESERVED_GUARD_ENVIRONMENT_KEYS for key in value
+    ):
+        raise ValueError("environment contains a reserved guard-owned key")
     msbuild_key = "MSBUILDDISABLENODEREUSE"
     for key in tuple(value):
         if key.casefold() == msbuild_key.casefold():
             del value[key]
     value[msbuild_key] = "1"
-    encoded = json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    return value, hashlib.sha256(encoded).hexdigest()
+    return value, _environment_sha256(value)
+
+
+def _inject_bound_input_authority(
+    environment: Mapping[str, str],
+    bound_inputs: Sequence[Mapping[str, str]],
+) -> dict[str, str]:
+    value = dict(environment)
+    for bound_input in bound_inputs:
+        if bound_input.get("name") != _QUALITY_WORKER_BOUND_INPUT:
+            continue
+        value[QUALITY_WORKER_SPEC_PATH_ENV] = bound_input["path"]
+        value[QUALITY_WORKER_SPEC_SHA256_ENV] = bound_input["sha256"]
+        break
+    return value
 
 
 def _atomic_write_bytes(path: Path, value: bytes) -> None:
@@ -480,6 +515,13 @@ def _run_guarded_command_with_binding(
 
         if not errors:
             record["bound_inputs"] = _hash_bound_inputs(bound_input_paths)
+            launch_environment = _inject_bound_input_authority(
+                effective_environment,
+                record["bound_inputs"],
+            )
+            record["environment_sha256"] = _environment_sha256(
+                launch_environment
+            )
             job = KillOnCloseJob(
                 f"OfficialOpenVINOGuard-{secrets.token_hex(16)}"
             )
@@ -489,7 +531,7 @@ def _run_guarded_command_with_binding(
             process = subprocess.Popen(
                 command_values,
                 cwd=cwd,
-                env=effective_environment,
+                env=launch_environment,
                 stdin=subprocess.DEVNULL,
                 stdout=log_handle,
                 stderr=subprocess.STDOUT,

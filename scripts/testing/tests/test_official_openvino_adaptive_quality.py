@@ -12,6 +12,8 @@ import pytest
 from scripts.testing.official_openvino.guarded_build import (
     GUARD_SCHEMA,
     _effective_environment,
+    _environment_sha256,
+    _inject_bound_input_authority,
 )
 from scripts.testing.tests.test_official_openvino_quality_campaign import (
     _accepted_input,
@@ -120,7 +122,21 @@ class RecordingGuardRunner:
         )
         log_path = Path(kwargs["log_path"])
         log_path.write_bytes(b"fake guarded worker\n")
-        _, environment_sha256 = _effective_environment(kwargs["environment"])
+        bound_inputs = [
+            {
+                "name": "quality_worker_spec",
+                "path": str(spec_path.resolve()),
+                "sha256": hashlib.sha256(spec_path.read_bytes()).hexdigest(),
+            }
+        ]
+        effective_environment, _caller_environment_sha256 = (
+            _effective_environment(kwargs["environment"])
+        )
+        launch_environment = _inject_bound_input_authority(
+            effective_environment,
+            bound_inputs,
+        )
+        environment_sha256 = _environment_sha256(launch_environment)
         evidence = {
             "schema": GUARD_SCHEMA,
             "run_id": hashlib.sha256(
@@ -131,13 +147,7 @@ class RecordingGuardRunner:
             "log_path": str(log_path.resolve()),
             "evidence_path": str(Path(kwargs["evidence_path"]).resolve()),
             "environment_sha256": environment_sha256,
-            "bound_inputs": [
-                {
-                    "name": "quality_worker_spec",
-                    "path": str(spec_path.resolve()),
-                    "sha256": hashlib.sha256(spec_path.read_bytes()).hexdigest(),
-                }
-            ],
+            "bound_inputs": bound_inputs,
             "configured_minimum_available_ram_bytes": 2048 * MIB,
             "maximum_runtime_seconds": float(
                 kwargs["limits"].maximum_runtime_seconds
