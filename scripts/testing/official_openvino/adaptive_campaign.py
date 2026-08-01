@@ -942,7 +942,7 @@ def _validate_config(
     _require_file(config.python_executable, "Python executable")
     _require_directory(config.python_site_packages, "Python site-packages")
     _require_directory(config.openvino_libraries, "OpenVINO libraries")
-    _require_file(config.sampler_script, "sampler script")
+    sampler = _require_file(config.sampler_script, "sampler script")
     reference = (
         _require_file(config.reference_boundary_index, "reference boundary index")
         if config.reference_boundary_index is not None
@@ -961,6 +961,8 @@ def _validate_config(
         "build_root_sha256": _directory_sha256(build_root),
         "build_provenance_path": str(provenance),
         "build_provenance_sha256": _sha256_file(provenance),
+        "sampler_script_path": str(sampler),
+        "sampler_script_sha256": _sha256_file(sampler),
         "reference_boundary_index_path": str(reference) if reference else None,
         "reference_boundary_index_sha256": (
             _sha256_file(reference) if reference else None
@@ -2248,23 +2250,74 @@ def run_adaptive_campaign(
             context: int,
         ) -> dict[str, Any]:
             step = state["steps"][f"{test_id}:{context}"]
-            if run_quality is None:
-                step["quality_status"] = "quality-blocked"
-                step["quality_recovery"] = {
-                    "test_id": test_id,
-                    "context_tokens": context,
-                    "runtime_evidence_path": step["evidence_path"],
-                    "runtime_evidence_sha256": step["evidence_sha256"],
-                }
-                return state
-            quality_input = {
+            runtime_root = Path(step["evidence_path"]).resolve().parent
+            adaptive_spec = specs[(test_id, context)][1]
+            prompt_set = (
+                _ROOT
+                / "experiments"
+                / "granite_turboquant_intel"
+                / "prompts"
+                / "fixed-feasibility-prompt-set-v1.json"
+            ).resolve()
+            rubric = (
+                _ROOT
+                / "experiments"
+                / "granite_turboquant_intel"
+                / "rubrics"
+                / "quality-rubric-v1.json"
+            ).resolve()
+            measurement_summary = runtime_root / "measurement-summary.json"
+            quality_recovery = {
                 "test_id": test_id,
                 "context_tokens": context,
                 "runtime_evidence_path": step["evidence_path"],
                 "runtime_evidence_sha256": step["evidence_sha256"],
-                "campaign_root": str(campaign_root),
             }
-            result = dict(run_quality(quality_input, resume=False))
+            if measurement_summary.is_file():
+                quality_recovery = {
+                    "test_id": test_id,
+                    "context_tokens": context,
+                    "runtime_evidence_path": step["evidence_path"],
+                    "runtime_evidence_sha256": step["evidence_sha256"],
+                    "runtime_summary": str(measurement_summary),
+                    "runtime_summary_sha256": _sha256_file(
+                        measurement_summary
+                    ),
+                    "matrix": str(Path(config.matrix_path).resolve()),
+                    "matrix_sha256": state["bindings"]["matrix_sha256"],
+                    "prompt_set": str(prompt_set),
+                    "prompt_set_sha256": _sha256_file(prompt_set),
+                    "rubric": str(rubric),
+                    "rubric_sha256": _sha256_file(rubric),
+                    "model_path": str(
+                        Path(str(adaptive_spec["model_path"])).resolve()
+                    ),
+                    "build_root": str(Path(config.build_root).resolve()),
+                    "python_executable": str(
+                        Path(config.python_executable).resolve()
+                    ),
+                    "python_site_packages": str(
+                        Path(config.python_site_packages).resolve()
+                    ),
+                    "openvino_libraries": str(
+                        Path(config.openvino_libraries).resolve()
+                    ),
+                    "sampler_script": str(
+                        Path(config.sampler_script).resolve()
+                    ),
+                    "sampler_script_sha256": state["bindings"][
+                        "sampler_script_sha256"
+                    ],
+                    "output_root": str(
+                        campaign_root / "quality" / test_id / str(context)
+                    ),
+                    "timeout_seconds": 1800.0,
+                }
+            if run_quality is None:
+                step["quality_status"] = "quality-blocked"
+                step["quality_recovery"] = quality_recovery
+                return state
+            result = dict(run_quality(quality_recovery, resume=False))
             status = result.get("status")
             if status not in {"passed", "quality-blocked"}:
                 raise RuntimeError("quality callback returned an invalid status")

@@ -18,6 +18,8 @@ from typing import Any
 
 SPEC_SCHEMA = "official-openvino-wb04-quality-worker-spec/v1"
 RESULT_SCHEMA = "official-openvino-wb04-quality-worker-result/v1"
+PROMPT_SPEC_SCHEMA = "official-openvino-adaptive-quality-prompt-spec/v1"
+PROMPT_RESULT_SCHEMA = "official-openvino-adaptive-quality-prompt-result/v1"
 _FIXED_GENERATION_SETTINGS = (
     ("max_new_tokens", 256),
     ("do_sample", False),
@@ -294,6 +296,158 @@ def execute_quality_worker(spec: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _require_sha256(value: Any, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(f"quality prompt worker {field} must be a SHA-256")
+    return value
+
+
+def _validate_prompt_worker_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(spec, Mapping):
+        raise ValueError("quality prompt worker spec must be an object")
+    snapshot = _detached_snapshot(spec)
+    required = {
+        "schema",
+        "prompt_id",
+        "model_path",
+        "device",
+        "properties",
+        "generation_settings",
+        "turns",
+        "private_controller",
+        "bindings",
+    }
+    if set(snapshot) != required or snapshot.get("schema") != PROMPT_SPEC_SCHEMA:
+        raise ValueError("quality prompt worker spec fields are invalid")
+    prompt_id = snapshot.get("prompt_id")
+    if prompt_id not in {"P1", "P2", "P3", "P4", "P5", "P6"}:
+        raise ValueError("quality prompt worker prompt id is invalid")
+    _require_nonblank_text(snapshot.get("model_path"), "model path")
+    _require_nonblank_text(snapshot.get("device"), "device")
+    properties = snapshot.get("properties")
+    if not isinstance(properties, Mapping) or any(
+        not isinstance(key, str) or not key.strip() for key in properties
+    ):
+        raise ValueError("quality prompt worker properties are invalid")
+    settings = snapshot.get("generation_settings")
+    if (
+        not isinstance(settings, Mapping)
+        or set(settings) != {field for field, _ in _FIXED_GENERATION_SETTINGS}
+        or any(
+            type(settings[field]) is not type(expected)
+            or settings[field] != expected
+            for field, expected in _FIXED_GENERATION_SETTINGS
+        )
+    ):
+        raise ValueError("quality prompt worker generation settings are not frozen")
+    controller = snapshot.get("private_controller")
+    if (
+        not isinstance(controller, Mapping)
+        or set(controller) != {"test_id", "context_tokens"}
+        or not isinstance(controller.get("test_id"), str)
+        or not controller["test_id"].strip()
+        or isinstance(controller.get("context_tokens"), bool)
+        or not isinstance(controller.get("context_tokens"), int)
+        or controller["context_tokens"] <= 0
+    ):
+        raise ValueError("quality prompt worker private controller is invalid")
+    bindings = snapshot.get("bindings")
+    if not isinstance(bindings, Mapping) or not bindings:
+        raise ValueError("quality prompt worker bindings are invalid")
+    for field, value in bindings.items():
+        if not isinstance(field, str) or not field.strip():
+            raise ValueError("quality prompt worker binding name is invalid")
+        if field.endswith("_sha256"):
+            _require_sha256(value, field)
+    turns = snapshot.get("turns")
+    expected_ids = (
+        ("P6-turn-1", "P6-turn-2") if prompt_id == "P6" else (prompt_id,)
+    )
+    if not isinstance(turns, list) or len(turns) != len(expected_ids):
+        raise ValueError("quality prompt worker turns are invalid")
+    normalized_turns = []
+    for index, (turn, turn_id) in enumerate(zip(turns, expected_ids, strict=True)):
+        expected_fields = {"turn_id", "prompt"}
+        if prompt_id == "P6" and index == 1:
+            expected_fields.add("history_source_turn_id")
+        if not isinstance(turn, Mapping) or set(turn) != expected_fields:
+            raise ValueError("quality prompt worker turns are invalid")
+        if turn.get("turn_id") != turn_id:
+            raise ValueError("quality prompt worker turns are not ordered")
+        _require_nonblank_text(turn.get("prompt"), "turn prompt")
+        if index == 1 and turn.get("history_source_turn_id") != "P6-turn-1":
+            raise ValueError("quality prompt worker history binding is invalid")
+        normalized_turns.append(dict(turn))
+    snapshot["properties"] = dict(properties)
+    snapshot["generation_settings"] = dict(settings)
+    snapshot["private_controller"] = dict(controller)
+    snapshot["bindings"] = dict(bindings)
+    snapshot["turns"] = normalized_turns
+    return snapshot
+
+
+def execute_quality_prompt_worker(spec: Mapping[str, Any]) -> dict[str, Any]:
+    """Execute one isolated prompt (or P6 conversation) without scoring it."""
+
+    normalized = _validate_prompt_worker_spec(spec)
+    import openvino_genai as ov_genai
+
+    pipeline = ov_genai.LLMPipeline(
+        normalized["model_path"],
+        normalized["device"],
+        **normalized["properties"],
+    )
+    config = ov_genai.GenerationConfig()
+    for field, value in normalized["generation_settings"].items():
+        setattr(config, field, value)
+
+    outcomes: list[dict[str, Any]] = []
+    first_turn = normalized["turns"][0]
+    outcomes.append(
+        _generate(
+            pipeline,
+            config,
+            turn_id=first_turn["turn_id"],
+            prompt=first_turn["prompt"],
+        )
+    )
+    if normalized["prompt_id"] == "P6":
+        second_turn = normalized["turns"][1]
+        first_output = outcomes[0]["raw_output"] or ""
+        conversation = (
+            f"User: {first_turn['prompt'].strip()}\n"
+            f"Assistant: {first_output}\n"
+            f"User: {second_turn['prompt'].strip()}"
+        )
+        second = _generate(
+            pipeline,
+            config,
+            turn_id=second_turn["turn_id"],
+            prompt=conversation,
+        )
+        second["history_source_sha256"] = _sha256_text(first_output)
+        outcomes.append(second)
+
+    unsigned: dict[str, Any] = {
+        "schema": PROMPT_RESULT_SCHEMA,
+        "prompt_id": normalized["prompt_id"],
+        "worker_spec_sha256": hashlib.sha256(
+            _canonical_json(normalized)
+        ).hexdigest(),
+        "outcomes": outcomes,
+    }
+    return {
+        **unsigned,
+        "worker_result_sha256": hashlib.sha256(
+            _canonical_json(unsigned)
+        ).hexdigest(),
+    }
+
+
 def _load_spec(path: Path) -> dict[str, Any]:
     source = Path(path)
     try:
@@ -333,7 +487,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--result", type=Path, required=True)
     args = parser.parse_args(argv)
-    _atomic_write_result(args.result, execute_quality_worker(_load_spec(args.spec)))
+    spec = _load_spec(args.spec)
+    result = (
+        execute_quality_prompt_worker(spec)
+        if spec.get("schema") == PROMPT_SPEC_SCHEMA
+        else execute_quality_worker(spec)
+    )
+    _atomic_write_result(args.result, result)
     return 0
 
 
