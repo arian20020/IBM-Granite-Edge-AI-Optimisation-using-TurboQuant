@@ -37,6 +37,10 @@ from scripts.testing.official_openvino.quality import (  # noqa: E402
 from scripts.testing.official_openvino.quality_worker import (  # noqa: E402
     _validate_spec as validate_quality_worker_spec,
 )
+from scripts.testing.official_openvino.quality_contracts import (  # noqa: E402
+    QUALITY_CONTRACTS,
+    load_quality_contract,
+)
 from scripts.testing.run_official_openvino_quality import (  # noqa: E402
     EXPECTED_GENERATION_SETTINGS,
     FROZEN_PROMPT_SET_SHA256,
@@ -51,6 +55,7 @@ from scripts.testing.run_official_openvino_quality import (  # noqa: E402
     atomic_write_json,
     build_completion_artifact,
     load_prompt_contract,
+    prompt_hashes_for_contract_id,
     parse_json_bytes_strict,
     read_json_strict,
     reject_nulls,
@@ -161,8 +166,9 @@ def load_rubric(rubric_path: Path) -> dict[str, Any]:
 
 def _prompt_controls(prompt_set_path: Path) -> dict[str, dict[str, Any]]:
     prompt_set_bytes = prompt_set_path.read_bytes()
-    if _sha256_bytes(prompt_set_bytes) != FROZEN_PROMPT_SET_SHA256:
-        raise ValueError("frozen prompt-set hash mismatch")
+    contract = load_quality_contract(prompt_set_path)
+    if _sha256_bytes(prompt_set_bytes) != contract.prompt_set_sha256:
+        raise ValueError("prompt-set hash is not allow-listed")
     prompt_set = parse_json_bytes_strict(
         prompt_set_bytes, source=prompt_set_path
     )
@@ -1651,8 +1657,9 @@ def _validate_scoring_input(
         scoring_input["schema_version"] != 1
         or scoring_input["artifact_type"]
         != "openvino-quality-blind-scoring-input"
-        or scoring_input["prompt_set_id"] != "GTQ-PROMPTS-v1"
-        or scoring_input["prompt_set_sha256"] != FROZEN_PROMPT_SET_SHA256
+        or scoring_input["prompt_set_id"] not in QUALITY_CONTRACTS
+        or scoring_input["prompt_set_sha256"]
+        != QUALITY_CONTRACTS[scoring_input["prompt_set_id"]].prompt_set_sha256
         or scoring_input["rubric_id"] != rubric["rubric_id"]
         or scoring_input["rubric_sha256"] != rubric["rubric_sha256"]
         or scoring_input["generation_settings"] != EXPECTED_GENERATION_SETTINGS
@@ -1686,7 +1693,9 @@ def _validate_scoring_input(
             raise ValueError(f"{prompt_id} prompt contract has invalid fields")
         if prompt["prompt_id"] != prompt_id:
             raise ValueError(f"{prompt_id} prompt contract identity mismatch")
-        if prompt["prompt_sha256"] != FROZEN_PROMPT_SHA256S[prompt_id]:
+        if prompt["prompt_sha256"] != prompt_hashes_for_contract_id(
+            scoring_input["prompt_set_id"]
+        )[prompt_id]:
             raise ValueError(f"{prompt_id} is not the frozen prompt contract")
         expected_prompt_sha256 = _sha256_bytes(
             _canonical_json(

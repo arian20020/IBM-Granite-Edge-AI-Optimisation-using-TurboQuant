@@ -31,6 +31,10 @@ from scripts.testing.adjudicate_official_openvino_quality import (
     deterministic_gate,
     load_rubric,
 )
+from scripts.testing.official_openvino.quality_contracts import (
+    QUALITY_CONTRACTS,
+    load_quality_contract,
+)
 from scripts.testing.official_openvino.adaptive_quality import (
     CAPTURE_SCHEMA,
     _validate_root_entries,
@@ -56,6 +60,7 @@ from scripts.testing.run_official_openvino_quality import (
     _validate_blind_label,
     atomic_write_json,
     load_prompt_contract,
+    prompt_hashes_for_contract_id,
     read_json_strict,
     reject_nulls,
 )
@@ -558,7 +563,7 @@ def _validate_task5_history(
         ),
         sampler_script=sampler_script,
         prompt_set_path=supplied_prompt_set,
-        rendered_root=supplied_prompt_set.parent / "rendered",
+        rendered_root=load_quality_contract(supplied_prompt_set).rendered_root,
         rubric_path=supplied_rubric,
         output_root=Path(summary_path).resolve().parent,
         timeout_seconds=1800.0,
@@ -634,8 +639,7 @@ def _validate_capture(
     ):
         _require_sha256(summary.get(field), field)
     if (
-        summary["prompt_set_sha256"] != FROZEN_PROMPT_SET_SHA256
-        or summary["prompt_set_sha256"] != contract["prompt_set_sha256"]
+        summary["prompt_set_sha256"] != contract["prompt_set_sha256"]
         or summary["rubric_sha256"] != rubric_sha256
     ):
         raise ValueError("quality capture prompt-set or rubric identity mismatch")
@@ -791,7 +795,9 @@ def _validate_capture(
         elif current_identity != identity:
             raise ValueError("quality capture prompt identities do not match")
 
-        prompt_sha256 = FROZEN_PROMPT_SHA256S[prompt_id]
+        prompt_sha256 = prompt_hashes_for_contract_id(
+            contract["prompt_set_id"]
+        )[prompt_id]
         request_sha256 = _sha256_bytes(
             _canonical_json(
                 {"prompt_id": prompt_id, "prompt_sha256": prompt_sha256}
@@ -877,7 +883,7 @@ def build_adaptive_blind_bundle(
     )
     rubric = load_rubric(rubric_source)
     controls = _prompt_controls(prompt_set_source)
-    rendered_root = prompt_set_source.parent / "rendered"
+    rendered_root = load_quality_contract(prompt_set_source).rendered_root
     contract = load_prompt_contract(prompt_set_source, rendered_root)
     validated = [
         _validate_capture(
@@ -992,8 +998,9 @@ def _validate_scoring_input(
         scoring_input.get("schema_version") != 1
         or scoring_input.get("artifact_type")
         != "openvino-adaptive-quality-blind-scoring-input"
-        or scoring_input.get("prompt_set_id") != "GTQ-PROMPTS-v1"
-        or scoring_input.get("prompt_set_sha256") != FROZEN_PROMPT_SET_SHA256
+        or scoring_input.get("prompt_set_id") not in QUALITY_CONTRACTS
+        or scoring_input.get("prompt_set_sha256")
+        != QUALITY_CONTRACTS[scoring_input["prompt_set_id"]].prompt_set_sha256
         or scoring_input.get("rubric_id") != rubric["rubric_id"]
         or scoring_input.get("rubric_sha256") != rubric["rubric_sha256"]
         or scoring_input.get("dimension_weights") != rubric["weights"]
@@ -1031,7 +1038,9 @@ def _validate_scoring_input(
             "output_sha256",
         ):
             _require_sha256(row.get(field), field)
-        if row["prompt_sha256"] != FROZEN_PROMPT_SHA256S[prompt_id]:
+        if row["prompt_sha256"] != prompt_hashes_for_contract_id(
+            scoring_input["prompt_set_id"]
+        )[prompt_id]:
             raise ValueError("scoring response prompt hash mismatch")
         expected_request = _sha256_bytes(
             _canonical_json(

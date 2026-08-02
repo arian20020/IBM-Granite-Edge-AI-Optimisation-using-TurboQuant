@@ -117,6 +117,15 @@ _CONTRACT_PROMPT_SHA256S = {
         "P6": "cb8dd882bbb1315324e72ebee0b5a3c895b7cef17b8390202d2c3def29d5f7a1",
     },
 }
+
+
+def prompt_hashes_for_contract_id(prompt_set_id: str) -> Mapping[str, str]:
+    """Return immutable P1-P6 execution hashes for one allow-listed contract."""
+
+    try:
+        return _CONTRACT_PROMPT_SHA256S[prompt_set_id]
+    except KeyError as exc:
+        raise ValueError("prompt contract is not allow-listed") from exc
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _BLIND_LABEL = re.compile(r"^response-[A-Z0-9]{2,24}$")
 _IDENTITY_BEARING_LABEL = re.compile(
@@ -380,7 +389,36 @@ def _read_utf8_exact(path: Path) -> tuple[str, str]:
     return text, _sha256_bytes(raw)
 
 
-def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str, Any]:
+def _load_granite_tokenizer(tokenizer_path: Path) -> Any:
+    """Load the declared tokenizer without constructing an inference pipeline."""
+
+    try:
+        from tokenizers import Tokenizer
+    except ImportError as exc:
+        raise RuntimeError("the Granite tokenizer dependency is unavailable") from exc
+    return Tokenizer.from_file(str(tokenizer_path))
+
+
+def _token_count(tokenizer: Any, prompt: str) -> int:
+    encoded = tokenizer.encode(prompt)
+    tokens = encoded.ids if hasattr(encoded, "ids") else encoded
+    if isinstance(tokens, (str, bytes)):
+        raise ValueError("Granite tokenizer returned an invalid token sequence")
+    try:
+        count = len(tokens)
+    except TypeError as exc:
+        raise ValueError("Granite tokenizer returned an invalid token sequence") from exc
+    if type(count) is not int or count < 1:
+        raise ValueError("Granite tokenizer returned an invalid token count")
+    return count
+
+
+def load_prompt_contract(
+    prompt_set_path: Path,
+    rendered_root: Path,
+    *,
+    tokenizer_loader: Callable[[Path], Any] = _load_granite_tokenizer,
+) -> dict[str, Any]:
     """Load and hash the controlling P1-P6 execution contract."""
 
     prompt_set_bytes = prompt_set_path.read_bytes()
@@ -445,13 +483,14 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
     p5_context, p5_fixture_sha256 = _read_utf8_exact(fixture_path)
     if p5_fixture_sha256 != expected_fixture_sha256:
         raise ValueError("frozen P5 fixture hash mismatch")
+    p5_observed_input_tokens: int | None = None
     if registered.maximum_input_tokens is not None:
         asset_manifest = prompt_set.get("rendered_asset_manifest")
         if (
             not isinstance(asset_manifest, dict)
             or asset_manifest.get("schema") != "granite-rendered-assets/v1"
-            or asset_manifest.get("P5_input_tokens") != 357
-            or asset_manifest["P5_input_tokens"] > registered.maximum_input_tokens
+            or not isinstance(asset_manifest.get("tokenizer_path"), str)
+            or not isinstance(asset_manifest.get("P5_input_tokens"), int)
         ):
             raise ValueError("compact prompt input token count is invalid")
 
@@ -474,6 +513,23 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
                 "mode": "single_turn",
                 "prompt": p5_context + instruction,
             }
+            if registered.maximum_input_tokens is not None:
+                tokenizer_path = Path(asset_manifest["tokenizer_path"])
+                if not tokenizer_path.is_absolute():
+                    tokenizer_path = ROOT / tokenizer_path
+                try:
+                    tokenizer_path.resolve().relative_to(ROOT.resolve())
+                except ValueError as exc:
+                    raise ValueError("Granite tokenizer path escapes repository root") from exc
+                if not tokenizer_path.is_file():
+                    raise ValueError("declared Granite tokenizer is unavailable")
+                p5_observed_input_tokens = _token_count(
+                    tokenizer_loader(tokenizer_path.resolve()), execution["prompt"]
+                )
+                if p5_observed_input_tokens > registered.maximum_input_tokens:
+                    raise ValueError("compact prompt exceeds maximum input tokens")
+                if p5_observed_input_tokens != asset_manifest["P5_input_tokens"]:
+                    raise ValueError("compact prompt observed token count does not match manifest")
         else:
             turn_one = rendered[prompt_id]["P6-turn1.txt"][0]
             history = rendered[prompt_id]["P6-turn2-with-history.txt"][0]
@@ -514,6 +570,8 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
         "generation_settings": dict(settings),
         "prompts": prompts,
     }
+    if p5_observed_input_tokens is not None:
+        contract["observed_input_tokens"] = {"P5": p5_observed_input_tokens}
     reject_nulls(contract)
     return contract
 
