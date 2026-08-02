@@ -24,6 +24,7 @@ from scripts.testing.measure_official_openvino import (
     CampaignLock,
     MeasurementFailureRecord,
     MeasurementSequenceFailure,
+    _sequence_spec,
 )
 from scripts.testing.official_openvino.adaptive_campaign_spec import (
     generate_adaptive_format_comparison_specs,
@@ -429,6 +430,22 @@ def _campaign_inputs(
         sampler_script=sampler,
         max_context=max_context,
     )
+
+
+def test_generated_adaptive_spec_is_consumable_by_sequence_loader(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    generated = config.spec_root / "OV-11" / "512" / "runtime-spec.json"
+
+    projected = _sequence_spec(generated)
+
+    assert projected["schema"] == "official-openvino-wb04-worker-spec/v1"
+    assert projected["role"] == "pilot"
+    assert projected["controlled_test_id"] == "OV-11"
+    assert projected["context"] == 512
+    assert projected["expected_input_tokens"] == 512
+    assert projected["prompt"] == " test" * 512
 
 
 def _failure_record(

@@ -11,6 +11,7 @@ from scripts.testing.measure_official_openvino import (
     MeasurementSequenceFailure,
     _adaptive_record,
     _persisted_record,
+    _sequence_spec,
     build_campaign_identity,
     run_measurement_sequence,
 )
@@ -440,6 +441,121 @@ def _completed_campaign(tmp_path: Path) -> dict:
 
     run_measurement_sequence(**kwargs, run_measurement=fake_measurement)
     return kwargs
+
+
+def _adaptive_sequence_spec(kwargs: dict) -> dict:
+    worker_template = json.loads(
+        kwargs["spec_path"].read_text(encoding="utf-8")
+    )
+    context = worker_template["context"]
+    prompt = " test" * context
+    return {
+        "schema": "official-openvino-adaptive-comparison-runtime-spec/v1",
+        "controlled_test_id": worker_template["controlled_test_id"],
+        "artifact_id": "granite-4.1-3b-u8-openvino",
+        "artifact_manifest_path": str(kwargs["artifact_manifest_path"]),
+        "artifact_manifest_sha256": hashlib.sha256(
+            kwargs["artifact_manifest_path"].read_bytes()
+        ).hexdigest(),
+        "model_path": worker_template["model_path"],
+        "device": worker_template["device"],
+        "context_tokens": context,
+        "max_new_tokens": worker_template["max_new_tokens"],
+        "ignore_eos": worker_template["ignore_eos"],
+        "seed": worker_template["seed"],
+        "apply_chat_template": worker_template["apply_chat_template"],
+        "properties": worker_template["properties"],
+        "workload": {
+            "strategy": "granite-single-token-test-prefix/v1",
+            "context": context,
+            "expected_input_tokens": context,
+            "actual_input_tokens": context,
+            "prompt": prompt,
+            "prompt_sha256": hashlib.sha256(
+                prompt.encode("utf-8")
+            ).hexdigest(),
+        },
+    }
+
+
+def test_sequence_projects_frozen_adaptive_spec_into_worker_roles(
+    tmp_path: Path,
+) -> None:
+    kwargs = _setup_campaign(tmp_path)
+    adaptive_spec = _adaptive_sequence_spec(kwargs)
+    context = adaptive_spec["context_tokens"]
+    prompt = adaptive_spec["workload"]["prompt"]
+    _write_json(kwargs["spec_path"], adaptive_spec)
+    seen_roles: list[str] = []
+
+    def fake_measurement(**run_kwargs):
+        role = run_kwargs["role"]
+        role_spec = json.loads(
+            run_kwargs["spec_path"].read_text(encoding="utf-8")
+        )
+        seen_roles.append(role)
+        assert role_spec["schema"] == "official-openvino-wb04-worker-spec/v1"
+        assert role_spec["role"] == role
+        assert role_spec["context"] == context
+        assert role_spec["expected_input_tokens"] == context
+        assert role_spec["prompt"] == prompt
+        record = _record(role, ROLES.index(role), role_spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        return record
+
+    result = run_measurement_sequence(
+        **kwargs,
+        run_measurement=fake_measurement,
+    )
+
+    assert seen_roles == list(ROLES)
+    assert result["accepted_sample_count"] == 3
+
+
+@pytest.mark.parametrize("claim", ("path", "hash", "artifact-id"))
+def test_adaptive_sequence_rejects_manifest_claim_substitution(
+    tmp_path: Path,
+    claim: str,
+) -> None:
+    kwargs = _setup_campaign(tmp_path)
+    adaptive_spec = _adaptive_sequence_spec(kwargs)
+    if claim == "path":
+        adaptive_spec["artifact_manifest_path"] = str(
+            tmp_path / "substituted-artifact-manifest.json"
+        )
+    elif claim == "hash":
+        adaptive_spec["artifact_manifest_sha256"] = "f" * 64
+    else:
+        adaptive_spec["artifact_id"] = "substituted-artifact"
+    _write_json(kwargs["spec_path"], adaptive_spec)
+
+    with pytest.raises(ValueError, match="adaptive.*manifest"):
+        build_campaign_identity(**_identity_kwargs(kwargs))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("prompt", "context", "generation-control"),
+)
+def test_adaptive_sequence_rejects_rehashed_runtime_drift(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    kwargs = _setup_campaign(tmp_path)
+    adaptive_spec = _adaptive_sequence_spec(kwargs)
+    if mutation == "prompt":
+        adaptive_spec["workload"]["prompt"] += " altered"
+        adaptive_spec["workload"]["prompt_sha256"] = hashlib.sha256(
+            adaptive_spec["workload"]["prompt"].encode("utf-8")
+        ).hexdigest()
+    elif mutation == "context":
+        adaptive_spec["workload"]["actual_input_tokens"] += 1
+    else:
+        adaptive_spec["seed"] += 1
+    _write_json(kwargs["spec_path"], adaptive_spec)
+
+    with pytest.raises(ValueError, match="adaptive worker spec"):
+        _sequence_spec(kwargs["spec_path"])
 
 
 def test_sequence_runs_five_roles_once_and_atomically_summarizes_only_samples(

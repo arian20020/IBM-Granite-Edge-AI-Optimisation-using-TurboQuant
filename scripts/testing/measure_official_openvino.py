@@ -38,12 +38,14 @@ from scripts.testing.official_openvino.runtime_process import (
     measurement_sample,
     run_governed_process,
 )
+from scripts.testing.official_openvino.workload import build_context_workload
 
 
 MIB = 1024**2
 MIN_LAUNCH_AVAILABLE_RAM_MIB = 4096
 MIN_EMERGENCY_AVAILABLE_RAM_MIB = 2048
 SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
+ADAPTIVE_SPEC_SCHEMA = "official-openvino-adaptive-comparison-runtime-spec/v1"
 ROLES = frozenset({"pilot", "warmup", "sample-1", "sample-2", "sample-3"})
 SEQUENCE_ROLES = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
 CAMPAIGN_SCHEMA = "official-openvino-wb04-campaign-identity/v1"
@@ -183,8 +185,79 @@ def _directory_content_identity(path: Path, field: str) -> dict[str, Any]:
     }
 
 
+def _project_adaptive_sequence_spec(value: Mapping[str, Any]) -> dict[str, Any]:
+    expected_fields = {
+        "schema",
+        "controlled_test_id",
+        "artifact_id",
+        "artifact_manifest_path",
+        "artifact_manifest_sha256",
+        "model_path",
+        "device",
+        "context_tokens",
+        "workload",
+        "properties",
+        "max_new_tokens",
+        "ignore_eos",
+        "seed",
+        "apply_chat_template",
+    }
+    if set(value) != expected_fields:
+        raise ValueError("adaptive worker spec fields are invalid")
+    context = value.get("context_tokens")
+    try:
+        expected_workload = {
+            **build_context_workload(context),
+            "actual_input_tokens": context,
+        }
+    except ValueError as error:
+        raise ValueError("adaptive worker spec context is invalid") from error
+    if value.get("workload") != expected_workload:
+        raise ValueError("adaptive worker spec workload is invalid")
+    for field in (
+        "controlled_test_id",
+        "artifact_id",
+        "artifact_manifest_path",
+        "artifact_manifest_sha256",
+        "model_path",
+        "device",
+    ):
+        if not isinstance(value.get(field), str) or not value[field].strip():
+            raise ValueError(f"adaptive worker spec {field} is required")
+    if not re.fullmatch(r"[0-9a-f]{64}", value["artifact_manifest_sha256"]):
+        raise ValueError("adaptive worker spec artifact manifest hash is invalid")
+    if not isinstance(value.get("properties"), dict):
+        raise ValueError("adaptive worker spec properties must be an object")
+    if (
+        type(value.get("max_new_tokens")) is not int
+        or value["max_new_tokens"] != 4
+        or value.get("ignore_eos") is not True
+        or type(value.get("seed")) is not int
+        or value["seed"] != 42
+        or value.get("apply_chat_template") is not False
+    ):
+        raise ValueError("adaptive worker spec generation controls are invalid")
+    return {
+        "schema": SPEC_SCHEMA,
+        "role": "pilot",
+        "controlled_test_id": value["controlled_test_id"],
+        "model_path": value["model_path"],
+        "device": value["device"],
+        "prompt": expected_workload["prompt"],
+        "context": context,
+        "expected_input_tokens": context,
+        "properties": dict(value["properties"]),
+        "max_new_tokens": value["max_new_tokens"],
+        "ignore_eos": value["ignore_eos"],
+        "seed": value["seed"],
+        "apply_chat_template": value["apply_chat_template"],
+    }
+
+
 def _sequence_spec(path: Path) -> dict[str, Any]:
     value = _read_json_object(path, "worker spec")
+    if value.get("schema") == ADAPTIVE_SPEC_SCHEMA:
+        value = _project_adaptive_sequence_spec(value)
     if value.get("schema") != SPEC_SCHEMA:
         raise ValueError("worker spec schema is invalid")
     if value.get("role") not in ROLES:
@@ -484,6 +557,7 @@ def build_campaign_identity(
 ) -> dict[str, Any]:
     """Derive one canonical identity from every resumability boundary."""
 
+    source_spec = _read_json_object(spec_path, "worker spec")
     spec = _sequence_spec(spec_path)
     model_path = _directory(Path(spec["model_path"]), "model")
     matrix = _matrix_case(
@@ -503,6 +577,19 @@ def build_campaign_identity(
         manifest_path,
         expected_precision=expected_precision,
     )
+    if source_spec.get("schema") == ADAPTIVE_SPEC_SCHEMA:
+        claimed_manifest = Path(source_spec["artifact_manifest_path"]).resolve()
+        if (
+            os.path.normcase(str(claimed_manifest))
+            != os.path.normcase(str(manifest_path))
+            or source_spec["artifact_manifest_sha256"]
+            != _sha256_file(manifest_path)
+            or source_spec["artifact_id"] != artifact.get("artifact_id")
+        ):
+            raise ValueError(
+                "adaptive artifact manifest provenance does not match the "
+                "validated measurement input"
+            )
     if os.path.normcase(str(model_path)) != os.path.normcase(
         str(Path(artifact["artifact_root"]).resolve())
     ):
