@@ -1,0 +1,72 @@
+{
+  "schema": "official-openvino-comparison-release-input-v1",
+  "documentation_only": true,
+  "notice": "Schema documentation only; this file is never executable evidence.",
+  "matrix": {
+    "path": "matrix/adaptive-comparison.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "campaign_state": {
+    "path": "controller/adaptive-campaign-state.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "steps": [
+    {
+      "test_id": "OV-11",
+      "context_tokens": 512,
+      "runtime": {
+        "path": "runtime/OV-11/context-512/attempt-sequence.json",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "quality_capture": {
+        "path": "quality/OV-11/512/capture-summary.json",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "quality_adjudication": {
+        "result": {
+          "path": "quality/OV-11/512/task6/adjudication.json",
+          "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "scoring_input": {
+          "path": "quality/OV-11/512/task6/blind-scoring.json",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "private_map": {
+          "path": "quality/OV-11/512/task6/blind-map-private.json",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "judge_score_sheets": [
+          {
+            "path": "quality/OV-11/512/task6/judge-a.json",
+            "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "path": "quality/OV-11/512/task6/judge-b.json",
+            "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          }
+        ],
+        "pairwise_reviews": {
+          "path": "quality/OV-11/512/task6/pairwise-reviews.json",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "manual_adjudications": {
+          "path": "quality/OV-11/512/task6/manual-adjudications.json",
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+        }
+      }
+    },
+    {
+      "test_id": "OV-13",
+      "context_tokens": 512,
+      "terminal": {
+        "stage": "artifact-preparation",
+        "principal_reason": "FP16 artifact preparation terminal",
+        "evidence": {
+          "path": "terminals/OV-13-artifact-preparation.json",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      }
+    }
+  ],
+  "release_input_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+}
