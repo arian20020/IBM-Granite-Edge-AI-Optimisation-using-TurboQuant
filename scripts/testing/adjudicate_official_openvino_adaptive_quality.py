@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import secrets
+import stat
 import statistics
 import sys
+import tempfile
+from contextlib import ExitStack
 from collections.abc import Callable, Mapping, Sequence
 from itertools import combinations
 from pathlib import Path
@@ -27,10 +31,17 @@ from scripts.testing.adjudicate_official_openvino_quality import (
     deterministic_gate,
     load_rubric,
 )
-from scripts.testing.official_openvino.adaptive_quality import CAPTURE_SCHEMA
+from scripts.testing.official_openvino.adaptive_quality import (
+    CAPTURE_SCHEMA,
+    _validate_root_entries,
+    _validate_summary_history,
+)
 from scripts.testing.official_openvino.quality_campaign import (
+    QualityCampaignInput,
     _canonical_identity_bytes,
     _strict_object,
+    _validated_lexical_output_root,
+    load_accepted_quality_campaign,
 )
 from scripts.testing.official_openvino.quality_worker import (
     PROMPT_RESULT_SCHEMA,
@@ -181,10 +192,28 @@ _PRIVATE_IDENTITY_FIELDS = {
 }
 
 
-def _read_task5_object(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
-    source = Path(path).resolve()
-    if not source.is_file() or source.is_symlink():
+def _require_lexical_file(path: Path, *, label: str) -> Path:
+    try:
+        lexical = _validated_lexical_output_root(Path(path))
+    except ValueError as error:
+        raise ValueError(f"{label} is aliased") from error
+    if not lexical.is_file():
         raise ValueError(f"{label} is missing or aliased")
+    return lexical.resolve()
+
+
+def _require_lexical_directory(path: Path, *, label: str) -> Path:
+    try:
+        lexical = _validated_lexical_output_root(Path(path))
+    except ValueError as error:
+        raise ValueError(f"{label} is aliased") from error
+    if not lexical.is_dir():
+        raise ValueError(f"{label} is missing or aliased")
+    return lexical.resolve()
+
+
+def _read_task5_object(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
+    source = _require_lexical_file(path, label=label)
     raw = source.read_bytes()
     value = _strict_object(raw, source=source)
     if raw != _task5_canonical_json(value):
@@ -193,9 +222,9 @@ def _read_task5_object(path: Path, *, label: str) -> tuple[dict[str, Any], bytes
 
 
 def _read_guard_object(path: Path) -> tuple[dict[str, Any], bytes]:
-    source = Path(path).resolve()
-    if not source.is_file() or source.is_symlink():
-        raise ValueError("quality prompt guard evidence is missing or aliased")
+    source = _require_lexical_file(
+        path, label="quality prompt guard evidence"
+    )
     raw = source.read_bytes()
     value = _strict_object(raw, source=source)
     if raw != _canonical_identity_bytes(value):
@@ -203,15 +232,125 @@ def _read_guard_object(path: Path) -> tuple[dict[str, Any], bytes]:
     return value, raw
 
 
+def _read_task5_identity(path: Path) -> tuple[dict[str, Any], bytes]:
+    source = _require_lexical_file(path, label="quality campaign identity")
+    raw = source.read_bytes()
+    value = _strict_object(raw, source=source)
+    if raw != _canonical_identity_bytes(value):
+        raise ValueError("quality campaign identity bytes are not canonical")
+    return value, raw
+
+
 def _require_exact_file(value: Any, *, expected: Path, field: str) -> Path:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be an absolute path")
     supplied = Path(value)
-    if not supplied.is_absolute() or supplied.resolve() != expected.resolve():
+    if not supplied.is_absolute():
         raise ValueError(f"{field} is not the expected evidence path")
-    if not supplied.is_file() or supplied.is_symlink():
-        raise ValueError(f"{field} is missing or aliased")
-    return supplied.resolve()
+    reopened = _require_lexical_file(supplied, label=field)
+    if reopened != expected.resolve():
+        raise ValueError(f"{field} is not the expected evidence path")
+    return reopened
+
+
+def _preflight_task5_worker_spec_paths(spec: Mapping[str, Any]) -> None:
+    def preflight_file(value: Any, label: str) -> None:
+        if not isinstance(value, str) or not value.strip():
+            return
+        path = Path(value)
+        if not path.is_absolute():
+            raise ValueError(f"{label} path is not absolute")
+        _require_lexical_file(path, label=label)
+
+    def preflight_directory(value: Any, label: str) -> None:
+        if not isinstance(value, str) or not value.strip():
+            return
+        path = Path(value)
+        if not path.is_absolute():
+            raise ValueError(f"{label} path is not absolute")
+        _require_lexical_directory(path, label=label)
+
+    preflight_directory(spec.get("model_path"), "quality worker model")
+    bindings = spec.get("bindings")
+    if not isinstance(bindings, Mapping):
+        return
+    for field in (
+        "runtime_summary_path",
+        "attempt_sequence_path",
+        "adaptive_runtime_spec_path",
+        "pilot_spec_path",
+        "spec_index_path",
+        "artifact_inventory_path",
+        "matrix_path",
+        "artifact_manifest_path",
+        "prompt_set_path",
+        "rubric_path",
+        "build_provenance_path",
+        "quality_worker_path",
+    ):
+        preflight_file(bindings.get(field), field.replace("_", " "))
+    raw_samples = bindings.get("raw_samples")
+    if isinstance(raw_samples, list):
+        for index, sample in enumerate(raw_samples, start=1):
+            if isinstance(sample, Mapping):
+                preflight_file(
+                    sample.get("path"), f"quality raw sample {index}"
+                )
+    command = bindings.get("command")
+    if isinstance(command, list):
+        for index, label in (
+            (0, "quality worker Python executable"),
+            (4, "quality worker command spec"),
+            (6, "quality worker command result"),
+        ):
+            if index < len(command):
+                preflight_file(command[index], label)
+    build_identity = bindings.get("build_identity")
+    if isinstance(build_identity, Mapping):
+        preflight_directory(build_identity.get("root"), "quality build root")
+        preflight_file(
+            build_identity.get("provenance_path"), "quality build provenance"
+        )
+        for field, label in (
+            ("python_module", "quality build Python module"),
+            ("runtime_dll", "quality build runtime DLL"),
+        ):
+            nested = build_identity.get(field)
+            if isinstance(nested, Mapping):
+                preflight_file(nested.get("path"), label)
+
+
+def _preflight_task5_history_paths(root: Path) -> None:
+    primary = root / "capture-summary.json"
+    summary_paths = (
+        ([primary] if primary.is_file() else [])
+        + sorted(root.glob("capture-summary-recovery-*.json"))
+    )
+    for summary_path in summary_paths:
+        value, _raw = _read_task5_object(
+            summary_path, label="adaptive quality capture summary"
+        )
+        previous = value.get("previous_capture_summary_path")
+        if previous is None:
+            continue
+        if not isinstance(previous, str) or not Path(previous).is_absolute():
+            raise ValueError("adaptive quality previous summary path is invalid")
+        _require_lexical_file(
+            Path(previous), label="adaptive quality previous capture summary"
+        )
+
+    for prompt_root in sorted(
+        (child for child in root.iterdir() if child.is_dir()),
+        key=lambda path: path.name,
+    ):
+        reopened_root = _require_lexical_directory(
+            prompt_root, label="quality prompt root"
+        )
+        spec, _raw = _read_task5_object(
+            reopened_root / "worker-spec.json",
+            label="quality prompt worker spec",
+        )
+        _preflight_task5_worker_spec_paths(spec)
 
 
 def _expected_spec_turns(
@@ -312,14 +451,155 @@ def _validate_task5_result(
     return projected
 
 
+def _validate_task5_history(
+    summary_path: Path,
+    summary: Mapping[str, Any],
+    *,
+    prompt_set_path: Path,
+    rubric_path: Path,
+) -> None:
+    receipts = summary.get("prompt_receipts")
+    if not isinstance(receipts, list) or not receipts:
+        raise ValueError("adaptive quality capture history is invalid")
+    first_receipt = receipts[0]
+    if not isinstance(first_receipt, Mapping):
+        raise ValueError("adaptive quality capture history is invalid")
+    spec_path = _require_lexical_file(
+        Path(str(first_receipt.get("worker_spec_path"))),
+        label="quality prompt worker spec",
+    )
+    spec, _spec_raw = _read_task5_object(
+        spec_path, label="quality prompt worker spec"
+    )
+    _preflight_task5_worker_spec_paths(spec)
+    normalized_spec = _validate_prompt_worker_spec(spec)
+    bindings = normalized_spec["bindings"]
+
+    supplied_prompt_set = _require_lexical_file(
+        Path(prompt_set_path), label="quality prompt set"
+    )
+    supplied_rubric = _require_lexical_file(
+        Path(rubric_path), label="quality rubric"
+    )
+    if (
+        Path(bindings["prompt_set_path"]).resolve() != supplied_prompt_set
+        or Path(bindings["rubric_path"]).resolve() != supplied_rubric
+    ):
+        raise ValueError("adaptive quality capture prompt or rubric substitution")
+
+    runtime_summary = _require_lexical_file(
+        Path(bindings["runtime_summary_path"]), label="quality runtime summary"
+    )
+    campaign_root = runtime_summary.parent
+    identity_path = campaign_root / "campaign-identity.json"
+    identity, _identity_raw = _read_task5_identity(identity_path)
+    native = identity.get("identity")
+    if not isinstance(native, Mapping):
+        raise ValueError("quality campaign identity is invalid")
+    build = native.get("build")
+    runtime = native.get("runtime")
+    if not isinstance(build, Mapping) or not isinstance(runtime, Mapping):
+        raise ValueError("quality campaign identity sections are invalid")
+    python_identity = runtime.get("python_executable")
+    openvino_package = runtime.get("python_openvino_package")
+    openvino_libraries = runtime.get("openvino_libraries")
+    if not all(
+        isinstance(item, Mapping)
+        for item in (python_identity, openvino_package, openvino_libraries)
+    ):
+        raise ValueError("quality campaign runtime identity is invalid")
+
+    repo_root = _require_lexical_directory(
+        Path(str(runtime.get("repository_root"))),
+        label="quality campaign repository root",
+    )
+    sampler_script = (
+        repo_root
+        / "scripts"
+        / "testing"
+        / "collect_openvino_runtime_utilization.ps1"
+    )
+    sampler_script = _require_lexical_file(
+        sampler_script, label="quality campaign utilization sampler"
+    )
+    python_openvino_package = _require_lexical_directory(
+        Path(str(openvino_package.get("path"))),
+        label="quality Python OpenVINO package",
+    )
+
+    campaign_input = QualityCampaignInput(
+        campaign_root=campaign_root,
+        spec_path=_require_lexical_file(
+            Path(bindings["pilot_spec_path"]), label="quality pilot spec"
+        ),
+        matrix_path=_require_lexical_file(
+            Path(bindings["matrix_path"]), label="quality matrix"
+        ),
+        artifact_manifest_path=_require_lexical_file(
+            Path(bindings["artifact_manifest_path"]),
+            label="quality artifact manifest",
+        ),
+        build_provenance_path=_require_lexical_file(
+            Path(bindings["build_provenance_path"]),
+            label="quality build provenance",
+        ),
+        build_root=_require_lexical_directory(
+            Path(str(build.get("root"))), label="quality build root"
+        ),
+        repo_root=repo_root,
+        python_executable=_require_lexical_file(
+            Path(str(python_identity.get("path"))),
+            label="quality Python executable",
+        ),
+        python_site_packages=python_openvino_package.parent,
+        openvino_libraries=_require_lexical_directory(
+            Path(str(openvino_libraries.get("path"))),
+            label="quality OpenVINO libraries",
+        ),
+        sampler_script=sampler_script,
+        prompt_set_path=supplied_prompt_set,
+        rendered_root=supplied_prompt_set.parent / "rendered",
+        rubric_path=supplied_rubric,
+        output_root=Path(summary_path).resolve().parent,
+        timeout_seconds=1800.0,
+    )
+    campaign = load_accepted_quality_campaign(campaign_input)
+    evidence_paths = {
+        field: _require_lexical_file(
+            Path(bindings[field]), label=field.replace("_", " ")
+        )
+        for field in (
+            "attempt_sequence_path",
+            "adaptive_runtime_spec_path",
+            "pilot_spec_path",
+            "spec_index_path",
+            "artifact_inventory_path",
+        )
+    }
+    root = Path(summary_path).resolve().parent
+    _validate_root_entries(root)
+    _preflight_task5_history_paths(root)
+    latest_path, latest_value, _latest_results = _validate_summary_history(
+        campaign,
+        root,
+        evidence_paths=evidence_paths,
+    )
+    if latest_path != Path(summary_path).resolve() or latest_value != dict(summary):
+        raise ValueError("adaptive quality capture is not the latest history summary")
+
+
 def _validate_capture(
     summary_path: Path,
     *,
     contract: Mapping[str, Any],
     controls: Mapping[str, Mapping[str, Any]],
     rubric_sha256: str,
+    prompt_set_path: Path,
+    rubric_path: Path,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    path = Path(summary_path).resolve()
+    path = _require_lexical_file(
+        Path(summary_path), label="adaptive quality capture summary"
+    )
     summary, summary_raw = _read_task5_object(
         path, label="adaptive quality capture summary"
     )
@@ -371,12 +651,15 @@ def _validate_capture(
     if (previous_path is None) != (previous_hash is None):
         raise ValueError("adaptive quality capture summary history is invalid")
     if previous_path is not None:
-        previous = Path(previous_path)
         _require_sha256(previous_hash, "previous_capture_summary_sha256")
+        previous = Path(previous_path)
+        if not previous.is_absolute():
+            raise ValueError("adaptive quality previous capture summary mismatch")
+        previous = _require_lexical_file(
+            previous, label="adaptive quality previous capture summary"
+        )
         if (
-            not previous.is_absolute()
-            or not previous.is_file()
-            or previous.resolve().parent != path.parent
+            previous.parent != path.parent
             or _sha256_bytes(previous.read_bytes()) != previous_hash
         ):
             raise ValueError("adaptive quality previous capture summary mismatch")
@@ -400,16 +683,17 @@ def _validate_capture(
             raise ValueError("quality capture must contain exactly P1 through P6")
         process_identities.add(receipt["process_identity"])
         prompt_root = Path(str(receipt["prompt_root"]))
+        if not prompt_root.is_absolute():
+            raise ValueError("quality prompt root is invalid")
+        prompt_root = _require_lexical_directory(
+            prompt_root, label="quality prompt root"
+        )
         if (
-            not prompt_root.is_absolute()
-            or prompt_root.resolve().parent != root
-            or prompt_root.resolve().name
+            prompt_root.parent != root
+            or prompt_root.name
             not in {prompt_id, f"{prompt_id}-recovery-001"}
-            or prompt_root.is_symlink()
-            or not prompt_root.is_dir()
         ):
             raise ValueError("quality prompt root is invalid")
-        prompt_root = prompt_root.resolve()
         expected_children = {
             "worker-spec.json",
             "worker-result.json",
@@ -458,6 +742,7 @@ def _validate_capture(
             or spec.get("turns") != _expected_spec_turns(prompt_id, contract)
         ):
             raise ValueError("quality prompt worker spec identity is invalid")
+        _preflight_task5_worker_spec_paths(spec)
         _validate_prompt_worker_spec(spec)
         worker_spec_sha256 = _sha256_bytes(spec_raw)
         result, _result_raw = _read_task5_object(
@@ -532,6 +817,12 @@ def _validate_capture(
         )
     if identity is None:
         raise ValueError("quality capture must contain exactly P1 through P6")
+    _validate_task5_history(
+        path,
+        summary,
+        prompt_set_path=prompt_set_path,
+        rubric_path=rubric_path,
+    )
     return identity, projected
 
 
@@ -544,6 +835,22 @@ def _new_blind_label(used: set[str]) -> str:
             return _validate_blind_label(candidate)
 
 
+def _secure_shuffle(values: Sequence[Any]) -> list[Any]:
+    shuffled = list(values)
+    for upper in range(len(shuffled) - 1, 0, -1):
+        selected = secrets.randbelow(upper + 1)
+        shuffled[upper], shuffled[selected] = shuffled[selected], shuffled[upper]
+    return shuffled
+
+
+def _new_pair_id(used: set[str]) -> str:
+    while True:
+        candidate = secrets.token_hex(32)
+        if candidate not in used:
+            used.add(candidate)
+            return candidate
+
+
 def build_adaptive_blind_bundle(
     capture_summaries: Sequence[Path],
     *,
@@ -554,19 +861,32 @@ def build_adaptive_blind_bundle(
         capture_summaries, Sequence
     ):
         raise TypeError("capture_summaries must be a sequence of paths")
-    paths = [Path(path).resolve() for path in capture_summaries]
+    paths = [
+        _require_lexical_file(
+            Path(path), label="adaptive quality capture summary"
+        )
+        for path in capture_summaries
+    ]
     if not paths or len(paths) != len(set(paths)):
         raise ValueError("capture summaries must be non-empty and unique")
-    rubric = load_rubric(Path(rubric_path))
-    controls = _prompt_controls(Path(prompt_set_path))
-    rendered_root = Path(prompt_set_path).resolve().parent / "rendered"
-    contract = load_prompt_contract(Path(prompt_set_path), rendered_root)
+    prompt_set_source = _require_lexical_file(
+        Path(prompt_set_path), label="quality prompt set"
+    )
+    rubric_source = _require_lexical_file(
+        Path(rubric_path), label="quality rubric"
+    )
+    rubric = load_rubric(rubric_source)
+    controls = _prompt_controls(prompt_set_source)
+    rendered_root = prompt_set_source.parent / "rendered"
+    contract = load_prompt_contract(prompt_set_source, rendered_root)
     validated = [
         _validate_capture(
             path,
             contract=contract,
             controls=controls,
             rubric_sha256=rubric["rubric_sha256"],
+            prompt_set_path=prompt_set_source,
+            rubric_path=rubric_source,
         )
         for path in paths
     ]
@@ -580,7 +900,7 @@ def build_adaptive_blind_bundle(
     used_labels: set[str] = set()
     mapping: dict[str, dict[str, Any]] = {}
     responses: list[dict[str, Any]] = []
-    for identity, projected in validated:
+    for identity, projected in _secure_shuffle(validated):
         label = _new_blind_label(used_labels)
         mapping[label] = identity
         responses.extend({"blind_label": label, **row} for row in projected)
@@ -588,19 +908,21 @@ def build_adaptive_blind_bundle(
     context_groups: dict[int, list[str]] = {}
     for label, identity in mapping.items():
         context_groups.setdefault(identity["context_tokens"], []).append(label)
-    pairwise_pairs: list[dict[str, Any]] = []
-    for context_tokens in sorted(context_groups):
-        labels = sorted(context_groups[context_tokens])
+    pair_candidates: list[list[str]] = []
+    for labels in context_groups.values():
         for left, right in combinations(labels, 2):
             blind_labels = [left, right]
-            pairwise_pairs.append(
-                {
-                    "pair_id": _sha256_bytes(
-                        _canonical_json({"blind_labels": blind_labels})
-                    ),
-                    "blind_labels": blind_labels,
-                }
-            )
+            if secrets.randbelow(2):
+                blind_labels.reverse()
+            pair_candidates.append(blind_labels)
+    used_pair_ids: set[str] = set()
+    pairwise_pairs = [
+        {
+            "pair_id": _new_pair_id(used_pair_ids),
+            "blind_labels": blind_labels,
+        }
+        for blind_labels in _secure_shuffle(pair_candidates)
+    ]
 
     public_unsigned = {
         "schema_version": 1,
@@ -761,26 +1083,34 @@ def _validate_scoring_input(
     if not isinstance(pairs, list):
         raise ValueError("scoring input pairwise schedule is invalid")
     seen_pair_ids: set[str] = set()
-    seen_label_pairs: set[tuple[str, str]] = set()
+    seen_label_pairs: set[frozenset[str]] = set()
     for pair in pairs:
         if not isinstance(pair, dict) or set(pair) != _PAIR_FIELDS:
             raise ValueError("scoring input pairwise schedule is invalid")
         pair_id = pair.get("pair_id")
         blind_labels = pair.get("blind_labels")
         _require_sha256(pair_id, "pair_id")
+        label_pair = (
+            frozenset(blind_labels) if isinstance(blind_labels, list) else frozenset()
+        )
         if (
             not isinstance(blind_labels, list)
             or len(blind_labels) != 2
             or any(label not in labels for label in blind_labels)
-            or blind_labels != sorted(set(blind_labels))
+            or len(label_pair) != 2
             or pair_id
-            != _sha256_bytes(_canonical_json({"blind_labels": blind_labels}))
+            in {
+                _sha256_bytes(_canonical_json({"blind_labels": blind_labels})),
+                _sha256_bytes(
+                    _canonical_json({"blind_labels": sorted(blind_labels)})
+                ),
+            }
             or pair_id in seen_pair_ids
-            or tuple(blind_labels) in seen_label_pairs
+            or label_pair in seen_label_pairs
         ):
             raise ValueError("scoring input pairwise schedule is invalid")
         seen_pair_ids.add(pair_id)
-        seen_label_pairs.add(tuple(blind_labels))
+        seen_label_pairs.add(label_pair)
     return indexed
 
 
@@ -973,7 +1303,9 @@ def _normalise_manual_adjudications(
     scoring_input: Mapping[str, Any],
     responses: Mapping[tuple[str, str], Mapping[str, Any]],
     rubric: Mapping[str, Any],
-    score_sheet_sha256s: list[str],
+    judge_prompt_evidence: Mapping[
+        tuple[str, str], list[dict[str, Any]]
+    ],
     pairwise_reviews: Mapping[str, Any],
     required_prompt_flags: Mapping[tuple[str, str], list[str]],
     required_pair_ids: set[str],
@@ -1058,7 +1390,7 @@ def _normalise_manual_adjudications(
                 "deterministic_gate_sha256": _sha256_bytes(
                     _canonical_json(raw["deterministic_gate"])
                 ),
-                "judge_score_sheet_sha256s": score_sheet_sha256s,
+                "judge_manual_critical_caps": judge_prompt_evidence[key],
             }
             if (
                 record.get("response_sha256") != raw["response_sha256"]
@@ -1080,6 +1412,10 @@ def _normalise_manual_adjudications(
             caps = [
                 float(cap)
                 for cap in raw["deterministic_gate"]["critical_caps"]
+            ] + [
+                float(cap)
+                for judge in judge_prompt_evidence[key]
+                for cap in judge["manual_critical_caps"]
             ]
             expected_score = round(
                 min([uncapped, *caps]) if caps else uncapped,
@@ -1211,8 +1547,14 @@ def adjudicate_adaptive_quality(
     rubric_path: Path,
     prompt_set_path: Path,
 ) -> dict[str, Any]:
-    rubric = load_rubric(Path(rubric_path))
-    controls = _prompt_controls(Path(prompt_set_path))
+    rubric_source = _require_lexical_file(
+        Path(rubric_path), label="quality rubric"
+    )
+    prompt_set_source = _require_lexical_file(
+        Path(prompt_set_path), label="quality prompt set"
+    )
+    rubric = load_rubric(rubric_source)
+    controls = _prompt_controls(prompt_set_source)
     responses = _validate_scoring_input(
         scoring_input,
         rubric=rubric,
@@ -1222,19 +1564,42 @@ def adjudicate_adaptive_quality(
         judge_score_sheets, Sequence
     ) or len(judge_score_sheets) != 2:
         raise ValueError("exactly two judge score sheets are required")
-    normalized_sheets = [
-        _normalise_score_sheet(
-            sheet,
-            expected=responses,
-            scoring_input=scoring_input,
-            rubric=rubric,
-        )
+    normalized_with_hashes = sorted(
+        [
+            _normalise_score_sheet(
+                sheet,
+                expected=responses,
+                scoring_input=scoring_input,
+                rubric=rubric,
+            )
+            for sheet in judge_score_sheets
+        ],
+        key=lambda item: item[0],
+    )
+    sheet_hash_by_judge = {
+        sheet["judge_id"]: sheet["score_sheet_sha256"]
         for sheet in judge_score_sheets
-    ]
+    }
+    normalized_sheets = normalized_with_hashes
     judge_ids = [judge_id for judge_id, _rows in normalized_sheets]
-    sheet_hashes = [sheet["score_sheet_sha256"] for sheet in judge_score_sheets]
+    sheet_hashes = [sheet_hash_by_judge[judge_id] for judge_id in judge_ids]
     if len(set(judge_ids)) != 2 or len(set(sheet_hashes)) != 2:
         raise ValueError("two independent judge score sheets are required")
+
+    judge_prompt_evidence = {
+        key: [
+            {
+                "judge_id": judge_id,
+                "score_sheet_sha256": sheet_hash,
+                "manual_critical_caps": list(rows[key]["manual_critical_caps"]),
+                "manual_cap_reasons": list(rows[key]["manual_cap_reasons"]),
+            }
+            for (judge_id, rows), sheet_hash in zip(
+                normalized_sheets, sheet_hashes, strict=True
+            )
+        ]
+        for key in responses
+    }
 
     normalized_pairwise = _normalise_pairwise_reviews(
         pairwise_reviews,
@@ -1261,6 +1626,11 @@ def adjudicate_adaptive_quality(
         flags: list[str] = []
         if raw["deterministic_gate"]["critical_caps"]:
             flags.append("critical-gate")
+        if any(
+            judge["manual_critical_caps"]
+            for judge in judge_prompt_evidence[key]
+        ):
+            flags.append("judge-critical-cap")
         if abs(per_judge_scores[0][key] - per_judge_scores[1][key]) > 1.0:
             flags.append("judge-disagreement-over-one")
         if flags:
@@ -1275,7 +1645,7 @@ def adjudicate_adaptive_quality(
         scoring_input=scoring_input,
         responses=responses,
         rubric=rubric,
-        score_sheet_sha256s=sheet_hashes,
+        judge_prompt_evidence=judge_prompt_evidence,
         pairwise_reviews=pairwise_reviews,
         required_prompt_flags=required_prompt_flags,
         required_pair_ids=required_pair_ids,
@@ -1297,12 +1667,12 @@ def adjudicate_adaptive_quality(
     for label, identity in mapping.items():
         private_context_groups.setdefault(identity["context_tokens"], []).append(label)
     expected_label_pairs = {
-        tuple(pair)
+        frozenset(pair)
         for group_labels in private_context_groups.values()
         for pair in combinations(sorted(group_labels), 2)
     }
     scheduled_label_pairs = {
-        tuple(pair["blind_labels"]) for pair in scoring_input["pairwise_pairs"]
+        frozenset(pair["blind_labels"]) for pair in scoring_input["pairwise_pairs"]
     }
     if scheduled_label_pairs != expected_label_pairs:
         raise ValueError("private blind map pairwise schedule does not match contexts")
@@ -1399,9 +1769,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def _read_capture_index(path: Path) -> list[Path]:
-    source = Path(path).resolve()
-    if not source.is_file() or source.is_symlink():
-        raise ValueError("capture index is missing or aliased")
+    source = _require_lexical_file(path, label="capture index")
     value = read_json_strict(source)
     if not isinstance(value, dict) or set(value) != {
         "schema",
@@ -1424,7 +1792,12 @@ def _read_capture_index(path: Path) -> list[Path]:
     }
     if value["capture_index_sha256"] != _sha256_bytes(_canonical_json(unsigned)):
         raise ValueError("capture index hash mismatch")
-    resolved = [Path(item).resolve() for item in paths]
+    resolved = [
+        _require_lexical_file(
+            Path(item), label="adaptive quality capture summary"
+        )
+        for item in paths
+    ]
     if (
         any(not Path(item).is_absolute() for item in paths)
         or len(resolved) != len(set(resolved))
@@ -1434,13 +1807,139 @@ def _read_capture_index(path: Path) -> list[Path]:
 
 
 def _require_fresh_outputs(paths: Sequence[Path]) -> list[Path]:
-    resolved = [Path(path).resolve() for path in paths]
-    if len(resolved) != len(set(resolved)):
+    lexical: list[Path] = []
+    for path in paths:
+        try:
+            candidate = _validated_lexical_output_root(Path(path))
+        except ValueError as error:
+            raise ValueError("output path is aliased") from error
+        lexical.append(candidate)
+    if len(lexical) != len(set(lexical)):
         raise ValueError("output paths must be distinct")
-    for path in resolved:
+    for path in lexical:
         if path.exists() or path.is_symlink():
             raise FileExistsError(f"refusing to overwrite evidence: {path}")
-    return resolved
+    return lexical
+
+
+def _publish_fresh_json_pair(
+    *,
+    public_artifact: tuple[Path, Mapping[str, Any]],
+    private_artifact: tuple[Path, Mapping[str, Any]],
+) -> None:
+    def lexical_regular_file(
+        path: Path,
+        *,
+        expected_identity: tuple[int, int] | None = None,
+    ) -> tuple[Path, tuple[int, int]]:
+        lexical = _validated_lexical_output_root(path)
+        metadata = os.lstat(lexical)
+        identity = metadata.st_dev, metadata.st_ino
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or (
+                expected_identity is not None
+                and identity != expected_identity
+            )
+        ):
+            raise ValueError(f"published evidence path is aliased: {path}")
+        return lexical, identity
+
+    def file_snapshot(path: Path) -> tuple[tuple[int, int], str]:
+        lexical, lexical_identity = lexical_regular_file(path)
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(lexical, flags)
+        except FileNotFoundError:
+            raise
+        except OSError as error:
+            raise ValueError(
+                f"published evidence path is aliased or unreadable: {path}"
+            ) from error
+        with os.fdopen(descriptor, "rb") as handle:
+            metadata = os.fstat(handle.fileno())
+            identity = metadata.st_dev, metadata.st_ino
+            if identity != lexical_identity:
+                raise ValueError(f"published evidence path is aliased: {path}")
+            lexical_regular_file(path, expected_identity=identity)
+            digest = _sha256_bytes(handle.read())
+            lexical_regular_file(path, expected_identity=identity)
+        return identity, digest
+
+    def require_snapshot(
+        path: Path,
+        *,
+        expected_identity: tuple[int, int],
+        expected_sha256: str,
+    ) -> None:
+        try:
+            identity, digest = file_snapshot(path)
+        except FileNotFoundError as error:
+            raise FileExistsError(
+                f"refusing to overwrite evidence: {path}"
+            ) from error
+        if identity != expected_identity:
+            raise FileExistsError(f"refusing to overwrite evidence: {path}")
+        if digest != expected_sha256:
+            raise ValueError(f"published evidence hash mismatch: {path}")
+
+    artifacts = (
+        ("public", public_artifact),
+        ("private", private_artifact),
+    )
+    destinations = _require_fresh_outputs(
+        [artifact[0] for _role, artifact in artifacts]
+    )
+    for parent in {path.parent for path in destinations}:
+        parent.mkdir(parents=True, exist_ok=True)
+    destinations = _require_fresh_outputs(destinations)
+
+    with ExitStack() as stack:
+        staged: dict[str, tuple[Path, Path, tuple[int, int], str]] = {}
+        for index, (destination, (role, (_path, value))) in enumerate(
+            zip(destinations, artifacts, strict=True),
+            start=1,
+        ):
+            stage_root = Path(
+                stack.enter_context(
+                    tempfile.TemporaryDirectory(
+                        prefix=".adaptive-quality-stage-",
+                        dir=destination.parent,
+                    )
+                )
+            )
+            stage_path = stage_root / f"artifact-{index}.json"
+            atomic_write_json(stage_path, value)
+            identity, digest = file_snapshot(stage_path)
+            staged[role] = (stage_path, destination, identity, digest)
+
+        _require_fresh_outputs(destinations)
+        for role in ("private", "public"):
+            stage_path, destination, identity, digest = staged[role]
+            require_snapshot(
+                stage_path,
+                expected_identity=identity,
+                expected_sha256=digest,
+            )
+            try:
+                os.link(stage_path, destination)
+            except FileExistsError as error:
+                raise FileExistsError(
+                    f"refusing to overwrite evidence: {destination}"
+                ) from error
+            require_snapshot(
+                destination,
+                expected_identity=identity,
+                expected_sha256=digest,
+            )
+        for role in ("private", "public"):
+            _stage_path, destination, identity, digest = staged[role]
+            require_snapshot(
+                destination,
+                expected_identity=identity,
+                expected_sha256=digest,
+            )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1455,8 +1954,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             prompt_set_path=args.prompt_set,
             rubric_path=args.rubric,
         )
-        atomic_write_json(public_path, public)
-        atomic_write_json(private_path, private)
+        _publish_fresh_json_pair(
+            public_artifact=(public_path, public),
+            private_artifact=(private_path, private),
+        )
         metadata = {
             "private_map_output": str(private_path),
             "private_map_sha256": private["private_map_sha256"],
@@ -1467,15 +1968,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     output_path = _require_fresh_outputs([args.output])[0]
-    scoring_input = read_json_strict(Path(args.scoring_input).resolve())
-    judge_score_sheets = [
-        read_json_strict(Path(path).resolve()) for path in args.judge_score_sheet
-    ]
-    pairwise_reviews = read_json_strict(Path(args.pairwise_reviews).resolve())
-    manual_adjudications = read_json_strict(
-        Path(args.manual_adjudications).resolve()
+    scoring_input = read_json_strict(
+        _require_lexical_file(args.scoring_input, label="scoring input")
     )
-    private_map_path = Path(args.private_map).resolve()
+    judge_score_sheets = [
+        read_json_strict(_require_lexical_file(path, label="judge score sheet"))
+        for path in args.judge_score_sheet
+    ]
+    pairwise_reviews = read_json_strict(
+        _require_lexical_file(args.pairwise_reviews, label="pairwise reviews")
+    )
+    manual_adjudications = read_json_strict(
+        _require_lexical_file(
+            args.manual_adjudications, label="manual adjudications"
+        )
+    )
+    private_map_path = _require_lexical_file(
+        args.private_map, label="private blind map"
+    )
     result = adjudicate_adaptive_quality(
         scoring_input=scoring_input,
         judge_score_sheets=judge_score_sheets,
