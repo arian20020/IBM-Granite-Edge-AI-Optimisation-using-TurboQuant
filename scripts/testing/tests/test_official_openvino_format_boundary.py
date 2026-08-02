@@ -13,6 +13,13 @@ FIXTURE_MATRIX = (
     / "official-openvino"
     / "format-boundary-matrix-v1.json"
 )
+ADAPTIVE_MATRIX = (
+    ROOT
+    / "experiments"
+    / "manifests"
+    / "official-openvino"
+    / "adaptive-format-comparison-matrix-v1.json"
+)
 PROMPT_ROOT = ROOT / "experiments" / "granite_turboquant_intel" / "prompts"
 V1_PROMPT_SET = PROMPT_ROOT / "fixed-feasibility-prompt-set-v1.json"
 V2_PROMPT_SET = PROMPT_ROOT / "compact-feasibility-prompt-set-v2.json"
@@ -30,6 +37,196 @@ def fake_config(tmp_path):
         prompt_set_path=V2_PROMPT_SET,
         rubric_path=ROOT / "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
     )
+
+
+@pytest.fixture
+def projected_inputs(tmp_path):
+    from scripts.testing.official_openvino.format_boundary import (
+        project_boundary_evidence_inputs,
+    )
+
+    build_root = tmp_path / "build"
+    build_root.mkdir()
+    return project_boundary_evidence_inputs(
+        repository_root=ROOT,
+        campaign_root=tmp_path / "campaign",
+        build_root=build_root,
+        manifest_path=FIXTURE_MATRIX,
+        comparison_matrix_path=ADAPTIVE_MATRIX,
+    )
+
+
+def test_projection_matrix_loads_in_boundary_order_with_independent_gpu_control(
+    projected_inputs,
+):
+    from scripts.testing.official_openvino.matrix import load_matrix
+
+    cases = load_matrix(projected_inputs.comparison_matrix.path)
+    assert [case.test_id for case in cases] == [
+        "cpu-u4-tbq3", "cpu-u4-tbq4", "cpu-u4-standard",
+        "cpu-u8-tbq3", "cpu-u8-tbq4", "cpu-u8-standard",
+        "cpu-f16-tbq3", "cpu-f16-tbq4", "cpu-f16-standard",
+        "gpu-u4-standard-control",
+    ]
+    assert all(case.contexts == (512,) for case in cases)
+    matrix = json.loads(projected_inputs.comparison_matrix.path.read_text())
+    authoritative = json.loads(ADAPTIVE_MATRIX.read_text())
+    assert matrix["source_identity"] == authoritative["source_identity"]
+    assert matrix["build_identity"] == authoritative["build_identity"]
+    gpu = matrix["cases"][-1]
+    assert gpu["device"] == "gpu"
+    assert gpu["requested_device"] == "GPU"
+    gpu_spec = json.loads(
+        next(
+            item.runtime_spec.path.read_text()
+            for item in projected_inputs.runtime_specs
+            if item.case_internal_id == "gpu-u4-standard-control"
+        )
+    )
+    assert gpu_spec["properties"] == {
+        "ATTENTION_BACKEND": "SDPA",
+        "CACHE_DIR": str(
+            projected_inputs.campaign_root
+            / "cache"
+            / "gpu-u4-standard-control"
+            / "512"
+        ),
+        "KEY_CACHE_PRECISION": "f16",
+        "PERFORMANCE_HINT": "LATENCY",
+        "VALUE_CACHE_PRECISION": "f16",
+    }
+    assert "NUM_STREAMS" not in gpu_spec["properties"]
+
+
+def test_executable_specs_pass_real_sequence_projection_and_matrix_reconciliation(
+    projected_inputs,
+):
+    from scripts.testing.measure_official_openvino import (
+        _matrix_case,
+        _sequence_spec,
+        validate_worker_spec_against_matrix_case,
+    )
+    from scripts.testing.official_openvino.workload import build_context_workload
+
+    assert len(projected_inputs.runtime_specs) == 7
+    for item in projected_inputs.runtime_specs:
+        raw = json.loads(item.runtime_spec.path.read_text())
+        projected = _sequence_spec(item.runtime_spec.path)
+        matrix = _matrix_case(
+            projected_inputs.comparison_matrix.path,
+            item.case_internal_id,
+            512,
+        )
+        validate_worker_spec_against_matrix_case(projected, matrix["case"])
+        assert raw["workload"] == {
+            **build_context_workload(512),
+            "actual_input_tokens": 512,
+        }
+        assert (
+            raw["max_new_tokens"], raw["ignore_eos"], raw["seed"],
+            raw["apply_chat_template"], raw["device"],
+        ) == (4, True, 42, False, matrix["case"]["requested_device"])
+        if raw["device"] == "CPU":
+            assert raw["properties"]["INFERENCE_NUM_THREADS"] == 1
+            assert raw["properties"]["NUM_STREAMS"] == 1
+
+
+def test_runtime_artifact_bindings_come_from_committed_manifests_and_models(
+    projected_inputs,
+):
+    index = json.loads(projected_inputs.projection_index.path.read_text())
+    indexed = {row["case_internal_id"]: row for row in index["runtime_specs"]}
+    for item in projected_inputs.runtime_specs:
+        raw = json.loads(item.runtime_spec.path.read_text())
+        manifest_path = Path(raw["artifact_manifest_path"])
+        manifest = json.loads(manifest_path.read_text())
+        assert raw["artifact_id"] == manifest["artifact_id"]
+        assert raw["artifact_manifest_sha256"] == hashlib.sha256(
+            manifest_path.read_bytes()
+        ).hexdigest()
+        assert raw["model_path"] == manifest["artifact_root"]
+        assert Path(raw["model_path"]).is_dir()
+        binding = indexed[item.case_internal_id]["artifact_binding"]
+        assert binding["artifact_inventory_sha256"] == manifest["inventory_sha256"]
+        assert {row["path"] for row in binding["model_files"]} == {
+            "openvino_model.bin", "openvino_model.xml",
+        }
+        for model_file in binding["model_files"]:
+            assert len(model_file["sha256"]) == 64
+            assert (Path(raw["model_path"]) / model_file["path"]).is_file()
+
+
+def test_f16_null_artifacts_become_terminal_prerequisites_without_specs(
+    projected_inputs,
+):
+    assert {item.case_internal_id for item in projected_inputs.terminal_prerequisites} == {
+        "cpu-f16-tbq3", "cpu-f16-tbq4", "cpu-f16-standard",
+    }
+    assert not {
+        item.case_internal_id for item in projected_inputs.runtime_specs
+    } & {item.case_internal_id for item in projected_inputs.terminal_prerequisites}
+    for item in projected_inputs.terminal_prerequisites:
+        descriptor = json.loads(item.descriptor.path.read_text())
+        assert descriptor["reason"] == "artifact-unavailable"
+        assert descriptor["role"] == "terminal-prerequisite"
+        assert descriptor["case"]["lane"] == "cpu"
+        assert descriptor["boundary_manifest"]["sha256"] == hashlib.sha256(
+            FIXTURE_MATRIX.read_bytes()
+        ).hexdigest()
+
+
+@pytest.mark.parametrize("tamper_target", ("runtime-spec", "projection-index"))
+def test_projection_is_byte_stable_and_rejects_tampering(tmp_path, tamper_target):
+    from scripts.testing.official_openvino.format_boundary import (
+        project_boundary_evidence_inputs,
+    )
+
+    build_root = tmp_path / "build"
+    build_root.mkdir()
+    kwargs = {
+        "repository_root": ROOT,
+        "campaign_root": tmp_path / "campaign",
+        "build_root": build_root,
+        "manifest_path": FIXTURE_MATRIX,
+        "comparison_matrix_path": ADAPTIVE_MATRIX,
+    }
+    first = project_boundary_evidence_inputs(**kwargs)
+    emitted = [
+        first.comparison_matrix.path,
+        *(item.runtime_spec.path for item in first.runtime_specs),
+        *(item.descriptor.path for item in first.terminal_prerequisites),
+        first.projection_index.path,
+    ]
+    before = {path: path.read_bytes() for path in emitted}
+    second = project_boundary_evidence_inputs(**kwargs)
+    assert first == second
+    assert before == {path: path.read_bytes() for path in emitted}
+    target = (
+        first.runtime_specs[0].runtime_spec.path
+        if tamper_target == "runtime-spec"
+        else first.projection_index.path
+    )
+    target.write_bytes(target.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="immutable projection drift"):
+        project_boundary_evidence_inputs(**kwargs)
+
+
+def test_projection_creates_executable_paths_without_historical_spec_tree(
+    projected_inputs,
+):
+    assert projected_inputs.campaign_root.name == "campaign"
+    assert all(
+        item.runtime_spec.path.is_relative_to(projected_inputs.campaign_root)
+        and item.runtime_spec.path.is_file()
+        for item in projected_inputs.runtime_specs
+    )
+    index = json.loads(projected_inputs.projection_index.path.read_text())
+    assert index["roots"] == {
+        "build": str(projected_inputs.build_root),
+        "campaign": str(projected_inputs.campaign_root),
+        "repository": str(projected_inputs.repository_root),
+    }
+    assert "quality-recovery" not in projected_inputs.projection_index.path.read_text()
 
 
 def _accepted_runtime(case, **kwargs):

@@ -13,6 +13,7 @@ from typing import Any, Callable, Literal, Mapping
 from scripts.testing.official_openvino.runtime_measurement import (
     build_runtime_property_spec,
 )
+from scripts.testing.official_openvino.workload import build_context_workload
 
 
 _ROOT = Path(__file__).resolve().parents[3]
@@ -21,6 +22,43 @@ _CPU_ORDER = (
     ("u8", "TBQ3"), ("u8", "TBQ4"), ("u8", "STANDARD"),
     ("f16", "TBQ3"), ("f16", "TBQ4"), ("f16", "STANDARD"),
 )
+_FORMAL_METRICS = (
+    "available_ram_min_mb", "cpu_percent", "decode_tps",
+    "generation_duration_ms", "gpu_memory_peak_mb", "gpu_percent", "kv_mb",
+    "load_ms", "peak_private_mb", "peak_working_set_mb", "prompt_tps",
+    "tpot_ms", "ttft_ms",
+)
+_SHA256_HEX = frozenset("0123456789abcdef")
+
+
+@dataclass(frozen=True)
+class ProjectionFile:
+    path: Path
+    sha256: str
+
+
+@dataclass(frozen=True)
+class ExecutableBoundaryInput:
+    case_internal_id: str
+    runtime_spec: ProjectionFile
+
+
+@dataclass(frozen=True)
+class TerminalBoundaryInput:
+    case_internal_id: str
+    descriptor: ProjectionFile
+
+
+@dataclass(frozen=True)
+class BoundaryEvidenceProjection:
+    repository_root: Path
+    campaign_root: Path
+    build_root: Path
+    boundary_manifest: ProjectionFile
+    comparison_matrix: ProjectionFile
+    runtime_specs: tuple[ExecutableBoundaryInput, ...]
+    terminal_prerequisites: tuple[TerminalBoundaryInput, ...]
+    projection_index: ProjectionFile
 
 
 @dataclass(frozen=True)
@@ -445,6 +483,339 @@ def load_boundary_manifest(path: Path) -> BoundaryManifest:
         cpu_cases=tuple(sorted(cpu_cases, key=lambda item: item.order)),
         gpu_cases=tuple(sorted(gpu_cases, key=lambda item: item.order)),
         source_path=Path(path).resolve(), sha256=hashlib.sha256(raw).hexdigest(),
+    )
+
+
+def _projection_file(path: Path) -> ProjectionFile:
+    source = Path(path).resolve()
+    return ProjectionFile(path=source, sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+
+
+def _write_or_validate_json(path: Path, value: Mapping[str, Any]) -> ProjectionFile:
+    target = Path(path).resolve()
+    expected = _canonical_bytes(value)
+    if target.exists():
+        if not target.is_file() or target.read_bytes() != expected:
+            raise ValueError(f"immutable projection drift detected: {target}")
+    else:
+        _atomic_write_json(target, value)
+    if target.read_bytes() != expected:
+        raise ValueError(f"immutable projection drift detected: {target}")
+    return ProjectionFile(path=target, sha256=hashlib.sha256(expected).hexdigest())
+
+
+def _binding(file: ProjectionFile) -> dict[str, str]:
+    return {"path": str(file.path), "sha256": file.sha256}
+
+
+def _require_sha256(value: Any, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in _SHA256_HEX for character in value)
+    ):
+        raise ValueError(f"{field} must be a SHA-256 hex digest")
+    return value
+
+
+def _model_file_bindings(manifest: Mapping[str, Any], model_root: Path) -> list[dict[str, Any]]:
+    rows = manifest.get("files")
+    if not isinstance(rows, list):
+        raise ValueError("artifact manifest files must be an array")
+    selected: list[dict[str, Any]] = []
+    for name in ("openvino_model.bin", "openvino_model.xml"):
+        matches = [row for row in rows if isinstance(row, Mapping) and row.get("path") == name]
+        if len(matches) != 1:
+            raise ValueError(f"artifact manifest must bind exactly one {name}")
+        row = matches[0]
+        size = row.get("size_bytes")
+        model_file = (model_root / name).resolve()
+        if (
+            isinstance(size, bool)
+            or not isinstance(size, int)
+            or size <= 0
+            or not model_file.is_file()
+            or model_file.stat().st_size != size
+        ):
+            raise ValueError(f"artifact model file is missing or has size drift: {name}")
+        selected.append(
+            {"path": name, "size_bytes": size,
+             "sha256": _require_sha256(row.get("sha256"), f"{name} hash")}
+        )
+    return selected
+
+
+def _artifact_binding(
+    case: BoundaryCase,
+    *,
+    repository_root: Path,
+    authoritative_cases: tuple[Any, ...],
+) -> dict[str, Any]:
+    if case.artifact_manifest_path is None:
+        raise ValueError("executable boundary case lacks an artifact manifest")
+    candidates = [
+        row for row in authoritative_cases
+        if row.weight_precision == case.weight_precision
+        and row.artifact_status == "available"
+    ]
+    identities = {
+        (
+            row.artifact_id,
+            str(Path(row.artifact_manifest_path).resolve()),
+            row.artifact_manifest_sha256,
+        )
+        for row in candidates
+    }
+    if len(identities) != 1:
+        raise ValueError(
+            f"authoritative artifact identity is ambiguous for {case.weight_precision}"
+        )
+    artifact_id, expected_path, expected_sha256 = identities.pop()
+    manifest_path = case.artifact_manifest_path.resolve()
+    if manifest_path != Path(expected_path) or not manifest_path.is_file():
+        raise ValueError(f"{case.internal_id} artifact manifest differs from proven identity")
+    manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    if manifest_sha256 != expected_sha256:
+        raise ValueError(f"{case.internal_id} artifact manifest hash differs from proven identity")
+    manifest = _read_json_object(manifest_path)
+    if manifest.get("artifact_id") != artifact_id:
+        raise ValueError(f"{case.internal_id} artifact id differs from proven identity")
+    model_root_raw = manifest.get("artifact_root")
+    if not isinstance(model_root_raw, str) or not model_root_raw.strip():
+        raise ValueError("artifact manifest model root is missing")
+    model_root = Path(model_root_raw).resolve()
+    try:
+        model_root.relative_to(repository_root)
+    except ValueError as error:
+        raise ValueError("artifact model root escapes repository root") from error
+    if not model_root.is_dir():
+        raise ValueError(f"artifact model root is missing: {model_root}")
+    return {
+        "artifact_id": artifact_id,
+        "artifact_manifest_path": str(manifest_path),
+        "artifact_manifest_sha256": manifest_sha256,
+        "artifact_inventory_sha256": _require_sha256(
+            manifest.get("inventory_sha256"), "artifact inventory hash"
+        ),
+        "model_path": str(model_root),
+        "model_files": _model_file_bindings(manifest, model_root),
+    }
+
+
+def _projected_matrix_case(
+    case: BoundaryCase,
+    *,
+    artifact: Mapping[str, Any] | None,
+    terminal: ProjectionFile | None,
+) -> dict[str, Any]:
+    turboquant = case.key_algorithm != "STANDARD"
+    return {
+        "test_id": case.internal_id,
+        "phase": "formal",
+        "description": case.label,
+        "model": "granite-3b",
+        "weight_precision": case.weight_precision,
+        "k_algorithm": case.key_algorithm.lower(),
+        "v_algorithm": case.value_algorithm.lower(),
+        "k_precision": case.key_precision,
+        "v_precision": case.value_precision,
+        "device": case.device.lower(),
+        "contexts": [512],
+        "guard": "ram-2048-mib",
+        "quality_required": True,
+        "required_metrics": list(_FORMAL_METRICS),
+        "key_cache_precision": case.key_precision,
+        "value_cache_precision": case.value_precision,
+        "requested_device": case.device,
+        "runtime_key_algorithm": case.key_algorithm,
+        "runtime_value_algorithm": case.value_algorithm,
+        "norm_correction": turboquant,
+        "attention_path": (
+            "stateful_sdpa_reference_codec" if turboquant else "stateful_sdpa_standard"
+        ),
+        "execution_route": "patched-stateful" if turboquant else "stateful-standard",
+        "expected_outcome": "pass",
+        "suitable_host_required": False,
+        "numeric_generation_metrics_expected": True,
+        "artifact_id": artifact["artifact_id"] if artifact is not None else None,
+        "artifact_manifest_path": (
+            artifact["artifact_manifest_path"] if artifact is not None else None
+        ),
+        "artifact_manifest_sha256": (
+            artifact["artifact_manifest_sha256"] if artifact is not None else None
+        ),
+        "artifact_status": "available" if artifact is not None else "artifact-unavailable",
+        "artifact_terminal_path": str(terminal.path) if terminal is not None else None,
+        "artifact_terminal_sha256": terminal.sha256 if terminal is not None else None,
+    }
+
+
+def project_boundary_evidence_inputs(
+    *,
+    repository_root: Path,
+    campaign_root: Path,
+    build_root: Path,
+    manifest_path: Path,
+    comparison_matrix_path: Path,
+) -> BoundaryEvidenceProjection:
+    """Project immutable matrix/spec/prerequisite inputs without model execution."""
+
+    from scripts.testing.official_openvino.matrix import (
+        load_matrix,
+        load_matrix_metadata,
+    )
+
+    repository = Path(repository_root).resolve()
+    campaign = Path(campaign_root).resolve()
+    build = Path(build_root).resolve()
+    if repository != _ROOT.resolve() or not repository.is_dir():
+        raise ValueError("repository_root must be this repository")
+    if not build.is_dir():
+        raise ValueError(f"build_root directory is missing: {build}")
+    manifest = load_boundary_manifest(Path(manifest_path))
+    comparison_source = Path(comparison_matrix_path).resolve()
+    for source, field in (
+        (manifest.source_path, "boundary manifest"),
+        (comparison_source, "authoritative comparison matrix"),
+    ):
+        try:
+            source.relative_to(repository)
+        except ValueError as error:
+            raise ValueError(f"{field} escapes repository root") from error
+        if not source.is_file():
+            raise ValueError(f"{field} is missing: {source}")
+
+    identities = load_matrix_metadata(comparison_source)
+    authoritative_cases = tuple(load_matrix(comparison_source))
+    boundary_file = ProjectionFile(manifest.source_path, manifest.sha256)
+    authoritative_file = _projection_file(comparison_source)
+    output_root = campaign / "execution-inputs"
+    cases = (*manifest.cpu_cases, *manifest.gpu_cases)
+    artifacts: dict[str, dict[str, Any]] = {}
+    terminals: list[TerminalBoundaryInput] = []
+    terminal_files: dict[str, ProjectionFile] = {}
+
+    for case in cases:
+        if case.artifact_manifest_path is not None:
+            artifacts[case.internal_id] = _artifact_binding(
+                case,
+                repository_root=repository,
+                authoritative_cases=authoritative_cases,
+            )
+            continue
+        descriptor = {
+            "schema": "official-openvino-format-boundary-terminal-prerequisite/v1",
+            "role": "terminal-prerequisite",
+            "reason": "artifact-unavailable",
+            "case": {
+                "internal_id": case.internal_id,
+                "label": case.label,
+                "lane": case.lane,
+                "order": case.order,
+                "weight_precision": case.weight_precision,
+                "key_algorithm": case.key_algorithm,
+                "value_algorithm": case.value_algorithm,
+            },
+            "boundary_manifest": _binding(boundary_file),
+            "source_identity": identities["source_identity"],
+            "build_identity": identities["build_identity"],
+        }
+        descriptor_file = _write_or_validate_json(
+            output_root / "terminal-prerequisites" / f"{case.internal_id}.json",
+            descriptor,
+        )
+        terminal_files[case.internal_id] = descriptor_file
+        terminals.append(TerminalBoundaryInput(case.internal_id, descriptor_file))
+
+    matrix_payload = {
+        "source_identity": identities["source_identity"],
+        "build_identity": identities["build_identity"],
+        "cases": [
+            _projected_matrix_case(
+                case,
+                artifact=artifacts.get(case.internal_id),
+                terminal=terminal_files.get(case.internal_id),
+            )
+            for case in cases
+        ],
+    }
+    matrix_file = _write_or_validate_json(
+        output_root / "comparison-matrix.json", matrix_payload
+    )
+    # Validate through the actual governed loader before exposing any specs.
+    load_matrix(matrix_file.path)
+
+    executable: list[ExecutableBoundaryInput] = []
+    runtime_index: list[dict[str, Any]] = []
+    workload = {**build_context_workload(512), "actual_input_tokens": 512}
+    for case in cases:
+        artifact = artifacts.get(case.internal_id)
+        if artifact is None:
+            continue
+        runtime = build_boundary_worker_spec(
+            case,
+            role="pilot",
+            cache_dir=campaign / "cache" / case.internal_id / "512",
+        )
+        spec_payload = {
+            "schema": "official-openvino-adaptive-comparison-runtime-spec/v1",
+            "controlled_test_id": case.internal_id,
+            "artifact_id": artifact["artifact_id"],
+            "artifact_manifest_path": artifact["artifact_manifest_path"],
+            "artifact_manifest_sha256": artifact["artifact_manifest_sha256"],
+            "model_path": artifact["model_path"],
+            "device": runtime["device"],
+            "context_tokens": 512,
+            "workload": workload,
+            "properties": runtime["properties"],
+            "max_new_tokens": 4,
+            "ignore_eos": True,
+            "seed": 42,
+            "apply_chat_template": False,
+        }
+        spec_file = _write_or_validate_json(
+            output_root / "runtime-specs" / case.internal_id / "512" / "runtime-spec.json",
+            spec_payload,
+        )
+        executable.append(ExecutableBoundaryInput(case.internal_id, spec_file))
+        runtime_index.append(
+            {
+                "case_internal_id": case.internal_id,
+                "runtime_spec": _binding(spec_file),
+                "artifact_binding": artifact,
+            }
+        )
+
+    terminal_index = [
+        {"case_internal_id": item.case_internal_id,
+         "descriptor": _binding(item.descriptor)}
+        for item in terminals
+    ]
+    index_payload = {
+        "schema": "official-openvino-format-boundary-projection-index/v1",
+        "roots": {
+            "repository": str(repository),
+            "campaign": str(campaign),
+            "build": str(build),
+        },
+        "boundary_manifest": _binding(boundary_file),
+        "authoritative_comparison_matrix": _binding(authoritative_file),
+        "projected_comparison_matrix": _binding(matrix_file),
+        "source_identity": identities["source_identity"],
+        "build_identity": identities["build_identity"],
+        "runtime_specs": runtime_index,
+        "terminal_prerequisites": terminal_index,
+    }
+    index_file = _write_or_validate_json(output_root / "projection-index.json", index_payload)
+    return BoundaryEvidenceProjection(
+        repository_root=repository,
+        campaign_root=campaign,
+        build_root=build,
+        boundary_manifest=boundary_file,
+        comparison_matrix=matrix_file,
+        runtime_specs=tuple(executable),
+        terminal_prerequisites=tuple(terminals),
+        projection_index=index_file,
     )
 
 
