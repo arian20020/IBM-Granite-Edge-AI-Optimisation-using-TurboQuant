@@ -10,6 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
 
+from scripts.testing.official_openvino.adaptive_campaign_spec import (
+    _build_root,
+    _directory_sha256,
+)
+from scripts.testing.official_openvino.artifact_inventory import sha256_file
 from scripts.testing.official_openvino.runtime_measurement import (
     build_runtime_property_spec,
 )
@@ -479,6 +484,20 @@ def load_boundary_manifest(path: Path) -> BoundaryManifest:
         raise ValueError("CPU boundary order differs from the global constraint")
     if len(gpu_cases) != 1 or gpu_cases[0].weight_precision != "u4":
         raise ValueError("boundary manifest requires one U4 GPU control")
+    expected_terminal_ids = {
+        "cpu-f16-tbq3", "cpu-f16-tbq4", "cpu-f16-standard",
+    }
+    actual_terminal_ids = {
+        case.internal_id for case in cases if case.artifact_manifest_path is None
+    }
+    if actual_terminal_ids != expected_terminal_ids or any(
+        case.weight_precision != "f16"
+        for case in cases
+        if case.internal_id in actual_terminal_ids
+    ):
+        raise ValueError(
+            "only the three F16 boundary identities may have null artifacts"
+        )
     return BoundaryManifest(
         cpu_cases=tuple(sorted(cpu_cases, key=lambda item: item.order)),
         gpu_cases=tuple(sorted(gpu_cases, key=lambda item: item.order)),
@@ -538,11 +557,56 @@ def _model_file_bindings(manifest: Mapping[str, Any], model_root: Path) -> list[
             or model_file.stat().st_size != size
         ):
             raise ValueError(f"artifact model file is missing or has size drift: {name}")
+        expected_sha256 = _require_sha256(row.get("sha256"), f"{name} hash")
+        if sha256_file(model_file) != expected_sha256:
+            raise ValueError(f"artifact model file hash drift: {name}")
         selected.append(
-            {"path": name, "size_bytes": size,
-             "sha256": _require_sha256(row.get("sha256"), f"{name} hash")}
+            {"path": name, "size_bytes": size, "sha256": expected_sha256}
         )
     return selected
+
+
+def _build_execution_binding(
+    build_root: Path,
+    *,
+    repository_root: Path,
+    build_identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    build = _build_root(build_root)
+    package = build / "openvino_genai"
+    modules = sorted(package.glob("py_openvino_genai*.pyd"))
+    initializer = package / "__init__.py"
+    runtime_dll = package / "openvino_genai.dll"
+    provenance_value = build_identity.get("path")
+    if not isinstance(provenance_value, str) or not provenance_value:
+        raise ValueError("build identity provenance path is missing")
+    provenance = (repository_root / provenance_value).resolve()
+    try:
+        provenance.relative_to(repository_root)
+    except ValueError as error:
+        raise ValueError("build provenance escapes repository root") from error
+    if not provenance.is_file():
+        raise ValueError(f"build provenance is missing: {provenance}")
+    provenance_sha256 = sha256_file(provenance)
+    if provenance_sha256 != _require_sha256(
+        build_identity.get("sha256"), "build provenance hash"
+    ):
+        raise ValueError("build provenance hash differs from frozen identity")
+    provenance_payload = _read_json_object(provenance)
+    if provenance_payload.get("status") != "passed":
+        raise ValueError("build provenance does not report passed status")
+
+    def executable_file(path: Path) -> dict[str, str]:
+        return {"path": str(path.resolve()), "sha256": sha256_file(path)}
+
+    return {
+        "root": str(build),
+        "root_sha256": _directory_sha256(build),
+        "package_initializer": executable_file(initializer),
+        "python_module": executable_file(modules[0]),
+        "runtime_dll": executable_file(runtime_dll),
+        "provenance": {"path": str(provenance), "sha256": provenance_sha256},
+    }
 
 
 def _artifact_binding(
@@ -667,11 +731,8 @@ def project_boundary_evidence_inputs(
 
     repository = Path(repository_root).resolve()
     campaign = Path(campaign_root).resolve()
-    build = Path(build_root).resolve()
     if repository != _ROOT.resolve() or not repository.is_dir():
         raise ValueError("repository_root must be this repository")
-    if not build.is_dir():
-        raise ValueError(f"build_root directory is missing: {build}")
     manifest = load_boundary_manifest(Path(manifest_path))
     comparison_source = Path(comparison_matrix_path).resolve()
     for source, field in (
@@ -686,22 +747,35 @@ def project_boundary_evidence_inputs(
             raise ValueError(f"{field} is missing: {source}")
 
     identities = load_matrix_metadata(comparison_source)
+    build_binding = _build_execution_binding(
+        Path(build_root),
+        repository_root=repository,
+        build_identity=identities["build_identity"],
+    )
+    build = Path(build_binding["root"])
     authoritative_cases = tuple(load_matrix(comparison_source))
     boundary_file = ProjectionFile(manifest.source_path, manifest.sha256)
     authoritative_file = _projection_file(comparison_source)
     output_root = campaign / "execution-inputs"
     cases = (*manifest.cpu_cases, *manifest.gpu_cases)
     artifacts: dict[str, dict[str, Any]] = {}
+    verified_artifacts: dict[tuple[str, Path], dict[str, Any]] = {}
     terminals: list[TerminalBoundaryInput] = []
     terminal_files: dict[str, ProjectionFile] = {}
 
     for case in cases:
         if case.artifact_manifest_path is not None:
-            artifacts[case.internal_id] = _artifact_binding(
-                case,
-                repository_root=repository,
-                authoritative_cases=authoritative_cases,
+            artifact_key = (
+                case.weight_precision,
+                case.artifact_manifest_path.resolve(),
             )
+            if artifact_key not in verified_artifacts:
+                verified_artifacts[artifact_key] = _artifact_binding(
+                    case,
+                    repository_root=repository,
+                    authoritative_cases=authoritative_cases,
+                )
+            artifacts[case.internal_id] = verified_artifacts[artifact_key]
             continue
         descriptor = {
             "schema": "official-openvino-format-boundary-terminal-prerequisite/v1",
@@ -803,6 +877,7 @@ def project_boundary_evidence_inputs(
         "projected_comparison_matrix": _binding(matrix_file),
         "source_identity": identities["source_identity"],
         "build_identity": identities["build_identity"],
+        "build": build_binding,
         "runtime_specs": runtime_index,
         "terminal_prerequisites": terminal_index,
     }

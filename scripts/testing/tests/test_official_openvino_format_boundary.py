@@ -26,6 +26,43 @@ V2_PROMPT_SET = PROMPT_ROOT / "compact-feasibility-prompt-set-v2.json"
 FROZEN_V1_SHA256 = "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
 
 
+def _controlled_build_root(tmp_path):
+    build_root = tmp_path / "build"
+    package = build_root / "openvino_genai"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_bytes(b"# controlled package\n")
+    (package / "py_openvino_genai.pyd").write_bytes(b"module-a")
+    (package / "openvino_genai.dll").write_bytes(b"runtime-a")
+    return build_root
+
+
+def _stub_committed_model_hashes(monkeypatch, calls=None):
+    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.official_openvino.artifact_inventory import sha256_file
+
+    expected = {}
+    manifest_payload = json.loads(FIXTURE_MATRIX.read_text())
+    for row in manifest_payload["cases"]:
+        relative = row["artifact_manifest_path"]
+        if relative is None:
+            continue
+        manifest = json.loads((ROOT / relative).read_text())
+        model_root = Path(manifest["artifact_root"])
+        for file_row in manifest["files"]:
+            if file_row["path"] in {"openvino_model.bin", "openvino_model.xml"}:
+                expected[(model_root / file_row["path"]).resolve()] = file_row["sha256"]
+
+    def controlled_sha256(path):
+        source = Path(path).resolve()
+        if source in expected:
+            if calls is not None:
+                calls.append(source)
+            return expected[source]
+        return sha256_file(source)
+
+    monkeypatch.setattr(format_boundary, "sha256_file", controlled_sha256, raising=False)
+
+
 @pytest.fixture
 def fake_config(tmp_path):
     from scripts.testing.official_openvino.format_boundary import BoundaryCampaignConfig
@@ -40,13 +77,13 @@ def fake_config(tmp_path):
 
 
 @pytest.fixture
-def projected_inputs(tmp_path):
+def projected_inputs(tmp_path, monkeypatch):
     from scripts.testing.official_openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
-    build_root = tmp_path / "build"
-    build_root.mkdir()
+    _stub_committed_model_hashes(monkeypatch)
+    build_root = _controlled_build_root(tmp_path)
     return project_boundary_evidence_inputs(
         repository_root=ROOT,
         campaign_root=tmp_path / "campaign",
@@ -54,6 +91,123 @@ def projected_inputs(tmp_path):
         manifest_path=FIXTURE_MATRIX,
         comparison_matrix_path=ADAPTIVE_MATRIX,
     )
+
+
+def test_projection_rejects_non_executable_build_before_emitting_inputs(tmp_path):
+    from scripts.testing.official_openvino.format_boundary import (
+        project_boundary_evidence_inputs,
+    )
+
+    build_root = tmp_path / "empty-build"
+    build_root.mkdir()
+    campaign_root = tmp_path / "campaign"
+    with pytest.raises(ValueError, match="OpenVINO GenAI package"):
+        project_boundary_evidence_inputs(
+            repository_root=ROOT,
+            campaign_root=campaign_root,
+            build_root=build_root,
+            manifest_path=FIXTURE_MATRIX,
+            comparison_matrix_path=ADAPTIVE_MATRIX,
+        )
+    assert not (campaign_root / "execution-inputs").exists()
+
+
+def test_projection_binds_executable_build_and_detects_same_size_drift(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.official_openvino.artifact_inventory import sha256_file
+    from scripts.testing.official_openvino.format_boundary import (
+        project_boundary_evidence_inputs,
+    )
+
+    _stub_committed_model_hashes(monkeypatch)
+    build_root = _controlled_build_root(tmp_path)
+    kwargs = {
+        "repository_root": ROOT,
+        "campaign_root": tmp_path / "campaign",
+        "build_root": build_root,
+        "manifest_path": FIXTURE_MATRIX,
+        "comparison_matrix_path": ADAPTIVE_MATRIX,
+    }
+    projection = project_boundary_evidence_inputs(**kwargs)
+    index = json.loads(projection.projection_index.path.read_text())
+    package = build_root / "openvino_genai"
+    provenance = ROOT / index["build_identity"]["path"]
+    assert index["build"]["root"] == str(build_root.resolve())
+    assert index["build"]["python_module"] == {
+        "path": str((package / "py_openvino_genai.pyd").resolve()),
+        "sha256": sha256_file(package / "py_openvino_genai.pyd"),
+    }
+    assert index["build"]["runtime_dll"] == {
+        "path": str((package / "openvino_genai.dll").resolve()),
+        "sha256": sha256_file(package / "openvino_genai.dll"),
+    }
+    assert index["build"]["provenance"] == {
+        "path": str(provenance.resolve()),
+        "sha256": sha256_file(provenance),
+    }
+    (package / "py_openvino_genai.pyd").write_bytes(b"module-b")
+    with pytest.raises(ValueError, match="immutable projection drift"):
+        project_boundary_evidence_inputs(**kwargs)
+
+
+def test_model_binding_hashes_bytes_and_rejects_same_size_tampering(tmp_path):
+    from scripts.testing.official_openvino.format_boundary import (
+        _model_file_bindings,
+    )
+
+    model_root = tmp_path / "model"
+    model_root.mkdir()
+    contents = {
+        "openvino_model.bin": b"binary-a",
+        "openvino_model.xml": b"<model-a/>",
+    }
+    files = []
+    for name, content in contents.items():
+        (model_root / name).write_bytes(content)
+        files.append({
+            "path": name,
+            "size_bytes": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+        })
+    manifest = {"files": files}
+    assert _model_file_bindings(manifest, model_root) == sorted(
+        files, key=lambda row: row["path"]
+    )
+    (model_root / "openvino_model.bin").write_bytes(b"binary-b")
+    with pytest.raises(ValueError, match="hash drift"):
+        _model_file_bindings(manifest, model_root)
+
+
+def test_projection_hashes_each_shared_model_file_once(tmp_path, monkeypatch):
+    from scripts.testing.official_openvino.format_boundary import (
+        project_boundary_evidence_inputs,
+    )
+
+    calls = []
+    _stub_committed_model_hashes(monkeypatch, calls)
+    project_boundary_evidence_inputs(
+        repository_root=ROOT,
+        campaign_root=tmp_path / "campaign",
+        build_root=_controlled_build_root(tmp_path),
+        manifest_path=FIXTURE_MATRIX,
+        comparison_matrix_path=ADAPTIVE_MATRIX,
+    )
+    assert len(calls) == 4
+    assert len(set(calls)) == 4
+
+
+def test_manifest_rejects_null_artifact_for_executable_format(tmp_path):
+    from scripts.testing.official_openvino.format_boundary import (
+        load_boundary_manifest,
+    )
+
+    payload = json.loads(FIXTURE_MATRIX.read_text())
+    payload["cases"][0]["artifact_manifest_path"] = None
+    invalid = tmp_path / "format-boundary.json"
+    invalid.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="only the three F16"):
+        load_boundary_manifest(invalid)
 
 
 def test_projection_matrix_loads_in_boundary_order_with_independent_gpu_control(
@@ -175,14 +329,19 @@ def test_f16_null_artifacts_become_terminal_prerequisites_without_specs(
         ).hexdigest()
 
 
-@pytest.mark.parametrize("tamper_target", ("runtime-spec", "projection-index"))
-def test_projection_is_byte_stable_and_rejects_tampering(tmp_path, tamper_target):
+@pytest.mark.parametrize(
+    "tamper_target",
+    ("runtime-spec", "comparison-matrix", "terminal-descriptor", "projection-index"),
+)
+def test_projection_is_byte_stable_and_rejects_tampering(
+    tmp_path, monkeypatch, tamper_target,
+):
     from scripts.testing.official_openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
-    build_root = tmp_path / "build"
-    build_root.mkdir()
+    _stub_committed_model_hashes(monkeypatch)
+    build_root = _controlled_build_root(tmp_path)
     kwargs = {
         "repository_root": ROOT,
         "campaign_root": tmp_path / "campaign",
@@ -201,11 +360,12 @@ def test_projection_is_byte_stable_and_rejects_tampering(tmp_path, tamper_target
     second = project_boundary_evidence_inputs(**kwargs)
     assert first == second
     assert before == {path: path.read_bytes() for path in emitted}
-    target = (
-        first.runtime_specs[0].runtime_spec.path
-        if tamper_target == "runtime-spec"
-        else first.projection_index.path
-    )
+    target = {
+        "runtime-spec": first.runtime_specs[0].runtime_spec.path,
+        "comparison-matrix": first.comparison_matrix.path,
+        "terminal-descriptor": first.terminal_prerequisites[0].descriptor.path,
+        "projection-index": first.projection_index.path,
+    }[tamper_target]
     target.write_bytes(target.read_bytes() + b" ")
     with pytest.raises(ValueError, match="immutable projection drift"):
         project_boundary_evidence_inputs(**kwargs)
