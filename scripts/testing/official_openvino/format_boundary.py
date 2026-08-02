@@ -13,6 +13,7 @@ from typing import Any, Callable, Literal, Mapping
 from scripts.testing.official_openvino.adaptive_campaign_spec import (
     _build_root,
     _directory_sha256,
+    _paths_overlap,
 )
 from scripts.testing.official_openvino.artifact_inventory import sha256_file
 from scripts.testing.official_openvino.runtime_measurement import (
@@ -731,8 +732,11 @@ def project_boundary_evidence_inputs(
 
     repository = Path(repository_root).resolve()
     campaign = Path(campaign_root).resolve()
+    requested_build = Path(build_root).resolve()
     if repository != _ROOT.resolve() or not repository.is_dir():
         raise ValueError("repository_root must be this repository")
+    if _paths_overlap(campaign, requested_build):
+        raise ValueError("campaign root must not overlap build root")
     manifest = load_boundary_manifest(Path(manifest_path))
     comparison_source = Path(comparison_matrix_path).resolve()
     for source, field in (
@@ -748,7 +752,7 @@ def project_boundary_evidence_inputs(
 
     identities = load_matrix_metadata(comparison_source)
     build_binding = _build_execution_binding(
-        Path(build_root),
+        requested_build,
         repository_root=repository,
         build_identity=identities["build_identity"],
     )

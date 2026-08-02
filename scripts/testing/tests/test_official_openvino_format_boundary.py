@@ -112,6 +112,38 @@ def test_projection_rejects_non_executable_build_before_emitting_inputs(tmp_path
     assert not (campaign_root / "execution-inputs").exists()
 
 
+@pytest.mark.parametrize(
+    "relationship",
+    ("equal", "campaign-inside-build", "build-inside-campaign"),
+)
+def test_projection_rejects_campaign_build_overlap_before_emitting_inputs(
+    tmp_path, monkeypatch, relationship,
+):
+    from scripts.testing.official_openvino.format_boundary import (
+        project_boundary_evidence_inputs,
+    )
+
+    _stub_committed_model_hashes(monkeypatch)
+    if relationship == "equal":
+        build_root = _controlled_build_root(tmp_path)
+        campaign_root = build_root
+    elif relationship == "campaign-inside-build":
+        build_root = _controlled_build_root(tmp_path)
+        campaign_root = build_root / "campaign"
+    else:
+        campaign_root = tmp_path / "campaign"
+        build_root = _controlled_build_root(campaign_root)
+    with pytest.raises(ValueError, match="campaign root must not overlap build root"):
+        project_boundary_evidence_inputs(
+            repository_root=ROOT,
+            campaign_root=campaign_root,
+            build_root=build_root,
+            manifest_path=FIXTURE_MATRIX,
+            comparison_matrix_path=ADAPTIVE_MATRIX,
+        )
+    assert not (campaign_root / "execution-inputs").exists()
+
+
 def test_projection_binds_executable_build_and_detects_same_size_drift(
     tmp_path, monkeypatch,
 ):
