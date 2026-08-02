@@ -886,6 +886,7 @@ def _load_matrix_and_specs(
             spec.get("controlled_test_id") != test_id
             or spec.get("context_tokens") != context
             or spec.get("max_new_tokens") != 4
+            or spec.get("ignore_eos") is not True
             or not isinstance(spec.get("workload"), Mapping)
             or spec["workload"].get("actual_input_tokens") != context
             or spec.get("artifact_id") != case.artifact_id
@@ -2576,10 +2577,33 @@ def run_adaptive_campaign(
         campaign_job.close()
 
 
+def validate_adaptive_campaign_snapshot(
+    config: AdaptiveCampaignConfig,
+    state: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Reopen every governed input and receipt for one campaign snapshot."""
+
+    cases, _index, specs, bindings = _validate_config(config)
+    validated = _validate_state(state)
+    if validated.get("bindings") != bindings:
+        raise ValueError("adaptive campaign input drift prevents snapshot validation")
+    if config.reference_boundary_index is not None:
+        _boundary_entries(
+            Path(config.reference_boundary_index).resolve(),
+            bindings=bindings,
+            cases=cases,
+            specs=specs,
+        )
+    _validate_state_receipts(config, validated)
+    return validated
+
+
 def preflight_adaptive_campaign(
     config: AdaptiveCampaignConfig,
     *,
     available_ram: Callable[[], int | None] = available_ram_bytes,
+    reuse_preflight: Callable[[], Mapping[str, Any] | None] | None = None,
+    finalize_preflight: Callable[[Mapping[str, Any], int], None] | None = None,
 ) -> dict[str, Any]:
     """Validate all bindings and safety gates without creating an attempt."""
 
@@ -2614,6 +2638,10 @@ def preflight_adaptive_campaign(
             )
 
         with CampaignLock(root):
+            if reuse_preflight is not None:
+                existing = reuse_preflight()
+                if existing is not None:
+                    return validate_adaptive_campaign_snapshot(config, existing)
             state = load_or_create_state(config)
             if state.get("campaign_halt") is not None:
                 raise RuntimeError(
@@ -2626,7 +2654,7 @@ def preflight_adaptive_campaign(
                         "adaptive campaign is halted: "
                         f"{state['campaign_halt']['reason']}"
                     )
-                _require_start_reserve(available_ram)
+                observed_available_ram = _require_start_reserve(available_ram)
             except RuntimeError as error:
                 _set_campaign_halt(
                     state,
@@ -2637,7 +2665,10 @@ def preflight_adaptive_campaign(
                     root / "adaptive-campaign-state.json", state
                 )
                 raise
-            return state
+            validated = validate_adaptive_campaign_snapshot(config, state)
+            if finalize_preflight is not None:
+                finalize_preflight(validated, observed_available_ram)
+            return validated
     finally:
         campaign_job.close()
 
@@ -2813,4 +2844,5 @@ __all__ = [
     "run_adaptive_campaign",
     "save_state_atomically",
     "step_is_eligible",
+    "validate_adaptive_campaign_snapshot",
 ]

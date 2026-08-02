@@ -11,6 +11,9 @@ import pytest
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
+from scripts.testing.official_openvino.adaptive_campaign import (
+    _load_matrix_and_specs,
+)
 from scripts.testing.official_openvino.adaptive_campaign_spec import (
     generate_adaptive_format_comparison_specs,
 )
@@ -189,3 +192,41 @@ def test_generation_refuses_tampered_existing_output_without_overwriting(tmp_pat
             output_root=tmp_path / "specs",
         )
     assert tampered.read_text(encoding="utf-8") == "tampered\n"
+
+
+def test_controller_spec_loader_accepts_generated_ignore_eos_true(tmp_path: Path) -> None:
+    _generate_specs(tmp_path)
+
+    cases, _index, specs = _load_matrix_and_specs(
+        tmp_path / "matrix.json",
+        tmp_path / "specs",
+    )
+
+    assert len(cases) == 5
+    assert len(specs) == 25
+    assert all(spec["ignore_eos"] is True for _path, spec in specs.values())
+
+
+def test_controller_spec_loader_rejects_rehashed_ignore_eos_false(tmp_path: Path) -> None:
+    _generate_specs(tmp_path)
+    spec_path = tmp_path / "specs" / "OV-11" / "512" / "runtime-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    assert spec["ignore_eos"] is True
+    spec["ignore_eos"] = False
+    _write_json(spec_path, spec)
+
+    index_path = tmp_path / "specs" / "spec-index.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    indexed_spec = next(
+        entry
+        for entry in index["runtime_specs"]
+        if entry["test_id"] == "OV-11" and entry["context_tokens"] == 512
+    )
+    indexed_spec["sha256"] = _sha256(spec_path)
+    _write_json(index_path, index)
+
+    with pytest.raises(
+        ValueError,
+        match=r"adaptive runtime spec property drift: OV-11:512",
+    ):
+        _load_matrix_and_specs(tmp_path / "matrix.json", tmp_path / "specs")

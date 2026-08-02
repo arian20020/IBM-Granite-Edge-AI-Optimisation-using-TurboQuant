@@ -1412,6 +1412,405 @@ def test_campaign_cli_preflight_prints_first_step_without_attempt(
     assert not any(config.campaign_root.rglob("attempt-*"))
 
 
+def _preflight_cli_inputs(tmp_path: Path) -> AdaptiveCampaignConfig:
+    config = _campaign_inputs(tmp_path)
+    historical = tmp_path / "empty-historical"
+    historical.mkdir()
+    boundary_index = tmp_path / "reference-boundary-index.json"
+    build_boundary_index(
+        matrix_path=config.matrix_path,
+        spec_root=config.spec_root,
+        historical_root=historical,
+        output_path=boundary_index,
+    )
+    return replace(config, reference_boundary_index=boundary_index)
+
+
+def _preflight_cli_argv(
+    config: AdaptiveCampaignConfig,
+    *,
+    resume: bool = False,
+) -> list[str]:
+    argv = [
+        "--matrix",
+        str(config.matrix_path),
+        "--spec-root",
+        str(config.spec_root),
+        "--campaign-root",
+        str(config.campaign_root),
+        "--build-root",
+        str(config.build_root),
+        "--build-provenance",
+        str(config.build_provenance_path),
+        "--python-executable",
+        str(config.python_executable),
+        "--python-site-packages",
+        str(config.python_site_packages),
+        "--openvino-libraries",
+        str(config.openvino_libraries),
+        "--sampler-script",
+        str(config.sampler_script),
+        "--reference-boundary-index",
+        str(config.reference_boundary_index),
+        "--max-context",
+        "512",
+        "--preflight-only",
+    ]
+    if resume:
+        argv.append("--resume")
+    return argv
+
+
+def test_cli_preflight_writes_exact_zero_launch_report_from_one_ram_sample(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    observed_ram = START_RESERVE_MIB * 1024**2 + 12345
+    ram_reads = 0
+
+    def sample_ram_once() -> int:
+        nonlocal ram_reads
+        ram_reads += 1
+        return observed_ram
+
+    def forbidden_worker(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("preflight invoked the runtime worker")
+
+    monkeypatch.setattr(campaign_cli, "available_ram_bytes", sample_ram_once)
+    monkeypatch.setattr(campaign_cli, "run_adaptive_campaign", forbidden_worker)
+    monkeypatch.setattr(campaign_cli, "_quality_callback", forbidden_worker)
+
+    assert campaign_cli.main(_preflight_cli_argv(config)) == 0
+
+    json.loads(capsys.readouterr().out)
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    probe_entry = state["safety_probes"][-1]
+    probe_path = config.campaign_root / probe_entry["receipt_path"]
+    report_path = config.campaign_root / "preflight" / "preflight-report.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert ram_reads == 1
+    assert report == {
+        "schema": "official-openvino-adaptive-preflight-report/v1",
+        "matrix_path": str(config.matrix_path.resolve()),
+        "matrix_sha256": _sha256(config.matrix_path),
+        "spec_index_path": str((config.spec_root / "spec-index.json").resolve()),
+        "spec_index_sha256": _sha256(config.spec_root / "spec-index.json"),
+        "reference_boundary_index_path": str(
+            config.reference_boundary_index.resolve()
+        ),
+        "reference_boundary_index_sha256": _sha256(
+            config.reference_boundary_index
+        ),
+        "build_provenance_path": str(config.build_provenance_path.resolve()),
+        "build_provenance_sha256": _sha256(config.build_provenance_path),
+        "campaign_state_path": str(state_path.resolve()),
+        "campaign_state_sha256": _sha256(state_path),
+        "observed_available_ram_bytes": observed_ram,
+        "launch_reserve_bytes": START_RESERVE_MIB * 1024**2,
+        "next_eligible_step": ["OV-11", 512],
+        "campaign_halt": None,
+        "owned_survivor_count": 0,
+        "zero_survivor_safety_probe_path": str(probe_path.resolve()),
+        "zero_survivor_safety_probe_sha256": _sha256(probe_path),
+    }
+    assert not any(config.campaign_root.rglob("attempt-*"))
+
+
+def test_preflight_report_is_byte_identical_for_same_inputs_and_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    observed_ram = START_RESERVE_MIB * 1024**2 + 99
+    monkeypatch.setattr(campaign_cli, "available_ram_bytes", lambda: observed_ram)
+    assert campaign_cli.main(_preflight_cli_argv(config)) == 0
+    capsys.readouterr()
+    report_path = config.campaign_root / "preflight" / "preflight-report.json"
+    before = report_path.read_bytes()
+    state = json.loads(
+        (config.campaign_root / "adaptive-campaign-state.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    campaign_cli._write_preflight_report(
+        config,
+        state,
+        observed_available_ram_bytes=observed_ram,
+    )
+
+    assert report_path.read_bytes() == before
+    assert list(report_path.parent.glob(".*.stage")) == []
+
+
+def test_cli_preflight_rejects_conflicting_report_without_overwrite(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = config.campaign_root / "preflight" / "preflight-report.json"
+    report_path.parent.mkdir(parents=True)
+    original = b'{"conflict":true}\n'
+    report_path.write_bytes(original)
+    monkeypatch.setattr(
+        campaign_cli,
+        "available_ram_bytes",
+        lambda: START_RESERVE_MIB * 1024**2,
+    )
+
+    with pytest.raises(ValueError, match="conflicting existing preflight report"):
+        campaign_cli.main(_preflight_cli_argv(config))
+
+    assert report_path.read_bytes() == original
+    assert list(report_path.parent.glob(".*.stage")) == []
+    assert not (config.campaign_root / "adaptive-campaign-state.json").exists()
+    assert not (config.campaign_root / "safety-probes").exists()
+    assert not any(config.campaign_root.rglob("attempt-*"))
+
+
+def test_cli_preflight_reuses_valid_report_without_mutating_state_or_probe_chain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    observed_ram = START_RESERVE_MIB * 1024**2 + 7
+    ram_reads = 0
+
+    def sample_ram() -> int:
+        nonlocal ram_reads
+        ram_reads += 1
+        return observed_ram
+
+    monkeypatch.setattr(campaign_cli, "available_ram_bytes", sample_ram)
+    assert campaign_cli.main(_preflight_cli_argv(config)) == 0
+    capsys.readouterr()
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    report_path = config.campaign_root / "preflight" / "preflight-report.json"
+    before_state = state_path.read_bytes()
+    before_report = report_path.read_bytes()
+
+    assert campaign_cli.main(_preflight_cli_argv(config, resume=True)) == 0
+    capsys.readouterr()
+
+    assert ram_reads == 1
+    assert state_path.read_bytes() == before_state
+    assert report_path.read_bytes() == before_report
+    state = json.loads(before_state)
+    assert len(state["safety_probes"]) == 1
+
+
+def test_preflight_finalizer_runs_while_campaign_lock_is_held(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    observed_ram = START_RESERVE_MIB * 1024**2 + 11
+    finalized: list[tuple[dict[str, object], int]] = []
+
+    def finalize(state: dict[str, object], observed: int) -> None:
+        with pytest.raises(RuntimeError, match="locked"):
+            with CampaignLock(config.campaign_root):
+                pass
+        finalized.append((state, observed))
+
+    state = preflight_adaptive_campaign(
+        config,
+        available_ram=lambda: observed_ram,
+        finalize_preflight=finalize,
+    )
+
+    assert finalized == [(state, observed_ram)]
+
+
+def test_failed_post_publish_validation_removes_only_new_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    observed_ram = START_RESERVE_MIB * 1024**2 + 1
+    state = preflight_adaptive_campaign(
+        config,
+        available_ram=lambda: observed_ram,
+    )
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    report_path = config.campaign_root / "preflight" / "preflight-report.json"
+    real_publish = campaign_cli._publish_preflight_report
+
+    def publish_then_drift(path: Path, report: dict[str, object]) -> bool:
+        created = real_publish(path, report)
+        state_path.write_bytes(state_path.read_bytes() + b" ")
+        return created
+
+    monkeypatch.setattr(
+        campaign_cli,
+        "_publish_preflight_report",
+        publish_then_drift,
+    )
+
+    with pytest.raises(ValueError, match="campaign state hash binding drift"):
+        campaign_cli._write_preflight_report(
+            config,
+            state,
+            observed_available_ram_bytes=observed_ram,
+        )
+
+    assert not report_path.exists()
+    assert list(report_path.parent.glob(".*.stage")) == []
+
+
+def test_preflight_report_rejects_coordinated_rehashed_spec_semantic_tamper(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = _write_valid_preflight_report(config, monkeypatch, capsys)
+    spec_path = config.spec_root / "OV-11" / "512" / "runtime-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec["ignore_eos"] = False
+    _write_json(spec_path, spec)
+    index_path = config.spec_root / "spec-index.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    entry = next(
+        item
+        for item in index["runtime_specs"]
+        if item["test_id"] == "OV-11" and item["context_tokens"] == 512
+    )
+    entry["sha256"] = _sha256(spec_path)
+    _write_json(index_path, index)
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["bindings"]["spec_index_sha256"] = _sha256(index_path)
+    _write_json(state_path, state)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["spec_index_sha256"] = _sha256(index_path)
+    report["campaign_state_sha256"] = _sha256(state_path)
+    _write_json(report_path, report)
+
+    with pytest.raises(ValueError, match="runtime spec property drift"):
+        campaign_cli._validate_preflight_report(config, report_path)
+
+
+def _write_valid_preflight_report(
+    config: AdaptiveCampaignConfig,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> Path:
+    monkeypatch.setattr(
+        campaign_cli,
+        "available_ram_bytes",
+        lambda: START_RESERVE_MIB * 1024**2 + 1,
+    )
+    assert campaign_cli.main(_preflight_cli_argv(config)) == 0
+    capsys.readouterr()
+    return config.campaign_root / "preflight" / "preflight-report.json"
+
+
+def test_preflight_report_rejects_safety_probe_path_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = _write_valid_preflight_report(config, monkeypatch, capsys)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    real_probe = Path(report["zero_survivor_safety_probe_path"])
+    escaped = config.campaign_root.parent / "escaped-probe.json"
+    escaped.write_bytes(real_probe.read_bytes())
+    report["zero_survivor_safety_probe_path"] = str(escaped.resolve())
+    _write_json(report_path, report)
+
+    with pytest.raises(ValueError, match="safety probe path escapes campaign root"):
+        campaign_cli._validate_preflight_report(config, report_path)
+
+
+@pytest.mark.parametrize(
+    ("hash_field", "label"),
+    [
+        ("matrix_sha256", "matrix"),
+        ("spec_index_sha256", "spec index"),
+        ("reference_boundary_index_sha256", "reference boundary index"),
+        ("build_provenance_sha256", "build provenance"),
+        ("campaign_state_sha256", "campaign state"),
+        ("zero_survivor_safety_probe_sha256", "safety probe"),
+    ],
+)
+def test_preflight_report_rejects_substituted_hash_bindings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    hash_field: str,
+    label: str,
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = _write_valid_preflight_report(config, monkeypatch, capsys)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report[hash_field] = "0" * 64
+    _write_json(report_path, report)
+
+    with pytest.raises(ValueError, match=f"{label} hash binding drift"):
+        campaign_cli._validate_preflight_report(config, report_path)
+
+
+def test_preflight_report_rejects_missing_or_drifted_referenced_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = _write_valid_preflight_report(config, monkeypatch, capsys)
+    config.reference_boundary_index.unlink()
+
+    with pytest.raises(ValueError, match="reference boundary index is missing"):
+        campaign_cli._validate_preflight_report(config, report_path)
+
+
+def test_preflight_report_rejects_state_changed_after_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = _write_valid_preflight_report(config, monkeypatch, capsys)
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state_path.write_bytes(state_path.read_bytes() + b" ")
+
+    with pytest.raises(ValueError, match="campaign state hash binding drift"):
+        campaign_cli._validate_preflight_report(config, report_path)
+
+
+def test_preflight_report_rejects_hash_consistent_nonzero_survivor_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config = _preflight_cli_inputs(tmp_path)
+    report_path = _write_valid_preflight_report(config, monkeypatch, capsys)
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    probe_path = Path(report["zero_survivor_safety_probe_path"])
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    probe["active_pids"] = [123]
+    _write_json(probe_path, probe)
+    probe_sha256 = _sha256(probe_path)
+    state["safety_probes"][-1]["active_pids"] = [123]
+    state["safety_probes"][-1]["receipt_sha256"] = probe_sha256
+    _write_json(state_path, state)
+    report["zero_survivor_safety_probe_sha256"] = probe_sha256
+    report["campaign_state_sha256"] = _sha256(state_path)
+    report["owned_survivor_count"] = 1
+    _write_json(report_path, report)
+
+    with pytest.raises(ValueError, match="zero owned survivors"):
+        campaign_cli._validate_preflight_report(config, report_path)
+
+
 def test_boundary_builder_cli_emits_valid_empty_index(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
