@@ -10,6 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
+import re
 import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -33,11 +35,33 @@ from scripts.testing.official_openvino.adaptive_metrics import (
 )
 from scripts.testing.official_openvino.adaptive_quality import (
     _input_evidence_paths as quality_capture_evidence_paths,
-    _validate_summary_history as validate_quality_capture_history,
+    _validate_summary as validate_quality_capture_summary,
+    _validate_summary_transition as validate_quality_capture_transition,
     quality_campaign_input_from_recovery,
 )
 from scripts.testing.official_openvino.matrix import load_adaptive_comparison_matrix
-from scripts.testing.official_openvino.quality_campaign import load_accepted_quality_campaign
+from scripts.testing.official_openvino.quality_campaign import (
+    AcceptedQualityCampaign,
+    _canonical_identity_bytes,
+    _load_frozen_rubric,
+    _validated_lexical_output_root,
+    build_worker_environment,
+    load_prompt_contract,
+)
+from scripts.testing.measure_official_openvino import (
+    RECEIPT_SCHEMA,
+    SEQUENCE_ROLES,
+    SEQUENCE_SCHEMA,
+    _role_spec,
+    _runtime_record_matches_spec,
+    _sequence_spec,
+    _sha256_json as task_three_sha256_json,
+    build_campaign_identity,
+    validate_runtime_record_against_matrix_case,
+    validate_worker_spec_against_matrix_case,
+)
+from scripts.testing.official_openvino.metrics import summarize_samples
+from scripts.testing.official_openvino.runtime_process import measurement_sample
 from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
     adjudicate_adaptive_quality,
 )
@@ -961,14 +985,14 @@ def load_comparison_release_input(
     )
 
 
-def _accepted_runtime_campaign(
+def _quality_campaign_input_for_runtime(
     *,
     source: _LoadedReleaseInput,
     key: ComparisonKey,
     runtime_path: Path,
     runtime_sha256: str,
 ) -> Any:
-    """Delegate Task 3 identity and five-role receipt validation to Task 5."""
+    """Reopen only the Task 4 receipt which names this Task 3 sequence."""
 
     state_step = source.campaign_state["steps"].get(
         f"{key.test_id}:{key.context_tokens}"
@@ -986,9 +1010,281 @@ def _accepted_runtime_campaign(
     ):
         raise ValueError("quality recovery does not bind the reconciled runtime")
     try:
-        return load_accepted_quality_campaign(
-            quality_campaign_input_from_recovery(recovery)
+        campaign_input = quality_campaign_input_from_recovery(recovery)
+        if Path(campaign_input.attempt_sequence_path).resolve() != runtime_path:
+            raise ValueError("quality recovery names a different attempt sequence")
+        return campaign_input
+    except (OSError, TypeError, ValueError) as error:
+        raise ValueError(
+            "runtime does not validate against the committed Task 4 recovery: "
+            f"{error}"
+        ) from error
+
+
+def _campaign_child(root: Path, value: object, label: str) -> Path:
+    if not isinstance(value, str) or not value or "\\" in value:
+        raise ValueError(f"{label} path is invalid")
+    lexical = Path(value)
+    if (
+        lexical.is_absolute()
+        or lexical.as_posix() != value
+        or any(part in {"", ".", ".."} for part in lexical.parts)
+    ):
+        raise ValueError(f"{label} path is not normalized")
+    resolved = (root / lexical).resolve()
+    if root != resolved and root not in resolved.parents:
+        raise ValueError(f"{label} path escapes the Task 3 campaign")
+    return resolved
+
+
+def _explicit_runtime_receipt(
+    *,
+    root: Path,
+    receipt: object,
+    role: str,
+    identity: Mapping[str, Any],
+    template: Mapping[str, Any],
+) -> tuple[dict[str, Any], Path]:
+    """Validate one sequence-named accepted attempt without directory search."""
+
+    if not isinstance(receipt, Mapping) or set(receipt) != {
+        "schema", "role", "attempt_number", "campaign_identity_sha256",
+        "spec_sha256", "spec_path", "spec_file_sha256",
+        "runtime_record_path", "runtime_record_sha256", "accepted",
+    }:
+        raise ValueError(f"{role} accepted receipt schema is invalid")
+    number = receipt.get("attempt_number")
+    if type(number) is not int or not 1 <= number <= 999:
+        raise ValueError(f"{role} accepted receipt attempt number is invalid")
+    expected_spec = _role_spec(
+        template,
+        role,
+        str(identity["campaign_identity_sha256"]),
+    )
+    attempt = root / "attempts" / role / f"attempt-{number:03d}"
+    spec_path = attempt / "spec.json"
+    record_path = attempt / "run" / "attempt.json"
+    if (
+        receipt.get("schema") != RECEIPT_SCHEMA
+        or receipt.get("role") != role
+        or receipt.get("accepted") is not True
+        or receipt.get("campaign_identity_sha256")
+        != identity["campaign_identity_sha256"]
+        or receipt.get("spec_sha256") != task_three_sha256_json(expected_spec)
+        or receipt.get("spec_path") != spec_path.relative_to(root).as_posix()
+        or receipt.get("runtime_record_path")
+        != record_path.relative_to(root).as_posix()
+    ):
+        raise ValueError(f"{role} accepted receipt does not bind its sequence")
+    if (
+        _campaign_child(root, receipt["spec_path"], f"{role} worker spec")
+        != spec_path.resolve()
+        or _campaign_child(root, receipt["runtime_record_path"], f"{role} record")
+        != record_path.resolve()
+    ):
+        raise ValueError(f"{role} accepted receipt path is not exact")
+    if (
+        not spec_path.is_file()
+        or not record_path.is_file()
+        or _sha256_file(spec_path)
+        != _require_sha256(receipt.get("spec_file_sha256"), f"{role} spec hash")
+        or _sha256_file(record_path)
+        != _require_sha256(
+            receipt.get("runtime_record_sha256"), f"{role} record hash"
         )
+    ):
+        raise ValueError(f"{role} accepted receipt evidence hash drift")
+    if _strict_object(attempt / "sequence-receipt.json", f"{role} receipt") != dict(receipt):
+        raise ValueError(f"{role} accepted receipt file differs from sequence")
+    spec = _strict_object(spec_path, f"{role} worker spec")
+    if spec != expected_spec:
+        raise ValueError(f"{role} worker spec differs from its receipt authority")
+    validate_worker_spec_against_matrix_case(
+        spec, identity["identity"]["matrix"]["case"]
+    )
+    record = _strict_object(record_path, f"{role} runtime record")
+    if (
+        record.get("role") != role
+        or record.get("valid") is not True
+        or type(record.get("cleanup_process_count")) is not int
+        or record["cleanup_process_count"] != 0
+        or not _runtime_record_matches_spec(record, expected_spec, role)
+    ):
+        raise ValueError(f"{role} runtime record is not an accepted attempt")
+    validate_runtime_record_against_matrix_case(
+        record, identity["identity"]["matrix"]["case"]
+    )
+    command = record.get("command")
+    if (
+        not isinstance(command, list)
+        or not command
+        or not all(isinstance(item, str) and item for item in command)
+    ):
+        raise ValueError(f"{role} runtime record command is invalid")
+    expected_hashes = {
+        "artifact_manifest_sha256": identity["identity"]["model"][
+            "artifact_manifest_sha256"
+        ],
+        "prompt_sha256": identity["identity"]["prompt"]["sha256"],
+        "matrix_sha256": task_three_sha256_json(identity["identity"]["matrix"]),
+        "build_provenance_sha256": identity["identity"]["build"][
+            "provenance_sha256"
+        ],
+        "command_sha256": task_three_sha256_json(command),
+        "evidence_sha256": identity["campaign_identity_sha256"],
+    }
+    if (
+        record.get("identity_hashes") != expected_hashes
+        or record.get("runtime_property_sha256")
+        != task_three_sha256_json(identity["identity"]["config"])
+    ):
+        raise ValueError(f"{role} runtime record identity authority drift")
+    return record, record_path
+
+
+def _explicit_accepted_quality_campaign(campaign_input: Any) -> AcceptedQualityCampaign:
+    """Validate only receipt-referenced Task 3 evidence and reopen Task 5."""
+
+    root = Path(campaign_input.campaign_root).resolve()
+    sequence_path = Path(campaign_input.attempt_sequence_path).resolve()
+    if sequence_path != root / "attempt-sequence.json":
+        raise ValueError("Task 3 attempt sequence is outside its campaign root")
+    identity = build_campaign_identity(
+        spec_path=campaign_input.spec_path,
+        matrix_path=campaign_input.matrix_path,
+        artifact_manifest_path=campaign_input.artifact_manifest_path,
+        build_provenance_path=campaign_input.build_provenance_path,
+        build_root=campaign_input.build_root,
+        repo_root=campaign_input.repo_root,
+        python_executable=campaign_input.python_executable,
+        python_site_packages=campaign_input.python_site_packages,
+        openvino_libraries=campaign_input.openvino_libraries,
+    )
+    identity_path = root / "campaign-identity.json"
+    if identity_path.read_bytes() != _canonical_identity_bytes(identity):
+        raise ValueError("Task 3 campaign identity does not match its authorities")
+    if _strict_object(identity_path, "Task 3 campaign identity") != identity:
+        raise ValueError("Task 3 campaign identity is invalid")
+    sequence = _strict_object(sequence_path, "Task 3 attempt sequence")
+    template = _sequence_spec(campaign_input.spec_path)
+    receipts = [
+        _explicit_runtime_receipt(
+            root=root,
+            receipt=sequence.get("pilot"),
+            role="pilot",
+            identity=identity,
+            template=template,
+        ),
+        _explicit_runtime_receipt(
+            root=root,
+            receipt=sequence.get("warmup"),
+            role="warmup",
+            identity=identity,
+            template=template,
+        ),
+    ]
+    samples = sequence.get("accepted_samples")
+    if not isinstance(samples, list) or len(samples) != 3:
+        raise ValueError("Task 3 sequence must name exactly three formal samples")
+    for role, receipt in zip(SEQUENCE_ROLES[2:], samples, strict=True):
+        receipts.append(
+            _explicit_runtime_receipt(
+                root=root,
+                receipt=receipt,
+                role=role,
+                identity=identity,
+                template=template,
+            )
+        )
+    summary_path = root / "measurement-summary.json"
+    summary = _strict_object(summary_path, "Task 3 measurement summary")
+    expected_summary = summarize_samples(
+        [measurement_sample(record, path) for record, path in receipts[2:]]
+    )
+    expected_summary.update(
+        {
+            "accepted": True,
+            "cleanup_process_count": 0,
+            "test_id": template["controlled_test_id"],
+            "context_tokens": template["context"],
+            "campaign_identity_sha256": identity["campaign_identity_sha256"],
+            "runtime_config_sha256": task_three_sha256_json(
+                identity["identity"]["config"]
+            ),
+        }
+    )
+    expected_summary = json.loads(json.dumps(expected_summary, allow_nan=False))
+    expected_sequence = {
+        "schema": SEQUENCE_SCHEMA,
+        "campaign_identity_sha256": identity["campaign_identity_sha256"],
+        "pilot_passed": True,
+        "warmup_excluded": True,
+        "pilot": sequence["pilot"],
+        "warmup": sequence["warmup"],
+        "accepted_samples": samples,
+        "accepted_sample_count": 3,
+        "cleanup_process_count": 0,
+        "measurement_summary_path": "measurement-summary.json",
+        "measurement_summary_sha256": _sha256_file(summary_path),
+    }
+    if summary != expected_summary or sequence != expected_sequence:
+        raise ValueError("Task 3 sequence does not match its explicit receipts")
+    prompt_contract = load_prompt_contract(
+        campaign_input.prompt_set_path, campaign_input.rendered_root
+    )
+    _rubric, rubric_sha256 = _load_frozen_rubric(campaign_input.rubric_path)
+    environment = build_worker_environment(
+        build_root=campaign_input.build_root,
+        repo_root=campaign_input.repo_root,
+        python_site_packages=campaign_input.python_site_packages,
+        openvino_libraries=campaign_input.openvino_libraries,
+        base_environment={
+            key: value
+            for key, value in os.environ.items()
+            if key.strip() and value.strip()
+        },
+    )
+    return AcceptedQualityCampaign(
+        identity=identity,
+        measurement_summary=summary,
+        measurement_summary_sha256=_sha256_file(summary_path),
+        runtime_config_sha256=task_three_sha256_json(
+            identity["identity"]["config"]
+        ),
+        campaign_identity_sha256=str(identity["campaign_identity_sha256"]),
+        worker_environment=environment,
+        prompt_contract=prompt_contract,
+        rubric_sha256=rubric_sha256,
+        output_root=_validated_lexical_output_root(campaign_input.output_root),
+        **{
+            field: Path(getattr(campaign_input, field)).resolve()
+            for field in (
+                "campaign_root", "spec_path", "matrix_path",
+                "artifact_manifest_path", "build_provenance_path", "build_root",
+                "repo_root", "python_executable", "python_site_packages",
+                "openvino_libraries", "sampler_script", "prompt_set_path",
+                "rendered_root", "rubric_path",
+            )
+        },
+        timeout_seconds=float(campaign_input.timeout_seconds),
+    )
+
+
+def _accepted_runtime_campaign(
+    *,
+    source: _LoadedReleaseInput,
+    key: ComparisonKey,
+    runtime_path: Path,
+    runtime_sha256: str,
+) -> AcceptedQualityCampaign:
+    try:
+        campaign_input = _quality_campaign_input_for_runtime(
+            source=source,
+            key=key,
+            runtime_path=runtime_path,
+            runtime_sha256=runtime_sha256,
+        )
+        return _explicit_accepted_quality_campaign(campaign_input)
     except (OSError, TypeError, ValueError) as error:
         raise ValueError(
             "runtime does not validate against the committed Task 3 evidence: "
@@ -1073,6 +1369,84 @@ def reconcile_all_runtime_steps(
     return result
 
 
+def _explicit_quality_capture_history(
+    campaign: AcceptedQualityCampaign,
+    *,
+    path: Path,
+    evidence_paths: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Walk the named capture's own backward receipt chain, never its directory."""
+
+    root = Path(campaign.output_root).resolve()
+    current = Path(path).resolve()
+    primary = root / "capture-summary.json"
+    backward: list[Path] = []
+    visited: set[Path] = set()
+    while True:
+        if current in visited:
+            raise ValueError("quality capture previous-summary chain contains a cycle")
+        visited.add(current)
+        if current.parent != root:
+            raise ValueError("quality capture is outside its accepted campaign")
+        raw = _strict_object(current, "quality capture summary")
+        backward.append(current)
+        if current == primary:
+            if (
+                raw.get("previous_capture_summary_path") is not None
+                or raw.get("previous_capture_summary_sha256") is not None
+            ):
+                raise ValueError("quality primary capture summary is not anchored")
+            break
+        match = re.fullmatch(
+            r"capture-summary-recovery-(\d{3})\.json", current.name
+        )
+        if match is None:
+            raise ValueError("quality capture recovery summary path is invalid")
+        number = int(match.group(1))
+        previous = (
+            primary
+            if number == 1
+            else root / f"capture-summary-recovery-{number - 1:03d}.json"
+        )
+        if (
+            raw.get("previous_capture_summary_path") != str(previous)
+            or raw.get("previous_capture_summary_sha256")
+            != _sha256_file(previous)
+        ):
+            raise ValueError("quality capture previous-summary receipt is invalid")
+        current = previous
+
+    previous_path: Path | None = None
+    previous_summary: Mapping[str, Any] | None = None
+    latest_summary: dict[str, Any] | None = None
+    latest_loaded: dict[str, Any] = {}
+    process_roots: dict[str, Path] = {}
+    for summary_path in reversed(backward):
+        summary, loaded = validate_quality_capture_summary(
+            campaign,
+            summary_path,
+            evidence_paths=evidence_paths,
+            previous_summary_path=previous_path,
+        )
+        if previous_summary is not None:
+            validate_quality_capture_transition(previous_summary, summary)
+        for receipt in summary["prompt_receipts"]:
+            identity = receipt.get("process_identity")
+            if not isinstance(identity, str):
+                continue
+            prompt_root = Path(str(receipt["prompt_root"])).resolve()
+            earlier = process_roots.setdefault(identity, prompt_root)
+            if earlier != prompt_root:
+                raise ValueError("quality capture history reused a worker process")
+        previous_path = summary_path
+        previous_summary = summary
+        latest_summary = summary
+        latest_loaded = loaded
+    if latest_summary is None:
+        raise ValueError("quality capture history is empty")
+    return latest_summary, latest_loaded
+
+
 def _quality_capture_complete(
     *,
     source: _LoadedReleaseInput,
@@ -1098,20 +1472,21 @@ def _quality_capture_complete(
     ):
         raise ValueError("quality recovery does not bind the reconciled runtime")
     try:
-        campaign_input = quality_campaign_input_from_recovery(recovery)
-        campaign = load_accepted_quality_campaign(campaign_input)
+        campaign_input = _quality_campaign_input_for_runtime(
+            source=source,
+            key=key,
+            runtime_path=runtime_row.evidence_path,
+            runtime_sha256=runtime_row.evidence_sha256,
+        )
+        campaign = _explicit_accepted_quality_campaign(campaign_input)
         expected_root = Path(campaign.output_root).resolve()
         if path.parent != expected_root:
             raise ValueError("quality capture is outside its accepted campaign")
-        latest_path, summary, loaded = validate_quality_capture_history(
+        summary, loaded = _explicit_quality_capture_history(
             campaign,
-            expected_root,
+            path=path,
             evidence_paths=quality_capture_evidence_paths(campaign_input),
         )
-        if latest_path is None or latest_path != path or summary is None:
-            raise ValueError(
-                "quality capture is not the latest accepted Task 5 recovery"
-            )
     except (OSError, TypeError, ValueError) as error:
         raise ValueError("quality capture does not validate against Task 5 evidence") from error
     if (
@@ -1513,14 +1888,16 @@ def validate_complete_release(release: ComparisonRelease) -> None:
     missing_scores = [
         outcome.key
         for outcome in release.quality.values()
-        if outcome.status == "quality-terminal"
-        or outcome.prompt_scores is None
-        or set(outcome.prompt_scores) != set(_PROMPTS)
-        or any(
-            isinstance(score, bool)
-            or not isinstance(score, (int, float))
-            or not math.isfinite(float(score))
-            for score in outcome.prompt_scores.values()
+        if outcome.status != "quality-terminal"
+        and (
+            outcome.prompt_scores is None
+            or set(outcome.prompt_scores) != set(_PROMPTS)
+            or any(
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not math.isfinite(float(score))
+                for score in outcome.prompt_scores.values()
+            )
         )
     ]
     if missing_scores:

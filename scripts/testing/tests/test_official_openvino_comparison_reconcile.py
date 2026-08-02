@@ -366,6 +366,7 @@ def _runtime_step(
     context: int,
     matrix_path: Path,
     foundation: Mapping[str, Path],
+    attempt_number: int = 1,
 ) -> dict[str, Any]:
     adaptive_spec_path = foundation["spec_root"] / test_id / str(context) / "runtime-spec.json"
     adaptive_spec = json.loads(adaptive_spec_path.read_text(encoding="utf-8"))
@@ -388,6 +389,15 @@ def _runtime_step(
     }
     template_path = _write_json(root / "worker-template.json", template)
     roles = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
+    if attempt_number > 1:
+        for role in roles:
+            # The runner owns the real accepted attempt.  These immutable,
+            # non-accepted predecessors ensure its actual receipt number is
+            # greater than one without inventing a receipt in the fixture.
+            (root / "attempts" / role / "attempt-001").mkdir(
+                parents=True,
+                exist_ok=False,
+            )
 
     def fake_measurement(**run_kwargs: Any) -> dict[str, Any]:
         role = str(run_kwargs["role"])
@@ -558,6 +568,7 @@ def valid_release_input(
                 context=context,
                 matrix_path=matrix,
                 foundation=foundation,
+                attempt_number=attempt_number,
             )
             steps.append(step)
     return _with_state(tmp_path, _release_input(steps, matrix, base=tmp_path))
@@ -642,6 +653,47 @@ def _resign_runtime_step(release_input: dict[str, Any], step: dict[str, Any]) ->
     step["runtime"] = _reference(sequence_path, base=_base(release_input))
     _refresh_state_runtime_binding(release_input, step)
     _resign_release_input(release_input)
+
+
+def _add_unreferenced_accepted_attempt(
+    release_input: dict[str, Any],
+    *,
+    role: str = "pilot",
+) -> Path:
+    """Create valid Task 3 evidence that the release never names."""
+
+    step = _find_step(release_input, "OV-11", 512)
+    sequence_path = _path(release_input, step["runtime"])
+    sequence = json.loads(sequence_path.read_text(encoding="utf-8"))
+    selected = (
+        sequence[role]
+        if role in {"pilot", "warmup"}
+        else next(
+            item for item in sequence["accepted_samples"] if item["role"] == role
+        )
+    )
+    receipt = dict(selected)
+    root = sequence_path.parent
+    source_spec = root / receipt["spec_path"]
+    source_record = root / receipt["runtime_record_path"]
+    destination = root / "attempts" / role / "attempt-002"
+    spec_path = _write_json(
+        destination / "spec.json",
+        json.loads(source_spec.read_text(encoding="utf-8")),
+    )
+    record_path = _write_json(
+        destination / "run" / "attempt.json",
+        json.loads(source_record.read_text(encoding="utf-8")),
+    )
+    receipt.update(
+        attempt_number=2,
+        spec_path=spec_path.relative_to(root).as_posix(),
+        spec_file_sha256=_sha256(spec_path),
+        runtime_record_path=record_path.relative_to(root).as_posix(),
+        runtime_record_sha256=_sha256(record_path),
+    )
+    _write_json(destination / "sequence-receipt.json", receipt)
+    return destination
 
 
 def _rebind_campaign_identity(
@@ -839,15 +891,6 @@ def test_shared_cache_comparison_requires_identical_u8_artifact(tmp_path: Path) 
 
     with pytest.raises(ValueError, match="Task 3 evidence|identical U8 artifact"):
         reconcile_comparison_release(release_input)
-
-
-def test_quality_requires_exactly_p1_through_p6(tmp_path: Path) -> None:
-    release_input = valid_release_input(tmp_path)
-
-    result = reconcile_comparison_release(release_input)
-    quality = result.quality[ComparisonKey("OV-11", 512)]
-    assert quality.status == "quality-blocked"
-    assert quality.aggregates is None
 
 
 def boundary_release_input(tmp_path: Path) -> dict[str, Any]:
@@ -1218,6 +1261,35 @@ def _real_task5_recovery_history(
     return capture
 
 
+def _real_task5_capture_blocked_at_p4(
+    release_input: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    """Persist a genuine Task 5 partial capture whose P4 worker fails."""
+
+    state_path = _path(release_input, release_input["campaign_state"])
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state_step = state["steps"]["OV-11:512"]
+    recovery = state_step["quality_recovery"]
+    monkeypatch.setattr(
+        adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB
+    )
+    result = capture_isolated_quality_campaign(
+        recovery,
+        resume=False,
+        run_command=PassingGuardRunner(failed_prompt="P4"),
+    )
+    capture = Path(result["capture_summary_path"]).resolve()
+    assert capture.name == "capture-summary.json"
+    assert result["status"] == "quality-blocked"
+    state_step["quality_status"] = "quality-blocked"
+    state_step["quality_result"] = result
+    _write_json(state_path, state)
+    release_input["campaign_state"] = _reference(state_path, base=_base(release_input))
+    _resign_release_input(release_input)
+    return capture
+
+
 def _project_authoritative_release(release_input: dict[str, Any], output: Path) -> Path:
     """Use the committed state-to-release projection, not a synthetic step."""
 
@@ -1297,6 +1369,54 @@ def test_quality_accepts_later_real_task_five_recovery_with_validated_history(
     assert reconciled.quality[ComparisonKey("OV-11", 512)].status == (
         "capture-complete-awaiting-adjudication"
     )
+
+
+def test_quality_blocks_a_real_task_five_capture_that_stops_at_p4(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release_input = valid_release_input(tmp_path)
+    capture = _real_task5_capture_blocked_at_p4(release_input, monkeypatch)
+    release = _project_authoritative_release(
+        release_input, tmp_path / "release-input.json"
+    )
+
+    reconciled = reconcile_comparison_release(release)
+
+    quality = reconciled.quality[ComparisonKey("OV-11", 512)]
+    assert quality.status == "quality-blocked"
+    assert quality.aggregates is None
+    assert quality.evidence_path == capture
+
+
+def test_quality_ignores_an_unreferenced_later_task_five_recovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release_input = valid_release_input(tmp_path)
+    capture = _real_task5_capture_blocked_at_p4(release_input, monkeypatch)
+    state = json.loads(
+        _path(release_input, release_input["campaign_state"]).read_text(
+            encoding="utf-8"
+        )
+    )
+    later = capture_isolated_quality_campaign(
+        state["steps"]["OV-11:512"]["quality_recovery"],
+        resume=True,
+        run_command=PassingGuardRunner(failed_prompt="P5"),
+    )
+    assert Path(later["capture_summary_path"]).name == (
+        "capture-summary-recovery-001.json"
+    )
+    release = _project_authoritative_release(
+        release_input, tmp_path / "release-input.json"
+    )
+
+    reconciled = reconcile_comparison_release(release)
+
+    quality = reconciled.quality[ComparisonKey("OV-11", 512)]
+    assert quality.status == "quality-blocked"
+    assert quality.evidence_path == capture
 
 
 def test_quality_recomputes_full_real_task_six_bundle_after_task_five_recovery(
@@ -1639,6 +1759,47 @@ def test_complete_release_requires_exactly_six_numeric_prompt_scores(tmp_path: P
         validate_complete_release(release)
 
 
+def test_complete_release_allows_governed_quality_terminal_but_not_awaiting_capture(
+    tmp_path: Path,
+) -> None:
+    runtime = {}
+    quality = {}
+    terminal_key = ComparisonKey("OV-11", 512)
+    for test_id in CANDIDATE_ORDER:
+        for context in CONTEXTS:
+            key = ComparisonKey(test_id, context)
+            runtime[key] = ComparisonRuntimeOutcome(
+                key, ({}, {}, {}), {}, {}, {}, {}, {},
+                tmp_path / "runtime.json", "a" * 64,
+            )
+            quality[key] = ComparisonQualityOutcome(
+                key,
+                "quality-terminal" if key == terminal_key else "quality-complete",
+                None if key == terminal_key else {
+                    prompt: 1.0
+                    for prompt in ("P1", "P2", "P3", "P4", "P5", "P6")
+                },
+                None if key == terminal_key else {"mean": 1.0},
+                tmp_path / "governed-quality-terminal.json",
+                "b" * 64,
+            )
+    release = ComparisonRelease(runtime, quality, {}, CONTEXTS, CONTEXTS, {})
+
+    validate_closed_campaign(release)
+    validate_complete_release(release)
+
+    quality[terminal_key] = ComparisonQualityOutcome(
+        terminal_key,
+        "capture-complete-awaiting-adjudication",
+        None,
+        None,
+        tmp_path / "complete-capture.json",
+        "c" * 64,
+    )
+    with pytest.raises(ValueError, match="numeric adjudication"):
+        validate_complete_release(release)
+
+
 @pytest.mark.parametrize("reference_field", ("matrix", "runtime", "quality_capture"))
 def test_release_rejects_absolute_references(tmp_path: Path, reference_field: str) -> None:
     release_input = valid_release_input(tmp_path)
@@ -1700,8 +1861,32 @@ def test_cli_required_mode_does_not_publish_partial_outputs(tmp_path: Path) -> N
 
 def test_runtime_accepts_the_explicitly_receipted_attempt_two(tmp_path: Path) -> None:
     release_input = valid_release_input(tmp_path, attempt_number=2)
+    step = _find_step(release_input, "OV-11", 512)
+    sequence_path = _path(release_input, step["runtime"])
+    sequence = json.loads(sequence_path.read_text(encoding="utf-8"))
+
+    for receipt in (
+        sequence["pilot"],
+        sequence["warmup"],
+        *sequence["accepted_samples"],
+    ):
+        assert receipt["attempt_number"] == 2
+        assert "/attempt-002/" in receipt["spec_path"]
+        assert (sequence_path.parent / receipt["spec_path"]).is_file()
 
     reconcile_comparison_release(release_input)
+
+
+def test_runtime_ignores_a_valid_unreferenced_accepted_attempt_directory(
+    tmp_path: Path,
+) -> None:
+    release_input = valid_release_input(tmp_path)
+    unreferenced = _add_unreferenced_accepted_attempt(release_input)
+
+    reconciled = reconcile_comparison_release(release_input)
+
+    assert unreferenced.is_dir()
+    assert ComparisonKey("OV-11", 512) in reconciled.runtime
 
 
 def test_runtime_rejects_rehashed_unbound_worker_spec_field(tmp_path: Path) -> None:
