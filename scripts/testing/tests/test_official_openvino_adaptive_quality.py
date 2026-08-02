@@ -198,6 +198,94 @@ def _capture_three_summary_history(source, adaptive_quality):
     )
 
 
+def _prepare_terminal_low_memory_summary(tmp_path, adaptive_quality):
+    from scripts.testing.official_openvino.quality_campaign import (
+        load_accepted_quality_campaign,
+    )
+
+    source = _accepted_input(tmp_path)
+    accepted = load_accepted_quality_campaign(source)
+    prompt_root = source.output_root / "P1"
+    primary = adaptive_quality.run_governed_quality_prompt(
+        accepted,
+        "P1",
+        prompt_root,
+        accepted.timeout_seconds,
+        run_command=RecordingGuardRunner(failed_prompt="P1"),
+    )
+    assert primary.status == "failed"
+    assert primary.cleanup_process_count == 0
+    spec_path = prompt_root / "worker-spec.json"
+    result_path = prompt_root / "worker-result.json"
+    log_path = prompt_root / "worker.log"
+    guard_path = prompt_root / "guard-evidence.json"
+    terminal_path = prompt_root / "terminal-guard-evidence.json"
+    guard = json.loads(guard_path.read_text(encoding="utf-8"))
+    guard["valid"] = False
+    guard["exit_code"] = 1
+    guard["low_memory_stop"] = True
+    guard["termination_reason"] = "minimum_available_ram"
+    guard["observed_available_ram_bytes"] = {
+        "before": 4096 * MIB,
+        "minimum": 2048 * MIB - 1,
+        "after": 3072 * MIB,
+    }
+    guard_path.write_bytes(
+        (json.dumps(guard, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    )
+    unsigned_terminal = {
+        "schema": "official-openvino-adaptive-quality-terminal-guard/v1",
+        "status": "quality-blocked",
+        "failure_stage": "guard-evidence-reopen",
+        "failure_type": "ValueError",
+        "failure_message": "quality prompt evidence is incomplete or unexpected",
+        "worker_spec_sha256": hashlib.sha256(spec_path.read_bytes()).hexdigest(),
+        "worker_result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest(),
+        "worker_log_sha256": hashlib.sha256(log_path.read_bytes()).hexdigest(),
+        "cleanup_process_count": -1,
+        "active_pids": [],
+        "preserved_guard_evidence_path": str(guard_path.resolve()),
+        "preserved_guard_evidence_sha256": hashlib.sha256(
+            guard_path.read_bytes()
+        ).hexdigest(),
+    }
+    terminal = {
+        **unsigned_terminal,
+        "terminal_guard_sha256": hashlib.sha256(
+            _canonical(unsigned_terminal)
+        ).hexdigest(),
+    }
+    terminal_path.write_bytes(_canonical(terminal))
+    reopened = adaptive_quality._load_prompt_execution(
+        accepted,
+        "P1",
+        prompt_root,
+        accepted.timeout_seconds,
+    )
+    summary_path = source.output_root / "capture-summary.json"
+    summary_path.write_bytes(
+        _canonical(
+            adaptive_quality._summary(
+                accepted,
+                {"P1": reopened},
+                summary_path=summary_path,
+            )
+        )
+    )
+    return source, accepted, reopened, terminal_path, guard_path, summary_path
+
+
+def _resign_terminal(path, value):
+    unsigned = {
+        key: item for key, item in value.items() if key != "terminal_guard_sha256"
+    }
+    value = {
+        **unsigned,
+        "terminal_guard_sha256": hashlib.sha256(_canonical(unsigned)).hexdigest(),
+    }
+    path.write_bytes(_canonical(value))
+
+
 def test_prompt_worker_uses_one_pipeline_and_actual_p6_history(tmp_path, monkeypatch):
     from scripts.testing.official_openvino import adaptive_quality
     from scripts.testing.official_openvino.quality_campaign import (
@@ -660,6 +748,184 @@ def test_resume_appends_one_recovery_then_remaining_prompts(tmp_path, monkeypatc
     assert result["previous_capture_summary_sha256"] == hashlib.sha256(
         primary_summary.read_bytes()
     ).hexdigest()
+
+
+def test_resume_uses_preserved_zero_survivor_proof_after_guard_reopen_race(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.official_openvino import adaptive_quality
+
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    source, _accepted, _reopened, _terminal, _guard, summary_path = (
+        _prepare_terminal_low_memory_summary(tmp_path, adaptive_quality)
+    )
+    primary_summary_bytes = summary_path.read_bytes()
+    resumed_runner = RecordingGuardRunner()
+
+    result = quality_cli._resume_cleanup_proven_quality_campaign(
+        source,
+        run_command=resumed_runner,
+    )
+
+    assert [call.prompt_id for call in resumed_runner.calls] == [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+    ]
+    assert result["status"] == "passed"
+    assert (source.output_root / "P1-recovery-001").is_dir()
+    assert summary_path.read_bytes() == primary_summary_bytes
+    first_recovery_path = source.output_root / "capture-summary-recovery-001.json"
+    first_recovery = json.loads(first_recovery_path.read_text(encoding="utf-8"))
+    assert first_recovery["previous_capture_summary_path"] == str(
+        summary_path.resolve()
+    )
+    assert first_recovery["previous_capture_summary_sha256"] == hashlib.sha256(
+        primary_summary_bytes
+    ).hexdigest()
+    assert result["capture_summary_path"].endswith(
+        "capture-summary-recovery-002.json"
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    (
+        ("failure_stage", "containing-job-close"),
+        ("active_pids", None),
+        ("active_pids", [123]),
+        ("preserved_guard_evidence_path", "C:\\substituted.json"),
+        ("preserved_guard_evidence_sha256", "0" * 64),
+    ),
+)
+def test_cleanup_proven_recovery_rejects_terminal_proof_drift(
+    tmp_path,
+    monkeypatch,
+    field,
+    invalid,
+):
+    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.official_openvino import adaptive_quality
+
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    _source, accepted, failed, terminal_path, _guard, _summary_path = (
+        _prepare_terminal_low_memory_summary(tmp_path, adaptive_quality)
+    )
+    terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+    terminal[field] = invalid
+    _resign_terminal(terminal_path, terminal)
+
+    with pytest.raises(ValueError, match="exact preserved guard proof"):
+        quality_cli._require_preserved_low_memory_cleanup_proof(accepted, failed)
+
+
+@pytest.mark.parametrize(
+    "mode",
+    (
+        "cleanup-nonzero",
+        "job-query-failed",
+        "job-survivor",
+        "containing-survivor",
+        "emergency-action",
+        "not-low-memory",
+        "floor-not-crossed",
+    ),
+)
+def test_cleanup_proven_recovery_rejects_failed_guard_cleanup_proof(
+    tmp_path,
+    monkeypatch,
+    mode,
+):
+    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.official_openvino import adaptive_quality
+
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    _source, accepted, failed, terminal_path, guard_path, _summary_path = (
+        _prepare_terminal_low_memory_summary(tmp_path, adaptive_quality)
+    )
+    guard = json.loads(guard_path.read_text(encoding="utf-8"))
+    if mode == "cleanup-nonzero":
+        guard["cleanup_process_count"] = 1
+    elif mode == "job-query-failed":
+        guard["job_object"]["query_ok"] = False
+    elif mode == "job-survivor":
+        guard["job_object"]["survivor_pids_after_cleanup"] = [123]
+    elif mode == "containing-survivor":
+        guard["containing_job_assignment"]["active_pids_after_cleanup"] = [123]
+    elif mode == "emergency-action":
+        guard["emergency_actions"] = ["synthetic"]
+    elif mode == "not-low-memory":
+        guard["low_memory_stop"] = False
+    elif mode == "floor-not-crossed":
+        guard["observed_available_ram_bytes"]["minimum"] = 2048 * MIB
+    guard_path.write_bytes(
+        (json.dumps(guard, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    )
+    terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+    terminal["preserved_guard_evidence_sha256"] = hashlib.sha256(
+        guard_path.read_bytes()
+    ).hexdigest()
+    _resign_terminal(terminal_path, terminal)
+
+    with pytest.raises(ValueError, match="isolated low-memory stop"):
+        quality_cli._require_preserved_low_memory_cleanup_proof(accepted, failed)
+
+
+def test_cleanup_proven_recovery_rejects_ambiguous_existing_recovery(
+    tmp_path,
+    monkeypatch,
+):
+    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.official_openvino import adaptive_quality
+
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    source, _accepted, _failed, _terminal, _guard, _summary_path = (
+        _prepare_terminal_low_memory_summary(tmp_path, adaptive_quality)
+    )
+    (source.output_root / "P1-recovery-001").mkdir()
+    runner = RecordingGuardRunner()
+
+    with pytest.raises(ValueError, match="cleanup uncertainty"):
+        quality_cli._resume_cleanup_proven_quality_campaign(
+            source,
+            run_command=runner,
+        )
+    assert runner.calls == []
+
+
+def test_failed_cleanup_proven_recovery_is_never_retried(tmp_path, monkeypatch):
+    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.official_openvino import adaptive_quality
+
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    source, _accepted, _failed, _terminal, _guard, summary_path = (
+        _prepare_terminal_low_memory_summary(tmp_path, adaptive_quality)
+    )
+    primary_summary_bytes = summary_path.read_bytes()
+    first_runner = RecordingGuardRunner(failed_prompt="P1")
+
+    first = quality_cli._resume_cleanup_proven_quality_campaign(
+        source,
+        run_command=first_runner,
+    )
+    second_runner = RecordingGuardRunner()
+    second = quality_cli._resume_cleanup_proven_quality_campaign(
+        source,
+        run_command=second_runner,
+    )
+
+    assert [call.prompt_id for call in first_runner.calls] == ["P1"]
+    assert first["status"] == "quality-blocked"
+    assert second == first
+    assert second_runner.calls == []
+    assert summary_path.read_bytes() == primary_summary_bytes
+    assert (source.output_root / "P1-recovery-001").is_dir()
+    assert not (source.output_root / "P1-recovery-002").exists()
 
 
 def test_resume_revalidates_oldest_summary_and_superseded_prompt(

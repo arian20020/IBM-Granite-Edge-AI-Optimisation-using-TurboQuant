@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import json
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -26,10 +26,12 @@ from scripts.testing.official_openvino.adaptive_campaign import (
     build_ladder,
     save_state_atomically,
 )
+from scripts.testing.official_openvino import adaptive_quality
 from scripts.testing.official_openvino.adaptive_quality import (
     capture_isolated_quality_campaign,
     quality_campaign_input_from_recovery,
 )
+from scripts.testing.official_openvino.guarded_build import run_guarded_command
 from scripts.testing.official_openvino.quality_campaign import _strict_object
 from scripts.testing.official_openvino.quality_campaign import (
     load_accepted_quality_campaign,
@@ -376,6 +378,166 @@ def _compact(result: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _require_preserved_low_memory_cleanup_proof(
+    accepted: Any,
+    failed: Any,
+) -> None:
+    primary_root = Path(failed.prompt_root).resolve()
+    terminal_path = primary_root / adaptive_quality.TERMINAL_GUARD_FILENAME
+    preserved_path = primary_root / "guard-evidence.json"
+    terminal = _load(terminal_path, "quality prompt terminal guard")
+    preserved_raw = preserved_path.read_bytes()
+    preserved = _strict_object(preserved_raw, source=preserved_path)
+    if (
+        terminal.get("failure_stage") != "guard-evidence-reopen"
+        or terminal.get("cleanup_process_count") != -1
+        or terminal.get("active_pids") != []
+        or terminal.get("preserved_guard_evidence_path") != str(preserved_path)
+        or terminal.get("preserved_guard_evidence_sha256")
+        != hashlib.sha256(preserved_raw).hexdigest()
+        or preserved_raw != adaptive_quality._canonical_identity_bytes(preserved)
+    ):
+        raise ValueError(
+            "quality prompt recovery lacks an exact preserved guard proof"
+        )
+    command = [
+        str(accepted.python_executable),
+        "-m",
+        "scripts.testing.official_openvino.quality_worker",
+        "--spec",
+        str((primary_root / "worker-spec.json").resolve()),
+        "--result",
+        str((primary_root / "worker-result.json").resolve()),
+    ]
+    guard_status, cleanup = adaptive_quality._validate_guard(
+        preserved,
+        command=command,
+        campaign=accepted,
+        prompt_root=primary_root,
+        timeout_seconds=accepted.timeout_seconds,
+        spec_sha256=failed.worker_spec_sha256,
+        log_sha256=_sha256_file(primary_root / "worker.log"),
+    )
+    observed = preserved.get("observed_available_ram_bytes")
+    configured_floor = preserved.get("configured_minimum_available_ram_bytes")
+    if (
+        guard_status != "failed"
+        or cleanup != 0
+        or preserved.get("valid") is not False
+        or preserved.get("low_memory_stop") is not True
+        or preserved.get("timed_out") is not False
+        or preserved.get("termination_reason") != "minimum_available_ram"
+        or not isinstance(observed, Mapping)
+        or isinstance(configured_floor, bool)
+        or not isinstance(configured_floor, int)
+        or isinstance(observed.get("minimum"), bool)
+        or not isinstance(observed.get("minimum"), int)
+        or observed["minimum"] >= configured_floor
+    ):
+        raise ValueError(
+            "quality prompt recovery is not an isolated low-memory stop"
+        )
+
+
+def _resume_cleanup_proven_quality_campaign(
+    campaign_input: Any,
+    *,
+    run_command: Callable[..., Mapping[str, Any]] = run_guarded_command,
+) -> dict[str, Any]:
+    """Append one recovery when preserved low-memory guard proves zero survivors."""
+
+    source = (
+        quality_campaign_input_from_recovery(campaign_input)
+        if isinstance(campaign_input, Mapping)
+        else campaign_input
+    )
+    accepted = load_accepted_quality_campaign(source)
+    root = Path(accepted.output_root).resolve()
+    if not root.is_dir():
+        return capture_isolated_quality_campaign(
+            source,
+            resume=False,
+            run_command=run_command,
+        )
+    evidence_paths = adaptive_quality._input_evidence_paths(source)
+    adaptive_quality._validate_root_entries(root)
+    latest_path, latest_value, results = adaptive_quality._validate_summary_history(
+        accepted,
+        root,
+        evidence_paths=evidence_paths,
+    )
+    failed_prompt = next(
+        (
+            prompt_id
+            for prompt_id in adaptive_quality.PROMPT_IDS
+            if prompt_id in results and results[prompt_id].status != "passed"
+        ),
+        None,
+    )
+    if latest_path is None or latest_value is None or failed_prompt is None:
+        return capture_isolated_quality_campaign(
+            source,
+            resume=True,
+            run_command=run_command,
+        )
+    failed = results[failed_prompt]
+    primary_root = root / failed_prompt
+    recovery_root = root / f"{failed_prompt}-recovery-001"
+    if (
+        failed.prompt_root != primary_root
+        or failed.cleanup_process_count != -1
+        or recovery_root.exists()
+    ):
+        return capture_isolated_quality_campaign(
+            source,
+            resume=True,
+            run_command=run_command,
+        )
+
+    _require_preserved_low_memory_cleanup_proof(accepted, failed)
+
+    recovered = adaptive_quality._run_governed_quality_prompt(
+        accepted,
+        failed_prompt,
+        recovery_root,
+        accepted.timeout_seconds,
+        run_command=run_command,
+        evidence_paths=evidence_paths,
+    )
+    updated_results = dict(results)
+    updated_results[failed_prompt] = recovered
+    recovery_number = len(
+        list(root.glob("capture-summary-recovery-*.json"))
+    ) + 1
+    summary_path = root / f"capture-summary-recovery-{recovery_number:03d}.json"
+    summary = adaptive_quality._summary(
+        accepted,
+        updated_results,
+        summary_path=summary_path,
+        previous_summary_path=latest_path,
+    )
+    adaptive_quality._write_fresh(
+        summary_path,
+        adaptive_quality._canonical_json(summary),
+    )
+    validated_path, persisted, _loaded = (
+        adaptive_quality._validate_summary_history(
+            accepted,
+            root,
+            evidence_paths=evidence_paths,
+        )
+    )
+    if validated_path != summary_path or persisted is None:
+        raise RuntimeError("quality recovery summary publication failed")
+    if recovered.status != "passed" or recovered.cleanup_process_count != 0:
+        return persisted
+    return capture_isolated_quality_campaign(
+        source,
+        resume=True,
+        run_command=run_command,
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
@@ -392,10 +554,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         state, recoveries = _validate_campaign_state(state_path)
         captures = []
         for test_id, context, recovery in recoveries:
-            output = Path(recovery["output_root"])
-            result = capture_isolated_quality_campaign(
+            result = _resume_cleanup_proven_quality_campaign(
                 recovery,
-                resume=output.exists(),
             )
             step = state["steps"][f"{test_id}:{context}"]
             step["quality_status"] = result["status"]
