@@ -12,6 +12,7 @@ from scripts.testing.run_official_openvino_quality import (
     QualityConfiguration,
     atomic_write_json,
     load_prompt_contract,
+    parse_json_bytes_strict,
     require_runtime_summary,
     run_quality_campaign,
 )
@@ -127,6 +128,29 @@ class OfficialOpenVINOQualityRunnerTests(unittest.TestCase):
             executor=executor,
             resume=resume,
         )
+
+    def test_campaign_identity_rejects_null_outside_governed_optional_fields(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"null value is prohibited at \$\.unexpected",
+        ):
+            parse_json_bytes_strict(
+                b'{"unexpected":null}',
+                source="campaign-identity.json",
+            )
+
+    def test_campaign_identity_rejects_dotted_key_aliases_of_optional_fields(self):
+        aliases = (
+            b'{"identity.matrix.case.artifact_terminal_path":null}',
+            b'{"identity":{"matrix":{"case.artifact_terminal_sha256":null}}}',
+        )
+        for raw in aliases:
+            with self.subTest(raw=raw):
+                with self.assertRaisesRegex(ValueError, "null value is prohibited"):
+                    parse_json_bytes_strict(
+                        raw,
+                        source="campaign-identity.json",
+                    )
 
     def test_quality_requires_complete_runtime_summary(self):
         with self.assertRaisesRegex(RuntimeError, "complete runtime evidence"):

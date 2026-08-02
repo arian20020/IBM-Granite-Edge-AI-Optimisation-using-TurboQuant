@@ -138,17 +138,44 @@ QualityGenerator = Callable[
 ]
 
 
-def reject_nulls(value: Any, *, location: str = "$") -> None:
+_CAMPAIGN_IDENTITY_OPTIONAL_NULL_PATHS = frozenset(
+    {
+        ("identity", "matrix", "case", "artifact_terminal_path"),
+        ("identity", "matrix", "case", "artifact_terminal_sha256"),
+        ("identity", "matrix", "schema_version"),
+    }
+)
+
+
+def reject_nulls(
+    value: Any,
+    *,
+    location: str = "$",
+    path: tuple[object, ...] = (),
+    allowed_paths: frozenset[tuple[object, ...]] = frozenset(),
+) -> None:
     """Reject JSON null recursively, including inside arbitrary mappings."""
 
     if value is None:
+        if path in allowed_paths:
+            return
         raise ValueError(f"null value is prohibited at {location}")
     if isinstance(value, Mapping):
         for key, item in value.items():
-            reject_nulls(item, location=f"{location}.{key}")
+            reject_nulls(
+                item,
+                location=f"{location}.{key}",
+                path=(*path, key),
+                allowed_paths=allowed_paths,
+            )
     elif isinstance(value, (list, tuple)):
         for index, item in enumerate(value):
-            reject_nulls(item, location=f"{location}[{index}]")
+            reject_nulls(
+                item,
+                location=f"{location}[{index}]",
+                path=(*path, index),
+                allowed_paths=allowed_paths,
+            )
 
 
 def _reject_json_constant(value: str) -> None:
@@ -164,7 +191,11 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def parse_json_bytes_strict(raw: bytes, *, source: str | Path) -> Any:
+def parse_json_bytes_strict(
+    raw: bytes,
+    *,
+    source: str | Path,
+) -> Any:
     try:
         value = json.loads(
             raw.decode("utf-8-sig"),
@@ -173,7 +204,14 @@ def parse_json_bytes_strict(raw: bytes, *, source: str | Path) -> Any:
         )
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError(f"invalid JSON artifact: {source}: {exc}") from exc
-    reject_nulls(value)
+    # A persisted campaign identity may contain three governed optional nulls.
+    # Its sole caller first requires exact recomputed-canonical byte equality.
+    allowed_paths = (
+        _CAMPAIGN_IDENTITY_OPTIONAL_NULL_PATHS
+        if Path(source).name == "campaign-identity.json"
+        else frozenset()
+    )
+    reject_nulls(value, allowed_paths=allowed_paths)
     return value
 
 

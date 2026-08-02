@@ -514,9 +514,21 @@ def _quality_artifact_paths(root):
     ]
 
 
-def _skeletal_input(tmp_path):
+def _skeletal_input(
+    tmp_path,
+    *,
+    matrix_overrides=None,
+    matrix_case_overrides=None,
+):
     QualityCampaignInput, _, _ = _quality_api()
     values = _setup_campaign(tmp_path)
+    if matrix_overrides is not None or matrix_case_overrides is not None:
+        matrix = json.loads(values["matrix_path"].read_text(encoding="utf-8"))
+        if matrix_overrides is not None:
+            matrix.update(matrix_overrides)
+        if matrix_case_overrides is not None:
+            matrix["cases"][0].update(matrix_case_overrides)
+        _write_json(values["matrix_path"], matrix)
     (
         values["repo_root"]
         / "scripts"
@@ -579,8 +591,17 @@ def _skeletal_input(tmp_path):
     )
 
 
-def _accepted_input(tmp_path):
-    source = _skeletal_input(tmp_path)
+def _accepted_input(
+    tmp_path,
+    *,
+    matrix_overrides=None,
+    matrix_case_overrides=None,
+):
+    source = _skeletal_input(
+        tmp_path,
+        matrix_overrides=matrix_overrides,
+        matrix_case_overrides=matrix_case_overrides,
+    )
     roles = ("pilot", "warmup", "sample-1", "sample-2", "sample-3")
 
     def fake_measurement(**run_kwargs):
@@ -621,6 +642,27 @@ def test_quality_campaign_module_exposes_governed_adapter_api():
     assert QualityCampaignInput.__dataclass_params__.frozen is True
     assert callable(load)
     assert callable(build)
+
+
+def test_accepted_adaptive_identity_preserves_optional_terminal_nulls(
+    tmp_path,
+):
+    source = _accepted_input(
+        tmp_path,
+        matrix_overrides={"schema_version": None},
+        matrix_case_overrides={
+            "artifact_terminal_path": None,
+            "artifact_terminal_sha256": None,
+        },
+    )
+    _, load, _ = _quality_api()
+
+    campaign = load(source)
+
+    case = campaign.identity["identity"]["matrix"]["case"]
+    assert case["artifact_terminal_path"] is None
+    assert case["artifact_terminal_sha256"] is None
+    assert campaign.identity["identity"]["matrix"]["schema_version"] is None
 
 
 def test_skeletal_measurement_summary_without_accepted_sequence_rejects(tmp_path):
