@@ -15,7 +15,7 @@
       "test_id": "OV-11",
       "context_tokens": 512,
       "runtime": {
-        "path": "runtime/OV-11/context-512/attempt-sequence.json",
+        "path": "r/OV-11/512/attempt-sequence.json",
         "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
       },
       "quality_capture": {

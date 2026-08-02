@@ -109,6 +109,29 @@ def _campaign_job_name(campaign_root: Path) -> str:
     return f"WB04-adaptive-campaign-{identity}"
 
 
+def _adaptive_runtime_root(
+    campaign_root: Path,
+    test_id: str,
+    context: int,
+) -> Path:
+    """Keep governed attempt paths below legacy Windows MAX_PATH."""
+
+    return Path(campaign_root).resolve() / "r" / test_id / str(context)
+
+
+def _legacy_adaptive_runtime_root(
+    campaign_root: Path,
+    test_id: str,
+    context: int,
+) -> Path:
+    return (
+        Path(campaign_root).resolve()
+        / "runtime"
+        / test_id
+        / f"context-{context}"
+    )
+
+
 def build_ladder(matrix_path: Path) -> tuple[tuple[str, int], ...]:
     """Validate the matrix and return the fixed context-major run order."""
 
@@ -1638,12 +1661,27 @@ def _native_runtime_failures_for_step(
     context: int,
     adaptive_spec: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
-    runtime_root = (
-        Path(config.campaign_root).resolve()
-        / "runtime"
-        / test_id
-        / f"context-{context}"
+    runtime_root = _adaptive_runtime_root(
+        config.campaign_root, test_id, context
     )
+    legacy_root = _legacy_adaptive_runtime_root(
+        config.campaign_root, test_id, context
+    )
+    if legacy_root.is_dir():
+        permitted_scaffolding = {
+            ".campaign.lock",
+            "campaign-identity.json",
+            "spec.json",
+        }
+        substantive = sorted(
+            path
+            for path in legacy_root.rglob("*")
+            if path.is_file() and path.name not in permitted_scaffolding
+        )
+        if substantive:
+            raise ValueError(
+                "legacy adaptive runtime evidence requires explicit migration"
+            )
     attempts_root = runtime_root / "attempts"
     if not attempts_root.exists():
         return []
@@ -2113,8 +2151,8 @@ def run_adaptive_campaign(
                 for attempt in attempts
                 if attempt["status"] == "retryable-failure"
             ]
-            runtime_root = (
-                campaign_root / "runtime" / test_id / f"context-{context}"
+            runtime_root = _adaptive_runtime_root(
+                campaign_root, test_id, context
             )
             if state.get("campaign_halt") is not None and not attempts:
                 return state

@@ -17,6 +17,8 @@ import pytest
 from scripts.testing import build_official_openvino_boundary_index as boundary_cli
 from scripts.testing import run_official_openvino_adaptive_comparison as campaign_cli
 from scripts.testing.official_openvino import adaptive_campaign as adaptive_controller
+from scripts.testing.official_openvino import runtime_measurement
+from scripts.testing.official_openvino import runtime_process
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
@@ -446,6 +448,93 @@ def test_generated_adaptive_spec_is_consumable_by_sequence_loader(
     assert projected["context"] == 512
     assert projected["expected_input_tokens"] == 512
     assert projected["prompt"] == " test" * 512
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows MAX_PATH is required")
+def test_adaptive_runtime_root_keeps_atomic_evidence_below_max_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    campaign = tmp_path
+    while len(str(campaign)) < 188:
+        remaining = 188 - len(str(campaign)) - 1
+        campaign /= "x" * min(40, remaining)
+    compact = adaptive_controller._adaptive_runtime_root(
+        campaign, "OV-TQ-22", 8192
+    )
+    legacy = campaign / "runtime" / "OV-TQ-22" / "context-8192"
+    compact_attempt = compact / "attempts" / "sample-3" / "attempt-001"
+    legacy_receipt = (
+        legacy / "attempts" / "pilot" / "attempt-001" / "sequence-receipt.json"
+    )
+    output = compact_attempt / "run"
+    command = output / "command.json"
+    receipt = compact_attempt / "sequence-receipt.json"
+    sampler_stderr = output / "sampler.stderr.txt"
+    temporary_example = output / ".wb04-12345678"
+    sampler = tmp_path / "sampler.ps1"
+    sampler.write_text("# no launch\n", encoding="utf-8")
+
+    assert len(str(legacy_receipt)) >= 260
+    assert max(
+        len(str(command)),
+        len(str(receipt)),
+        len(str(sampler_stderr)),
+        len(str(temporary_example)),
+    ) < 260
+    mib = 1024**2
+    monkeypatch.setattr(
+        runtime_process,
+        "available_ram_bytes",
+        lambda: 4095 * mib,
+    )
+    record = runtime_process.run_governed_process(
+        command=["never-launched"],
+        output_dir=output,
+        role="sample-3",
+        environment={},
+        sampler_script=sampler,
+        launch_minimum_available_ram_bytes=4096 * mib,
+        emergency_minimum_available_ram_bytes=2048 * mib,
+    )
+    runtime_measurement.atomic_write_json(receipt, {"kind": "receipt"})
+    assert record["root_pid"] is None
+    assert record["valid"] is False
+    assert json.loads(command.read_text(encoding="utf-8"))["command"] == [
+        "never-launched"
+    ]
+    assert sampler_stderr.read_text(encoding="utf-8") == ""
+    assert json.loads(receipt.read_text(encoding="utf-8")) == {
+        "kind": "receipt"
+    }
+
+
+def test_legacy_runtime_evidence_fails_closed_before_compact_launch(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    spec_path = config.spec_root / "OV-11" / "512" / "runtime-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    legacy_record = (
+        config.campaign_root
+        / "runtime"
+        / "OV-11"
+        / "context-512"
+        / "attempts"
+        / "pilot"
+        / "attempt-001"
+        / "run"
+        / "attempt.json"
+    )
+    _write_json(legacy_record, {"schema": "legacy-native-runtime/v1"})
+
+    with pytest.raises(ValueError, match="legacy adaptive runtime evidence"):
+        adaptive_controller._native_runtime_failures_for_step(
+            config=config,
+            test_id="OV-11",
+            context=512,
+            adaptive_spec=spec,
+        )
 
 
 def _failure_record(
