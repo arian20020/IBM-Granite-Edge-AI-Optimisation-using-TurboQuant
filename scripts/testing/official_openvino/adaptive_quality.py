@@ -7,6 +7,7 @@ import json
 import math
 import os
 import re
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,6 +63,7 @@ class GovernedQualityPromptResult:
     worker_result_sha256: str
     guard_evidence_sha256: str
     cleanup_process_count: int
+    timeout_seconds: float
 
 
 @dataclass(frozen=True)
@@ -771,6 +773,7 @@ def _load_prompt_execution(
         worker_result_sha256=hashlib.sha256(result_raw).hexdigest(),
         guard_evidence_sha256=hashlib.sha256(evidence_raw).hexdigest(),
         cleanup_process_count=cleanup,
+        timeout_seconds=float(timeout_seconds),
     )
 
 
@@ -782,6 +785,8 @@ def _run_governed_quality_prompt(
     *,
     run_command: Callable[..., Mapping[str, Any]] = run_guarded_command,
     evidence_paths: Mapping[str, Any] | None = None,
+    monotonic_deadline: float | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> GovernedQualityPromptResult:
     """Launch one fresh prompt worker and reopen every persisted byte."""
 
@@ -795,6 +800,14 @@ def _run_governed_quality_prompt(
         or timeout_seconds <= 0
     ):
         raise ValueError("quality prompt timeout must be finite and positive")
+    if monotonic_deadline is not None and (
+        isinstance(monotonic_deadline, bool)
+        or not isinstance(monotonic_deadline, (int, float))
+        or not math.isfinite(monotonic_deadline)
+    ):
+        raise ValueError("monotonic deadline must be finite")
+    if not callable(monotonic):
+        raise TypeError("monotonic must be callable")
     accepted = load_accepted_quality_campaign(
         _accepted_input_from_campaign(campaign)
     )
@@ -811,6 +824,35 @@ def _run_governed_quality_prompt(
     log_path = root / "worker.log"
     evidence_path = root / "guard-evidence.json"
     _write_fresh(spec_path, _canonical_json(spec))
+    effective_timeout = float(timeout_seconds)
+    if monotonic_deadline is not None:
+        observed = monotonic()
+        if (
+            isinstance(observed, bool)
+            or not isinstance(observed, (int, float))
+            or not math.isfinite(observed)
+        ):
+            raise ValueError("monotonic clock returned an invalid value")
+        effective_timeout = min(
+            effective_timeout,
+            float(monotonic_deadline) - float(observed),
+        )
+    if effective_timeout <= 0:
+        _publish_terminal_prompt_evidence(
+            root=root,
+            spec=spec,
+            stage="row-deadline-admission",
+            error=TimeoutError("row monotonic deadline expired before prompt launch"),
+            cleanup_process_count=0,
+            active_pids=[],
+        )
+        return _load_prompt_execution(
+            accepted,
+            checked,
+            root,
+            0.0,
+            evidence_paths=evidence_paths,
+        )
     command = [
         str(accepted.python_executable),
         "-m",
@@ -854,7 +896,7 @@ def _run_governed_quality_prompt(
             expected_exit="zero",
             limits=GuardLimits(
                 minimum_available_ram_bytes=EMERGENCY_FLOOR_BYTES,
-                maximum_runtime_seconds=float(timeout_seconds),
+                maximum_runtime_seconds=effective_timeout,
             ),
             environment=dict(accepted.worker_environment),
             bound_inputs={"quality_worker_spec": spec_path},
@@ -870,7 +912,7 @@ def _run_governed_quality_prompt(
             accepted,
             checked,
             root,
-            float(timeout_seconds),
+            effective_timeout,
             evidence_paths=evidence_paths,
         )
     except Exception as error:
@@ -907,7 +949,7 @@ def _run_governed_quality_prompt(
             accepted,
             checked,
             root,
-            float(timeout_seconds),
+            effective_timeout,
             evidence_paths=evidence_paths,
         )
     if execution is None:
@@ -922,6 +964,8 @@ def run_governed_quality_prompt(
     timeout_seconds: float,
     *,
     run_command: Callable[..., Mapping[str, Any]] = run_guarded_command,
+    monotonic_deadline: float | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> GovernedQualityPromptResult:
     """Launch one fresh prompt worker using internally derived bindings."""
 
@@ -931,6 +975,8 @@ def run_governed_quality_prompt(
         output_root,
         timeout_seconds,
         run_command=run_command,
+        monotonic_deadline=monotonic_deadline,
+        monotonic=monotonic,
     )
 
 
@@ -962,6 +1008,7 @@ def _receipt(result: GovernedQualityPromptResult | None, prompt_id: str, root: P
         "guard_evidence_path": str(evidence_path.resolve()),
         "guard_evidence_sha256": result.guard_evidence_sha256 if result else None,
         "cleanup_process_count": result.cleanup_process_count if result else None,
+        "timeout_seconds": result.timeout_seconds if result else None,
         "process_identity": process_identity,
     }
 
@@ -1097,11 +1144,20 @@ def _validate_summary(
             not in {prompt_id, f"{prompt_id}-recovery-001"}
         ):
             raise ValueError("adaptive quality prompt path is invalid")
+        actual_timeout = receipt.get("timeout_seconds")
+        if (
+            isinstance(actual_timeout, bool)
+            or not isinstance(actual_timeout, (int, float))
+            or not math.isfinite(actual_timeout)
+            or actual_timeout < 0
+            or actual_timeout > campaign.timeout_seconds
+        ):
+            raise ValueError("adaptive quality prompt timeout binding is invalid")
         result = _load_prompt_execution(
             campaign,
             prompt_id,
             prompt_root,
-            campaign.timeout_seconds,
+            float(actual_timeout),
             evidence_paths=evidence_paths,
         )
         if _receipt(result, prompt_id, campaign.output_root) != receipt:
@@ -1487,11 +1543,21 @@ def capture_isolated_quality_campaign(
     *,
     resume: bool,
     run_command: Callable[..., Mapping[str, Any]] = run_guarded_command,
+    monotonic_deadline: float | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
     """Capture P1-P6 in six processes, preserving every prior artifact."""
 
     if type(resume) is not bool:
         raise TypeError("resume must be a boolean")
+    if monotonic_deadline is not None and (
+        isinstance(monotonic_deadline, bool)
+        or not isinstance(monotonic_deadline, (int, float))
+        or not math.isfinite(monotonic_deadline)
+    ):
+        raise ValueError("monotonic deadline must be finite")
+    if not callable(monotonic):
+        raise TypeError("monotonic must be callable")
     if isinstance(campaign_input, Mapping):
         campaign_input = quality_campaign_input_from_recovery(campaign_input)
     if not isinstance(campaign_input, QualityCampaignInput):
@@ -1654,6 +1720,8 @@ def capture_isolated_quality_campaign(
                 accepted.timeout_seconds,
                 run_command=run_command,
                 evidence_paths=evidence_paths,
+                monotonic_deadline=monotonic_deadline,
+                monotonic=monotonic,
             )
             results[prompt_id] = result
             if result.status != "passed" or result.cleanup_process_count != 0:

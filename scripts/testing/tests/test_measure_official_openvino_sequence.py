@@ -3,6 +3,7 @@ import json
 import statistics
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -1025,6 +1026,71 @@ def test_controller_refuses_to_construct_a_missing_runtime_record(tmp_path):
     assert receipt["accepted"] is False
     assert receipt["runtime_record_path"] is None
     assert receipt["runtime_record_sha256"] is None
+
+
+def test_sequence_caps_each_role_by_one_absolute_monotonic_deadline(tmp_path):
+    kwargs = _setup_campaign(tmp_path)
+    kwargs["timeout_seconds"] = 60.0
+    clock = SimpleNamespace(now=0.0)
+    observed_timeouts = []
+
+    def measurement(**run_kwargs):
+        observed_timeouts.append(run_kwargs["timeout_seconds"])
+        role = run_kwargs["role"]
+        spec = json.loads(run_kwargs["spec_path"].read_text(encoding="utf-8"))
+        record = _record(role, ROLES.index(role), spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        clock.now += 10.0
+        return record
+
+    run_measurement_sequence(
+        **kwargs,
+        monotonic_deadline=60.0,
+        monotonic=lambda: clock.now,
+        run_measurement=measurement,
+    )
+
+    assert observed_timeouts == [60.0, 50.0, 40.0, 30.0, 20.0]
+
+
+def test_sequence_deadline_expiry_before_role_persists_failure_without_launch(
+    tmp_path,
+):
+    kwargs = _setup_campaign(tmp_path)
+    kwargs["timeout_seconds"] = 60.0
+    clock = SimpleNamespace(now=0.0)
+    launched = []
+
+    def measurement(**run_kwargs):
+        role = run_kwargs["role"]
+        launched.append(role)
+        spec = json.loads(run_kwargs["spec_path"].read_text(encoding="utf-8"))
+        record = _record(role, ROLES.index(role), spec)
+        _write_json(run_kwargs["output_dir"] / "attempt.json", record)
+        clock.now += 10.0
+        return record
+
+    with pytest.raises(MeasurementSequenceFailure) as captured:
+        run_measurement_sequence(
+            **kwargs,
+            monotonic_deadline=15.0,
+            monotonic=lambda: clock.now,
+            run_measurement=measurement,
+        )
+
+    assert launched == ["pilot", "warmup"]
+    assert captured.value.failure.role == "sample-1"
+    receipt = json.loads(
+        (
+            kwargs["campaign_root"]
+            / "attempts"
+            / "sample-1"
+            / "attempt-001"
+            / "sequence-receipt.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert receipt["accepted"] is False
+    assert receipt["controller_error"] == "row monotonic deadline expired before launch"
 
 
 def test_controller_rejects_runtime_record_from_a_different_spec(tmp_path):

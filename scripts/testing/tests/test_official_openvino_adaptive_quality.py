@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -446,6 +447,72 @@ def test_capture_launches_six_fresh_workers_and_resume_relaunches_none(
     )
     assert second.calls == []
     assert resumed == result
+
+
+def test_capture_caps_each_prompt_by_one_absolute_monotonic_deadline(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = replace(_accepted_input(tmp_path), timeout_seconds=90.0)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    clock = SimpleNamespace(now=0.0)
+    delegate = RecordingGuardRunner()
+    observed_timeouts = []
+
+    def runner(**kwargs):
+        observed_timeouts.append(kwargs["limits"].maximum_runtime_seconds)
+        result = delegate(**kwargs)
+        clock.now += 10.0
+        return result
+
+    result = adaptive_quality.capture_isolated_quality_campaign(
+        source,
+        resume=False,
+        run_command=runner,
+        monotonic_deadline=100.0,
+        monotonic=lambda: clock.now,
+    )
+
+    assert result["status"] == "passed"
+    assert observed_timeouts == [90.0, 90.0, 80.0, 70.0, 60.0, 50.0]
+
+
+def test_capture_deadline_expiry_before_prompt_persists_terminal_without_launch(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = replace(_accepted_input(tmp_path), timeout_seconds=90.0)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    clock = SimpleNamespace(now=0.0)
+    delegate = RecordingGuardRunner()
+
+    def runner(**kwargs):
+        result = delegate(**kwargs)
+        clock.now += 10.0
+        return result
+
+    result = adaptive_quality.capture_isolated_quality_campaign(
+        source,
+        resume=False,
+        run_command=runner,
+        monotonic_deadline=15.0,
+        monotonic=lambda: clock.now,
+    )
+
+    assert [call.prompt_id for call in delegate.calls] == ["P1", "P2"]
+    assert result["status"] == "quality-blocked"
+    assert result["completed_prompt_ids"] == ["P1", "P2"]
+    terminal = json.loads(
+        (
+            source.output_root / "P3" / "guard-evidence.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert terminal["schema"] == "official-openvino-adaptive-quality-terminal-guard/v1"
+    assert terminal["failure_stage"] == "row-deadline-admission"
+    assert terminal["cleanup_process_count"] == 0
+    assert terminal["active_pids"] == []
 
 
 def test_quality_public_api_exposes_no_job_or_probe_injection() -> None:

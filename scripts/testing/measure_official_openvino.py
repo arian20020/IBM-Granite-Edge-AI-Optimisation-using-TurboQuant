@@ -9,6 +9,7 @@ import math
 import os
 import re
 import sys
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -1195,6 +1196,8 @@ def _run_measurement_sequence_locked(
     openvino_libraries: Path,
     sampler_script: Path,
     timeout_seconds: float = 900.0,
+    monotonic_deadline: float | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
     launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
     emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
     campaign_job: KillOnCloseJob | None = None,
@@ -1206,6 +1209,14 @@ def _run_measurement_sequence_locked(
         launch_minimum_available_ram_mib,
         emergency_minimum_available_ram_mib,
     )
+    if monotonic_deadline is not None and (
+        isinstance(monotonic_deadline, bool)
+        or not isinstance(monotonic_deadline, (int, float))
+        or not math.isfinite(monotonic_deadline)
+    ):
+        raise ValueError("monotonic deadline must be finite")
+    if not callable(monotonic):
+        raise TypeError("monotonic must be callable")
     root = Path(campaign_root).resolve()
     root.mkdir(parents=True, exist_ok=True)
     template = _sequence_spec(spec_path)
@@ -1267,6 +1278,39 @@ def _run_measurement_sequence_locked(
         attempt_spec = attempt_dir / "spec.json"
         atomic_write_json(attempt_spec, spec_value)
         output_dir = attempt_dir / "run"
+        role_timeout = float(timeout_seconds)
+        if monotonic_deadline is not None:
+            observed = monotonic()
+            if (
+                isinstance(observed, bool)
+                or not isinstance(observed, (int, float))
+                or not math.isfinite(observed)
+            ):
+                raise ValueError("monotonic clock returned an invalid value")
+            role_timeout = min(
+                role_timeout,
+                float(monotonic_deadline) - float(observed),
+            )
+        if role_timeout <= 0:
+            receipt = _write_sequence_receipt(
+                campaign_root=root,
+                attempt_dir=attempt_dir,
+                role=role,
+                attempt_number=attempt_number,
+                identity_sha256=identity_sha256,
+                spec_value=spec_value,
+                record_path=None,
+                accepted=False,
+                controller_error="row monotonic deadline expired before launch",
+            )
+            receipt_path = attempt_dir / "sequence-receipt.json"
+            raise _sequence_failure(
+                "row monotonic deadline expired before launch",
+                role=role,
+                record_path=receipt_path,
+                record=receipt,
+                fingerprint=identity_sha256,
+            )
         try:
             returned = dict(
                 run_measurement(
@@ -1279,7 +1323,7 @@ def _run_measurement_sequence_locked(
                     python_site_packages=python_site_packages,
                     openvino_libraries=openvino_libraries,
                     sampler_script=sampler_script,
-                    timeout_seconds=timeout_seconds,
+                    timeout_seconds=role_timeout,
                     launch_minimum_available_ram_mib=(
                         launch_minimum_available_ram_mib
                     ),
@@ -1443,6 +1487,8 @@ def run_measurement_sequence(
     openvino_libraries: Path,
     sampler_script: Path,
     timeout_seconds: float = 900.0,
+    monotonic_deadline: float | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
     launch_minimum_available_ram_mib: int = MIN_LAUNCH_AVAILABLE_RAM_MIB,
     emergency_minimum_available_ram_mib: int = MIN_EMERGENCY_AVAILABLE_RAM_MIB,
     campaign_job: KillOnCloseJob | None = None,
@@ -1468,6 +1514,8 @@ def run_measurement_sequence(
             openvino_libraries=openvino_libraries,
             sampler_script=sampler_script,
             timeout_seconds=timeout_seconds,
+            monotonic_deadline=monotonic_deadline,
+            monotonic=monotonic,
             launch_minimum_available_ram_mib=launch_minimum_available_ram_mib,
             emergency_minimum_available_ram_mib=(
                 emergency_minimum_available_ram_mib
