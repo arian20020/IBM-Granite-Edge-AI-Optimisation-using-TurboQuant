@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
+import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
 
@@ -16,8 +18,31 @@ from scripts.testing.official_openvino.adaptive_campaign_spec import (
     _paths_overlap,
 )
 from scripts.testing.official_openvino.artifact_inventory import sha256_file
+from scripts.testing.official_openvino.adaptive_metrics import (
+    build_adaptive_runtime_sample,
+    summarize_adaptive_runtime_samples,
+)
+from scripts.testing.official_openvino.adaptive_quality import (
+    AdaptiveQualityCampaignInput,
+    _input_evidence_paths,
+    _validate_summary as _validate_quality_summary,
+)
+from scripts.testing.official_openvino.quality_campaign import (
+    load_accepted_quality_campaign,
+)
+from scripts.testing.measure_official_openvino import (
+    _adaptive_record,
+    _persisted_record,
+)
 from scripts.testing.official_openvino.runtime_measurement import (
     build_runtime_property_spec,
+)
+from scripts.testing.official_openvino.quality_contracts import (
+    load_quality_contract,
+)
+from scripts.testing.run_official_openvino_quality import (
+    _load_frozen_rubric,
+    load_prompt_contract,
 )
 from scripts.testing.official_openvino.workload import build_context_workload
 
@@ -100,23 +125,54 @@ class BoundaryCampaignConfig:
     manifest_path: Path
     prompt_set_path: Path
     rubric_path: Path
-    runtime_timeout_seconds: float = 180.0
-    quality_timeout_seconds: float = 90.0
-    row_timeout_seconds: float = 720.0
-    launch_minimum_available_ram_mib: int = 4096
-    emergency_minimum_available_ram_mib: int = 3072
-    max_clean_retries: int = 1
+    comparison_matrix_path: Path | None = None
+    build_root: Path | None = None
+    python_executable: Path | None = None
+    python_site_packages: Path | None = None
+    openvino_libraries: Path | None = None
+    sampler_script: Path | None = None
+    rendered_root: Path | None = None
     resume: bool = False
+    runtime_timeout_seconds: float = field(init=False, default=180.0)
+    quality_timeout_seconds: float = field(init=False, default=90.0)
+    row_timeout_seconds: float = field(init=False, default=720.0)
+    launch_minimum_available_ram_mib: int = field(init=False, default=4096)
+    emergency_minimum_available_ram_mib: int = field(init=False, default=3072)
+    max_clean_retries: int = field(init=False, default=1)
 
 
 class RowFailure(RuntimeError):
     """A governed row failure whose retry safety has already been decided."""
 
-    def __init__(self, reason_code: str, *, hard: bool, receipt: Path | None = None):
+    def __init__(
+        self,
+        reason_code: str,
+        *,
+        role: str = "measurement",
+        stage: str | None = None,
+        hard: bool,
+        retryable: bool | None = None,
+        receipt: Path | None = None,
+        raw_record: Mapping[str, Any] | None = None,
+        fingerprint: str | None = None,
+        cleanup_proof: Mapping[str, Any] | None = None,
+        observed_available_ram_bytes: int | None = None,
+        deadline_outcome: str | None = None,
+    ):
         super().__init__(reason_code)
         self.reason_code = reason_code
+        self.role = role
+        self.stage = stage or role
         self.hard = hard
+        self.retryable = (not hard) if retryable is None else retryable
         self.receipt = receipt
+        self.raw_record = dict(raw_record) if raw_record is not None else None
+        self.fingerprint = fingerprint
+        self.cleanup_proof = (
+            dict(cleanup_proof) if cleanup_proof is not None else None
+        )
+        self.observed_available_ram_bytes = observed_available_ram_bytes
+        self.deadline_outcome = deadline_outcome
 
 
 _MIB = 1024**2
@@ -161,18 +217,213 @@ def _file_sha256(path: Path | None) -> str | None:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def _empty_lane() -> dict[str, Any]:
+def _evidence_binding(path: Path) -> dict[str, str]:
+    source = Path(path).resolve()
+    if not source.is_file():
+        raise ValueError(f"boundary evidence is missing: {source}")
+    return {"path": str(source), "sha256": sha256_file(source)}
+
+
+def _plain_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _plain_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain_value(item) for item in value]
+    return value
+
+
+def reconcile_runtime_evidence(
+    campaign_input: AdaptiveQualityCampaignInput,
+) -> dict[str, Any]:
+    """Reopen and recompute all accepted runtime evidence for one row."""
+
+    if not isinstance(campaign_input, AdaptiveQualityCampaignInput):
+        raise TypeError("runtime reconciliation requires AdaptiveQualityCampaignInput")
+    accepted = load_accepted_quality_campaign(campaign_input)
+    root = Path(accepted.campaign_root).resolve()
+    sequence_path = Path(campaign_input.attempt_sequence_path).resolve()
+    expected_sequence_path = root / "attempt-sequence.json"
+    if sequence_path != expected_sequence_path:
+        raise ValueError("attempt sequence path does not bind the accepted runtime root")
+    sequence = _read_json_object(sequence_path)
+    if sequence.get("accepted_sample_count") != 3:
+        raise ValueError("runtime reconciliation requires three accepted samples")
+    if sequence.get("cleanup_process_count") != 0:
+        raise ValueError("runtime attempt sequence cleanup proof is invalid")
+
+    summary = accepted.measurement_summary
+    sources = summary.get("sources")
+    if not isinstance(sources, (list, tuple)) or len(sources) != 3:
+        raise ValueError("runtime reconciliation requires three measured sources")
+    source_bindings: list[dict[str, str]] = []
+    adaptive_samples: list[dict[str, Any]] = []
+    seen: set[Path] = set()
+    for source in sources:
+        if not isinstance(source, Mapping):
+            raise ValueError("runtime measured source binding is invalid")
+        raw_path = Path(str(source.get("path"))).resolve()
+        if raw_path in seen:
+            raise ValueError("runtime measured sources must be distinct")
+        seen.add(raw_path)
+        binding = _evidence_binding(raw_path)
+        if source.get("sha256") != binding["sha256"]:
+            raise ValueError("runtime measured source hash drift")
+        record = _persisted_record(raw_path)
+        if record is None:
+            raise ValueError("runtime measured source is not canonical evidence")
+        adaptive_samples.append(
+            build_adaptive_runtime_sample(
+                _adaptive_record(record, _plain_value(accepted.identity)), raw_path
+            )
+        )
+        source_bindings.append(binding)
+
+    recomputed = summarize_adaptive_runtime_samples(adaptive_samples)
+    adaptive_path = root / "adaptive-runtime-summary.json"
+    adaptive_summary = _read_json_object(adaptive_path)
+    if adaptive_summary != recomputed:
+        raise ValueError("adaptive runtime summary does not match raw samples")
     return {
-        "status": "running", "reason_code": None, "accepted_count": 0,
-        "attempt_count": 0, "skipped_count": 0, "rows": {},
+        "measurement_summary": _evidence_binding(
+            root / "measurement-summary.json"
+        ),
+        "attempt_sequence": _evidence_binding(sequence_path),
+        "adaptive_runtime_summary": _evidence_binding(adaptive_path),
+        "sample_sources": source_bindings,
+        "adaptive_summary": adaptive_summary,
+        "campaign_identity_sha256": accepted.campaign_identity_sha256,
+        "runtime_config_sha256": accepted.runtime_config_sha256,
     }
 
 
-def _initial_state(manifest: BoundaryManifest) -> dict[str, Any]:
+def reconcile_quality_evidence(
+    campaign_input: AdaptiveQualityCampaignInput,
+) -> dict[str, Any]:
+    """Reopen a fresh compact-v2 capture and bind its six governed prompts."""
+
+    if not isinstance(campaign_input, AdaptiveQualityCampaignInput):
+        raise TypeError("quality reconciliation requires AdaptiveQualityCampaignInput")
+    accepted = load_accepted_quality_campaign(campaign_input)
+    summary_path = Path(accepted.output_root).resolve() / "capture-summary.json"
+    summary, _loaded = _validate_quality_summary(
+        accepted,
+        summary_path,
+        evidence_paths=_input_evidence_paths(campaign_input),
+    )
+    if (
+        summary.get("status") != "passed"
+        or summary.get("completed_prompt_ids")
+        != ["P1", "P2", "P3", "P4", "P5", "P6"]
+        or summary.get("prompt_receipt_count") != 6
+    ):
+        raise ValueError("quality capture did not pass P1-P6")
+    persisted_receipts = summary.get("prompt_receipts")
+    if not isinstance(persisted_receipts, list) or len(persisted_receipts) != 6:
+        raise ValueError("quality capture prompt receipts are incomplete")
+    receipts: list[dict[str, Any]] = []
+    gate_records: list[dict[str, Any]] = []
+    for persisted in persisted_receipts:
+        if not isinstance(persisted, Mapping):
+            raise ValueError("quality prompt receipt is invalid")
+        prompt_id = persisted.get("prompt_id")
+        evidence_paths = {
+            "worker_spec": Path(str(persisted.get("worker_spec_path"))).resolve(),
+            "worker_result": Path(str(persisted.get("worker_result_path"))).resolve(),
+            "worker_log": Path(str(persisted.get("worker_log_path"))).resolve(),
+            "guard_evidence": Path(str(persisted.get("guard_evidence_path"))).resolve(),
+        }
+        bindings = {
+            label: _evidence_binding(path)
+            for label, path in evidence_paths.items()
+        }
+        expected_hash_fields = {
+            "worker_spec": "worker_spec_sha256",
+            "worker_result": "worker_result_sha256",
+            "worker_log": "worker_log_sha256",
+            "guard_evidence": "guard_evidence_sha256",
+        }
+        if any(
+            bindings[label]["sha256"] != persisted.get(hash_field)
+            for label, hash_field in expected_hash_fields.items()
+        ):
+            raise ValueError("quality prompt evidence hash drift")
+        guard = _read_json_object(evidence_paths["guard_evidence"])
+        containing = guard.get("containing_job_assignment")
+        job = guard.get("job_object")
+        if (
+            persisted.get("status") != "passed"
+            or persisted.get("cleanup_process_count") != 0
+            or guard.get("cleanup_process_count") != 0
+            or guard.get("emergency_actions") != []
+            or not isinstance(containing, Mapping)
+            or containing.get("query_ok_after_cleanup") is not True
+            or containing.get("active_pids_after_cleanup") != []
+            or not isinstance(job, Mapping)
+            or job.get("query_ok") is not True
+            or job.get("queried_active_process_count_after_cleanup") != 0
+            or job.get("survivor_pids_after_cleanup") != []
+        ):
+            raise ValueError("quality prompt cleanup proof is unsafe")
+        result = _read_json_object(evidence_paths["worker_result"])
+        outcomes = result.get("outcomes")
+        if not isinstance(outcomes, list) or not outcomes:
+            raise ValueError("quality prompt deterministic gate records are missing")
+        gate_records.append(
+            {"prompt_id": prompt_id, "outcomes": outcomes}
+        )
+        receipts.append(
+            {
+                "prompt_id": prompt_id,
+                "cleanup_process_count": 0,
+                "active_pids_after_cleanup": [],
+                "evidence": bindings,
+            }
+        )
     return {
-        "schema": "official-openvino-format-boundary-state/v1",
-        "manifest_path": str(manifest.source_path), "manifest_sha256": manifest.sha256,
-        "cpu_lane": _empty_lane(), "gpu_lane": _empty_lane(),
+        "capture_summary": _evidence_binding(summary_path),
+        "completed_prompt_ids": list(summary["completed_prompt_ids"]),
+        "prompt_receipts": receipts,
+        "deterministic_gate_records": gate_records,
+    }
+
+
+def _empty_lane() -> dict[str, Any]:
+    return {
+        "status": "running",
+        "reason_code": None,
+        "terminal_status": None,
+        "accepted_count": 0,
+        "attempt_count": 0,
+        "skipped_count": 0,
+        "rows": {},
+    }
+
+
+def _limits() -> dict[str, Any]:
+    return {
+        "runtime_timeout_seconds": 180.0,
+        "quality_timeout_seconds": 90.0,
+        "row_timeout_seconds": 720.0,
+        "launch_minimum_available_ram_mib": 4096,
+        "emergency_minimum_available_ram_mib": 3072,
+        "max_clean_retries": 1,
+    }
+
+
+def _initial_state(
+    manifest: BoundaryManifest,
+    projection: BoundaryEvidenceProjection,
+) -> dict[str, Any]:
+    return {
+        "schema": "official-openvino-format-boundary-state/v2",
+        "manifest_path": str(manifest.source_path),
+        "manifest_sha256": manifest.sha256,
+        "projection_index_path": str(projection.projection_index.path),
+        "projection_index_sha256": projection.projection_index.sha256,
+        "limits": _limits(),
+        "global_halt": {"active": False, "reason_code": None},
+        "cpu_lane": _empty_lane(),
+        "gpu_lane": _empty_lane(),
     }
 
 
@@ -184,111 +435,607 @@ def _lane_directory(case: BoundaryCase) -> str:
     return "cpu" if case.lane == "cpu" else "gpu-control"
 
 
-def _runtime_is_accepted(value: Any) -> bool:
-    """Check the sequence-level proof before allowing isolated quality work."""
+def _case_descriptor(case: BoundaryCase) -> dict[str, Any]:
+    artifact_path = (
+        case.artifact_manifest_path.resolve()
+        if case.artifact_manifest_path is not None
+        else None
+    )
+    return {
+        "internal_id": case.internal_id,
+        "label": case.label,
+        "lane": case.lane,
+        "order": case.order,
+        "device": case.device,
+        "context": case.context,
+        "weight_precision": case.weight_precision,
+        "key_algorithm": case.key_algorithm,
+        "value_algorithm": case.value_algorithm,
+        "key_precision": case.key_precision,
+        "value_precision": case.value_precision,
+        "artifact_manifest_path": str(artifact_path) if artifact_path else None,
+        "artifact_manifest_sha256": _file_sha256(artifact_path),
+    }
 
-    if not isinstance(value, Mapping):
-        return False
-    return (
-        value.get("accepted") is not False
-        and value.get("accepted_sample_count") == 3
-        and value.get("pilot_passed") is True
-        and value.get("warmup_excluded") is True
-        and value.get("cleanup_process_count") == 0
-        and isinstance(value.get("measurement_summary_path"), str)
-        and isinstance(value.get("measurement_summary_sha256"), str)
-        and len(value["measurement_summary_sha256"]) == 64
+
+def _not_launched_cleanup_proof() -> dict[str, Any]:
+    return {
+        "safe": True,
+        "cleanup_process_count": 0,
+        "residual_owned_process_count": 0,
+        "emergency_actions": [],
+        "job_active_pid_evidence": "not-launched",
+        "active_pids_after_cleanup": [],
+    }
+
+
+def _cleanup_proof(record: Mapping[str, Any]) -> dict[str, Any]:
+    cleanup = record.get("cleanup_process_count")
+    residual = record.get("residual_owned_process_count")
+    emergency = record.get("emergency_actions")
+    job = record.get("job_object")
+    containing = record.get("containing_job_assignment")
+    job_safe = (
+        isinstance(job, Mapping)
+        and job.get("setup_ok") is True
+        and job.get("query_ok") is True
+        and job.get("queried_active_process_count_after_cleanup") == 0
+        and job.get("survivor_pids_after_cleanup") == []
+    )
+    containing_safe = (
+        isinstance(containing, Mapping)
+        and containing.get("requested") is True
+        and containing.get("assigned_before_fine_job") is True
+        and containing.get("query_ok_after_cleanup") is True
+        and containing.get("active_pids_after_cleanup") == []
+    )
+    task_three_jobs = []
+    for field_name in ("workload_job", "sampler_job"):
+        value = record.get(field_name)
+        task_three_jobs.append(
+            isinstance(value, Mapping)
+            and value.get("setup_ok") is True
+            and value.get("query_ok") is True
+            and value.get("queried_active_process_count_after_cleanup") == 0
+            and value.get("survivor_pids_after_cleanup") == []
+        )
+    alternate_jobs_safe = all(task_three_jobs)
+    safe = (
+        cleanup == 0
+        and residual == 0
+        and emergency == []
+        and ((job_safe and containing_safe) or alternate_jobs_safe)
+    )
+    return {
+        "safe": safe,
+        "cleanup_process_count": cleanup,
+        "residual_owned_process_count": residual,
+        "emergency_actions": emergency,
+        "job_object": dict(job) if isinstance(job, Mapping) else None,
+        "containing_job_assignment": (
+            dict(containing) if isinstance(containing, Mapping) else None
+        ),
+        "active_pids_after_cleanup": (
+            list(containing["active_pids_after_cleanup"])
+            if containing_safe
+            else None
+        ),
+    }
+
+
+def _normalized_code(value: Any) -> str:
+    if isinstance(value, bool) or value is None:
+        return "unspecified"
+    text = str(value).strip().lower()
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-") or "unspecified"
+
+
+def _failure_category(record: Mapping[str, Any], reason: str) -> str:
+    raw = record.get("failure_category") or record.get("category")
+    if isinstance(raw, str) and raw.strip():
+        return _normalized_code(raw)
+    if record.get("low_memory_stop") is True or "ram" in reason:
+        return "ram-floor"
+    if "timeout" in reason or record.get("timed_out") is True:
+        return "time"
+    return "functional"
+
+
+def _execution_route(case: BoundaryCase) -> str:
+    return "patched-stateful" if case.key_algorithm != "STANDARD" else "stateful-standard"
+
+
+def _case_build_identity(case: BoundaryCase) -> dict[str, str]:
+    if case.artifact_manifest_path is None:
+        return {"status": "artifact-unavailable"}
+    manifest = _read_json_object(case.artifact_manifest_path)
+    load_probe = manifest.get("load_probe")
+    if not isinstance(load_probe, Mapping):
+        raise ValueError("artifact manifest load-probe build identity is missing")
+    manifest_sha256 = _require_sha256(
+        load_probe.get("runtime_build_manifest_sha256"),
+        "artifact runtime build manifest hash",
+    )
+    commit = load_probe.get("runtime_build_commit")
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError("artifact runtime build commit is invalid")
+    return {
+        "runtime_build_manifest_sha256": manifest_sha256,
+        "runtime_build_commit": commit,
+    }
+
+
+def _failure_fingerprint(
+    case: BoundaryCase,
+    *,
+    stage: str,
+    category: str,
+    reason_code: str,
+) -> str:
+    identity = {
+        "stage": stage,
+        "category": category,
+        "case_internal_id": case.internal_id,
+        "artifact_manifest_sha256": _file_sha256(case.artifact_manifest_path),
+        "build_identity": _case_build_identity(case),
+        "execution_route": _execution_route(case),
+        "context_tokens": case.context,
+        "launch_reserve_mib": 4096,
+        "emergency_floor_mib": 3072,
+        "normalized_failure_code": _normalized_code(reason_code),
+    }
+    return hashlib.sha256(_canonical_bytes(identity)).hexdigest()
+
+
+def _normalise_failure(
+    error: Exception,
+    *,
+    case: BoundaryCase,
+    default_role: str,
+    default_raw_path: Path | None = None,
+) -> RowFailure:
+    if isinstance(error, RowFailure):
+        failure = error
+        record = failure.raw_record or {}
+        raw_path = failure.receipt
+        role = failure.role or default_role
+        reason = _normalized_code(failure.reason_code)
+        proof = failure.cleanup_proof
+    else:
+        sequence_failure = getattr(error, "failure", None)
+        raw_path_value = getattr(sequence_failure, "record_path", None)
+        raw_path = Path(raw_path_value) if raw_path_value is not None else default_raw_path
+        raw_record = getattr(sequence_failure, "record", None)
+        record = dict(raw_record) if isinstance(raw_record, Mapping) else {}
+        role = default_role
+        if sequence_failure is not None and default_role == "measurement":
+            role = "measurement"
+        reason_value = (
+            record.get("failure_code")
+            or record.get("reason_code")
+            or record.get("termination_reason")
+            or f"{default_role}-failure"
+        )
+        reason = _normalized_code(reason_value)
+        proof = None
+        failure = RowFailure(
+            reason,
+            role=role,
+            stage=(getattr(sequence_failure, "role", None) or default_role),
+            hard=False,
+            retryable=True,
+            receipt=raw_path,
+            raw_record=record,
+        )
+    if raw_path is None and default_raw_path is not None and default_raw_path.is_file():
+        raw_path = default_raw_path
+    if proof is None:
+        proof = _cleanup_proof(record)
+    stage = failure.stage or role
+    category = _failure_category(record, reason)
+    hard_ram = (
+        record.get("low_memory_stop") is True
+        and isinstance(failure.observed_available_ram_bytes, int)
+        and failure.observed_available_ram_bytes < 3072 * _MIB
+    )
+    hard = failure.hard or hard_ram
+    retryable = failure.retryable and not hard and proof.get("safe") is True
+    return RowFailure(
+        reason,
+        role=role,
+        stage=stage,
+        hard=hard,
+        retryable=retryable,
+        receipt=raw_path,
+        raw_record=record,
+        fingerprint=_failure_fingerprint(
+            case, stage=stage, category=category, reason_code=reason
+        ),
+        cleanup_proof=proof,
+        observed_available_ram_bytes=failure.observed_available_ram_bytes,
+        deadline_outcome=failure.deadline_outcome,
     )
 
 
-def _quality_is_accepted(value: Any) -> bool:
-    if not isinstance(value, Mapping):
-        return False
-    if not (
-        value.get("status") == "passed"
-        and value.get("completed_prompt_ids") == ["P1", "P2", "P3", "P4", "P5", "P6"]
-        and value.get("prompt_receipt_count") == 6
-    ):
-        return False
-    receipts = value.get("prompt_receipts")
-    if receipts is not None:
-        return (
-            isinstance(receipts, list)
-            and len(receipts) == 6
-            and all(isinstance(receipt, Mapping) and receipt.get("status") == "passed"
-                    and receipt.get("cleanup_process_count") == 0 for receipt in receipts)
+def _require_config_path(path: Path | None, label: str, *, directory: bool) -> Path:
+    if path is None:
+        raise ValueError(f"{label} is not configured")
+    source = Path(path).resolve()
+    valid = source.is_dir() if directory else source.is_file()
+    if not valid:
+        raise ValueError(f"{label} is missing: {source}")
+    return source
+
+
+def prepare_boundary_projection(
+    config: BoundaryCampaignConfig,
+    *,
+    status_only: bool = False,
+) -> BoundaryEvidenceProjection:
+    """Validate immutable preflight inputs and (re)project Task 2A evidence."""
+
+    if not isinstance(config, BoundaryCampaignConfig):
+        raise TypeError("config must be a BoundaryCampaignConfig")
+    repository = Path(config.repository_root).resolve()
+    if repository != _ROOT.resolve():
+        raise ValueError("boundary repository root must be this repository")
+    _require_config_path(config.manifest_path, "boundary manifest", directory=False)
+    matrix = _require_config_path(
+        config.comparison_matrix_path, "authoritative comparison matrix", directory=False
+    )
+    build = _require_config_path(config.build_root, "build root", directory=True)
+    _require_config_path(config.python_executable, "Python executable", directory=False)
+    _require_config_path(config.python_site_packages, "Python site-packages", directory=True)
+    _require_config_path(config.openvino_libraries, "OpenVINO libraries", directory=True)
+    _require_config_path(config.sampler_script, "sampler script", directory=False)
+    prompt = _require_config_path(config.prompt_set_path, "compact prompt set", directory=False)
+    rendered = _require_config_path(config.rendered_root, "rendered prompt root", directory=True)
+    rubric = _require_config_path(config.rubric_path, "quality rubric", directory=False)
+    contract = load_quality_contract(prompt)
+    if contract.prompt_set_id != "GTQ-PROMPTS-v2":
+        raise ValueError("format boundary requires compact-v2 quality prompts")
+    load_prompt_contract(prompt, rendered)
+    _load_frozen_rubric(rubric)
+    projection = project_boundary_evidence_inputs(
+        repository_root=repository,
+        campaign_root=Path(config.campaign_root),
+        build_root=build,
+        manifest_path=Path(config.manifest_path),
+        comparison_matrix_path=matrix,
+    )
+    root = Path(config.campaign_root).resolve()
+    allowed = {"execution-inputs"}
+    if config.resume or status_only:
+        allowed.update({"campaign-state.json", "cpu", "gpu-control"})
+    unexplained = {item.name for item in root.iterdir()} - allowed
+    if unexplained:
+        raise ValueError(
+            "boundary campaign root contains unexplained entries: "
+            + ", ".join(sorted(unexplained))
         )
-    return value.get("cleanup_process_count") == 0
+    return projection
 
 
-def _accepted_receipt(case: BoundaryCase, runtime: Mapping[str, Any],
-                      quality: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "schema": "official-openvino-format-boundary-accepted-row/v1",
-        "case": {"internal_id": case.internal_id, "label": case.label,
-                 "lane": case.lane, "order": case.order},
-        "runtime": dict(runtime), "quality": dict(quality),
-    }
+def _projection_index(projection: BoundaryEvidenceProjection) -> dict[str, Any]:
+    index = _read_json_object(projection.projection_index.path)
+    if _file_sha256(projection.projection_index.path) != projection.projection_index.sha256:
+        raise ValueError("boundary projection index hash drift")
+    return index
 
 
-def _validate_accepted_receipt(path: Path, case: BoundaryCase) -> dict[str, Any]:
+def _runtime_spec_map(
+    projection: BoundaryEvidenceProjection,
+) -> dict[str, ProjectionFile]:
+    return {item.case_internal_id: item.runtime_spec for item in projection.runtime_specs}
+
+
+def _terminal_map(
+    projection: BoundaryEvidenceProjection,
+) -> dict[str, ProjectionFile]:
+    return {item.case_internal_id: item.descriptor for item in projection.terminal_prerequisites}
+
+
+def _quality_input(
+    config: BoundaryCampaignConfig,
+    projection: BoundaryEvidenceProjection,
+    case: BoundaryCase,
+    runtime_spec: ProjectionFile,
+    row_root: Path,
+    *,
+    timeout_seconds: float,
+) -> AdaptiveQualityCampaignInput:
+    if case.artifact_manifest_path is None:
+        raise ValueError("executable boundary row has no artifact manifest")
+    index = _projection_index(projection)
+    build = index.get("build")
+    provenance = build.get("provenance") if isinstance(build, Mapping) else None
+    if not isinstance(provenance, Mapping) or not isinstance(provenance.get("path"), str):
+        raise ValueError("boundary projection build provenance binding is missing")
+    runtime_root = row_root / "runtime"
+    sequence_path = runtime_root / "attempt-sequence.json"
+    pilot_path = runtime_root / "attempts" / "pilot" / "attempt-001" / "spec.json"
+    if sequence_path.is_file():
+        sequence = _read_json_object(sequence_path)
+        pilot = sequence.get("pilot")
+        if isinstance(pilot, Mapping) and isinstance(pilot.get("spec_path"), str):
+            pilot_path = (runtime_root / pilot["spec_path"]).resolve()
+    return AdaptiveQualityCampaignInput(
+        campaign_root=runtime_root,
+        spec_path=runtime_spec.path,
+        matrix_path=projection.comparison_matrix.path,
+        artifact_manifest_path=case.artifact_manifest_path,
+        build_provenance_path=Path(provenance["path"]).resolve(),
+        build_root=Path(config.build_root).resolve(),
+        repo_root=Path(config.repository_root).resolve(),
+        python_executable=Path(config.python_executable).resolve(),
+        python_site_packages=Path(config.python_site_packages).resolve(),
+        openvino_libraries=Path(config.openvino_libraries).resolve(),
+        sampler_script=Path(config.sampler_script).resolve(),
+        prompt_set_path=Path(config.prompt_set_path).resolve(),
+        rendered_root=Path(config.rendered_root).resolve(),
+        rubric_path=Path(config.rubric_path).resolve(),
+        output_root=row_root / "quality",
+        timeout_seconds=float(timeout_seconds),
+        attempt_sequence_path=sequence_path,
+        adaptive_runtime_spec_path=runtime_spec.path,
+        pilot_spec_path=pilot_path,
+        spec_index_path=projection.projection_index.path,
+        artifact_inventory_path=case.artifact_manifest_path,
+    )
+
+
+def _iter_bindings(value: Any):
+    if isinstance(value, Mapping):
+        if set(value) == {"path", "sha256"}:
+            yield value
+        else:
+            for item in value.values():
+                yield from _iter_bindings(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _iter_bindings(item)
+
+
+def _validate_bound_files(value: Any) -> None:
+    for binding in _iter_bindings(value):
+        path = Path(str(binding["path"])).resolve()
+        if _file_sha256(path) != binding["sha256"]:
+            raise ValueError(f"boundary receipt evidence hash drift: {path}")
+
+
+def _validate_raw_record_pairs(value: Any) -> None:
+    if isinstance(value, Mapping):
+        if "raw_record_path" in value or "raw_record_sha256" in value:
+            path_value = value.get("raw_record_path")
+            digest = value.get("raw_record_sha256")
+            if path_value is None:
+                if digest is not None:
+                    raise ValueError("boundary receipt raw record binding is invalid")
+            else:
+                path = Path(str(path_value)).resolve()
+                if _file_sha256(path) != digest:
+                    raise ValueError(f"boundary receipt raw record hash drift: {path}")
+        for item in value.values():
+            _validate_raw_record_pairs(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _validate_raw_record_pairs(item)
+
+
+def _validate_case(receipt: Mapping[str, Any], case: BoundaryCase) -> None:
+    if receipt.get("case") != _case_descriptor(case):
+        raise ValueError("boundary row receipt case identity drift")
+
+
+def _validate_accepted_receipt(
+    path: Path,
+    case: BoundaryCase,
+    campaign_input: AdaptiveQualityCampaignInput | None = None,
+) -> dict[str, Any]:
     receipt = _read_json_object(path)
-    identity = receipt.get("case")
-    if not isinstance(identity, Mapping) or identity.get("internal_id") != case.internal_id:
-        raise ValueError("accepted-row receipt belongs to a different boundary case")
-    if not _runtime_is_accepted(receipt.get("runtime")):
-        raise ValueError("accepted-row receipt has incomplete runtime proof")
-    if not _quality_is_accepted(receipt.get("quality")):
-        raise ValueError("accepted-row receipt has incomplete quality proof")
+    if (
+        receipt.get("schema") != "official-openvino-format-boundary-accepted-row/v2"
+        or receipt.get("status") != "accepted"
+        or receipt.get("limits") != _limits()
+    ):
+        raise ValueError("accepted-row receipt is invalid")
+    _validate_case(receipt, case)
+    runtime = receipt.get("runtime")
+    quality = receipt.get("quality")
+    if not isinstance(runtime, Mapping) or not isinstance(quality, Mapping):
+        raise ValueError("accepted-row receipt evidence is incomplete")
+    _validate_bound_files(runtime)
+    _validate_bound_files(quality)
+    if campaign_input is not None:
+        if reconcile_runtime_evidence(campaign_input) != runtime:
+            raise ValueError("accepted-row runtime evidence no longer reconciles")
+        if reconcile_quality_evidence(campaign_input) != quality:
+            raise ValueError("accepted-row quality evidence no longer reconciles")
     return receipt
 
 
-def _terminal_receipt(case: BoundaryCase, failure: RowFailure, *, elapsed_seconds: float,
-                      available_ram: int | None, manifest_sha256: str) -> dict[str, Any]:
+def _validate_terminal_or_skipped_receipt(path: Path, case: BoundaryCase) -> dict[str, Any]:
+    receipt = _read_json_object(path)
+    _validate_case(receipt, case)
+    _validate_bound_files(receipt)
+    _validate_raw_record_pairs(receipt)
+    return receipt
+
+
+def _resume_state(
+    config: BoundaryCampaignConfig,
+    manifest: BoundaryManifest,
+    projection: BoundaryEvidenceProjection,
+) -> dict[str, Any]:
+    root = Path(config.campaign_root).resolve()
+    state = _read_json_object(root / "campaign-state.json")
+    if state.get("schema") != "official-openvino-format-boundary-state/v2":
+        raise ValueError("boundary campaign state schema is invalid")
+    if (
+        state.get("manifest_sha256") != manifest.sha256
+        or state.get("projection_index_sha256") != projection.projection_index.sha256
+        or state.get("limits") != _limits()
+    ):
+        raise ValueError("boundary campaign immutable state binding drift")
+    specs = _runtime_spec_map(projection)
+    for case in (*manifest.cpu_cases, *manifest.gpu_cases):
+        row_root = root / _lane_directory(case) / case.internal_id
+        accepted_path = row_root / "accepted-row.json"
+        terminal_path = row_root / "terminal-boundary.json"
+        skipped_path = row_root / "skipped-row.json"
+        existing = [path for path in (accepted_path, terminal_path, skipped_path) if path.exists()]
+        if len(existing) > 1:
+            raise ValueError("boundary row has ambiguous durable receipts")
+        if accepted_path.exists():
+            spec = specs.get(case.internal_id)
+            if spec is None:
+                raise ValueError("accepted boundary row has no projected runtime spec")
+            campaign_input = _quality_input(
+                config, projection, case, spec, row_root, timeout_seconds=90.0
+            )
+            _validate_accepted_receipt(accepted_path, case, campaign_input)
+        elif terminal_path.exists():
+            _validate_terminal_or_skipped_receipt(terminal_path, case)
+        elif skipped_path.exists():
+            _validate_terminal_or_skipped_receipt(skipped_path, case)
+    return state
+
+
+def _admission_failure(case: BoundaryCase, observed: Any) -> RowFailure:
+    if isinstance(observed, bool) or not isinstance(observed, int):
+        reason = "available-ram-query-failed"
+        hard = True
+    elif observed < 3072 * _MIB:
+        reason = "emergency-ram-floor"
+        hard = True
+    else:
+        reason = "launch-ram-reserve"
+        hard = False
+    return RowFailure(
+        reason,
+        role="measurement",
+        stage="admission",
+        hard=hard,
+        retryable=not hard,
+        cleanup_proof=_not_launched_cleanup_proof(),
+        observed_available_ram_bytes=(
+            observed if isinstance(observed, int) and not isinstance(observed, bool) else None
+        ),
+        fingerprint=_failure_fingerprint(
+            case, stage="admission", category="ram-floor", reason_code=reason
+        ),
+    )
+
+
+def _attempt_record(
+    failure: RowFailure,
+    *,
+    attempt_number: int,
+    elapsed_seconds: float,
+    stage_timeouts: Mapping[str, float],
+) -> dict[str, Any]:
     raw_path = failure.receipt.resolve() if failure.receipt is not None else None
     return {
-        "schema": "official-openvino-format-boundary-terminal-boundary/v1",
-        "case": {"internal_id": case.internal_id, "label": case.label,
-                 "lane": case.lane, "order": case.order},
-        "role": "measurement", "fingerprint": manifest_sha256,
-        "available_ram_bytes": available_ram,
-        "configured_minimum_available_ram_mib": 4096,
-        "elapsed_seconds": elapsed_seconds, "reason_code": failure.reason_code,
+        "attempt_number": attempt_number,
+        "role": failure.role,
+        "stage": failure.stage,
+        "reason_code": failure.reason_code,
+        "hard": failure.hard,
+        "retryable": failure.retryable,
+        "fingerprint": failure.fingerprint,
         "raw_record_path": str(raw_path) if raw_path is not None else None,
-        "raw_record_sha256": _file_sha256(raw_path), "cleanup_process_count": 0,
-        "envelope": _ENVELOPE_TEXT if "ram" in failure.reason_code or "timeout" in failure.reason_code else None,
+        "raw_record_sha256": _file_sha256(raw_path),
+        "cleanup_proof": failure.cleanup_proof,
+        "observed_available_ram_bytes": failure.observed_available_ram_bytes,
+        "elapsed_seconds": elapsed_seconds,
+        "stage_timeouts": dict(stage_timeouts),
+        "deadline_outcome": failure.deadline_outcome,
     }
 
 
-def _normalise_failure(error: Exception) -> RowFailure:
-    if isinstance(error, RowFailure):
-        return error
-    sequence_failure = getattr(error, "failure", None)
-    record_path = getattr(sequence_failure, "record_path", None)
-    record = getattr(sequence_failure, "record", None)
-    if isinstance(record, Mapping):
-        reason = record.get("failure_code") or record.get("reason_code")
-        if isinstance(reason, str) and reason:
-            return RowFailure(
-                reason,
-                hard=reason in {"emergency_minimum_available_ram", "cleanup_failure"},
-                receipt=Path(record_path) if record_path is not None else None,
-            )
-    return RowFailure("measurement_error", hard=False)
+def _terminal_status(attempts: list[dict[str, Any]]) -> str:
+    last = attempts[-1]
+    if last["cleanup_proof"].get("safe") is not True:
+        return "unsafe-cleanup"
+    if last["reason_code"] == "emergency-ram-floor":
+        return "emergency-ram-floor"
+    if last["reason_code"] == "row-deadline-exceeded":
+        return "row-deadline-exceeded"
+    if len(attempts) == 2:
+        first = attempts[0]
+        if (
+            first["reason_code"] == last["reason_code"]
+            and first["fingerprint"] == last["fingerprint"]
+        ):
+            return "confirmed-format-boundary"
+        return "inconclusive-safety-boundary"
+    return "safety-boundary"
 
 
-def _resume_state(config: BoundaryCampaignConfig, manifest: BoundaryManifest) -> dict[str, Any]:
-    state_path = Path(config.campaign_root) / "campaign-state.json"
-    state = _read_json_object(state_path)
-    if state.get("schema") != "official-openvino-format-boundary-state/v1":
-        raise ValueError("boundary campaign state schema is invalid")
-    if state.get("manifest_sha256") != manifest.sha256:
-        raise ValueError("boundary campaign manifest differs from persisted state")
-    for case in (*manifest.cpu_cases, *manifest.gpu_cases):
-        receipt = Path(config.campaign_root) / _lane_directory(case) / case.internal_id / "accepted-row.json"
-        if receipt.exists():
-            _validate_accepted_receipt(receipt, case)
-    return state
+def _terminal_receipt(
+    case: BoundaryCase,
+    attempts: list[dict[str, Any]],
+    *,
+    terminal_status: str,
+    elapsed_seconds: float,
+    stage_timeouts: Mapping[str, float],
+) -> dict[str, Any]:
+    last = attempts[-1]
+    resource_failure = (
+        "ram" in last["reason_code"] or "timeout" in last["reason_code"]
+        or last["reason_code"] == "row-deadline-exceeded"
+    )
+    return {
+        "schema": "official-openvino-format-boundary-terminal-boundary/v2",
+        "status": terminal_status,
+        "case": _case_descriptor(case),
+        "role": last["role"],
+        "stage": last["stage"],
+        "reason_code": last["reason_code"],
+        "fingerprint": last["fingerprint"],
+        "attempt_count": len(attempts),
+        "attempts": attempts,
+        "observed_available_ram_bytes": last["observed_available_ram_bytes"],
+        "configured_minimum_available_ram_mib": 4096,
+        "configured_emergency_minimum_available_ram_mib": 3072,
+        "limits": _limits(),
+        "elapsed_seconds": elapsed_seconds,
+        "stage_timeouts": dict(stage_timeouts),
+        "deadline_outcome": last["deadline_outcome"] or "within-deadline",
+        "raw_record_path": last["raw_record_path"],
+        "raw_record_sha256": last["raw_record_sha256"],
+        "cleanup_proof": last["cleanup_proof"],
+        "envelope": _ENVELOPE_TEXT if resource_failure else None,
+    }
+
+
+def _skipped_receipt(case: BoundaryCase, status: str) -> dict[str, Any]:
+    return {
+        "schema": "official-openvino-format-boundary-skipped-row/v2",
+        "status": status,
+        "case": _case_descriptor(case),
+        "attempt_count": 0,
+        "limits": _limits(),
+    }
+
+
+def _write_skipped(
+    root: Path,
+    state: dict[str, Any],
+    cases: tuple[BoundaryCase, ...],
+    *,
+    status: str,
+) -> None:
+    for case in cases:
+        lane = state[_lane_name(case)]
+        if case.internal_id in lane["rows"]:
+            continue
+        lane["rows"][case.internal_id] = status
+        lane["skipped_count"] += 1
+        _atomic_write_json(
+            root / _lane_directory(case) / case.internal_id / "skipped-row.json",
+            _skipped_receipt(case, status),
+        )
 
 
 def run_boundary_campaign(
@@ -297,114 +1044,419 @@ def run_boundary_campaign(
     run_measurement: Callable[..., Mapping[str, Any]],
     run_quality: Callable[..., Mapping[str, Any]],
     available_ram: Callable[[], int | None],
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
-    """Execute the low-to-high CPU ladder and its independent GPU control serially."""
+    """Execute the fixed serial CPU ladder and independent GPU control."""
 
-    if not isinstance(config, BoundaryCampaignConfig):
-        raise TypeError("config must be a BoundaryCampaignConfig")
-    if config.max_clean_retries != 1:
-        raise ValueError("format-boundary campaigns allow exactly one clean retry")
+    projection = prepare_boundary_projection(config)
     manifest = load_boundary_manifest(config.manifest_path)
     root = Path(config.campaign_root).resolve()
     state_path = root / "campaign-state.json"
-    if root.exists() and not config.resume:
-        if any(root.iterdir()):
-            raise ValueError("boundary campaign output exists; use resume=True")
     if config.resume:
-        state = _resume_state(config, manifest)
+        state = _resume_state(config, manifest, projection)
     else:
-        root.mkdir(parents=True, exist_ok=True)
-        state = _initial_state(manifest)
+        if {item.name for item in root.iterdir()} != {"execution-inputs"}:
+            raise ValueError("fresh boundary root must contain only projected execution inputs")
+        state = _initial_state(manifest, projection)
         _atomic_write_json(state_path, state)
+    specs = _runtime_spec_map(projection)
+    terminals = _terminal_map(projection)
 
     for cases in (manifest.cpu_cases, manifest.gpu_cases):
+        lane_key = _lane_name(cases[0])
+        lane = state[lane_key]
+        if state["global_halt"]["active"]:
+            lane["status"] = "not-run-global-halt"
+            _write_skipped(root, state, cases, status="not-attempted-global-halt")
+            _atomic_write_json(state_path, state)
+            continue
         for index, case in enumerate(cases):
-            lane_key = _lane_name(case)
-            lane = state[lane_key]
             row_root = root / _lane_directory(case) / case.internal_id
             accepted_path = row_root / "accepted-row.json"
             if accepted_path.exists():
-                _validate_accepted_receipt(accepted_path, case)
                 lane["rows"][case.internal_id] = "accepted"
                 continue
-            if lane["status"] == "stopped":
+            if case.internal_id in lane["rows"]:
                 continue
-            started = time.monotonic()
-            observed_ram = None
-            failure = None
-            runtime: Mapping[str, Any] | None = None
-            quality: Mapping[str, Any] | None = None
-            for attempt in range(config.max_clean_retries + 1):
-                observed_ram = available_ram()
-                lane["attempt_count"] += 1
-                if observed_ram is not None and observed_ram < config.emergency_minimum_available_ram_mib * _MIB:
-                    failure = RowFailure("emergency_minimum_available_ram", hard=True)
-                    break
-                if observed_ram is not None and observed_ram < config.launch_minimum_available_ram_mib * _MIB:
-                    failure = RowFailure("minimum_available_ram", hard=False)
-                    if attempt >= config.max_clean_retries:
-                        break
-                    continue
-                try:
-                    _atomic_write_json(state_path, state)
-                    runtime = run_measurement(
-                        case, config=config, campaign_root=row_root / "runtime",
-                        timeout_seconds=config.runtime_timeout_seconds,
-                        launch_minimum_available_ram_mib=config.launch_minimum_available_ram_mib,
-                        emergency_minimum_available_ram_mib=config.emergency_minimum_available_ram_mib,
-                    )
-                    if not _runtime_is_accepted(runtime):
-                        raise RowFailure("incomplete_runtime_metrics", hard=False)
-                    quality = run_quality(
-                        case, runtime, config=config, campaign_root=row_root / "quality",
-                        timeout_seconds=config.quality_timeout_seconds, resume=False,
-                    )
-                    if not _quality_is_accepted(quality):
-                        raise RowFailure("incomplete_quality_metrics", hard=False)
-                    failure = None
-                    break
-                except Exception as error:  # executor boundary: persist a governed stop.
-                    failure = _normalise_failure(error)
-                    if failure.hard or attempt >= config.max_clean_retries:
-                        break
-            if failure is None and runtime is not None and quality is not None:
-                receipt = _accepted_receipt(case, runtime, quality)
-                _atomic_write_json(accepted_path, receipt)
-                lane["accepted_count"] += 1
-                lane["rows"][case.internal_id] = "accepted"
-                _atomic_write_json(state_path, state)
-                continue
-            assert failure is not None
-            lane["status"] = "stopped"
-            lane["reason_code"] = failure.reason_code
-            lane["rows"][case.internal_id] = "terminal-boundary"
-            terminal = _terminal_receipt(
-                case, failure, elapsed_seconds=time.monotonic() - started,
-                available_ram=observed_ram, manifest_sha256=manifest.sha256,
-            )
-            _atomic_write_json(root / _lane_directory(case) / "terminal-boundary.json", terminal)
-            for later in cases[index + 1:]:
-                lane["rows"][later.internal_id] = "not-attempted-after-boundary"
-                lane["skipped_count"] += 1
-                _atomic_write_json(
-                    root / _lane_directory(later) / later.internal_id / "skipped-row.json",
-                    {"schema": "official-openvino-format-boundary-skipped-row/v1",
-                     "case": {"internal_id": later.internal_id, "label": later.label,
-                              "lane": later.lane, "order": later.order},
-                     "status": "not-attempted-after-boundary"},
+            terminal_input = terminals.get(case.internal_id)
+            if terminal_input is not None:
+                descriptor = _read_json_object(terminal_input.path)
+                if (
+                    descriptor.get("reason") != "artifact-unavailable"
+                    or descriptor.get("role") != "terminal-prerequisite"
+                    or _file_sha256(terminal_input.path) != terminal_input.sha256
+                ):
+                    raise ValueError("terminal prerequisite projection is invalid")
+                failure = RowFailure(
+                    "artifact-unavailable",
+                    role="terminal-prerequisite",
+                    stage="preflight",
+                    hard=True,
+                    retryable=False,
+                    receipt=terminal_input.path,
+                    raw_record=descriptor,
+                    fingerprint=_failure_fingerprint(
+                        case,
+                        stage="preflight",
+                        category="terminal-prerequisite",
+                        reason_code="artifact-unavailable",
+                    ),
+                    cleanup_proof=_not_launched_cleanup_proof(),
                 )
+                attempt = _attempt_record(
+                    failure,
+                    attempt_number=0,
+                    elapsed_seconds=0.0,
+                    stage_timeouts={},
+                )
+                terminal = _terminal_receipt(
+                    case,
+                    [attempt],
+                    terminal_status="artifact-unavailable",
+                    elapsed_seconds=0.0,
+                    stage_timeouts={},
+                )
+                _atomic_write_json(row_root / "terminal-boundary.json", terminal)
+                lane["status"] = "stopped"
+                lane["reason_code"] = "artifact-unavailable"
+                lane["terminal_status"] = "artifact-unavailable"
+                lane["rows"][case.internal_id] = "artifact-unavailable"
+                _write_skipped(
+                    root,
+                    state,
+                    cases[index + 1 :],
+                    status="not-attempted-after-boundary",
+                )
+                _atomic_write_json(state_path, state)
+                break
+            runtime_spec = specs.get(case.internal_id)
+            if runtime_spec is None:
+                raise ValueError(f"projected runtime spec is missing for {case.internal_id}")
+            started = monotonic()
+            attempts: list[dict[str, Any]] = []
+            accepted_runtime: Mapping[str, Any] | None = None
+            accepted_quality: Mapping[str, Any] | None = None
+            final_timeouts: dict[str, float] = {}
+            for attempt_number in (1, 2):
+                lane["attempt_count"] += 1
+                observed_ram = available_ram()
+                if (
+                    isinstance(observed_ram, bool)
+                    or not isinstance(observed_ram, int)
+                    or observed_ram < 4096 * _MIB
+                ):
+                    failure = _admission_failure(case, observed_ram)
+                    attempts.append(
+                        _attempt_record(
+                            failure,
+                            attempt_number=attempt_number,
+                            elapsed_seconds=monotonic() - started,
+                            stage_timeouts={},
+                        )
+                    )
+                else:
+                    elapsed = monotonic() - started
+                    remaining = 720.0 - elapsed
+                    if remaining <= 0:
+                        failure = RowFailure(
+                            "row-deadline-exceeded",
+                            role="measurement",
+                            stage="measurement",
+                            hard=True,
+                            retryable=False,
+                            fingerprint=_failure_fingerprint(
+                                case,
+                                stage="measurement",
+                                category="time",
+                                reason_code="row-deadline-exceeded",
+                            ),
+                            cleanup_proof=_not_launched_cleanup_proof(),
+                            deadline_outcome="exceeded-before-measurement",
+                        )
+                        attempts.append(
+                            _attempt_record(
+                                failure,
+                                attempt_number=attempt_number,
+                                elapsed_seconds=elapsed,
+                                stage_timeouts={},
+                            )
+                        )
+                    else:
+                        runtime_timeout = min(180.0, remaining)
+                        final_timeouts = {"measurement": runtime_timeout}
+                        runtime_root = row_root / "runtime"
+                        try:
+                            run_measurement(
+                                spec_path=runtime_spec.path,
+                                campaign_root=runtime_root,
+                                matrix_path=projection.comparison_matrix.path,
+                                artifact_manifest_path=case.artifact_manifest_path,
+                                build_provenance_path=_quality_input(
+                                    config,
+                                    projection,
+                                    case,
+                                    runtime_spec,
+                                    row_root,
+                                    timeout_seconds=90.0,
+                                ).build_provenance_path,
+                                build_root=Path(config.build_root).resolve(),
+                                repo_root=Path(config.repository_root).resolve(),
+                                python_executable=Path(config.python_executable).resolve(),
+                                python_site_packages=Path(config.python_site_packages).resolve(),
+                                openvino_libraries=Path(config.openvino_libraries).resolve(),
+                                sampler_script=Path(config.sampler_script).resolve(),
+                                timeout_seconds=runtime_timeout,
+                                launch_minimum_available_ram_mib=4096,
+                                emergency_minimum_available_ram_mib=3072,
+                            )
+                            runtime_input = _quality_input(
+                                config,
+                                projection,
+                                case,
+                                runtime_spec,
+                                row_root,
+                                timeout_seconds=90.0,
+                            )
+                            accepted_runtime = reconcile_runtime_evidence(runtime_input)
+                        except Exception as error:
+                            failure = _normalise_failure(
+                                error,
+                                case=case,
+                                default_role="measurement",
+                                default_raw_path=runtime_root / "attempt-sequence.json",
+                            )
+                            attempts.append(
+                                _attempt_record(
+                                    failure,
+                                    attempt_number=attempt_number,
+                                    elapsed_seconds=monotonic() - started,
+                                    stage_timeouts=final_timeouts,
+                                )
+                            )
+                        else:
+                            elapsed = monotonic() - started
+                            remaining = 720.0 - elapsed
+                            if remaining <= 0:
+                                failure = RowFailure(
+                                    "row-deadline-exceeded",
+                                    role="measurement",
+                                    stage="measurement",
+                                    hard=True,
+                                    retryable=False,
+                                    receipt=runtime_root / "attempt-sequence.json",
+                                    fingerprint=_failure_fingerprint(
+                                        case,
+                                        stage="measurement",
+                                        category="time",
+                                        reason_code="row-deadline-exceeded",
+                                    ),
+                                    cleanup_proof={"safe": True, **_not_launched_cleanup_proof()},
+                                    deadline_outcome="exceeded-after-measurement",
+                                )
+                                attempts.append(
+                                    _attempt_record(
+                                        failure,
+                                        attempt_number=attempt_number,
+                                        elapsed_seconds=elapsed,
+                                        stage_timeouts=final_timeouts,
+                                    )
+                                )
+                            else:
+                                quality_timeout = min(90.0, remaining)
+                                final_timeouts["quality"] = quality_timeout
+                                quality_input = replace(
+                                    runtime_input, timeout_seconds=quality_timeout
+                                )
+                                try:
+                                    run_quality(quality_input, resume=False)
+                                    accepted_quality = reconcile_quality_evidence(
+                                        quality_input
+                                    )
+                                except Exception as error:
+                                    failure = _normalise_failure(
+                                        error,
+                                        case=case,
+                                        default_role="quality",
+                                        default_raw_path=(
+                                            quality_input.output_root / "capture-summary.json"
+                                        ),
+                                    )
+                                    attempts.append(
+                                        _attempt_record(
+                                            failure,
+                                            attempt_number=attempt_number,
+                                            elapsed_seconds=monotonic() - started,
+                                            stage_timeouts=final_timeouts,
+                                        )
+                                    )
+                                else:
+                                    elapsed = monotonic() - started
+                                    if elapsed >= 720.0:
+                                        failure = RowFailure(
+                                            "row-deadline-exceeded",
+                                            role="quality",
+                                            stage="quality",
+                                            hard=True,
+                                            retryable=False,
+                                            receipt=(
+                                                quality_input.output_root
+                                                / "capture-summary.json"
+                                            ),
+                                            fingerprint=_failure_fingerprint(
+                                                case,
+                                                stage="quality",
+                                                category="time",
+                                                reason_code="row-deadline-exceeded",
+                                            ),
+                                            cleanup_proof={
+                                                "safe": True,
+                                                "cleanup_process_count": 0,
+                                                "residual_owned_process_count": 0,
+                                                "emergency_actions": [],
+                                                "job_active_pid_evidence": "validated-quality-receipts",
+                                                "active_pids_after_cleanup": [],
+                                            },
+                                            deadline_outcome="exceeded-after-quality",
+                                        )
+                                        attempts.append(
+                                            _attempt_record(
+                                                failure,
+                                                attempt_number=attempt_number,
+                                                elapsed_seconds=elapsed,
+                                                stage_timeouts=final_timeouts,
+                                            )
+                                        )
+                                    else:
+                                        receipt = {
+                                            "schema": "official-openvino-format-boundary-accepted-row/v2",
+                                            "status": "accepted",
+                                            "case": _case_descriptor(case),
+                                            "attempt_count": attempt_number,
+                                            "limits": _limits(),
+                                            "stage_timeouts": final_timeouts,
+                                            "elapsed_seconds": elapsed,
+                                            "deadline_outcome": "within-deadline",
+                                            "runtime": dict(accepted_runtime),
+                                            "quality": dict(accepted_quality),
+                                        }
+                                        _atomic_write_json(accepted_path, receipt)
+                                        lane["accepted_count"] += 1
+                                        lane["rows"][case.internal_id] = "accepted"
+                                        _atomic_write_json(state_path, state)
+                                        break
+                if lane["rows"].get(case.internal_id) == "accepted":
+                    break
+                last_attempt = attempts[-1]
+                safe_retry = (
+                    attempt_number == 1
+                    and last_attempt["retryable"] is True
+                    and last_attempt["cleanup_proof"].get("safe") is True
+                    and (720.0 - (monotonic() - started)) > 0
+                )
+                if not safe_retry:
+                    break
+            if lane["rows"].get(case.internal_id) == "accepted":
+                continue
+            terminal_status = _terminal_status(attempts)
+            terminal = _terminal_receipt(
+                case,
+                attempts,
+                terminal_status=terminal_status,
+                elapsed_seconds=monotonic() - started,
+                stage_timeouts=final_timeouts,
+            )
+            _atomic_write_json(row_root / "terminal-boundary.json", terminal)
+            lane["status"] = "stopped"
+            lane["reason_code"] = attempts[-1]["reason_code"]
+            lane["terminal_status"] = terminal_status
+            lane["rows"][case.internal_id] = terminal_status
+            _write_skipped(
+                root,
+                state,
+                cases[index + 1 :],
+                status="not-attempted-after-boundary",
+            )
+            if terminal_status == "unsafe-cleanup":
+                state["global_halt"] = {
+                    "active": True,
+                    "reason_code": "unsafe-cleanup",
+                }
             _atomic_write_json(state_path, state)
             break
         else:
-            lane_key = _lane_name(cases[0])
-            if state[lane_key]["status"] == "running":
-                state[lane_key]["status"] = "complete"
+            if lane["status"] == "running":
+                lane["status"] = "complete"
                 _atomic_write_json(state_path, state)
-        # The GPU row is a control for a reached CPU boundary, not a recovery
-        # route after the CPU ladder has already crossed its safe envelope.
-        if cases is manifest.cpu_cases and state["cpu_lane"]["status"] == "stopped":
-            return state
     return state
+
+
+def load_boundary_status(config: BoundaryCampaignConfig) -> dict[str, Any]:
+    """Revalidate projection, state, receipts, and their evidence without launch."""
+
+    checked = config if config.resume else replace(config, resume=True)
+    projection = prepare_boundary_projection(checked, status_only=True)
+    manifest = load_boundary_manifest(checked.manifest_path)
+    return _resume_state(checked, manifest, projection)
+
+
+def boundary_campaign_exit_code(state: Mapping[str, Any]) -> int:
+    halt = state.get("global_halt")
+    if isinstance(halt, Mapping) and halt.get("active") is True:
+        return 3
+    return 0
+
+
+def durable_row_lines(
+    config: BoundaryCampaignConfig,
+    state: Mapping[str, Any],
+) -> list[str]:
+    """Render exactly one canonical JSON line for every durable row receipt."""
+
+    if not isinstance(state, Mapping):
+        raise TypeError("boundary campaign state must be a mapping")
+    manifest = load_boundary_manifest(config.manifest_path)
+    root = Path(config.campaign_root).resolve()
+    lines: list[str] = []
+    for case in (*manifest.cpu_cases, *manifest.gpu_cases):
+        row_root = root / _lane_directory(case) / case.internal_id
+        paths = (
+            row_root / "accepted-row.json",
+            row_root / "terminal-boundary.json",
+            row_root / "skipped-row.json",
+        )
+        existing = [path for path in paths if path.is_file()]
+        if not existing:
+            continue
+        if len(existing) != 1:
+            raise ValueError("boundary row has ambiguous durable output")
+        receipt = _read_json_object(existing[0])
+        _validate_case(receipt, case)
+        line: dict[str, Any] = {
+            "lane": case.lane,
+            "case": _case_descriptor(case),
+            "status": receipt["status"],
+            "attempt_count": receipt.get("attempt_count", 0),
+        }
+        if existing[0].name == "accepted-row.json":
+            runtime = receipt.get("runtime")
+            quality = receipt.get("quality")
+            if not isinstance(runtime, Mapping) or not isinstance(quality, Mapping):
+                raise ValueError("accepted boundary row output is incomplete")
+            line["runtime_summary"] = runtime.get("measurement_summary")
+            line["quality_summary"] = quality.get("capture_summary")
+        elif existing[0].name == "terminal-boundary.json":
+            line["reason_code"] = receipt.get("reason_code")
+            line["fingerprint"] = receipt.get("fingerprint")
+        lines.append(
+            json.dumps(
+                line,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            )
+        )
+    return lines
 
 
 def _artifact_path(value: Any) -> Path | None:
