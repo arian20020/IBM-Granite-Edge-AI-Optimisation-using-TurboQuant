@@ -1,0 +1,1 @@
+Explain why KV-cache quantisation can help a local language model run offline on a memory-limited laptop. Use exactly five bullet points and fewer than 90 words in total. Include the exact terms 'KV cache', 'offline', and 'memory'. Give two benefits, two limitations, and one check the user should perform.

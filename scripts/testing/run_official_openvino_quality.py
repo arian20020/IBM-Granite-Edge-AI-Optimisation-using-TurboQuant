@@ -40,6 +40,9 @@ if str(ROOT) not in sys.path:
 from scripts.testing.official_openvino.quality import (
     validate_response_record as validate_scoring_response_record,
 )
+from scripts.testing.official_openvino.quality_contracts import (
+    load_quality_contract,
+)
 
 
 PROMPT_IDS = tuple(f"P{number}" for number in range(1, 7))
@@ -86,6 +89,33 @@ FROZEN_PROMPT_SHA256S = {
     "P4": "3383c8133179f13f4bdfc6ac892a037e83a799e7a6050a5ad6c3c187315b4190",
     "P5": "8f3c9f57390dcdf24e551385be99f375d49b47ac3f88ddc2002eb8bf89dad36f",
     "P6": "d62ab09f572c39ad7e7134c6d9e568d2f0bedbd207bccf2b095cc53bddb1d1e2",
+}
+_CONTRACT_RENDERED_SHA256S = {
+    "GTQ-PROMPTS-v1": FROZEN_RENDERED_SHA256S,
+    "GTQ-PROMPTS-v2": {
+        "P1.txt": "16adbafc129f513b5e4ee5f6ad85afafb12dc74a7bb8db8ce27e33186beecc77",
+        "P2.txt": "4519bc3953a9222349c7b34027e6ea0ae6bc611392f268c8bfe39e34363785b0",
+        "P3.txt": "9c3bd7a0fb610d1d513029095a29fe4cb9be14fa3ee18346718eb69a9cd2e818",
+        "P4.txt": "354f3a76d9f9d261aae30f4f4c27579a82c80b4842851cd0023f0091ef41d05b",
+        "P5-instruction.txt": "0b5fb3b79fddf73cf230ca79113365f0c568342d26821c80742bf43627c65f5d",
+        "P6-turn1.txt": "57c08e688ac1fb246a81202e528bd16b7286d529d26d09a5089b29b4890d639e",
+        "P6-turn2-with-history.txt": "3821c371fa4b6bce0b8f59dd5a7e136aa7afda603b01a59bdf45aa0be8cd0f98",
+    },
+}
+_CONTRACT_P5_FIXTURE = {
+    "GTQ-PROMPTS-v1": ("fixtures/P5-long-context-v1.txt", FROZEN_P5_FIXTURE_SHA256),
+    "GTQ-PROMPTS-v2": ("fixtures/P5-compact-context-v2.txt", "ae3290b37cc1126f48301dc8f722775eeb279a90caabd3ea96622af7287e68a3"),
+}
+_CONTRACT_PROMPT_SHA256S = {
+    "GTQ-PROMPTS-v1": FROZEN_PROMPT_SHA256S,
+    "GTQ-PROMPTS-v2": {
+        "P1": "dcc4e63a52dd2a38a1d65778dd3617b559b6fea19b1ca1d3ee38f5b19a03a222",
+        "P2": "62a7a2b469dde382ccd7317b6acda971ab244f0c305d6641367271fa2247fae7",
+        "P3": "222a96892dca7343f0f06793162d7be22211c686365f2c78557f573706c9008a",
+        "P4": "b89b27056726de7af5e922423f8fdae703761065ab31d0aac71960f00990ae66",
+        "P5": "36f8079e49beabb83563ca72ed573e2eb27c42638dcdffaa6a1c265596a8c250",
+        "P6": "cb8dd882bbb1315324e72ebee0b5a3c895b7cef17b8390202d2c3def29d5f7a1",
+    },
 }
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _BLIND_LABEL = re.compile(r"^response-[A-Z0-9]{2,24}$")
@@ -355,13 +385,21 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
 
     prompt_set_bytes = prompt_set_path.read_bytes()
     prompt_set_sha256 = _sha256_bytes(prompt_set_bytes)
-    if prompt_set_sha256 != FROZEN_PROMPT_SET_SHA256:
-        raise ValueError("frozen prompt-set hash mismatch")
+    registered = load_quality_contract(prompt_set_path)
+    if rendered_root.resolve() != registered.rendered_root.resolve():
+        raise ValueError("rendered root does not match the allow-listed prompt contract")
+    if prompt_set_sha256 != registered.prompt_set_sha256:
+        raise ValueError("prompt-set hash is not allow-listed")
     prompt_set = parse_json_bytes_strict(prompt_set_bytes, source=prompt_set_path)
     if not isinstance(prompt_set, dict):
         raise ValueError("prompt set must be a JSON object")
-    if prompt_set.get("prompt_set_id") != "GTQ-PROMPTS-v1":
+    if prompt_set.get("prompt_set_id") != registered.prompt_set_id:
         raise ValueError("unexpected prompt_set_id")
+    if registered.maximum_input_tokens is None:
+        if "maximum_input_tokens" in prompt_set:
+            raise ValueError("v1 prompt contract cannot set maximum_input_tokens")
+    elif prompt_set.get("maximum_input_tokens") != registered.maximum_input_tokens:
+        raise ValueError("prompt contract maximum input tokens mismatch")
     settings = prompt_set.get("generation_defaults")
     if settings != EXPECTED_GENERATION_SETTINGS:
         raise ValueError("frozen generation settings do not match the P1-P6 contract")
@@ -387,23 +425,35 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
         rendered[prompt_id] = {}
         for name in names:
             text, digest = _read_utf8_exact(rendered_root / name)
-            if digest != FROZEN_RENDERED_SHA256S[name]:
+            if digest != _CONTRACT_RENDERED_SHA256S[registered.prompt_set_id][name]:
                 raise ValueError(
                     f"frozen rendered prompt hash mismatch: {name}"
                 )
             rendered[prompt_id][name] = (text, digest)
 
     fixture_value = indexed["P5"].get("fixture_path")
-    if fixture_value != "fixtures/P5-long-context-v1.txt":
-        raise ValueError("P5 must use the frozen long-context fixture")
+    expected_fixture, expected_fixture_sha256 = _CONTRACT_P5_FIXTURE[
+        registered.prompt_set_id
+    ]
+    if fixture_value != expected_fixture:
+        raise ValueError("P5 fixture does not match the allow-listed prompt contract")
     fixture_path = (prompt_set_path.parent / fixture_value).resolve()
     try:
         fixture_path.relative_to(prompt_set_path.parent.resolve())
     except ValueError as exc:
         raise ValueError("P5 fixture escapes the prompt-set directory") from exc
     p5_context, p5_fixture_sha256 = _read_utf8_exact(fixture_path)
-    if p5_fixture_sha256 != FROZEN_P5_FIXTURE_SHA256:
+    if p5_fixture_sha256 != expected_fixture_sha256:
         raise ValueError("frozen P5 fixture hash mismatch")
+    if registered.maximum_input_tokens is not None:
+        asset_manifest = prompt_set.get("rendered_asset_manifest")
+        if (
+            not isinstance(asset_manifest, dict)
+            or asset_manifest.get("schema") != "granite-rendered-assets/v1"
+            or asset_manifest.get("P5_input_tokens") != 357
+            or asset_manifest["P5_input_tokens"] > registered.maximum_input_tokens
+        ):
+            raise ValueError("compact prompt input token count is invalid")
 
     prompts: dict[str, dict[str, Any]] = {}
     for prompt_id in PROMPT_IDS:
@@ -419,7 +469,7 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
             }
         elif prompt_id == "P5":
             instruction = rendered[prompt_id]["P5-instruction.txt"][0]
-            sources["P5-long-context-v1.txt"] = p5_fixture_sha256
+            sources[Path(fixture_value).name] = p5_fixture_sha256
             execution = {
                 "mode": "single_turn",
                 "prompt": p5_context + instruction,
@@ -453,7 +503,9 @@ def load_prompt_contract(prompt_set_path: Path, rendered_root: Path) -> dict[str
             **prompt_hash_input,
             "prompt_sha256": _sha256_bytes(_canonical_json(prompt_hash_input)),
         }
-        if prompts[prompt_id]["prompt_sha256"] != FROZEN_PROMPT_SHA256S[prompt_id]:
+        if prompts[prompt_id]["prompt_sha256"] != _CONTRACT_PROMPT_SHA256S[
+            registered.prompt_set_id
+        ][prompt_id]:
             raise ValueError(f"frozen {prompt_id} execution hash mismatch")
 
     contract = {
