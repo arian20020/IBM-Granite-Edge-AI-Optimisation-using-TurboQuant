@@ -15,7 +15,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.docx_audit import audit_docx
+from scripts.testing.official_openvino.docx_audit import (
+    audit_comparison_docx,
+    audit_docx,
+    comparison_audit_profile,
+)
 from scripts.testing.official_openvino.matrix import load_matrix
 
 
@@ -78,6 +82,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--docx", type=Path)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--matrix", type=Path)
+    parser.add_argument("--markdown", type=Path)
+    parser.add_argument("--matrix-sha256")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--expected-visible-revision")
     parser.add_argument("--expected-table-count", type=int)
@@ -88,6 +94,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "Enforce the controlled WB-04 v1.8 / 10-table release inputs and "
             "2026-07-30 output path."
         ),
+    )
+    parser.add_argument(
+        "--comparison-release",
+        action="store_true",
+        help="Audit an explicitly staged WB-04 v1.9 comparison release.",
     )
     return parser.parse_args(argv)
 
@@ -137,14 +148,43 @@ def resolve_audit_configuration(args: argparse.Namespace) -> tuple[Path, Path, P
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        docx, manifest, matrix_path, output, revision, table_count = resolve_audit_configuration(args)
-        matrix = load_matrix(matrix_path)
-        report = audit_docx(docx, manifest, {case.test_id for case in matrix})
-        enforce_expected_shape(
-            report,
-            expected_visible_revision=revision,
-            expected_table_count=table_count,
-        )
+        if args.comparison_release:
+            if args.release:
+                raise ValueError("comparison release cannot be combined with legacy release mode")
+            if args.matrix is not None:
+                raise ValueError("comparison release uses --matrix-sha256, not --matrix")
+            if args.expected_visible_revision is not None or args.expected_table_count is not None:
+                raise ValueError("comparison release derives its exact shape from staged Markdown")
+            required = {
+                "docx": args.docx,
+                "manifest": args.manifest,
+                "markdown": args.markdown,
+                "matrix-sha256": args.matrix_sha256,
+                "output": args.output,
+            }
+            missing = sorted(name for name, value in required.items() if value is None)
+            if missing:
+                raise ValueError(
+                    "comparison release requires explicit " + ", ".join(missing)
+                )
+            output = args.output
+            report = audit_comparison_docx(
+                args.docx,
+                args.manifest,
+                args.markdown,
+                comparison_audit_profile(args.matrix_sha256),
+            )
+        else:
+            if args.markdown is not None or args.matrix_sha256 is not None:
+                raise ValueError("--markdown/--matrix-sha256 require --comparison-release")
+            docx, manifest, matrix_path, output, revision, table_count = resolve_audit_configuration(args)
+            matrix = load_matrix(matrix_path)
+            report = audit_docx(docx, manifest, {case.test_id for case in matrix})
+            enforce_expected_shape(
+                report,
+                expected_visible_revision=revision,
+                expected_table_count=table_count,
+            )
         write_report_atomically(output, report)
     except (OSError, ValueError) as exc:
         print(f"WB-04 DOCX audit refused: {exc}", file=sys.stderr)

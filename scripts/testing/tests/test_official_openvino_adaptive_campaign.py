@@ -6,6 +6,7 @@ import hashlib
 import inspect
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 import subprocess
 import sys
@@ -1172,10 +1173,213 @@ def test_campaign_cli_exposes_only_plan_listed_flags() -> None:
         "--max-context",
         "--resume",
         "--publish-checkpoints",
+        "--evidence-commit",
         "--preflight-only",
     }
     max_context = next(action for action in parser._actions if action.dest == "max_context")
     assert tuple(max_context.choices) == CONTEXTS
+
+
+def test_publication_callback_builds_immutable_state_hash_inputs_and_forwards_exact_keywords(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_bytes(b"state-one\n")
+    builds: list[tuple[Path, Path, Path]] = []
+    publications: list[tuple[Path, dict[str, object]]] = []
+
+    def build(matrix: Path, state: Path, output: Path) -> dict[str, object]:
+        builds.append((matrix, state, output))
+        payload = b"release:" + hashlib.sha256(state.read_bytes()).hexdigest().encode()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if output.exists() and output.read_bytes() != payload:
+            raise ValueError("immutable release input differs")
+        output.write_bytes(payload)
+        return {"release_input_sha256": "1" * 64}
+
+    def publish(path: Path, **keywords: object) -> dict[str, object]:
+        publications.append((path, keywords))
+        return {"published": True, "path": str(path)}
+
+    monkeypatch.setattr(campaign_cli, "build_comparison_release_input", build)
+    monkeypatch.setattr(
+        campaign_cli, "load_comparison_release_input", lambda _path: {"validated": True}
+    )
+    monkeypatch.setattr(campaign_cli, "publish_reconciled_checkpoint", publish)
+    callback = campaign_cli._publication_callback(config, "a" * 40)
+
+    first = callback(state_path, False)
+    repeated = callback(state_path, True)
+    first_release = publications[0][0]
+    first_bytes = first_release.read_bytes()
+    first_state_sha256 = hashlib.sha256(b"state-one\n").hexdigest()
+    state_path.write_bytes(b"state-two\n")
+    changed = callback(state_path, False)
+    second_release = publications[-1][0]
+    second_state_sha256 = hashlib.sha256(b"state-two\n").hexdigest()
+
+    assert first["published"] and repeated["published"] and changed["published"]
+    assert first_release == (
+        config.campaign_root
+        / "release-inputs"
+        / f"comparison-release-input-{first_state_sha256}.json"
+    ).resolve()
+    assert publications[1][0] == first_release
+    assert first_release.read_bytes() == first_bytes
+    assert second_release != first_release
+    assert second_release.name == (
+        f"comparison-release-input-{second_state_sha256}.json"
+    )
+    assert all(item[0] == config.matrix_path for item in builds)
+    assert all(item[1] != state_path.resolve() for item in builds)
+    assert all(item[1].parent == config.campaign_root.resolve() for item in builds)
+    assert builds[0][1].name == f"adaptive-campaign-state-{first_state_sha256}.json"
+    assert builds[-1][1].name == f"adaptive-campaign-state-{second_state_sha256}.json"
+    assert builds[0][1].read_bytes() == b"state-one\n"
+    assert builds[-1][1].read_bytes() == b"state-two\n"
+    assert publications[0][1] == {
+        "repo_root": campaign_cli.ROOT,
+        "require_complete": False,
+        "evidence_commit": "a" * 40,
+    }
+    assert publications[1][1]["require_complete"] is True
+
+
+def test_publication_callback_builds_from_one_immutable_state_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    state_path = config.campaign_root / "adaptive-campaign-state.json"
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_bytes(b"stable checkpoint\n")
+    stable_sha = hashlib.sha256(b"stable checkpoint\n").hexdigest()
+    built_from: list[Path] = []
+
+    def build(_matrix: Path, snapshot: Path, output: Path) -> dict[str, object]:
+        built_from.append(snapshot)
+        assert snapshot != state_path.resolve()
+        assert snapshot.name == f"adaptive-campaign-state-{stable_sha}.json"
+        frozen = snapshot.read_bytes()
+        state_path.write_bytes(b"new live state during build\n")
+        assert snapshot.read_bytes() == frozen == b"stable checkpoint\n"
+        output.write_bytes(b"release-from:" + frozen)
+        return {"release_input_sha256": "1" * 64}
+
+    monkeypatch.setattr(campaign_cli, "build_comparison_release_input", build)
+    monkeypatch.setattr(
+        campaign_cli, "load_comparison_release_input", lambda _path: {"validated": True}
+    )
+    monkeypatch.setattr(
+        campaign_cli,
+        "publish_reconciled_checkpoint",
+        lambda path, **_keywords: {"release": str(path)},
+    )
+
+    result = campaign_cli._publication_callback(config, "a" * 40)(state_path, False)
+    immutable_release = Path(result["release"])
+    assert immutable_release.name == f"comparison-release-input-{stable_sha}.json"
+    assert immutable_release.read_bytes() == b"release-from:stable checkpoint\n"
+    assert built_from[0].read_bytes() == b"stable checkpoint\n"
+
+
+def test_publication_callback_preserves_reloadable_real_task7_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.testing.official_openvino.comparison_reconcile import (
+        load_comparison_release_input,
+        reconcile_comparison_release,
+    )
+    from scripts.testing.tests.test_official_openvino_comparison_reconcile import (
+        _path as task7_path,
+        valid_release_input,
+    )
+
+    authority = tmp_path / "real-task7-authority"
+    authority.mkdir()
+    mapping = valid_release_input(authority)
+    original_state = task7_path(mapping, mapping["campaign_state"])
+    state_path = authority / "adaptive-campaign-state.json"
+    original_state.replace(state_path)
+    matrix_path = task7_path(mapping, mapping["matrix"])
+    config_root = tmp_path / "config"
+    config_root.mkdir()
+    config = replace(
+        _campaign_inputs(config_root),
+        matrix_path=matrix_path,
+        campaign_root=authority,
+    )
+    published: list[Path] = []
+
+    def publish(path: Path, **_keywords: object) -> dict[str, str]:
+        published.append(Path(path))
+        return {"release": str(path)}
+
+    monkeypatch.setattr(campaign_cli, "publish_reconciled_checkpoint", publish)
+    callback = campaign_cli._publication_callback(config, "a" * 40)
+    callback(state_path, False)
+    first_release = published[-1]
+    first_bytes = first_release.read_bytes()
+    load_comparison_release_input(first_release)
+    first_reconciled = reconcile_comparison_release(first_release)
+
+    state_value = json.loads(state_path.read_text(encoding="utf-8"))
+    state_path.write_text(
+        json.dumps(state_value, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    callback(state_path, False)
+    second_release = published[-1]
+
+    assert second_release != first_release
+    assert first_release.read_bytes() == first_bytes
+    load_comparison_release_input(first_release)
+    assert reconcile_comparison_release(first_release) == first_reconciled
+    load_comparison_release_input(second_release)
+
+
+def test_publication_callback_rejects_invalid_commit_and_nonexact_state_path(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    exact = config.campaign_root / "adaptive-campaign-state.json"
+    exact.parent.mkdir(parents=True, exist_ok=True)
+    exact.write_bytes(b"state\n")
+    for commit in ("a" * 39, "A" * 40, "g" * 40):
+        with pytest.raises(ValueError, match="40-character lowercase"):
+            campaign_cli._publication_callback(config, commit)
+    callback = campaign_cli._publication_callback(config, "a" * 40)
+    for wrong in (
+        config.campaign_root / "other.json",
+        config.campaign_root.parent / "adaptive-campaign-state.json",
+    ):
+        wrong.parent.mkdir(parents=True, exist_ok=True)
+        wrong.write_bytes(b"state\n")
+        with pytest.raises(ValueError, match="exact campaign state"):
+            callback(wrong, False)
+
+
+def test_campaign_cli_requires_evidence_commit_exactly_with_checkpoint_publication(
+    tmp_path: Path,
+) -> None:
+    config = _campaign_inputs(tmp_path)
+    common = [
+        "--matrix", str(config.matrix_path),
+        "--spec-root", str(config.spec_root),
+        "--campaign-root", str(config.campaign_root),
+        "--build-root", str(config.build_root),
+        "--build-provenance", str(config.build_provenance_path),
+        "--python-executable", str(config.python_executable),
+        "--python-site-packages", str(config.python_site_packages),
+        "--openvino-libraries", str(config.openvino_libraries),
+        "--sampler-script", str(config.sampler_script),
+        "--preflight-only",
+    ]
+    with pytest.raises(SystemExit):
+        campaign_cli.main([*common, "--publish-checkpoints"])
+    with pytest.raises(SystemExit):
+        campaign_cli.main([*common, "--evidence-commit", "a" * 40])
 
 
 def test_campaign_cli_preflight_prints_first_step_without_attempt(
