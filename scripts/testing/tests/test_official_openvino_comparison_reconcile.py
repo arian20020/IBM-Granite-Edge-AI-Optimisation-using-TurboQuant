@@ -1301,6 +1301,54 @@ def _project_authoritative_release(release_input: dict[str, Any], output: Path) 
     return output
 
 
+def _attach_governed_quality_terminal(
+    release_input: dict[str, Any],
+    *,
+    tmp_path: Path,
+    stage: str,
+    principal_reason: str,
+) -> Path:
+    """Attach an exact controller-receipted terminal to one passed runtime."""
+
+    state_path = _path(release_input, release_input["campaign_state"])
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state_step = state["steps"]["OV-11:512"]
+    evidence = _write_json(
+        tmp_path / f"{stage}-terminal.json",
+        {
+            "schema": "official-openvino-adaptive-quality-terminal/v1",
+            "stage": stage,
+            "principal_reason": principal_reason,
+        },
+    )
+    receipt = _write_json(
+        tmp_path / "quality-terminal-receipts" / stage / "quality-terminal.json",
+        {
+            "schema": "official-openvino-adaptive-quality-terminal-receipt/v1",
+            "test_id": "OV-11",
+            "context_tokens": 512,
+            "stage": stage,
+            "principal_reason": principal_reason,
+            "evidence_path": str(evidence),
+            "evidence_sha256": _sha256(evidence),
+            "runtime_evidence_path": state_step["evidence_path"],
+            "runtime_evidence_sha256": state_step["evidence_sha256"],
+        },
+    )
+    state_step["quality_terminal"] = {
+        "stage": stage,
+        "principal_reason": principal_reason,
+        "evidence_path": str(evidence),
+        "evidence_sha256": _sha256(evidence),
+        "controller_receipt_path": receipt.relative_to(tmp_path).as_posix(),
+        "controller_receipt_sha256": _sha256(receipt),
+    }
+    _write_json(state_path, state)
+    release_input["campaign_state"] = _reference(state_path, base=_base(release_input))
+    _resign_release_input(release_input)
+    return evidence
+
+
 def _real_task6_bundle(
     release_input: dict[str, Any],
     capture: Path,
@@ -1437,6 +1485,70 @@ def test_quality_recomputes_full_real_task_six_bundle_after_task_five_recovery(
     assert quality.prompt_scores == {
         prompt_id: 8.0 for prompt_id in ("P1", "P2", "P3", "P4", "P5", "P6")
     }
+
+
+@pytest.mark.parametrize(
+    ("capture_mode", "stage", "principal_reason"),
+    (
+        ("none", "quality-worker", "guard admission failed"),
+        ("blocked", "quality-capture", "P4 capture stopped"),
+        ("complete", "quality-adjudication", "no governed adjudicator available"),
+    ),
+)
+def test_quality_terminal_preserves_its_validated_stage_and_principal_reason(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capture_mode: str,
+    stage: str,
+    principal_reason: str,
+) -> None:
+    release_input = valid_release_input(tmp_path)
+    if capture_mode == "blocked":
+        _real_task5_capture_blocked_at_p4(release_input, monkeypatch)
+    elif capture_mode == "complete":
+        _real_task5_recovery_history(release_input, monkeypatch)
+    _attach_governed_quality_terminal(
+        release_input,
+        tmp_path=tmp_path,
+        stage=stage,
+        principal_reason=principal_reason,
+    )
+    release = _project_authoritative_release(
+        release_input, tmp_path / f"{capture_mode}-terminal-release.json"
+    )
+
+    outcome = reconcile_comparison_release(release).quality[
+        ComparisonKey("OV-11", 512)
+    ]
+
+    assert outcome.status == "quality-terminal"
+    assert outcome.terminal_stage == stage
+    assert outcome.principal_reason == principal_reason
+
+
+def test_nonterminal_quality_outcomes_have_no_terminal_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    blocked_root = tmp_path / "blocked"
+    awaiting_root = tmp_path / "awaiting"
+    blocked_root.mkdir()
+    awaiting_root.mkdir()
+    blocked = reconcile_comparison_release(valid_release_input(blocked_root))
+    awaiting_input = valid_release_input(awaiting_root)
+    _real_task5_recovery_history(awaiting_input, monkeypatch)
+    awaiting_release = _project_authoritative_release(
+        awaiting_input, tmp_path / "awaiting-release.json"
+    )
+    awaiting = reconcile_comparison_release(awaiting_release)
+
+    for outcome in (
+        blocked.quality[ComparisonKey("OV-11", 512)],
+        awaiting.quality[ComparisonKey("OV-11", 512)],
+    ):
+        assert outcome.status != "quality-terminal"
+        assert outcome.terminal_stage is None
+        assert outcome.principal_reason is None
 
 
 def test_release_rejects_missing_authoritative_campaign_state(tmp_path: Path) -> None:

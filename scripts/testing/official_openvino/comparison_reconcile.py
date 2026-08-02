@@ -100,6 +100,8 @@ class ComparisonQualityOutcome:
     aggregates: Mapping[str, float] | None
     evidence_path: Path
     evidence_sha256: str
+    terminal_stage: str | None = None
+    principal_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1649,7 +1651,14 @@ def reconcile_all_quality_steps(
                     label="quality terminal evidence",
                 )
                 return_value = ComparisonQualityOutcome(
-                    key, "quality-terminal", None, None, terminal_path, terminal_sha
+                    key,
+                    "quality-terminal",
+                    None,
+                    None,
+                    terminal_path,
+                    terminal_sha,
+                    terminal_stage=quality_terminal["stage"],
+                    principal_reason=quality_terminal["principal_reason"],
                 )
                 result[key] = return_value
                 continue
@@ -1671,7 +1680,14 @@ def reconcile_all_quality_steps(
                     label="quality terminal evidence",
                 )
                 result[key] = ComparisonQualityOutcome(
-                    key, "quality-terminal", None, None, terminal_path, terminal_sha
+                    key,
+                    "quality-terminal",
+                    None,
+                    None,
+                    terminal_path,
+                    terminal_sha,
+                    terminal_stage=quality_terminal["stage"],
+                    principal_reason=quality_terminal["principal_reason"],
                 )
                 continue
             result[key] = ComparisonQualityOutcome(key, "quality-blocked", None, None, capture_path, capture_sha)
@@ -1685,7 +1701,14 @@ def reconcile_all_quality_steps(
                 label="quality terminal evidence",
             )
             result[key] = ComparisonQualityOutcome(
-                key, "quality-terminal", None, None, terminal_path, terminal_sha
+                key,
+                "quality-terminal",
+                None,
+                None,
+                terminal_path,
+                terminal_sha,
+                terminal_stage=quality_terminal["stage"],
+                principal_reason=quality_terminal["principal_reason"],
             )
             continue
         if adjudication_bundle is None:
