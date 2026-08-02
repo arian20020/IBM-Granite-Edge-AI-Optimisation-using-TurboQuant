@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import inspect
 import json
@@ -1321,28 +1322,32 @@ def test_publication_callback_builds_immutable_state_hash_inputs_and_forwards_ex
     first_release = publications[0][0]
     first_bytes = first_release.read_bytes()
     first_state_sha256 = hashlib.sha256(b"state-one\n").hexdigest()
+    first_state_tag = base64.urlsafe_b64encode(
+        bytes.fromhex(first_state_sha256)
+    ).decode("ascii").rstrip("=")
     state_path.write_bytes(b"state-two\n")
     changed = callback(state_path, False)
     second_release = publications[-1][0]
     second_state_sha256 = hashlib.sha256(b"state-two\n").hexdigest()
+    second_state_tag = base64.urlsafe_b64encode(
+        bytes.fromhex(second_state_sha256)
+    ).decode("ascii").rstrip("=")
 
     assert first["published"] and repeated["published"] and changed["published"]
     assert first_release == (
         config.campaign_root
-        / "release-inputs"
-        / f"comparison-release-input-{first_state_sha256}.json"
+        / "checkpoints"
+        / f"r-{first_state_tag}.json"
     ).resolve()
     assert publications[1][0] == first_release
     assert first_release.read_bytes() == first_bytes
     assert second_release != first_release
-    assert second_release.name == (
-        f"comparison-release-input-{second_state_sha256}.json"
-    )
+    assert second_release.name == f"r-{second_state_tag}.json"
     assert all(item[0] == config.matrix_path for item in builds)
     assert all(item[1] != state_path.resolve() for item in builds)
     assert all(item[1].parent == config.campaign_root.resolve() for item in builds)
-    assert builds[0][1].name == f"adaptive-campaign-state-{first_state_sha256}.json"
-    assert builds[-1][1].name == f"adaptive-campaign-state-{second_state_sha256}.json"
+    assert builds[0][1].name == f"s-{first_state_tag}.json"
+    assert builds[-1][1].name == f"s-{second_state_tag}.json"
     assert builds[0][1].read_bytes() == b"state-one\n"
     assert builds[-1][1].read_bytes() == b"state-two\n"
     assert publications[0][1] == {
@@ -1361,12 +1366,15 @@ def test_publication_callback_builds_from_one_immutable_state_snapshot(
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_bytes(b"stable checkpoint\n")
     stable_sha = hashlib.sha256(b"stable checkpoint\n").hexdigest()
+    stable_tag = base64.urlsafe_b64encode(
+        bytes.fromhex(stable_sha)
+    ).decode("ascii").rstrip("=")
     built_from: list[Path] = []
 
     def build(_matrix: Path, snapshot: Path, output: Path) -> dict[str, object]:
         built_from.append(snapshot)
         assert snapshot != state_path.resolve()
-        assert snapshot.name == f"adaptive-campaign-state-{stable_sha}.json"
+        assert snapshot.name == f"s-{stable_tag}.json"
         frozen = snapshot.read_bytes()
         state_path.write_bytes(b"new live state during build\n")
         assert snapshot.read_bytes() == frozen == b"stable checkpoint\n"
@@ -1385,9 +1393,67 @@ def test_publication_callback_builds_from_one_immutable_state_snapshot(
 
     result = campaign_cli._publication_callback(config, "a" * 40)(state_path, False)
     immutable_release = Path(result["release"])
-    assert immutable_release.name == f"comparison-release-input-{stable_sha}.json"
+    assert immutable_release.name == f"r-{stable_tag}.json"
     assert immutable_release.read_bytes() == b"release-from:stable checkpoint\n"
     assert built_from[0].read_bytes() == b"stable checkpoint\n"
+
+
+def test_publication_callback_fits_legacy_windows_max_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    config = _campaign_inputs(inputs)
+    base = tmp_path.resolve()
+    campaign_root_length = 188
+    component_length = campaign_root_length - len(str(base)) - 1
+    assert 0 < component_length <= 255
+    campaign_root = base / ("c" * component_length)
+    assert len(str(campaign_root)) == campaign_root_length
+    config = replace(config, campaign_root=campaign_root)
+    state_path = campaign_root / "adaptive-campaign-state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_bytes(b"legacy max path checkpoint\n")
+
+    real_mkstemp = campaign_cli.tempfile.mkstemp
+    real_link = campaign_cli.os.link
+
+    def legacy_mkstemp(*args: object, **kwargs: object) -> tuple[int, str]:
+        directory = Path(str(kwargs["dir"]))
+        prefix = str(kwargs.get("prefix", "tmp"))
+        suffix = str(kwargs.get("suffix", ""))
+        candidate = directory / f"{prefix}12345678{suffix}"
+        if len(str(candidate)) >= 260:
+            raise FileNotFoundError(2, "legacy MAX_PATH", str(candidate))
+        return real_mkstemp(*args, **kwargs)
+
+    def legacy_link(source: object, destination: object, *args: object, **kwargs: object) -> None:
+        if len(str(Path(destination))) >= 260:
+            raise FileNotFoundError(2, "legacy MAX_PATH", str(destination))
+        real_link(source, destination, *args, **kwargs)
+
+    def build(_matrix: Path, _snapshot: Path, output: Path) -> dict[str, object]:
+        output.write_bytes(b"compact release input\n")
+        return {"release_input_sha256": "1" * 64}
+
+    monkeypatch.setattr(campaign_cli.tempfile, "mkstemp", legacy_mkstemp)
+    monkeypatch.setattr(campaign_cli.os, "link", legacy_link)
+    monkeypatch.setattr(campaign_cli, "build_comparison_release_input", build)
+    monkeypatch.setattr(
+        campaign_cli, "load_comparison_release_input", lambda _path: {"validated": True}
+    )
+    monkeypatch.setattr(
+        campaign_cli,
+        "publish_reconciled_checkpoint",
+        lambda path, **_keywords: {"release": str(path)},
+    )
+
+    result = campaign_cli._publication_callback(config, "a" * 40)(state_path, False)
+
+    release_path = Path(result["release"])
+    assert release_path.is_file()
+    assert len(str(release_path)) < 260
 
 
 def test_publication_callback_preserves_reloadable_real_task7_history(

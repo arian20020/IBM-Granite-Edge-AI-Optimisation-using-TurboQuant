@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -89,8 +90,8 @@ def _publication_callback(
     def publish_immutable_bytes(path: Path, value: bytes, label: str) -> None:
         descriptor, staged_name = tempfile.mkstemp(
             dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".stage",
+            prefix=".stage-",
+            suffix=".tmp",
         )
         staged = Path(staged_name)
         try:
@@ -118,20 +119,23 @@ def _publication_callback(
             raise ValueError("checkpoint final flag must be boolean")
         state_bytes = actual_state.read_bytes()
         state_sha256 = hashlib.sha256(state_bytes).hexdigest()
+        state_tag = base64.urlsafe_b64encode(
+            bytes.fromhex(state_sha256)
+        ).decode("ascii").rstrip("=")
+        checkpoint_directory = campaign_root / "checkpoints"
+        checkpoint_directory.mkdir(parents=True, exist_ok=True)
         state_snapshot = (
-            campaign_root / f"adaptive-campaign-state-{state_sha256}.json"
+            campaign_root / f"s-{state_tag}.json"
         ).resolve()
         publish_immutable_bytes(state_snapshot, state_bytes, "campaign state snapshot")
-        release_directory = campaign_root / "release-inputs"
-        release_directory.mkdir(parents=True, exist_ok=True)
         release_input = (
-            release_directory
-            / f"comparison-release-input-{state_sha256}.json"
+            checkpoint_directory
+            / f"r-{state_tag}.json"
         ).resolve()
         descriptor, staged_name = tempfile.mkstemp(
-            dir=release_directory,
-            prefix=f".{release_input.name}.",
-            suffix=".stage",
+            dir=checkpoint_directory,
+            prefix=".build-",
+            suffix=".tmp",
         )
         os.close(descriptor)
         staged = Path(staged_name)
