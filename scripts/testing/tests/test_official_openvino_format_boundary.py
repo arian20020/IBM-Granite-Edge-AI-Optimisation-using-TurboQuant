@@ -152,3 +152,64 @@ def test_compact_prompt_rejects_513_tokens_before_generation():
             PROMPT_ROOT / "rendered-v2",
             tokenizer_loader=lambda path: _FakeGraniteTokenizer(513),
         )
+
+
+def test_registry_binds_prompt_set_id_to_its_exact_registered_hash():
+    from scripts.testing.official_openvino.quality_contracts import (
+        require_quality_contract_identity,
+    )
+
+    v1 = require_quality_contract_identity("GTQ-PROMPTS-v1", FROZEN_V1_SHA256)
+    v2 = require_quality_contract_identity(
+        "GTQ-PROMPTS-v2",
+        hashlib.sha256(V2_PROMPT_SET.read_bytes()).hexdigest(),
+    )
+    assert v1.prompt_set_id == "GTQ-PROMPTS-v1"
+    assert v2.prompt_set_id == "GTQ-PROMPTS-v2"
+    with pytest.raises(ValueError, match="hash"):
+        require_quality_contract_identity("GTQ-PROMPTS-v1", v2.prompt_set_sha256)
+
+
+def test_compact_prompt_accepts_exactly_512_tokens():
+    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+
+    contract = load_prompt_contract(
+        V2_PROMPT_SET,
+        PROMPT_ROOT / "rendered-v2",
+        tokenizer_loader=lambda path: _FakeGraniteTokenizer(512),
+    )
+    assert contract["observed_input_tokens"] == {"P5": 512}
+
+
+def test_v1_prompt_contract_keeps_its_prior_shape_without_tokenizer_loading():
+    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+
+    def forbidden_tokenizer_loader(path):
+        pytest.fail(f"v1 must not load a tokenizer: {path}")
+
+    contract = load_prompt_contract(
+        V1_PROMPT_SET,
+        PROMPT_ROOT / "rendered",
+        tokenizer_loader=forbidden_tokenizer_loader,
+    )
+    assert set(contract) == {
+        "prompt_set_id", "prompt_set_sha256", "generation_settings", "prompts",
+    }
+    assert contract["prompt_set_id"] == "GTQ-PROMPTS-v1"
+    assert contract["prompt_set_sha256"] == FROZEN_V1_SHA256
+
+
+def test_both_adjudicators_bind_v2_scoring_input_identity_to_registry_hash():
+    from scripts.testing import adjudicate_official_openvino_adaptive_quality as adaptive
+    from scripts.testing import adjudicate_official_openvino_quality as standard
+    from scripts.testing.official_openvino.quality_contracts import (
+        load_quality_contract,
+    )
+
+    v2 = load_quality_contract(V2_PROMPT_SET)
+    assert standard._scoring_contract(v2.prompt_set_id, v2.prompt_set_sha256) == v2
+    assert adaptive._scoring_contract(v2.prompt_set_id, v2.prompt_set_sha256) == v2
+    with pytest.raises(ValueError, match="hash"):
+        standard._scoring_contract("GTQ-PROMPTS-v1", v2.prompt_set_sha256)
+    with pytest.raises(ValueError, match="hash"):
+        adaptive._scoring_contract("GTQ-PROMPTS-v1", v2.prompt_set_sha256)

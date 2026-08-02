@@ -36,6 +36,20 @@ QUALITY_CONTRACTS: Mapping[str, QualityContract] = {
 }
 
 
+def require_quality_contract_identity(
+    prompt_set_id: object,
+    prompt_set_sha256: object,
+) -> QualityContract:
+    """Resolve one registered identity and reject cross-contract hashes."""
+
+    contract = QUALITY_CONTRACTS.get(prompt_set_id)
+    if contract is None:
+        raise ValueError("prompt contract is not allow-listed")
+    if prompt_set_sha256 != contract.prompt_set_sha256:
+        raise ValueError("prompt contract hash does not match its registered id")
+    return contract
+
+
 def load_quality_contract(prompt_set_path: Path) -> QualityContract:
     raw = Path(prompt_set_path).read_bytes()
     try:

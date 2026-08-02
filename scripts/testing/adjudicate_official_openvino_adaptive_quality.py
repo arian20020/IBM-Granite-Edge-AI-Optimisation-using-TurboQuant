@@ -32,8 +32,8 @@ from scripts.testing.adjudicate_official_openvino_quality import (
     load_rubric,
 )
 from scripts.testing.official_openvino.quality_contracts import (
-    QUALITY_CONTRACTS,
     load_quality_contract,
+    require_quality_contract_identity,
 )
 from scripts.testing.official_openvino.adaptive_quality import (
     CAPTURE_SCHEMA,
@@ -130,6 +130,10 @@ _SCORE_SHEET_FIELDS = {
     "adjudications",
     "score_sheet_sha256",
 }
+
+
+def _scoring_contract(prompt_set_id: object, prompt_set_sha256: object):
+    return require_quality_contract_identity(prompt_set_id, prompt_set_sha256)
 _ADJUDICATION_FIELDS = {
     "blind_label",
     "prompt_id",
@@ -994,13 +998,13 @@ def _validate_scoring_input(
     }
     if not isinstance(scoring_input, Mapping) or set(scoring_input) != expected_fields:
         raise ValueError("scoring input has missing or unexpected fields")
+    registered_contract = _scoring_contract(
+        scoring_input["prompt_set_id"], scoring_input["prompt_set_sha256"]
+    )
     if (
         scoring_input.get("schema_version") != 1
         or scoring_input.get("artifact_type")
         != "openvino-adaptive-quality-blind-scoring-input"
-        or scoring_input.get("prompt_set_id") not in QUALITY_CONTRACTS
-        or scoring_input.get("prompt_set_sha256")
-        != QUALITY_CONTRACTS[scoring_input["prompt_set_id"]].prompt_set_sha256
         or scoring_input.get("rubric_id") != rubric["rubric_id"]
         or scoring_input.get("rubric_sha256") != rubric["rubric_sha256"]
         or scoring_input.get("dimension_weights") != rubric["weights"]
@@ -1039,7 +1043,7 @@ def _validate_scoring_input(
         ):
             _require_sha256(row.get(field), field)
         if row["prompt_sha256"] != prompt_hashes_for_contract_id(
-            scoring_input["prompt_set_id"]
+            registered_contract.prompt_set_id
         )[prompt_id]:
             raise ValueError("scoring response prompt hash mismatch")
         expected_request = _sha256_bytes(

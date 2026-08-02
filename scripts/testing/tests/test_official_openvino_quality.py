@@ -16,6 +16,9 @@ from scripts.testing.official_openvino.quality import (
 SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64
+REGISTERED_V1_PROMPT_SET_SHA256 = (
+    "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
+)
 
 
 def canonical_sha256(value: dict) -> str:
@@ -332,7 +335,7 @@ def response_record(prompt_id: str = "P1", output: str = "same evidence") -> dic
         "context_tokens": 4096,
         "prompt_id": prompt_id,
         "prompt_set_id": "GTQ-PROMPTS-v1",
-        "prompt_set_sha256": SHA_A,
+        "prompt_set_sha256": REGISTERED_V1_PROMPT_SET_SHA256,
         "prompt_sha256": SHA_B,
         "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
         "runtime_summary_sha256": SHA_C,
@@ -400,7 +403,7 @@ class OfficialOpenVINOQualityTests(unittest.TestCase):
             validate_response_record(
                 record,
                 expected_runtime=expected_runtime,
-                expected_prompt_set_sha256=SHA_A,
+                expected_prompt_set_sha256=REGISTERED_V1_PROMPT_SET_SHA256,
                 expected_prompt_sha256=SHA_B,
             )["output_sha256"],
             record["output_sha256"],
@@ -418,7 +421,7 @@ class OfficialOpenVINOQualityTests(unittest.TestCase):
                 validate_response_record(
                     broken,
                     expected_runtime=expected_runtime,
-                    expected_prompt_set_sha256=SHA_A,
+                    expected_prompt_set_sha256=REGISTERED_V1_PROMPT_SET_SHA256,
                     expected_prompt_sha256=SHA_B,
                 )
 

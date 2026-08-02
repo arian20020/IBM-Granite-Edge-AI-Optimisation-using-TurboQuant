@@ -38,8 +38,8 @@ from scripts.testing.official_openvino.quality_worker import (  # noqa: E402
     _validate_spec as validate_quality_worker_spec,
 )
 from scripts.testing.official_openvino.quality_contracts import (  # noqa: E402
-    QUALITY_CONTRACTS,
     load_quality_contract,
+    require_quality_contract_identity,
 )
 from scripts.testing.run_official_openvino_quality import (  # noqa: E402
     EXPECTED_GENERATION_SETTINGS,
@@ -185,6 +185,10 @@ def _prompt_controls(prompt_set_path: Path) -> dict[str, dict[str, Any]]:
     ):
         raise ValueError("prompt set must provide P1-P6 deterministic checks")
     return controls
+
+
+def _scoring_contract(prompt_set_id: object, prompt_set_sha256: object):
+    return require_quality_contract_identity(prompt_set_id, prompt_set_sha256)
 
 
 def _sentence_count(output: str) -> int:
@@ -1653,13 +1657,13 @@ def _validate_scoring_input(
     reject_nulls(scoring_input)
     if not isinstance(scoring_input, dict) or set(scoring_input) != _SCORING_INPUT_FIELDS:
         raise ValueError("scoring input has missing or unexpected fields")
+    registered_contract = _scoring_contract(
+        scoring_input["prompt_set_id"], scoring_input["prompt_set_sha256"]
+    )
     if (
         scoring_input["schema_version"] != 1
         or scoring_input["artifact_type"]
         != "openvino-quality-blind-scoring-input"
-        or scoring_input["prompt_set_id"] not in QUALITY_CONTRACTS
-        or scoring_input["prompt_set_sha256"]
-        != QUALITY_CONTRACTS[scoring_input["prompt_set_id"]].prompt_set_sha256
         or scoring_input["rubric_id"] != rubric["rubric_id"]
         or scoring_input["rubric_sha256"] != rubric["rubric_sha256"]
         or scoring_input["generation_settings"] != EXPECTED_GENERATION_SETTINGS
@@ -1694,7 +1698,7 @@ def _validate_scoring_input(
         if prompt["prompt_id"] != prompt_id:
             raise ValueError(f"{prompt_id} prompt contract identity mismatch")
         if prompt["prompt_sha256"] != prompt_hashes_for_contract_id(
-            scoring_input["prompt_set_id"]
+            registered_contract.prompt_set_id
         )[prompt_id]:
             raise ValueError(f"{prompt_id} is not the frozen prompt contract")
         expected_prompt_sha256 = _sha256_bytes(

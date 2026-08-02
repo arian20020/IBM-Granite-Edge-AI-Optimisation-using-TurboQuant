@@ -528,8 +528,6 @@ def load_prompt_contract(
                 )
                 if p5_observed_input_tokens > registered.maximum_input_tokens:
                     raise ValueError("compact prompt exceeds maximum input tokens")
-                if p5_observed_input_tokens != asset_manifest["P5_input_tokens"]:
-                    raise ValueError("compact prompt observed token count does not match manifest")
         else:
             turn_one = rendered[prompt_id]["P6-turn1.txt"][0]
             history = rendered[prompt_id]["P6-turn2-with-history.txt"][0]

@@ -10,7 +10,9 @@ import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-from scripts.testing.official_openvino.quality_contracts import QUALITY_CONTRACTS
+from scripts.testing.official_openvino.quality_contracts import (
+    require_quality_contract_identity,
+)
 
 
 PROMPT_IDS = frozenset(f"P{i}" for i in range(1, 7))
@@ -652,8 +654,12 @@ def validate_response_record(
         raise ValueError("response status must be complete")
     if record["prompt_id"] not in PROMPT_IDS:
         raise ValueError("prompt id must be P1-P6")
-    if record["prompt_set_id"] not in QUALITY_CONTRACTS:
-        raise ValueError("prompt set id mismatch")
+    try:
+        require_quality_contract_identity(
+            record["prompt_set_id"], record["prompt_set_sha256"]
+        )
+    except ValueError as exc:
+        raise ValueError("prompt set sha256 mismatch") from exc
     if record["rubric_id"] != "GTQ-QUALITY-RUBRIC-v1":
         raise ValueError("rubric id mismatch")
 
