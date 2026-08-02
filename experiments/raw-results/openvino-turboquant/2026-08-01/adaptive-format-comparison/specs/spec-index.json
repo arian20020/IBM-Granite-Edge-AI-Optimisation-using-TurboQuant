@@ -1,0 +1,138 @@
+{
+  "artifact_inventory_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-08-01\\adaptive-format-comparison\\artifacts\\artifact-inventory.json",
+  "artifact_inventory_sha256": "21b2ad19695a72cc272fa7d905567e1dba3b63591d0ae74355a5b871033c89ea",
+  "build_root_path": "C:\\ov-wb04\\2026-07-30\\build-genai-tq-00edae3b",
+  "build_root_sha256": "f5bffc31bc635ec3ad306c798f4dac7d2f994d570e0bf72f31055eb10669acd9",
+  "matrix_sha256": "3a26bd8bd979a539fb1eee3f08641e409963cc477a6fda5b5688bebe4e523aca",
+  "runtime_specs": [
+    {
+      "context_tokens": 512,
+      "path": "OV-11/512/runtime-spec.json",
+      "sha256": "9478ba8097a676f2c0cd398a4966b8e4fbb9c91d9dc3aefe5dc7b38f2e73e2b4",
+      "test_id": "OV-11"
+    },
+    {
+      "context_tokens": 1024,
+      "path": "OV-11/1024/runtime-spec.json",
+      "sha256": "df916f5880ebb34356291b18db5ee3c69180e5295d7d8704bbae4d71fe90e031",
+      "test_id": "OV-11"
+    },
+    {
+      "context_tokens": 2048,
+      "path": "OV-11/2048/runtime-spec.json",
+      "sha256": "feaaafc8bf1440203fbf5526623868cc0dfdf13bce44b5d4294f56d11270ef1c",
+      "test_id": "OV-11"
+    },
+    {
+      "context_tokens": 4096,
+      "path": "OV-11/4096/runtime-spec.json",
+      "sha256": "174b66d642cc31d77af514e49b17be70bfd12f3bf8fdb0b8d816819aab3ada68",
+      "test_id": "OV-11"
+    },
+    {
+      "context_tokens": 8192,
+      "path": "OV-11/8192/runtime-spec.json",
+      "sha256": "dc4934dc09f072cf375306815028534b0e409cdbf9e7221e43e2c5f4472ebcc9",
+      "test_id": "OV-11"
+    },
+    {
+      "context_tokens": 512,
+      "path": "OV-TQ-22/512/runtime-spec.json",
+      "sha256": "29d792c0a3e60c29d39eaf19b9bee580ced456413ec5c9f7dcd27825cd6ee0d6",
+      "test_id": "OV-TQ-22"
+    },
+    {
+      "context_tokens": 1024,
+      "path": "OV-TQ-22/1024/runtime-spec.json",
+      "sha256": "e0673e97d498139d9051dbd90d5821586a63ee43a4de6b74f072338e6ec8ea8d",
+      "test_id": "OV-TQ-22"
+    },
+    {
+      "context_tokens": 2048,
+      "path": "OV-TQ-22/2048/runtime-spec.json",
+      "sha256": "dfca9059b11e1c7c8bbbe067840f99a048bf46cbcddc4bccfd1dfbcb8c1dce51",
+      "test_id": "OV-TQ-22"
+    },
+    {
+      "context_tokens": 4096,
+      "path": "OV-TQ-22/4096/runtime-spec.json",
+      "sha256": "2822a9589ad31c891ee76eaecbcb6ca99d6551f36f34b29a4f369b959509c33b",
+      "test_id": "OV-TQ-22"
+    },
+    {
+      "context_tokens": 8192,
+      "path": "OV-TQ-22/8192/runtime-spec.json",
+      "sha256": "36717e27e7d2007ddd0c0a81bc4749d4472ea493a952de8d2ee5ac4106042174",
+      "test_id": "OV-TQ-22"
+    },
+    {
+      "context_tokens": 512,
+      "path": "OV-TQ-21/512/runtime-spec.json",
+      "sha256": "1ca0cabfcece6442e6fe378c6bd88a75b0dfc356186b2272ecab111669a93630",
+      "test_id": "OV-TQ-21"
+    },
+    {
+      "context_tokens": 1024,
+      "path": "OV-TQ-21/1024/runtime-spec.json",
+      "sha256": "587cc42be8892d0b9217356a8faf2fb722dd79fc192dc778afbe2efa0841c31e",
+      "test_id": "OV-TQ-21"
+    },
+    {
+      "context_tokens": 2048,
+      "path": "OV-TQ-21/2048/runtime-spec.json",
+      "sha256": "afdebe18089d11f3ef70c659e8b6eef44fd012ba4b7bfab4d2ed1fbc4710f1fa",
+      "test_id": "OV-TQ-21"
+    },
+    {
+      "context_tokens": 4096,
+      "path": "OV-TQ-21/4096/runtime-spec.json",
+      "sha256": "6d3ba9e85f479cde3c856d46d0cad37b1c51984f9a4f31bda232743b777452e6",
+      "test_id": "OV-TQ-21"
+    },
+    {
+      "context_tokens": 8192,
+      "path": "OV-TQ-21/8192/runtime-spec.json",
+      "sha256": "44565bf3e372a9f615efc7ecf9f448ba82fb940222d41232dc2217f94afc026e",
+      "test_id": "OV-TQ-21"
+    },
+    {
+      "context_tokens": 512,
+      "path": "OV-12/512/runtime-spec.json",
+      "sha256": "eb622de28ccca5aafcd6f74e78ba2eacc942a50cfa5f81861d349044c9625b46",
+      "test_id": "OV-12"
+    },
+    {
+      "context_tokens": 1024,
+      "path": "OV-12/1024/runtime-spec.json",
+      "sha256": "ff9d94f886090978075f2fdb4ebf4bc2527403a24522c9db06f1c58208ca2088",
+      "test_id": "OV-12"
+    },
+    {
+      "context_tokens": 2048,
+      "path": "OV-12/2048/runtime-spec.json",
+      "sha256": "85d1e0208904f0d8ec924faa890b57ea93b0f4bee12c5a52e2377d2831e315e5",
+      "test_id": "OV-12"
+    },
+    {
+      "context_tokens": 4096,
+      "path": "OV-12/4096/runtime-spec.json",
+      "sha256": "3aab3b3b48baf13058079cd8e2f4fb9635d77ce45ccc0e4eb9b47b334b75cd70",
+      "test_id": "OV-12"
+    },
+    {
+      "context_tokens": 8192,
+      "path": "OV-12/8192/runtime-spec.json",
+      "sha256": "87dc2740ac5de9f0c436de24fc7b6e82124d9a16afa26b1cb0ede3a9d071581c",
+      "test_id": "OV-12"
+    }
+  ],
+  "schema": "official-openvino-adaptive-comparison-spec-index/v1",
+  "terminals": [
+    {
+      "receipt_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-08-01\\adaptive-format-comparison\\artifacts\\f16-preparation\\terminal-receipt.json",
+      "receipt_sha256": "1d1a5b94753a4c58c1f0f4a2e28f90962125f03d7c0d4e63bef059e8584f4f55",
+      "stage": "artifact-preparation",
+      "test_id": "OV-13"
+    }
+  ]
+}

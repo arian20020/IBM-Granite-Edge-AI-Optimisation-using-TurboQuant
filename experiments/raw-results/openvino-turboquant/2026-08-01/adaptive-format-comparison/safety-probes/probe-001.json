@@ -1,0 +1,9 @@
+{
+  "active_pids": [],
+  "error": null,
+  "job_name": "WB04-adaptive-campaign-a995cec77ef5733959ebe850",
+  "probe_number": 1,
+  "query_ok": true,
+  "schema": "official-openvino-adaptive-job-probe/v1",
+  "stage": "preflight"
+}

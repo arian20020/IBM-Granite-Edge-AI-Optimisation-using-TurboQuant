@@ -1,0 +1,32 @@
+{
+  "apply_chat_template": false,
+  "artifact_id": "granite-4.1-3b-u8-openvino-f858c9e",
+  "artifact_manifest_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\artifacts\\granite-4.1-3b-u8-f858c9e\\artifact-manifest.json",
+  "artifact_manifest_sha256": "e23963bc56af1e4fc4a082c8643e22e645bd279a172d6a01674de8fa01ff0804",
+  "context_tokens": 512,
+  "controlled_test_id": "OV-12",
+  "device": "CPU",
+  "ignore_eos": true,
+  "max_new_tokens": 4,
+  "model_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-4.1-3b-int8-ov-f858c9e",
+  "properties": {
+    "ATTENTION_BACKEND": "SDPA",
+    "CACHE_DIR": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-08-01\\adaptive-format-comparison\\cache\\OV-12\\512",
+    "ENABLE_CPU_PINNING": false,
+    "INFERENCE_NUM_THREADS": 1,
+    "KEY_CACHE_PRECISION": "f16",
+    "NUM_STREAMS": 1,
+    "PERFORMANCE_HINT": "LATENCY",
+    "VALUE_CACHE_PRECISION": "f16"
+  },
+  "schema": "official-openvino-adaptive-comparison-runtime-spec/v1",
+  "seed": 42,
+  "workload": {
+    "actual_input_tokens": 512,
+    "context": 512,
+    "expected_input_tokens": 512,
+    "prompt": " test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test",
+    "prompt_sha256": "d17afaa1069c1800ba2db70c90cc82ad85c213ec245d07e6916bf089fe06fe21",
+    "strategy": "granite-single-token-test-prefix/v1"
+  }
+}
