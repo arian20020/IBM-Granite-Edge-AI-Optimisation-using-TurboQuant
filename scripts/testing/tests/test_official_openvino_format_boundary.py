@@ -1,4 +1,5 @@
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -170,15 +171,54 @@ def test_registry_binds_prompt_set_id_to_its_exact_registered_hash():
         require_quality_contract_identity("GTQ-PROMPTS-v1", v2.prompt_set_sha256)
 
 
-def test_compact_prompt_accepts_exactly_512_tokens():
+def _temporary_v2_contract_with_p5_count(tmp_path, monkeypatch, token_count):
+    from dataclasses import replace
+
+    from scripts.testing.official_openvino.quality_contracts import (
+        QUALITY_CONTRACTS,
+    )
+
+    payload = json.loads(V2_PROMPT_SET.read_text(encoding="utf-8"))
+    payload["rendered_asset_manifest"]["P5_input_tokens"] = token_count
+    path = tmp_path / "compact-feasibility-prompt-set-v2.json"
+    fixture = tmp_path / "fixtures" / "P5-compact-context-v2.txt"
+    fixture.parent.mkdir()
+    fixture.write_bytes(
+        (PROMPT_ROOT / "fixtures" / "P5-compact-context-v2.txt").read_bytes()
+    )
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    raw = path.read_bytes()
+    monkeypatch.setitem(
+        QUALITY_CONTRACTS,
+        "GTQ-PROMPTS-v2",
+        replace(
+            QUALITY_CONTRACTS["GTQ-PROMPTS-v2"],
+            prompt_set_sha256=hashlib.sha256(raw).hexdigest(),
+        ),
+    )
+    return path
+
+
+def test_compact_prompt_accepts_exactly_512_tokens(tmp_path, monkeypatch):
     from scripts.testing.run_official_openvino_quality import load_prompt_contract
 
     contract = load_prompt_contract(
-        V2_PROMPT_SET,
+        _temporary_v2_contract_with_p5_count(tmp_path, monkeypatch, 512),
         PROMPT_ROOT / "rendered-v2",
         tokenizer_loader=lambda path: _FakeGraniteTokenizer(512),
     )
     assert contract["observed_input_tokens"] == {"P5": 512}
+
+
+def test_compact_prompt_rejects_observed_count_that_differs_from_signed_manifest():
+    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+
+    with pytest.raises(ValueError, match="observed token count"):
+        load_prompt_contract(
+            V2_PROMPT_SET,
+            PROMPT_ROOT / "rendered-v2",
+            tokenizer_loader=lambda path: _FakeGraniteTokenizer(512),
+        )
 
 
 def test_v1_prompt_contract_keeps_its_prior_shape_without_tokenizer_loading():
