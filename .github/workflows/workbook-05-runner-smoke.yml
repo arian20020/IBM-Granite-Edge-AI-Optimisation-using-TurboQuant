@@ -22,7 +22,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (
         github.event.pull_request.head.repo.full_name == github.repository &&
-        github.actor == 'arian20020'
+        github.event.pull_request.head.ref == 'testing/workbook-05-runner-smoke'
       )
     runs-on:
       - self-hosted
