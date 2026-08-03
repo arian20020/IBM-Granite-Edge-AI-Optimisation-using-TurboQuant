@@ -45,6 +45,38 @@ class WorkflowContractTests(unittest.TestCase):
             text,
         )
 
+    def test_pull_request_paths_cover_controlled_document_inputs(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+
+        # The test suite reads these documents directly. A pull request that
+        # changes one of them must therefore run the same preflight gate rather
+        # than bypassing validation because only Python files changed earlier.
+        required_paths = (
+            "docs/superpowers/plans/2026-08-03-workbook-05-preflight-scaffolding.md",
+            "docs/superpowers/specs/2026-08-03-workbook-05-two-route-memory-frontier-design.md",
+            "docs/testing/**",
+        )
+        for required_path in required_paths:
+            self.assertIn(
+                f"- '{required_path}'",
+                text,
+                f"Pull requests changing {required_path} must run the preflight.",
+            )
+
+    def test_manual_dispatch_is_limited_to_reviewed_refs(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+
+        # A read-only repository token does not make arbitrary branch code safe
+        # on a self-hosted machine. Manual execution is therefore restricted to
+        # main or the exact reviewed campaign branch.
+        self.assertIn("github.event_name == 'workflow_dispatch' &&", text)
+        self.assertIn("github.ref == 'refs/heads/main'", text)
+        self.assertIn(
+            "github.ref == 'refs/heads/testing/workbook-05-two-route-memory-frontier'",
+            text,
+        )
+        self.assertNotIn("github.event_name == 'workflow_dispatch' ||", text)
+
     def test_each_checkout_limits_the_windows_worktree_to_preflight_inputs(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         checkout_action = (
@@ -77,13 +109,21 @@ class WorkflowContractTests(unittest.TestCase):
             checkout_sections,
             start=1,
         ):
-            # Stop at the following workflow step so required paths must be
-            # attached to this checkout, not listed somewhere else in the file.
+            # Stop at the following workflow step so required settings and paths
+            # must belong to this checkout rather than appearing elsewhere.
             checkout_step = checkout_section.split("\n      - name:", 1)[0]
             self.assertIn(
                 "sparse-checkout: |",
                 checkout_step,
                 f"Checkout {checkout_number} must use sparse checkout.",
+            )
+            self.assertIn(
+                "persist-credentials: false",
+                checkout_step,
+                (
+                    f"Checkout {checkout_number} must not retain the job token "
+                    "in Git configuration."
+                ),
             )
             for required_root in required_sparse_roots:
                 self.assertIn(
