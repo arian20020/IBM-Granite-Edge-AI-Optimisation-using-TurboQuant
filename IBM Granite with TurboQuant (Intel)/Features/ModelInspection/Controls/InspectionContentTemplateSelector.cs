@@ -6,7 +6,8 @@ using System;
 namespace GraniteEdgeAI.Features.ModelInspection.Controls
 {
     /// <summary>
-    /// Selects the correct layout for the current inspection-content state.
+    /// Selects the progress layout or the shared findings layout for the
+    /// current inspection-content presentation.
     /// </summary>
     public sealed class InspectionContentTemplateSelector
         : DataTemplateSelector
@@ -17,65 +18,57 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         public DataTemplate? ProgressTemplate { get; set; }
 
         /// <summary>
-        /// Gets or sets the shared template used by completed non-ready states.
+        /// Gets or sets the template used by completed non-ready states.
         /// </summary>
         public DataTemplate? FindingsTemplate { get; set; }
 
         /// <summary>
-        /// Handles controls that ask for a template using only the content item.
+        /// Handles selector calls that provide only an item.
         /// </summary>
         protected override DataTemplate SelectTemplateCore(object item)
         {
-            // Keep all selection rules in one method so both WinUI overloads
-            // always produce the same result.
-            return ChooseTemplate(item);
+            return ChooseTemplate(item, container: null);
         }
 
         /// <summary>
-        /// Handles controls that ask for a template using the content item
-        /// and its containing element.
+        /// Handles selector calls that provide an item and its container.
         /// </summary>
         protected override DataTemplate SelectTemplateCore(
             object item,
             DependencyObject container)
         {
-            // ContentControl can use this overload. The container itself is
-            // not needed because selection depends only on Presentation.Mode.
-            return ChooseTemplate(item);
+            return ChooseTemplate(item, container);
         }
 
         /// <summary>
-        /// Maps one inspection-content presentation to its required template.
+        /// Resolves the presentation from either selector argument and maps its
+        /// mode to the required XAML template.
         /// </summary>
-        private DataTemplate ChooseTemplate(object item)
+        private DataTemplate ChooseTemplate(
+            object? item,
+            DependencyObject? container)
         {
-            // The ContentControl contract requires exactly one presentation
-            // object. An unexpected type indicates broken XAML wiring.
-            if (item is not InspectionContentCardPresentation presentation)
+            InspectionContentCardPresentation? presentation =
+                ResolvePresentation(item, container);
+
+            // WinUI can ask for a template before the Content binding has supplied
+            // its value. The surrounding card is still collapsed at that point, so
+            // the progress template is a safe, deterministic bootstrap template.
+            if (presentation is null)
             {
-                throw new ArgumentException(
-                    "InspectionContentTemplateSelector requires an " +
-                    "InspectionContentCardPresentation.",
-                    nameof(item));
+                return GetRequiredTemplate(
+                    ProgressTemplate,
+                    nameof(ProgressTemplate));
             }
 
             return presentation.Mode switch
             {
-                // Display the five-stage inspection tracker.
+                InspectionContentCardMode.Hidden or
                 InspectionContentCardMode.Progress =>
                     GetRequiredTemplate(
                         ProgressTemplate,
                         nameof(ProgressTemplate)),
 
-                // Hidden presentations are collapsed by the surrounding card.
-                // A non-null template is still returned so the ContentControl
-                // never falls back to displaying the object's type name.
-                InspectionContentCardMode.Hidden =>
-                    GetRequiredTemplate(
-                        ProgressTemplate,
-                        nameof(ProgressTemplate)),
-
-                // Every completed non-ready state shares FindingsTemplate.
                 InspectionContentCardMode.Warnings or
                 InspectionContentCardMode.ConversionRequired or
                 InspectionContentCardMode.IncompletePackage or
@@ -87,13 +80,51 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                         FindingsTemplate,
                         nameof(FindingsTemplate)),
 
-                // Make future enum additions fail clearly until a deliberate
-                // template mapping is added.
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(item),
                     presentation.Mode,
                     "The inspection-content mode has no template mapping.")
             };
+        }
+
+        /// <summary>
+        /// Finds the presentation whether WinUI supplies it directly or through
+        /// a ContentControl or ContentPresenter container.
+        /// </summary>
+        private static InspectionContentCardPresentation? ResolvePresentation(
+            object? item,
+            DependencyObject? container)
+        {
+            if (item is InspectionContentCardPresentation directPresentation)
+            {
+                return directPresentation;
+            }
+
+            if (item is ContentControl itemControl &&
+                itemControl.Content is InspectionContentCardPresentation itemContent)
+            {
+                return itemContent;
+            }
+
+            if (item is ContentPresenter itemPresenter &&
+                itemPresenter.Content is InspectionContentCardPresentation presenterContent)
+            {
+                return presenterContent;
+            }
+
+            if (container is ContentControl containerControl &&
+                containerControl.Content is InspectionContentCardPresentation containerContent)
+            {
+                return containerContent;
+            }
+
+            if (container is ContentPresenter containerPresenter &&
+                containerPresenter.Content is InspectionContentCardPresentation containerPresenterContent)
+            {
+                return containerPresenterContent;
+            }
+
+            return null;
         }
 
         /// <summary>
