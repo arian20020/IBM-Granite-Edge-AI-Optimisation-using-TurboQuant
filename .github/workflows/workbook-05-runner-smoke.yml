@@ -111,21 +111,12 @@ jobs:
               throw "Workbook 05 implementation worker failed with code $LASTEXITCODE."
           }
 
-      # Restore the permanent read-only smoke workflow and remove every
-      # temporary implementation file before the final feature branch review.
-      - name: Remove the temporary implementation carrier
+      # The connector, rather than this GitHub App token, performs final workflow
+      # restoration and deletion. GitHub deliberately prevents this token from
+      # modifying workflow files without workflow-level permission.
+      - name: Record the privileged cleanup boundary
+        if: ${{ always() }}
         shell: powershell
         run: |
-          $ErrorActionPreference = 'Stop'
-          git config user.name 'Workbook 05 automation worker'
-          git config user.email 'workbook05-actions@users.noreply.github.com'
-          git fetch origin main
-          git checkout origin/main -- '.github/workflows/workbook-05-runner-smoke.yml'
-          git rm -f -- `
-            '.github/workflows/wb05-implementation-bootstrap.yml' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part00' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part01' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part02' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part03'
-          git commit -m 'chore(workbook-05): remove temporary implementation worker'
-          git push origin HEAD:testing/workbook-05-two-route-memory-frontier
+          Write-Host 'Implementation run finished.'
+          Write-Host 'The repository connector will restore permanent workflows and remove temporary carrier files.'
