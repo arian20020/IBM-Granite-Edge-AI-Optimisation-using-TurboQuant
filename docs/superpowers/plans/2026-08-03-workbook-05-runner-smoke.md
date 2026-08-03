@@ -69,7 +69,7 @@ docs(workbook-05): specify Intel runner smoke test
 - Consumes: GitHub runner contexts, Windows CIM providers, `git`, `py` or `python`, `cmake`, `vswhere.exe`, and MSBuild.
 - Produces: `runner-smoke-report.json`, `runner-smoke-summary.md`, `workspace-write-probe.txt`, a GitHub step summary, and a workflow pass/fail result.
 
-- [ ] **Step 1: Define controlled triggers**
+- [x] **Step 1: Define controlled triggers**
 
 Add a path-limited `pull_request` trigger for the first trusted branch and a `workflow_dispatch` trigger for manual execution after merge.
 
@@ -77,10 +77,10 @@ The pull-request job-level condition must require:
 
 ```text
 github.event.pull_request.head.repo.full_name == github.repository
-github.actor == 'arian20020'
+github.event.pull_request.head.ref == 'testing/workbook-05-runner-smoke'
 ```
 
-- [ ] **Step 2: Restrict permissions and routing**
+- [x] **Step 2: Restrict permissions and routing**
 
 Use:
 
@@ -91,7 +91,7 @@ permissions:
 
 Route the job through all five required labels and apply a ten-minute timeout.
 
-- [ ] **Step 3: Create the evidence directory before checks**
+- [x] **Step 3: Create the evidence directory before checks**
 
 Use:
 
@@ -101,11 +101,11 @@ ${RUNNER_TEMP}/workbook-05-runner-smoke
 
 This guarantees that diagnostic output can be uploaded even when later checks fail.
 
-- [ ] **Step 4: Implement target identity checks**
+- [x] **Step 4: Implement target identity checks**
 
 Verify the runner name, runner OS, runner architecture, computer name, processor identifier, minimum physical memory, and 64-bit Windows state.
 
-Each check must emit a structured object containing:
+Each check emits a structured object containing:
 
 ```text
 Name
@@ -115,19 +115,19 @@ Expected
 Actual
 ```
 
-- [ ] **Step 5: Implement toolchain discovery**
+- [x] **Step 5: Implement toolchain discovery**
 
-Record PowerShell, Git, Python, CMake, `vswhere.exe`, and MSBuild versions. Python discovery must prefer `py -3.12` and fall back to `python --version`. MSBuild discovery must use `vswhere.exe` rather than assuming MSBuild is on `PATH`.
+Record PowerShell, Git, Python, CMake, `vswhere.exe`, and MSBuild versions. Python discovery prefers `py -3.12` and falls back to `python --version`. MSBuild discovery uses `vswhere.exe` rather than assuming MSBuild is on `PATH`.
 
-- [ ] **Step 6: Implement the write/read probe**
+- [x] **Step 6: Implement the write/read probe**
 
 Create `workspace-write-probe.txt` under the evidence directory, read it back, and fail the corresponding check if the content differs.
 
-- [ ] **Step 7: Write JSON and Markdown evidence before failing**
+- [x] **Step 7: Write JSON and Markdown evidence before failing**
 
-The structured report must include run identifiers, runner contexts, hardware, tool versions, disk information, service account, and every check result.
+The structured report includes run identifiers, runner contexts, hardware, tool versions, disk information, service account, and every check result.
 
-- [ ] **Step 8: Upload evidence on both success and failure**
+- [x] **Step 8: Upload evidence on both success and failure**
 
 Use the repository's existing immutable `actions/upload-artifact` v7 pin:
 
@@ -137,13 +137,13 @@ bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
 
 Set `if-no-files-found: error` and `retention-days: 30`.
 
-- [ ] **Step 9: Fail only after evidence is written**
+- [x] **Step 9: Fail only after evidence is written**
 
 If any required check has `Passed = false`, throw one final error listing the failed check names.
 
-- [ ] **Step 10: Validate workflow structure**
+- [x] **Step 10: Validate workflow structure**
 
-Parse the YAML locally and inspect the generated file to verify:
+Parse the YAML and inspect the generated file to verify:
 
 ```text
 workflow_dispatch exists
@@ -154,7 +154,7 @@ no checkout step exists
 artifact upload is pinned
 ```
 
-- [ ] **Step 11: Commit the workflow**
+- [x] **Step 11: Commit the workflow**
 
 Commit message:
 
