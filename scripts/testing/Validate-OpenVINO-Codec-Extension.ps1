@@ -23,6 +23,7 @@ $RequiredPaths = @(
     "docs/testing/OpenVINO-Codec-Test-Boundary.md",
     "docs/testing/Test-ID-Catalogue-v1.1.md",
     "docs/testing/OpenVINO-Codec-Traceability-Extension-v1.1.csv",
+    "docs/testing/Workbook-05-Memory-Frontier-Execution-Index-v1.csv",
     "docs/testing/workbooks/text-templates/04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md",
     "docs/testing/workbooks/text-templates/05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1.md",
     "docs/testing/workbooks/text-templates/06_Cross_Route_Controlled_Comparison_Workbook_v1.md"
@@ -48,14 +49,40 @@ if ($Failures.Count -eq 0) {
         if ($Id -notin $Ids) { $Failures.Add("Required codec test ID missing: $Id") }
     }
 
-    $OfficialText = Get-Content -Raw -LiteralPath $RequiredPaths[4]
+    $OfficialText = Get-Content -Raw -LiteralPath $RequiredPaths[5]
     foreach ($Term in @("TBQ4", "TBQ3", "OV-TQS-12", "QJL", "PolarQuant")) {
         if ($OfficialText -notmatch [regex]::Escape($Term)) { $Failures.Add("WB-04 missing term: $Term") }
     }
 
-    $CustomText = Get-Content -Raw -LiteralPath $RequiredPaths[5]
+    $CustomText = Get-Content -Raw -LiteralPath $RequiredPaths[6]
     foreach ($Term in @("TBQ4_QJL", "TBQ3_QJL", "POLAR4", "POLAR3", "OVT-S36", "OVT-A12")) {
         if ($CustomText -notmatch [regex]::Escape($Term)) { $Failures.Add("WB-05 missing term: $Term") }
+    }
+
+    # The execution index must preserve every WB-04 and WB-05 traceability ID once.
+    $IndexRows = @(Import-Csv -LiteralPath "docs/testing/Workbook-05-Memory-Frontier-Execution-Index-v1.csv")
+    $ExpectedExecutionIds = @(
+        $TraceRows |
+            Where-Object { $_.Workbook_ID -in @('WB-04', 'WB-05') } |
+            ForEach-Object { $_.Test_ID } |
+            Sort-Object -Unique
+    )
+    $ActualExecutionIds = @($IndexRows | ForEach-Object { $_.Test_ID })
+    $UniqueExecutionIds = @($ActualExecutionIds | Sort-Object -Unique)
+    if ($ActualExecutionIds.Count -ne $UniqueExecutionIds.Count) {
+        $Failures.Add("Workbook 05 execution index contains duplicate test IDs.")
+    }
+    foreach ($Id in $ExpectedExecutionIds) {
+        if ($Id -notin $UniqueExecutionIds) { $Failures.Add("Execution index is missing traceability ID: $Id") }
+    }
+    foreach ($Id in $UniqueExecutionIds) {
+        if ($Id -notin $ExpectedExecutionIds) { $Failures.Add("Execution index contains unexpected test ID: $Id") }
+    }
+
+    $WorkbookManifest = @(Import-Csv -LiteralPath "docs/testing/workbooks/Controlled-Workbook-Manifest.csv")
+    $Workbook05 = @($WorkbookManifest | Where-Object { $_.Workbook_ID -eq 'WB-05' })
+    if ($Workbook05.Count -ne 1 -or $Workbook05[0].Revision -ne '1.4') {
+        $Failures.Add("WB-05 controlled manifest revision must be 1.4.")
     }
 }
 
