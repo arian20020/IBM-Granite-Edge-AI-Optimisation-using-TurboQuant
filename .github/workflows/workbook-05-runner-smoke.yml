@@ -26,14 +26,23 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      # Check out the actual implementation branch rather than the temporary
-      # trigger pull request. The hosted runner is an isolated workspace.
+      # Check out only the Workbook 05 implementation surface. The repository
+      # contains deeply nested research material that exceeds legacy Windows
+      # path limits but is unrelated to this plan.
       - name: Check out the implementation branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: testing/workbook-05-two-route-memory-frontier
           fetch-depth: 0
           persist-credentials: true
+          sparse-checkout: |
+            .github
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel
+            scripts/testing
+            tests/testing
+          sparse-checkout-cone-mode: true
 
       - name: Install Python 3.12
         uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
