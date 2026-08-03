@@ -37,20 +37,20 @@ jobs:
         shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
 
     steps:
-      # Create an evidence location before invoking any setup action. If Python
-      # setup itself fails, the final artifact still contains a bootstrap record.
+      # Create an evidence location before performing any validation so a
+      # partial failure can still leave a useful diagnostic artifact.
       - name: Prepare smoke-test evidence directory
         run: |
           # Stop immediately if directory preparation fails.
           $ErrorActionPreference = 'Stop'
 
-          # Use the runner-owned temporary directory so the restricted service
-          # account never needs access to a personal Windows profile.
+          # Use the runner-owned temporary directory rather than a personal
+          # Windows profile owned by the interactive Student account.
           $reportDirectory = Join-Path `
               $env:RUNNER_TEMP `
               'workbook-05-runner-smoke'
 
-          # Remove any stale files left by an interrupted earlier attempt.
+          # Remove stale evidence from any interrupted earlier attempt.
           if (Test-Path -LiteralPath $reportDirectory) {
               Remove-Item `
                   -LiteralPath $reportDirectory `
@@ -58,14 +58,14 @@ jobs:
                   -Force
           }
 
-          # Recreate the clean evidence directory for this run.
+          # Recreate a clean directory for this workflow run.
           New-Item `
               -ItemType Directory `
               -Path $reportDirectory `
               -Force |
               Out-Null
 
-          # Record enough bootstrap data to diagnose a setup-action failure.
+          # Save basic bootstrap information before the detailed test begins.
           [ordered]@{
               GeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
               Repository = [string]$env:GITHUB_REPOSITORY
@@ -84,34 +84,19 @@ jobs:
                   ) `
                   -Encoding UTF8
 
-      # Provision the controlled Python minor version inside the runner tool
-      # cache instead of depending on Python installed for the Student account.
-      # Pinned immutable commit for actions/setup-python v6.2.0.
-      - name: Set up controlled Python 3.12
-        id: controlled-python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-          architecture: 'x64'
-          check-latest: false
-          update-environment: true
-
       - name: Collect and verify runner evidence
         id: verify
-        env:
-          CONTROLLED_PYTHON_PATH: ${{ steps.controlled-python.outputs.python-path }}
-          CONTROLLED_PYTHON_VERSION: ${{ steps.controlled-python.outputs.python-version }}
         run: |
           # Stop immediately when a PowerShell operation throws an error.
           $ErrorActionPreference = 'Stop'
 
-          # Reuse the directory prepared before the setup action.
+          # Reuse the directory prepared by the preceding workflow step.
           $reportDirectory = Join-Path `
               $env:RUNNER_TEMP `
               'workbook-05-runner-smoke'
 
           # Store every validation result in one array so the JSON report,
-          # Markdown summary, and final failure all use the same evidence.
+          # Markdown summary, and final result use the same evidence.
           $checks = @()
 
           # Add one consistently structured validation result.
@@ -144,7 +129,7 @@ jobs:
           }
 
           # Run a native command and return its complete trimmed output.
-          function Invoke-VersionCommand {
+          function Invoke-NativeCommand {
               param(
                   [Parameter(Mandatory = $true)]
                   [string]$Executable,
@@ -153,15 +138,15 @@ jobs:
                   [string[]]$Arguments = @()
               )
 
-              # Reset the native exit code so an earlier command cannot leak
-              # an unrelated failure into this invocation.
+              # Reset the native exit code so an earlier process cannot leak
+              # an unrelated result into this command.
               $global:LASTEXITCODE = 0
 
-              # Execute the discovered command while preserving stderr.
+              # Execute the command while preserving both output streams.
               $commandOutput = & $Executable @Arguments 2>&1
               $commandExitCode = $LASTEXITCODE
 
-              # Treat a non-zero native exit code as a failed invocation.
+              # Convert a native command failure into a clear exception.
               if ($commandExitCode -ne 0) {
                   throw (
                       "'{0}' exited with code {1}: {2}" -f `
@@ -171,16 +156,16 @@ jobs:
                   )
               }
 
-              # Return one readable version string.
+              # Return one readable value for the evidence report.
               return (($commandOutput | Out-String).Trim())
           }
 
-          # Capture the GitHub runner context supplied to this job.
+          # Capture GitHub's runner routing context.
           $runnerName = [string]$env:RUNNER_NAME
           $runnerOs = [string]$env:RUNNER_OS
           $runnerArchitecture = [string]$env:RUNNER_ARCH
 
-          # Read the target laptop identity directly from Windows.
+          # Read the physical target identity directly from Windows.
           $computerName = [string]$env:COMPUTERNAME
           $processor = Get-CimInstance Win32_Processor |
               Select-Object -First 1
@@ -191,10 +176,10 @@ jobs:
               2
           )
 
-          # Capture the Windows account under which the runner service executes.
+          # Record the restricted Windows account running the service.
           $serviceAccount = ((whoami 2>&1 | Out-String).Trim())
 
-          # Capture free space without making it a hard gate in this first test.
+          # Record free storage without making it a hard gate at this stage.
           $systemDrive = Get-CimInstance Win32_LogicalDisk `
               -Filter "DeviceID='$($env:SystemDrive)'"
           $systemDriveFreeGiB = [math]::Round(
@@ -202,7 +187,7 @@ jobs:
               2
           )
 
-          # Validate the GitHub routing and physical target identity.
+          # Validate routing and target-machine identity.
           Add-Check `
               -Name 'GitHub runner name' `
               -Required $true `
@@ -254,7 +239,7 @@ jobs:
               -Expected 'nt authority\network service' `
               -Actual $serviceAccount
 
-          # Record the PowerShell host used by the service account.
+          # Verify the PowerShell host used by the runner service.
           $powerShellVersion = $PSVersionTable.PSVersion.ToString()
           Add-Check `
               -Name 'Windows PowerShell availability' `
@@ -263,12 +248,12 @@ jobs:
               -Expected 'A readable PowerShell version' `
               -Actual $powerShellVersion
 
-          # Discover Git through the runner service account PATH.
+          # Discover Git through the service account's PATH.
           $gitCommand = Get-Command git -ErrorAction SilentlyContinue
           $gitVersion = ''
           if ($null -ne $gitCommand) {
               try {
-                  $gitVersion = Invoke-VersionCommand `
+                  $gitVersion = Invoke-NativeCommand `
                       -Executable $gitCommand.Source `
                       -Arguments @('--version')
               }
@@ -286,13 +271,55 @@ jobs:
               -Expected 'git --version succeeds' `
               -Actual $gitVersion
 
-          # Verify the exact Python interpreter supplied by setup-python.
-          $pythonPath = [string]$env:CONTROLLED_PYTHON_PATH
-          $pythonResolvedVersion = [string]$env:CONTROLLED_PYTHON_VERSION
+          # Locate the pinned machine-wide Python 3.12.10 installation.
+          $pythonPath = ''
           $pythonVersion = ''
-          if (Test-Path -LiteralPath $pythonPath -PathType Leaf) {
+          $pythonRegistryPaths = @(
+              'HKLM:\SOFTWARE\Python\PythonCore\3.12\InstallPath'
+              'HKLM:\SOFTWARE\WOW6432Node\Python\PythonCore\3.12\InstallPath'
+          )
+          foreach ($pythonRegistryPath in $pythonRegistryPaths) {
+              if (Test-Path -LiteralPath $pythonRegistryPath) {
+                  $pythonInstallDirectory = [string](
+                      (Get-Item -LiteralPath $pythonRegistryPath).GetValue('')
+                  )
+                  if (
+                      -not [string]::IsNullOrWhiteSpace(
+                          $pythonInstallDirectory
+                      )
+                  ) {
+                      $candidatePythonPath = Join-Path `
+                          $pythonInstallDirectory `
+                          'python.exe'
+                      if (
+                          Test-Path `
+                              -LiteralPath $candidatePythonPath `
+                              -PathType Leaf
+                      ) {
+                          $pythonPath = $candidatePythonPath
+                          break
+                      }
+                  }
+              }
+          }
+
+          # Fall back to the standard all-users installation path.
+          if ([string]::IsNullOrWhiteSpace($pythonPath)) {
+              $standardPythonPath = `
+                  'C:\Program Files\Python312\python.exe'
+              if (
+                  Test-Path `
+                      -LiteralPath $standardPythonPath `
+                      -PathType Leaf
+              ) {
+                  $pythonPath = $standardPythonPath
+              }
+          }
+
+          # Execute the discovered interpreter to prove service-account access.
+          if (-not [string]::IsNullOrWhiteSpace($pythonPath)) {
               try {
-                  $pythonVersion = Invoke-VersionCommand `
+                  $pythonVersion = Invoke-NativeCommand `
                       -Executable $pythonPath `
                       -Arguments @('--version')
               }
@@ -300,21 +327,16 @@ jobs:
                   $pythonVersion = $_.Exception.Message
               }
           }
-          $pythonActual = (
-              "Action output: {0}; path: {1}; command: {2}" -f `
-                  $pythonResolvedVersion, `
-                  $pythonPath, `
-                  $pythonVersion
-          )
+          $pythonActual = "{0}: {1}" -f $pythonPath, $pythonVersion
           Add-Check `
-              -Name 'Controlled Python 3.12 availability' `
+              -Name 'Machine-wide Python 3.12.10' `
               -Required $true `
               -Passed (
+                  -not [string]::IsNullOrWhiteSpace($pythonPath) -and
                   (Test-Path -LiteralPath $pythonPath -PathType Leaf) -and
-                  $pythonResolvedVersion -match '^3\.12(\.|$)' -and
-                  $pythonVersion -match '^Python 3\.12(\.|$)'
+                  $pythonVersion -eq 'Python 3.12.10'
               ) `
-              -Expected 'setup-python provides an executable Python 3.12.x' `
+              -Expected 'Python 3.12.10 installed for all users' `
               -Actual $pythonActual
 
           # Locate Microsoft's Visual Studio discovery utility.
@@ -333,6 +355,7 @@ jobs:
 
           # Locate the installation containing the C++ workload.
           $vcInstallationPath = ''
+          $vcInstallationVersion = ''
           if ($vswherePresent) {
               $vcInstallationPath = [string](
                   & $vswherePath `
@@ -342,7 +365,20 @@ jobs:
                       -property installationPath |
                       Select-Object -First 1
               )
+              $vcInstallationVersion = [string](
+                  & $vswherePath `
+                      -latest `
+                      -products '*' `
+                      -requires Microsoft.VisualStudio.Workload.VCTools `
+                      -property installationVersion |
+                      Select-Object -First 1
+              )
           }
+          $vcActual = (
+              "{0}; version {1}" -f `
+                  $vcInstallationPath, `
+                  $vcInstallationVersion
+          )
           Add-Check `
               -Name 'Visual Studio C++ workload' `
               -Required $true `
@@ -351,9 +387,9 @@ jobs:
                   (Test-Path -LiteralPath $vcInstallationPath)
               ) `
               -Expected 'An installation containing the VCTools workload' `
-              -Actual $vcInstallationPath
+              -Actual $vcActual
 
-          # Locate MSBuild through vswhere instead of relying on PATH.
+          # Locate and execute MSBuild through vswhere.
           $msbuildPath = ''
           $msbuildVersion = ''
           if ($vswherePresent) {
@@ -365,16 +401,19 @@ jobs:
                       -find 'MSBuild\**\Bin\MSBuild.exe' |
                       Select-Object -First 1
               )
-
-              if (Test-Path -LiteralPath $msbuildPath -PathType Leaf) {
-                  try {
-                      $msbuildVersion = Invoke-VersionCommand `
-                          -Executable $msbuildPath `
-                          -Arguments @('-version', '-nologo')
-                  }
-                  catch {
-                      $msbuildVersion = $_.Exception.Message
-                  }
+          }
+          $msbuildPresent = (
+              -not [string]::IsNullOrWhiteSpace($msbuildPath) -and
+              (Test-Path -LiteralPath $msbuildPath -PathType Leaf)
+          )
+          if ($msbuildPresent) {
+              try {
+                  $msbuildVersion = Invoke-NativeCommand `
+                      -Executable $msbuildPath `
+                      -Arguments @('-version', '-nologo')
+              }
+              catch {
+                  $msbuildVersion = $_.Exception.Message
               }
           }
           $msbuildActual = "{0}: {1}" -f $msbuildPath, $msbuildVersion
@@ -382,13 +421,13 @@ jobs:
               -Name 'MSBuild availability' `
               -Required $true `
               -Passed (
-                  (Test-Path -LiteralPath $msbuildPath -PathType Leaf) -and
+                  $msbuildPresent -and
                   $msbuildVersion -match '\d+\.\d+'
               ) `
               -Expected 'vswhere locates MSBuild and it reports a version' `
               -Actual $msbuildActual
 
-          # Prefer CMake on PATH, then search every Visual Studio installation.
+          # Prefer CMake on PATH, then search Visual Studio installations.
           $cmakePath = ''
           $cmakeVersion = ''
           $cmakeCommand = Get-Command cmake -ErrorAction SilentlyContinue
@@ -410,9 +449,13 @@ jobs:
                       Select-Object -First 1
               )
           }
-          if (Test-Path -LiteralPath $cmakePath -PathType Leaf) {
+          $cmakePresent = (
+              -not [string]::IsNullOrWhiteSpace($cmakePath) -and
+              (Test-Path -LiteralPath $cmakePath -PathType Leaf)
+          )
+          if ($cmakePresent) {
               try {
-                  $cmakeVersion = Invoke-VersionCommand `
+                  $cmakeVersion = Invoke-NativeCommand `
                       -Executable $cmakePath `
                       -Arguments @('--version')
               }
@@ -425,27 +468,25 @@ jobs:
               -Name 'CMake availability' `
               -Required $true `
               -Passed (
-                  (Test-Path -LiteralPath $cmakePath -PathType Leaf) -and
+                  $cmakePresent -and
                   $cmakeVersion -match '^cmake version '
               ) `
-              -Expected 'A Visual Studio or PATH CMake executable reports a version' `
+              -Expected 'A Visual Studio or PATH CMake reports a version' `
               -Actual $cmakeActual
 
-          # Locate the native x64 MSVC compiler inside the C++ workload.
+          # Locate the native x64 MSVC compiler in the C++ workload.
           $compilerPath = ''
           $compilerVersion = ''
           if (-not [string]::IsNullOrWhiteSpace($vcInstallationPath)) {
               $msvcRoot = Join-Path `
                   $vcInstallationPath `
                   'VC\Tools\MSVC'
-
               if (Test-Path -LiteralPath $msvcRoot -PathType Container) {
                   $latestMsvcDirectory = Get-ChildItem `
                       -LiteralPath $msvcRoot `
                       -Directory |
                       Sort-Object Name -Descending |
                       Select-Object -First 1
-
                   if ($null -ne $latestMsvcDirectory) {
                       $compilerPath = Join-Path `
                           $latestMsvcDirectory.FullName `
@@ -453,7 +494,11 @@ jobs:
                   }
               }
           }
-          if (Test-Path -LiteralPath $compilerPath -PathType Leaf) {
+          $compilerPresent = (
+              -not [string]::IsNullOrWhiteSpace($compilerPath) -and
+              (Test-Path -LiteralPath $compilerPath -PathType Leaf)
+          )
+          if ($compilerPresent) {
               $compilerVersion = [string](
                   (Get-Item -LiteralPath $compilerPath).VersionInfo.FileVersion
               )
@@ -463,7 +508,7 @@ jobs:
               -Name 'Native x64 MSVC compiler' `
               -Required $true `
               -Passed (
-                  (Test-Path -LiteralPath $compilerPath -PathType Leaf) -and
+                  $compilerPresent -and
                   -not [string]::IsNullOrWhiteSpace($compilerVersion)
               ) `
               -Expected 'Hostx64/x64 cl.exe exists and has a file version' `
@@ -530,7 +575,7 @@ jobs:
 
           # Build the complete machine-readable diagnostic report.
           $report = [ordered]@{
-              SchemaVersion = '1.1'
+              SchemaVersion = '1.2'
               GeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
               Repository = [string]$env:GITHUB_REPOSITORY
               Workflow = [string]$env:GITHUB_WORKFLOW
@@ -563,10 +608,10 @@ jobs:
                   PowerShell = $powerShellVersion
                   Git = $gitVersion
                   PythonPath = $pythonPath
-                  PythonActionVersion = $pythonResolvedVersion
-                  PythonCommandVersion = $pythonVersion
+                  Python = $pythonVersion
                   VsWhere = $vswherePath
                   VcInstallationPath = $vcInstallationPath
+                  VcInstallationVersion = $vcInstallationVersion
                   MSBuildPath = $msbuildPath
                   MSBuild = $msbuildVersion
                   CMakePath = $cmakePath
@@ -588,7 +633,7 @@ jobs:
                   -LiteralPath $jsonReportPath `
                   -Encoding UTF8
 
-          # Create a compact Markdown table for beginners and reviewers.
+          # Create a compact Markdown table for reviewers.
           $summaryLines = @(
               '# Workbook 05 Intel runner smoke test'
               ''
@@ -603,7 +648,7 @@ jobs:
               '| --- | --- | --- | --- | --- |'
           )
 
-          # Add one table row per check while escaping Markdown content.
+          # Add one Markdown row per validation check.
           foreach ($check in $checks) {
               $resultLabel = if ($check.Passed) { 'PASS' } else { 'FAIL' }
               $expectedValue = (
@@ -626,7 +671,7 @@ jobs:
               )
           }
 
-          # Save the Markdown evidence as an artifact file.
+          # Save the Markdown evidence inside the uploaded bundle.
           $markdownReportPath = Join-Path `
               $reportDirectory `
               'runner-smoke-summary.md'
@@ -635,7 +680,7 @@ jobs:
                   -LiteralPath $markdownReportPath `
                   -Encoding UTF8
 
-          # Publish the same summary directly on the Actions run page.
+          # Publish the same summary on the GitHub Actions run page.
           if (
               -not [string]::IsNullOrWhiteSpace(
                   [string]$env:GITHUB_STEP_SUMMARY
