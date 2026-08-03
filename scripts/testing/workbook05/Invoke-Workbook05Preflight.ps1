@@ -73,6 +73,15 @@ if ($LASTEXITCODE -ne 0) {
     throw "Runtime checkpoint update exited with code $LASTEXITCODE."
 }
 
-if ($evaluation.OverallStatus -ne 'Passed') {
-    exit 1
-}
+        # Hash the complete bundle only after reports, documents, and checkpoint are final.
+        & 'C:\Program Files\Python312\python.exe' `
+            -m scripts.testing.workbook05.hash_manifest `
+            --root $OutputDirectory `
+            --output (Join-Path $OutputDirectory 'hash-manifest.sha256')
+        if ($LASTEXITCODE -ne 0) {
+            throw "Evidence hash-manifest generation exited with code $LASTEXITCODE."
+        }
+
+        if ($evaluation.OverallStatus -ne 'Passed') {
+            exit 1
+        }
