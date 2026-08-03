@@ -34,7 +34,7 @@ jobs:
 
     defaults:
       run:
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
 
     steps:
       - name: Collect and verify runner evidence
