@@ -35,15 +35,15 @@ A mismatch is a hard failure because benchmark evidence from a different machine
 
 The workflow supports two controlled triggers:
 
-1. A path-limited pull-request trigger for this first trusted in-repository branch, so the new workflow can prove the runner connection before merge.
+1. A path-limited pull-request trigger for the first trusted in-repository branch, so the new workflow can prove the runner connection before merge.
 2. `workflow_dispatch`, which becomes available after the workflow exists on the default branch and allows later manual smoke tests.
 
 The pull-request job must run only when:
 
 - the pull request comes from the same repository rather than a fork; and
-- the triggering GitHub actor is `arian20020`.
+- the pull request head is exactly `testing/workbook-05-runner-smoke`.
 
-This prevents unrelated pull requests from gaining routine access to the self-hosted machine.
+This creates a narrow bootstrap route for this single controlled branch instead of allowing every pull request to use the self-hosted machine.
 
 ## 4. Permissions and security boundary
 
