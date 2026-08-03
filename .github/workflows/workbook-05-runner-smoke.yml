@@ -80,6 +80,13 @@ jobs:
           $scriptPath = Join-Path $env:RUNNER_TEMP 'wb05-apply.py'
           [System.IO.File]::WriteAllBytes($gzipPath, [Convert]::FromBase64String($encoded))
           python -c "import gzip, pathlib; pathlib.Path(r'$scriptPath').write_bytes(gzip.open(r'$gzipPath', 'rb').read())"
+
+          # PowerShell interprets a colon immediately after a variable name as
+          # a scoped/drive-qualified reference. Delimit the embedded variable.
+          $workerText = Get-Content -Raw -LiteralPath $scriptPath
+          $workerText = $workerText.Replace('$exitCode:', '${exitCode}:')
+          Set-Content -LiteralPath $scriptPath -Value $workerText -Encoding UTF8
+
           python -m py_compile $scriptPath
           "WB05_IMPLEMENTATION_SCRIPT=$scriptPath" | Add-Content -LiteralPath $env:GITHUB_ENV
 
