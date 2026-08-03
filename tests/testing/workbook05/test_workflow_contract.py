@@ -45,6 +45,53 @@ class WorkflowContractTests(unittest.TestCase):
             text,
         )
 
+    def test_each_checkout_limits_the_windows_worktree_to_preflight_inputs(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        checkout_action = (
+            "uses: actions/checkout@"
+            "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+        )
+
+        # Both the Intel collection job and the hosted validation job run on
+        # Windows. Splitting at the pinned action lets this test inspect each
+        # checkout step independently rather than accepting one safe checkout
+        # and one accidental full-repository checkout.
+        checkout_sections = text.split(checkout_action)[1:]
+        self.assertEqual(2, len(checkout_sections))
+
+        # These are the complete repository inputs consumed by the workflow's
+        # scripts and tests. Deep research and historical log trees are omitted
+        # because their paths can exceed the legacy Windows path boundary.
+        required_sparse_roots = (
+            ".github/workflows",
+            "docs/superpowers",
+            "docs/testing",
+            "experiments/granite_turboquant_intel/configurations/workbook05",
+            "experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1",
+            "experiments/granite_turboquant_intel/schemas/workbook05",
+            "scripts/testing",
+            "tests/testing/workbook05",
+        )
+
+        for checkout_number, checkout_section in enumerate(
+            checkout_sections,
+            start=1,
+        ):
+            # Stop at the following workflow step so required paths must be
+            # attached to this checkout, not listed somewhere else in the file.
+            checkout_step = checkout_section.split("\n      - name:", 1)[0]
+            self.assertIn(
+                "sparse-checkout: |",
+                checkout_step,
+                f"Checkout {checkout_number} must use sparse checkout.",
+            )
+            for required_root in required_sparse_roots:
+                self.assertIn(
+                    required_root,
+                    checkout_step,
+                    f"Checkout {checkout_number} is missing {required_root}.",
+                )
+
     def test_workflow_contains_no_repository_write_command(self) -> None:
         lowered = WORKFLOW.read_text(encoding="utf-8").lower()
         for forbidden in (
