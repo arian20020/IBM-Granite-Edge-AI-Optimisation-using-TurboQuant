@@ -92,6 +92,10 @@ jobs:
           $workerText = $workerText.Replace('Checks = @($checks)', 'Checks = $checks.ToArray()')
           Set-Content -LiteralPath $scriptPath -Value $workerText -Encoding UTF8
 
+          # Print only the Task 7 insertion logic so the next correction is
+          # grounded in the implementation worker's actual marker and context.
+          python -c "from pathlib import Path; t=Path(r'$scriptPath').read_text(encoding='utf-8'); n='Could not locate preflight exit marker for Task 7'; i=t.index(n); print(t[max(0,i-2200):i+500])"
+
           python -m py_compile $scriptPath
           "WB05_IMPLEMENTATION_SCRIPT=$scriptPath" | Add-Content -LiteralPath $env:GITHUB_ENV
 
