@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,8 +42,15 @@ class ExecutionIndexTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             first = Path(temporary_directory) / "first.csv"
             second = Path(temporary_directory) / "second.csv"
+
+            # Reuse the interpreter that launched the test. On the Intel job,
+            # the workflow launches this suite with the pinned machine-wide
+            # Python 3.12.10 executable. On the hosted validation job,
+            # setup-python supplies the controlled interpreter. Hard-coding a
+            # machine path here would test installation layout rather than the
+            # execution-index generator's deterministic behaviour.
             command = [
-                str(Path(r"C:\Program Files\Python312\python.exe")),
+                sys.executable,
                 "-m",
                 "scripts.testing.workbook05.generate_execution_index",
                 "--traceability",
