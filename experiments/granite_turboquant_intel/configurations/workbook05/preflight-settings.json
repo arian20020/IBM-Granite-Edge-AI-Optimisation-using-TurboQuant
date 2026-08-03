@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "expected_runner_name": "lenovo-pf4hmd0t-wb05",
+  "expected_computer_name": "LENOVO-PF4HMD0T",
+  "expected_cpu_substring": "i5-12450H",
+  "expected_runner_os": "Windows",
+  "expected_runner_arch": "X64",
+  "expected_service_account": "nt authority\\network service",
+  "minimum_physical_memory_gib": 15.0,
+  "minimum_available_memory_gib": 6.0,
+  "minimum_system_drive_free_gib": 80.0,
+  "require_ac_power": true,
+  "required_ac_sleep_timeout_seconds": 0,
+  "python_path": "C:\\Program Files\\Python312\\python.exe",
+  "python_version": "3.12.10",
+  "minimum_cmake_version": "3.26.0",
+  "minimum_msbuild_major": 16,
+  "required_repository": "arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant"
+}
