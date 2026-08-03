@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "generation": 0,
+  "phase_order": [
+    "phase-0-preflight",
+    "phase-1-source-admission",
+    "phase-2-documented-build",
+    "phase-3-conformance",
+    "phase-4-capability-sweep",
+    "phase-5-granite-3b-frontier",
+    "phase-6-granite-3b-formal",
+    "phase-7-asymmetric-cross-family",
+    "phase-8-granite-8b-frontier",
+    "phase-9-ablations-repeatability",
+    "phase-10-conclusion"
+  ],
+  "steps": [
+    {
+      "step_id": "phase-0-preflight",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-1-source-admission",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-2-documented-build",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-3-conformance",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-4-capability-sweep",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-5-granite-3b-frontier",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-6-granite-3b-formal",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-7-asymmetric-cross-family",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-8-granite-8b-frontier",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-9-ablations-repeatability",
+      "status": "Not started",
+      "evidence_sha256": ""
+    },
+    {
+      "step_id": "phase-10-conclusion",
+      "status": "Not started",
+      "evidence_sha256": ""
+    }
+  ],
+  "updated_at_utc": "2026-08-03T00:00:00Z"
+}
