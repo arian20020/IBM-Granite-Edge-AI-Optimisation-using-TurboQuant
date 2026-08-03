@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -68,4 +68,25 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <!-- BEGIN EXPLICIT MODEL INSPECTION NAVIGATION TESTS -->
+
+  <!--
+    These navigation tests are explicitly listed so their folder structure
+    is visible in Visual Studio Solution Explorer.
+  -->
+  <ItemGroup Label="ModelInspectionNavigationTests">
+
+    <!-- Remove the SDK's implicit copies before explicitly including them. -->
+    <Compile Remove="Features\ModelImport\ModelImportNavigationRequestTests.cs" />
+    <Compile Remove="Features\Onboarding\OnboardingModelInspectionNavigationTests.cs" />
+    <Compile Remove="Features\ModelInspection\ModelInspectionPageNavigationTests.cs" />
+
+    <!-- Explicit project items displayed by Solution Explorer. -->
+    <Compile Include="Features\ModelImport\ModelImportNavigationRequestTests.cs" />
+    <Compile Include="Features\Onboarding\OnboardingModelInspectionNavigationTests.cs" />
+    <Compile Include="Features\ModelInspection\ModelInspectionPageNavigationTests.cs" />
+
+  </ItemGroup>
+
+  <!-- END EXPLICIT MODEL INSPECTION NAVIGATION TESTS -->
 </Project>

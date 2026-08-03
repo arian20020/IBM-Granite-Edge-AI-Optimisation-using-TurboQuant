@@ -79,6 +79,9 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         internal ModelQuickScanResult? ValidatedScanResult { get; private set; }
 
+        /// Raised when the user requests full inspection of the validated model.
+        internal event EventHandler<ModelInspectionRequestedEventArgs>? ModelInspectionRequested;
+
         internal async Task BrowseFilesAsync()
         {
             ModelFormatSelection selectedFormat =
@@ -309,6 +312,49 @@ namespace GraniteEdgeAI.Features.ModelImport
         {
             CancelActiveScan();
             ResetToAwaitingSelection();
+        }
+
+        /// <summary>
+        /// Requests model inspection only when a valid scanned model is available.
+        /// </summary>
+        /// <returns>
+        /// True when the request is accepted; otherwise, false.
+        /// </returns>
+        internal bool TryRequestModelInspection()
+        {
+            // Copy the current path into a local variable so that the same validated
+            // value is used throughout this method.
+            string? selectedModelPath = SelectedModelPath;
+
+            // Protect the navigation boundary even if this method is called directly.
+            //
+            // The disabled button is a user-interface guard, but the method must also
+            // defend itself because future code or tests may call it independently.
+            if (!HasValidatedModel ||
+                ValidatedScanResult is null ||
+                string.IsNullOrWhiteSpace(selectedModelPath))
+            {
+                return false;
+            }
+
+            // Tell the onboarding shell that the user wants to inspect this model.
+            //
+            // ModelImportPage deliberately does not manipulate StageFrame directly.
+            ModelInspectionRequested?.Invoke(
+                this,
+                new ModelInspectionRequestedEventArgs(selectedModelPath));
+
+            // Report that the current state allowed the request.
+            return true;
+        }
+
+        // Handles the Continue to model inspection button.
+        private void ContinueToModelInspectionButton_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            // Use the guarded method instead of navigating directly from this page.
+            TryRequestModelInspection();
         }
     }
 }

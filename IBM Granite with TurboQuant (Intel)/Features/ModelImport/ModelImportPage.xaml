@@ -102,6 +102,7 @@
                             Background="#2563EB"
                             BorderBrush="#2563EB"
                             BorderThickness="1"
+                            Click="ContinueToModelInspectionButton_Click"
                             Content="Continue to model inspection"
                             CornerRadius="12"
                             FontWeight="SemiBold"
