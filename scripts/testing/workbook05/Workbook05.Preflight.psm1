@@ -26,6 +26,18 @@ function Get-Workbook05AcSleepTimeoutSeconds {
     return [Convert]::ToInt32($match.Groups[1].Value, 16)
 }
 
+function Get-Workbook05SystemDriveName {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$SystemDrive)
+
+    # Get-PSDrive accepts `C`, while Windows exposes `C:` or a rooted `C:\`.
+    $match = [regex]::Match($SystemDrive, '^([A-Za-z]):\\?$')
+    if (-not $match.Success) {
+        throw "Unsupported Windows system-drive value: $SystemDrive"
+    }
+    return $match.Groups[1].Value.ToUpperInvariant()
+}
+
 function Invoke-Workbook05NativeText {
     param(
         [Parameter(Mandatory)][string]$Executable,
@@ -116,7 +128,8 @@ function Get-Workbook05PreflightObservation {
     $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
     $computer = Get-CimInstance Win32_ComputerSystem
     $operatingSystem = Get-CimInstance Win32_OperatingSystem
-    $systemDrive = Get-PSDrive -Name ([System.IO.Path]::GetPathRoot($env:SystemRoot).TrimEnd(':'))
+    $systemDriveName = Get-Workbook05SystemDriveName -SystemDrive ([string]$env:SystemDrive)
+    $systemDrive = Get-PSDrive -Name $systemDriveName
 
     # Power-line and timeout checks are observations only; no setting is changed.
     Add-Type -AssemblyName System.Windows.Forms
@@ -251,6 +264,7 @@ function Export-Workbook05PreflightEvidence {
 
 Export-ModuleMember -Function @(
     'Get-Workbook05AcSleepTimeoutSeconds',
+    'Get-Workbook05SystemDriveName',
     'Get-Workbook05PreflightObservation',
     'Test-Workbook05PreflightObservation',
     'Export-Workbook05PreflightEvidence'
