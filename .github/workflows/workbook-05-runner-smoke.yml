@@ -1,97 +1,725 @@
-name: Workbook 05 implementation carrier
+name: Workbook 05 runner smoke test
 
 on:
-  push:
+  pull_request:
     branches:
-      - testing/workbook-05-two-route-memory-frontier
+      - main
+    paths:
+      - '.github/workflows/workbook-05-runner-smoke.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: workbook-05-implementation-carrier
+  group: workbook-05-runner-smoke-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  implement-plan:
-    name: Execute the approved ten-task preflight plan
-    if: "github.event.head_commit.message == 'chore(workbook-05): bootstrap implementation worker'"
-    runs-on: windows-latest
-    timeout-minutes: 120
+  verify-intel-runner:
+    name: Verify Intel target runner
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'testing/workbook-05-runner-smoke'
+      )
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
 
     steps:
-      # Check out the complete implementation branch. This disposable hosted
-      # runner is the isolated workspace for the implementation plan.
-      - name: Check out the implementation branch
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          ref: testing/workbook-05-two-route-memory-frontier
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Install Python 3.12
-        uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
-        with:
-          python-version: '3.12'
-
-      # Several controlled tests intentionally reference the exact Python path
-      # used by the Intel runner. The junction preserves that contract here.
-      - name: Expose the controlled Python path
-        shell: powershell
+      # Create an evidence location before performing any validation so a
+      # partial failure can still leave a useful diagnostic artifact.
+      - name: Prepare smoke-test evidence directory
         run: |
+          # Stop immediately if directory preparation fails.
           $ErrorActionPreference = 'Stop'
-          $source = Split-Path (Get-Command python).Source -Parent
-          $destination = 'C:\Program Files\Python312'
-          if (-not (Test-Path -LiteralPath $destination)) {
-              New-Item -ItemType Junction -Path $destination -Target $source | Out-Null
+
+          # Use the runner-owned temporary directory rather than a personal
+          # Windows profile owned by the interactive Student account.
+          $reportDirectory = Join-Path `
+              $env:RUNNER_TEMP `
+              'workbook-05-runner-smoke'
+
+          # Remove stale evidence from any interrupted earlier attempt.
+          if (Test-Path -LiteralPath $reportDirectory) {
+              Remove-Item `
+                  -LiteralPath $reportDirectory `
+                  -Recurse `
+                  -Force
           }
-          & (Join-Path $destination 'python.exe') --version
 
-      # Reconstruct the reviewed implementation program from its temporary,
-      # compressed repository parts. The program performs and commits each
-      # test-first task independently so a failure is resumable.
-      - name: Reconstruct the implementation worker
-        shell: powershell
+          # Recreate a clean directory for this workflow run.
+          New-Item `
+              -ItemType Directory `
+              -Path $reportDirectory `
+              -Force |
+              Out-Null
+
+          # Save basic bootstrap information before the detailed test begins.
+          [ordered]@{
+              GeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
+              Repository = [string]$env:GITHUB_REPOSITORY
+              RunId = [string]$env:GITHUB_RUN_ID
+              RunAttempt = [string]$env:GITHUB_RUN_ATTEMPT
+              RunnerName = [string]$env:RUNNER_NAME
+              ComputerName = [string]$env:COMPUTERNAME
+              Stage = 'Evidence directory prepared'
+          } |
+              ConvertTo-Json |
+              Set-Content `
+                  -LiteralPath (
+                      Join-Path `
+                          $reportDirectory `
+                          'bootstrap.json'
+                  ) `
+                  -Encoding UTF8
+
+      - name: Collect and verify runner evidence
+        id: verify
         run: |
+          # Stop immediately when a PowerShell operation throws an error.
           $ErrorActionPreference = 'Stop'
-          $parts = @(
-              'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part00',
-              'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part01',
-              'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part02',
-              'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part03'
+
+          # Reuse the directory prepared by the preceding workflow step.
+          $reportDirectory = Join-Path `
+              $env:RUNNER_TEMP `
+              'workbook-05-runner-smoke'
+
+          # Store every validation result in one array so the JSON report,
+          # Markdown summary, and final result use the same evidence.
+          $checks = @()
+
+          # Add one consistently structured validation result.
+          function Add-Check {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Name,
+
+                  [Parameter(Mandatory = $true)]
+                  [bool]$Required,
+
+                  [Parameter(Mandatory = $true)]
+                  [bool]$Passed,
+
+                  [Parameter(Mandatory = $true)]
+                  [string]$Expected,
+
+                  [AllowEmptyString()]
+                  [string]$Actual
+              )
+
+              # Append an immutable snapshot of this individual check.
+              $script:checks += [pscustomobject][ordered]@{
+                  Name     = $Name
+                  Required = $Required
+                  Passed   = $Passed
+                  Expected = $Expected
+                  Actual   = $Actual
+              }
+          }
+
+          # Run a native command and return its complete trimmed output.
+          function Invoke-NativeCommand {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Executable,
+
+                  [Parameter(Mandatory = $false)]
+                  [string[]]$Arguments = @()
+              )
+
+              # Reset the native exit code so an earlier process cannot leak
+              # an unrelated result into this command.
+              $global:LASTEXITCODE = 0
+
+              # Execute the command while preserving both output streams.
+              $commandOutput = & $Executable @Arguments 2>&1
+              $commandExitCode = $LASTEXITCODE
+
+              # Convert a native command failure into a clear exception.
+              if ($commandExitCode -ne 0) {
+                  throw (
+                      "'{0}' exited with code {1}: {2}" -f `
+                          $Executable, `
+                          $commandExitCode, `
+                          (($commandOutput | Out-String).Trim())
+                  )
+              }
+
+              # Return one readable value for the evidence report.
+              return (($commandOutput | Out-String).Trim())
+          }
+
+          # Capture GitHub's runner routing context.
+          $runnerName = [string]$env:RUNNER_NAME
+          $runnerOs = [string]$env:RUNNER_OS
+          $runnerArchitecture = [string]$env:RUNNER_ARCH
+
+          # Read the physical target identity directly from Windows.
+          $computerName = [string]$env:COMPUTERNAME
+          $processor = Get-CimInstance Win32_Processor |
+              Select-Object -First 1
+          $computerSystem = Get-CimInstance Win32_ComputerSystem
+          $operatingSystem = Get-CimInstance Win32_OperatingSystem
+          $physicalMemoryGiB = [math]::Round(
+              $computerSystem.TotalPhysicalMemory / 1GB,
+              2
           )
-          $encoded = ($parts | ForEach-Object { Get-Content -Raw -LiteralPath $_ }) -join ''
-          $gzipPath = Join-Path $env:RUNNER_TEMP 'wb05-apply.py.gz'
-          $scriptPath = Join-Path $env:RUNNER_TEMP 'wb05-apply.py'
-          [System.IO.File]::WriteAllBytes($gzipPath, [Convert]::FromBase64String($encoded))
-          python -c "import gzip, pathlib; pathlib.Path(r'$scriptPath').write_bytes(gzip.open(r'$gzipPath', 'rb').read())"
-          python -m py_compile $scriptPath
-          "WB05_IMPLEMENTATION_SCRIPT=$scriptPath" | Add-Content -LiteralPath $env:GITHUB_ENV
 
-      - name: Execute the ten test-first tasks
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          python $env:WB05_IMPLEMENTATION_SCRIPT
-          if ($LASTEXITCODE -ne 0) {
-              throw "Workbook 05 implementation worker failed with code $LASTEXITCODE."
+          # Record the restricted Windows account running the service.
+          $serviceAccount = ((whoami 2>&1 | Out-String).Trim())
+
+          # Record free storage without making it a hard gate at this stage.
+          $systemDrive = Get-CimInstance Win32_LogicalDisk `
+              -Filter "DeviceID='$($env:SystemDrive)'"
+          $systemDriveFreeGiB = [math]::Round(
+              $systemDrive.FreeSpace / 1GB,
+              2
+          )
+
+          # Validate routing and target-machine identity.
+          Add-Check `
+              -Name 'GitHub runner name' `
+              -Required $true `
+              -Passed ($runnerName -eq 'lenovo-pf4hmd0t-wb05') `
+              -Expected 'lenovo-pf4hmd0t-wb05' `
+              -Actual $runnerName
+          Add-Check `
+              -Name 'GitHub runner operating system' `
+              -Required $true `
+              -Passed ($runnerOs -eq 'Windows') `
+              -Expected 'Windows' `
+              -Actual $runnerOs
+          Add-Check `
+              -Name 'GitHub runner architecture' `
+              -Required $true `
+              -Passed ($runnerArchitecture -eq 'X64') `
+              -Expected 'X64' `
+              -Actual $runnerArchitecture
+          Add-Check `
+              -Name 'Windows computer name' `
+              -Required $true `
+              -Passed ($computerName -eq 'LENOVO-PF4HMD0T') `
+              -Expected 'LENOVO-PF4HMD0T' `
+              -Actual $computerName
+          Add-Check `
+              -Name 'Processor identity' `
+              -Required $true `
+              -Passed ($processor.Name -match 'i5-12450H') `
+              -Expected 'Processor name contains i5-12450H' `
+              -Actual ([string]$processor.Name)
+          Add-Check `
+              -Name 'Installed physical memory' `
+              -Required $true `
+              -Passed ($physicalMemoryGiB -ge 15) `
+              -Expected 'At least 15 GiB' `
+              -Actual ("{0} GiB" -f $physicalMemoryGiB)
+          Add-Check `
+              -Name '64-bit operating system' `
+              -Required $true `
+              -Passed ([Environment]::Is64BitOperatingSystem) `
+              -Expected 'True' `
+              -Actual ([Environment]::Is64BitOperatingSystem.ToString())
+          Add-Check `
+              -Name 'Restricted runner service account' `
+              -Required $true `
+              -Passed (
+                  $serviceAccount -ieq 'nt authority\network service'
+              ) `
+              -Expected 'nt authority\network service' `
+              -Actual $serviceAccount
+
+          # Verify the PowerShell host used by the runner service.
+          $powerShellVersion = $PSVersionTable.PSVersion.ToString()
+          Add-Check `
+              -Name 'Windows PowerShell availability' `
+              -Required $true `
+              -Passed (-not [string]::IsNullOrWhiteSpace($powerShellVersion)) `
+              -Expected 'A readable PowerShell version' `
+              -Actual $powerShellVersion
+
+          # Discover Git through the service account's PATH.
+          $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+          $gitVersion = ''
+          if ($null -ne $gitCommand) {
+              try {
+                  $gitVersion = Invoke-NativeCommand `
+                      -Executable $gitCommand.Source `
+                      -Arguments @('--version')
+              }
+              catch {
+                  $gitVersion = $_.Exception.Message
+              }
+          }
+          Add-Check `
+              -Name 'Git availability' `
+              -Required $true `
+              -Passed (
+                  $null -ne $gitCommand -and
+                  $gitVersion -match '^git version '
+              ) `
+              -Expected 'git --version succeeds' `
+              -Actual $gitVersion
+
+          # Locate the pinned machine-wide Python 3.12.10 installation.
+          $pythonPath = ''
+          $pythonVersion = ''
+          $pythonRegistryPaths = @(
+              'HKLM:\SOFTWARE\Python\PythonCore\3.12\InstallPath'
+              'HKLM:\SOFTWARE\WOW6432Node\Python\PythonCore\3.12\InstallPath'
+          )
+          foreach ($pythonRegistryPath in $pythonRegistryPaths) {
+              if (Test-Path -LiteralPath $pythonRegistryPath) {
+                  $pythonInstallDirectory = [string](
+                      (Get-Item -LiteralPath $pythonRegistryPath).GetValue('')
+                  )
+                  if (
+                      -not [string]::IsNullOrWhiteSpace(
+                          $pythonInstallDirectory
+                      )
+                  ) {
+                      $candidatePythonPath = Join-Path `
+                          $pythonInstallDirectory `
+                          'python.exe'
+                      if (
+                          Test-Path `
+                              -LiteralPath $candidatePythonPath `
+                              -PathType Leaf
+                      ) {
+                          $pythonPath = $candidatePythonPath
+                          break
+                      }
+                  }
+              }
           }
 
-      # Restore the permanent read-only smoke workflow and remove every
-      # temporary implementation file before the final branch state is reviewed.
-      - name: Remove the temporary implementation carrier
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          git config user.name 'Workbook 05 automation worker'
-          git config user.email 'workbook05-actions@users.noreply.github.com'
-          git fetch origin main
-          git checkout origin/main -- '.github/workflows/workbook-05-runner-smoke.yml'
-          git rm -f -- `
-            '.github/workflows/wb05-implementation-bootstrap.yml' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part00' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part01' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part02' `
-            'scripts/testing/workbook05/_bootstrap_apply_plan.py.gz.b64.part03'
-          git commit -m 'chore(workbook-05): remove temporary implementation worker'
-          git push origin HEAD:testing/workbook-05-two-route-memory-frontier
+          # Fall back to the standard all-users installation path.
+          if ([string]::IsNullOrWhiteSpace($pythonPath)) {
+              $standardPythonPath = `
+                  'C:\Program Files\Python312\python.exe'
+              if (
+                  Test-Path `
+                      -LiteralPath $standardPythonPath `
+                      -PathType Leaf
+              ) {
+                  $pythonPath = $standardPythonPath
+              }
+          }
+
+          # Execute the discovered interpreter to prove service-account access.
+          if (-not [string]::IsNullOrWhiteSpace($pythonPath)) {
+              try {
+                  $pythonVersion = Invoke-NativeCommand `
+                      -Executable $pythonPath `
+                      -Arguments @('--version')
+              }
+              catch {
+                  $pythonVersion = $_.Exception.Message
+              }
+          }
+          $pythonActual = "{0}: {1}" -f $pythonPath, $pythonVersion
+          Add-Check `
+              -Name 'Machine-wide Python 3.12.10' `
+              -Required $true `
+              -Passed (
+                  -not [string]::IsNullOrWhiteSpace($pythonPath) -and
+                  (Test-Path -LiteralPath $pythonPath -PathType Leaf) -and
+                  $pythonVersion -eq 'Python 3.12.10'
+              ) `
+              -Expected 'Python 3.12.10 installed for all users' `
+              -Actual $pythonActual
+
+          # Locate Microsoft's Visual Studio discovery utility.
+          $vswherePath = Join-Path `
+              ${env:ProgramFiles(x86)} `
+              'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vswherePresent = Test-Path `
+              -LiteralPath $vswherePath `
+              -PathType Leaf
+          Add-Check `
+              -Name 'Visual Studio discovery utility' `
+              -Required $true `
+              -Passed $vswherePresent `
+              -Expected 'vswhere.exe exists' `
+              -Actual $vswherePath
+
+          # Locate the installation containing the C++ workload.
+          $vcInstallationPath = ''
+          $vcInstallationVersion = ''
+          if ($vswherePresent) {
+              $vcInstallationPath = [string](
+                  & $vswherePath `
+                      -latest `
+                      -products '*' `
+                      -requires Microsoft.VisualStudio.Workload.VCTools `
+                      -property installationPath |
+                      Select-Object -First 1
+              )
+              $vcInstallationVersion = [string](
+                  & $vswherePath `
+                      -latest `
+                      -products '*' `
+                      -requires Microsoft.VisualStudio.Workload.VCTools `
+                      -property installationVersion |
+                      Select-Object -First 1
+              )
+          }
+          $vcActual = (
+              "{0}; version {1}" -f `
+                  $vcInstallationPath, `
+                  $vcInstallationVersion
+          )
+          Add-Check `
+              -Name 'Visual Studio C++ workload' `
+              -Required $true `
+              -Passed (
+                  -not [string]::IsNullOrWhiteSpace($vcInstallationPath) -and
+                  (Test-Path -LiteralPath $vcInstallationPath)
+              ) `
+              -Expected 'An installation containing the VCTools workload' `
+              -Actual $vcActual
+
+          # Locate and execute MSBuild through vswhere.
+          $msbuildPath = ''
+          $msbuildVersion = ''
+          if ($vswherePresent) {
+              $msbuildPath = [string](
+                  & $vswherePath `
+                      -latest `
+                      -products '*' `
+                      -requires Microsoft.Component.MSBuild `
+                      -find 'MSBuild\**\Bin\MSBuild.exe' |
+                      Select-Object -First 1
+              )
+          }
+          $msbuildPresent = (
+              -not [string]::IsNullOrWhiteSpace($msbuildPath) -and
+              (Test-Path -LiteralPath $msbuildPath -PathType Leaf)
+          )
+          if ($msbuildPresent) {
+              try {
+                  $msbuildVersion = Invoke-NativeCommand `
+                      -Executable $msbuildPath `
+                      -Arguments @('-version', '-nologo')
+              }
+              catch {
+                  $msbuildVersion = $_.Exception.Message
+              }
+          }
+          $msbuildActual = "{0}: {1}" -f $msbuildPath, $msbuildVersion
+          Add-Check `
+              -Name 'MSBuild availability' `
+              -Required $true `
+              -Passed (
+                  $msbuildPresent -and
+                  $msbuildVersion -match '\d+\.\d+'
+              ) `
+              -Expected 'vswhere locates MSBuild and it reports a version' `
+              -Actual $msbuildActual
+
+          # Prefer CMake on PATH, then search Visual Studio installations.
+          $cmakePath = ''
+          $cmakeVersion = ''
+          $cmakeCommand = Get-Command cmake -ErrorAction SilentlyContinue
+          if ($null -ne $cmakeCommand) {
+              $cmakePath = [string]$cmakeCommand.Source
+          }
+          elseif ($vswherePresent) {
+              $cmakeCandidates = @(
+                  & $vswherePath `
+                      -all `
+                      -products '*' `
+                      -find 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+              )
+              $cmakePath = [string](
+                  $cmakeCandidates |
+                      Where-Object {
+                          Test-Path -LiteralPath $_ -PathType Leaf
+                      } |
+                      Select-Object -First 1
+              )
+          }
+          $cmakePresent = (
+              -not [string]::IsNullOrWhiteSpace($cmakePath) -and
+              (Test-Path -LiteralPath $cmakePath -PathType Leaf)
+          )
+          if ($cmakePresent) {
+              try {
+                  $cmakeVersion = Invoke-NativeCommand `
+                      -Executable $cmakePath `
+                      -Arguments @('--version')
+              }
+              catch {
+                  $cmakeVersion = $_.Exception.Message
+              }
+          }
+          $cmakeActual = "{0}: {1}" -f $cmakePath, $cmakeVersion
+          Add-Check `
+              -Name 'CMake availability' `
+              -Required $true `
+              -Passed (
+                  $cmakePresent -and
+                  $cmakeVersion -match '^cmake version '
+              ) `
+              -Expected 'A Visual Studio or PATH CMake reports a version' `
+              -Actual $cmakeActual
+
+          # Locate the native x64 MSVC compiler in the C++ workload.
+          $compilerPath = ''
+          $compilerVersion = ''
+          if (-not [string]::IsNullOrWhiteSpace($vcInstallationPath)) {
+              $msvcRoot = Join-Path `
+                  $vcInstallationPath `
+                  'VC\Tools\MSVC'
+              if (Test-Path -LiteralPath $msvcRoot -PathType Container) {
+                  $latestMsvcDirectory = Get-ChildItem `
+                      -LiteralPath $msvcRoot `
+                      -Directory |
+                      Sort-Object Name -Descending |
+                      Select-Object -First 1
+                  if ($null -ne $latestMsvcDirectory) {
+                      $compilerPath = Join-Path `
+                          $latestMsvcDirectory.FullName `
+                          'bin\Hostx64\x64\cl.exe'
+                  }
+              }
+          }
+          $compilerPresent = (
+              -not [string]::IsNullOrWhiteSpace($compilerPath) -and
+              (Test-Path -LiteralPath $compilerPath -PathType Leaf)
+          )
+          if ($compilerPresent) {
+              $compilerVersion = [string](
+                  (Get-Item -LiteralPath $compilerPath).VersionInfo.FileVersion
+              )
+          }
+          $compilerActual = "{0}: {1}" -f $compilerPath, $compilerVersion
+          Add-Check `
+              -Name 'Native x64 MSVC compiler' `
+              -Required $true `
+              -Passed (
+                  $compilerPresent -and
+                  -not [string]::IsNullOrWhiteSpace($compilerVersion)
+              ) `
+              -Expected 'Hostx64/x64 cl.exe exists and has a file version' `
+              -Actual $compilerActual
+
+          # Discover the newest installed Windows SDK include directory.
+          $windowsSdkIncludeRoot = `
+              'C:\Program Files (x86)\Windows Kits\10\Include'
+          $windowsSdkIncludePath = ''
+          if (
+              Test-Path `
+                  -LiteralPath $windowsSdkIncludeRoot `
+                  -PathType Container
+          ) {
+              $windowsSdkIncludePath = [string](
+                  Get-ChildItem `
+                      -LiteralPath $windowsSdkIncludeRoot `
+                      -Directory |
+                      Sort-Object Name -Descending |
+                      Select-Object -First 1 |
+                      ForEach-Object { $_.FullName }
+              )
+          }
+          Add-Check `
+              -Name 'Windows SDK availability' `
+              -Required $true `
+              -Passed (
+                  -not [string]::IsNullOrWhiteSpace(
+                      $windowsSdkIncludePath
+                  ) -and
+                  (Test-Path -LiteralPath $windowsSdkIncludePath)
+              ) `
+              -Expected 'At least one Windows 10/11 SDK include directory' `
+              -Actual $windowsSdkIncludePath
+
+          # Prove that the service account can create and read evidence.
+          $writeProbePath = Join-Path `
+              $reportDirectory `
+              'workspace-write-probe.txt'
+          $writeProbeExpected = "Workbook 05 runner write probe: $env:GITHUB_RUN_ID"
+          $writeProbeActual = ''
+          $writeProbePassed = $false
+          try {
+              Set-Content `
+                  -LiteralPath $writeProbePath `
+                  -Value $writeProbeExpected `
+                  -Encoding UTF8
+              $writeProbeActual = (
+                  Get-Content `
+                      -LiteralPath $writeProbePath `
+                      -Raw
+              ).Trim()
+              $writeProbePassed = $writeProbeActual -eq $writeProbeExpected
+          }
+          catch {
+              $writeProbeActual = $_.Exception.Message
+          }
+          Add-Check `
+              -Name 'Temporary evidence write and read' `
+              -Required $true `
+              -Passed $writeProbePassed `
+              -Expected $writeProbeExpected `
+              -Actual $writeProbeActual
+
+          # Build the complete machine-readable diagnostic report.
+          $report = [ordered]@{
+              SchemaVersion = '1.2'
+              GeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
+              Repository = [string]$env:GITHUB_REPOSITORY
+              Workflow = [string]$env:GITHUB_WORKFLOW
+              RunId = [string]$env:GITHUB_RUN_ID
+              RunAttempt = [string]$env:GITHUB_RUN_ATTEMPT
+              CommitSha = [string]$env:GITHUB_SHA
+              Ref = [string]$env:GITHUB_REF
+              Runner = [ordered]@{
+                  Name = $runnerName
+                  OperatingSystem = $runnerOs
+                  Architecture = $runnerArchitecture
+                  ServiceAccount = $serviceAccount
+                  TemporaryDirectory = [string]$env:RUNNER_TEMP
+                  Workspace = [string]$env:GITHUB_WORKSPACE
+              }
+              Hardware = [ordered]@{
+                  ComputerName = $computerName
+                  Processor = [string]$processor.Name
+                  PhysicalMemoryGiB = $physicalMemoryGiB
+                  SystemDrive = [string]$env:SystemDrive
+                  SystemDriveFreeGiB = $systemDriveFreeGiB
+              }
+              OperatingSystem = [ordered]@{
+                  Caption = [string]$operatingSystem.Caption
+                  Version = [string]$operatingSystem.Version
+                  BuildNumber = [string]$operatingSystem.BuildNumber
+                  Is64Bit = [Environment]::Is64BitOperatingSystem
+              }
+              Toolchain = [ordered]@{
+                  PowerShell = $powerShellVersion
+                  Git = $gitVersion
+                  PythonPath = $pythonPath
+                  Python = $pythonVersion
+                  VsWhere = $vswherePath
+                  VcInstallationPath = $vcInstallationPath
+                  VcInstallationVersion = $vcInstallationVersion
+                  MSBuildPath = $msbuildPath
+                  MSBuild = $msbuildVersion
+                  CMakePath = $cmakePath
+                  CMake = $cmakeVersion
+                  CompilerPath = $compilerPath
+                  CompilerFileVersion = $compilerVersion
+                  WindowsSdkIncludePath = $windowsSdkIncludePath
+              }
+              Checks = $checks
+          }
+
+          # Save the JSON evidence before deciding whether to fail the job.
+          $jsonReportPath = Join-Path `
+              $reportDirectory `
+              'runner-smoke-report.json'
+          $report |
+              ConvertTo-Json -Depth 8 |
+              Set-Content `
+                  -LiteralPath $jsonReportPath `
+                  -Encoding UTF8
+
+          # Create a compact Markdown table for reviewers.
+          $summaryLines = @(
+              '# Workbook 05 Intel runner smoke test'
+              ''
+              "- Runner: ``$runnerName``"
+              "- Computer: ``$computerName``"
+              "- Processor: ``$($processor.Name)``"
+              "- Service account: ``$serviceAccount``"
+              "- RAM: ``$physicalMemoryGiB GiB``"
+              "- Free system-drive space: ``$systemDriveFreeGiB GiB``"
+              ''
+              '| Check | Required | Result | Expected | Actual |'
+              '| --- | --- | --- | --- | --- |'
+          )
+
+          # Add one Markdown row per validation check.
+          foreach ($check in $checks) {
+              $resultLabel = if ($check.Passed) { 'PASS' } else { 'FAIL' }
+              $expectedValue = (
+                  [string]$check.Expected
+              ).Replace('|', '\|')
+              $expectedValue = $expectedValue.Replace("`r", '')
+              $expectedValue = $expectedValue.Replace("`n", '<br>')
+              $actualValue = (
+                  [string]$check.Actual
+              ).Replace('|', '\|')
+              $actualValue = $actualValue.Replace("`r", '')
+              $actualValue = $actualValue.Replace("`n", '<br>')
+              $summaryLines += (
+                  '| {0} | {1} | {2} | {3} | {4} |' -f `
+                      $check.Name, `
+                      $check.Required, `
+                      $resultLabel, `
+                      $expectedValue, `
+                      $actualValue
+              )
+          }
+
+          # Save the Markdown evidence inside the uploaded bundle.
+          $markdownReportPath = Join-Path `
+              $reportDirectory `
+              'runner-smoke-summary.md'
+          $summaryLines |
+              Set-Content `
+                  -LiteralPath $markdownReportPath `
+                  -Encoding UTF8
+
+          # Publish the same summary on the GitHub Actions run page.
+          if (
+              -not [string]::IsNullOrWhiteSpace(
+                  [string]$env:GITHUB_STEP_SUMMARY
+              )
+          ) {
+              $summaryLines |
+                  Add-Content `
+                      -LiteralPath $env:GITHUB_STEP_SUMMARY `
+                      -Encoding UTF8
+          }
+
+          # Fail only after all available diagnostic evidence is written.
+          $failedRequiredChecks = @(
+              $checks |
+                  Where-Object {
+                      $_.Required -and -not $_.Passed
+                  }
+          )
+          if ($failedRequiredChecks.Count -gt 0) {
+              $failedNames = (
+                  $failedRequiredChecks.Name -join ', '
+              )
+              throw (
+                  "Workbook 05 runner smoke test failed: $failedNames"
+              )
+          }
+
+          # Emit one explicit success line for the job log.
+          Write-Host (
+              'Workbook 05 runner smoke test passed all required checks.'
+          )
+
+      # Preserve the complete evidence bundle whether the smoke test passes or
+      # fails. Pinned immutable commit for actions/upload-artifact v7.0.0.
+      - name: Upload runner smoke-test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-runner-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/workbook-05-runner-smoke
+          if-no-files-found: error
+          retention-days: 30
