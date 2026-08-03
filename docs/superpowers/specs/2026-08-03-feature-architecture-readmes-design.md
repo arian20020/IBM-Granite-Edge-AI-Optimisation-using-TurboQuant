@@ -1,6 +1,6 @@
 # Hierarchical Feature Architecture README Design
 
-**Status:** Approved design, expanded after implementation review
+**Status:** Approved and implemented documentation design
 
 **Date:** 2026-08-03
 
@@ -10,19 +10,15 @@
 
 ## Purpose
 
-The WinUI application now has three connected feature areas that a new contributor must understand together:
+The WinUI application has three connected feature areas that must be understandable both as one journey and as independent folders:
 
 1. Model Import and bounded GGUF quick scan.
 2. Onboarding-shell navigation and stage ownership.
 3. Model Inspection page composition and presentation-driven controls.
 
-A README only at each top-level feature folder is not enough for a beginner who opens a nested folder such as `QuickScan`, `Controls`, or `Models`. The documentation must continue down the real source tree so that each meaningful folder explains why it exists, the files it contains, how data enters and leaves, which tests prove it, and which capabilities remain unimplemented.
+A top-level README alone does not give enough context when a contributor opens a leaf folder such as `QuickScan`, `PickerRoute`, `Controls`, or `Models`. The documentation therefore mirrors every meaningful responsibility boundary in the application source tree.
 
-This design introduces living architecture documentation beside the source without replacing detailed evidence under `docs/`.
-
-## Selected approach
-
-Use a central overview, feature-level READMEs, and focused READMEs in every meaningful nested application folder:
+## Selected hierarchy
 
 ```text
 IBM Granite with TurboQuant (Intel)/
@@ -55,273 +51,157 @@ IBM Granite with TurboQuant (Intel)/
             └── README.md
 ```
 
-Also update:
+Also reconcile:
 
 ```text
 docs/development/Model-Import-Quick-Scan-Current-State.md
 ```
 
-so its current-state and deferred-work sections agree with the implemented Model Inspection navigation boundary.
-
-The mirrored test folders will be linked from the relevant source-folder READMEs. They will not receive duplicate READMEs in this change because the source-folder documents already explain which tests prove each boundary, and duplicating that explanation in both trees would create two maintenance points.
-
-## Why this approach was selected
-
-A single large README would be easy to find but would mix unrelated details and become difficult to maintain as Hardware Fit, configuration, and chat are added.
-
-Only top-level feature READMEs would preserve feature cohesion but would still leave nested folders unexplained.
-
-A README in every directory regardless of meaning would create low-value repetition. The selected structure therefore documents every **meaningful responsibility boundary** while avoiding READMEs in generated output, assets, or folders that exist only because of build tooling.
+with the implemented Model Import-to-Inspection handoff.
 
 ## Documentation levels
 
-### Level 1: `Features/README.md`
+### Cross-feature overview
 
-Owns only cross-feature information:
+`Features/README.md` owns:
 
-- the five-stage onboarding journey;
-- implementation status by stage;
-- `OnboardingShellPage` ownership of `StageFrame`, `CurrentStage`, and the persistent indicator;
-- the event-driven handoff from Model Import to Model Inspection;
-- links to each feature README;
+- the five-stage journey;
+- current implementation status;
+- cross-feature dependencies;
+- shell ownership;
+- the Model Import-to-Inspection handoff;
+- links to every feature and leaf README;
 - source-of-truth and update rules.
 
-It must not duplicate parser limits, complete card-state tables, or full file inventories.
+### Feature READMEs
 
-### Level 2: feature READMEs
+The Model Import, Onboarding, and Model Inspection READMEs own:
 
-`ModelImport/README.md`, `Onboarding/README.md`, and `ModelInspection/README.md` own:
-
-- the feature's purpose and boundary;
-- its complete internal flow;
-- current state model and invariants;
-- links to nested folder READMEs;
-- feature-level tests and evidence;
-- implemented, planned, and non-claim boundaries;
+- feature purpose and boundary;
+- complete feature flow;
+- root-file responsibilities;
+- child-folder map;
+- state and lifecycle invariants;
+- tests and evidence;
+- implemented, deferred, and non-claim boundaries;
 - known architectural debt.
 
-### Level 3: nested folder READMEs
+### Leaf-folder READMEs
 
-Every nested README owns the detailed local context needed to understand that folder without opening every file first.
+Each nested README must explain:
 
-Each nested README must include:
-
-1. Folder purpose.
-2. Why the folder is separated from its parent.
+1. Why the folder exists.
+2. What its parent delegates to it.
 3. Inputs consumed.
-4. Outputs or events produced.
+4. Outputs, events, or results produced.
 5. Local data flow.
-6. File inventory with one responsibility per file.
-7. Dependencies on parent, sibling, framework, or platform components.
-8. Tests and evidence paths.
+6. Every source file and its single responsibility.
+7. Dependencies and platform boundaries.
+8. Tests and evidence.
 9. Implemented behavior.
 10. Not implemented and non-claims.
-11. Known limitations or change hazards.
-12. Parent and child documentation links.
+11. Limitations and change hazards.
+12. Parent and child links.
 
-## Folder-specific ownership
+## Folder ownership
 
-### `ModelImport/Controls/README.md`
+### Model Import controls
 
-Documents:
+Documents `ImportModelCard`, its four state presentations, `ImportModelCardState`, `ImportedModelCardData`, the mapper, typed entry methods, events, and card/mapper tests.
 
-- `ImportModelCard.xaml` and code-behind;
-- `ImportModelCardState`;
-- `ImportedModelCardData`;
-- `ImportedModelCardDataMapper`;
-- four visible card states;
-- typed state-entry methods;
-- presentation-only responsibility;
-- card and mapper tests.
+### File Import
 
-### `ModelImport/FileImport/README.md`
+Documents the format-selection and native-picker boundary and delegates detailed implementation to `PickerRoute`.
 
-Documents the model-selection boundary as a grouping layer:
+### Picker Route
 
-- why format selection and native picker routing are kept outside page orchestration;
-- how a model-format choice leads to a route;
-- current GGUF connection;
-- current OpenVINO picker existence versus unimplemented OpenVINO import workflow;
-- the child `PickerRoute` folder.
+Documents `ModelFormatSelectionCard`, `ModelFormatSelection`, `GgufModelFilePicker`, `OpenVINOFolderPicker`, cancellation/null behavior, native Windows dependencies, tests, and the incomplete OpenVINO route.
 
-### `ModelImport/FileImport/PickerRoute/README.md`
+### Model Download
 
-Documents:
+At the reviewed branch baseline this folder contains:
 
-- `ModelFormatSelectionCard.xaml` and code-behind;
-- `ModelFormatSelection` values;
-- `GgufModelFilePicker`;
-- `OpenVINOFolderPicker`;
-- native Windows picker dependencies;
-- cancellation/null-return behavior;
-- picker tests;
-- the fact that OpenVINO selection is not yet connected to scanning.
+```text
+ModelDownloadCard.xaml
+ModelDownloadCard.xaml.cs
+ModelPreferenceSlider.cs
+```
 
-### `ModelImport/ModelDownload/README.md`
+It is a view-only recommended-model preference prototype. The documentation must not claim that a recommended-model page, catalog, download service, integrity verification, or validated import integration exists on this branch.
 
-Documents:
+### Quick Scan
 
-- `RecommendedModelDownloadPage`;
-- `ModelDownloadCard`;
-- `ModelPreferenceSlider`;
-- current visual/interactivity role;
-- temporary cursor behavior;
-- current separation from the validated import/quick-scan contract;
-- tests and deferred download execution.
+Documents the router, bounded GGUF parser, result/outcome/diagnostic contracts, parser security boundary, compatibility, cancellation, tests, and distinction from full runtime inspection.
 
-### `ModelImport/QuickScan/README.md`
+### Onboarding controls
 
-Documents:
+Documents `OnboardingStageIndicator`, its dependency property, completed/active/future states, connector fills, accessibility live-region behavior, validation/restoration, resources, and tests.
 
-- `ModelQuickScanner` routing;
-- `GgufQuickScanner` bounded parsing;
-- `ModelQuickScanResult`;
-- `ModelQuickScanOutcome`;
-- `ModelQuickScanFailureDiagnostic`;
-- parser limits and compatibility;
-- Success, Failure, and Cancelled contracts;
-- security and untrusted-input boundary;
-- scanner, result, fixture, and router tests;
-- the difference between quick scan and full runtime inspection.
+### Model Inspection controls
 
-### `Onboarding/Controls/README.md`
+Documents all four cards, the selector, dependency properties, XAML templates, visual states, themes, accessibility, bootstrap content handling, tests, and the boundary before runtime commands.
 
-Documents:
+### Model Inspection models
 
-- `OnboardingStageIndicator.xaml` and code-behind;
-- the `CurrentStage` dependency property;
-- completed, active, and future visual states;
-- connector-fill logic;
-- accessible live-region updates;
-- invalid-stage restoration and failure behavior;
-- indicator tests.
+Documents UI presentation classes and enums, safe defaults, object relationships, mutable versus immutable properties, WinUI dependencies, and future separation from framework-neutral domain/runtime results.
 
-### `ModelInspection/Controls/README.md`
+## Test documentation boundary
 
-Documents:
-
-- all four reusable cards;
-- `InspectionContentTemplateSelector`;
-- each control's presentation dependency property;
-- visual-state ownership;
-- Progress and Findings template selection;
-- WinUI bootstrap content behavior;
-- theme dictionaries and accessibility;
-- navigation and selector tests currently proving the connected slice;
-- the boundary before runtime commands and services.
-
-### `ModelInspection/Models/README.md`
-
-Documents that `Models` currently means UI presentation contracts, not AI model files. It inventories:
-
-- root presentation classes;
-- child row/action/check presentations;
-- mode, status, tone, badge, and outcome enums;
-- default/hidden objects;
-- mutable versus immutable presentation values;
-- WinUI-specific dependencies such as `Visibility`, `Symbol`, and `ICommand`;
-- the future separation from runtime/domain inspection results.
-
-## Existing detailed document
-
-`docs/development/Model-Import-Quick-Scan-Current-State.md` remains the detailed Model Import implementation record. It must be updated rather than replaced. Historical test evidence and parser details remain intact, while outdated statements about Model Inspection navigation being deferred are corrected.
-
-## Required README structure
-
-Each README will use this order where applicable:
-
-1. Status and reviewed implementation baseline.
-2. Purpose.
-3. Parent context.
-4. Responsibility boundary.
-5. Architecture or data-flow diagram.
-6. File inventory.
-7. Implemented states and invariants.
-8. Failure, cancellation, lifecycle, or security behavior.
-9. Tests and evidence.
-10. Implemented scope.
-11. Not implemented and non-claims.
-12. Known limitations or technical debt.
-13. Related parent, child, source, and test links.
-
-The structure is repeated for predictability, but content must remain specific to the folder rather than copying parent text.
+Source-folder READMEs link to mirrored tests. This change does not create duplicate READMEs throughout the test tree because that would create two competing explanations of the same contract.
 
 ## Source-of-truth hierarchy
 
-When documentation and implementation disagree, use this order:
-
 ```text
 1. Source code and executable tests
-2. Nearest current-state README beside the code
+2. Nearest README beside the code
 3. Parent feature README
-4. Detailed development evidence under docs/development
+4. Detailed current-state evidence under docs/development
 5. Historical design documents and pull-request descriptions
 ```
 
-READMEs describe contracts and responsibilities. They must not contain complete duplicated XAML or C# files because copied implementation can become stale.
+READMEs explain contracts and responsibilities. They do not copy complete implementation files.
 
-## Implemented versus planned content
+## Implemented versus planned language
 
-Every README must visibly distinguish:
+Every document must distinguish:
 
-- `Implemented now`;
-- `Planned next`;
-- `Not implemented / non-claims`;
-- `Known limitations`.
+- Implemented now.
+- Planned next.
+- Not implemented / non-claims.
+- Known limitations.
 
-The Model Inspection documentation must state plainly that the progress screen is currently presentation-only. It must not imply that llama.cpp, LLamaSharp, OpenVINO, tensor validation, tokenizer validation, result classification, dynamic progress, or cancellation execution are working.
+Model Inspection documents must not imply that llama.cpp, LLamaSharp, OpenVINO runtime inspection, tensor validation, tokenizer validation, dynamic stage progression, result classification, or cancellation execution are working.
 
-The Model Download documentation must not imply that downloads, integrity verification, or entry into the validated import route are complete unless the source and tests prove those behaviors.
+Model Download documents must not imply that a catalog, network download, integrity verification, or validated import route is working.
 
-## Architecture diagrams
+## Update triggers
 
-Use Markdown text diagrams rather than generated images. Text diagrams:
+Review the nearest README and its parent when:
 
-- remain reviewable in diffs;
-- render consistently on GitHub;
-- work without external design tools;
-- are easy to update with source changes.
-
-Each diagram must remain local to the folder's abstraction level.
-
-## Documentation update triggers
-
-Review the nearest README and its parent when any of these changes:
-
-- a file is added, moved, or removed from the folder;
+- a file is added, moved, or removed;
 - folder responsibility changes;
-- navigation event or parameter contract changes;
-- state enum or visible transition changes;
-- control composition changes;
-- cancellation or stale-result behavior changes;
-- parser limit, error, or outcome classification changes;
-- platform picker behavior changes;
-- runtime service or adapter boundary changes;
-- tests proving the folder's behavior change;
-- implemented/deferred boundary changes.
+- an event, request, result, or navigation contract changes;
+- a state enum or visible transition changes;
+- picker, parser, cancellation, error, or outcome behavior changes;
+- a runtime service or adapter is added;
+- tests proving the architecture change;
+- the implemented/deferred boundary changes.
 
 ## Validation
 
-Because this change is documentation-only, validation consists of:
+For this documentation-only change:
 
-- confirming every documented file and linked test path exists;
-- confirming architecture names match current branch source;
-- confirming parent and child READMEs link to each other;
-- confirming no document claims an unimplemented runtime or download capability;
-- confirming the existing Model Import current-state document no longer contradicts the implemented navigation flow;
-- reviewing Markdown headings, tables, diagrams, and code fences;
-- checking the final branch diff for unintended application-code changes.
+- confirm every documented path exists on the branch;
+- confirm parent and child links are bidirectional;
+- confirm file inventories match the branch;
+- confirm terminology matches source;
+- confirm no false runtime or download claims;
+- reconcile the detailed Model Import current-state document;
+- check Markdown structure and final newlines;
+- confirm the branch diff contains documentation only.
+
+No application build or test result is claimed by the documentation change itself.
 
 ## Non-goals
 
-This documentation change does not:
-
-- alter WinUI behavior;
-- change navigation contracts;
-- implement model inspection services;
-- add LLamaSharp, llama.cpp, or OpenVINO dependencies;
-- implement model downloads;
-- change tests or fixture data;
-- create duplicate documentation throughout the test tree;
-- replace formal architecture decision records;
-- claim that planned components are complete.
+This work does not alter WinUI behavior, tests, fixtures, project files, runtime dependencies, navigation contracts, downloads, inspection services, or formal ADRs.
