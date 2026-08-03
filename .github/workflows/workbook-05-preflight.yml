@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - '.github/workflows/workbook-05-preflight.yml'
+      - 'docs/superpowers/plans/2026-08-03-workbook-05-preflight-scaffolding.md'
+      - 'docs/superpowers/specs/2026-08-03-workbook-05-two-route-memory-frontier-design.md'
+      - 'docs/testing/**'
       - 'scripts/testing/workbook05/**'
       - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
       - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
@@ -29,10 +32,17 @@ jobs:
   collect-preflight:
     name: Collect Intel preflight evidence
 
-    # Manual runs are trusted. Pull-request runs are accepted only from this
-    # repository and from the exact reviewed Workbook 05 branch.
+    # Pull-request runs are accepted only from the exact same-repository branch.
+    # Manual runs may use that reviewed branch or main after this workflow is
+    # merged; arbitrary branch code is never routed to the self-hosted machine.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_dispatch' &&
+        (
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/testing/workbook-05-two-route-memory-frontier'
+        )
+      ) ||
       (
         github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.head.ref == 'testing/workbook-05-two-route-memory-frontier'
@@ -61,6 +71,9 @@ jobs:
       - name: Check out controlled preflight inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
+          # The job needs no authenticated Git operation after checkout, so the
+          # read-only token is removed from Git configuration immediately.
+          persist-credentials: false
           sparse-checkout: |
             .github/workflows
             docs/superpowers
@@ -180,6 +193,9 @@ jobs:
       - name: Check out the same repository revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
+          # Validation also performs no authenticated Git operation after the
+          # checkout and therefore does not retain the job token.
+          persist-credentials: false
           sparse-checkout: |
             .github/workflows
             docs/superpowers
