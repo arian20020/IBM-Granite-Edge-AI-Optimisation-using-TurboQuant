@@ -1,0 +1,503 @@
+name: Workbook 05 runner smoke test
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/workbook-05-runner-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workbook-05-runner-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-intel-runner:
+    name: Verify Intel target runner
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor == 'arian20020'
+      )
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Collect and verify runner evidence
+        id: verify
+        run: |
+          # Stop immediately when a PowerShell operation throws an error.
+          $ErrorActionPreference = 'Stop'
+
+          # Create the evidence directory before any validation so failed runs
+          # can still preserve diagnostic output.
+          $reportDirectory = Join-Path `
+              $env:RUNNER_TEMP `
+              'workbook-05-runner-smoke'
+          New-Item `
+              -ItemType Directory `
+              -Path $reportDirectory `
+              -Force |
+              Out-Null
+
+          # Store every validation result in one array so the JSON report,
+          # Markdown summary, and final failure all use the same evidence.
+          $checks = @()
+
+          # Add one consistently structured validation result.
+          function Add-Check {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Name,
+
+                  [Parameter(Mandatory = $true)]
+                  [bool]$Required,
+
+                  [Parameter(Mandatory = $true)]
+                  [bool]$Passed,
+
+                  [Parameter(Mandatory = $true)]
+                  [string]$Expected,
+
+                  [AllowEmptyString()]
+                  [string]$Actual
+              )
+
+              # Append an immutable snapshot of this individual check.
+              $script:checks += [pscustomobject][ordered]@{
+                  Name     = $Name
+                  Required = $Required
+                  Passed   = $Passed
+                  Expected = $Expected
+                  Actual   = $Actual
+              }
+          }
+
+          # Run a command and return its complete trimmed output.
+          function Invoke-VersionCommand {
+              param(
+                  [Parameter(Mandatory = $true)]
+                  [string]$Executable,
+
+                  [Parameter(Mandatory = $false)]
+                  [string[]]$Arguments = @()
+              )
+
+              # Execute the discovered command while preserving stderr for evidence.
+              $commandOutput = & $Executable @Arguments 2>&1
+              $commandExitCode = $LASTEXITCODE
+
+              # Treat a non-zero exit code as a failed tool invocation.
+              if ($null -ne $commandExitCode -and $commandExitCode -ne 0) {
+                  throw (
+                      "'{0}' exited with code {1}: {2}" -f `
+                          $Executable, `
+                          $commandExitCode, `
+                          (($commandOutput | Out-String).Trim())
+                  )
+              }
+
+              # Return one readable version string.
+              return (($commandOutput | Out-String).Trim())
+          }
+
+          # Capture the GitHub runner context supplied to this job.
+          $runnerName = [string]$env:RUNNER_NAME
+          $runnerOs = [string]$env:RUNNER_OS
+          $runnerArchitecture = [string]$env:RUNNER_ARCH
+
+          # Read the target laptop identity directly from Windows.
+          $computerName = [string]$env:COMPUTERNAME
+          $processor = Get-CimInstance Win32_Processor |
+              Select-Object -First 1
+          $computerSystem = Get-CimInstance Win32_ComputerSystem
+          $operatingSystem = Get-CimInstance Win32_OperatingSystem
+          $physicalMemoryGiB = [math]::Round(
+              $computerSystem.TotalPhysicalMemory / 1GB,
+              2
+          )
+
+          # Capture the Windows account under which the runner service executes.
+          $serviceAccount = ((whoami 2>&1 | Out-String).Trim())
+
+          # Capture free space without making it a hard gate in this first smoke test.
+          $systemDrive = Get-CimInstance Win32_LogicalDisk `
+              -Filter "DeviceID='$($env:SystemDrive)'"
+          $systemDriveFreeGiB = [math]::Round(
+              $systemDrive.FreeSpace / 1GB,
+              2
+          )
+
+          # Validate the GitHub routing and physical target identity.
+          Add-Check `
+              -Name 'GitHub runner name' `
+              -Required $true `
+              -Passed ($runnerName -eq 'lenovo-pf4hmd0t-wb05') `
+              -Expected 'lenovo-pf4hmd0t-wb05' `
+              -Actual $runnerName
+          Add-Check `
+              -Name 'GitHub runner operating system' `
+              -Required $true `
+              -Passed ($runnerOs -eq 'Windows') `
+              -Expected 'Windows' `
+              -Actual $runnerOs
+          Add-Check `
+              -Name 'GitHub runner architecture' `
+              -Required $true `
+              -Passed ($runnerArchitecture -eq 'X64') `
+              -Expected 'X64' `
+              -Actual $runnerArchitecture
+          Add-Check `
+              -Name 'Windows computer name' `
+              -Required $true `
+              -Passed ($computerName -eq 'LENOVO-PF4HMD0T') `
+              -Expected 'LENOVO-PF4HMD0T' `
+              -Actual $computerName
+          Add-Check `
+              -Name 'Processor identity' `
+              -Required $true `
+              -Passed ($processor.Name -match 'i5-12450H') `
+              -Expected 'Processor name contains i5-12450H' `
+              -Actual ([string]$processor.Name)
+          Add-Check `
+              -Name 'Installed physical memory' `
+              -Required $true `
+              -Passed ($physicalMemoryGiB -ge 15) `
+              -Expected 'At least 15 GiB' `
+              -Actual ("{0} GiB" -f $physicalMemoryGiB)
+          Add-Check `
+              -Name '64-bit operating system' `
+              -Required $true `
+              -Passed ([Environment]::Is64BitOperatingSystem) `
+              -Expected 'True' `
+              -Actual ([Environment]::Is64BitOperatingSystem.ToString())
+
+          # Record the PowerShell host version used by the service account.
+          $powerShellVersion = $PSVersionTable.PSVersion.ToString()
+          Add-Check `
+              -Name 'Windows PowerShell availability' `
+              -Required $true `
+              -Passed (-not [string]::IsNullOrWhiteSpace($powerShellVersion)) `
+              -Expected 'A readable PowerShell version' `
+              -Actual $powerShellVersion
+
+          # Discover Git through the runner service account PATH.
+          $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+          $gitVersion = ''
+          if ($null -ne $gitCommand) {
+              try {
+                  $gitVersion = Invoke-VersionCommand `
+                      -Executable $gitCommand.Source `
+                      -Arguments @('--version')
+              }
+              catch {
+                  $gitVersion = $_.Exception.Message
+              }
+          }
+          Add-Check `
+              -Name 'Git availability' `
+              -Required $true `
+              -Passed (
+                  $null -ne $gitCommand -and
+                  $gitVersion -match '^git version '
+              ) `
+              -Expected 'git --version succeeds' `
+              -Actual $gitVersion
+
+          # Prefer the Python launcher pinned to Python 3.12, then fall back to
+          # a normal python executable when the launcher is unavailable.
+          $pythonVersion = ''
+          $pythonSource = ''
+          $pythonPassed = $false
+          $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
+          if ($null -ne $pyLauncher) {
+              try {
+                  $pythonVersion = Invoke-VersionCommand `
+                      -Executable $pyLauncher.Source `
+                      -Arguments @('-3.12', '--version')
+                  $pythonSource = 'py -3.12'
+                  $pythonPassed = $pythonVersion -match '^Python 3\.12(\.|$)'
+              }
+              catch {
+                  $pythonVersion = $_.Exception.Message
+              }
+          }
+          if (-not $pythonPassed) {
+              $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+              if ($null -ne $pythonCommand) {
+                  try {
+                      $pythonVersion = Invoke-VersionCommand `
+                          -Executable $pythonCommand.Source `
+                          -Arguments @('--version')
+                      $pythonSource = $pythonCommand.Source
+                      $pythonPassed = $pythonVersion -match '^Python 3\.12(\.|$)'
+                  }
+                  catch {
+                      $pythonVersion = $_.Exception.Message
+                  }
+              }
+          }
+
+          # Build one readable Python evidence value before adding the check.
+          $pythonActual = $pythonVersion
+          if (-not [string]::IsNullOrWhiteSpace($pythonSource)) {
+              $pythonActual = "{0}: {1}" -f $pythonSource, $pythonVersion
+          }
+          Add-Check `
+              -Name 'Python 3.12 availability' `
+              -Required $true `
+              -Passed $pythonPassed `
+              -Expected 'Python 3.12.x available to the runner service account' `
+              -Actual $pythonActual
+
+          # Discover CMake through the runner service account PATH.
+          $cmakeCommand = Get-Command cmake -ErrorAction SilentlyContinue
+          $cmakeVersion = ''
+          if ($null -ne $cmakeCommand) {
+              try {
+                  $cmakeVersion = Invoke-VersionCommand `
+                      -Executable $cmakeCommand.Source `
+                      -Arguments @('--version')
+              }
+              catch {
+                  $cmakeVersion = $_.Exception.Message
+              }
+          }
+          Add-Check `
+              -Name 'CMake availability' `
+              -Required $true `
+              -Passed (
+                  $null -ne $cmakeCommand -and
+                  $cmakeVersion -match '^cmake version '
+              ) `
+              -Expected 'cmake --version succeeds' `
+              -Actual $cmakeVersion
+
+          # Locate Visual Studio through vswhere rather than assuming MSBuild
+          # is available on PATH for the NETWORK SERVICE account.
+          $vswherePath = Join-Path `
+              ${env:ProgramFiles(x86)} `
+              'Microsoft Visual Studio\Installer\vswhere.exe'
+          $msbuildPath = ''
+          $msbuildVersion = ''
+          if (Test-Path -LiteralPath $vswherePath -PathType Leaf) {
+              $msbuildPath = & $vswherePath `
+                  -latest `
+                  -products '*' `
+                  -requires Microsoft.Component.MSBuild `
+                  -find 'MSBuild\**\Bin\MSBuild.exe' |
+                  Select-Object -First 1
+
+              if (-not [string]::IsNullOrWhiteSpace($msbuildPath)) {
+                  try {
+                      $msbuildVersion = Invoke-VersionCommand `
+                          -Executable $msbuildPath `
+                          -Arguments @('-version', '-nologo')
+                  }
+                  catch {
+                      $msbuildVersion = $_.Exception.Message
+                  }
+              }
+          }
+
+          # Build one readable MSBuild evidence value before adding the check.
+          $msbuildActual = "vswhere: $vswherePath; MSBuild not found"
+          if (-not [string]::IsNullOrWhiteSpace($msbuildPath)) {
+              $msbuildActual = "{0}: {1}" -f $msbuildPath, $msbuildVersion
+          }
+          Add-Check `
+              -Name 'MSBuild availability' `
+              -Required $true `
+              -Passed (
+                  (Test-Path -LiteralPath $vswherePath -PathType Leaf) -and
+                  -not [string]::IsNullOrWhiteSpace($msbuildPath) -and
+                  $msbuildVersion -match '\d+\.\d+'
+              ) `
+              -Expected 'vswhere locates MSBuild and MSBuild reports a version' `
+              -Actual $msbuildActual
+
+          # Prove that the service account can create and read temporary evidence.
+          $writeProbePath = Join-Path `
+              $reportDirectory `
+              'workspace-write-probe.txt'
+          $writeProbeExpected = "Workbook 05 runner write probe: $env:GITHUB_RUN_ID"
+          $writeProbeActual = ''
+          $writeProbePassed = $false
+          try {
+              Set-Content `
+                  -LiteralPath $writeProbePath `
+                  -Value $writeProbeExpected `
+                  -Encoding UTF8
+              $writeProbeActual = (
+                  Get-Content `
+                      -LiteralPath $writeProbePath `
+                      -Raw
+              ).Trim()
+              $writeProbePassed = $writeProbeActual -eq $writeProbeExpected
+          }
+          catch {
+              $writeProbeActual = $_.Exception.Message
+          }
+          Add-Check `
+              -Name 'Temporary evidence write and read' `
+              -Required $true `
+              -Passed $writeProbePassed `
+              -Expected $writeProbeExpected `
+              -Actual $writeProbeActual
+
+          # Build the complete machine-readable diagnostic report.
+          $report = [ordered]@{
+              SchemaVersion = '1.0'
+              GeneratedAtUtc = [DateTime]::UtcNow.ToString('o')
+              Repository = [string]$env:GITHUB_REPOSITORY
+              Workflow = [string]$env:GITHUB_WORKFLOW
+              RunId = [string]$env:GITHUB_RUN_ID
+              RunAttempt = [string]$env:GITHUB_RUN_ATTEMPT
+              CommitSha = [string]$env:GITHUB_SHA
+              Ref = [string]$env:GITHUB_REF
+              Runner = [ordered]@{
+                  Name = $runnerName
+                  OperatingSystem = $runnerOs
+                  Architecture = $runnerArchitecture
+                  ServiceAccount = $serviceAccount
+                  TemporaryDirectory = [string]$env:RUNNER_TEMP
+                  Workspace = [string]$env:GITHUB_WORKSPACE
+              }
+              Hardware = [ordered]@{
+                  ComputerName = $computerName
+                  Processor = [string]$processor.Name
+                  PhysicalMemoryGiB = $physicalMemoryGiB
+                  SystemDrive = [string]$env:SystemDrive
+                  SystemDriveFreeGiB = $systemDriveFreeGiB
+              }
+              OperatingSystem = [ordered]@{
+                  Caption = [string]$operatingSystem.Caption
+                  Version = [string]$operatingSystem.Version
+                  BuildNumber = [string]$operatingSystem.BuildNumber
+                  Is64Bit = [Environment]::Is64BitOperatingSystem
+              }
+              Toolchain = [ordered]@{
+                  PowerShell = $powerShellVersion
+                  Git = $gitVersion
+                  Python = $pythonVersion
+                  PythonSource = $pythonSource
+                  CMake = $cmakeVersion
+                  VsWhere = $vswherePath
+                  MSBuildPath = $msbuildPath
+                  MSBuild = $msbuildVersion
+              }
+              Checks = $checks
+          }
+
+          # Save the JSON evidence before deciding whether to fail the job.
+          $jsonReportPath = Join-Path `
+              $reportDirectory `
+              'runner-smoke-report.json'
+          $report |
+              ConvertTo-Json -Depth 8 |
+              Set-Content `
+                  -LiteralPath $jsonReportPath `
+                  -Encoding UTF8
+
+          # Create a compact Markdown table for beginners and reviewers.
+          $summaryLines = @(
+              '# Workbook 05 Intel runner smoke test'
+              ''
+              "- Runner: ``$runnerName``"
+              "- Computer: ``$computerName``"
+              "- Processor: ``$($processor.Name)``"
+              "- Service account: ``$serviceAccount``"
+              "- RAM: ``$physicalMemoryGiB GiB``"
+              "- Free system-drive space: ``$systemDriveFreeGiB GiB``"
+              ''
+              '| Check | Required | Result | Expected | Actual |'
+              '| --- | --- | --- | --- | --- |'
+          )
+
+          # Add one table row per check while escaping Markdown pipe characters.
+          foreach ($check in $checks) {
+              $resultLabel = if ($check.Passed) { 'PASS' } else { 'FAIL' }
+              $expectedValue = (
+                  [string]$check.Expected
+              ).Replace('|', '\|')
+              $expectedValue = $expectedValue.Replace("`r", '')
+              $expectedValue = $expectedValue.Replace("`n", '<br>')
+              $actualValue = (
+                  [string]$check.Actual
+              ).Replace('|', '\|')
+              $actualValue = $actualValue.Replace("`r", '')
+              $actualValue = $actualValue.Replace("`n", '<br>')
+              $summaryLines += (
+                  '| {0} | {1} | {2} | {3} | {4} |' -f `
+                      $check.Name, `
+                      $check.Required, `
+                      $resultLabel, `
+                      $expectedValue, `
+                      $actualValue
+              )
+          }
+
+          # Save the Markdown evidence as an artifact file.
+          $markdownReportPath = Join-Path `
+              $reportDirectory `
+              'runner-smoke-summary.md'
+          $summaryLines |
+              Set-Content `
+                  -LiteralPath $markdownReportPath `
+                  -Encoding UTF8
+
+          # Publish the same summary directly on the GitHub Actions run page.
+          if (
+              -not [string]::IsNullOrWhiteSpace(
+                  [string]$env:GITHUB_STEP_SUMMARY
+              )
+          ) {
+              $summaryLines |
+                  Add-Content `
+                      -LiteralPath $env:GITHUB_STEP_SUMMARY `
+                      -Encoding UTF8
+          }
+
+          # Fail only after all available diagnostic evidence has been written.
+          $failedRequiredChecks = @(
+              $checks |
+                  Where-Object {
+                      $_.Required -and -not $_.Passed
+                  }
+          )
+          if ($failedRequiredChecks.Count -gt 0) {
+              $failedNames = (
+                  $failedRequiredChecks.Name -join ', '
+              )
+              throw (
+                  "Workbook 05 runner smoke test failed: $failedNames"
+              )
+          }
+
+          # Emit one explicit success line for the job log.
+          Write-Host (
+              'Workbook 05 runner smoke test passed all required checks.'
+          )
+
+      - name: Upload runner smoke-test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-runner-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/workbook-05-runner-smoke
+          if-no-files-found: error
+          retention-days: 30
