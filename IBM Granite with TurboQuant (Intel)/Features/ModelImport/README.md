@@ -5,11 +5,59 @@
 **Reviewed implementation baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`  
 **Current branch:** `feature/model-inspection`
 
+[← Application feature architecture](../README.md)
+
 ## Purpose
 
 Model Import is the first onboarding stage. It allows the user to select a local model package, performs a bounded quick scan, presents a controlled result, and exposes only a validated selection to the next stage.
 
-The current working route is GGUF. The quick scan is intentionally lighter than full Model Inspection: it reads enough untrusted container metadata to classify the selection and populate the import card, but it does not load model tensors, execute the model, or prove runtime compatibility.
+The current working validation route is GGUF. The quick scan is intentionally lighter than full Model Inspection: it reads enough untrusted container metadata to classify the selection and populate the import card, but it does not load model tensors, execute the model, or prove runtime compatibility.
+
+## Folder structure
+
+```text
+ModelImport/
+├── README.md
+├── ModelImportPage.xaml
+├── ModelImportPage.xaml.cs
+├── ModelInspectionRequestedEventArgs.cs
+│
+├── Controls/
+│   ├── README.md
+│   ├── ImportModelCard.xaml/.cs
+│   ├── ImportModelCardState.cs
+│   ├── ImportedModelCardData.cs
+│   └── ImportedModelCardDataMapper.cs
+│
+├── FileImport/
+│   ├── README.md
+│   └── PickerRoute/
+│       ├── README.md
+│       ├── ModelFormatSelectionCard.xaml/.cs
+│       ├── GgufModelFilePicker.cs
+│       └── OpenVINOFolderPicker.cs
+│
+├── ModelDownload/
+│   ├── README.md
+│   ├── ModelDownloadCard.xaml/.cs
+│   └── ModelPreferenceSlider.cs
+│
+└── QuickScan/
+    ├── README.md
+    ├── ModelQuickScanner.cs
+    ├── GgufQuickScanner.cs
+    ├── ModelQuickScanResult.cs
+    ├── ModelQuickScanOutcome.cs
+    └── ModelQuickScanFailureDiagnostic.cs
+```
+
+Nested documentation:
+
+- [Imported-model controls](./Controls/README.md)
+- [File-import boundary](./FileImport/README.md)
+- [Native picker routes](./FileImport/PickerRoute/README.md)
+- [Recommended-model download prototype](./ModelDownload/README.md)
+- [Quick-scan architecture](./QuickScan/README.md)
 
 ## Responsibility boundary
 
@@ -38,11 +86,11 @@ The current working route is GGUF. The quick scan is intentionally lighter than 
 
 ```text
 ImportModelCard
-    → raises browse or remove intent
+    → raises browse or cancel/remove intent
 
 ModelImportPage
     → asks the user for model format
-    → opens the native file picker
+    → opens the native picker route
     → owns the selected path and validated state
     → owns the active scan identity
     → calls ModelQuickScanner
@@ -69,38 +117,17 @@ ModelImportPage
     → raises ModelInspectionRequested when the user continues
 ```
 
-## Main components
+## Root files
 
-### `ImportModelCard`
+### `ModelImportPage.xaml`
 
-The reusable card renders the visible Model Import state. It raises user intent but does not select files or parse models.
+Defines the complete first-stage page composition, including the imported-model card and Continue action.
 
-Implemented presentations:
+[Open file](./ModelImportPage.xaml)
 
-1. `AwaitingSelection` — browse surface and future drag-and-drop area.
-2. `Scanning` — selected filename, skeleton metadata, progress indication, and cancel/remove action.
-3. `ScanFailed` — stable failure code, user-facing explanation, recovery guidance, and removal action.
-4. `ScanSucceeded` — approved validated metadata and the removal action.
+### `ModelImportPage.xaml.cs`
 
-The card exposes typed entry methods:
-
-```csharp
-ShowAwaitingSelection();
-ShowScanning(selectedFileName);
-ShowFailure(selectedFileName, failureCode, userMessage);
-ShowSuccess(importedModelCardData);
-```
-
-This prevents a success layout from being entered without a complete `ImportedModelCardData` object.
-
-Source:
-
-- [`Controls/ImportModelCard.xaml`](./Controls/ImportModelCard.xaml)
-- [`Controls/ImportModelCard.xaml.cs`](./Controls/ImportModelCard.xaml.cs)
-
-### `ModelImportPage`
-
-The page coordinates the workflow. It does not parse GGUF bytes itself.
+Coordinates format selection, file selection, quick scan, cancellation identity, stale-result suppression, card state, validated state, diagnostics, and the guarded handoff to Model Inspection.
 
 It stores:
 
@@ -110,44 +137,58 @@ HasValidatedModel
 ValidatedScanResult
 ```
 
-It also owns the current `CancellationTokenSource` identity so only the active scan may update visible state.
+[Open file](./ModelImportPage.xaml.cs)
 
-Source:
+### `ModelInspectionRequestedEventArgs.cs`
 
-- [`ModelImportPage.xaml`](./ModelImportPage.xaml)
-- [`ModelImportPage.xaml.cs`](./ModelImportPage.xaml.cs)
+Defines the current cross-feature handoff message:
 
-### `ModelQuickScanner`
+```csharp
+ModelInspectionRequestedEventArgs
+└── string ModelPath
+```
 
-The router selects the scanner for the requested model format. The current connected route sends GGUF to `GgufQuickScanner`.
+The constructor rejects null, empty, or whitespace paths. The event argument carries intent and data; it does not navigate.
 
-Source:
+[Open file](./ModelInspectionRequestedEventArgs.cs)
 
-- [`QuickScan/ModelQuickScanner.cs`](./QuickScan/ModelQuickScanner.cs)
+## Main subcomponents
 
-### `GgufQuickScanner`
+### Imported-model controls
 
-The GGUF scanner performs bounded, asynchronous, read-only parsing. It accepts little-endian GGUF versions 2 and 3, classifies version 1 as obsolete, and rejects unsupported future versions through stable failure results.
+The reusable card renders the visible Model Import state and raises browse or cancel/remove intent. It does not select files or parse models.
 
-The quick scanner does not:
+Implemented presentations:
 
-- load tensors;
-- allocate a model context;
-- execute inference;
-- rewrite the file;
-- build a general-purpose in-memory GGUF representation.
+1. `AwaitingSelection`.
+2. `Scanning`.
+3. `ScanFailed`.
+4. `ScanSucceeded`.
 
-Source:
+Full file-by-file context:
 
-- [`QuickScan/GgufQuickScanner.cs`](./QuickScan/GgufQuickScanner.cs)
+- [Controls README](./Controls/README.md)
 
-### `ImportedModelCardDataMapper`
+### File selection and picker routes
 
-The mapper converts validated scan metadata into display values. This keeps culture-aware size and context formatting out of page orchestration.
+Format choice and native Windows picker construction live outside page orchestration and parser logic.
 
-Source:
+- [File-import boundary](./FileImport/README.md)
+- [Picker-route implementation](./FileImport/PickerRoute/README.md)
 
-- [`Controls/ImportedModelCardDataMapper.cs`](./Controls/ImportedModelCardDataMapper.cs)
+The GGUF picker is connected. An OpenVINO folder picker exists, but the OpenVINO scan and validated import route are not connected.
+
+### Quick scan
+
+`ModelQuickScanner` routes the current GGUF request to `GgufQuickScanner`. The scanner performs bounded, asynchronous, read-only parsing for supported GGUF versions.
+
+- [Quick-scan README](./QuickScan/README.md)
+
+### Recommended-model download prototype
+
+`ModelDownloadCard` and `ModelPreferenceSlider` currently provide a view-only preference prototype. They are not connected to a catalog, network download, integrity verification, or validated import route.
+
+- [Model-download README](./ModelDownload/README.md)
 
 ## Successful import flow
 
@@ -210,19 +251,7 @@ OnboardingShellPage performs navigation
 
 `ModelImportPage` deliberately does not search for or manipulate a parent `Frame`. The onboarding shell owns navigation and stage synchronization.
 
-Current event contract:
-
-```csharp
-ModelInspectionRequestedEventArgs
-└── string ModelPath
-```
-
 Planned improvement: replace the path-only handoff with a project-owned request that also carries the selected format and validated quick-scan metadata. That richer request is not implemented yet.
-
-Source:
-
-- [`ModelInspectionRequestedEventArgs.cs`](./ModelInspectionRequestedEventArgs.cs)
-- [`../Onboarding/OnboardingShellPage.xaml.cs`](../Onboarding/OnboardingShellPage.xaml.cs)
 
 ## Cancellation and replacement safety
 
@@ -270,7 +299,7 @@ The Model Import slice is covered by tests for:
 - GGUF scanner and result contracts;
 - deterministic fixture integrity;
 - supported, obsolete, future, malformed, and adversarial GGUF cases;
-- format routing;
+- format routing and picker contracts;
 - awaiting, scanning, failure, and success card states;
 - page-to-router-to-card handoff;
 - optional metadata display fallbacks;
@@ -278,11 +307,14 @@ The Model Import slice is covered by tests for:
 - cancellation and replacement races;
 - late success and late failure suppression;
 - diagnostic capture and diagnostic-sink failure containment;
-- guarded Model Inspection navigation requests.
+- guarded Model Inspection navigation requests;
+- the current model-download card prototype.
 
-Relevant current navigation tests:
+Relevant current navigation test:
 
 - [`ModelImportNavigationRequestTests.cs`](../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportNavigationRequestTests.cs)
+
+Each nested README links its closest source tests.
 
 Detailed evidence:
 
@@ -301,13 +333,15 @@ Detailed evidence:
 - culture-aware presentation mapping;
 - diagnostic minimisation and containment;
 - validated-state storage;
-- guarded event-driven handoff to Model Inspection.
+- guarded event-driven handoff to Model Inspection;
+- view-only recommended-model preference prototype.
 
 ## Not implemented and non-claims
 
-- OpenVINO model selection and quick scanning;
+- OpenVINO quick scanning and validated import flow;
 - actual drag-and-drop handling;
-- recommended-model downloads entering the same validation route;
+- recommended-model catalog and downloads;
+- downloaded models entering the existing validation contract;
 - full runtime model loading;
 - tensor validation;
 - tokenizer/runtime compatibility validation;
@@ -317,6 +351,12 @@ Detailed evidence:
 ## Known limitations
 
 - the handoff currently carries only `ModelPath`, not the validated scan result;
-- only the GGUF route is connected;
+- only the GGUF validation route is connected;
 - full responsive, high-text-scaling, keyboard, and screen-reader acceptance remains pending;
-- quick scan proves bounded container readability, not runtime suitability.
+- quick scan proves bounded container readability, not runtime suitability;
+- the model-download card contains development seed data and view-only slider logic.
+
+## Related feature documentation
+
+- [Onboarding architecture](../Onboarding/README.md)
+- [Model Inspection architecture](../ModelInspection/README.md)
