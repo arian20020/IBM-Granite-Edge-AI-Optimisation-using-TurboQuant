@@ -15,7 +15,10 @@ from typing import Any, Iterable
 CAMPAIGN_ID = "GTQ-WB05-MF-v1"
 ROUTES = {"route-a-merged-openvino", "route-b-experimental-qjl-polar"}
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
-REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+REPOSITORY_PATTERN = re.compile(
+    r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+)
+DOCUMENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 @dataclass(frozen=True)
@@ -33,31 +36,65 @@ class CommandBlock:
 
 
 def validate_document_spec(specification: dict[str, Any]) -> None:
-    """Reject unpinned or path-escaping source specifications."""
+    """Reject unsafe identifiers, unpinned revisions, and escaping paths."""
 
+    document_id = str(specification.get("document_id", ""))
     repository = str(specification.get("repository_full_name", ""))
     commit = str(specification.get("commit", ""))
     repository_path = str(specification.get("path", ""))
+
+    # document_id becomes a snapshot filename, so permit only one bounded,
+    # separator-free identifier. This prevents `../` or drive-qualified output.
+    if not DOCUMENT_ID_PATTERN.fullmatch(document_id):
+        raise ValueError(
+            "document_id must be a safe 1-128 character file identifier"
+        )
     if not REPOSITORY_PATTERN.fullmatch(repository):
         raise ValueError("repository_full_name must be owner/repository")
     if not COMMIT_PATTERN.fullmatch(commit):
         raise ValueError("commit must be a lowercase 40-character SHA")
-    if not repository_path or "\\" in repository_path or "#" in repository_path or "?" in repository_path:
-        raise ValueError("path must be a clean repository-relative POSIX path")
+    if (
+        not repository_path
+        or "\\" in repository_path
+        or "#" in repository_path
+        or "?" in repository_path
+    ):
+        raise ValueError(
+            "path must be a clean repository-relative POSIX path"
+        )
     parsed = PurePosixPath(repository_path)
     if parsed.is_absolute() or ".." in parsed.parts or "." in parsed.parts:
-        raise ValueError("path must be a clean repository-relative POSIX path")
+        raise ValueError(
+            "path must be a clean repository-relative POSIX path"
+        )
 
 
-def build_raw_github_url(repository_full_name: str, commit: str, repository_path: str) -> str:
+def build_raw_github_url(
+    repository_full_name: str,
+    commit: str,
+    repository_path: str,
+) -> str:
     """Construct the sole allowed document-download URL form."""
 
-    specification = {"repository_full_name": repository_full_name, "commit": commit, "path": repository_path}
+    # A URL-only call has no persisted document identifier. Supply an internal
+    # safe identifier so all other source-boundary checks use one validator.
+    specification = {
+        "document_id": "RAW-URL",
+        "repository_full_name": repository_full_name,
+        "commit": commit,
+        "path": repository_path,
+    }
     validate_document_spec(specification)
-    return f"https://raw.githubusercontent.com/{repository_full_name}/{commit}/{repository_path}"
+    return (
+        "https://raw.githubusercontent.com/"
+        f"{repository_full_name}/{commit}/{repository_path}"
+    )
 
 
-def extract_fenced_commands(document_id: str, markdown_text: str) -> list[CommandBlock]:
+def extract_fenced_commands(
+    document_id: str,
+    markdown_text: str,
+) -> list[CommandBlock]:
     """Extract fenced blocks verbatim without interpreting shell syntax."""
 
     lines = markdown_text.splitlines()
@@ -82,7 +119,9 @@ def extract_fenced_commands(document_id: str, markdown_text: str) -> list[Comman
             content.append(lines[index])
             index += 1
         if index >= len(lines):
-            raise ValueError(f"Unclosed code fence in {document_id} at line {opening_line}")
+            raise ValueError(
+                f"Unclosed code fence in {document_id} at line {opening_line}"
+            )
 
         verbatim = "\n".join(content)
         command_number = len(commands) + 1
@@ -95,7 +134,9 @@ def extract_fenced_commands(document_id: str, markdown_text: str) -> list[Comman
                 start_line=opening_line + 1,
                 end_line=index,
                 verbatim_text=verbatim,
-                sha256=hashlib.sha256(verbatim.encode("utf-8")).hexdigest(),
+                sha256=hashlib.sha256(
+                    verbatim.encode("utf-8")
+                ).hexdigest(),
             )
         )
         index += 1
@@ -105,55 +146,82 @@ def extract_fenced_commands(document_id: str, markdown_text: str) -> list[Comman
 def _download(url: str, maximum_bytes: int) -> bytes:
     """Download one bounded UTF-8 document with a finite timeout."""
 
-    request = urllib.request.Request(url, headers={"User-Agent": "GTQ-WB05-MF-v1-document-capture"})
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "GTQ-WB05-MF-v1-document-capture"
+        },
+    )
     with urllib.request.urlopen(request, timeout=30) as response:
         data = response.read(maximum_bytes + 1)
     if len(data) > maximum_bytes:
-        raise ValueError(f"Document exceeded maximum size of {maximum_bytes} bytes: {url}")
+        raise ValueError(
+            f"Document exceeded maximum size of {maximum_bytes} bytes: {url}"
+        )
     data.decode("utf-8", errors="strict")
     return data
 
 
-def capture_documents(config_path: Path, output_directory: Path) -> list[Path]:
+def capture_documents(
+    config_path: Path,
+    output_directory: Path,
+) -> list[Path]:
     """Capture allowlisted documents and inert command manifests by route."""
 
-    configuration = json.loads(config_path.read_text(encoding="utf-8-sig"))
+    configuration = json.loads(
+        config_path.read_text(encoding="utf-8-sig")
+    )
     allowed_repositories = set(configuration["allowed_repositories"])
     documents_directory = output_directory / "documents"
     commands_directory = output_directory / "commands"
     documents_directory.mkdir(parents=True, exist_ok=True)
     commands_directory.mkdir(parents=True, exist_ok=True)
-    route_documents: dict[str, list[dict[str, Any]]] = {route: [] for route in ROUTES}
-    route_commands: dict[str, list[dict[str, Any]]] = {route: [] for route in ROUTES}
+    route_documents: dict[str, list[dict[str, Any]]] = {
+        route: [] for route in ROUTES
+    }
+    route_commands: dict[str, list[dict[str, Any]]] = {
+        route: [] for route in ROUTES
+    }
     created: list[Path] = []
 
     for specification in configuration["documents"]:
         validate_document_spec(specification)
+        document_id = specification["document_id"]
         repository = specification["repository_full_name"]
         route = specification["route_id"]
         if repository not in allowed_repositories:
-            raise ValueError(f"Repository is not allowlisted: {repository}")
+            raise ValueError(
+                f"Repository is not allowlisted: {repository}"
+            )
         if route not in ROUTES:
             raise ValueError(f"Unknown route: {route}")
 
-        url = build_raw_github_url(repository, specification["commit"], specification["path"])
+        url = build_raw_github_url(
+            repository,
+            specification["commit"],
+            specification["path"],
+        )
         data = _download(url, int(specification["maximum_bytes"]))
-        snapshot = documents_directory / f"{specification['document_id']}.md"
+        snapshot = documents_directory / f"{document_id}.md"
         snapshot.write_bytes(data)
         created.append(snapshot)
         text = data.decode("utf-8", errors="strict")
-        blocks = extract_fenced_commands(specification["document_id"], text)
+        blocks = extract_fenced_commands(document_id, text)
         route_documents[route].append(
             {
-                "document_id": specification["document_id"],
+                "document_id": document_id,
                 "repository_full_name": repository,
                 "commit": specification["commit"],
                 "path": specification["path"],
-                "snapshot_path": snapshot.relative_to(output_directory).as_posix(),
+                "snapshot_path": snapshot.relative_to(
+                    output_directory
+                ).as_posix(),
                 "sha256": hashlib.sha256(data).hexdigest(),
             }
         )
-        route_commands[route].extend(asdict(block) for block in blocks)
+        route_commands[route].extend(
+            asdict(block) for block in blocks
+        )
 
     for route in sorted(ROUTES):
         manifest = {
@@ -164,8 +232,14 @@ def capture_documents(config_path: Path, output_directory: Path) -> list[Path]:
             "documents": route_documents[route],
             "commands": route_commands[route],
         }
-        destination = commands_directory / f"{route}-documented-commands.json"
-        destination.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        destination = (
+            commands_directory
+            / f"{route}-documented-commands.json"
+        )
+        destination.write_text(
+            json.dumps(manifest, indent=2) + "\n",
+            encoding="utf-8",
+        )
         created.append(destination)
     return created
 
@@ -176,8 +250,13 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output-directory", type=Path, required=True)
-    arguments = parser.parse_args(list(argv) if argv is not None else None)
-    paths = capture_documents(arguments.config.resolve(), arguments.output_directory.resolve())
+    arguments = parser.parse_args(
+        list(argv) if argv is not None else None
+    )
+    paths = capture_documents(
+        arguments.config.resolve(),
+        arguments.output_directory.resolve(),
+    )
     for created in paths:
         print(f"Captured: {created}")
     return 0
