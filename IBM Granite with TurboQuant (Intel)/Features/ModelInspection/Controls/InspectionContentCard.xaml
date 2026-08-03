@@ -33,7 +33,7 @@
 
                 <!--  Dark theme.  -->
                 <ResourceDictionary
-                    x:Key="Default">
+                    x:Key="Dark">
                     <SolidColorBrush
                         x:Key="InspectionCardBackgroundBrush"
                         Color="#1F1F1F" />

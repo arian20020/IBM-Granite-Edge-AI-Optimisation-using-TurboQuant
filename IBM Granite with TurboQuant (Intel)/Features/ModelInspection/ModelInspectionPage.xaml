@@ -15,6 +15,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     d:DesignHeight="900"
     d:DesignWidth="1200"
+    RequestedTheme="Light"
     mc:Ignorable="d">
 
     <!--
