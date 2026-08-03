@@ -56,8 +56,20 @@ jobs:
     steps:
       # Retrieve the exact pull-request or manually selected repository commit.
       # The action is pinned to an immutable commit rather than a moving tag.
+      # Only controlled preflight inputs are materialised: unrelated research
+      # and historical log paths exceed the legacy Windows path boundary.
       - name: Check out controlled preflight inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
 
       - name: Verify the pinned machine-wide Python
         run: |
@@ -163,8 +175,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Use the same sparse boundary as the Intel job. The hosted Windows
+      # worktree is also subject to the repository's deeply nested paths.
       - name: Check out the same repository revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
 
       - name: Set up validation Python
         uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
