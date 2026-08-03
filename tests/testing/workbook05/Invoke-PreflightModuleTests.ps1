@@ -22,11 +22,30 @@ $timeoutText = Get-Content -Raw -LiteralPath (
     Join-Path $PSScriptRoot 'fixtures/powercfg-ac-timeout.txt'
 )
 
-Assert-Equal 0 (Get-Workbook05AcSleepTimeoutSeconds -PowerCfgOutput $neverText) 'Never-sleep parsing failed.'
-Assert-Equal 900 (Get-Workbook05AcSleepTimeoutSeconds -PowerCfgOutput $timeoutText) 'Timeout parsing failed.'
+Assert-Equal `
+    0 `
+    (Get-Workbook05AcSleepTimeoutSeconds -PowerCfgOutput $neverText) `
+    'Never-sleep parsing failed.'
+Assert-Equal `
+    900 `
+    (Get-Workbook05AcSleepTimeoutSeconds -PowerCfgOutput $timeoutText) `
+    'Timeout parsing failed.'
+
+# Windows exposes SystemDrive as `C:` while Get-PSDrive accepts only `C`.
+# Cover both the environment form and a rooted form to prevent path/name mixups.
+Assert-Equal `
+    'C' `
+    (Get-Workbook05SystemDriveName -SystemDrive 'C:') `
+    'System-drive environment value parsing failed.'
+Assert-Equal `
+    'D' `
+    (Get-Workbook05SystemDriveName -SystemDrive 'D:\') `
+    'Rooted system-drive value parsing failed.'
 
 $settings = Get-Content -Raw -LiteralPath (
-    Join-Path $RepositoryRoot 'experiments/granite_turboquant_intel/configurations/workbook05/preflight-settings.json'
+    Join-Path `
+        $RepositoryRoot `
+        'experiments/granite_turboquant_intel/configurations/workbook05/preflight-settings.json'
 ) | ConvertFrom-Json
 
 $validObservation = [pscustomobject]@{
@@ -55,14 +74,29 @@ $validObservation = [pscustomobject]@{
     EvidenceWriteProbePassed = $true
 }
 
-$passed = Test-Workbook05PreflightObservation -Observation $validObservation -Settings $settings
-Assert-Equal 'Passed' $passed.OverallStatus 'Valid observation should pass.'
+$passed = Test-Workbook05PreflightObservation `
+    -Observation $validObservation `
+    -Settings $settings
+Assert-Equal `
+    'Passed' `
+    $passed.OverallStatus `
+    'Valid observation should pass.'
 
 $lowMemoryObservation = $validObservation.PSObject.Copy()
 $lowMemoryObservation.AvailableMemoryGiB = 5.5
-$failed = Test-Workbook05PreflightObservation -Observation $lowMemoryObservation -Settings $settings
-Assert-Equal 'Failed' $failed.OverallStatus 'Low-memory observation should fail.'
-if (-not ($failed.Checks | Where-Object { $_.Name -eq 'Available physical memory' -and -not $_.Passed })) {
+$failed = Test-Workbook05PreflightObservation `
+    -Observation $lowMemoryObservation `
+    -Settings $settings
+Assert-Equal `
+    'Failed' `
+    $failed.OverallStatus `
+    'Low-memory observation should fail.'
+if (-not (
+    $failed.Checks |
+        Where-Object {
+            $_.Name -eq 'Available physical memory' -and -not $_.Passed
+        }
+)) {
     throw 'Low-memory failure did not identify the available-memory gate.'
 }
 
