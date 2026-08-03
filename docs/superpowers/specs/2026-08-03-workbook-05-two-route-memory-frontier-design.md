@@ -500,9 +500,9 @@ Allowed result states are:
 
 ## 14. Workbook and traceability revision
 
-Workbook 05 v1.1 remains unchanged.
+Workbook 05 v1.3 remains unchanged.
 
-A new controlled v1.2 revision will:
+A new controlled v1.4 revision will:
 
 - retain all existing test IDs;
 - add route, phase and memory rank;
@@ -551,7 +551,7 @@ Implementation is accepted only when:
 
 The first implementation plan will cover only:
 
-1. controlled Workbook 05 v1.2 scaffolding;
+1. controlled Workbook 05 v1.4 scaffolding;
 2. Route A/B source-admission manifests;
 3. exact-document command capture;
 4. preflight workflow;
