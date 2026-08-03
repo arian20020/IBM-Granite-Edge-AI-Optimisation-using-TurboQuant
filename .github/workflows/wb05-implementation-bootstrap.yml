@@ -15,7 +15,7 @@ concurrency:
 jobs:
   implement-plan:
     name: Execute the approved ten-task preflight plan
-    if: github.event.head_commit.message == 'chore(workbook-05): bootstrap implementation worker'
+    if: "github.event.head_commit.message == 'chore(workbook-05): bootstrap implementation worker'"
     runs-on: windows-latest
     timeout-minutes: 120
 
