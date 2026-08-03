@@ -92,11 +92,41 @@
 
 ### Task 6: Final verification
 
-- [ ] Confirm all 12 feature-tree READMEs exist.
-- [ ] Confirm parent/child links are bidirectional.
-- [ ] Confirm all documented source and test paths exist.
-- [ ] Confirm file inventories match `feature/model-inspection` rather than newer `main` content.
-- [ ] Confirm no false runtime or download claims.
-- [ ] Confirm the detailed current-state document no longer lists implemented navigation as deferred.
-- [ ] Confirm the diff is documentation-only.
-- [ ] Record that no application build or test execution is claimed for this Markdown-only change.
+- [x] Confirm all 12 feature-tree READMEs exist.
+- [x] Confirm parent/child links are bidirectional.
+- [x] Confirm documented source and test paths against the current branch files and mirrored test paths.
+- [x] Confirm file inventories match `feature/model-inspection` rather than newer `main` content.
+- [x] Confirm no false runtime or download claims.
+- [x] Confirm the detailed current-state document no longer lists implemented navigation as deferred.
+- [x] Confirm the diff is documentation-only.
+- [x] Record that no application build or test execution is claimed for this Markdown-only change.
+
+## Verification evidence
+
+`compare_commits` from application baseline
+`2c51bb0551cb5556e422e63c19888c1f3874d0e5` to the feature branch showed
+exactly 15 changed paths:
+
+```text
+12 feature-tree README files
+1 detailed current-state Markdown update
+1 design Markdown file
+1 implementation-plan Markdown file
+```
+
+Every changed path is Markdown. No application source, test, fixture, project,
+or workflow file appears in the diff.
+
+Branch-specific file checks confirmed that the reviewed Model Download folder
+contains `ModelDownloadCard.xaml`, `ModelDownloadCard.xaml.cs`, and
+`ModelPreferenceSlider.cs`; the documents do not incorrectly copy the newer
+main-branch `RecommendedModelDownloadPage` into this branch's inventory.
+
+Source and test path checks were performed against the connected repository for
+the picker files, quick-scan contracts, Model Import controls, Model Download
+card test, onboarding shell and indicator, Model Inspection page/controls/models,
+navigation tests, indicator tests, and selector tests.
+
+No build, packaged test run, or manual WinUI run was executed for this
+Markdown-only documentation change. Existing historical test totals are kept
+explicitly attached to their previously verified implementation heads.
