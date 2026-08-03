@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "route_id": "route-a-merged-openvino",
+  "support_boundary": "merged",
+  "source": {
+    "repository_full_name": "openvinotoolkit/openvino",
+    "repository_url": "https://github.com/openvinotoolkit/openvino.git",
+    "source_role": "runtime",
+    "commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+    "base_commit": "816d60598f9b37135cf7d9ee7ca11b75082896b2",
+    "pull_request_url": "https://github.com/openvinotoolkit/openvino/pull/35853",
+    "pull_request_state": "merged"
+  },
+  "genai_candidate": {
+    "repository_full_name": "openvinotoolkit/openvino.genai",
+    "repository_url": "https://github.com/openvinotoolkit/openvino.genai.git",
+    "source_role": "genai-compatibility-candidate",
+    "commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+    "base_commit": null,
+    "pull_request_url": null,
+    "pull_request_state": "not-applicable"
+  },
+  "admission_status": "Candidate",
+  "proofs": [
+    {
+      "proof_id": "RA-P01-document-capture",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P02-runtime-commit-reachable",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P03-genai-commit-reachable",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P04-documented-build",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P05-standard-cache-baseline",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P06-property-visibility",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P07-turbo-u3-activation",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P08-turbo-u4-activation",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P09-packed-allocation",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RA-P10-no-silent-fallback",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    }
+  ],
+  "known_blockers": [],
+  "decision_reason": "Merged Runtime provenance is known, but the Runtime and GenAI pair has not yet been built, activated, and checked for fallback on the target Intel laptop."
+}
