@@ -1,1 +1,2 @@
 Temporary same-repository trigger for the approved Workbook 05 implementation plan.
+Retry: sparse Workbook 05 checkout only.
