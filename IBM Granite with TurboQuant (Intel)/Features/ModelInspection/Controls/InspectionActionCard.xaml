@@ -9,21 +9,22 @@
     d:DesignHeight="160"
     d:DesignWidth="840"
     mc:Ignorable="d">
+
     <!--
         Displays the actions available for the current inspection state.
         
-        This control owns only:
-        - The inspecting-state cancel action
-        - The completed-state action heading and explanation
-        - Up to two secondary actions
-        - One primary action
-        - Responsive button arrangement
+        This control owns:
+        - The inspecting-state cancellation action.
+        - The completed-state heading and explanation.
+        - Up to two secondary actions.
+        - One primary action.
+        - Responsive button arrangement.
         
-        It does not own:
-        - Inspection outcome classification
-        - Navigation decisions
-        - Model inspection commands themselves
-        - Model information, warnings or technical evidence
+        This control does not own:
+        - Inspection outcome classification.
+        - Navigation decisions.
+        - Model-inspection execution.
+        - Model information, warnings, or technical evidence.
     -->
 
     <UserControl.Resources>
@@ -184,9 +185,13 @@
                 TargetType="TextBlock">
 
                 <Setter Property="FontSize" Value="14" />
+
                 <Setter Property="FontWeight" Value="SemiBold" />
+
                 <Setter Property="Foreground" Value="{ThemeResource InspectionActionPrimaryTextBrush}" />
+
                 <Setter Property="TextAlignment" Value="Center" />
+
                 <Setter Property="TextWrapping" Value="WrapWholeWords" />
 
             </Style>
@@ -196,8 +201,11 @@
                 TargetType="TextBlock">
 
                 <Setter Property="FontSize" Value="12" />
+
                 <Setter Property="Foreground" Value="{ThemeResource InspectionActionSecondaryTextBrush}" />
+
                 <Setter Property="TextAlignment" Value="Center" />
+
                 <Setter Property="TextWrapping" Value="WrapWholeWords" />
 
             </Style>
@@ -215,7 +223,6 @@
         HorizontalAlignment="Stretch"
         AutomationProperties.Name="{x:Bind Presentation.AutomationName, Mode=OneWay}"
         Visibility="{x:Bind CardVisibility, Mode=OneWay}">
-
         <!--  =========================================================  -->
         <!--  MODE 1: INSPECTION IS CURRENTLY RUNNING  -->
         <!--  =========================================================  -->
@@ -247,7 +254,6 @@
                 Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
 
                 <TextBlock
-                    d:Text="Cancel inspection"
                     FontSize="13"
                     FontWeight="SemiBold"
                     MaxLines="2"
@@ -259,7 +265,6 @@
 
             <TextBlock
                 MaxWidth="520"
-                d:Text="You can safely return to model selection at any time."
                 Style="{StaticResource InspectionActionMessageStyle}"
                 Text="{x:Bind Presentation.Message, Mode=OneWay}" />
 
@@ -285,19 +290,17 @@
                 VerticalAlignment="Center">
 
                 <TextBlock
-                    d:Text="Next: check hardware fit"
                     Style="{StaticResource InspectionActionHeadingStyle}"
                     Text="{x:Bind Presentation.Title, Mode=OneWay}" />
 
                 <TextBlock
                     Margin="0,6,0,0"
-                    d:Text="Compare the model with this computer’s RAM, processor and available runtimes."
                     Style="{StaticResource InspectionActionMessageStyle}"
                     Text="{x:Bind Presentation.Message, Mode=OneWay}" />
 
                 <!--
-                    Base layout stacks vertically for narrow windows and high
-                    text scaling. WideActionLayout changes this to horizontal.
+                    The base layout stacks buttons vertically.
+                    WideActionLayout changes this panel to horizontal.
                 -->
                 <StackPanel
                     x:Name="ResultButtonPanel"
@@ -329,7 +332,6 @@
                         Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
 
                         <TextBlock
-                            d:Text="Choose another model"
                             FontSize="13"
                             FontWeight="SemiBold"
                             MaxLines="2"
@@ -361,7 +363,6 @@
                         Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
 
                         <TextBlock
-                            d:Text="View technical report"
                             FontSize="13"
                             FontWeight="SemiBold"
                             MaxLines="2"
@@ -371,7 +372,7 @@
 
                     </Button>
 
-                    <!--  The primary action is always last in visual and keyboard order.  -->
+                    <!--  The primary action is always last.  -->
                     <Button
                         x:Name="PrimaryActionButton"
                         MinWidth="{x:Bind Presentation.PrimaryAction.MinimumWidth, Mode=OneWay}"
@@ -394,7 +395,6 @@
                         Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
 
                         <TextBlock
-                            d:Text="Check hardware fit"
                             FontSize="13"
                             FontWeight="SemiBold"
                             MaxLines="2"
@@ -410,68 +410,73 @@
 
         </Border>
 
+        <!--
+            These visual states belong to LayoutRoot because they change
+            elements contained inside this Grid.
+        -->
+        <VisualStateManager.VisualStateGroups>
+
+            <!--  Selects the running or completed action layout.  -->
+            <VisualStateGroup
+                x:Name="CardModeStates">
+
+                <VisualState
+                    x:Name="InspectingState">
+                    <VisualState.Setters>
+
+                        <Setter Target="InspectingView.Visibility" Value="Visible" />
+
+                        <Setter Target="ResultView.Visibility" Value="Collapsed" />
+
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState
+                    x:Name="ResultState">
+                    <VisualState.Setters>
+
+                        <Setter Target="InspectingView.Visibility" Value="Collapsed" />
+
+                        <Setter Target="ResultView.Visibility" Value="Visible" />
+
+                    </VisualState.Setters>
+                </VisualState>
+
+            </VisualStateGroup>
+
+            <!--  Changes the result-button arrangement on wide windows.  -->
+            <VisualStateGroup
+                x:Name="ResponsiveStates">
+
+                <VisualState
+                    x:Name="WideActionLayout">
+
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger
+                            MinWindowWidth="900" />
+                    </VisualState.StateTriggers>
+
+                    <VisualState.Setters>
+
+                        <Setter Target="ResultButtonPanel.Orientation" Value="Horizontal" />
+
+                        <Setter Target="ResultButtonPanel.HorizontalAlignment" Value="Center" />
+
+                        <Setter Target="ResultButtonPanel.MaxWidth" Value="760" />
+
+                        <Setter Target="SecondaryActionOneButton.HorizontalAlignment" Value="Center" />
+
+                        <Setter Target="SecondaryActionTwoButton.HorizontalAlignment" Value="Center" />
+
+                        <Setter Target="PrimaryActionButton.HorizontalAlignment" Value="Center" />
+
+                    </VisualState.Setters>
+
+                </VisualState>
+
+            </VisualStateGroup>
+
+        </VisualStateManager.VisualStateGroups>
     </Grid>
 
-    <!--  =============================================================  -->
-    <!--  VISUAL STATES  -->
-    <!--  =============================================================  -->
-
-    <VisualStateManager.VisualStateGroups>
-
-        <!--
-            Code-behind selects one of these states when Presentation.Mode
-            changes. Hidden mode collapses the complete LayoutRoot.
-        -->
-        <VisualStateGroup
-            x:Name="CardModeStates">
-
-            <VisualState
-                x:Name="InspectingState">
-                <VisualState.Setters>
-                    <Setter Target="InspectingView.Visibility" Value="Visible" />
-                    <Setter Target="ResultView.Visibility" Value="Collapsed" />
-                </VisualState.Setters>
-            </VisualState>
-
-            <VisualState
-                x:Name="ResultState">
-                <VisualState.Setters>
-                    <Setter Target="InspectingView.Visibility" Value="Collapsed" />
-                    <Setter Target="ResultView.Visibility" Value="Visible" />
-                </VisualState.Setters>
-            </VisualState>
-
-        </VisualStateGroup>
-
-        <!--
-            The compact vertical layout is the safe default.
-            
-            At wider window sizes, the buttons switch to the horizontal
-            arrangement used in the approved desktop prototypes.
-        -->
-        <VisualStateGroup
-            x:Name="ResponsiveStates">
-
-            <VisualState
-                x:Name="WideActionLayout">
-
-                <VisualState.StateTriggers>
-                    <AdaptiveTrigger
-                        MinWindowWidth="900" />
-                </VisualState.StateTriggers>
-
-                <VisualState.Setters>
-                    <Setter Target="ResultButtonPanel.Orientation" Value="Horizontal" />
-                    <Setter Target="ResultButtonPanel.HorizontalAlignment" Value="Center" />
-                    <Setter Target="ResultButtonPanel.MaxWidth" Value="760" />
-                    <Setter Target="SecondaryActionOneButton.HorizontalAlignment" Value="Center" />
-                    <Setter Target="SecondaryActionTwoButton.HorizontalAlignment" Value="Center" />
-                    <Setter Target="PrimaryActionButton.HorizontalAlignment" Value="Center" />
-                </VisualState.Setters>
-
-            </VisualState>
-
-        </VisualStateGroup>
-
-    </VisualStateManager.VisualStateGroups>
 </UserControl>

@@ -6,70 +6,108 @@ using System;
 namespace GraniteEdgeAI.Features.ModelInspection.Controls
 {
     /// <summary>
-    /// Selects the correct content layout for the current inspection state.
+    /// Selects the correct layout for the current inspection-content state.
     /// </summary>
     public sealed class InspectionContentTemplateSelector
         : DataTemplateSelector
     {
         /// <summary>
-        /// Gets or sets the template displayed while inspection is running.
+        /// Gets or sets the template used while inspection is running.
         /// </summary>
         public DataTemplate? ProgressTemplate { get; set; }
 
         /// <summary>
-        /// Gets or sets the template displayed for completed non-ready states.
+        /// Gets or sets the shared template used by completed non-ready states.
         /// </summary>
         public DataTemplate? FindingsTemplate { get; set; }
 
         /// <summary>
-        /// Chooses one template based on the supplied presentation mode.
+        /// Handles controls that ask for a template using only the content item.
         /// </summary>
         protected override DataTemplate SelectTemplateCore(object item)
         {
-            // WinUI may call the selector before valid content has been assigned.
-            //
-            // In that situation, let the base selector return no template
-            // instead of crashing the complete page.
+            // Keep all selection rules in one method so both WinUI overloads
+            // always produce the same result.
+            return ChooseTemplate(item);
+        }
+
+        /// <summary>
+        /// Handles controls that ask for a template using the content item
+        /// and its containing element.
+        /// </summary>
+        protected override DataTemplate SelectTemplateCore(
+            object item,
+            DependencyObject container)
+        {
+            // ContentControl can use this overload. The container itself is
+            // not needed because selection depends only on Presentation.Mode.
+            return ChooseTemplate(item);
+        }
+
+        /// <summary>
+        /// Maps one inspection-content presentation to its required template.
+        /// </summary>
+        private DataTemplate ChooseTemplate(object item)
+        {
+            // The ContentControl contract requires exactly one presentation
+            // object. An unexpected type indicates broken XAML wiring.
             if (item is not InspectionContentCardPresentation presentation)
             {
-                return base.SelectTemplateCore(item);
+                throw new ArgumentException(
+                    "InspectionContentTemplateSelector requires an " +
+                    "InspectionContentCardPresentation.",
+                    nameof(item));
             }
 
-            // Select only between the genuinely different layouts.
             return presentation.Mode switch
             {
-                // Inspection is currently running.
+                // Display the five-stage inspection tracker.
                 InspectionContentCardMode.Progress =>
                     GetRequiredTemplate(
                         ProgressTemplate,
                         nameof(ProgressTemplate)),
 
-                // The complete card is collapsed in Hidden mode,
-                // so no content template is required.
+                // Hidden presentations are collapsed by the surrounding card.
+                // A non-null template is still returned so the ContentControl
+                // never falls back to displaying the object's type name.
                 InspectionContentCardMode.Hidden =>
-                    base.SelectTemplateCore(item),
+                    GetRequiredTemplate(
+                        ProgressTemplate,
+                        nameof(ProgressTemplate)),
 
-                // Warnings, conversion and failure states all use
-                // the shared findings structure.
-                _ =>
+                // Every completed non-ready state shares FindingsTemplate.
+                InspectionContentCardMode.Warnings or
+                InspectionContentCardMode.ConversionRequired or
+                InspectionContentCardMode.IncompletePackage or
+                InspectionContentCardMode.Unsupported or
+                InspectionContentCardMode.Invalid or
+                InspectionContentCardMode.Cancelled or
+                InspectionContentCardMode.OperationalFailure =>
                     GetRequiredTemplate(
                         FindingsTemplate,
-                        nameof(FindingsTemplate))
+                        nameof(FindingsTemplate)),
+
+                // Make future enum additions fail clearly until a deliberate
+                // template mapping is added.
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(item),
+                    presentation.Mode,
+                    "The inspection-content mode has no template mapping.")
             };
         }
 
         /// <summary>
-        /// Returns a configured template or reports a clear configuration error.
+        /// Returns a configured template or reports a clear XAML configuration
+        /// error.
         /// </summary>
         private static DataTemplate GetRequiredTemplate(
             DataTemplate? template,
             string propertyName)
         {
-            // A visible mode cannot be rendered unless its XAML template
-            // was supplied to this selector.
             return template ??
                 throw new InvalidOperationException(
-                    $"{propertyName} was not assigned in XAML.");
+                    $"{propertyName} was not assigned in " +
+                    "InspectionContentCard.xaml.");
         }
     }
 }

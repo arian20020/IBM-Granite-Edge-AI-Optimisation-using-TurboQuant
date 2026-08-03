@@ -12,6 +12,11 @@ namespace GraniteEdgeAI.Features.ModelInspection
     /// </summary>
     public sealed partial class ModelInspectionPage : Page
     {
+
+        // Prevents the initial presentation from being applied more than once
+        // if the page is unloaded and loaded again.
+        private bool _initialPresentationApplied;
+
         /// <summary>
         /// Creates the page and loads its XAML visual tree.
         /// </summary>
@@ -19,12 +24,18 @@ namespace GraniteEdgeAI.Features.ModelInspection
         {
             // Build all controls declared in ModelInspectionPage.xaml.
             InitializeComponent();
+
+            // Wait until the page's controls and compiled XAML bindings are loaded
+            // before assigning their initial presentations.
+            Loaded += ModelInspectionPage_Loaded;
         }
 
         /// <summary>
         /// Gets the authoritative model path supplied by onboarding navigation.
         /// </summary>
         internal string? SelectedModelPath { get; private set; }
+
+
 
         /// <summary>
         /// Receives the model path passed through StageFrame.Navigate.
@@ -47,9 +58,36 @@ namespace GraniteEdgeAI.Features.ModelInspection
             // Preserve the exact original path for the future inspection service.
             SelectedModelPath = modelPath;
 
-            // Display the initial inspection presentation immediately.
-            //
-            // This is still only a visual state. It does not run LLamaSharp yet.
+            // A new navigation should receive a fresh initial presentation when
+            // the page's visual tree finishes loading.
+            _initialPresentationApplied = false;
+        }
+
+        /// <summary>
+        /// Applies the initial card presentations after the page's visual tree
+        /// and compiled XAML bindings are ready.
+        /// </summary>
+        private void ModelInspectionPage_Loaded(
+            object sender,
+            RoutedEventArgs eventArguments)
+        {
+            // Loaded can occur again if the same page instance temporarily leaves
+            // and re-enters the visual tree. Do not recreate the presentation twice.
+            if (_initialPresentationApplied)
+            {
+                return;
+            }
+
+            // Navigation must have supplied a valid path before the page can load.
+            string modelPath = SelectedModelPath
+                ?? throw new InvalidOperationException(
+                    "ModelInspectionPage loaded without a selected model path.");
+
+            // Mark the initialization before updating the controls so that a
+            // re-entrant Loaded event cannot apply the state twice.
+            _initialPresentationApplied = true;
+
+            // The controls and their compiled bindings are now ready.
             ShowInitialInspectionState(modelPath);
         }
 

@@ -125,8 +125,23 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                     "Unknown inspection action-card mode.")
             };
 
-            // Apply the state without animation during the initial implementation.
-            VisualStateManager.GoToState(this, stateName, false);
+            // Apply the structural state after the UserControl is fully loaded.
+            bool stateApplied = VisualStateManager.GoToState(
+                this,
+                stateName,
+                false);
+
+            // A missing visual state indicates that the XAML and code-behind
+            // contracts have drifted apart.
+            if (!stateApplied)
+            {
+                throw new InvalidOperationException(
+                    $"The action-card visual state '{stateName}' was not found.");
+            }
+
+            // Re-evaluate the compiled bindings so button text, visibility,
+            // accessibility labels, and enabled states use the new presentation.
+            Bindings.Update();
         }
     }
 }
