@@ -4,3 +4,4 @@ Retry: delimit PowerShell exit-code interpolation and resume from Task 6.
 Retry: return the generic preflight check list through ToArray().
 Diagnostic: print the exact Task 7 insertion logic before resuming.
 Retry: match the top-level Task 7 exit gate exactly.
+Resume: Task 8 committed through the connector; continue with Tasks 9 and 10.
