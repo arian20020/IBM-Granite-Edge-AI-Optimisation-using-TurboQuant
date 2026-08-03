@@ -38,7 +38,8 @@
         <TitleBar
             x:Name="AppTitleBar"
             Title="Granite Edge AI"
-            Grid.Row="0">
+            Grid.Row="0"
+            Visibility="Collapsed">
             <TitleBar.IconSource>
                 <FontIconSource
                     Glyph="&#xE8D4;" />

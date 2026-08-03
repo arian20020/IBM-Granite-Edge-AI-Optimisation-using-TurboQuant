@@ -14,9 +14,20 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Features\NewFolder\**" />
+    <EmbeddedResource Remove="Features\NewFolder\**" />
+    <None Remove="Features\NewFolder\**" />
+    <Page Remove="Features\NewFolder\**" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="Features\ModelImport\Controls\ImportModelCard.xaml" />
     <None Remove="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml" />
     <None Remove="Features\ModelImport\ModelImportPage.xaml" />
+    <None Remove="Features\ModelInspection\Controls\InspectionActionCard.xaml" />
+    <None Remove="Features\ModelInspection\Controls\InspectionContentCard.xaml" />
+    <None Remove="Features\ModelInspection\Controls\InspectionModelCard.xaml" />
+    <None Remove="Features\ModelInspection\Controls\InspectionOutcomeCard.xaml" />
+    <None Remove="Features\ModelInspection\ModelInspectionPage.xaml" />
     <None Remove="Features\Onboarding\Controls\OnboardingStageIndicator.xaml" />
     <None Remove="Features\Onboarding\OnboardingShellPage.xaml" />
   </ItemGroup>
@@ -101,4 +112,32 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
   </PropertyGroup>
+  <ItemGroup>
+    <PRIResource Remove="Features\NewFolder\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelInspection\Controls\InspectionActionCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelInspection\Controls\InspectionContentCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelInspection\Controls\InspectionModelCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelInspection\Controls\InspectionOutcomeCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelInspection\ModelInspectionPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
 </Project>

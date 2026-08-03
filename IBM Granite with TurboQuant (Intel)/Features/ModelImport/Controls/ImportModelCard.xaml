@@ -145,7 +145,6 @@
         <Border
             x:Name="ScanningView"
             Height="260"
-            MaxWidth="804"
             Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
@@ -861,7 +860,6 @@
         <Border
             x:Name="SuccessView"
             Height="260"
-            MaxWidth="804"
             Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"

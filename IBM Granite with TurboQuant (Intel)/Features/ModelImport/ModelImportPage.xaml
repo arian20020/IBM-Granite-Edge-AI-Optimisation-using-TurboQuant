@@ -6,9 +6,9 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:GraniteEdgeAI.Features.ModelImport.Controls"
-    xmlns:modelDownload="using:GraniteEdgeAI.Features.ModelImport.ModelDownload"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:modelDownload="using:GraniteEdgeAI.Features.ModelImport.ModelDownload"
     mc:Ignorable="d">
 
     <!--  Fills the page and provides its light-grey background.  -->
@@ -40,27 +40,6 @@
                         VerticalAlignment="Top"
                         Orientation="Vertical"
                         Spacing="12">
-
-                        <!--
-                            Displays the SVG at 112 × 112 while decoding it at a larger
-                            internal size to provide additional detail when downscaled.
-                        -->
-                        <Image
-                            Width="112"
-                            Height="112"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Center"
-                            AutomationProperties.Name="Granite Edge AI logo"
-                            Stretch="Uniform">
-
-                            <Image.Source>
-                                <SvgImageSource
-                                    RasterizePixelHeight="224"
-                                    RasterizePixelWidth="224"
-                                    UriSource="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg" />
-                            </Image.Source>
-
-                        </Image>
 
                         <!--  Displays the page heading.  -->
                         <TextBlock
