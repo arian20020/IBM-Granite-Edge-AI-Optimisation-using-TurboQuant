@@ -1,9 +1,13 @@
 name: Workbook 05 implementation carrier
 
 on:
-  push:
+  pull_request:
     branches:
-      - testing/workbook-05-two-route-memory-frontier
+      - automation/wb05-implementation-base
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -15,13 +19,15 @@ concurrency:
 jobs:
   implement-plan:
     name: Execute the approved ten-task preflight plan
-    if: "github.event.head_commit.message == 'chore(workbook-05): bootstrap implementation worker'"
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'automation/wb05-implementation-trigger'
     runs-on: windows-latest
     timeout-minutes: 120
 
     steps:
-      # Check out the complete implementation branch. This disposable hosted
-      # runner is the isolated workspace for the implementation plan.
+      # Check out the actual implementation branch rather than the temporary
+      # trigger pull request. The hosted runner is an isolated workspace.
       - name: Check out the implementation branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -48,8 +54,8 @@ jobs:
           & (Join-Path $destination 'python.exe') --version
 
       # Reconstruct the reviewed implementation program from its temporary,
-      # compressed repository parts. The program performs and commits each
-      # test-first task independently so a failure is resumable.
+      # compressed repository parts. The program commits each test-first task
+      # independently, so a failure is resumable rather than destructive.
       - name: Reconstruct the implementation worker
         shell: powershell
         run: |
@@ -78,7 +84,7 @@ jobs:
           }
 
       # Restore the permanent read-only smoke workflow and remove every
-      # temporary implementation file before the final branch state is reviewed.
+      # temporary implementation file before the final feature branch review.
       - name: Remove the temporary implementation carrier
         shell: powershell
         run: |
