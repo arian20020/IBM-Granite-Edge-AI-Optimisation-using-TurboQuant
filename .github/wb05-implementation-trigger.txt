@@ -2,3 +2,4 @@ Temporary same-repository trigger for the approved Workbook 05 implementation pl
 Retry: sparse Workbook 05 checkout only.
 Retry: delimit PowerShell exit-code interpolation and resume from Task 6.
 Retry: return the generic preflight check list through ToArray().
+Diagnostic: print the exact Task 7 insertion logic before resuming.
