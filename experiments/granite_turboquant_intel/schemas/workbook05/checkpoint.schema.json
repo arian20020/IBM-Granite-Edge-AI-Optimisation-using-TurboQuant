@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "generation",
+    "phase_order",
+    "steps",
+    "updated_at_utc"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "campaign_id": {
+      "const": "GTQ-WB05-MF-v1"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "phase_order": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step_id",
+          "status",
+          "evidence_sha256"
+        ],
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "Not started",
+              "In progress",
+              "Passed",
+              "Failed",
+              "Blocked"
+            ]
+          },
+          "evidence_sha256": {
+            "type": "string",
+            "pattern": "^(|[0-9a-f]{64})$"
+          }
+        }
+      }
+    },
+    "updated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
