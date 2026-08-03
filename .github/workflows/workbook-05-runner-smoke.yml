@@ -85,6 +85,11 @@ jobs:
           # a scoped/drive-qualified reference. Delimit the embedded variable.
           $workerText = Get-Content -Raw -LiteralPath $scriptPath
           $workerText = $workerText.Replace('$exitCode:', '${exitCode}:')
+
+          # Windows PowerShell 5.1 can reject @($genericList) with the opaque
+          # 'Argument types do not match' binder error. Return a real array.
+          $workerText = $workerText.Replace('Checks = @($Checks)', 'Checks = $Checks.ToArray()')
+          $workerText = $workerText.Replace('Checks = @($checks)', 'Checks = $checks.ToArray()')
           Set-Content -LiteralPath $scriptPath -Value $workerText -Encoding UTF8
 
           python -m py_compile $scriptPath
