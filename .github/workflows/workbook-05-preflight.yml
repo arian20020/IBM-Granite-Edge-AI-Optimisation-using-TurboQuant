@@ -1,0 +1,225 @@
+name: Workbook 05 two-route preflight
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/workbook-05-preflight.yml'
+      - 'scripts/testing/workbook05/**'
+      - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
+      - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
+      - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
+      - 'tests/testing/workbook05/**'
+  workflow_dispatch:
+
+# Both jobs can only read repository and workflow metadata. The Intel runner
+# captures evidence into an artifact and never receives repository-write access.
+permissions:
+  contents: read
+  actions: read
+
+# Workbook 05 has one controlled preflight at a time. A newer request waits
+# rather than cancelling an in-progress evidence capture.
+concurrency:
+  group: workbook-05-preflight
+  cancel-in-progress: false
+
+jobs:
+  collect-preflight:
+    name: Collect Intel preflight evidence
+
+    # Manual runs are trusted. Pull-request runs are accepted only from this
+    # repository and from the exact reviewed Workbook 05 branch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'testing/workbook-05-two-route-memory-frontier'
+      )
+
+    # All labels are required so the job cannot be routed to another Windows
+    # computer or to an unspecified GitHub-hosted virtual machine.
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+
+    steps:
+      # Retrieve the exact pull-request or manually selected repository commit.
+      # The action is pinned to an immutable commit rather than a moving tag.
+      - name: Check out controlled preflight inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Verify the pinned machine-wide Python
+        run: |
+          # Stop on a missing executable or a mismatched controlled version.
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = 'C:\Program Files\Python312\python.exe'
+
+          if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
+              throw "Pinned Python was not found at: $pythonPath"
+          }
+
+          $pythonVersion = ((& $pythonPath --version 2>&1) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) {
+              throw "Pinned Python version check exited with code $LASTEXITCODE."
+          }
+          if ($pythonVersion -ne 'Python 3.12.10') {
+              throw "Expected Python 3.12.10, found: $pythonVersion"
+          }
+
+          Write-Host "Verified $pythonVersion at $pythonPath"
+
+      - name: Install the preflight validation dependency in runner temp
+        run: |
+          # Do not modify the machine-wide Python installation in Program Files.
+          # PYTHONPATH lets the pinned interpreter load this job-local package.
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = 'C:\Program Files\Python312\python.exe'
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-python-packages'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Preflight dependency installation exited with code $LASTEXITCODE."
+          }
+
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Run repository preflight unit tests
+        run: |
+          # These tests validate schemas, admission rules, command capture,
+          # checkpoints, evidence integrity, and workflow contracts.
+          $ErrorActionPreference = 'Stop'
+          & 'C:\Program Files\Python312\python.exe' `
+              -m unittest discover `
+              -s 'tests/testing/workbook05' `
+              -p 'test_*.py' `
+              -v
+          if ($LASTEXITCODE -ne 0) {
+              throw "Workbook 05 Python tests exited with code $LASTEXITCODE."
+          }
+
+      - name: Run PowerShell preflight module tests
+        run: |
+          # Exercise the pure PowerShell evaluation functions before they read
+          # the real target laptop.
+          $ErrorActionPreference = 'Stop'
+          & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
+          if ($LASTEXITCODE -ne 0) {
+              throw "PowerShell preflight tests exited with code $LASTEXITCODE."
+          }
+
+      - name: Collect read-only preflight evidence
+        run: |
+          # Evidence is written only to the runner-owned temporary directory.
+          # The orchestration script does not build OpenVINO or run a model.
+          $ErrorActionPreference = 'Stop'
+          $outputDirectory = Join-Path $env:RUNNER_TEMP 'workbook-05-preflight'
+
+          & '.\scripts\testing\workbook05\Invoke-Workbook05Preflight.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -OutputDirectory $outputDirectory
+          if ($LASTEXITCODE -ne 0) {
+              throw "Workbook 05 preflight exited with code $LASTEXITCODE."
+          }
+
+      # Preserve both successful and failed preflight evidence. A failed gate is
+      # useful evidence and must not be discarded or converted into a pass.
+      - name: Upload preflight evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/workbook-05-preflight
+          if-no-files-found: error
+          retention-days: 30
+
+  validate-preflight:
+    name: Validate preflight artifact as untrusted data
+
+    # Validation still runs when collection fails, because the failure bundle
+    # must be checked for integrity, honest status, unsafe paths, and secrets.
+    if: ${{ always() }}
+    needs: collect-preflight
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the same repository revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up validation Python
+        uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
+        with:
+          python-version: '3.12'
+
+      - name: Install schema-validation dependencies
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install `
+              --disable-pip-version-check `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Validation dependency installation exited with code $LASTEXITCODE."
+          }
+
+      - name: Download the exact preflight artifact
+        uses: actions/download-artifact@974686ed5098c7f9c9289ec946b9058e496a2561
+        with:
+          name: workbook-05-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/workbook-05-preflight
+
+      - name: Run every Workbook 05 Python test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m unittest discover `
+              -s 'tests/testing/workbook05' `
+              -p 'test_*.py' `
+              -v
+          if ($LASTEXITCODE -ne 0) {
+              throw "Hosted Workbook 05 tests exited with code $LASTEXITCODE."
+          }
+
+      - name: Validate the downloaded bundle without executing captured commands
+        shell: powershell
+        run: |
+          # The validator treats every downloaded file as untrusted data. It
+          # parses schemas and hashes but never executes captured README text.
+          $ErrorActionPreference = 'Stop'
+          $bundleRoot = Join-Path $env:RUNNER_TEMP 'workbook-05-preflight'
+          $summaryPath = Join-Path $env:RUNNER_TEMP 'workbook-05-preflight-validation.md'
+
+          python -m scripts.testing.workbook05.bundle_validation `
+              --bundle-root $bundleRoot `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --summary $summaryPath
+          $validationExitCode = $LASTEXITCODE
+
+          if (Test-Path -LiteralPath $summaryPath) {
+              Get-Content -LiteralPath $summaryPath |
+                  Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+          if ($validationExitCode -ne 0) {
+              throw "Preflight bundle validation exited with code $validationExitCode."
+          }
