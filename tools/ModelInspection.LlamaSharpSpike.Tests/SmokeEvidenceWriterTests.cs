@@ -11,6 +11,12 @@ namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 [TestClass]
 public sealed class SmokeEvidenceWriterTests
 {
+    private enum ExampleCompletionStatus
+    {
+        Succeeded,
+        Cancelled
+    }
+
     [TestMethod]
     public async Task WriteAsync_CreatesParseableJsonEvidence()
     {
@@ -20,7 +26,7 @@ public sealed class SmokeEvidenceWriterTests
         {
             string outputPath =
                 Path.Combine(testDirectory, "runtime-smoke.json");
-            var writer = new SmokeEvidenceWriter();
+            var writer = new JsonEvidenceWriter();
             NativeBackendSmokeResult result = CreateResult(succeeded: true);
 
             string writtenPath = await writer.WriteAsync(
@@ -48,9 +54,42 @@ public sealed class SmokeEvidenceWriterTests
                     .GetString();
 
             Assert.IsNotNull(managedPackageVersion);
+            Assert.AreEqual("0.27.0", managedPackageVersion);
+        }
+        finally
+        {
+            DeleteDirectory(testDirectory);
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_SerializesEnumsAsReadableStrings()
+    {
+        string testDirectory = CreateTestDirectory();
+
+        try
+        {
+            string outputPath =
+                Path.Combine(testDirectory, "enum-evidence.json");
+            var writer = new JsonEvidenceWriter();
+            var result = new
+            {
+                CompletionStatus = ExampleCompletionStatus.Cancelled
+            };
+
+            await writer.WriteAsync(
+                result,
+                outputPath,
+                CancellationToken.None);
+
+            using JsonDocument document = JsonDocument.Parse(
+                await File.ReadAllTextAsync(outputPath));
+
             Assert.AreEqual(
-                "0.27.0",
-                managedPackageVersion);
+                "Cancelled",
+                document.RootElement
+                    .GetProperty("completionStatus")
+                    .GetString());
         }
         finally
         {
@@ -67,7 +106,7 @@ public sealed class SmokeEvidenceWriterTests
         {
             string outputPath =
                 Path.Combine(testDirectory, "runtime-smoke.json");
-            var writer = new SmokeEvidenceWriter();
+            var writer = new JsonEvidenceWriter();
 
             await writer.WriteAsync(
                 CreateResult(succeeded: false),
