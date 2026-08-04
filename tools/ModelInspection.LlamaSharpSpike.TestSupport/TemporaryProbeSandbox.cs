@@ -91,6 +91,10 @@ public sealed class TemporaryProbeSandbox : IDisposable
         };
     }
 
+    /// <summary>
+    /// Finds only native llama.cpp and ggml libraries. The managed
+    /// <c>LLamaSharp.dll</c> assembly is deliberately excluded.
+    /// </summary>
     public IReadOnlyList<string> FindNativeDlls()
     {
         return Directory
@@ -101,12 +105,21 @@ public sealed class TemporaryProbeSandbox : IDisposable
             .Where(path =>
             {
                 string fileName = Path.GetFileName(path);
-                return fileName.StartsWith(
-                           "llama",
-                           StringComparison.OrdinalIgnoreCase) ||
-                       fileName.StartsWith(
-                           "ggml",
-                           StringComparison.OrdinalIgnoreCase);
+                bool isLlamaNative = string.Equals(
+                        fileName,
+                        "llama.dll",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    fileName.StartsWith(
+                        "llama_",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    fileName.StartsWith(
+                        "llama-",
+                        StringComparison.OrdinalIgnoreCase);
+                bool isGgmlNative = fileName.StartsWith(
+                    "ggml",
+                    StringComparison.OrdinalIgnoreCase);
+
+                return isLlamaNative || isGgmlNative;
             })
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
