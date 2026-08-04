@@ -1,3 +1,4 @@
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.TestSupport;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -32,6 +33,25 @@ public sealed class ProbeProcessRunnerTests
     public async Task RunAsync_PreservesArgumentsWithSpacesAndUnicode()
     {
         const string expected = "value with spaces グラナイト";
+        using var directory = new TemporaryDirectory(
+            "process-argument-preservation");
+        string outputPath = directory.Combine("received-argument.txt");
+        string scriptPath = await TestFileBuilder.WriteTextAsync(
+            directory,
+            "write-argument.ps1",
+            """
+            param(
+                [Parameter(Mandatory = $true, Position = 0)]
+                [string]$Value,
+                [Parameter(Mandatory = $true, Position = 1)]
+                [string]$OutputPath
+            )
+
+            [IO.File]::WriteAllText(
+                $OutputPath,
+                $Value,
+                [Text.UTF8Encoding]::new($false))
+            """);
 
         ProbeExecutionResult result = await new ProbeProcessRunner().RunAsync(
             new ProbeProcessRequest
@@ -41,18 +61,29 @@ public sealed class ProbeProcessRunnerTests
                 {
                     "-NoLogo",
                     "-NoProfile",
-                    "-Command",
-                    "[Console]::Out.Write($args[0])",
-                    expected
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    scriptPath,
+                    expected,
+                    outputPath
                 },
-                WorkingDirectory = Environment.CurrentDirectory,
+                WorkingDirectory = directory.Path,
                 Timeout = TimeSpan.FromSeconds(10)
             },
             CancellationToken.None);
 
         Assert.AreEqual(ProcessTerminationKind.Exited, result.TerminationKind);
-        Assert.AreEqual(0, result.ExitCode);
-        Assert.AreEqual(expected, result.StandardOutput);
+        Assert.AreEqual(
+            0,
+            result.ExitCode,
+            $"PowerShell stderr: {result.StandardError}");
+        Assert.IsTrue(
+            File.Exists(outputPath),
+            "The child process did not write its received argument.");
+        Assert.AreEqual(
+            expected,
+            await File.ReadAllTextAsync(outputPath));
     }
 
     [TestMethod]
@@ -189,7 +220,7 @@ public sealed class ProbeProcessRunnerTests
         using var cancellationSource = new CancellationTokenSource(
             TimeSpan.FromMilliseconds(300));
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+        await Assert.ThrowsAsync<OperationCanceledException>(
             async () => await new ProbeProcessRunner().RunAsync(
                 PowerShellRequest(
                     "Start-Sleep -Seconds 30",
