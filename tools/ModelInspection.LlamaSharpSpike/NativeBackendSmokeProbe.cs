@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using LLama.Abstractions;
 using LLama.Native;
@@ -17,11 +18,11 @@ public sealed class NativeBackendSmokeProbe
     public NativeBackendSmokeResult Run()
     {
         DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow;
-        var logs = new List<NativeBackendLogEntry>();
+        var logs = new ConcurrentQueue<NativeBackendLogEntry>();
 
         try
         {
-            ConfigureCpuOnlySelection(logs);
+            CpuNativeRuntimeConfiguration.Configure(logs);
 
             bool loaded = NativeLibraryConfig.LLama.DryRun(
                 out INativeLibrary? selectedLibrary);
@@ -42,25 +43,11 @@ public sealed class NativeBackendSmokeProbe
                     logs);
             }
 
-            NativeLibraryMetadata? metadata =
-                selectedLibrary?.Metadata;
-
-            var selectedBackend = new SelectedNativeBackend
-            {
-                ImplementationType =
-                    selectedLibrary?.GetType().FullName,
-                NativeLibraryName =
-                    metadata?.NativeLibraryName.ToString(),
-                UsesCuda = metadata?.UseCuda,
-                UsesVulkan = metadata?.UseVulkan,
-                AvxLevel = metadata?.AvxLevel.ToString()
-            };
-
             return CreateBaseResult(
                 startedAtUtc,
                 completedAtUtc,
                 succeeded: true,
-                selectedBackend,
+                CpuNativeRuntimeConfiguration.Describe(selectedLibrary),
                 failureCode: null,
                 failureType: null,
                 failureMessage: null,
@@ -81,23 +68,6 @@ public sealed class NativeBackendSmokeProbe
         }
     }
 
-    private static void ConfigureCpuOnlySelection(
-        ICollection<NativeBackendLogEntry> logs)
-    {
-        NativeLibraryConfig.LLama
-            .WithCuda(enable: false)
-            .WithVulkan(enable: false)
-            .WithAutoFallback(enable: true)
-            .WithLogCallback(
-                (level, message) =>
-                {
-                    logs.Add(
-                        new NativeBackendLogEntry(
-                            level.ToString(),
-                            message.TrimEnd('\r', '\n')));
-                });
-    }
-
     private static NativeBackendSmokeResult CreateBaseResult(
         DateTimeOffset startedAtUtc,
         DateTimeOffset completedAtUtc,
@@ -106,7 +76,7 @@ public sealed class NativeBackendSmokeProbe
         string? failureCode,
         string? failureType,
         string? failureMessage,
-        IReadOnlyList<NativeBackendLogEntry> logs)
+        ConcurrentQueue<NativeBackendLogEntry> logs)
     {
         return new NativeBackendSmokeResult
         {
@@ -132,8 +102,7 @@ public sealed class NativeBackendSmokeProbe
                     .IntendedProductionRuntimeIdentifier,
             ProcessArchitecture =
                 RuntimeInformation.ProcessArchitecture.ToString(),
-            OperatingSystem =
-                RuntimeInformation.OSDescription,
+            OperatingSystem = RuntimeInformation.OSDescription,
             FrameworkDescription =
                 RuntimeInformation.FrameworkDescription,
             SelectedBackend = selectedBackend,
