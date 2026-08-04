@@ -1,6 +1,6 @@
 # Model Inspection LLamaSharp feasibility tool
 
-**Status:** CPU native smoke passed; first VocabOnly run diagnosed; corrected rerun pending  
+**Status:** CPU native smoke and corrected Granite VocabOnly probe passed; cancellation verification remains  
 **Last reviewed:** 2026-08-04  
 **Runtime decision:** [ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)  
 **Inspection-depth decision:** [ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)  
@@ -44,7 +44,7 @@ boundaries. Keeping the experiment in a console project means:
 - logs and exit codes are not hidden by page lifecycle behavior;
 - model preservation can be checked independently;
 - feasibility-only types cannot become production UI contracts accidentally;
-- a future worker-process implementation can still replace the in-process probe
+- a worker-process implementation could later replace the in-process probe
   behind `ILlamaModelProbe` without changing the page or classifier.
 
 ## Folder structure
@@ -72,7 +72,7 @@ ModelInspection.LlamaSharpSpike/
     └── VocabOnlyModelProbe.cs
 ```
 
-Model-specific details and the first target-laptop run are documented in the
+The full real-model history and evidence interpretation are documented in the
 [ModelProbe README](./ModelProbe/README.md).
 
 ## Exact dependency identity
@@ -127,7 +127,7 @@ Program
 
 ## Target-laptop verification status
 
-### Native CPU smoke
+### Gate 1 — native CPU smoke
 
 ```text
 Result:                     PASS
@@ -141,54 +141,68 @@ CUDA selected:              false
 Vulkan selected:            false
 ```
 
-### First deterministic test run
+### Deterministic verification after the VocabOnly correction
 
 ```text
-Total:      25
-Passed:     24
-Failed:      1
+Configuration:              Release / win-x64
+Total tests:                28
+Passed:                     28
+Failed:                     0
+Skipped:                    0
+Exit code:                  0
+Release build:              PASS
 ```
 
-The one failure was a brittle assertion against incidental message wording. The
-production parser already communicated both required options. The test now
-checks `--cancel-after-ms` and `--model` semantically and awaits rerun.
-
-### First real Granite VocabOnly run
+### Gate 2 — corrected real Granite VocabOnly probe
 
 ```text
-Input:
-granite-4.1-3b-Q4_K_M.gguf
-
-Size:
-2,099,501,664 bytes
-
-SHA-256 before and after:
-662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
-
-Native message:
-llama-hparams.cpp:35: fatal error
-
-Process exit code:
--1073740791
-
-JSON evidence:
-not written because native code terminated the process
+Run ID:                     20260804-154719
+Model:                      granite-4.1-3b-Q4_K_M.gguf
+Model size:                 2,099,501,664 bytes
+Model SHA-256:              662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
+Result:                     PASS
+Process exit code:          0
+Evidence schema:            1.1
+Completion status:          Succeeded
+Architecture:               granite
+Declared context:           131,072
+Embedding size:             2,560
+Layer count:                40
+Attention heads:            40
+KV heads:                   8
+Vocabulary count:           100,352
+Tokenizer smoke:            PASS / 1 token
+Embedded chat template:     present
+Native progress samples:    1
+Load duration:              398 ms
+Native handle closed:       true
+Original GGUF preserved:    true
 ```
 
-The model file was preserved. The abort was traced to the first collector
-calling native hyperparameter getters after llama.cpp had deliberately skipped
-hyperparameter loading for `vocab_only`.
+The parameter count was unavailable at this inspection depth and is represented
+as `null`, not zero. The earlier validated quick scan can continue to provide
+the user-facing parameter-size label.
 
-The branch now:
+## Feasibility conclusion
 
-- projects structure from GGUF metadata;
-- removes known unsafe hyperparameter getters from the VocabOnly collector;
-- makes unavailable evidence nullable;
-- records schema version `1.1`;
-- includes regression tests for metadata projection.
+For the tested Granite 4.1 3B Q4_K_M model, the selected matched CPU runtime can
+safely provide the evidence needed for a first production core-inspection
+adapter:
 
-A fresh test/build/model rerun is required before declaring the correction
-successful.
+- architecture and model metadata;
+- context and architecture-scoped structural values;
+- vocabulary and tokenizer evidence;
+- embedded chat-template presence;
+- genuine native progress;
+- deterministic disposal;
+- read-only original-file preservation.
+
+This does not prove Vulkan, TurboQuant, GPU offload, Hardware Fit, context
+creation or inference.
+
+One Stage-1 feasibility item remains: a controlled cancellation run must show
+`Cancelled`, exit code `3`, evidence writing, disposal where applicable, and an
+unchanged model hash.
 
 ## Build and deterministic tests
 
@@ -205,7 +219,7 @@ dotnet test $SpikeTests `
     --configuration Release `
     --no-restore `
     --runtime win-x64 `
-    --minimum-expected-tests 1
+    --minimum-expected-tests 28
 
 dotnet build $SpikeProject `
     --configuration Release `
@@ -225,7 +239,7 @@ dotnet run `
     --output "artifacts\model-inspection\llamasharp\runtime-smoke.json"
 ```
 
-## Run the corrected VocabOnly model probe
+## Run the VocabOnly model probe
 
 ```powershell
 $ModelPath = Join-Path `
@@ -246,6 +260,24 @@ dotnet run `
     --output $ProbeOutput
 ```
 
+## Run the pending cancellation gate
+
+```powershell
+$RunId = Get-Date -Format "yyyyMMdd-HHmmss"
+$CancellationOutput =
+    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-cancellation.json"
+
+dotnet run `
+    --project $SpikeProject `
+    --configuration Release `
+    --no-build `
+    --runtime win-x64 `
+    -- `
+    --model $ModelPath `
+    --cancel-after-ms 1 `
+    --output $CancellationOutput
+```
+
 ## Exit codes
 
 | Code | Meaning |
@@ -255,13 +287,9 @@ dotnet run `
 | `2` | Invalid or unsafe command-line arguments |
 | `3` | VocabOnly model probe was cancelled and JSON was written |
 
-A process-level native abort may return a Windows status code outside this
-managed exit-code contract because native code terminated before control
-returned to `Program`.
-
 ## Evidence boundary
 
-The corrected VocabOnly report may contain metadata-derived values for:
+The VocabOnly report may contain metadata-derived values for:
 
 ```text
 architecture
@@ -305,14 +333,14 @@ invalid.
 ## Next decision
 
 ```text
-Corrected VocabOnly run succeeds and evidence is sufficient
-    → design production ILlamaModelProbe contracts
+Controlled cancellation passes
+    → close the feasibility spike
+    → define production domain contracts
+    → implement ILlamaModelProbe and LlamaSharpModelProbe
 
-Corrected run succeeds but evidence is insufficient
-    → investigate lower-level no-allocation evidence
-
-Corrected run still terminates inside native loading
-    → review worker-process isolation behind ILlamaModelProbe
+Cancellation exposes a native/process safety problem
+    → preserve ILlamaModelProbe
+    → review worker-process isolation before WinUI integration
 ```
 
 Ordinary Vulkan and TurboQuant remain later backend-verification gates.
