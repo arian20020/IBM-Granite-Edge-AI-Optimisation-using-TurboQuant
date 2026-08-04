@@ -166,7 +166,7 @@ public sealed class JsonEvidenceWriterTests
             FileShare.None);
         var writer = new JsonEvidenceWriter();
 
-        await Assert.ThrowsAsync<IOException>(
+        await AssertFileSystemWriteFailureAsync(
             async () => await writer.WriteAsync(
                 CreateResult(succeeded: true),
                 outputPath,
@@ -183,7 +183,7 @@ public sealed class JsonEvidenceWriterTests
         Directory.CreateDirectory(outputPath);
         var writer = new JsonEvidenceWriter();
 
-        await Assert.ThrowsAsync<IOException>(
+        await AssertFileSystemWriteFailureAsync(
             async () => await writer.WriteAsync(
                 CreateResult(succeeded: true),
                 outputPath,
@@ -212,6 +212,24 @@ public sealed class JsonEvidenceWriterTests
                 null!,
                 directory.Combine("evidence.json"),
                 CancellationToken.None));
+    }
+
+    private static async Task AssertFileSystemWriteFailureAsync(
+        Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        Assert.Fail(
+            "Expected an IOException or UnauthorizedAccessException from the " +
+            "operating-system file move.");
     }
 
     private static NativeBackendSmokeResult CreateResult(bool succeeded)
