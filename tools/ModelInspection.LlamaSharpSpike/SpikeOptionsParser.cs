@@ -10,7 +10,8 @@ public sealed record SpikeOptions(
     string OutputPath,
     bool ShowHelp,
     string? ModelPath,
-    int? CancelAfterMilliseconds)
+    int? CancelAfterMilliseconds,
+    int? CancelNativeAfterMilliseconds)
 {
     public const string NativeSmokeDefaultOutputPath =
         "artifacts/model-inspection/llamasharp/runtime-smoke.json";
@@ -57,7 +58,8 @@ public static class SpikeOptionsParser
                     SpikeOptions.NativeSmokeDefaultOutputPath,
                     ShowHelp: false,
                     ModelPath: null,
-                    CancelAfterMilliseconds: null));
+                    CancelAfterMilliseconds: null,
+                    CancelNativeAfterMilliseconds: null));
         }
 
         if (arguments.Count == 1 && IsHelp(arguments[0]))
@@ -67,12 +69,14 @@ public static class SpikeOptionsParser
                     SpikeOptions.NativeSmokeDefaultOutputPath,
                     ShowHelp: true,
                     ModelPath: null,
-                    CancelAfterMilliseconds: null));
+                    CancelAfterMilliseconds: null,
+                    CancelNativeAfterMilliseconds: null));
         }
 
         string? modelPath = null;
         string? outputPath = null;
         int? cancelAfterMilliseconds = null;
+        int? cancelNativeAfterMilliseconds = null;
         var seenOptions = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase);
 
@@ -119,27 +123,29 @@ public static class SpikeOptionsParser
                     break;
 
                 case "--cancel-after-ms":
-                    if (!TryReadValue(
+                    if (!TryReadPositiveMilliseconds(
                         arguments,
                         ref index,
-                        out string? delayText))
+                        "--cancel-after-ms",
+                        out cancelAfterMilliseconds,
+                        out string? cancellationError))
                     {
-                        return Failure(
-                            "The --cancel-after-ms option requires a value.");
+                        return Failure(cancellationError!);
                     }
 
-                    if (!int.TryParse(
-                            delayText,
-                            NumberStyles.None,
-                            CultureInfo.InvariantCulture,
-                            out int parsedDelay) ||
-                        parsedDelay <= 0)
+                    break;
+
+                case "--cancel-native-after-ms":
+                    if (!TryReadPositiveMilliseconds(
+                        arguments,
+                        ref index,
+                        "--cancel-native-after-ms",
+                        out cancelNativeAfterMilliseconds,
+                        out string? nativeCancellationError))
                     {
-                        return Failure(
-                            "The --cancel-after-ms value must be a positive whole number.");
+                        return Failure(nativeCancellationError!);
                     }
 
-                    cancelAfterMilliseconds = parsedDelay;
                     break;
 
                 default:
@@ -154,6 +160,21 @@ public static class SpikeOptionsParser
                 "The --cancel-after-ms option requires --model.");
         }
 
+        if (cancelNativeAfterMilliseconds.HasValue &&
+            string.IsNullOrWhiteSpace(modelPath))
+        {
+            return Failure(
+                "The --cancel-native-after-ms option requires --model.");
+        }
+
+        if (cancelAfterMilliseconds.HasValue &&
+            cancelNativeAfterMilliseconds.HasValue)
+        {
+            return Failure(
+                "The --cancel-after-ms and --cancel-native-after-ms options " +
+                "are mutually exclusive.");
+        }
+
         string selectedOutputPath = outputPath ??
             (string.IsNullOrWhiteSpace(modelPath)
                 ? SpikeOptions.NativeSmokeDefaultOutputPath
@@ -164,7 +185,8 @@ public static class SpikeOptionsParser
                 selectedOutputPath,
                 ShowHelp: false,
                 modelPath,
-                cancelAfterMilliseconds));
+                cancelAfterMilliseconds,
+                cancelNativeAfterMilliseconds));
     }
 
     /// <summary>
@@ -176,11 +198,49 @@ public static class SpikeOptionsParser
         "  ModelInspection.LlamaSharpSpike [--output <json-path>]\n\n" +
         "CPU VocabOnly model probe:\n" +
         "  ModelInspection.LlamaSharpSpike --model <gguf-path> " +
-        "[--output <json-path>] [--cancel-after-ms <positive-integer>]\n\n" +
+        "[--output <json-path>] " +
+        "[--cancel-after-ms <positive-integer> | " +
+        "--cancel-native-after-ms <positive-integer>]\n\n" +
         "Help:\n" +
         "  ModelInspection.LlamaSharpSpike --help\n\n" +
         "The model probe is read-only, uses zero GPU layers, does not create " +
         "a context, and does not run inference.";
+
+    private static bool TryReadPositiveMilliseconds(
+        IReadOnlyList<string> arguments,
+        ref int index,
+        string optionName,
+        out int? milliseconds,
+        out string? errorMessage)
+    {
+        milliseconds = null;
+
+        if (!TryReadValue(
+            arguments,
+            ref index,
+            out string? delayText))
+        {
+            errorMessage =
+                $"The {optionName} option requires a value.";
+            return false;
+        }
+
+        if (!int.TryParse(
+                delayText,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int parsedDelay) ||
+            parsedDelay <= 0)
+        {
+            errorMessage =
+                $"The {optionName} value must be a positive whole number.";
+            return false;
+        }
+
+        milliseconds = parsedDelay;
+        errorMessage = null;
+        return true;
+    }
 
     private static bool TryReadValue(
         IReadOnlyList<string> arguments,
