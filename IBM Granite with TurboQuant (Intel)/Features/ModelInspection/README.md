@@ -11,7 +11,11 @@
 
 Model Inspection is onboarding stage two. It is intended to inspect the selected model package before Hardware Fit is checked, present progressive evidence, and classify the final model outcome.
 
-The current application implementation establishes the **navigation and UI architecture**. A separate feasibility tool now pins and dry-runs the selected LLamaSharp CPU backend, but the WinUI feature does not yet call that runtime or inspect a model.
+The current application implementation establishes the **navigation and UI architecture**. A separate feasibility tool pins and dry-runs the selected LLamaSharp CPU backend, but the WinUI feature does not yet call that runtime or inspect a model.
+
+[ADR-002](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md) defines the meaning of this stage:
+
+> Model Inspection establishes lightweight **core runtime compatibility**. It does not yet prove Vulkan, GPU offload, Hardware Fit, context allocation, TurboQuant activation, or inference.
 
 ## Current status
 
@@ -22,13 +26,16 @@ The current application implementation establishes the **navigation and UI archi
 | Persistent onboarding indicator moves to Inspect Model | Implemented |
 | Compose four reusable inspection controls | Implemented |
 | Build initial selected-model presentation | Implemented |
-| Build initial five-stage progress presentation | Implemented |
+| Build initial five-stage progress presentation | Implemented through a focused factory |
+| Protect exact progress wording and backend separation | Test source added; Windows execution pending |
 | Build initial action presentation | Implemented |
 | Select Progress versus Findings XAML template | Implemented with bootstrap handling |
 | Application runtime decision | Accepted in ADR-001 |
+| Core inspection versus backend-verification decision | Accepted in ADR-002 |
 | Isolated LLamaSharp CPU-backend smoke source | Implemented; Windows verification pending |
 | LLamaSharp reference in the WinUI application | Not added |
-| Local cold-run verification of the latest selector fix | Required before claiming the screen is fully verified |
+| Vulkan or TurboQuant runtime package in the WinUI application | Not added |
+| Local cold-run verification of the latest screen changes | Required before claiming the screen is fully verified |
 | Real GGUF runtime inspection | Not implemented |
 | OpenVINO runtime inspection | Not implemented |
 | Dynamic stage progression | Not implemented |
@@ -49,10 +56,13 @@ ModelInspection/
 │   ├── InspectionContentTemplateSelector.cs
 │   ├── InspectionOutcomeCard.xaml/.cs
 │   └── InspectionActionCard.xaml/.cs
-└── Models/
+├── Models/
+│   ├── README.md
+│   ├── presentation classes
+│   └── mode, status, tone, badge, and outcome enums
+└── Presentation/
     ├── README.md
-    ├── presentation classes
-    └── mode, status, tone, badge, and outcome enums
+    └── InitialInspectionProgressPresentationFactory.cs
 ```
 
 The isolated native feasibility code lives outside the application feature:
@@ -67,6 +77,7 @@ Child documentation:
 
 - [Inspection controls](./Controls/README.md)
 - [Inspection presentation models](./Models/README.md)
+- [Presentation construction](./Presentation/README.md)
 - [LLamaSharp feasibility spike](../../../tools/ModelInspection.LlamaSharpSpike/README.md)
 
 ## Responsibility boundary
@@ -77,17 +88,19 @@ Child documentation:
 - Model Inspection page lifecycle;
 - layout and composition of four reusable cards;
 - UI presentation contracts for progress and result states;
-- initial static progress state;
+- construction of the approved initial five-stage core-inspection presentation;
 - card visibility, visual-state, and template-selection wiring;
-- tests around navigation and template selection.
+- tests around navigation, template selection and initial progress semantics.
 
 ### This feature does not currently own
 
-- native llama.cpp or OpenVINO calls;
+- native llama.cpp or OpenVINO calls from the application;
 - model parsing beyond the earlier quick scan;
 - full tensor validation;
 - tokenizer or chat-template validation;
-- runtime support evidence;
+- real core-runtime evidence;
+- Vulkan device selection or layer offloading;
+- TurboQuant CPU or Vulkan execution;
 - result classification rules;
 - cancellation-token ownership;
 - Hardware Fit navigation or calculation.
@@ -173,7 +186,8 @@ ShowInitialInspectionState(modelPath)
     │       → format inferred from extension
     │
     ├── ContentCard.Presentation
-    │       → Progress
+    │       → InitialInspectionProgressPresentationFactory.Create()
+    │       → Progress mode
     │       → 0 of 5 checks complete
     │       → stage 1 Active
     │       → stages 2–5 Waiting
@@ -185,6 +199,8 @@ ShowInitialInspectionState(modelPath)
 ```
 
 The initial state is presentation-only. No inspection operation begins yet.
+
+The progress construction was moved out of `ModelInspectionPage.xaml.cs` so the page coordinates controls while the new factory owns the exact initial progress data.
 
 ## Initial selected-model information
 
@@ -214,14 +230,14 @@ GGUF · Awaiting full inspection
 
 A future `ModelInspectionRequest` should carry selected format and validated quick-scan metadata so the page does not lose already discovered information.
 
-## Five current progress stages
+## Five user-visible progress stages
 
 ```text
 1. Check model package
 2. Read model configuration
 3. Validate tokenizer and chat setup
 4. Validate model structure
-5. Confirm runtime support
+5. Confirm core runtime compatibility
 ```
 
 Initial state:
@@ -232,7 +248,70 @@ Stages 2–5 → Waiting
 Progress summary → 0 of 5 checks complete
 ```
 
-These labels describe the intended future runtime workflow. They are not currently backed by executed checks.
+### Meaning of the final stage
+
+`Confirm core runtime compatibility` means:
+
+```text
+the pinned application runtime recognises the model
+and may pass its result to Hardware Fit
+```
+
+It does not mean:
+
+```text
+Vulkan has initialised
+GPU offloading has succeeded
+requested context memory fits
+TurboQuant has activated
+inference has completed
+```
+
+Those are backend- and hardware-specific checks performed later.
+
+## Engineering gate ladder
+
+The development gates are intentionally separate from the five progress rows:
+
+```text
+1. Matched LLamaSharp CPU native-library smoke
+        ↓
+2. CPU lightweight Granite model inspection
+        ↓
+3. Ordinary Vulkan baseline
+        ↓
+4. TurboQuant fork CPU correctness baseline
+        ↓
+5. TurboQuant fork Vulkan acceleration
+        ↓
+6. LLamaSharp/custom TurboQuant backend compatibility
+        ↓
+7. Production inspection and inference integration
+```
+
+This order distinguishes managed/native loading, ordinary Vulkan, fork correctness, Vulkan kernel behavior and managed/custom-backend compatibility.
+
+### Why Vulkan is later
+
+CPU is the diagnostic and lightweight-inspection baseline. It removes GPU-driver, shader, device-selection and offload variability while the project proves that the runtime can safely understand the model.
+
+Ordinary Vulkan is then tested independently. Only after ordinary Vulkan and the TurboQuant CPU reference both work should they be combined in the TurboQuant Vulkan gate.
+
+### Future backend-verification flow
+
+After Model Inspection returns `Ready for hardware analysis`, a separate future flow may verify:
+
+```text
+Select compatible backend
+Initialise Vulkan device
+Load and offload model
+Allocate context and KV cache
+Activate selected TurboQuant format
+Run a small inference check
+Confirm GPU use and absence of silent fallback
+```
+
+That flow is not part of the current Model Inspection card.
 
 ## Control responsibilities
 
@@ -259,8 +338,15 @@ Full control contracts and file inventory:
 The feature currently follows this UI data flow:
 
 ```text
-Presentation object
-    ↓
+Models
+    → define presentation data contracts
+
+Presentation factory
+    → assembles the approved initial state
+
+ModelInspectionPage
+    → assigns the state to controls
+
 UserControl Presentation dependency property
     ↓
 property-change callback
@@ -270,9 +356,10 @@ Bindings.Update, visual-state selection, or template selection
 visible XAML
 ```
 
-The `Models` folder contains these presentation contracts and enums. It does not contain GGUF, OpenVINO, or AI model objects.
+The `Models` folder contains UI presentation data and enums. It does not contain GGUF, OpenVINO, domain result or native-runtime objects.
 
 - [Presentation-model README](./Models/README.md)
+- [Presentation-construction README](./Presentation/README.md)
 
 ## Template-selection boundary
 
@@ -345,6 +432,10 @@ A dedicated Windows workflow tests, builds and dry-runs this tool. A successful 
 
 ## Tests and evidence
 
+Initial progress semantics:
+
+- [`InitialInspectionProgressPresentationTests.cs`](../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs)
+
 Destination navigation:
 
 - [`ModelInspectionPageNavigationTests.cs`](../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs)
@@ -371,7 +462,7 @@ Runtime workflow:
 
 - [`.github/workflows/llamasharp-feasibility-smoke.yml`](../../../.github/workflows/llamasharp-feasibility-smoke.yml)
 
-The selector fix still requires a local cold build, Test Explorer run, and manual navigation check before final UI verification is claimed. The new runtime tool similarly requires fresh workflow and target-machine output before backend-loading success is claimed.
+The new progress test source is present, but a fresh Windows packaged test run is still required. No passing test result is claimed by this documentation update.
 
 ## Implemented now
 
@@ -386,15 +477,19 @@ The selector fix still requires a local cold build, Test Explorer run, and manua
 - outcome tones and result kinds;
 - action-card inspecting and result layouts;
 - initial selected-model, progress, outcome, and action presentations;
+- focused initial-progress presentation factory;
+- exact five-stage core-runtime wording;
 - template selector bootstrap handling;
-- focused navigation and selector tests;
+- focused navigation, selector and progress-contract tests;
 - accepted application-runtime ADR;
+- accepted core-inspection/backend-verification ADR;
 - isolated exact-version LLamaSharp CPU-backend smoke source and tests;
 - dedicated Windows smoke workflow.
 
 ## Not implemented and non-claims
 
 - no LLamaSharp reference in the WinUI application project;
+- no Vulkan or TurboQuant backend package in the WinUI application project;
 - no production `ILlamaModelProbe` or `LlamaSharpModelProbe`;
 - no model is loaded by the first native smoke slice;
 - no OpenVINO Runtime or GenAI inspection adapter;
@@ -404,17 +499,18 @@ The selector fix still requires a local cold build, Test Explorer run, and manua
 - no deterministic outcome classifier exists;
 - no enabled cancellation command or active inspection token exists;
 - no continuation to Hardware Fit exists;
-- no successful hosted or target-machine backend run is claimed until fresh evidence exists.
+- no successful CPU, Vulkan, TurboQuant or target-machine runtime result is claimed until fresh evidence exists.
 
 ## Known technical debt
 
-- `ModelInspectionPage.xaml.cs` currently constructs presentation objects directly and will grow if runtime states are added there;
+- `ModelInspectionPage.xaml.cs` still constructs the initial model and action presentations directly; only progress construction has moved into a focused factory;
 - navigation carries only a string path rather than a project-owned request containing validated metadata;
 - `Models` is an ambiguous folder name in an AI project because it contains UI presentation models;
 - some status brushes are constructed in C# rather than resolved through shared theme resources;
 - presentation contracts use WinUI types such as `Visibility`, `Symbol`, and `ICommand`, which is acceptable for the presentation layer but unsuitable for future runtime/domain results;
 - there is no central inspection state machine, ViewModel, service interface, production runtime probe, or classifier yet;
-- the spike does not yet prove whether `VocabOnly` is sufficient for lightweight inspection.
+- the spike does not yet prove whether `VocabOnly` is sufficient for lightweight inspection;
+- the future backend-verification UI and service boundary are not yet designed in implementation detail.
 
 ## Recommended next architecture layer
 
@@ -442,6 +538,8 @@ presentation factory
 existing four controls
 ```
 
+After that core flow is proven, Hardware Fit and backend verification may select and validate ordinary Vulkan or a custom TurboQuant backend through separate adapters.
+
 The real service layer must keep lightweight pre-Hardware-Fit inspection proportionate and avoid blindly allocating a model before machine suitability is known.
 
 ## Related documentation
@@ -451,7 +549,11 @@ The real service layer must keep lightweight pre-Hardware-Fit inspection proport
 - [Onboarding architecture](../Onboarding/README.md)
 - [Inspection controls](./Controls/README.md)
 - [Inspection presentation models](./Models/README.md)
+- [Presentation construction](./Presentation/README.md)
 - [ADR-001: selected LLamaSharp application runtime](../../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
+- [ADR-002: core inspection versus backend verification](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
+- [Core runtime progress design](../../../docs/superpowers/specs/2026-08-04-core-runtime-progress-and-backend-gates-design.md)
+- [Core runtime progress implementation plan](../../../docs/superpowers/plans/2026-08-04-core-runtime-progress-and-backend-gates.md)
 - [LLamaSharp spike design](../../../docs/superpowers/specs/2026-08-04-llamasharp-feasibility-spike-design.md)
 - [LLamaSharp spike implementation plan](../../../docs/superpowers/plans/2026-08-04-llamasharp-feasibility-spike.md)
 - [LLamaSharp feasibility tool](../../../tools/ModelInspection.LlamaSharpSpike/README.md)
