@@ -166,7 +166,7 @@ public sealed class JsonEvidenceWriterTests
             FileShare.None);
         var writer = new JsonEvidenceWriter();
 
-        await Assert.ThrowsExceptionAsync<IOException>(
+        await Assert.ThrowsAsync<IOException>(
             async () => await writer.WriteAsync(
                 CreateResult(succeeded: true),
                 outputPath,
@@ -183,7 +183,7 @@ public sealed class JsonEvidenceWriterTests
         Directory.CreateDirectory(outputPath);
         var writer = new JsonEvidenceWriter();
 
-        await Assert.ThrowsExceptionAsync<Exception>(
+        await Assert.ThrowsAsync<IOException>(
             async () => await writer.WriteAsync(
                 CreateResult(succeeded: true),
                 outputPath,
@@ -195,7 +195,7 @@ public sealed class JsonEvidenceWriterTests
     [TestMethod]
     public async Task WriteAsync_WithBlankPath_ThrowsArgumentException()
     {
-        await Assert.ThrowsExceptionAsync<ArgumentException>(
+        await Assert.ThrowsExactlyAsync<ArgumentException>(
             async () => await new JsonEvidenceWriter().WriteAsync(
                 CreateResult(succeeded: true),
                 "   ",
