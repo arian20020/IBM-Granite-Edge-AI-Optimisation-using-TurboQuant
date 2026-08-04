@@ -1,11 +1,12 @@
 # Model Inspection LLamaSharp feasibility tool
 
-**Status:** Tier 1 verified; trusted real-model suite compiles; expanded Tier 2 execution pending  
-**Last reviewed:** 2026-08-04  
+**Status:** Tier 1 and local trusted Tier 2 verified  
+**Last reviewed:** 2026-08-05  
 **Runtime decision:** [ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)  
 **Inspection-depth decision:** [ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)  
 **Runtime-test design:** [LLamaSharp runtime test architecture](../../docs/superpowers/specs/2026-08-04-llamasharp-runtime-test-architecture-design.md)  
-**Fresh Tier 1 evidence:** [2026-08-04 verification record](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
+**Tier 1 evidence:** [Hosted verification](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)  
+**Tier 2 evidence:** [Local trusted verification](../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 
 ## Purpose
 
@@ -29,7 +30,7 @@ Mode 1 — native CPU backend smoke
 
 Mode 2 — CPU VocabOnly model probe
     → one controlled local GGUF
-    → reads proportionate metadata/vocabulary/tokenizer/chat-template evidence
+    → reads proportionate metadata, vocabulary, tokenizer and chat-template evidence
     → verifies disposal and original-file integrity
 ```
 
@@ -38,10 +39,10 @@ Neither mode is referenced by the WinUI application.
 ## Why this remains isolated
 
 Native loading can terminate a process before managed exception handling runs.
-The first Granite experiment exposed that exact risk when an unsafe VocabOnly
+The first Granite experiment exposed that risk when an unsafe `VocabOnly`
 hyperparameter getter reached `GGML_ABORT`. The collector was corrected to use
-safe GGUF metadata, but all automated native/model tests now execute the
-published tool as a child process.
+safe GGUF metadata, and automated native/model scenarios now execute the
+published tool as child processes.
 
 ```text
 MSTest host
@@ -53,7 +54,7 @@ feasibility executable
 LLamaSharp / llama.cpp
 ```
 
-This preserves a stable future production boundary:
+This preserves the future application boundary:
 
 ```text
 ModelInspectionPage
@@ -128,7 +129,7 @@ Program
 ```
 
 The report records package/native identity, operating system, architecture,
-selected library, AVX level, CUDA/Vulkan flags, logs, and controlled operational
+selected library, AVX level, CUDA/Vulkan flags, logs and controlled operational
 failure information.
 
 ## VocabOnly model-probe flow
@@ -142,7 +143,7 @@ Program
     → LLamaWeights.LoadFromFileAsync
          VocabOnly = true
          GpuLayerCount = 0
-    → collect only evidence safe at VocabOnly depth
+    → collect evidence safe at VocabOnly depth
     → dispose native weights
     → capture model snapshot after
     → apply integrity precedence
@@ -152,65 +153,48 @@ Program
 
 ## Cancellation scopes
 
-The command supports two deliberately different diagnostic scopes.
-
-### Whole operation
-
 ```text
 --cancel-after-ms <positive integer>
-```
+    timer begins after the initial integrity snapshot
 
-The timer starts after the initial model-integrity snapshot. It verifies the
-outer probe operation and may cancel before native backend selection.
-
-### Native load
-
-```text
 --cancel-native-after-ms <positive integer>
+    timer begins immediately before LLamaWeights.LoadFromFileAsync
 ```
 
-The timer starts immediately before `LLamaWeights.LoadFromFileAsync`. It tests
-the managed/native cancellation boundary without spending the delay during
-preflight hashing.
+The options are mutually exclusive. `Ctrl+C` cancels the outer operation.
 
-The two options are mutually exclusive. `Ctrl+C` continues to cancel the whole
-operation.
-
-## Pure project-owned components
+## Project-owned safety components
 
 ### `ProbeFailureMapper`
 
-Maps managed file/runtime exceptions to stable `MI-*` diagnostics. It never
-produces a final model outcome.
+Maps file, runtime and model-load exceptions to stable `MI-*` diagnostics. It
+never creates a final application model outcome.
 
 ### `SensitiveTextRedactor`
 
-Removes the canonical model path from failure messages and every native log
-entry. The filename and canonical-path SHA-256 may remain useful evidence.
+Removes the canonical model path from failure messages and native logs. The
+filename and canonical-path fingerprint may remain useful evidence.
 
 ### `ProbeResultFinalizer`
 
 Applies final precedence:
 
 ```text
-Succeeded + changed model
-    → integrity failure
-
-Cancelled + changed model
+Succeeded/Cancelled + changed model
     → integrity failure
 
 Succeeded/Cancelled + unverifiable integrity
     → integrity-verification failure
 
 Existing runtime/model failure
-    → original failure retained
+    → original cause retained
 ```
 
 Cancellation cannot conceal a changed or unverifiable model.
 
 ### `ChatTemplateEvidenceFactory`
 
-Stores only presence, character length, and SHA-256. It never serializes the
+Stores only presence, character length and SHA-256. It never serialises the
 full chat template.
 
 ### `NativeLoadProgressRecorder`
@@ -223,45 +207,13 @@ finite value            → clamped to 0..1
 consecutive duplicate   → omitted
 ```
 
-It records genuine callbacks only; no synthetic percentages are created.
+Only genuine callbacks are recorded; no synthetic percentage is created.
 
-## Verified target-laptop baseline
-
-### Native CPU smoke
+## Verified Granite baseline
 
 ```text
-Result:                     PASS
-Managed package:            LLamaSharp 0.27.0
-Backend package:            LLamaSharp.Backend.Cpu 0.27.0
-Mapped llama.cpp commit:    3f7c29d318e317b63f54c558bc69803963d7d88c
-Process architecture:       X64
-Selected library:           LLama
-AVX level:                  AVX-512
-CUDA selected:              false
-Vulkan selected:            false
-```
-
-### Corrected deterministic baseline
-
-```text
-Configuration:              Release / win-x64
-Total tests:                28
-Passed:                     28
-Failed:                     0
-Skipped:                    0
-Exit code:                  0
-Release build:              PASS
-```
-
-This 28-test result is the historical baseline before the expanded Tier 1 suite.
-The current expanded result is recorded separately below.
-
-### Controlled Granite VocabOnly probe
-
-```text
-Run ID:                     20260804-154719
 Model:                      granite-4.1-3b-Q4_K_M.gguf
-Model size:                 2,099,501,664 bytes
+Model bytes:                2,099,501,664
 Model SHA-256:              662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
 Result:                     PASS
 Process exit code:          0
@@ -276,8 +228,6 @@ KV heads:                   8
 Vocabulary count:           100,352
 Tokenizer smoke:            PASS / 1 token
 Embedded chat template:     present
-Native progress samples:    1
-Load duration:              398 ms
 Native handle closed:       true
 Original GGUF preserved:    true
 ```
@@ -285,29 +235,11 @@ Original GGUF preserved:    true
 The parameter count was unavailable at this safe depth and remains `null`, not
 zero or a filename-derived guess.
 
-## Expanded test architecture
+## Expanded verification architecture
 
-### Tier 1 — model-free normal CI
+### Tier 1 — model-free hosted CI
 
-```text
-Deterministic contracts
-    dependency/version policy
-    command-line matrix
-    path and hashing safety
-    metadata and template projection
-    progress normalization
-    failure mapping and redaction
-    result precedence
-    evidence/type/privacy contracts
-
-Contained native integration
-    published CPU smoke
-    missing native DLLs
-    corrupted native image
-    model-free runtime evidence contract
-```
-
-Fresh hosted verification completed in workflow run `30939159409`:
+Verified workflow result:
 
 ```text
 Deterministic tests:             170 / 170 passed
@@ -320,30 +252,47 @@ No-GGUF artifact scan:           passed
 Privacy-gated evidence upload:   passed
 ```
 
-Tier 1 is therefore verified for the exact model-free CPU boundary described
-above.
+Tier 1 covers dependency policy, CLI contracts, path and hashing safety,
+metadata/template projection, progress normalisation, failure mapping,
+redaction, result precedence, evidence contracts and contained native-backend
+failures.
 
-### Tier 2 — trusted real-model runner
+### Tier 2 — trusted real-model target machine
 
-The source is implemented and now passes its model-free compile/analyzer gate.
-Manual trusted execution remains pending for:
+Verified local result:
 
 ```text
-controlled Granite success and repeatability
-whole-operation and native-load cancellation
-all committed malformed GGUF fixtures
-locked model/output scenarios
-path/privacy checks
-network-listener observation
-before/after integrity after every scenario
+Trusted tests:                   20 / 20 passed
+Failed / skipped:                0 / 0
+Duration:                        approximately 3 minutes 9 seconds
+Model SHA-256 unchanged:         yes
+Retained evidence files:         56
+Privacy findings:                0
 ```
+
+The trusted suite verifies:
+
+- exact Granite success and three-run repeatability;
+- post-preflight and native-load cancellation;
+- malformed GGUF fixtures and deterministic random bytes;
+- missing, directory, locked-model and locked-output cases;
+- unsafe output-path handling;
+- path and chat-template privacy;
+- process-owned TCP endpoint observation;
+- retained-evidence model-leak prevention.
+
+The future self-hosted service-account workflow remains a workflow/deployment
+check after the workflow exists on the default branch. It does not replace the
+verified local runtime result.
 
 See:
 
 - [Tier 1 implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-tier1-runtime-tests.md)
 - [Tier 2 implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-tier2-real-model-tests.md)
 - [Coverage matrix](../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
-- [Fresh Tier 1 evidence](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
+- [Tier 1 evidence](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
+- [Tier 2 evidence](../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
+- [Trusted execution runbook](../../docs/testing/runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md)
 
 ## Build and deterministic tests
 
@@ -369,63 +318,12 @@ dotnet build $SpikeProject `
     --runtime win-x64
 ```
 
-## Run the native backend smoke
-
-```powershell
-dotnet run `
-    --project $SpikeProject `
-    --configuration Release `
-    --no-build `
-    --runtime win-x64 `
-    -- `
-    --output "artifacts\model-inspection\llamasharp\runtime-smoke.json"
-```
-
-## Run the VocabOnly model probe
-
-```powershell
-$ModelPath = Join-Path `
-    $env:USERPROFILE `
-    "Downloads\granite-4.1-3b-Q4_K_M.gguf"
-
-$RunId = Get-Date -Format "yyyyMMdd-HHmmss"
-$ProbeOutput =
-    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-model-probe.json"
-
-dotnet run `
-    --project $SpikeProject `
-    --configuration Release `
-    --no-build `
-    --runtime win-x64 `
-    -- `
-    --model $ModelPath `
-    --output $ProbeOutput
-```
-
-## Run native-load cancellation
-
-```powershell
-$RunId = Get-Date -Format "yyyyMMdd-HHmmss"
-$CancellationOutput =
-    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-native-cancellation.json"
-
-dotnet run `
-    --project $SpikeProject `
-    --configuration Release `
-    --no-build `
-    --runtime win-x64 `
-    -- `
-    --model $ModelPath `
-    --cancel-native-after-ms 1 `
-    --output $CancellationOutput
-```
-
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Requested smoke/probe succeeded and JSON was written |
-| `1` | Controlled runtime, probe, integrity, or evidence-writing failure |
+| `1` | Controlled runtime, probe, integrity or evidence-writing failure |
 | `2` | Invalid or unsafe command-line arguments |
 | `3` | VocabOnly model probe was cancelled and JSON was written |
 
@@ -435,12 +333,10 @@ dotnet run `
 - CUDA and Vulkan are disabled.
 - Models are opened read-only.
 - Evidence output may not equal the model path.
-- No context, KV cache, inference, save, conversion, or quantisation occurs.
+- No context, KV cache, inference, save, conversion or quantisation occurs.
 - Native/runtime failure is not classified as an invalid model.
-- Full local paths, full chat templates, native pointers, and handles are not
-  serialized.
-- The WinUI application has no LLamaSharp package reference from this work.
-- Expanded Tier 1 is verified only for its model-free CPU boundary.
-- Tier 2 cancellation, malformed-input, file-access, privacy and network
-  evidence remains pending.
-- Full CPU execution, Vulkan and TurboQuant remain later gates.
+- Full local paths, full chat templates, native pointers and handles are not
+  serialised.
+- The WinUI application still has no LLamaSharp package reference.
+- Full CPU execution, Vulkan, TurboQuant and WinUI integration remain later
+  gates.
