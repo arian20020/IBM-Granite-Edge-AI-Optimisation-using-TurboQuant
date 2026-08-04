@@ -1,4 +1,4 @@
-name: LLamaSharp feasibility smoke
+name: LLamaSharp Tier 1 runtime tests
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
+      - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
       - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
   pull_request:
@@ -15,6 +18,9 @@ on:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
+      - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
       - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
   workflow_dispatch:
@@ -23,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: llamasharp-feasibility-${{ github.workflow }}-${{ github.ref }}
+  group: llamasharp-tier1-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -33,22 +39,26 @@ defaults:
 env:
   SPIKE_PROJECT: 'tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj'
   SPIKE_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj'
+  NATIVE_INTEGRATION_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/ModelInspection.LlamaSharpSpike.NativeIntegrationTests.csproj'
   EVIDENCE_PATH: 'artifacts/model-inspection/llamasharp/runtime-smoke.json'
 
 jobs:
-  test-build-and-smoke:
-    name: Test, build and dry-run LLamaSharp CPU backend
+  tier1-runtime-coverage:
+    name: Deterministic contracts and contained CPU-native tests
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: Check out spike and dependency-policy inputs
+      - name: Check out Tier 1 inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           sparse-checkout: |
             IBM Granite with TurboQuant (Intel)
             tools/ModelInspection.LlamaSharpSpike
             tools/ModelInspection.LlamaSharpSpike.Tests
+            tools/ModelInspection.LlamaSharpSpike.TestSupport
+            tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests
+            docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md
 
       - name: Set up .NET SDK from global.json
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
@@ -58,28 +68,73 @@ jobs:
       - name: Display .NET information
         run: dotnet --info
 
-      - name: Restore spike tests and referenced runtime project
+      - name: Restore deterministic and native integration projects
         run: |
+          $ErrorActionPreference = 'Stop'
+
           dotnet restore "$env:SPIKE_TEST_PROJECT" `
             --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deterministic test restore failed: $LASTEXITCODE"
+          }
 
-      - name: Run deterministic spike unit tests with MTP
+          dotnet restore "$env:NATIVE_INTEGRATION_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Native integration restore failed: $LASTEXITCODE"
+          }
+
+      - name: Run deterministic LLamaSharp contracts with MTP
         run: |
+          $ErrorActionPreference = 'Stop'
+
           dotnet test "$env:SPIKE_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --runtime win-x64 `
+            --filter "TestCategory=Deterministic" `
             --minimum-expected-tests 1
 
-      - name: Build the Windows x64 spike
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deterministic LLamaSharp tests failed: $LASTEXITCODE"
+          }
+
+      - name: Build and publish the Windows x64 feasibility tool
         run: |
+          $ErrorActionPreference = 'Stop'
+
           dotnet build "$env:SPIKE_PROJECT" `
             --configuration Release `
             --no-restore `
             --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Feasibility tool build failed: $LASTEXITCODE"
+          }
 
-      - name: Dry-run the published CPU native backend
+          $publishDirectory = Join-Path `
+            $env:RUNNER_TEMP `
+            'llamasharp-spike-publish'
+
+          dotnet publish "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --self-contained false `
+            --output $publishDirectory
+          if ($LASTEXITCODE -ne 0) {
+            throw "Feasibility tool publish failed: $LASTEXITCODE"
+          }
+
+          "LLAMASHARP_SPIKE_PUBLISH_DIR=$publishDirectory" |
+            Out-File `
+              -FilePath $env:GITHUB_ENV `
+              -Encoding utf8 `
+              -Append
+
+      - name: Produce direct CPU runtime-smoke evidence
         run: |
+          $ErrorActionPreference = 'Stop'
+
           dotnet run `
             --project "$env:SPIKE_PROJECT" `
             --configuration Release `
@@ -88,8 +143,14 @@ jobs:
             -- `
             --output "$env:EVIDENCE_PATH"
 
-      - name: Validate runtime-smoke evidence
+          if ($LASTEXITCODE -ne 0) {
+            throw "Direct CPU runtime smoke failed: $LASTEXITCODE"
+          }
+
+      - name: Validate direct runtime-smoke evidence
         run: |
+          $ErrorActionPreference = 'Stop'
+
           if (-not (Test-Path -LiteralPath $env:EVIDENCE_PATH -PathType Leaf)) {
             throw "Runtime-smoke evidence was not created: $env:EVIDENCE_PATH"
           }
@@ -102,34 +163,33 @@ jobs:
           if (-not $report.succeeded) {
             throw "LLamaSharp dry run failed: $($report.failureCode) $($report.failureMessage)"
           }
-
+          if ($report.schemaVersion -ne '1.0') {
+            throw "Unexpected runtime-smoke schema: $($report.schemaVersion)"
+          }
           if ($report.managedPackageVersion -ne '0.27.0') {
             throw "Unexpected LLamaSharp version: $($report.managedPackageVersion)"
           }
-
           if ($report.backendPackageVersion -ne '0.27.0') {
             throw "Unexpected CPU backend version: $($report.backendPackageVersion)"
           }
-
           if (
             $report.expectedLlamaCppCommit -ne
             '3f7c29d318e317b63f54c558bc69803963d7d88c'
           ) {
             throw "Unexpected mapped llama.cpp commit: $($report.expectedLlamaCppCommit)"
           }
-
+          if ($report.processArchitecture -ne 'X64') {
+            throw "Unexpected process architecture: $($report.processArchitecture)"
+          }
           if ($null -eq $report.selectedBackend) {
             throw 'The report did not record the selected native backend.'
           }
-
           if ($report.selectedBackend.usesCuda -ne $false) {
-            throw 'The first feasibility gate must not select CUDA.'
+            throw 'Tier 1 CPU gate must not select CUDA.'
           }
-
           if ($report.selectedBackend.usesVulkan -ne $false) {
-            throw 'The first feasibility gate must not select Vulkan.'
+            throw 'Tier 1 CPU gate must not select Vulkan.'
           }
-
           if (
             [string]::IsNullOrWhiteSpace(
               [string]$report.selectedBackend.nativeLibraryName
@@ -138,11 +198,53 @@ jobs:
             throw 'The report did not identify the selected native library.'
           }
 
-      - name: Upload smoke evidence
+      - name: Run contained native backend integration tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet test "$env:NATIVE_INTEGRATION_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --filter "TestCategory=NativeIntegration" `
+            --minimum-expected-tests 4
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hosted native integration tests failed: $LASTEXITCODE"
+          }
+
+      - name: Prove uploaded evidence contains no GGUF model
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $artifactRoot = 'artifacts/model-inspection/llamasharp'
+          if (-not (Test-Path -LiteralPath $artifactRoot)) {
+            Write-Host 'No LLamaSharp artifact directory exists.'
+            exit 0
+          }
+
+          $ggufFiles = @(
+            Get-ChildItem `
+              -LiteralPath $artifactRoot `
+              -Filter '*.gguf' `
+              -File `
+              -Recurse `
+              -ErrorAction Stop
+          )
+
+          if ($ggufFiles.Count -gt 0) {
+            throw (
+              'Model files must never be uploaded: ' +
+              (($ggufFiles.FullName | Sort-Object) -join ', ')
+            )
+          }
+
+      - name: Upload model-free Tier 1 evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
-          name: llamasharp-feasibility-${{ github.run_id }}-${{ github.run_attempt }}
+          name: llamasharp-tier1-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/model-inspection/llamasharp/**
           if-no-files-found: warn
           retention-days: 30
