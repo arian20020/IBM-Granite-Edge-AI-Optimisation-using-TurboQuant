@@ -30,7 +30,7 @@ public sealed class LockedOutputProcessTests
             var exclusiveLock = new FileStream(
                 evidencePath,
                 FileMode.Open,
-                FileAccess.ReadWrite,
+                System.IO.FileAccess.ReadWrite,
                 FileShare.None))
         {
             process = await new ProbeProcessRunner().RunAsync(
