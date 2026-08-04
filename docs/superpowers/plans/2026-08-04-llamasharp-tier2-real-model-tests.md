@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an opt-in trusted Windows test suite that validates the exact LLamaSharp CPU runtime against the controlled Granite 4.1 3B model, cancellation, repeatability, malformed GGUF inputs, file-access failures, privacy, networking observations, disposal, and original-file integrity.
+**Goal:** Add an opt-in trusted Windows test suite that validates the exact LLamaSharp CPU runtime against the controlled Granite 4.1 3B model, cancellation, repeatability, every committed malformed GGUF fixture, file-access failures, privacy, network observations, disposal, and original-file integrity.
 
 **Architecture:** Run every native/model scenario as a child process through the TestSupport project delivered by the Tier 1 plan. Keep the 2 GB model outside Git and discover it only through trusted-runner configuration. Use a dedicated Microsoft.Testing.Platform project and a manual `workflow_dispatch` workflow restricted to the repository-owned self-hosted Windows x64 Intel target.
 
@@ -35,29 +35,30 @@
 - Use `VocabOnly = true`, `GpuLayerCount = 0`, CUDA disabled, and Vulkan disabled.
 - Do not create a context, KV cache, inference request, Vulkan backend, or TurboQuant route.
 - Hash every model or fixture before and after each child-process scenario.
-- A missing model path or expected hash must fail the workflow; no silent skips.
+- Missing model configuration must fail the workflow; no silent skips.
 - A child-process native abort must be recorded, not allowed to terminate the MSTest host.
-- Use exact timeouts and kill the complete child process tree on timeout.
+- Use bounded timeouts and kill the complete child process tree on timeout.
 - Upload evidence only after a pre-upload scan proves no `.gguf` file is present.
 - Update the nearest READMEs and coverage matrix with actual evidence rather than source-presence claims.
 
 ---
 
-### Task 1: Create the real-model integration project and controlled-model manifest
+### Task 1: Create the real-model integration project and controlled-model configuration
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj`
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/README.md`
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ControlledModels/granite-4.1-3b-q4-k-m.json`
+- Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Support/RealModelEvidenceDirectory.cs`
+- Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Support/RealModelTestContext.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike.TestSupport/ControlledModelManifest.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike.TestSupport/ControlledModelConfiguration.cs`
-- Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Support/RealModelTestContext.cs`
 
 **Interfaces:**
 - Consumes: `LLAMASHARP_SPIKE_PUBLISH_DIR`, `GRANITE_TEST_MODEL_PATH`, and the committed model manifest.
-- Produces: a fail-fast `RealModelTestContext` containing the published executable, model path, expected identity, and per-test evidence root.
+- Produces: a fail-fast `RealModelTestContext` containing the published executable, model path, expected identity, and an isolated evidence root.
 
-- [ ] **Step 1: Create the MTP-enabled real-model test project**
+- [ ] **Step 1: Create the MTP-enabled test project**
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -90,7 +91,7 @@
 </Project>
 ```
 
-- [ ] **Step 2: Add the controlled model manifest**
+- [ ] **Step 2: Commit the exact model manifest**
 
 ```json
 {
@@ -118,8 +119,6 @@
 - [ ] **Step 3: Implement manifest loading**
 
 ```csharp
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.TestSupport;
-
 public sealed record ControlledModelManifest
 {
     public required string Id { get; init; }
@@ -146,10 +145,7 @@ public sealed record ControlledModelManifest
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         return JsonSerializer.Deserialize<ControlledModelManifest>(
                    File.ReadAllText(path),
-                   new JsonSerializerOptions
-                   {
-                       PropertyNameCaseInsensitive = true
-                   })
+                   new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                ?? throw new InvalidDataException(
                    "Controlled model manifest could not be deserialized.");
     }
@@ -159,8 +155,6 @@ public sealed record ControlledModelManifest
 - [ ] **Step 4: Implement fail-fast environment configuration**
 
 ```csharp
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.TestSupport;
-
 public sealed record ControlledModelConfiguration
 {
     public const string ModelPathEnvironmentVariable =
@@ -169,8 +163,7 @@ public sealed record ControlledModelConfiguration
     public required string ModelPath { get; init; }
     public required ControlledModelManifest Manifest { get; init; }
 
-    public static ControlledModelConfiguration Load(
-        string manifestPath)
+    public static ControlledModelConfiguration Load(string manifestPath)
     {
         ControlledModelManifest manifest =
             ControlledModelManifest.Load(manifestPath);
@@ -201,18 +194,53 @@ public sealed record ControlledModelConfiguration
 }
 ```
 
-- [ ] **Step 5: Add `RealModelTestContext`**
+- [ ] **Step 5: Add a local evidence-directory helper**
 
 ```csharp
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.Support;
+internal sealed class RealModelEvidenceDirectory : IDisposable
+{
+    internal RealModelEvidenceDirectory()
+    {
+        Path = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            "GraniteEdgeAI-LlamaSharpTests",
+            "real-model-evidence",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path);
+    }
 
+    internal string Path { get; }
+
+    internal string CreateFile(string scenario, string fileName)
+    {
+        string directory = System.IO.Path.Combine(
+            Path,
+            scenario,
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return System.IO.Path.Combine(directory, fileName);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(Path))
+        {
+            Directory.Delete(Path, recursive: true);
+        }
+    }
+}
+```
+
+- [ ] **Step 6: Add `RealModelTestContext`**
+
+```csharp
 internal sealed class RealModelTestContext : IDisposable
 {
-    private readonly TemporaryDirectory _evidenceDirectory;
+    private readonly RealModelEvidenceDirectory _evidence = new();
 
     internal RealModelTestContext()
     {
-        string manifestPath = Path.Combine(
+        string manifestPath = System.IO.Path.Combine(
             AppContext.BaseDirectory,
             "ControlledModels",
             "granite-4.1-3b-q4-k-m.json");
@@ -220,35 +248,24 @@ internal sealed class RealModelTestContext : IDisposable
         Model = ControlledModelConfiguration.Load(manifestPath);
         PublishedProbeDirectory =
             PublishedProbeLocation.RequireFromEnvironment();
-        _evidenceDirectory = new TemporaryDirectory(
-            "llamasharp-real-model-evidence");
     }
 
     internal ControlledModelConfiguration Model { get; }
     internal string PublishedProbeDirectory { get; }
-    internal string EvidenceDirectory => _evidenceDirectory.Path;
+    internal string EvidenceRoot => _evidence.Path;
 
-    internal string CreateEvidencePath(string scenario)
-    {
-        string directory = Path.Combine(
-            EvidenceDirectory,
-            scenario,
-            Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        return Path.Combine(directory, "result.json");
-    }
+    internal string CreateEvidencePath(string scenario) =>
+        _evidence.CreateFile(scenario, "result.json");
 
-    public void Dispose() => _evidenceDirectory.Dispose();
+    public void Dispose() => _evidence.Dispose();
 }
 ```
 
-Use the `TemporaryDirectory` helper from TestSupport; if Tier 1 kept it inside only the deterministic project, move the implementation into TestSupport and reference it from both projects.
+- [ ] **Step 7: Add deterministic configuration tests**
 
-- [ ] **Step 6: Add precondition tests**
+Test missing environment variable, missing file, wrong filename, wrong length, and wrong SHA-256 using temporary small files. These tests must fail before any native call.
 
-Write tests that deliberately clear `GRANITE_TEST_MODEL_PATH` and assert configuration throws. Add tests for missing file, mismatched filename, wrong length, and wrong hash using a temporary file. These tests do not call native code.
-
-- [ ] **Step 7: Commit project scaffold and documentation**
+- [ ] **Step 8: Commit the scaffold**
 
 ```powershell
 git add tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests `
@@ -258,7 +275,7 @@ git commit -m "test(model-inspection): scaffold trusted real-model tests"
 
 ---
 
-### Task 2: Add controlled Granite success-contract and repeatability tests
+### Task 2: Add controlled Granite success and repeatability contracts
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/RealModel/GraniteVocabOnlySuccessTests.cs`
@@ -267,16 +284,11 @@ git commit -m "test(model-inspection): scaffold trusted real-model tests"
 - Expand: `tools/ModelInspection.LlamaSharpSpike.TestSupport/EvidenceAssertions.cs`
 
 **Interfaces:**
-- Consumes: child-process runner, model configuration, manifest, and published probe.
-- Produces: exact success and three-run repeatability evidence.
+- Produces: exact success assertions and three-run repeatability evidence.
 
-- [ ] **Step 1: Add an independent file-hash helper**
+- [ ] **Step 1: Add independent SHA-256 calculation**
 
 ```csharp
-using System.Security.Cryptography;
-
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.TestSupport;
-
 public static class ModelFileHash
 {
     public static async Task<string> ComputeSha256Async(
@@ -295,23 +307,14 @@ public static class ModelFileHash
         byte[] hash = await sha256.ComputeHashAsync(
             stream,
             cancellationToken);
-
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }
 ```
 
-- [ ] **Step 2: Add exact evidence assertions**
+- [ ] **Step 2: Implement exact evidence assertions**
 
-Implement methods:
-
-```csharp
-public static void AssertSuccessfulGraniteVocabOnly(
-    JsonElement root,
-    ControlledModelManifest manifest)
-```
-
-Require:
+`EvidenceAssertions.AssertSuccessfulGraniteVocabOnly` must require:
 
 ```text
 schemaVersion = 1.1
@@ -321,19 +324,16 @@ vocabOnlyRequested = true
 gpuLayerCount = 0
 managedPackageVersion = 0.27.0
 backendPackageVersion = 0.27.0
-expectedLlamaCppCommit = 3f7c29d...
+expectedLlamaCppCommit = 3f7c29d318e317b63f54c558bc69803963d7d88c
 selectedBackend.usesCuda = false
 selectedBackend.usesVulkan = false
-architecture/model/file type/quantisation/tokenizer match manifest
-context/embedding/layers/heads/KV heads match manifest
-metadata/vocabulary counts match manifest
-tokenizer smoke succeeds with 1 token
-chat template present
-native handle closed = true
-integrity preserved = true
-before and after SHA-256 match manifest
-progress values finite and in 0..1
-failureCode/failureType/failureMessage are null
+all manifest metadata values match
+parameterCount is null
+progress fractions are finite and within 0..1
+nativeHandleClosedAfterDispose = true
+integrity.isPreserved = true
+before/after SHA-256 match manifest
+failure fields are null
 ```
 
 - [ ] **Step 3: Add the success child-process test**
@@ -392,31 +392,22 @@ public sealed class GraniteVocabOnlySuccessTests
 }
 ```
 
-- [ ] **Step 4: Add three-run repeatability test**
+- [ ] **Step 4: Add three-run repeatability**
 
-Run the same child process three times sequentially with unique JSON paths. Assert every run succeeds and compare stable fields:
+Run three child processes sequentially with unique JSON paths. Require all three to succeed. Compare stable fields only:
 
 ```text
-architecture
-model name
-context
-embedding
-layers
-heads
-KV heads
-metadata count
-vocabulary count
-chat-template hash
-before/after model hash
+architecture, name, context, embedding, layers, heads, KV heads,
+metadata count, vocabulary count, chat-template hash, model hashes
 ```
 
-Do not assert exact load duration, working set, peak memory, or progress sample count; only require valid nonnegative observations.
+Do not compare exact load duration, working set, peak memory, or progress sample count; require only valid nonnegative observations.
 
-- [ ] **Step 5: Confirm cleanup after all runs**
+- [ ] **Step 5: Assert cleanup**
 
-Assert no file matching `*.tmp-*` remains under the test evidence root or sandbox. Assert every result reports `nativeHandleClosedAfterDispose = true`.
+No `*.tmp-*` file may remain in the evidence root or sandbox. Every result must report a closed native handle.
 
-- [ ] **Step 6: Run locally on the interactive machine and commit**
+- [ ] **Step 6: Run locally and commit**
 
 ```powershell
 $PublishDirectory = Join-Path $env:TEMP "GraniteEdgeAI-LlamaSharp-Publish"
@@ -440,8 +431,6 @@ dotnet test `
   --minimum-expected-tests 2
 ```
 
-Expected: both tests pass.
-
 ```powershell
 git add tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests `
         tools/ModelInspection.LlamaSharpSpike.TestSupport
@@ -459,7 +448,7 @@ git commit -m "test(model-inspection): verify controlled Granite repeatability"
 
 **Interfaces:**
 - Consumes: `--cancel-after-ms` and Tier 1 `--cancel-native-after-ms`.
-- Produces: evidence-backed cancellation at both operation scopes.
+- Produces: evidence-backed cancellation at both scopes.
 
 - [ ] **Step 1: Add shared cancellation assertions**
 
@@ -488,58 +477,27 @@ public static void AssertCancelled(
 
 - [ ] **Step 2: Add whole-operation cancellation test**
 
-Launch:
+Launch with:
 
 ```text
---model <path>
---cancel-after-ms 1
---output <unique-json>
+--model <path> --cancel-after-ms 1 --output <json>
 ```
 
-Require:
+Require child exit `3`, JSON, `Cancelled`, `MI-PROBE-CANCELLED`, unchanged model hash, and no path leak. Selected backend may be absent because cancellation can happen during the pre-hash stage.
+
+- [ ] **Step 3: Add native-load cancellation test**
+
+Launch with:
 
 ```text
-termination = Exited
-exit code = 3
-JSON exists
-completion = Cancelled
-failure = MI-PROBE-CANCELLED
-model hash unchanged
-no canonical path leak
+--model <path> --cancel-native-after-ms 1 --output <json>
 ```
 
-Because the timer starts before hashing, no selected backend or native handle is required in this case.
-
-- [ ] **Step 3: Add native-load-scoped cancellation test**
-
-Launch:
-
-```text
---model <path>
---cancel-native-after-ms 1
---output <unique-json>
-```
-
-Require:
-
-```text
-termination = Exited
-exit code = 3
-JSON exists
-completion = Cancelled
-failure = MI-PROBE-CANCELLED
-selected CPU backend exists
-CUDA false
-Vulkan false
-model hash unchanged
-if nativeHandleClosedAfterDispose is non-null, it is true
-```
-
-The child process must not return `MI-PROBE-MODEL-LOAD-FAILED` for a cancellation token.
+Require child exit `3`, JSON, selected CPU backend, CUDA/Vulkan false, `Cancelled`, `MI-PROBE-CANCELLED`, unchanged model hash, and any non-null native-handle disposal flag equal to true.
 
 - [ ] **Step 4: Repeat native-load cancellation three times**
 
-Use three unique JSON paths. All runs must return exit `3`. This catches timing-dependent cancellation regressions.
+All three unique runs must return exit `3`; none may become `MI-PROBE-MODEL-LOAD-FAILED`.
 
 - [ ] **Step 5: Run and commit**
 
@@ -557,23 +515,18 @@ git commit -m "test(model-inspection): verify LLamaSharp cancellation paths"
 
 ---
 
-### Task 4: Run every committed malformed GGUF fixture in a contained child process
+### Task 4: Run all committed malformed GGUF fixtures in child processes
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/MalformedModels/MalformedFixtureCase.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/MalformedModels/MalformedFixtureData.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/MalformedModels/MalformedModelProcessTests.cs`
-- Modify: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj`
 
 **Interfaces:**
-- Consumes: all files under `tests/TestFixtures/Malformed` and `tests/TestFixtures/fixture-manifest.json`.
-- Produces: one independently reported MSTest case per committed malformed fixture.
+- Consumes: `tests/TestFixtures/fixture-manifest.json` property `generatedGgufFixtures`, using exact fields `fixtureId`, `fixtureFile`, `byteLength`, and `sha256`.
+- Produces: one MSTest case per entry whose `fixtureFile` begins with `Malformed/`.
 
-- [ ] **Step 1: Add repository fixture files as non-output inputs**
-
-The project must locate the repository through `RepositoryPaths.FindRoot()` from TestSupport; do not copy the fixture binaries into test output or artifacts.
-
-- [ ] **Step 2: Implement dynamic fixture discovery**
+- [ ] **Step 1: Implement exact manifest discovery**
 
 ```csharp
 internal sealed record MalformedFixtureCase(
@@ -597,10 +550,13 @@ internal static class MalformedFixtureData
             File.ReadAllText(manifestPath));
 
         foreach (JsonElement fixture in document.RootElement
-                     .GetProperty("fixtures")
+                     .GetProperty("generatedGgufFixtures")
                      .EnumerateArray())
         {
-            string relativePath = fixture.GetProperty("path").GetString()!;
+            string relativePath = fixture
+                .GetProperty("fixtureFile")
+                .GetString()!;
+
             if (!relativePath.StartsWith(
                     "Malformed/",
                     StringComparison.Ordinal))
@@ -611,13 +567,13 @@ internal static class MalformedFixtureData
             yield return new object[]
             {
                 new MalformedFixtureCase(
-                    fixture.GetProperty("id").GetString()!,
+                    fixture.GetProperty("fixtureId").GetString()!,
                     Path.Combine(
                         root,
                         "tests",
                         "TestFixtures",
                         relativePath.Replace('/', Path.DirectorySeparatorChar)),
-                    fixture.GetProperty("bytes").GetInt64(),
+                    fixture.GetProperty("byteLength").GetInt64(),
                     fixture.GetProperty("sha256").GetString()!)
             };
         }
@@ -625,9 +581,7 @@ internal static class MalformedFixtureData
 }
 ```
 
-If the manifest property names differ, adapt the reader to the actual manifest during implementation and add a manifest-shape unit test; do not hardcode a separate second fixture list.
-
-- [ ] **Step 3: Add the contained malformed-fixture process test**
+- [ ] **Step 2: Add one contained process test per fixture**
 
 ```csharp
 [TestMethod]
@@ -672,10 +626,15 @@ public async Task Run_WithMalformedFixture_IsContainedAndPreservesFixture(
     if (File.Exists(evidencePath))
     {
         using JsonDocument evidence = EvidenceAssertions.LoadJson(evidencePath);
-        JsonElement root = evidence.RootElement;
-        Assert.AreEqual("Failed", root.GetProperty("completionStatus").GetString());
-        Assert.IsTrue(root.GetProperty("integrity").GetProperty("isPreserved").GetBoolean());
-        Assert.IsFalse(root.TryGetProperty("modelOutcome", out _));
+        Assert.AreEqual(
+            "Failed",
+            evidence.RootElement.GetProperty("completionStatus").GetString());
+        Assert.IsTrue(
+            evidence.RootElement
+                .GetProperty("integrity")
+                .GetProperty("isPreserved")
+                .GetBoolean());
+        Assert.IsFalse(evidence.RootElement.TryGetProperty("modelOutcome", out _));
     }
 
     EvidenceAssertions.AssertDoesNotContainCanonicalPath(
@@ -687,11 +646,9 @@ public async Task Run_WithMalformedFixture_IsContainedAndPreservesFixture(
 }
 ```
 
-A native abort without JSON is acceptable only as a contained nonzero child-process result with unchanged fixture hash. Record its exit code and streams in test-result attachments or workflow evidence.
+A native abort without JSON is acceptable only as a contained nonzero child-process result with unchanged fixture hash.
 
-- [ ] **Step 4: Add an additional random-bytes `.gguf` case**
-
-Create a 4096-byte file with deterministic SHA-256 input generated by:
+- [ ] **Step 3: Add a deterministic random-byte `.gguf` case**
 
 ```csharp
 byte[] bytes = Enumerable.Range(0, 4096)
@@ -699,9 +656,9 @@ byte[] bytes = Enumerable.Range(0, 4096)
     .ToArray();
 ```
 
-Run through the same containment contract.
+Run through the same containment, privacy, and integrity contract.
 
-- [ ] **Step 5: Run the complete malformed matrix and commit**
+- [ ] **Step 4: Run and commit**
 
 ```powershell
 dotnet test `
@@ -714,11 +671,11 @@ git add tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests
 git commit -m "test(model-inspection): contain malformed GGUF runtime failures"
 ```
 
-Expected: one test case per manifest entry under `Malformed/`, plus one deterministic random-byte case.
+Expected: all manifest entries under `Malformed/` are discovered, plus one random-byte case.
 
 ---
 
-### Task 5: Add file-access and evidence-write failure process tests
+### Task 5: Add file-access and evidence-write failure tests
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/FileAccess/MissingModelProcessTests.cs`
@@ -729,26 +686,15 @@ Expected: one test case per manifest entry under `Malformed/`, plus one determin
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/FileAccess/OutputEqualsModelProcessTests.cs`
 
 **Interfaces:**
-- Consumes: child-process runner and temporary test fixtures.
-- Produces: controlled evidence for model-access and evidence-write failures without changing the real Granite model.
+- Produces: controlled child-process evidence for model-access and evidence-write failures.
 
-- [ ] **Step 1: Add missing-model and directory-model tests**
+- [ ] **Step 1: Add missing-model and directory-model cases**
 
-Missing model requires:
+Missing model requires exit `1`, JSON, `MI-OP-MODEL-FILE-NOT-FOUND`, and no path leak. Directory supplied as model requires a controlled nonzero file-related result; record the actual stable code in the coverage matrix.
 
-```text
-exit 1
-JSON exists
-MI-OP-MODEL-FILE-NOT-FOUND
-no native backend required
-no canonical path leak
-```
+- [ ] **Step 2: Add locked-model case with a temporary fixture**
 
-Directory supplied as model requires nonzero exit and a controlled file-related code. If current behavior maps it to `MI-OP-MODEL-FILE-NOT-FOUND`, preserve and document that exact contract.
-
-- [ ] **Step 2: Add locked-model test using a temporary fixture**
-
-Create a small file and hold:
+Hold the file with:
 
 ```csharp
 using FileStream lockStream = new(
@@ -758,32 +704,19 @@ using FileStream lockStream = new(
     FileShare.None);
 ```
 
-Launch child. Require nonzero exit, parent survival, unchanged fixture hash, and `MI-OP-MODEL-FILE-IO` or `MI-OP-MODEL-FILE-ACCESS-DENIED` according to actual Windows exception mapping.
+Require parent survival, nonzero exit, unchanged fixture hash, and `MI-OP-MODEL-FILE-IO` or `MI-OP-MODEL-FILE-ACCESS-DENIED` according to the observed Windows exception.
 
-- [ ] **Step 3: Add locked-output test**
+- [ ] **Step 3: Add locked-output case**
 
-Create an existing valid JSON output and hold it with `FileShare.None`. Launch a no-model native smoke pointing to the locked output. Require:
+Hold an existing valid JSON file with `FileShare.None`, run native smoke to that output, and require exit `1`, stderr code `MI-OP-EVIDENCE-WRITE-FAILED`, unchanged existing JSON, and no `*.tmp-*` file.
 
-```text
-exit 1
-stderr identifies MI-OP-EVIDENCE-WRITE-FAILED
-existing JSON remains byte-for-byte unchanged
-no temporary file remains
-```
+- [ ] **Step 4: Add invalid-output-parent case**
 
-- [ ] **Step 4: Add invalid output-parent test**
+Create a regular file named `parent-file` and use `parent-file\result.json` as output. Require exit `1`, `MI-OP-EVIDENCE-WRITE-FAILED`, and no model/fixture change.
 
-Create a regular file named `parent-file` and use:
+- [ ] **Step 5: Add output-equals-model case**
 
-```text
-<parent-file>\result.json
-```
-
-as output. Require exit `1`, `MI-OP-EVIDENCE-WRITE-FAILED`, and no modification to the model or fixture.
-
-- [ ] **Step 5: Add output-equals-model test**
-
-Launch with the same canonical path for `--model` and `--output`. Require exit `2`; the process must refuse before hashing/native work. Hash the model before and after.
+Use identical canonical paths for `--model` and `--output`. Require exit `2` before native work and unchanged model hash.
 
 - [ ] **Step 6: Run and commit**
 
@@ -801,7 +734,7 @@ git commit -m "test(model-inspection): cover runtime file access failures"
 
 ---
 
-### Task 6: Add evidence privacy, artifact exclusion, and network-observation tests
+### Task 6: Add privacy, artifact-exclusion, and network-observation tests
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike.TestSupport/SocketObservation.cs`
@@ -810,12 +743,11 @@ git commit -m "test(model-inspection): cover runtime file access failures"
 - Create: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Security/ArtifactExclusionTests.cs`
 
 **Interfaces:**
-- Consumes: child process ID, evidence directory, controlled model path, and model hash.
-- Produces: strong “no listener/network use observed” and “model excluded from evidence” results.
+- Produces: strong “no TCP use observed” and “model excluded from evidence” results.
 
 - [ ] **Step 1: Implement process-owned TCP observation**
 
-`SocketObservation.ObserveAsync(int processId, CancellationToken)` invokes Windows PowerShell with:
+Invoke Windows PowerShell with:
 
 ```powershell
 Get-NetTCPConnection -OwningProcess <pid> -ErrorAction SilentlyContinue |
@@ -823,7 +755,7 @@ Get-NetTCPConnection -OwningProcess <pid> -ErrorAction SilentlyContinue |
   ConvertTo-Json -Compress
 ```
 
-Return a project-owned list:
+Return:
 
 ```csharp
 public sealed record ObservedTcpConnection(
@@ -834,42 +766,34 @@ public sealed record ObservedTcpConnection(
     int RemotePort);
 ```
 
-Poll every 25 ms until the child exits or 2 seconds elapse. This polling delay is part of an explicit observation loop, not an arbitrary test sleep.
+Poll every 25 ms until the child exits or two seconds elapse. The delay belongs to the bounded observation loop and must use cancellation.
 
 - [ ] **Step 2: Add evidence privacy test**
 
-After a successful real-model run, inspect JSON, stdout, and stderr. Require absence of:
+After a successful model run, require JSON/stdout/stderr to exclude:
 
 ```text
 full canonical model path
 parent directory path
-"tokenizer.chat_template" full value
-"modelPath" JSON property
-"chatTemplateText" JSON property
+modelPath property
+chatTemplateText property
+full tokenizer.chat_template value
 ```
 
-Require presence of filename and `canonicalPathSha256` because those are approved evidence.
+Require filename and `canonicalPathSha256` because those are approved evidence.
 
 - [ ] **Step 3: Add network-observation test**
 
-Launch the real-model child process and concurrently observe its PID. Require no connection with state `Listen`, `Established`, `SynSent`, or `SynReceived` owned by the process. Record all observations in evidence even when the list is empty.
-
-The test claim is:
-
-```text
-No TCP listener or established/outbound connection was observed for the probe process.
-```
-
-It is not a substitute for the separately deferred physically disconnected-machine test.
+Launch a real-model child and observe its PID. Require no `Listen`, `Established`, `SynSent`, or `SynReceived` connection owned by the process. State the claim narrowly: no TCP listener or active connection was observed.
 
 - [ ] **Step 4: Add artifact exclusion test**
 
-Recursively scan the evidence root. Fail when:
+Recursively scan the evidence root. Fail on:
 
 ```text
-any filename ends with .gguf
-any evidence file length equals 2099501664
-any file SHA-256 equals the controlled model SHA-256
+any .gguf file
+any file of length 2099501664
+any file whose SHA-256 equals the controlled model hash
 ```
 
 - [ ] **Step 5: Run and commit**
@@ -896,8 +820,8 @@ git commit -m "test(model-inspection): verify probe privacy and network boundary
 - Modify: `tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/README.md`
 
 **Interfaces:**
-- Consumes repository variable: `GRANITE_TEST_MODEL_PATH`.
-- Produces test/evidence artifacts without uploading the model.
+- Consumes repository variable `GRANITE_TEST_MODEL_PATH`.
+- Produces test and diagnostic evidence without uploading the model.
 
 - [ ] **Step 1: Create a manual-only trusted workflow**
 
@@ -936,35 +860,11 @@ jobs:
       EXPECTED_GRANITE_SHA256: 662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
 ```
 
-- [ ] **Step 2: Add checkout and fail-fast model preflight**
+- [ ] **Step 2: Add fail-fast model preflight**
 
-Preflight verifies:
+Verify configured path, file readability, exact SHA-256, and exact byte length. Fail before restore/test if any value differs.
 
-```powershell
-$ErrorActionPreference = 'Stop'
-
-if ([string]::IsNullOrWhiteSpace($env:GRANITE_TEST_MODEL_PATH)) {
-    throw 'Repository variable GRANITE_TEST_MODEL_PATH is required.'
-}
-
-if (-not (Test-Path -LiteralPath $env:GRANITE_TEST_MODEL_PATH -PathType Leaf)) {
-    throw 'Configured Granite test model is not readable by the runner service.'
-}
-
-$actualHash = (
-    Get-FileHash -LiteralPath $env:GRANITE_TEST_MODEL_PATH -Algorithm SHA256
-).Hash.ToLowerInvariant()
-
-if ($actualHash -ne $env:EXPECTED_GRANITE_SHA256) {
-    throw "Controlled Granite hash mismatch: $actualHash"
-}
-
-if ((Get-Item -LiteralPath $env:GRANITE_TEST_MODEL_PATH).Length -ne 2099501664) {
-    throw 'Controlled Granite byte length mismatch.'
-}
-```
-
-- [ ] **Step 3: Restore, publish, and export the publish directory**
+- [ ] **Step 3: Restore and publish**
 
 ```yaml
 - name: Restore trusted integration tests
@@ -994,38 +894,14 @@ if ((Get-Item -LiteralPath $env:GRANITE_TEST_MODEL_PATH).Length -ne 2099501664) 
     dotnet test "$env:REAL_MODEL_TEST_PROJECT" `
       --configuration Release `
       --runtime win-x64 `
-      --minimum-expected-tests 10
+      --minimum-expected-tests 1
 ```
 
-The final minimum count must be raised to the actual discovered count after implementation; it must not remain `10` if more tests are created.
+After implementation, replace `1` with the exact discovered test-case count from a fresh run; do not guess the final count.
 
-- [ ] **Step 5: Copy only test evidence into a clean upload directory**
+- [ ] **Step 5: Scan evidence before upload**
 
-The integration test project writes under:
-
-```text
-$env:RUNNER_TEMP\llamasharp-real-model-evidence
-```
-
-Before upload:
-
-```powershell
-$evidenceRoot = Join-Path $env:RUNNER_TEMP 'llamasharp-real-model-evidence'
-
-$forbiddenModels = Get-ChildItem `
-    -LiteralPath $evidenceRoot `
-    -Recurse `
-    -File `
-    -ErrorAction SilentlyContinue |
-  Where-Object {
-      $_.Extension -ieq '.gguf' -or
-      $_.Length -eq 2099501664
-  }
-
-if ($forbiddenModels) {
-    throw 'A model-like file was found in the upload evidence directory.'
-}
-```
+Fail if the evidence root contains a `.gguf`, a file of length `2099501664`, or a file whose SHA-256 equals the controlled model hash.
 
 - [ ] **Step 6: Upload evidence on success or failure**
 
@@ -1042,19 +918,21 @@ if ($forbiddenModels) {
 
 - [ ] **Step 7: Document runner setup**
 
-The README must instruct the repository owner to configure:
+Repository variable:
 
 ```text
-Repository variable:
 GRANITE_TEST_MODEL_PATH
+```
 
 Recommended service-readable location:
+
+```text
 C:\ProgramData\GraniteEdgeAI\TestModels\granite-4.1-3b-Q4_K_M.gguf
 ```
 
-The file must be readable by the runner service account and must not be inside the repository checkout.
+The model must be outside the checkout and readable by the runner service account.
 
-- [ ] **Step 8: Commit workflow and README**
+- [ ] **Step 8: Commit**
 
 ```powershell
 git add .github/workflows/llamasharp-real-model-integration.yml `
@@ -1064,7 +942,7 @@ git commit -m "ci(model-inspection): add trusted LLamaSharp real-model suite"
 
 ---
 
-### Task 8: Reconcile the coverage matrix and source-adjacent documentation
+### Task 8: Reconcile coverage and documentation after fresh evidence
 
 **Files:**
 - Modify: `docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md`
@@ -1080,9 +958,9 @@ git commit -m "ci(model-inspection): add trusted LLamaSharp real-model suite"
 **Interfaces:**
 - Produces: evidence-backed coverage state and explicit deferrals.
 
-- [ ] **Step 1: Mark every implemented Tier 2 scenario in the matrix**
+- [ ] **Step 1: Mark every implemented scenario in the matrix**
 
-Update status only after actual test output exists. Required entries:
+Required rows:
 
 ```text
 controlled Granite success
@@ -1099,13 +977,11 @@ invalid output parent
 output equals model
 path privacy
 artifact exclusion
-no TCP listener/established socket observed
+no TCP listener/connection observed
 before/after integrity for every model/fixture scenario
 ```
 
 - [ ] **Step 2: Record explicit deferrals**
-
-Keep these as deferred with reasons and future evidence routes:
 
 ```text
 physical network disconnection
@@ -1122,41 +998,17 @@ WinUI Cancel button
 
 - [ ] **Step 3: Update current-state READMEs**
 
-Document the difference between:
+Distinguish verified feasibility from unimplemented production `ILlamaModelProbe`, WinUI cancellation, full CPU execution, Vulkan, and TurboQuant.
 
-```text
-verified runtime feasibility
-production ILlamaModelProbe not yet implemented
-WinUI cancellation not yet connected
-full CPU/Vulkan/TurboQuant gates not yet run
-```
+- [ ] **Step 4: Run the trusted workflow and record evidence identifiers**
 
-- [ ] **Step 4: Run the complete Tier 2 suite on the trusted runner**
+Record workflow run ID, runner identity, application commit, discovered/passed/failed/skipped counts, model hash, artifact name, and contained native-abort exit codes.
 
-Record:
+- [ ] **Step 5: Download and inspect the artifact**
 
-```text
-workflow run ID
-target runner identity
-application commit
-number of tests discovered/passed/failed/skipped
-controlled model hash
-artifact name
-any contained native-abort exit codes
-```
+Confirm no `.gguf`, model-length file, model-hash file, or canonical local model path appears.
 
-- [ ] **Step 5: Verify uploaded artifact contents**
-
-Download the artifact and confirm:
-
-```text
-no .gguf file
-no file with controlled model length
-no file with controlled model SHA-256
-no canonical local model path in any text or JSON
-```
-
-- [ ] **Step 6: Commit final documentation after evidence review**
+- [ ] **Step 6: Commit evidence-backed documentation**
 
 ```powershell
 git add docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md `
@@ -1173,12 +1025,12 @@ git commit -m "docs(model-inspection): record comprehensive runtime test evidenc
 - [ ] Trusted runner fails loudly when model configuration is absent or wrong.
 - [ ] Controlled Granite success contract passes with exact expected evidence.
 - [ ] Three sequential probes pass and close every native handle.
-- [ ] Whole-operation cancellation returns `Cancelled`, code `MI-PROBE-CANCELLED`, exit `3`, and preserved integrity.
+- [ ] Whole-operation cancellation returns `Cancelled`, `MI-PROBE-CANCELLED`, exit `3`, and preserved integrity.
 - [ ] Native-load cancellation returns the same controlled result without becoming a load failure.
 - [ ] Every committed malformed fixture is contained in a child process and remains unchanged.
 - [ ] Missing, directory, locked-model, locked-output, invalid-output-parent, and output-equals-model cases are controlled.
 - [ ] No canonical model path or full chat template appears in JSON, stdout, stderr, or artifacts.
-- [ ] No TCP listener or established/outbound socket is observed for the probe process.
+- [ ] No TCP listener or active connection is observed for the probe process.
 - [ ] No `.gguf`, model-sized file, or model-hash file appears in uploaded evidence.
 - [ ] Coverage matrix links every automated scenario to its test and evidence tier.
 - [ ] Remaining non-automated conditions have explicit reasons and future routes.
