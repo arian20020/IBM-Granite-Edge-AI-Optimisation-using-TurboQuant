@@ -1,12 +1,13 @@
 # LLamaSharp Runtime Test Coverage Matrix
 
 **Document ID:** TEST-COV-LLAMASHARP-001  
-**Status:** Tier 1 verified; Tier 2 source compiles; trusted execution pending  
-**Last reviewed:** 2026-08-04  
+**Status:** Tier 1 verified; Tier 2 local trusted gate verified  
+**Last reviewed:** 2026-08-05  
 **Runtime under test:** `LLamaSharp 0.27.0` + `LLamaSharp.Backend.Cpu 0.27.0`  
 **Mapped llama.cpp commit:** `3f7c29d318e317b63f54c558bc69803963d7d88c`  
 **Related design:** [LLamaSharp runtime test architecture](../superpowers/specs/2026-08-04-llamasharp-runtime-test-architecture-design.md)  
-**Fresh Tier 1 evidence:** [2026-08-04 verification record](./evidence/2026-08-04-llamasharp-tier1-verification.md)
+**Tier 1 evidence:** [2026-08-04 hosted verification](./evidence/2026-08-04-llamasharp-tier1-verification.md)  
+**Tier 2 evidence:** [2026-08-05 local trusted verification](./evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 
 ## Purpose
 
@@ -50,9 +51,25 @@ No-GGUF artifact scan:               passed
 Privacy-gated evidence upload:       passed
 ```
 
-The trusted real-model suite is therefore compile-ready, but its model,
-cancellation, malformed-input, file-access, privacy and network scenarios are
-not verified until the manual self-hosted workflow completes.
+### Tier 2 local trusted verification
+
+```text
+Verified branch baseline:            0c6b417a66478ddf5ebc0ccc64f5f76bc3ac2ca9
+Controlled model:                    granite-4.1-3b-Q4_K_M.gguf
+Controlled model bytes:              2,099,501,664
+Controlled model SHA-256:            662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
+Trusted suite:                       20 / 20 passed
+Failed / skipped:                    0 / 0
+Duration:                            approximately 3 minutes 9 seconds
+Model SHA-256 preserved:             yes
+Retained evidence files scanned:     56
+Privacy findings:                    0
+GGUF/model-sized/exact-copy files:   0 / 0 / 0
+```
+
+The Tier 2 result verifies the local target-machine boundary. The separate
+self-hosted GitHub Actions service-account run remains a later deployment and
+workflow-registration check after the workflow exists on the default branch.
 
 ## Status vocabulary
 
@@ -61,7 +78,6 @@ not verified until the manual self-hosted workflow completes.
 | Verified | Fresh execution evidence has been reviewed |
 | Compile verified | Source and analyzers build, but the scenario has not executed |
 | Source implemented | Automated check exists; fresh execution pending |
-| Planned — Tier 2 | Defined by the trusted-runner implementation plan but not yet implemented or confirmed |
 | Deferred | Not safely or proportionately automatable at this stage; future route recorded |
 | Outside scope | Belongs to a later CPU, Vulkan, TurboQuant, UI, or Hardware Fit gate |
 
@@ -118,7 +134,7 @@ not verified until the manual self-hosted workflow completes.
 | LS-FS-014 | Changed path/length/timestamp/hash is missed | Integrity | per-field integrity tests | Corresponding flag false; `IsPreserved=false` | Tier 1 | MTP log | Verified — run `30939159409` |
 | LS-FS-015 | Cancellation conceals changed model | Result finalisation | cancelled + changed integrity test | `MI-OP-MODEL-INTEGRITY-CHANGED` | Tier 1 | MTP log | Verified — run `30939159409` |
 | LS-FS-016 | Cancellation conceals unverifiable integrity | Result finalisation | cancelled + missing integrity test | `MI-OP-MODEL-INTEGRITY-VERIFICATION-FAILED` | Tier 1 | MTP log | Verified — run `30939159409` |
-| LS-FS-017 | Existing symlink/junction/hard-link alias bypass | Path safety | Filesystem-link process tests | Same underlying file rejected | Tier 2 | Trusted test log | Planned — Tier 2; environment capability recorded |
+| LS-FS-017 | Existing symlink/junction/hard-link alias bypass | Path safety | Filesystem-link process test | Same underlying file rejected | Later hardening | Future process evidence | Deferred — not part of the verified 20-test campaign |
 
 ## Tier 1 — metadata, vocabulary-adjacent evidence, and progress
 
@@ -175,24 +191,24 @@ not verified until the manual self-hosted workflow completes.
 
 ## Tier 2 — trusted real-model and hostile-input coverage
 
-The complete Tier 2 project restored and compiled with analyzers in hosted
-workflow run `30939159409`. The individual behaviours below remain unverified
-until they execute with the controlled model on the trusted runner.
+The complete trusted project executed locally against the exact controlled
+Granite model. All 20 tests passed, the controlled model SHA-256 remained
+unchanged, and 56 retained evidence files passed the independent privacy scan.
 
 | Risk ID | Failure scenario | Layer | Automated test | Expected result/code | CI tier | Evidence | Status / deferral |
 |---|---|---|---|---|---|---|---|
-| LS-RM-001 | Controlled model path/hash/length is wrong | Preconditions | controlled configuration tests | Fail before native call | Tier 2 | Trusted MTP log | Compile verified; trusted execution pending |
-| LS-RM-002 | Real Granite success contract regresses | Runtime/model | Granite success test | Exact schema/runtime/model fields; exit `0` | Tier 2 | JSON + log | Compile verified; previous manual baseline verified; expanded execution pending |
-| LS-RM-003 | Repeated probing leaks resources or becomes nondeterministic | Runtime/model | three-run repeatability test | Stable evidence; handles closed | Tier 2 | Three JSON files | Compile verified; trusted execution pending |
-| LS-CAN-001 | Whole-operation cancellation is misclassified | Cancellation | `--cancel-after-ms` child test | `Cancelled`, `MI-PROBE-CANCELLED`, exit `3` or explicit integrity precedence | Tier 2 | JSON + log | Compile verified; trusted execution pending |
-| LS-CAN-002 | Native-load cancellation does not reach LLamaSharp | Cancellation | `--cancel-native-after-ms` child test | Controlled cancellation after runtime selection | Tier 2 | JSON + log | Compile verified; trusted execution pending |
-| LS-MAL-001 | Committed malformed fixture kills test host | Hostile input | every manifest `I-*` fixture in child process | Parent survives; hash unchanged; nonzero result | Tier 2 | Matrix JSON/Markdown | Compile verified; trusted execution pending |
-| LS-MAL-002 | Random bytes with `.gguf` extension are accepted | Hostile input | deterministic random fixture test | Nonzero controlled/contained result | Tier 2 | Log | Compile verified; trusted execution pending |
-| LS-ACC-001 | Locked model is misclassified or modified | File access | locked-model child test | Controlled file failure; hash unchanged | Tier 2 | Log + hash | Compile verified; trusted execution pending |
-| LS-ACC-002 | Locked/unavailable output hides probe result | File access | locked-output and invalid-parent tests | Controlled evidence-write failure | Tier 2 | Log | Compile verified; trusted execution pending |
-| LS-SEC-001 | Full local path leaks to JSON/stdout/stderr | Privacy | real/malformed process privacy tests | Canonical path absent | Tier 2 | Scan report | Compile verified; trusted execution pending |
-| LS-SEC-002 | Probe opens listening or established TCP socket | Offline/security | process socket observation | No process-owned TCP endpoint observed | Tier 2 | Socket observation | Compile verified; trusted execution pending |
-| LS-SEC-003 | Evidence artifact contains model copy/hash/size | Artifact security | pre-upload privacy scan | No `.gguf`, model hash, or model-sized file | Tier 2 | Scan report | Compile verified; trusted execution pending |
+| LS-RM-001 | Controlled model path/hash/length is wrong | Preconditions | controlled configuration tests | Fail before native call | Tier 2 | Trusted MTP log | Verified — local Tier 2 record 2026-08-05 |
+| LS-RM-002 | Real Granite success contract regresses | Runtime/model | Granite success test | Exact schema/runtime/model fields; exit `0` | Tier 2 | JSON + log | Verified — local Tier 2 record 2026-08-05 |
+| LS-RM-003 | Repeated probing leaks resources or becomes nondeterministic | Runtime/model | three-run repeatability test | Stable evidence; handles closed | Tier 2 | Three JSON files | Verified — local Tier 2 record 2026-08-05 |
+| LS-CAN-001 | Whole-operation cancellation is misclassified | Cancellation | `--cancel-after-ms` child test | `Cancelled`, `MI-PROBE-CANCELLED`, exit `3` or explicit integrity precedence | Tier 2 | JSON + log | Verified — local Tier 2 record 2026-08-05 |
+| LS-CAN-002 | Native-load cancellation does not reach LLamaSharp | Cancellation | `--cancel-native-after-ms` child test | Controlled cancellation after runtime selection | Tier 2 | JSON + log | Verified — local Tier 2 record 2026-08-05 |
+| LS-MAL-001 | Committed malformed fixture kills test host | Hostile input | manifest `I-*` fixture matrix in child processes | Parent survives; hash unchanged; nonzero result | Tier 2 | Matrix JSON/Markdown | Verified — local Tier 2 record 2026-08-05 |
+| LS-MAL-002 | Random bytes with `.gguf` extension are accepted | Hostile input | deterministic random fixture test | Nonzero controlled/contained result | Tier 2 | Log | Verified — local Tier 2 record 2026-08-05 |
+| LS-ACC-001 | Locked model is misclassified or modified | File access | locked-model child test | Controlled file failure; hash unchanged | Tier 2 | Log + hash | Verified — local Tier 2 record 2026-08-05 |
+| LS-ACC-002 | Locked/unavailable output hides probe result | File access | locked-output and invalid-parent tests | Controlled evidence-write failure | Tier 2 | Log | Verified — local Tier 2 record 2026-08-05 |
+| LS-SEC-001 | Full local path leaks to JSON/stdout/stderr | Privacy | real/malformed process privacy tests | Canonical path absent | Tier 2 | Scan report | Verified — local Tier 2 record 2026-08-05 |
+| LS-SEC-002 | Probe opens listening or established TCP socket | Offline/security | process socket observation | No prohibited process-owned TCP endpoint observed | Tier 2 | Socket observation | Verified — local Tier 2 record 2026-08-05 |
+| LS-SEC-003 | Evidence artifact contains model copy/hash/size | Artifact security | retained-evidence privacy scan | No `.gguf`, model hash, model-sized or oversized file | Tier 2 | 56-file scan report | Verified — local Tier 2 record 2026-08-05 |
 
 ## Explicit deferrals and later gates
 
@@ -215,6 +231,8 @@ Tier 1 is closed for the model-free CPU boundary because the deterministic,
 trusted compile, direct smoke, contained native and artifact-security gates all
 completed successfully in workflow run `30939159409`.
 
-Tier 2 closes only after the manual trusted workflow produces reviewed success,
-cancellation, hostile-input, privacy, network-observation, disposal and
-integrity evidence.
+The local Tier 2 target-machine gate is closed because success, repeatability,
+cancellation, hostile-input, file-access, privacy, network-observation and model
+integrity evidence passed on 2026-08-05. The future self-hosted service-account
+workflow is retained as a deployment/workflow verification step and does not
+replace the reviewed local runtime evidence.
