@@ -1,3 +1,4 @@
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
