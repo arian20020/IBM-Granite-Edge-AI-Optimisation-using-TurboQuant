@@ -1,3 +1,4 @@
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
@@ -59,6 +60,7 @@ public sealed class SpikeOptionsParserTests
 
         Assert.IsFalse(result.Succeeded);
         Assert.IsNull(result.Options);
+        Assert.IsNotNull(result.ErrorMessage);
         StringAssert.Contains(
             result.ErrorMessage,
             "requires a path");
@@ -72,6 +74,7 @@ public sealed class SpikeOptionsParserTests
 
         Assert.IsFalse(result.Succeeded);
         Assert.IsNull(result.Options);
+        Assert.IsNotNull(result.ErrorMessage);
         StringAssert.Contains(
             result.ErrorMessage,
             "Unknown argument");
