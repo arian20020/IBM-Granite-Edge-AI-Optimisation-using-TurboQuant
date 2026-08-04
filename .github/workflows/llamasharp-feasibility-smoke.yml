@@ -32,7 +32,6 @@ env:
   SPIKE_PROJECT: 'tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj'
   SPIKE_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj'
   EVIDENCE_PATH: 'artifacts/model-inspection/llamasharp/runtime-smoke.json'
-  TEST_RESULTS_DIRECTORY: 'artifacts/model-inspection/llamasharp/test-results'
 
 jobs:
   test-build-and-smoke:
@@ -61,14 +60,13 @@ jobs:
           dotnet restore "$env:SPIKE_TEST_PROJECT" `
             --runtime win-x64
 
-      - name: Run deterministic spike unit tests
+      - name: Run deterministic spike unit tests with MTP
         run: |
           dotnet test "$env:SPIKE_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --runtime win-x64 `
-            --logger "trx;LogFileName=ModelInspection.LlamaSharpSpike.Tests.trx" `
-            --results-directory "$env:TEST_RESULTS_DIRECTORY"
+            --minimum-expected-tests 1
 
       - name: Build the Windows x64 spike
         run: |
@@ -137,7 +135,7 @@ jobs:
             throw 'The report did not identify the selected native library.'
           }
 
-      - name: Upload smoke and test evidence
+      - name: Upload smoke evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
