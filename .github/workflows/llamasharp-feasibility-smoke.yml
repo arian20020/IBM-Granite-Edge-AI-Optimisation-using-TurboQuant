@@ -6,6 +6,7 @@ on:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
   workflow_dispatch:
 
@@ -40,10 +42,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Check out spike inputs
+      - name: Check out spike and dependency-policy inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           sparse-checkout: |
+            IBM Granite with TurboQuant (Intel)
             tools/ModelInspection.LlamaSharpSpike
             tools/ModelInspection.LlamaSharpSpike.Tests
 
