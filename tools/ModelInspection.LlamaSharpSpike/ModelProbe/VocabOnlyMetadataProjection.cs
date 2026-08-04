@@ -32,6 +32,7 @@ public sealed record VocabOnlyMetadataProjection
 
     /// <summary>
     /// Creates a projection without calling native hyperparameter accessors.
+    /// Empty and whitespace-only metadata is treated as unavailable.
     /// </summary>
     public static VocabOnlyMetadataProjection Create(
         IReadOnlyDictionary<string, string> metadata)
@@ -41,10 +42,9 @@ public sealed record VocabOnlyMetadataProjection
         string? architecture =
             GetValue(metadata, "general.architecture");
 
-        string? architecturePrefix =
-            string.IsNullOrWhiteSpace(architecture)
-                ? null
-                : architecture + ".";
+        string? architecturePrefix = architecture is null
+            ? null
+            : architecture + ".";
 
         return new VocabOnlyMetadataProjection
         {
@@ -101,14 +101,14 @@ public sealed record VocabOnlyMetadataProjection
         IReadOnlyDictionary<string, string> metadata,
         string? key)
     {
-        if (string.IsNullOrWhiteSpace(key))
+        if (string.IsNullOrWhiteSpace(key) ||
+            !metadata.TryGetValue(key, out string? value) ||
+            string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
 
-        return metadata.TryGetValue(key, out string? value)
-            ? value
-            : null;
+        return value;
     }
 
     private static int? TryReadNonNegativeInt32(
