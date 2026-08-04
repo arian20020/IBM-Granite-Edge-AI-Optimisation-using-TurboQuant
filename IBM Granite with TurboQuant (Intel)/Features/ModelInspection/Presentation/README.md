@@ -86,7 +86,7 @@ It does not claim that:
 - inference succeeded.
 
 Those checks belong to later backend-verification gates recorded in
-[ADR-002](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md).
+[ADR-002](../../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md).
 
 ## Tests
 
