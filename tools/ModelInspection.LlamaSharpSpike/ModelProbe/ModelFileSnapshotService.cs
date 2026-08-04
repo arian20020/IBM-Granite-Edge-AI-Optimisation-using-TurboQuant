@@ -9,6 +9,18 @@ namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
 public sealed class ModelFileSnapshotService
 {
     private const int BufferSize = 1024 * 1024;
+    private readonly IModelFileHasher _hasher;
+
+    public ModelFileSnapshotService()
+        : this(new Sha256ModelFileHasher())
+    {
+    }
+
+    public ModelFileSnapshotService(IModelFileHasher hasher)
+    {
+        _hasher = hasher ??
+            throw new ArgumentNullException(nameof(hasher));
+    }
 
     /// <summary>
     /// Reads the selected file without write access and calculates SHA-256.
@@ -18,6 +30,7 @@ public sealed class ModelFileSnapshotService
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
+        cancellationToken.ThrowIfCancellationRequested();
 
         string fullPath = Path.GetFullPath(modelPath);
         var fileInfo = new FileInfo(fullPath);
@@ -45,8 +58,7 @@ public sealed class ModelFileSnapshotService
                 FileOptions.Asynchronous |
                 FileOptions.SequentialScan))
         {
-            using SHA256 sha256 = SHA256.Create();
-            hash = await sha256.ComputeHashAsync(
+            hash = await _hasher.ComputeHashAsync(
                 stream,
                 cancellationToken);
         }
