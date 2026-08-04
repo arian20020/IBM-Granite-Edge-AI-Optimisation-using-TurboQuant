@@ -32,10 +32,10 @@
 - Consumes: ADR-001 runtime identity and the approved progress/backend-gate design.
 - Produces: one accepted rule separating lightweight core inspection from later Vulkan/TurboQuant backend verification.
 
-- [ ] **Step 1: Add ADR-002 with context, decision, alternatives, consequences and review triggers.**
-- [ ] **Step 2: Add ADR-002 to the decision index.**
-- [ ] **Step 3: Verify the ADR does not claim successful CPU, Vulkan or TurboQuant execution.**
-- [ ] **Step 4: Commit the architecture record.**
+- [x] **Step 1: Add ADR-002 with context, decision, alternatives, consequences and review triggers.**
+- [x] **Step 2: Add ADR-002 to the decision index.**
+- [x] **Step 3: Verify the ADR does not claim successful CPU, Vulkan or TurboQuant execution.**
+- [x] **Step 4: Commit the architecture record.**
 
 ---
 
@@ -45,10 +45,10 @@
 - Create: `tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs`
 
 **Interfaces:**
-- Consumes: future `InitialInspectionProgressPresentationFactory.Create()`.
+- Consumes: `InitialInspectionProgressPresentationFactory.Create()`.
 - Produces: executable contract for stage count, order, wording, active state and connector behavior.
 
-- [ ] **Step 1: Write a test asserting the exact five ordered titles.**
+- [x] **Step 1: Write a test asserting the exact five ordered titles.**
 
 ```csharp
 InspectionContentCardPresentation presentation =
@@ -66,12 +66,14 @@ CollectionAssert.AreEqual(
     presentation.Items.Select(item => item.Title).ToArray());
 ```
 
-- [ ] **Step 2: Write a test asserting only stage 1 is active and stages 2–5 are waiting.**
-- [ ] **Step 3: Write a test asserting stage 5 has no connector.**
-- [ ] **Step 4: Write a test rejecting `Vulkan`, `TurboQuant`, `GPU` and `hardware fit` in visible stage titles.**
-- [ ] **Step 5: Write a test asserting `0 of 5 checks complete`.**
+- [x] **Step 2: Write a test asserting only stage 1 is active and stages 2–5 are waiting.**
+- [x] **Step 3: Write a test asserting stage 5 has no connector.**
+- [x] **Step 4: Write a test rejecting `Vulkan`, `TurboQuant`, `GPU` and `hardware fit` in visible stage titles.**
+- [x] **Step 5: Write a test asserting `0 of 5 checks complete`.**
 - [ ] **Step 6: Run the focused test and observe the expected RED failure because the factory does not exist.**
-- [ ] **Step 7: Commit the test contract.**
+- [x] **Step 7: Commit the test contract.**
+
+The test source was created before the factory source, but the connected GitHub editing environment could not execute the packaged WinUI test app. No retrospective RED-run claim is made.
 
 ---
 
@@ -86,17 +88,17 @@ CollectionAssert.AreEqual(
 - Consumes: `InspectionContentCardPresentation`, `InspectionContentItemPresentation`, `InspectionContentCardMode`, `InspectionContentStatus`, and WinUI `Visibility`.
 - Produces: `internal static InspectionContentCardPresentation InitialInspectionProgressPresentationFactory.Create()`.
 
-- [ ] **Step 1: Create the factory with the exact five ordered stages.**
-- [ ] **Step 2: Keep stage 1 active with visible detail and stages 2–5 waiting.**
-- [ ] **Step 3: Give every stage a meaningful internal detail string without displaying waiting-stage detail initially.**
-- [ ] **Step 4: Set connectors on stages 1–4 only.**
-- [ ] **Step 5: Move the progress-item helper into the factory.**
-- [ ] **Step 6: Update `ModelInspectionPage` to call the factory.**
-- [ ] **Step 7: Remove the duplicated private progress-construction methods from the page.**
-- [ ] **Step 8: Document the factory's narrow presentation responsibility and non-goals.**
+- [x] **Step 1: Create the factory with the exact five ordered stages.**
+- [x] **Step 2: Keep stage 1 active with visible detail and stages 2–5 waiting.**
+- [x] **Step 3: Give every stage a meaningful internal detail string without displaying waiting-stage detail initially.**
+- [x] **Step 4: Set connectors on stages 1–4 only.**
+- [x] **Step 5: Move the progress-item helper into the factory.**
+- [x] **Step 6: Update `ModelInspectionPage` to call the factory.**
+- [x] **Step 7: Remove the duplicated private progress-construction methods from the page.**
+- [x] **Step 8: Document the factory's narrow presentation responsibility and non-goals.**
 - [ ] **Step 9: Run the focused test and confirm GREEN.**
 - [ ] **Step 10: Run the full WinUI test project.**
-- [ ] **Step 11: Commit the implementation.**
+- [x] **Step 11: Commit the implementation.**
 
 ---
 
@@ -111,13 +113,13 @@ CollectionAssert.AreEqual(
 - Consumes: ADR-002, new factory path and the approved engineering gate ladder.
 - Produces: current source hierarchy, user-visible stage semantics and explicit backend-verification non-claims.
 
-- [ ] **Step 1: Add `Presentation/README.md` to the Model Inspection folder tree and child links.**
-- [ ] **Step 2: Replace `Confirm runtime support` with `Confirm core runtime compatibility`.**
-- [ ] **Step 3: Document the seven engineering gates separately from the five UI rows.**
-- [ ] **Step 4: State that ordinary Vulkan and TurboQuant validation belongs after core inspection and Hardware Fit selection.**
-- [ ] **Step 5: Record that the current WinUI application still has no Vulkan or TurboQuant runtime package.**
-- [ ] **Step 6: Clarify that the `Models` folder contains presentation data while the new `Presentation` folder contains construction behavior.**
-- [ ] **Step 7: Commit the documentation updates.**
+- [x] **Step 1: Add `Presentation/README.md` to the Model Inspection folder tree and child links.**
+- [x] **Step 2: Replace `Confirm runtime support` with `Confirm core runtime compatibility`.**
+- [x] **Step 3: Document the seven engineering gates separately from the five UI rows.**
+- [x] **Step 4: State that ordinary Vulkan and TurboQuant validation belongs after core inspection and Hardware Fit selection.**
+- [x] **Step 5: Record that the current WinUI application still has no Vulkan or TurboQuant runtime package.**
+- [x] **Step 6: Clarify that the `Models` folder contains presentation data while the new `Presentation` folder contains construction behavior.**
+- [x] **Step 7: Commit the documentation updates.**
 
 ---
 
@@ -126,12 +128,57 @@ CollectionAssert.AreEqual(
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-04-core-runtime-progress-and-backend-gates.md`
 
-- [ ] **Step 1: Confirm all new and modified source paths exist on the branch.**
-- [ ] **Step 2: Confirm `ModelInspectionPage.xaml.cs` no longer contains `Confirm runtime support`.**
-- [ ] **Step 3: Confirm the application `.csproj` has no Vulkan or TurboQuant package reference.**
-- [ ] **Step 4: Compare from the pre-slice commit and verify no runtime package or workflow was added.**
-- [ ] **Step 5: Record actual test/build evidence or explicitly record that target Windows verification remains pending.**
-- [ ] **Step 6: Commit the verification status.**
+- [x] **Step 1: Confirm all new and modified source paths exist on the branch.**
+- [x] **Step 2: Confirm `ModelInspectionPage.xaml.cs` no longer contains `Confirm runtime support`.**
+- [x] **Step 3: Confirm the application `.csproj` has no Vulkan or TurboQuant package reference.**
+- [x] **Step 4: Compare from the pre-slice commit and verify no runtime package or workflow was added.**
+- [x] **Step 5: Record actual test/build evidence or explicitly record that target Windows verification remains pending.**
+- [x] **Step 6: Commit the verification status.**
+
+## Verification Evidence
+
+Repository inspection confirmed these source paths exist on `feature/model-inspection`:
+
+```text
+Features/ModelInspection/Presentation/
+    InitialInspectionProgressPresentationFactory.cs
+    README.md
+
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/
+    InitialInspectionProgressPresentationTests.cs
+
+docs/architecture/decisions/
+    ADR-002-core-inspection-versus-backend-verification.md
+```
+
+`ModelInspectionPage.xaml.cs` now imports the `Presentation` namespace and calls:
+
+```csharp
+InitialInspectionProgressPresentationFactory.Create();
+```
+
+The former private progress-construction method and its helper were removed from the page.
+
+A comparison from pre-slice commit
+`86e10d56472ff55d36b0d65c185625f6af467310` showed only:
+
+```text
+Model Inspection C# presentation/page source
+one WinUI test file
+feature/source-adjacent READMEs
+ADR/design/plan Markdown
+```
+
+No application project file, runtime package declaration or workflow was added or modified by this slice.
+
+The current application project package section still contains only:
+
+```text
+Microsoft.Windows.SDK.BuildTools
+Microsoft.WindowsAppSDK
+```
+
+No `LLamaSharp.Backend.Vulkan`, TurboQuant or other new backend package is present in the WinUI application project.
 
 ## Verification Commands
 
@@ -141,8 +188,7 @@ Run from the repository root in Developer PowerShell:
 $TestProject =
     "tests\UnitTests\GraniteEdgeAI.UnitTests\GraniteEdgeAI.UnitTests.csproj"
 
-# Focused progress-contract test through the packaged WinUI test workflow is
-# preferred. A normal local build can first verify compilation.
+# Restore and compile the packaged WinUI test project.
 dotnet restore $TestProject `
     --runtime win-x64 `
     -p:Platform=x64
@@ -162,9 +208,13 @@ Select-String `
 
 The final `Select-String` command should return no matches.
 
+Run the packaged AppContainer test recipe through Visual Studio/Test Explorer or the existing `build-and-test.yml` workflow to execute `[UITestMethod]` tests.
+
 ## Current Execution State
 
-- The approved design is recorded.
-- Tasks 1–4 are ready for inline implementation.
-- Test execution requires the Windows WinUI environment.
-- No runtime package or backend implementation is part of this slice.
+- ADR-002, design, plan, source, focused test contract and README hierarchy are on `feature/model-inspection`.
+- The UI still contains five rows and now uses `Confirm core runtime compatibility` as the final row.
+- No Vulkan or TurboQuant backend has been added to the application.
+- No CPU, Vulkan or TurboQuant execution success is claimed by this slice.
+- A fresh Windows build and packaged WinUI test run remain required before claiming compilation and test success.
+- The next runtime action remains the previously scaffolded matched LLamaSharp CPU smoke, followed by controlled CPU model inspection only after its evidence is reviewed.
