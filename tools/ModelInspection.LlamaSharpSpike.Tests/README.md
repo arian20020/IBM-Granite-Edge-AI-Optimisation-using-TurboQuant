@@ -1,6 +1,7 @@
 # LLamaSharp feasibility tests
 
 **Status:** Deterministic test source implemented; fresh execution pending  
+**Test runner:** Microsoft.Testing.Platform through the embedded MSTest runner  
 **Tool:** [Model Inspection LLamaSharp feasibility tool](../ModelInspection.LlamaSharpSpike/README.md)
 
 ## Purpose
@@ -11,6 +12,30 @@ test.
 
 The project references the console project directly. It does not reference the
 WinUI application.
+
+## Test-runner configuration
+
+The repository-level `global.json` selects:
+
+```json
+{
+  "test": {
+    "runner": "Microsoft.Testing.Platform"
+  }
+}
+```
+
+The test project therefore enables the embedded MSTest runner explicitly:
+
+```xml
+<OutputType>Exe</OutputType>
+<EnableMSTestRunner>true</EnableMSTestRunner>
+<TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+```
+
+Without that configuration, `.NET 10` rejects the project as VSTest-only before
+any tests run. The runner configuration is infrastructure; it does not change
+the test assertions or the LLamaSharp runtime under test.
 
 ## Current test areas
 
