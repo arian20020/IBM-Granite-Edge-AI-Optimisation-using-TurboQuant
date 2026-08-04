@@ -5,7 +5,6 @@ using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 using LLama;
 using LLama.Abstractions;
 using LLama.Common;
-using LLama.Exceptions;
 using LLama.Native;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
@@ -64,9 +63,7 @@ public sealed class VocabOnlyModelProbe
         bool? nativeHandleClosedAfterDispose = null;
         VocabOnlyProbeCompletionStatus completionStatus =
             VocabOnlyProbeCompletionStatus.Failed;
-        string? failureCode = null;
-        string? failureType = null;
-        string? failureMessage = null;
+        ProbeFailure? failure = null;
 
         try
         {
@@ -88,9 +85,10 @@ public sealed class VocabOnlyModelProbe
 
             if (!nativeBackendAvailable)
             {
-                failureCode = "MI-OP-RUNTIME-UNAVAILABLE";
-                failureMessage =
-                    "LLamaSharp could not load a published CPU backend.";
+                failure = new ProbeFailure(
+                    "MI-OP-RUNTIME-UNAVAILABLE",
+                    Type: null,
+                    "LLamaSharp could not load a published CPU backend.");
             }
             else
             {
@@ -145,16 +143,15 @@ public sealed class VocabOnlyModelProbe
         {
             completionStatus =
                 VocabOnlyProbeCompletionStatus.Cancelled;
-            failureCode = "MI-PROBE-CANCELLED";
-            failureType = exception.GetType().FullName;
-            failureMessage = exception.Message;
+            failure = new ProbeFailure(
+                "MI-PROBE-CANCELLED",
+                exception.GetType().FullName,
+                exception.Message);
         }
         catch (Exception exception)
         {
             completionStatus = VocabOnlyProbeCompletionStatus.Failed;
-
-            (failureCode, failureType, failureMessage) =
-                MapFailure(exception);
+            failure = ProbeFailureMapper.Map(exception);
         }
         finally
         {
@@ -181,33 +178,17 @@ public sealed class VocabOnlyModelProbe
                 }
             }
 
-            if (completionStatus ==
-                    VocabOnlyProbeCompletionStatus.Succeeded &&
-                integrity is not null &&
-                !integrity.IsPreserved)
-            {
-                completionStatus = VocabOnlyProbeCompletionStatus.Failed;
-                failureCode = "MI-OP-MODEL-INTEGRITY-CHANGED";
-                failureType = typeof(IOException).FullName;
-                failureMessage =
-                    "The selected model changed during the VocabOnly probe.";
-            }
-            else if (completionStatus ==
-                         VocabOnlyProbeCompletionStatus.Succeeded &&
-                     integrity is null)
-            {
-                completionStatus = VocabOnlyProbeCompletionStatus.Failed;
-                failureCode =
-                    "MI-OP-MODEL-INTEGRITY-VERIFICATION-FAILED";
-                failureType = integrityErrorType;
-                failureMessage = integrityErrorMessage ??
-                    "Post-probe model integrity could not be verified.";
-            }
-
             process.Refresh();
             workingSetAfterDisposeBytes = process.WorkingSet64;
             totalStopwatch.Stop();
         }
+
+        ProbeCompletionResolution resolution = ProbeResultFinalizer.Resolve(
+            completionStatus,
+            failure,
+            integrity,
+            integrityErrorType,
+            integrityErrorMessage);
 
         process.Refresh();
 
@@ -216,7 +197,7 @@ public sealed class VocabOnlyModelProbe
             StartedAtUtc = startedAtUtc,
             CompletedAtUtc = DateTimeOffset.UtcNow,
             DurationMilliseconds = totalStopwatch.ElapsedMilliseconds,
-            CompletionStatus = completionStatus,
+            CompletionStatus = resolution.Status,
             GpuLayerCount = 0,
             ManagedPackageName =
                 PinnedApplicationRuntime.ManagedPackageName,
@@ -245,7 +226,7 @@ public sealed class VocabOnlyModelProbe
             AfterSnapshot = afterSnapshot,
             Integrity = integrity,
             IntegrityVerificationErrorType = integrityErrorType,
-            IntegrityVerificationErrorMessage = SanitizeSensitiveText(
+            IntegrityVerificationErrorMessage = SensitiveTextRedactor.Redact(
                 integrityErrorMessage,
                 fullModelPath),
             ModelEvidence = modelEvidence,
@@ -257,88 +238,12 @@ public sealed class VocabOnlyModelProbe
             WorkingSetAfterDisposeBytes = workingSetAfterDisposeBytes,
             NativeHandleClosedAfterDispose =
                 nativeHandleClosedAfterDispose,
-            FailureCode = failureCode,
-            FailureType = failureType,
-            FailureMessage = SanitizeSensitiveText(
-                failureMessage,
+            FailureCode = resolution.Failure?.Code,
+            FailureType = resolution.Failure?.Type,
+            FailureMessage = SensitiveTextRedactor.Redact(
+                resolution.Failure?.Message,
                 fullModelPath),
-            Logs = SanitizeLogs(logs, fullModelPath)
+            Logs = SensitiveTextRedactor.RedactLogs(logs, fullModelPath)
         };
-    }
-
-    private static (string Code, string? Type, string Message)
-        MapFailure(Exception exception)
-    {
-        string? type = exception.GetType().FullName;
-
-        return exception switch
-        {
-            FileNotFoundException =>
-                ("MI-OP-MODEL-FILE-NOT-FOUND", type, exception.Message),
-
-            UnauthorizedAccessException =>
-                ("MI-OP-MODEL-FILE-ACCESS-DENIED", type, exception.Message),
-
-            BadImageFormatException =>
-                ("MI-OP-RUNTIME-ARCHITECTURE-MISMATCH", type, exception.Message),
-
-            DllNotFoundException =>
-                ("MI-OP-RUNTIME-UNAVAILABLE", type, exception.Message),
-
-            LoadWeightsFailedException =>
-                ("MI-PROBE-MODEL-LOAD-FAILED", type, exception.Message),
-
-            IOException =>
-                ("MI-OP-MODEL-FILE-IO", type, exception.Message),
-
-            TypeInitializationException
-                when exception.InnerException is DllNotFoundException =>
-                ("MI-OP-RUNTIME-UNAVAILABLE",
-                    exception.InnerException.GetType().FullName,
-                    exception.InnerException.Message),
-
-            TypeInitializationException
-                when exception.InnerException is BadImageFormatException =>
-                ("MI-OP-RUNTIME-ARCHITECTURE-MISMATCH",
-                    exception.InnerException.GetType().FullName,
-                    exception.InnerException.Message),
-
-            _ =>
-                ("MI-OP-RUNTIME-INSPECTION-FAILED", type, exception.Message)
-        };
-    }
-
-    private static IReadOnlyList<NativeBackendLogEntry> SanitizeLogs(
-        IEnumerable<NativeBackendLogEntry> logs,
-        string? fullModelPath)
-    {
-        return logs
-            .Select(
-                entry => new NativeBackendLogEntry(
-                    entry.Level,
-                    SanitizeSensitiveText(
-                        entry.Message,
-                        fullModelPath) ?? string.Empty))
-            .ToArray();
-    }
-
-    private static string? SanitizeSensitiveText(
-        string? text,
-        string? fullModelPath)
-    {
-        if (string.IsNullOrEmpty(text) ||
-            string.IsNullOrEmpty(fullModelPath))
-        {
-            return text;
-        }
-
-        StringComparison comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        return text.Replace(
-            fullModelPath,
-            "<model-path>",
-            comparison);
     }
 }
