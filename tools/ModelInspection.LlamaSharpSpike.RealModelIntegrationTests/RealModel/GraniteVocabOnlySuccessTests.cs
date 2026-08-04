@@ -17,10 +17,10 @@ public sealed class GraniteVocabOnlySuccessTests
     {
         using RealModelTestContext context =
             await RealModelTestContext.CreateAsync();
-        string expectedHash = await ModelFileHash.ComputeSha256Async(
+        string modelHashBefore = await ModelFileHash.ComputeSha256Async(
             context.Model.ModelPath,
             CancellationToken.None);
-        Assert.AreEqual(context.Model.Manifest.Sha256, expectedHash);
+        Assert.AreEqual(context.Model.Manifest.Sha256, modelHashBefore);
 
         using TemporaryProbeSandbox sandbox = context.CreateProbeSandbox();
         string evidencePath = context.CreateEvidencePath("success");
@@ -54,10 +54,10 @@ public sealed class GraniteVocabOnlySuccessTests
             process.StandardError,
             context.Model.ModelPath);
 
-        string actualHashAfter = await ModelFileHash.ComputeSha256Async(
+        string modelHashAfter = await ModelFileHash.ComputeSha256Async(
             context.Model.ModelPath,
             CancellationToken.None);
-        Assert.AreEqual(expectedHash, actualHashAfter);
+        Assert.AreEqual(modelHashBefore, modelHashAfter);
         Assert.AreEqual(
             0,
             Directory.GetFiles(
