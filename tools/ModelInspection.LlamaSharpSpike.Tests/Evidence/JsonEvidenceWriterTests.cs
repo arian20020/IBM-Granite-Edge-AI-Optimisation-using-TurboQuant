@@ -1,12 +1,12 @@
 using System.Text.Json;
 using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 
 /// <summary>
-/// Verifies that local feasibility evidence is written as parseable JSON and
-/// can safely replace an earlier run at the same ignored path.
+/// Verifies parseable, privacy-safe, atomic local JSON evidence writing.
 /// </summary>
 [TestClass]
 [TestCategory("Deterministic")]
@@ -18,119 +18,200 @@ public sealed class JsonEvidenceWriterTests
         Cancelled
     }
 
-    [TestMethod]
-    public async Task WriteAsync_CreatesParseableJsonEvidence()
+    private sealed class UnserializableEvidence
     {
-        string testDirectory = CreateTestDirectory();
+        public string Value =>
+            throw new InvalidOperationException("serialization failed");
+    }
 
-        try
-        {
-            string outputPath =
-                Path.Combine(testDirectory, "runtime-smoke.json");
-            var writer = new JsonEvidenceWriter();
-            NativeBackendSmokeResult result = CreateResult(succeeded: true);
+    [TestMethod]
+    public async Task WriteAsync_CreatesParentDirectoryAndParseableCamelCaseJson()
+    {
+        using var directory = new TemporaryDirectory("json-create-parent");
+        string outputPath = directory.Combine(
+            "nested",
+            "runtime-smoke.json");
+        var writer = new JsonEvidenceWriter();
 
-            string writtenPath = await writer.WriteAsync(
-                result,
-                outputPath,
-                CancellationToken.None);
+        string writtenPath = await writer.WriteAsync(
+            CreateResult(succeeded: true),
+            outputPath,
+            CancellationToken.None);
 
-            Assert.AreEqual(
-                Path.GetFullPath(outputPath),
-                writtenPath);
-            Assert.IsTrue(File.Exists(writtenPath));
+        Assert.AreEqual(Path.GetFullPath(outputPath), writtenPath);
+        Assert.IsTrue(File.Exists(writtenPath));
 
-            await using FileStream stream = File.OpenRead(writtenPath);
-            using JsonDocument document =
-                await JsonDocument.ParseAsync(stream);
+        using JsonDocument document = JsonDocument.Parse(
+            await File.ReadAllTextAsync(writtenPath));
 
-            Assert.IsTrue(
-                document.RootElement
-                    .GetProperty("succeeded")
-                    .GetBoolean());
-
-            string? managedPackageVersion =
-                document.RootElement
-                    .GetProperty("managedPackageVersion")
-                    .GetString();
-
-            Assert.IsNotNull(managedPackageVersion);
-            Assert.AreEqual("0.27.0", managedPackageVersion);
-        }
-        finally
-        {
-            DeleteDirectory(testDirectory);
-        }
+        Assert.IsTrue(
+            document.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.AreEqual(
+            "0.27.0",
+            document.RootElement
+                .GetProperty("managedPackageVersion")
+                .GetString());
+        Assert.IsFalse(
+            document.RootElement.TryGetProperty(
+                "ManagedPackageVersion",
+                out _));
     }
 
     [TestMethod]
     public async Task WriteAsync_SerializesEnumsAsReadableStrings()
     {
-        string testDirectory = CreateTestDirectory();
+        using var directory = new TemporaryDirectory("json-string-enum");
+        string outputPath = directory.Combine("enum-evidence.json");
+        var writer = new JsonEvidenceWriter();
 
-        try
-        {
-            string outputPath =
-                Path.Combine(testDirectory, "enum-evidence.json");
-            var writer = new JsonEvidenceWriter();
-            var result = new
+        await writer.WriteAsync(
+            new
             {
                 CompletionStatus = ExampleCompletionStatus.Cancelled
-            };
+            },
+            outputPath,
+            CancellationToken.None);
 
-            await writer.WriteAsync(
-                result,
-                outputPath,
-                CancellationToken.None);
+        using JsonDocument document = JsonDocument.Parse(
+            await File.ReadAllTextAsync(outputPath));
 
-            using JsonDocument document = JsonDocument.Parse(
-                await File.ReadAllTextAsync(outputPath));
-
-            Assert.AreEqual(
-                "Cancelled",
-                document.RootElement
-                    .GetProperty("completionStatus")
-                    .GetString());
-        }
-        finally
-        {
-            DeleteDirectory(testDirectory);
-        }
+        Assert.AreEqual(
+            "Cancelled",
+            document.RootElement
+                .GetProperty("completionStatus")
+                .GetString());
     }
 
     [TestMethod]
     public async Task WriteAsync_WhenPathExists_AtomicallyReplacesPreviousEvidence()
     {
-        string testDirectory = CreateTestDirectory();
+        using var directory = new TemporaryDirectory("json-replacement");
+        string outputPath = directory.Combine("runtime-smoke.json");
+        var writer = new JsonEvidenceWriter();
 
-        try
-        {
-            string outputPath =
-                Path.Combine(testDirectory, "runtime-smoke.json");
-            var writer = new JsonEvidenceWriter();
+        await writer.WriteAsync(
+            CreateResult(succeeded: false),
+            outputPath,
+            CancellationToken.None);
+        await writer.WriteAsync(
+            CreateResult(succeeded: true),
+            outputPath,
+            CancellationToken.None);
 
-            await writer.WriteAsync(
+        using JsonDocument document = JsonDocument.Parse(
+            await File.ReadAllTextAsync(outputPath));
+
+        Assert.IsTrue(
+            document.RootElement.GetProperty("succeeded").GetBoolean());
+        AssertNoTemporaryFiles(directory.Path);
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_WhenSerializationFails_PreservesExistingEvidence()
+    {
+        using var directory = new TemporaryDirectory(
+            "json-serialization-failure");
+        string outputPath = directory.Combine("evidence.json");
+        const string original = "{\"valid\":true}";
+        await File.WriteAllTextAsync(outputPath, original);
+        var writer = new JsonEvidenceWriter();
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            async () => await writer.WriteAsync(
+                new UnserializableEvidence(),
+                outputPath,
+                CancellationToken.None));
+
+        Assert.AreEqual(original, await File.ReadAllTextAsync(outputPath));
+        AssertNoTemporaryFiles(directory.Path);
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_WithPreCancelledToken_PreservesExistingEvidence()
+    {
+        using var directory = new TemporaryDirectory("json-pre-cancelled");
+        string outputPath = directory.Combine("evidence.json");
+        const string original = "{\"valid\":true}";
+        await File.WriteAllTextAsync(outputPath, original);
+        using var cancellationSource = new CancellationTokenSource();
+        cancellationSource.Cancel();
+        var writer = new JsonEvidenceWriter();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await writer.WriteAsync(
                 CreateResult(succeeded: false),
                 outputPath,
-                CancellationToken.None);
-            await writer.WriteAsync(
+                cancellationSource.Token));
+
+        Assert.AreEqual(original, await File.ReadAllTextAsync(outputPath));
+        AssertNoTemporaryFiles(directory.Path);
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_WhenDestinationIsLocked_CleansTemporaryFile()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var directory = new TemporaryDirectory("json-locked-output");
+        string outputPath = directory.Combine("evidence.json");
+        await File.WriteAllTextAsync(outputPath, "existing");
+
+        await using var lockStream = new FileStream(
+            outputPath,
+            FileMode.Open,
+            FileAccess.ReadWrite,
+            FileShare.None);
+        var writer = new JsonEvidenceWriter();
+
+        await Assert.ThrowsExceptionAsync<IOException>(
+            async () => await writer.WriteAsync(
                 CreateResult(succeeded: true),
                 outputPath,
-                CancellationToken.None);
+                CancellationToken.None));
 
-            await using FileStream stream = File.OpenRead(outputPath);
-            using JsonDocument document =
-                await JsonDocument.ParseAsync(stream);
+        AssertNoTemporaryFiles(directory.Path);
+    }
 
-            Assert.IsTrue(
-                document.RootElement
-                    .GetProperty("succeeded")
-                    .GetBoolean());
-        }
-        finally
-        {
-            DeleteDirectory(testDirectory);
-        }
+    [TestMethod]
+    public async Task WriteAsync_WhenDestinationIsDirectory_CleansTemporaryFile()
+    {
+        using var directory = new TemporaryDirectory("json-directory-output");
+        string outputPath = directory.Combine("evidence.json");
+        Directory.CreateDirectory(outputPath);
+        var writer = new JsonEvidenceWriter();
+
+        await Assert.ThrowsExceptionAsync<Exception>(
+            async () => await writer.WriteAsync(
+                CreateResult(succeeded: true),
+                outputPath,
+                CancellationToken.None));
+
+        AssertNoTemporaryFiles(directory.Path);
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_WithBlankPath_ThrowsArgumentException()
+    {
+        await Assert.ThrowsExceptionAsync<ArgumentException>(
+            async () => await new JsonEvidenceWriter().WriteAsync(
+                CreateResult(succeeded: true),
+                "   ",
+                CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_WithNullEvidence_ThrowsArgumentNullException()
+    {
+        using var directory = new TemporaryDirectory("json-null-evidence");
+
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(
+            async () => await new JsonEvidenceWriter().WriteAsync<object>(
+                null!,
+                directory.Combine("evidence.json"),
+                CancellationToken.None));
     }
 
     private static NativeBackendSmokeResult CreateResult(bool succeeded)
@@ -162,22 +243,13 @@ public sealed class JsonEvidenceWriterTests
         };
     }
 
-    private static string CreateTestDirectory()
+    private static void AssertNoTemporaryFiles(string directory)
     {
-        string path = Path.Combine(
-            Path.GetTempPath(),
-            "GraniteEdgeAI-LlamaSharpSpikeTests",
-            Guid.NewGuid().ToString("N"));
-
-        Directory.CreateDirectory(path);
-        return path;
-    }
-
-    private static void DeleteDirectory(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            Directory.Delete(path, recursive: true);
-        }
+        Assert.AreEqual(
+            0,
+            Directory.GetFiles(
+                directory,
+                "*.tmp-*",
+                SearchOption.AllDirectories).Length);
     }
 }
