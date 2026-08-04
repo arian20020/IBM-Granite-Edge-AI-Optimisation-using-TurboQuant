@@ -1,10 +1,11 @@
 # Model Inspection LLamaSharp feasibility tool
 
-**Status:** Successful CPU/VocabOnly baseline verified; expanded Tier 1 tests implemented; fresh CI evidence pending  
+**Status:** Tier 1 verified; trusted real-model suite compiles; expanded Tier 2 execution pending  
 **Last reviewed:** 2026-08-04  
 **Runtime decision:** [ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)  
 **Inspection-depth decision:** [ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)  
-**Runtime-test design:** [LLamaSharp runtime test architecture](../../docs/superpowers/specs/2026-08-04-llamasharp-runtime-test-architecture-design.md)
+**Runtime-test design:** [LLamaSharp runtime test architecture](../../docs/superpowers/specs/2026-08-04-llamasharp-runtime-test-architecture-design.md)  
+**Fresh Tier 1 evidence:** [2026-08-04 verification record](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
 
 ## Purpose
 
@@ -159,8 +160,8 @@ The command supports two deliberately different diagnostic scopes.
 --cancel-after-ms <positive integer>
 ```
 
-The timer starts before file hashing. It verifies the complete outer operation
-and may cancel before native backend selection.
+The timer starts after the initial model-integrity snapshot. It verifies the
+outer probe operation and may cancel before native backend selection.
 
 ### Native load
 
@@ -252,6 +253,9 @@ Exit code:                  0
 Release build:              PASS
 ```
 
+This 28-test result is the historical baseline before the expanded Tier 1 suite.
+The current expanded result is recorded separately below.
+
 ### Controlled Granite VocabOnly probe
 
 ```text
@@ -303,12 +307,26 @@ Contained native integration
     model-free runtime evidence contract
 ```
 
-Tier 1 source and workflow are implemented. Fresh hosted execution remains
-required before the expanded suite is marked verified.
+Fresh hosted verification completed in workflow run `30939159409`:
+
+```text
+Deterministic tests:             170 / 170 passed
+Trusted test assembly compile:   passed without model execution
+Release win-x64 build:           passed, 0 warnings, 0 errors
+Framework-dependent publish:     passed
+Direct CPU runtime smoke:        passed
+Contained native tests:          4 / 4 passed
+No-GGUF artifact scan:           passed
+Privacy-gated evidence upload:   passed
+```
+
+Tier 1 is therefore verified for the exact model-free CPU boundary described
+above.
 
 ### Tier 2 — trusted real-model runner
 
-Planned separately:
+The source is implemented and now passes its model-free compile/analyzer gate.
+Manual trusted execution remains pending for:
 
 ```text
 controlled Granite success and repeatability
@@ -325,6 +343,7 @@ See:
 - [Tier 1 implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-tier1-runtime-tests.md)
 - [Tier 2 implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-tier2-real-model-tests.md)
 - [Coverage matrix](../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
+- [Fresh Tier 1 evidence](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
 
 ## Build and deterministic tests
 
@@ -342,7 +361,7 @@ dotnet test $SpikeTests `
     --no-restore `
     --runtime win-x64 `
     --filter "TestCategory=Deterministic" `
-    --minimum-expected-tests 1
+    --minimum-expected-tests 170
 
 dotnet build $SpikeProject `
     --configuration Release `
@@ -421,7 +440,7 @@ dotnet run `
 - Full local paths, full chat templates, native pointers, and handles are not
   serialized.
 - The WinUI application has no LLamaSharp package reference from this work.
-- Expanded Tier 1 source is not yet a pass claim.
-- Tier 2 cancellation, malformed-input, file-access, privacy, and network
+- Expanded Tier 1 is verified only for its model-free CPU boundary.
+- Tier 2 cancellation, malformed-input, file-access, privacy and network
   evidence remains pending.
-- Full CPU execution, Vulkan, and TurboQuant remain later gates.
+- Full CPU execution, Vulkan and TurboQuant remain later gates.
