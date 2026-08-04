@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 using LLama;
 using LLama.Abstractions;
 using LLama.Common;
@@ -244,7 +245,9 @@ public sealed class VocabOnlyModelProbe
             AfterSnapshot = afterSnapshot,
             Integrity = integrity,
             IntegrityVerificationErrorType = integrityErrorType,
-            IntegrityVerificationErrorMessage = integrityErrorMessage,
+            IntegrityVerificationErrorMessage = SanitizeSensitiveText(
+                integrityErrorMessage,
+                fullModelPath),
             ModelEvidence = modelEvidence,
             ProgressSamples = progressRecorder.GetSnapshot(),
             LoadDurationMilliseconds = loadDurationMilliseconds,
@@ -256,8 +259,10 @@ public sealed class VocabOnlyModelProbe
                 nativeHandleClosedAfterDispose,
             FailureCode = failureCode,
             FailureType = failureType,
-            FailureMessage = failureMessage,
-            Logs = logs.ToArray()
+            FailureMessage = SanitizeSensitiveText(
+                failureMessage,
+                fullModelPath),
+            Logs = SanitizeLogs(logs, fullModelPath)
         };
     }
 
@@ -301,5 +306,39 @@ public sealed class VocabOnlyModelProbe
             _ =>
                 ("MI-OP-RUNTIME-INSPECTION-FAILED", type, exception.Message)
         };
+    }
+
+    private static IReadOnlyList<NativeBackendLogEntry> SanitizeLogs(
+        IEnumerable<NativeBackendLogEntry> logs,
+        string? fullModelPath)
+    {
+        return logs
+            .Select(
+                entry => new NativeBackendLogEntry(
+                    entry.Level,
+                    SanitizeSensitiveText(
+                        entry.Message,
+                        fullModelPath) ?? string.Empty))
+            .ToArray();
+    }
+
+    private static string? SanitizeSensitiveText(
+        string? text,
+        string? fullModelPath)
+    {
+        if (string.IsNullOrEmpty(text) ||
+            string.IsNullOrEmpty(fullModelPath))
+        {
+            return text;
+        }
+
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        return text.Replace(
+            fullModelPath,
+            "<model-path>",
+            comparison);
     }
 }
