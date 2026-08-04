@@ -28,7 +28,7 @@ public sealed class LockedModelProcessTests
             var exclusiveLock = new FileStream(
                 context.Model.ModelPath,
                 FileMode.Open,
-                FileAccess.Read,
+                System.IO.FileAccess.Read,
                 FileShare.None))
         {
             process = await new ProbeProcessRunner().RunAsync(
