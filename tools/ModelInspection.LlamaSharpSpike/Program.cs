@@ -119,6 +119,7 @@ public static class Program
         {
             result = await new VocabOnlyModelProbe().RunAsync(
                 modelPath,
+                options.CancelNativeAfterMilliseconds,
                 cancellationSource.Token);
         }
         finally
