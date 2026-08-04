@@ -76,12 +76,15 @@ public sealed record ChatTemplateEvidence
 }
 
 /// <summary>
-/// Contains normalised technical facts collected while the native model handle
-/// is valid.
+/// Contains normalised facts that remain safe to read when llama.cpp was opened
+/// with <c>vocab_only</c>.
 /// </summary>
 public sealed record VocabOnlyRuntimeModelEvidence
 {
-    public string Description { get; init; } = string.Empty;
+    /// <summary>
+    /// Gets a metadata-derived description when available.
+    /// </summary>
+    public string? Description { get; init; }
 
     public int MetadataCount { get; init; }
 
@@ -98,27 +101,41 @@ public sealed record VocabOnlyRuntimeModelEvidence
 
     public string? TokenizerModel { get; init; }
 
-    public int ContextSize { get; init; }
+    /// <summary>
+    /// Gets metadata-derived context size when present.
+    /// </summary>
+    public int? ContextSize { get; init; }
 
-    public ulong RuntimeReportedSizeBytes { get; init; }
+    /// <summary>
+    /// Gets the runtime-reported model size when the selected depth exposes it.
+    /// This remains null for the current VocabOnly path.
+    /// </summary>
+    public ulong? RuntimeReportedSizeBytes { get; init; }
 
-    public ulong ParameterCount { get; init; }
+    /// <summary>
+    /// Gets metadata-derived parameter count when present.
+    /// </summary>
+    public ulong? ParameterCount { get; init; }
 
-    public int EmbeddingSize { get; init; }
+    public int? EmbeddingSize { get; init; }
 
-    public int LayerCount { get; init; }
+    public int? LayerCount { get; init; }
 
-    public int HeadCount { get; init; }
+    public int? HeadCount { get; init; }
 
-    public int KvHeadCount { get; init; }
+    public int? KvHeadCount { get; init; }
 
-    public bool HasEncoder { get; init; }
+    /// <summary>
+    /// Gets native architecture characteristics only when the chosen depth
+    /// safely exposes them. They remain null in the current VocabOnly path.
+    /// </summary>
+    public bool? HasEncoder { get; init; }
 
-    public bool HasDecoder { get; init; }
+    public bool? HasDecoder { get; init; }
 
-    public bool IsRecurrent { get; init; }
+    public bool? IsRecurrent { get; init; }
 
-    public bool IsDiffusion { get; init; }
+    public bool? IsDiffusion { get; init; }
 
     public VocabularyEvidence Vocabulary { get; init; } = new();
 
@@ -133,7 +150,7 @@ public sealed record VocabOnlyRuntimeModelEvidence
 /// </summary>
 public sealed record VocabOnlyModelProbeResult
 {
-    public string SchemaVersion { get; init; } = "1.0";
+    public string SchemaVersion { get; init; } = "1.1";
 
     public string ProbeMode { get; init; } = "VocabOnly";
 
