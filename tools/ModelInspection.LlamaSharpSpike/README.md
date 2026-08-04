@@ -1,15 +1,15 @@
 # Model Inspection LLamaSharp feasibility tool
 
-**Status:** CPU native smoke and corrected Granite VocabOnly probe passed; cancellation verification remains  
+**Status:** Successful CPU/VocabOnly baseline verified; expanded Tier 1 tests implemented; fresh CI evidence pending  
 **Last reviewed:** 2026-08-04  
 **Runtime decision:** [ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)  
 **Inspection-depth decision:** [ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)  
-**Model-probe design:** [LLamaSharp VocabOnly model probe](../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)
+**Runtime-test design:** [LLamaSharp runtime test architecture](../../docs/superpowers/specs/2026-08-04-llamasharp-runtime-test-architecture-design.md)
 
 ## Purpose
 
-This isolated console project proves the selected managed/native application
-runtime before LLamaSharp is added to the WinUI application.
+This isolated console project proves and diagnoses the selected managed/native
+application runtime before LLamaSharp enters the WinUI application.
 
 ```text
 LLamaSharp 0.27.0
@@ -19,7 +19,7 @@ LLamaSharp.Backend.Cpu 0.27.0
 llama.cpp 3f7c29d318e317b63f54c558bc69803963d7d88c
 ```
 
-The tool has two gates:
+It supports two runtime depths:
 
 ```text
 Mode 1 — native CPU backend smoke
@@ -28,26 +28,43 @@ Mode 1 — native CPU backend smoke
 
 Mode 2 — CPU VocabOnly model probe
     → one controlled local GGUF
-    → probes metadata, vocabulary, tokenizer and chat-template evidence
+    → reads proportionate metadata/vocabulary/tokenizer/chat-template evidence
     → verifies disposal and original-file integrity
 ```
 
 Neither mode is referenced by the WinUI application.
 
-## Why this is separate from the WinUI application
+## Why this remains isolated
 
-Native runtime selection and model loading are high-risk integration
-boundaries. Keeping the experiment in a console project means:
+Native loading can terminate a process before managed exception handling runs.
+The first Granite experiment exposed that exact risk when an unsafe VocabOnly
+hyperparameter getter reached `GGML_ABORT`. The collector was corrected to use
+safe GGUF metadata, but all automated native/model tests now execute the
+published tool as a child process.
 
-- the WinUI package remains unchanged;
-- native failures are easier to reproduce;
-- logs and exit codes are not hidden by page lifecycle behavior;
-- model preservation can be checked independently;
-- feasibility-only types cannot become production UI contracts accidentally;
-- a worker-process implementation could later replace the in-process probe
-  behind `ILlamaModelProbe` without changing the page or classifier.
+```text
+MSTest host
+    ↓
+ProbeProcessRunner
+    ↓
+feasibility executable
+    ↓
+LLamaSharp / llama.cpp
+```
 
-## Folder structure
+This preserves a stable future production boundary:
+
+```text
+ModelInspectionPage
+    ↓
+ModelInspectionViewModel
+    ↓
+IModelInspectionService
+    ↓
+ILlamaModelProbe
+```
+
+## Source structure
 
 ```text
 ModelInspection.LlamaSharpSpike/
@@ -62,20 +79,24 @@ ModelInspection.LlamaSharpSpike/
 ├── JsonEvidenceWriter.cs
 └── ModelProbe/
     ├── README.md
+    ├── IModelFileHasher.cs
+    ├── Sha256ModelFileHasher.cs
     ├── ModelFileSnapshot.cs
     ├── ModelFileSnapshotService.cs
     ├── ModelProbeSafetyValidator.cs
     ├── NativeLoadProgressRecorder.cs
+    ├── ProbeFailure.cs
+    ├── ProbeFailureMapper.cs
+    ├── SensitiveTextRedactor.cs
+    ├── ProbeResultFinalizer.cs
+    ├── ChatTemplateEvidenceFactory.cs
     ├── VocabOnlyMetadataProjection.cs
     ├── VocabOnlyModelProbeResult.cs
     ├── VocabOnlyEvidenceCollector.cs
     └── VocabOnlyModelProbe.cs
 ```
 
-The full real-model history and evidence interpretation are documented in the
-[ModelProbe README](./ModelProbe/README.md).
-
-## Exact dependency identity
+## Exact runtime identity
 
 | Item | Value |
 |---|---|
@@ -92,11 +113,9 @@ The separate upstream research runtime remains:
 b9870 / 2d973636e292ee6f75fadcf08d29cb33511f509f
 ```
 
-It is not the runtime loaded by this tool.
+It is research evidence, not the runtime loaded by this tool.
 
-## Current flow
-
-### Native smoke
+## Native-smoke flow
 
 ```text
 Program
@@ -107,7 +126,11 @@ Program
     → JsonEvidenceWriter
 ```
 
-### VocabOnly model probe
+The report records package/native identity, operating system, architecture,
+selected library, AVX level, CUDA/Vulkan flags, logs, and controlled operational
+failure information.
+
+## VocabOnly model-probe flow
 
 ```text
 Program
@@ -118,16 +141,92 @@ Program
     → LLamaWeights.LoadFromFileAsync
          VocabOnly = true
          GpuLayerCount = 0
-    → collect metadata/vocabulary evidence safe for VocabOnly
+    → collect only evidence safe at VocabOnly depth
     → dispose native weights
     → capture model snapshot after
-    → compare integrity
+    → apply integrity precedence
+    → redact canonical local path
     → write project-owned JSON
 ```
 
-## Target-laptop verification status
+## Cancellation scopes
 
-### Gate 1 — native CPU smoke
+The command supports two deliberately different diagnostic scopes.
+
+### Whole operation
+
+```text
+--cancel-after-ms <positive integer>
+```
+
+The timer starts before file hashing. It verifies the complete outer operation
+and may cancel before native backend selection.
+
+### Native load
+
+```text
+--cancel-native-after-ms <positive integer>
+```
+
+The timer starts immediately before `LLamaWeights.LoadFromFileAsync`. It tests
+the managed/native cancellation boundary without spending the delay during
+preflight hashing.
+
+The two options are mutually exclusive. `Ctrl+C` continues to cancel the whole
+operation.
+
+## Pure project-owned components
+
+### `ProbeFailureMapper`
+
+Maps managed file/runtime exceptions to stable `MI-*` diagnostics. It never
+produces a final model outcome.
+
+### `SensitiveTextRedactor`
+
+Removes the canonical model path from failure messages and every native log
+entry. The filename and canonical-path SHA-256 may remain useful evidence.
+
+### `ProbeResultFinalizer`
+
+Applies final precedence:
+
+```text
+Succeeded + changed model
+    → integrity failure
+
+Cancelled + changed model
+    → integrity failure
+
+Succeeded/Cancelled + unverifiable integrity
+    → integrity-verification failure
+
+Existing runtime/model failure
+    → original failure retained
+```
+
+Cancellation cannot conceal a changed or unverifiable model.
+
+### `ChatTemplateEvidenceFactory`
+
+Stores only presence, character length, and SHA-256. It never serializes the
+full chat template.
+
+### `NativeLoadProgressRecorder`
+
+```text
+NaN                     → ignored
+negative infinity       → 0
+positive infinity       → 1
+finite value            → clamped to 0..1
+consecutive duplicate   → omitted
+```
+
+It records genuine callbacks only; no synthetic percentages are created.
+
+## Verified target-laptop baseline
+
+### Native CPU smoke
 
 ```text
 Result:                     PASS
@@ -141,7 +240,7 @@ CUDA selected:              false
 Vulkan selected:            false
 ```
 
-### Deterministic verification after the VocabOnly correction
+### Corrected deterministic baseline
 
 ```text
 Configuration:              Release / win-x64
@@ -153,7 +252,7 @@ Exit code:                  0
 Release build:              PASS
 ```
 
-### Gate 2 — corrected real Granite VocabOnly probe
+### Controlled Granite VocabOnly probe
 
 ```text
 Run ID:                     20260804-154719
@@ -179,30 +278,53 @@ Native handle closed:       true
 Original GGUF preserved:    true
 ```
 
-The parameter count was unavailable at this inspection depth and is represented
-as `null`, not zero. The earlier validated quick scan can continue to provide
-the user-facing parameter-size label.
+The parameter count was unavailable at this safe depth and remains `null`, not
+zero or a filename-derived guess.
 
-## Feasibility conclusion
+## Expanded test architecture
 
-For the tested Granite 4.1 3B Q4_K_M model, the selected matched CPU runtime can
-safely provide the evidence needed for a first production core-inspection
-adapter:
+### Tier 1 — model-free normal CI
 
-- architecture and model metadata;
-- context and architecture-scoped structural values;
-- vocabulary and tokenizer evidence;
-- embedded chat-template presence;
-- genuine native progress;
-- deterministic disposal;
-- read-only original-file preservation.
+```text
+Deterministic contracts
+    dependency/version policy
+    command-line matrix
+    path and hashing safety
+    metadata and template projection
+    progress normalization
+    failure mapping and redaction
+    result precedence
+    evidence/type/privacy contracts
 
-This does not prove Vulkan, TurboQuant, GPU offload, Hardware Fit, context
-creation or inference.
+Contained native integration
+    published CPU smoke
+    missing native DLLs
+    corrupted native image
+    model-free runtime evidence contract
+```
 
-One Stage-1 feasibility item remains: a controlled cancellation run must show
-`Cancelled`, exit code `3`, evidence writing, disposal where applicable, and an
-unchanged model hash.
+Tier 1 source and workflow are implemented. Fresh hosted execution remains
+required before the expanded suite is marked verified.
+
+### Tier 2 — trusted real-model runner
+
+Planned separately:
+
+```text
+controlled Granite success and repeatability
+whole-operation and native-load cancellation
+all committed malformed GGUF fixtures
+locked model/output scenarios
+path/privacy checks
+network-listener observation
+before/after integrity after every scenario
+```
+
+See:
+
+- [Tier 1 implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-tier1-runtime-tests.md)
+- [Tier 2 implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-tier2-real-model-tests.md)
+- [Coverage matrix](../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
 
 ## Build and deterministic tests
 
@@ -219,7 +341,8 @@ dotnet test $SpikeTests `
     --configuration Release `
     --no-restore `
     --runtime win-x64 `
-    --minimum-expected-tests 28
+    --filter "TestCategory=Deterministic" `
+    --minimum-expected-tests 1
 
 dotnet build $SpikeProject `
     --configuration Release `
@@ -260,12 +383,12 @@ dotnet run `
     --output $ProbeOutput
 ```
 
-## Run the pending cancellation gate
+## Run native-load cancellation
 
 ```powershell
 $RunId = Get-Date -Format "yyyyMMdd-HHmmss"
 $CancellationOutput =
-    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-cancellation.json"
+    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-native-cancellation.json"
 
 dotnet run `
     --project $SpikeProject `
@@ -274,7 +397,7 @@ dotnet run `
     --runtime win-x64 `
     -- `
     --model $ModelPath `
-    --cancel-after-ms 1 `
+    --cancel-native-after-ms 1 `
     --output $CancellationOutput
 ```
 
@@ -287,60 +410,18 @@ dotnet run `
 | `2` | Invalid or unsafe command-line arguments |
 | `3` | VocabOnly model probe was cancelled and JSON was written |
 
-## Evidence boundary
-
-The VocabOnly report may contain metadata-derived values for:
-
-```text
-architecture
-model name
-file type
-quantisation version
-tokenizer model
-context length
-embedding length
-block count
-attention head counts
-parameter count, when present
-```
-
-The following remain nullable when VocabOnly does not expose them safely:
-
-```text
-runtime-reported model size
-encoder/decoder flags
-recurrent/diffusion flags
-any structural field missing from GGUF metadata
-```
-
-Null means unavailable at this inspection depth; it does not mean zero or
-invalid.
-
-## Safety boundary
+## Safety and non-claims
 
 - CPU is the only selected backend.
-- CUDA and Vulkan selection are disabled.
-- The model is opened read-only.
-- The evidence output may not equal the model path.
-- `VocabOnly = true`.
-- `GpuLayerCount = 0`.
-- No context or KV cache is created.
-- No inference, save, conversion or quantisation API is called.
-- Cancellation is distinct from failure.
-- Native/runtime failure is not automatically classified as model failure.
-- The WinUI application project has no LLamaSharp reference from this work.
-
-## Next decision
-
-```text
-Controlled cancellation passes
-    → close the feasibility spike
-    → define production domain contracts
-    → implement ILlamaModelProbe and LlamaSharpModelProbe
-
-Cancellation exposes a native/process safety problem
-    → preserve ILlamaModelProbe
-    → review worker-process isolation before WinUI integration
-```
-
-Ordinary Vulkan and TurboQuant remain later backend-verification gates.
+- CUDA and Vulkan are disabled.
+- Models are opened read-only.
+- Evidence output may not equal the model path.
+- No context, KV cache, inference, save, conversion, or quantisation occurs.
+- Native/runtime failure is not classified as an invalid model.
+- Full local paths, full chat templates, native pointers, and handles are not
+  serialized.
+- The WinUI application has no LLamaSharp package reference from this work.
+- Expanded Tier 1 source is not yet a pass claim.
+- Tier 2 cancellation, malformed-input, file-access, privacy, and network
+  evidence remains pending.
+- Full CPU execution, Vulkan, and TurboQuant remain later gates.
