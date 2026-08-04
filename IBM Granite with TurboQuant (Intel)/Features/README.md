@@ -2,61 +2,50 @@
 
 **Status:** Living current-state documentation  
 **Last reviewed:** 2026-08-04  
-**Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`  
-**Current branch:** `feature/model-inspection`
+**Current branch:** `feature/model-inspection`  
+**Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`
 
 ## Purpose
 
-This folder is organised by **user-facing feature** rather than by technical file type. Each feature owns one understandable part of the application journey, while shared orchestration remains in the onboarding shell.
+Application source is organised by user-facing feature rather than by technical
+file type. Each feature owns one understandable part of the journey, while the
+onboarding shell owns cross-stage navigation.
 
-This README is the entry point for understanding how the implemented features communicate. Documentation continues down to each meaningful nested source folder so a contributor can understand the local architecture without first reading every implementation file.
+Experimental native work remains outside the application source tree until its
+compatibility and safety gates pass.
 
 ## Documented source hierarchy
 
 ```text
 Features/
 ├── README.md
-│
 ├── ModelImport/
 │   ├── README.md
-│   ├── Controls/
-│   │   └── README.md
-│   ├── FileImport/
-│   │   ├── README.md
-│   │   └── PickerRoute/
-│   │       └── README.md
-│   ├── ModelDownload/
-│   │   └── README.md
-│   └── QuickScan/
-│       └── README.md
-│
+│   ├── Controls/README.md
+│   ├── FileImport/README.md
+│   ├── FileImport/PickerRoute/README.md
+│   ├── ModelDownload/README.md
+│   └── QuickScan/README.md
 ├── Onboarding/
 │   ├── README.md
-│   └── Controls/
-│       └── README.md
-│
+│   └── Controls/README.md
 └── ModelInspection/
     ├── README.md
-    ├── Controls/
-    │   └── README.md
-    ├── Models/
-    │   └── README.md
-    └── Presentation/
-        └── README.md
+    ├── Controls/README.md
+    ├── Models/README.md
+    └── Presentation/README.md
 ```
 
-The nearest README explains the folder's local responsibility, file inventory, inputs, outputs, tests, limitations, and change hazards. Parent READMEs explain how those folders compose into a larger feature.
-
-Experimental or feasibility-only code is kept outside the application source tree:
+Feasibility-only source is separate:
 
 ```text
 tools/
 ├── README.md
 ├── ModelInspection.LlamaSharpSpike/
+│   ├── README.md
+│   └── ModelProbe/README.md
 └── ModelInspection.LlamaSharpSpike.Tests/
 ```
-
-That separation prevents a native dependency from silently becoming part of the WinUI application before its gates pass.
 
 ## Onboarding journey
 
@@ -72,88 +61,87 @@ That separation prevents a native dependency from silently becoming part of the 
 5. Ready to chat
 ```
 
-### Current implementation status
+## Current stage status
 
-| Stage | Feature | Current status |
-|---|---|---|
-| 1 | Model Import | Implemented for local GGUF selection and bounded quick scan |
-| 2 | Model Inspection | Navigation, page composition, reusable controls and initial core-runtime progress presentation implemented; real model inspection is not implemented |
-| 3 | Hardware Fit | Not implemented |
-| 4 | Configure Model | Not implemented |
-| 5 | Ready to Chat | Not implemented |
+| Stage | Current implementation |
+|---|---|
+| Model Import | Local GGUF selection, bounded quick scan, controlled card states and validated navigation request implemented |
+| Model Inspection | Navigation, page shell, four reusable controls and initial five-stage core-runtime presentation implemented |
+| Hardware Fit | Not implemented |
+| Configure Model | Not implemented |
+| Ready to Chat | Not implemented |
 
-The Model Inspection initial-screen changes still require a fresh Windows cold build, packaged test run and manual screen verification.
-
-A separate LLamaSharp feasibility project contains the selected CPU-native-backend dry-run source. That is an integration preparation step, not evidence that the page performs runtime inspection.
+A separate LLamaSharp feasibility tool now includes the matched CPU backend
+smoke and the source for a controlled `VocabOnly` model probe. This is not yet
+production Model Inspection.
 
 ## Cross-feature ownership
 
 ```text
 OnboardingShellPage
-│
 ├── owns StageFrame
 ├── owns CurrentStage
-├── owns OnboardingStageIndicator synchronization
-│
+├── synchronises OnboardingStageIndicator
 ├── hosts ModelImportPage
 └── hosts ModelInspectionPage
 ```
 
-The shell owns the journey. Individual stage pages own their internal workflow and report user intent through explicit contracts.
-
-### Important separation
+Important separation:
 
 ```text
 ModelImportPage
-    does not navigate StageFrame directly
+    → reports navigation intent
+    → does not manipulate StageFrame
+
+OnboardingShellPage
+    → owns cross-stage navigation and indicator state
 
 ModelInspectionPage
-    does not know how Model Import selected the file
-
-Reusable cards
-    do not know about the onboarding shell
+    → owns page composition
+    → does not call LLamaSharp
 
 Presentation factories
-    construct UI state but do not run native code
+    → construct UI state
+    → do not run native work
 
-Picker and future runtime adapters
-    do not own visible page state
-
-Feasibility console tools
-    are not referenced by the WinUI application
+Runtime feasibility tool
+    → calls LLamaSharp in isolation
+    → is not referenced by the WinUI application
 ```
 
-This prevents a page or control from reaching upward through the visual tree to manipulate unrelated application state, and prevents experimental native code from leaking into application contracts.
-
-## Implemented Model Import to Model Inspection handoff
+## Model Import to Model Inspection handoff
 
 ```text
 ModelImportPage
-    → selects and quick-scans a local GGUF file
+    → selects and quick-scans a local GGUF
     → stores SelectedModelPath and ValidatedScanResult
-    → enables Continue only after quick-scan success
-    → revalidates the state in TryRequestModelInspection()
+    → enables Continue only after success
+    → revalidates through TryRequestModelInspection()
     → raises ModelInspectionRequested
 
 OnboardingShellPage
-    → receives ModelInspectionRequested
-    → navigates StageFrame to ModelInspectionPage
-    → updates CurrentStage to InspectModel
-    → updates the persistent stage indicator
+    → receives the request
+    → StageFrame.Navigate(ModelInspectionPage, modelPath)
+    → CurrentStage = InspectModel
+    → StageIndicator.CurrentStage = InspectModel
 
 ModelInspectionPage
-    → receives the selected path in OnNavigatedTo
-    → waits for Loaded before changing child controls
-    → applies the initial model, progress, outcome and action presentations
+    → receives the path in OnNavigatedTo
+    → waits for Loaded
+    → applies initial model, progress, outcome and action presentations
 ```
 
-The current navigation contract carries the selected model path. Passing the selected format and complete validated quick-scan result is a planned improvement, not current behavior.
+The current navigation parameter is only the path. A project-owned
+`ModelInspectionRequest` carrying format and validated quick-scan information
+remains planned.
 
 ## Model Inspection progress meaning
 
-[ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md) establishes that Model Inspection checks the model against the **core application runtime** before Hardware Fit.
+[ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
+separates model-package/core-runtime inspection from later hardware/backend
+verification.
 
-The five visible rows are:
+The five visible rows remain:
 
 ```text
 1. Check model package
@@ -163,62 +151,88 @@ The five visible rows are:
 5. Confirm core runtime compatibility
 ```
 
-The last row does not mean that Vulkan, GPU offloading, Hardware Fit, context allocation, TurboQuant or inference has passed.
+They do not claim that Vulkan, GPU offloading, context allocation, TurboQuant
+or inference has passed.
 
-The initial progress data is now constructed by:
+## Research runtime and application runtime
 
-```text
-InitialInspectionProgressPresentationFactory
-```
-
-rather than being embedded directly inside the page's code-behind.
-
-## Research runtime versus application runtime
-
-[ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md) establishes two separate evidence tracks:
+[ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
+records two separate evidence tracks:
 
 ```text
-Standalone research runtime
-    llama.cpp tag b9870
-    commit 2d973636e292ee6f75fadcf08d29cb33511f509f
-    → retained research and benchmark evidence
+Research runtime
+    llama.cpp b9870
+    2d973636e292ee6f75fadcf08d29cb33511f509f
 
-Selected application runtime pair
+Application feasibility runtime
     LLamaSharp 0.27.0
     LLamaSharp.Backend.Cpu 0.27.0
-    mapped llama.cpp commit
-    3f7c29d318e317b63f54c558bc69803963d7d88c
-    → application feasibility and later production evidence
+    llama.cpp 3f7c29d318e317b63f54c558bc69803963d7d88c
 ```
 
-The two tracks must not be described as the same runtime. The selected application pair is intended for both Model Inspection and later in-application GGUF inference so that inspection and execution do not silently disagree.
+The upstream campaign remains valid research, but it is not the embedded
+LLamaSharp runtime.
 
-### Current feasibility boundary
+## Current LLamaSharp feasibility gates
 
-The first isolated tool slice:
+### Gate 1 — CPU native-library smoke
 
-- pins the exact managed and native package versions;
-- disables CUDA and Vulkan selection;
-- uses `NativeLibraryConfig.LLama.DryRun` to test CPU backend discovery;
-- writes project-owned JSON evidence;
-- does not accept a model path;
-- does not load a GGUF model;
-- does not add LLamaSharp to the WinUI project.
+```text
+LLamaSharp configuration
+    → CUDA disabled
+    → Vulkan disabled
+    → CPU fallback enabled
+    → NativeLibraryConfig.LLama.DryRun
+    → runtime identity and logs written to JSON
+```
 
-The next runtime slice remains blocked until fresh Windows smoke evidence is reviewed.
+No model is involved.
 
-## Backend verification ladder
+### Gate 2 — CPU lightweight `VocabOnly` model probe
 
-Development validation proceeds in separate gates:
+```text
+controlled local GGUF
+    ↓
+output/model collision validation
+    ↓
+read-only SHA-256 snapshot before
+    ↓
+matched CPU backend dry run
+    ↓
+LLamaWeights.LoadFromFileAsync
+    VocabOnly = true
+    GpuLayerCount = 0
+    ↓
+metadata, vocabulary, tokenizer and chat-template evidence
+    ↓
+deterministic native disposal
+    ↓
+read-only SHA-256 snapshot after
+    ↓
+file-integrity comparison
+    ↓
+project-owned JSON evidence
+```
+
+The probe also records genuine native progress, cancellation, runtime identity,
+memory observations and controlled operational failures. Full local model paths
+and full chat-template text are not serialized.
+
+This gate does not create a context, allocate a KV cache, run inference, use
+Vulkan or activate TurboQuant.
+
+## Engineering validation ladder
+
+The development gates are separate from the five user-visible inspection rows:
 
 ```text
 1. Matched LLamaSharp CPU native-library smoke
         ↓
-2. CPU lightweight Granite model inspection
+2. CPU lightweight Granite VocabOnly probe
         ↓
 3. Ordinary Vulkan baseline
         ↓
-4. TurboQuant fork CPU correctness baseline
+4. TurboQuant fork CPU correctness
         ↓
 5. TurboQuant fork Vulkan acceleration
         ↓
@@ -227,53 +241,37 @@ Development validation proceeds in separate gates:
 7. Production inspection and inference integration
 ```
 
-This ladder is not the user-visible five-stage tracker. It exists to isolate managed/native, driver, ordinary Vulkan, fork, kernel and custom-backend failures.
+This order allows the first divergent boundary to be identified accurately:
+managed/native loading, model recognition, ordinary Vulkan/driver behavior,
+TurboQuant fork correctness, TurboQuant Vulkan kernels, or managed/custom-DLL
+compatibility.
 
-### Why Vulkan and TurboQuant are later
-
-Model Inspection occurs before Hardware Fit. The application must first prove that the core runtime can understand the model without mixing in device drivers, shaders, GPU selection or offload behavior.
-
-After Hardware Fit selects a candidate backend, a later backend-verification flow may prove:
-
-```text
-Vulkan initialisation
-intended GPU selection
-layer offload
-context and KV-cache allocation
-TurboQuant activation
-small inference success
-absence of silent CPU fallback
-```
-
-No such backend-verification feature is implemented yet.
-
-## Current high-level dependency direction
+## Current dependency direction
 
 ```text
 OnboardingShellPage
-    ├── depends on ModelImportPage
-    └── depends on ModelInspectionPage
+    ├── ModelImportPage
+    └── ModelInspectionPage
 
 ModelImportPage
-    ├── depends on import controls
-    ├── depends on picker routes
-    └── depends on quick-scan contracts
+    ├── import controls
+    ├── picker routes
+    └── quick-scan contracts
 
 ModelInspectionPage
-    ├── depends on inspection controls
-    ├── depends on inspection presentation models
-    └── depends on focused presentation factories
+    ├── inspection controls
+    ├── presentation data models
+    └── presentation factories
 
-Reusable controls
-    └── depend on their presentation contracts
-
-Isolated feasibility tool
-    └── depends on LLamaSharp and its published CPU backend
+Isolated LLamaSharp tool
+    ├── LLamaSharp 0.27.0
+    └── LLamaSharp.Backend.Cpu 0.27.0
 ```
 
-Dependencies do not flow back from cards into pages, from the inspection page into Model Import, or from Model Import into the shell implementation. The application does not reference the feasibility console project.
+The WinUI application project still has no LLamaSharp, Vulkan or TurboQuant
+package reference.
 
-## Feature and nested documentation
+## Documentation map
 
 ### Model Import
 
@@ -281,13 +279,13 @@ Dependencies do not flow back from cards into pages, from the inspection page in
 - [Imported-model controls](./ModelImport/Controls/README.md)
 - [File-import boundary](./ModelImport/FileImport/README.md)
 - [Native picker routes](./ModelImport/FileImport/PickerRoute/README.md)
-- [Recommended-model download prototype](./ModelImport/ModelDownload/README.md)
+- [Recommended-model prototype](./ModelImport/ModelDownload/README.md)
 - [Quick-scan architecture](./ModelImport/QuickScan/README.md)
 
 ### Onboarding
 
 - [Onboarding architecture](./Onboarding/README.md)
-- [Onboarding stage-indicator control](./Onboarding/Controls/README.md)
+- [Stage-indicator control](./Onboarding/Controls/README.md)
 
 ### Model Inspection
 
@@ -296,70 +294,55 @@ Dependencies do not flow back from cards into pages, from the inspection page in
 - [Inspection presentation models](./ModelInspection/Models/README.md)
 - [Inspection presentation construction](./ModelInspection/Presentation/README.md)
 
-### Runtime feasibility and decisions
+### Runtime feasibility
 
-- [Engineering tools overview](../../tools/README.md)
-- [LLamaSharp feasibility spike](../../tools/ModelInspection.LlamaSharpSpike/README.md)
-- [ADR-001: matched application runtime](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
-- [ADR-002: core inspection versus backend verification](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
-- [LLamaSharp spike design](../../docs/superpowers/specs/2026-08-04-llamasharp-feasibility-spike-design.md)
-- [Core progress/backend-gates design](../../docs/superpowers/specs/2026-08-04-core-runtime-progress-and-backend-gates-design.md)
+- [Engineering tools](../../tools/README.md)
+- [LLamaSharp feasibility tool](../../tools/ModelInspection.LlamaSharpSpike/README.md)
+- [VocabOnly model probe](../../tools/ModelInspection.LlamaSharpSpike/ModelProbe/README.md)
+- [VocabOnly probe design](../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)
+- [VocabOnly probe implementation plan](../../docs/superpowers/plans/2026-08-04-llamasharp-vocab-only-model-probe.md)
 
-Detailed implementation evidence remains under `docs/`, including:
-
-- [Model Import and GGUF quick scan current state](../../docs/development/Model-Import-Quick-Scan-Current-State.md)
-- [GGUF quick-scanner beginner guide](../../docs/development/GGUF-Quick-Scanner-Beginner-Guide.md)
-
-## Source-of-truth hierarchy
-
-When documents and implementation disagree, use this order:
+## Source-of-truth order
 
 ```text
 1. Source code and executable tests
-2. Nearest README beside the affected code
+2. Nearest README beside the source
 3. Parent feature README
-4. Accepted ADR for significant runtime choices
-5. Detailed development evidence under docs/development
-6. Historical design documents and pull-request descriptions
+4. Accepted ADRs
+5. Detailed development evidence
+6. Historical plans and pull-request descriptions
 ```
-
-READMEs document responsibilities and contracts. They should not contain complete copied XAML or C# files because duplicated source can become stale.
-
-## Documentation update rules
-
-Review the nearest README and its parent whenever any of these changes:
-
-- a file is added, moved, or removed;
-- folder or feature responsibility changes;
-- navigation event or navigation parameter changes;
-- visible state or stage wording changes;
-- page/control composition changes;
-- cancellation or stale-result behavior changes;
-- picker, parser, error or outcome classification changes;
-- runtime package, native backend or adapter boundary changes;
-- tests proving the architecture change;
-- implemented, deferred or non-claim boundary changes.
-
-A runtime-version change requires an ADR review because the managed wrapper, native backend package and mapped llama.cpp revision form one compatibility decision.
-
-Moving a backend-specific check into Model Inspection also requires ADR-002 review.
 
 ## Current non-claims
 
-The feature architecture currently does **not** provide:
+The repository does not yet prove:
 
-- a LLamaSharp reference inside the WinUI application;
-- a Vulkan or TurboQuant backend package inside the WinUI application;
-- real GGUF model inspection through LLamaSharp;
-- OpenVINO quick scanning or runtime inspection;
-- dynamic Model Inspection progress execution;
-- runtime outcome classification;
-- functional Model Inspection cancellation;
-- a working recommended-model catalog or download service;
-- Hardware Fit analysis;
-- backend-specific Vulkan/TurboQuant verification;
-- model configuration;
-- a completed chat experience;
-- a verified Windows or target-laptop runtime result until fresh evidence is available.
+- that the LLamaSharp CPU smoke passes on the target laptop;
+- that a controlled Granite GGUF passes the VocabOnly probe;
+- that `VocabOnly` exposes all evidence needed by production Model Inspection;
+- that the WinUI page runs native inspection;
+- dynamic stage movement or functional page cancellation;
+- final model outcome classification;
+- OpenVINO inspection;
+- Vulkan initialisation or GPU layer offload;
+- TurboQuant CPU or Vulkan correctness;
+- Hardware Fit, configuration or completed chat.
 
-Those capabilities must be documented as implemented only after source, tests and runtime evidence support the claim.
+Those claims require fresh tests and runtime evidence, not source presence alone.
+
+## Documentation update triggers
+
+Review the nearest README, parent README and relevant ADR when any of these
+change:
+
+- file/folder responsibility;
+- navigation contract;
+- visible inspection stages;
+- runtime package/version/commit;
+- model-probe depth;
+- cancellation or integrity behavior;
+- failure classification;
+- backend selection;
+- Vulkan or TurboQuant verification;
+- implemented versus deferred boundary;
+- tests or evidence supporting a claim.
