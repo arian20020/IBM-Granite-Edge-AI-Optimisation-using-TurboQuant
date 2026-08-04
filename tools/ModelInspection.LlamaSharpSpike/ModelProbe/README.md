@@ -1,6 +1,7 @@
 # LLamaSharp VocabOnly model probe
 
-**Status:** Source implemented; deterministic tests and real-model verification pending  
+**Status:** First target-laptop run diagnosed; metadata-only correction implemented; verification rerun pending  
+**Last reviewed:** 2026-08-04  
 **Parent:** [LLamaSharp feasibility tool](../README.md)  
 **Design:** [VocabOnly model-probe design](../../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)
 
@@ -13,11 +14,25 @@ It asks one narrow question:
 
 > Can the exact matched LLamaSharp CPU runtime open a controlled Granite GGUF
 > through `VocabOnly` and expose enough lightweight evidence for later Model
-> Inspection work without creating a context or running inference?
+> Inspection without creating a context or running inference?
 
 The source in this folder is not referenced by the WinUI application.
 
-## Flow
+## Selected runtime
+
+```text
+LLamaSharp                  0.27.0
+LLamaSharp.Backend.Cpu      0.27.0
+Mapped llama.cpp commit     3f7c29d318e317b63f54c558bc69803963d7d88c
+Initial runtime identifier  win-x64
+GPU layers                  0
+CUDA                        disabled
+Vulkan                      disabled
+```
+
+The standalone upstream `b9870` campaign remains separate research evidence.
+
+## Current flow
 
 ```text
 selected local GGUF
@@ -35,6 +50,10 @@ LLamaWeights.LoadFromFileAsync
     └── cancellation + genuine native progress
     ↓
 VocabOnlyEvidenceCollector
+    ├── GGUF metadata projection
+    ├── vocabulary and special tokens
+    ├── fixed tokenizer smoke
+    └── chat-template metadata
     ↓
 LLamaWeights.Dispose
     ↓
@@ -82,6 +101,28 @@ Implements `IProgress<float>` and records only fractions genuinely reported by
 LLamaSharp. Values are clamped to `0..1`; consecutive duplicates are omitted.
 No synthetic percentages or estimated time remaining are created.
 
+### `VocabOnlyMetadataProjection.cs`
+
+Projects structural values from ordinary GGUF metadata that remains available
+in `VocabOnly` mode:
+
+```text
+general.architecture
+general.name
+general.file_type
+general.quantization_version
+tokenizer.ggml.model
+<architecture>.context_length
+<architecture>.embedding_length
+<architecture>.block_count
+<architecture>.attention.head_count
+<architecture>.attention.head_count_kv
+general.parameter_count, when present
+```
+
+Missing or malformed values become `null`. The projection does not guess from
+the filename and does not call native hyperparameter accessors.
+
 ### `VocabOnlyModelProbeResult.cs`
 
 Defines framework-neutral evidence records for:
@@ -91,8 +132,7 @@ Defines framework-neutral evidence records for:
 - selected CPU backend;
 - before/after file identity;
 - integrity comparison;
-- runtime model information;
-- metadata key names and selected values;
+- metadata-derived model information;
 - vocabulary and special tokens;
 - tokenizer smoke evidence;
 - chat-template presence, length and hash;
@@ -101,16 +141,37 @@ Defines framework-neutral evidence records for:
 - disposal status;
 - controlled failures and logs.
 
-No LLamaSharp handle, native pointer or XAML type appears in these records.
+Hyperparameter-dependent fields are nullable because the selected depth may not
+safely expose them. No LLamaSharp handle, native pointer or XAML type appears in
+these records.
 
 ### `VocabOnlyEvidenceCollector.cs`
 
-This is one of the only spike components that directly receives
-`LLamaWeights`. It reads evidence while the native handle is valid and returns
-project-owned records.
+This is one of the only spike components that receives `LLamaWeights`.
 
-It records a chat-template hash rather than copying the complete template into
-JSON.
+For the current depth it reads only:
+
+- `weights.Metadata`;
+- `weights.Vocab`;
+- vocabulary token conversion/tokenisation operations.
+
+It deliberately does not call native model-hyperparameter properties such as:
+
+```text
+ContextSize
+EmbeddingSize
+LayerCount
+HeadCount
+KVHeadCount
+HasEncoder
+HasDecoder
+IsRecurrent
+IsDiffusion
+Description
+```
+
+The chat template is read from `tokenizer.chat_template` metadata and stored as
+presence, length and SHA-256 rather than complete text.
 
 ### `VocabOnlyModelProbe.cs`
 
@@ -120,11 +181,99 @@ Coordinates the complete read-only operation:
 2. configure the CPU backend;
 3. dry-run native-library selection;
 4. load asynchronously using `VocabOnly`;
-5. collect evidence;
+5. collect safe evidence;
 6. dispose native weights;
 7. verify the original file;
 8. map completion and failures;
 9. return one immutable evidence result.
+
+## First target-laptop run — 2026-08-04
+
+### Controlled input
+
+```text
+File:
+granite-4.1-3b-Q4_K_M.gguf
+
+Size:
+2,099,501,664 bytes
+
+SHA-256 before:
+662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
+```
+
+### Results
+
+```text
+Matched LLamaSharp CPU native-library smoke:
+PASS
+
+Deterministic tests at that revision:
+24 passed, 1 failed because one assertion matched incidental error wording
+
+Real VocabOnly model run:
+PROCESS TERMINATED
+
+Native message:
+llama-hparams.cpp:35: fatal error
+
+Windows process exit code:
+-1073740791
+
+Evidence JSON:
+not written because the native process terminated before managed cleanup
+
+SHA-256 after:
+662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
+
+Original GGUF preserved:
+YES
+```
+
+### Root cause
+
+The mapped llama.cpp implementation returns from model-hyperparameter loading
+when `vocab_only` is enabled. Therefore values such as layer/head arrays are not
+initialised at this inspection depth.
+
+The first collector nevertheless called LLamaSharp's native `HeadCount`
+property. That property asks llama.cpp for head count at layer zero. Because the
+VocabOnly model has no populated native layers, llama.cpp calls
+`GGML_ABORT("fatal error")`.
+
+The process-level abort bypassed C# exception handling and prevented the JSON
+writer and managed `finally` blocks from completing.
+
+This result means:
+
+```text
+unsafe evidence accessor used at the selected inspection depth
+```
+
+It does **not** prove:
+
+```text
+Granite 4.1 is invalid
+Granite 4.1 is unsupported
+The GGUF is corrupt
+The CPU backend failed to load
+```
+
+### Corrective changes
+
+The branch now:
+
+- makes the cancellation-parser test assert the required option names rather
+  than incidental filler wording;
+- adds metadata-projection tests;
+- projects structural values from architecture-scoped GGUF metadata;
+- removes every known hyperparameter-dependent getter from the VocabOnly
+  collector;
+- makes unavailable evidence fields nullable;
+- records evidence schema version `1.1`.
+
+The correction still requires a fresh test/build/real-model rerun before it can
+be described as passing.
 
 ## Current command
 
@@ -135,7 +284,7 @@ dotnet run `
     --no-build `
     --runtime win-x64 `
     -- `
-    --model "C:\Models\granite-model.gguf" `
+    --model "C:\Users\Arian\Downloads\granite-4.1-3b-Q4_K_M.gguf" `
     --output "artifacts\model-inspection\llamasharp\vocab-only-model-probe.json"
 ```
 
@@ -146,7 +295,7 @@ Controlled cancellation:
 ```
 
 The user may also press `Ctrl+C`. A controlled cancellation writes evidence and
-returns exit code `3`.
+returns exit code `3` when native code returns control normally.
 
 ## Completion states
 
@@ -192,19 +341,22 @@ The probe:
 - does not upload the model or evidence;
 - does not connect to the Model Inspection page.
 
-`VocabOnly` is being evaluated, not yet accepted as sufficient for production
-inspection. A real controlled Granite run must show which evidence is actually
-available and what memory behavior occurs.
+A process-level native abort cannot be converted into an in-process managed
+result. If the rerun still terminates inside native loading after the unsafe
+collector calls have been removed, the feasibility result will trigger review
+of the worker-process hardening option already preserved behind
+`ILlamaModelProbe`.
 
 ## Tests
 
-Deterministic tests live in the adjacent test project and cover:
+Deterministic tests in the adjacent test project cover:
 
 - command parsing;
+- semantic cancellation-error behavior;
 - output/model collision rejection;
 - file snapshots and integrity comparison;
 - native-progress recording;
+- metadata-only structural projection;
 - generic JSON evidence writing.
 
-The native model load itself requires a real GGUF and remains a Windows x64
-integration gate.
+The native model load itself remains a Windows x64 integration gate.
