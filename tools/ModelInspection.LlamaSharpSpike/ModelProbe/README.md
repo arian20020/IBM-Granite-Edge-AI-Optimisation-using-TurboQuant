@@ -1,6 +1,6 @@
 # LLamaSharp VocabOnly model probe
 
-**Status:** First target-laptop run diagnosed; metadata-only correction implemented; verification rerun pending  
+**Status:** Corrected target-laptop probe passed; controlled cancellation verification remains  
 **Last reviewed:** 2026-08-04  
 **Parent:** [LLamaSharp feasibility tool](../README.md)  
 **Design:** [VocabOnly model-probe design](../../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)
@@ -10,11 +10,15 @@
 This folder contains the model-specific part of the isolated LLamaSharp
 feasibility tool.
 
-It asks one narrow question:
+It answers one narrow question:
 
 > Can the exact matched LLamaSharp CPU runtime open a controlled Granite GGUF
-> through `VocabOnly` and expose enough lightweight evidence for later Model
-> Inspection without creating a context or running inference?
+> through `VocabOnly` and expose proportionate evidence for pre-Hardware-Fit
+> Model Inspection without creating a context or running inference?
+
+The corrected target-laptop run shows that the answer is **yes for the tested
+Granite 4.1 3B Q4_K_M model**. Cancellation still needs a dedicated controlled
+run before the complete feasibility stage is closed.
 
 The source in this folder is not referenced by the WinUI application.
 
@@ -24,7 +28,9 @@ The source in this folder is not referenced by the WinUI application.
 LLamaSharp                  0.27.0
 LLamaSharp.Backend.Cpu      0.27.0
 Mapped llama.cpp commit     3f7c29d318e317b63f54c558bc69803963d7d88c
-Initial runtime identifier  win-x64
+Runtime identifier          win-x64
+Process architecture        X64
+Selected native library     LLama / AVX-512
 GPU layers                  0
 CUDA                        disabled
 Vulkan                      disabled
@@ -155,20 +161,8 @@ For the current depth it reads only:
 - `weights.Vocab`;
 - vocabulary token conversion/tokenisation operations.
 
-It deliberately does not call native model-hyperparameter properties such as:
-
-```text
-ContextSize
-EmbeddingSize
-LayerCount
-HeadCount
-KVHeadCount
-HasEncoder
-HasDecoder
-IsRecurrent
-IsDiffusion
-Description
-```
+It deliberately does not call native model-hyperparameter properties that are
+unsafe after llama.cpp has returned early for `vocab_only`.
 
 The chat template is read from `tokenizer.chat_template` metadata and stored as
 presence, length and SHA-256 rather than complete text.
@@ -187,7 +181,7 @@ Coordinates the complete read-only operation:
 8. map completion and failures;
 9. return one immutable evidence result.
 
-## First target-laptop run — 2026-08-04
+## Target-laptop verification history — 2026-08-04
 
 ### Controlled input
 
@@ -198,82 +192,110 @@ granite-4.1-3b-Q4_K_M.gguf
 Size:
 2,099,501,664 bytes
 
-SHA-256 before:
+SHA-256:
 662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
 ```
 
-### Results
+### First run — diagnosed implementation failure
+
+The first run terminated at:
 
 ```text
-Matched LLamaSharp CPU native-library smoke:
-PASS
-
-Deterministic tests at that revision:
-24 passed, 1 failed because one assertion matched incidental error wording
-
-Real VocabOnly model run:
-PROCESS TERMINATED
-
-Native message:
 llama-hparams.cpp:35: fatal error
+Windows exit code: -1073740791
+```
 
-Windows process exit code:
--1073740791
+The original collector called native layer/head hyperparameter getters after
+llama.cpp had deliberately skipped hyperparameter loading for `vocab_only`.
+The process abort was therefore a probe implementation error, not evidence that
+the Granite model was invalid or unsupported. The model SHA-256 remained
+unchanged.
 
-Evidence JSON:
-not written because the native process terminated before managed cleanup
+### Corrected deterministic verification
 
-SHA-256 after:
+```text
+Test project:        ModelInspection.LlamaSharpSpike.Tests
+Configuration:       Release / win-x64
+Total:               28
+Passed:              28
+Failed:              0
+Skipped:             0
+Exit code:           0
+```
+
+The corrected Release `win-x64` spike project also built successfully.
+
+### Corrected real-model run
+
+```text
+Run ID:                      20260804-154719
+Process exit code:           0
+Evidence schema:             1.1
+Completion status:           Succeeded
+Failure code:                none
+VocabOnly requested:         true
+GPU layer count:             0
+Native library:              LLama
+AVX level:                   AVX-512
+CUDA selected:               false
+Vulkan selected:             false
+Architecture:                granite
+Model name:                  Granite 4.1 3b
+GGUF file type:              15
+Quantisation version:        2
+Tokenizer model:             gpt2
+Declared context:            131,072
+Embedding size:              2,560
+Layer count:                 40
+Attention head count:        40
+KV-head count:               8
+Metadata count:              31
+Vocabulary count:            100,352
+Tokenizer smoke:             passed
+Tokenizer smoke token count: 1
+Embedded chat template:      present
+Native progress samples:     1
+Load duration:               398 ms
+Native handle closed:        true
+File preserved:              true
+```
+
+The parameter count was `null` because the tested GGUF did not expose a safely
+usable `general.parameter_count` value at this depth. That means unavailable,
+not zero and not invalid. The earlier validated quick scan can continue to
+provide the user-facing parameter-size label until a deeper verified runtime
+source is available.
+
+### Independent preservation check
+
+PowerShell calculated the same SHA-256 immediately before and immediately after
+the corrected runtime probe:
+
+```text
 662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
-
-Original GGUF preserved:
-YES
 ```
 
-### Root cause
+The probe's own integrity result also reported `FilePreserved = true`.
 
-The mapped llama.cpp implementation returns from model-hyperparameter loading
-when `vocab_only` is enabled. Therefore values such as layer/head arrays are not
-initialised at this inspection depth.
+## Feasibility conclusion
 
-The first collector nevertheless called LLamaSharp's native `HeadCount`
-property. That property asks llama.cpp for head count at layer zero. Because the
-VocabOnly model has no populated native layers, llama.cpp calls
-`GGML_ABORT("fatal error")`.
+The corrected result proves that the matched CPU runtime can, for the tested
+Granite model:
 
-The process-level abort bypassed C# exception handling and prevented the JSON
-writer and managed `finally` blocks from completing.
+- open the GGUF through LLamaSharp;
+- use the intended CPU backend only;
+- obtain architecture and model metadata;
+- inspect vocabulary and tokenizer behaviour;
+- detect an embedded chat template;
+- report genuine native loading progress;
+- dispose the native model handle;
+- preserve the original model file;
+- complete without creating a context or running inference.
 
-This result means:
-
-```text
-unsafe evidence accessor used at the selected inspection depth
-```
-
-It does **not** prove:
-
-```text
-Granite 4.1 is invalid
-Granite 4.1 is unsupported
-The GGUF is corrupt
-The CPU backend failed to load
-```
-
-### Corrective changes
-
-The branch now:
-
-- makes the cancellation-parser test assert the required option names rather
-  than incidental filler wording;
-- adds metadata-projection tests;
-- projects structural values from architecture-scoped GGUF metadata;
-- removes every known hyperparameter-dependent getter from the VocabOnly
-  collector;
-- makes unavailable evidence fields nullable;
-- records evidence schema version `1.1`.
-
-The correction still requires a fresh test/build/real-model rerun before it can
-be described as passing.
+This is sufficient to proceed toward the first production **core inspection
+adapter**, provided the dedicated cancellation run also succeeds. It is not
+evidence for Vulkan, TurboQuant, GPU offload, Hardware Fit, context creation or
+generation.
 
 ## Current command
 
@@ -291,11 +313,11 @@ dotnet run `
 Controlled cancellation:
 
 ```powershell
---cancel-after-ms 250
+--cancel-after-ms 1
 ```
 
-The user may also press `Ctrl+C`. A controlled cancellation writes evidence and
-returns exit code `3` when native code returns control normally.
+A controlled cancellation must write evidence, report `Cancelled`, preserve the
+model, close any native handle that was created, and return exit code `3`.
 
 ## Completion states
 
@@ -341,22 +363,19 @@ The probe:
 - does not upload the model or evidence;
 - does not connect to the Model Inspection page.
 
-A process-level native abort cannot be converted into an in-process managed
-result. If the rerun still terminates inside native loading after the unsafe
-collector calls have been removed, the feasibility result will trigger review
-of the worker-process hardening option already preserved behind
-`ILlamaModelProbe`.
-
 ## Tests
 
-Deterministic tests in the adjacent test project cover:
+Deterministic tests in the adjacent test project now pass `28/28` and cover:
 
 - command parsing;
-- semantic cancellation-error behavior;
+- semantic cancellation-error behaviour;
 - output/model collision rejection;
 - file snapshots and integrity comparison;
 - native-progress recording;
 - metadata-only structural projection;
-- generic JSON evidence writing.
+- generic JSON evidence writing;
+- runtime package-boundary policy.
 
-The native model load itself remains a Windows x64 integration gate.
+The next integration verification is controlled cancellation during the real
+model probe. After that, the next implementation stage is the project-owned
+runtime contracts and `ILlamaModelProbe` adapter boundary.
