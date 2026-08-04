@@ -16,6 +16,7 @@ Short, dated records of important technical choices, alternatives, trade-offs an
 | ADR | Status | Decision |
 |---|---|---|
 | [ADR-001](ADR-001-llamasharp-application-runtime.md) | Accepted | Use `LLamaSharp` 0.27.0 and `LLamaSharp.Backend.Cpu` 0.27.0 as the matched application GGUF runtime pair; retain upstream `b9870` as separate research evidence |
+| [ADR-002](ADR-002-core-inspection-versus-backend-verification.md) | Accepted | Keep Model Inspection focused on lightweight core-runtime compatibility; verify ordinary Vulkan and TurboQuant through later, separate backend gates |
 
 ## Related IDs
 
@@ -31,6 +32,7 @@ No stable ADR-specific IDs have been assigned yet. Each ADR records its affected
 - Prefer relative repository links so evidence remains usable after cloning.
 - Distinguish an accepted technical decision from verified implementation evidence.
 - When a managed wrapper and native backend are coupled, record the exact compatible versions and native revision together.
+- Keep model compatibility, hardware fit and backend-specific runtime verification as separate claims unless evidence explicitly proves all three.
 
 ## Source
 
