@@ -214,6 +214,7 @@ jobs:
           }
 
       - name: Prove uploaded evidence contains no GGUF model
+        id: artifact_scan
         if: ${{ always() }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -241,7 +242,7 @@ jobs:
           }
 
       - name: Upload model-free Tier 1 evidence
-        if: ${{ always() }}
+        if: ${{ always() && steps.artifact_scan.outcome == 'success' }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: llamasharp-tier1-${{ github.run_id }}-${{ github.run_attempt }}
