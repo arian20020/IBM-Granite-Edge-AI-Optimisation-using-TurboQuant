@@ -42,7 +42,7 @@ public sealed class ProbeProcessRunnerTests
                     "-NoLogo",
                     "-NoProfile",
                     "-Command",
-                    "param([string]$value) [Console]::Out.Write($value)",
+                    "[Console]::Out.Write($args[0])",
                     expected
                 },
                 WorkingDirectory = Environment.CurrentDirectory,
@@ -82,6 +82,65 @@ public sealed class ProbeProcessRunnerTests
 
         Assert.AreEqual(0, result.ExitCode);
         Assert.AreEqual(expected, result.StandardOutput);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_WithObserver_SuppliesPidCancelsAndAwaitsObserver()
+    {
+        var observerStarted = new TaskCompletionSource<int>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var observerStopped = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        ProbeProcessRequest request = PowerShellRequest(
+            "Start-Sleep -Milliseconds 500; exit 0",
+            TimeSpan.FromSeconds(10)) with
+        {
+            WhileRunningObserver = async (processId, token) =>
+            {
+                observerStarted.TrySetResult(processId);
+
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                }
+                finally
+                {
+                    observerStopped.TrySetResult();
+                }
+            }
+        };
+
+        ProbeExecutionResult result = await new ProbeProcessRunner().RunAsync(
+            request,
+            CancellationToken.None);
+
+        Assert.AreEqual(ProcessTerminationKind.Exited, result.TerminationKind);
+        Assert.AreEqual(0, result.ExitCode);
+        Assert.AreEqual(result.ProcessId, await observerStarted.Task);
+        await observerStopped.Task;
+        Assert.IsTrue(observerStopped.Task.IsCompletedSuccessfully);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_WhenObserverFails_PropagatesFailureAfterContainingChild()
+    {
+        ProbeProcessRequest request = PowerShellRequest(
+            "Start-Sleep -Seconds 30",
+            TimeSpan.FromSeconds(10)) with
+        {
+            WhileRunningObserver = (_, _) =>
+                Task.FromException(
+                    new InvalidOperationException("observer failed"))
+        };
+
+        InvalidOperationException exception =
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+                async () => await new ProbeProcessRunner().RunAsync(
+                    request,
+                    CancellationToken.None));
+
+        Assert.AreEqual("observer failed", exception.Message);
     }
 
     [TestMethod]
