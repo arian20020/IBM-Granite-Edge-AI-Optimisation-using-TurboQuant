@@ -153,8 +153,7 @@ namespace GraniteEdgeAI.Features.ModelInspection
                 OverviewFormatBadgeText = $"{formatName} MODEL",
                 FormatName = formatName,
                 InspectionChecksSummary =
-                    $"0 of " +
-                    $"{InitialInspectionProgressPresentationFactory.StageCount} " +
+                    $"0 of {InitialInspectionProgressPresentationFactory.StageCount} " +
                     "inspection checks complete"
             };
         }
