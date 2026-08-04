@@ -1,13 +1,15 @@
-# Model Inspection LLamaSharp feasibility spike
+# Model Inspection LLamaSharp feasibility tool
 
-**Status:** Slice 1 implementation — target-machine verification pending  
-**Decision:** [ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)  
-**Design:** [LLamaSharp feasibility spike](../../docs/superpowers/specs/2026-08-04-llamasharp-feasibility-spike-design.md)
+**Status:** Native smoke and VocabOnly probe source implemented; fresh Windows verification pending  
+**Runtime decision:** [ADR-001](../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)  
+**Inspection-depth decision:** [ADR-002](../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)  
+**Initial design:** [LLamaSharp feasibility spike](../../docs/superpowers/specs/2026-08-04-llamasharp-feasibility-spike-design.md)  
+**Model-probe design:** [LLamaSharp VocabOnly model probe](../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)
 
 ## Purpose
 
-This console project proves the selected managed/native application pair before
-LLamaSharp is added to the WinUI application.
+This isolated console project proves the selected managed/native application
+runtime before LLamaSharp is added to the WinUI application.
 
 ```text
 LLamaSharp 0.27.0
@@ -17,31 +19,92 @@ LLamaSharp.Backend.Cpu 0.27.0
 llama.cpp 3f7c29d318e317b63f54c558bc69803963d7d88c
 ```
 
-The first slice performs only a native backend dry run. It does not load or
-inspect a model.
+The tool now has two gates:
+
+```text
+Mode 1 — native CPU backend smoke
+    → no model
+    → proves native-library discovery and runtime identity
+
+Mode 2 — CPU VocabOnly model probe
+    → one controlled local GGUF
+    → probes lightweight metadata, vocabulary, tokenizer and chat-template evidence
+    → verifies disposal and original-file integrity
+```
+
+Neither mode is referenced by the WinUI application.
 
 ## Why this is separate from the WinUI application
 
-Native runtime selection and packaging are high-risk integration boundaries.
-Keeping the first experiment in a console project means:
+Native runtime selection and model loading are high-risk integration
+boundaries. Keeping the experiment in a console project means:
 
 - the WinUI package remains unchanged;
-- native loading failures are easier to reproduce;
+- native failures are easier to reproduce;
 - logs and exit codes are not hidden by page lifecycle behavior;
-- the project can be built and run independently;
-- no feasibility-only type becomes a production UI contract.
+- model preservation can be checked independently;
+- the project can be built and run explicitly;
+- feasibility-only types cannot become production UI contracts accidentally.
+
+## Folder structure
+
+```text
+ModelInspection.LlamaSharpSpike/
+├── README.md
+├── ModelInspection.LlamaSharpSpike.csproj
+├── Program.cs
+├── PinnedApplicationRuntime.cs
+├── SpikeOptionsParser.cs
+├── CpuNativeRuntimeConfiguration.cs
+├── NativeBackendSmokeProbe.cs
+├── NativeBackendSmokeResult.cs
+├── JsonEvidenceWriter.cs
+└── ModelProbe/
+    ├── README.md
+    ├── ModelFileSnapshot.cs
+    ├── ModelFileSnapshotService.cs
+    ├── ModelProbeSafetyValidator.cs
+    ├── NativeLoadProgressRecorder.cs
+    ├── VocabOnlyModelProbeResult.cs
+    ├── VocabOnlyEvidenceCollector.cs
+    └── VocabOnlyModelProbe.cs
+```
+
+Model-specific details are documented in the
+[ModelProbe README](./ModelProbe/README.md).
 
 ## Current flow
+
+### Native smoke
 
 ```text
 Program
     → parses --output or --help
-    → runs NativeBackendSmokeProbe
-    → configures LLamaSharp for CPU only
-    → calls NativeLibraryConfig.LLama.DryRun(...)
-    → converts the result to NativeBackendSmokeResult
-    → writes JSON atomically with SmokeEvidenceWriter
-    → returns a controlled exit code
+    → NativeBackendSmokeProbe
+    → CpuNativeRuntimeConfiguration
+    → NativeLibraryConfig.LLama.DryRun(...)
+    → NativeBackendSmokeResult
+    → JsonEvidenceWriter
+```
+
+### VocabOnly model probe
+
+```text
+Program
+    → parses --model, --output and optional cancellation
+    → rejects output/model path collision
+    → VocabOnlyModelProbe
+    → read-only file snapshot before
+    → matched CPU backend dry run
+    → LLamaWeights.LoadFromFileAsync
+         VocabOnly = true
+         GpuLayerCount = 0
+    → collect runtime evidence
+    → dispose native weights
+    → read-only file snapshot after
+    → compare integrity
+    → VocabOnlyModelProbeResult
+    → JsonEvidenceWriter
 ```
 
 ## Exact dependency identity
@@ -63,93 +126,177 @@ b9870 / 2d973636e292ee6f75fadcf08d29cb33511f509f
 
 It is not the runtime loaded by this tool.
 
-## Commands
+## Build and deterministic tests
 
 Run from the repository root in Developer PowerShell:
 
 ```powershell
 dotnet restore `
-    "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj"
+    "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
+    --runtime win-x64
 
 dotnet test `
     "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
-    --configuration Release
+    --configuration Release `
+    --no-restore `
+    --runtime win-x64
 
 dotnet build `
     "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
     --configuration Release `
+    --no-restore `
     --runtime win-x64
-
-dotnet run `
-    --project "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
-    --configuration Release `
-    -- `
-    --output "artifacts\model-inspection\llamasharp\runtime-smoke.json"
 ```
 
-Show help:
+## Run the native backend smoke
 
 ```powershell
 dotnet run `
     --project "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
+    --configuration Release `
+    --no-build `
+    --runtime win-x64 `
     -- `
-    --help
+    --output "artifacts\model-inspection\llamasharp\runtime-smoke.json"
 ```
 
-## Exit codes
-
-| Code | Meaning |
-|---|---|
-| `0` | Native CPU backend dry run succeeded and JSON was written |
-| `1` | Controlled runtime or evidence-writing failure |
-| `2` | Invalid command-line arguments |
-
-## Evidence
-
-Default path:
+Default output:
 
 ```text
 artifacts/model-inspection/llamasharp/runtime-smoke.json
 ```
 
-The local `artifacts/` folder is ignored by Git. Do not move the result into
-formal evidence until the command, environment, packages and output have been
-reviewed.
+## Run the VocabOnly model probe
 
-The JSON records:
+```powershell
+dotnet run `
+    --project "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
+    --configuration Release `
+    --no-build `
+    --runtime win-x64 `
+    -- `
+    --model "C:\Models\granite-model.gguf" `
+    --output "artifacts\model-inspection\llamasharp\vocab-only-model-probe.json"
+```
 
-- exact managed and backend package pins;
-- expected native llama.cpp commit;
-- actual process architecture, OS and .NET runtime;
-- selected native library type and metadata where available;
-- LLamaSharp native-loader logs;
+Default output when `--model` is supplied:
+
+```text
+artifacts/model-inspection/llamasharp/vocab-only-model-probe.json
+```
+
+Controlled cancellation:
+
+```powershell
+--cancel-after-ms 250
+```
+
+`Ctrl+C` also requests cancellation.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Requested smoke/probe succeeded and JSON was written |
+| `1` | Controlled runtime, probe, integrity, or evidence-writing failure |
+| `2` | Invalid or unsafe command-line arguments |
+| `3` | VocabOnly model probe was cancelled and JSON was written |
+
+## Evidence
+
+Local exploratory output remains under ignored `artifacts/`. Do not move it
+into formal evidence until the command, environment, package identity, model
+provenance and output have been reviewed.
+
+### Native smoke evidence
+
+Records:
+
+- exact managed/backend package pins;
+- mapped llama.cpp commit;
+- process architecture, OS and .NET runtime;
+- selected native library and AVX metadata;
+- CUDA/Vulkan flags;
+- native-loader logs;
 - controlled operational failure details.
+
+### VocabOnly model evidence
+
+Records:
+
+- the same runtime identity;
+- model filename and path fingerprint;
+- before/after length, timestamp and SHA-256;
+- file-preservation comparison;
+- actual native progress samples;
+- load duration and process-memory observations;
+- runtime description and selected metadata;
+- metadata key list;
+- context, parameter, layer/head and architecture characteristics;
+- vocabulary and special tokens;
+- a fixed `Hello` tokenizer smoke;
+- chat-template presence, length and SHA-256;
+- native-handle disposal status;
+- controlled completion/failure information.
+
+The full machine-local path, model bytes, full chat template and native handles
+are not serialized.
 
 ## Safety boundary
 
+- CPU is the only selected backend.
 - CUDA selection is disabled.
 - Vulkan selection is disabled.
 - Runtime auto-download is not used.
-- No model path is accepted in Slice 1.
-- No model file is opened or modified.
-- Failures are operational failures, not model outcomes.
-- The WinUI application project has no LLamaSharp reference from this slice.
+- The model is opened read-only.
+- The evidence output may not equal the model path.
+- `VocabOnly = true`.
+- `GpuLayerCount = 0`.
+- No context or KV cache is created.
+- No inference is run.
+- No save, conversion or quantisation API is called.
+- Cancellation is distinct from failure.
+- Load failure is not automatically classified as invalid or unsupported.
+- The WinUI application project has no LLamaSharp reference from this work.
 
-## Next slice
+## Current verification status
 
-After a successful Windows x64 dry run, the next slice will add a controlled
-real Granite GGUF request, pre/post integrity evidence and a `VocabOnly`
-feasibility probe. It will not begin until the native backend smoke result is
-reviewed.
+Implemented in source:
 
-## Tests
+- command parsing;
+- native smoke;
+- VocabOnly model-probe orchestration;
+- read-only identity capture;
+- genuine progress collection;
+- evidence extraction;
+- deterministic disposal;
+- integrity comparison;
+- JSON writing;
+- deterministic unit-test contracts.
 
-The adjacent test project verifies:
+Still required before advancing:
 
-- exact runtime pins;
-- research/application separation;
-- command-line parsing;
-- JSON writing and overwrite behavior.
+- fresh Windows x64 restore;
+- deterministic tests;
+- Release build;
+- native CPU smoke result;
+- one controlled real Granite GGUF run;
+- review of which fields are actually available in `VocabOnly` mode;
+- review of memory behavior, progress, cancellation and disposal evidence.
 
-The actual `DryRun` is an integration check and must execute on the target
-machine rather than being disguised as a deterministic unit test.
+No successful model-probe claim is made by source presence alone.
+
+## Next gate
+
+After the controlled Granite result is reviewed:
+
+```text
+VocabOnly evidence sufficient
+    → design the production ILlamaModelProbe contracts
+
+VocabOnly evidence insufficient
+    → investigate a lower-level no-allocation route behind the same boundary
+```
+
+Ordinary Vulkan and TurboQuant remain later backend-verification gates. They are
+not part of this tool stage.
