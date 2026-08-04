@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -12,7 +13,6 @@ namespace GraniteEdgeAI.Features.ModelInspection
     /// </summary>
     public sealed partial class ModelInspectionPage : Page
     {
-
         // Prevents the initial presentation from being applied more than once
         // if the page is unloaded and loaded again.
         private bool _initialPresentationApplied;
@@ -34,8 +34,6 @@ namespace GraniteEdgeAI.Features.ModelInspection
         /// Gets the authoritative model path supplied by onboarding navigation.
         /// </summary>
         internal string? SelectedModelPath { get; private set; }
-
-
 
         /// <summary>
         /// Receives the model path passed through StageFrame.Navigate.
@@ -83,8 +81,8 @@ namespace GraniteEdgeAI.Features.ModelInspection
                 ?? throw new InvalidOperationException(
                     "ModelInspectionPage loaded without a selected model path.");
 
-            // Mark the initialization before updating the controls so that a
-            // re-entrant Loaded event cannot apply the state twice.
+            // Mark initialization before updating the controls so a re-entrant
+            // Loaded event cannot apply the state twice.
             _initialPresentationApplied = true;
 
             // The controls and their compiled bindings are now ready.
@@ -105,9 +103,9 @@ namespace GraniteEdgeAI.Features.ModelInspection
             InspectionModelCardControl.Presentation =
                 CreateInitialModelPresentation(modelPath);
 
-            // Display the five-stage progress tracker.
+            // Display the approved five-stage core-inspection tracker.
             InspectionContentCardControl.Presentation =
-                CreateInitialProgressPresentation();
+                InitialInspectionProgressPresentationFactory.Create();
 
             // Display the inspection action area.
             InspectionActionCardControl.Presentation =
@@ -156,116 +154,6 @@ namespace GraniteEdgeAI.Features.ModelInspection
                 FormatName = formatName,
                 InspectionChecksSummary =
                     "0 of 5 inspection checks complete"
-            };
-        }
-
-        /// <summary>
-        /// Creates the initial five-stage inspection tracker.
-        /// </summary>
-        private static InspectionContentCardPresentation
-            CreateInitialProgressPresentation()
-        {
-            return new InspectionContentCardPresentation
-            {
-                // Select the progress DataTemplate.
-                Mode = InspectionContentCardMode.Progress,
-
-                // Heading displayed at the top of the content card.
-                SectionTitle = "Inspection progress",
-
-                // No checks have completed yet.
-                ProgressSummary = "0 of 5 checks complete",
-
-                // Only the first stage is active initially.
-                Items =
-                [
-                    CreateProgressStage(
-                        stageNumber: "1",
-                        title: "Check model package",
-                        detail:
-                            "Checking the selected model package and file boundaries.",
-                        status: InspectionContentStatus.Active,
-                        statusText: "Checking",
-                        isActive: true,
-                        showConnector: true,
-                        showDetail: true),
-
-                    CreateProgressStage(
-                        stageNumber: "2",
-                        title: "Read model configuration",
-                        detail: string.Empty,
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
-                        isActive: false,
-                        showConnector: true,
-                        showDetail: false),
-
-                    CreateProgressStage(
-                        stageNumber: "3",
-                        title: "Validate tokenizer and chat setup",
-                        detail: string.Empty,
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
-                        isActive: false,
-                        showConnector: true,
-                        showDetail: false),
-
-                    CreateProgressStage(
-                        stageNumber: "4",
-                        title: "Validate model structure",
-                        detail: string.Empty,
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
-                        isActive: false,
-                        showConnector: true,
-                        showDetail: false),
-
-                    CreateProgressStage(
-                        stageNumber: "5",
-                        title: "Confirm runtime support",
-                        detail: string.Empty,
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
-                        isActive: false,
-                        showConnector: false,
-                        showDetail: false)
-                ]
-            };
-        }
-
-        /// <summary>
-        /// Creates one row in the five-stage inspection tracker.
-        /// </summary>
-        private static InspectionContentItemPresentation
-            CreateProgressStage(
-                string stageNumber,
-                string title,
-                string detail,
-                InspectionContentStatus status,
-                string statusText,
-                bool isActive,
-                bool showConnector,
-                bool showDetail)
-        {
-            return new InspectionContentItemPresentation
-            {
-                StageNumber = stageNumber,
-                Title = title,
-                Detail = detail,
-
-                // Hide empty explanations so they do not reserve layout space.
-                DetailVisibility = showDetail
-                    ? Visibility.Visible
-                    : Visibility.Collapsed,
-
-                Status = status,
-                StatusText = statusText,
-                IsActive = isActive,
-                ShowConnector = showConnector,
-
-                // Give screen readers one complete description of the row.
-                AutomationName =
-                    $"{title}. {statusText}."
             };
         }
 
