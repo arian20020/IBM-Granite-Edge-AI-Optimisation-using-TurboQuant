@@ -1,39 +1,53 @@
 # LLamaSharp trusted real-model integration tests
 
-**Status:** Source and analyzers compile on hosted Windows x64; trusted model execution pending  
-**Compile verification date:** 2026-08-04  
-**Compile-gate workflow run:** `30939159409`  
-**CI tier:** Tier 2 — manual repository-owned workflow only  
+**Status:** Local trusted target-machine gate verified — 20/20 passed  
+**Verification date:** 2026-08-05  
+**CI tier:** Tier 2 — local trusted run now; manual repository-owned workflow later  
 **Shared support:** [Probe process test support](../ModelInspection.LlamaSharpSpike.TestSupport/README.md)  
 **Coverage register:** [LLamaSharp Runtime Test Coverage Matrix](../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)  
-**Tier 1 evidence:** [Verified model-free runtime tier](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
+**Tier 1 evidence:** [Hosted model-free verification](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)  
+**Tier 2 evidence:** [Local trusted verification](../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 
 ## Purpose
 
 This Microsoft.Testing.Platform project verifies the exact LLamaSharp CPU
-runtime against the controlled Granite 4.1 3B Q4_K_M model and every committed
-malformed GGUF fixture.
+runtime against the controlled Granite 4.1 3B Q4_K_M model and committed
+malformed GGUF fixtures.
 
-All native/model scenarios execute the published feasibility tool as a child
-process. The MSTest host never loads llama.cpp directly.
+All native/model scenarios execute the published feasibility tool as a bounded
+child process. The MSTest host never loads llama.cpp directly. This prevents a
+native abort in one scenario from terminating the complete test campaign.
 
-## Current verification state
+## Verified result
 
-The hosted model-free workflow now restores and compiles this complete project
-in `Release / win-x64` without executing any `RealModelIntegration` test:
+The complete `RealModelIntegration` category ran locally on the target Windows
+x64 laptop:
 
 ```text
-Restore:              PASS
-C# compilation:       PASS
-MSTest analyzers:     PASS
-Controlled model read: not attempted
-Real-model tests run:  not attempted
+Result:          Passed
+Total:           20
+Succeeded:       20
+Failed:          0
+Skipped:         0
+Duration:        approximately 3 minutes 9 seconds
 ```
 
-This compile gate found and corrected namespace shadowing of
-`System.IO.FileAccess` and one expected/actual assertion-role issue before the
-self-hosted runner or 2 GB model was touched. A successful compile is a
-prerequisite, not a Tier 2 pass claim.
+Independent model and evidence gates also passed:
+
+```text
+Model SHA-256 before/after: unchanged
+Evidence files scanned:     56
+Privacy findings:           0
+GGUF files in evidence:      0
+Model-sized evidence files: 0
+Exact model-copy hashes:     0
+```
+
+The retained ignored evidence root was:
+
+```text
+artifacts/model-inspection/llamasharp/real-model-local/20260805-010601/
+```
 
 ## Controlled model identity
 
@@ -57,8 +71,8 @@ Tokenizer smoke token count: 1
 Chat template:               present
 ```
 
-The model remains outside Git. Only its identity and expected safe-depth
-evidence are committed in:
+The model remains outside Git. Only its expected identity and safe-depth
+contract are committed in:
 
 ```text
 ControlledModels/granite-4.1-3b-q4-k-m.json
@@ -71,14 +85,14 @@ LLAMASHARP_SPIKE_PUBLISH_DIR
     Release / win-x64 published feasibility tool
 
 GRANITE_TEST_MODEL_PATH
-    Runner-readable path to the exact controlled Granite model
+    Readable path to the exact controlled Granite model
 
 LLAMASHARP_REAL_MODEL_EVIDENCE_DIR
-    Optional retained evidence root; local runs use disposable temp evidence
+    Optional retained evidence root
 ```
 
-Missing configuration, wrong filename, wrong byte length, wrong SHA-256, or an
-unreadable file fails loudly before the native runtime is called.
+Missing configuration, wrong filename, wrong byte length, wrong SHA-256 or an
+unreadable file fails before the native runtime is called.
 
 ## Test hierarchy
 
@@ -114,27 +128,26 @@ The physical test assembly name is shortened to:
 GraniteEdgeAI.LlamaSharp.RealModelTests
 ```
 
-The namespace remains descriptive. Only the assembly name was shortened after
-the hosted Windows environment proved the original generated executable path
-would exceed the supported process-start path.
+The namespace remains descriptive. Only the physical assembly name is short so
+Windows process-start paths remain within supported limits.
 
 The assembly is non-parallel because scenarios share one large read-only model
-and native-runtime package while retaining separate child processes and evidence
-paths.
+and native-runtime package while retaining separate child processes and
+scenario-specific evidence paths.
 
-## Covered scenarios
+## Covered and verified scenarios
 
 ### Controlled success and repeatability
 
 - exact package/runtime/model evidence;
-- real vocabulary/tokenizer/chat-template evidence;
+- real vocabulary, tokenizer and chat-template evidence;
 - safe nullable parameter count;
-- genuine progress fractions;
+- genuine native progress fractions;
 - deterministic native disposal;
 - before/after model SHA-256;
 - three sequential independent child runs;
-- stable metadata and chat-template hash;
-- no temporary writer files.
+- stable model evidence and chat-template hash;
+- no stale temporary writer files.
 
 ### Cancellation
 
@@ -146,31 +159,21 @@ paths.
     timer begins immediately before LLamaWeights.LoadFromFileAsync
 ```
 
-Both must return:
-
-```text
-CompletionStatus = Cancelled
-FailureCode = MI-PROBE-CANCELLED
-Process exit code = 3
-Structured JSON present
-Original model hash unchanged
-```
-
-`Ctrl+C` remains active throughout preflight and native work but is tested later
-through the production ViewModel/UI integration rather than simulated in this
-MSTest project.
+The trusted suite verifies controlled cancellation, structured evidence and
+model preservation at both scopes. `Ctrl+C` remains a later production
+ViewModel/UI integration concern rather than being simulated in this project.
 
 ### Malformed and hostile input
 
-Every committed `I-*` entry in `tests/TestFixtures/fixture-manifest.json` runs
-in an independent child process. The suite records:
+Each represented `I-*` fixture runs in an independent child process. The suite
+records:
 
-- fixture ID, path-relative filename, size and expected hash;
+- fixture identity and expected hash;
 - child termination and exit code;
-- structured failure code where JSON exists;
-- native termination where JSON cannot be produced;
+- structured failure evidence where JSON is available;
+- native termination where managed evidence cannot be produced;
 - before/after fixture hash;
-- one matrix JSON and Markdown summary.
+- matrix JSON and Markdown summaries.
 
 A deterministic random-byte `.gguf` is also tested outside the retained
 evidence tree and deleted afterwards.
@@ -181,77 +184,40 @@ evidence tree and deleted afterwards.
 - directory supplied as model;
 - model held with `FileShare.None`;
 - evidence output held with `FileShare.None`;
-- output parent that is a regular file;
+- output parent that is a normal file;
 - evidence output resolving to the model path.
 
-The controlled real model is never used as a writable fixture.
+The controlled model is never used as a writable fixture.
 
-### Privacy and offline observations
+### Privacy and network observations
 
-- canonical model path absent from JSON, stdout, and stderr;
+- canonical model path absent from JSON, stdout and stderr;
 - no `modelPath` or full chat-template property;
-- evidence contains only chat-template presence, length, and SHA-256;
-- no `.gguf`, model-sized file, oversized file, or file matching model SHA-256
-  under the artifact root;
-- `netstat.exe` polls the exact child PID and records any TCP `LISTENING` or
-  `ESTABLISHED` endpoint;
-- the expected result is zero observed endpoints.
+- only chat-template presence, length and SHA-256 are retained;
+- no `.gguf`, model-sized, oversized or model-hash-matching evidence file;
+- `netstat.exe` observes TCP `LISTENING` and `ESTABLISHED` endpoints owned by
+  the exact child PID;
+- no prohibited endpoint observation caused a test failure.
 
-The network test is an observation, not a physical disconnected-network test.
-A separate manual disconnected-machine run remains documented as deferred.
+The network scenario is an observation rather than a physical
+network-disconnection test. A disconnected-machine run remains explicitly
+deferred.
 
-## Local execution
+## Reproduce locally
 
-```powershell
-$RepositoryRoot = (
-    git rev-parse --show-toplevel
-).Trim()
-
-$PublishDirectory = Join-Path `
-    $env:TEMP `
-    "GraniteEdgeAI-LlamaSharp-Publish"
-
-Remove-Item `
-    -LiteralPath $PublishDirectory `
-    -Recurse `
-    -Force `
-    -ErrorAction SilentlyContinue
-
-dotnet publish `
-    "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
-    --configuration Release `
-    --runtime win-x64 `
-    --self-contained false `
-    --output $PublishDirectory
-
-$env:LLAMASHARP_SPIKE_PUBLISH_DIR = $PublishDirectory
-$env:GRANITE_TEST_MODEL_PATH = Join-Path `
-    $env:USERPROFILE `
-    "Downloads\granite-4.1-3b-Q4_K_M.gguf"
-$env:LLAMASHARP_REAL_MODEL_EVIDENCE_DIR = Join-Path `
-    $RepositoryRoot `
-    "artifacts\model-inspection\llamasharp\real-model"
-
-dotnet test `
-    "tools\ModelInspection.LlamaSharpSpike.RealModelIntegrationTests\ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj" `
-    --configuration Release `
-    --runtime win-x64 `
-    --filter "TestCategory=RealModelIntegration" `
-    --minimum-expected-tests 20
-```
-
-## Trusted-runner requirements
-
-The GitHub Actions service account must be able to read the model. A path under
-an interactive user's Downloads folder is usually not suitable for the
-restricted runner service. Stage the exact model in a runner-readable,
-read-only location and configure the repository variable:
+Use the maintained runbook:
 
 ```text
-GRANITE_TEST_MODEL_PATH
+docs/testing/runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md
 ```
 
-The workflow is `workflow_dispatch` only and uses:
+The runbook verifies the model identity, publishes the exact runtime, runs at
+least 20 trusted tests, independently checks the model hash and performs a
+PowerShell-compatible retained-evidence privacy scan.
+
+## Trusted self-hosted workflow
+
+The workflow remains `workflow_dispatch` only and targets:
 
 ```text
 self-hosted
@@ -261,11 +227,13 @@ workbook05
 intel-target
 ```
 
-Before upload it verifies the controlled model hash again and scans retained
-evidence for model files, model-sized files, oversized files, and files whose
-SHA-256 equals the controlled model. The artifact upload step is fail-closed:
-it runs only when both the final model-integrity step and artifact-privacy scan
-have the explicit `success` outcome.
+It becomes dispatchable after the workflow file exists on the repository
+default branch. Before upload it rechecks model integrity and scans retained
+evidence. Upload is fail-closed: it runs only when both the final model-integrity
+step and artifact-privacy scan have explicit success outcomes.
+
+The future service-account workflow is a deployment/workflow verification step.
+It does not replace the verified local target-machine runtime evidence.
 
 ## Non-claims
 
@@ -273,15 +241,12 @@ This suite does not test:
 
 - WinUI Cancel button wiring;
 - production `ILlamaModelProbe` or inspection service;
-- full tensor checking or full model allocation;
+- full tensor checking or model allocation;
 - context or KV-cache creation;
-- generation or quality;
-- CPU benchmarking;
+- generation, quality or CPU performance;
 - Vulkan or GPU offload;
-- TurboQuant;
+- TurboQuant, PolarQuant or QJL;
 - OpenVINO;
 - Hardware Fit.
 
-A clean compile is not a real-model pass claim. The trusted suite becomes
-verified only after its manual workflow or equivalent local commands complete
-and the retained evidence is reviewed.
+Those remain separate application and backend-verification gates.
