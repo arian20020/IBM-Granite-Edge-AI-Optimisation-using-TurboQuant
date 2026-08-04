@@ -8,6 +8,7 @@ on:
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
       - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/**'
       - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
       - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
@@ -20,6 +21,7 @@ on:
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
       - 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/**'
       - 'docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md'
       - 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
       - 'global.json'
@@ -40,6 +42,7 @@ env:
   SPIKE_PROJECT: 'tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj'
   SPIKE_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj'
   NATIVE_INTEGRATION_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/ModelInspection.LlamaSharpSpike.NativeIntegrationTests.csproj'
+  REAL_MODEL_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj'
   EVIDENCE_PATH: 'artifacts/model-inspection/llamasharp/runtime-smoke.json'
 
 jobs:
@@ -58,6 +61,7 @@ jobs:
             tools/ModelInspection.LlamaSharpSpike.Tests
             tools/ModelInspection.LlamaSharpSpike.TestSupport
             tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests
+            tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests
             docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md
 
       - name: Set up .NET SDK from global.json
@@ -68,7 +72,7 @@ jobs:
       - name: Display .NET information
         run: dotnet --info
 
-      - name: Restore deterministic and native integration projects
+      - name: Restore all model-free verification projects
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -84,6 +88,12 @@ jobs:
             throw "Native integration restore failed: $LASTEXITCODE"
           }
 
+          dotnet restore "$env:REAL_MODEL_TEST_PROJECT" `
+            --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted test project restore failed: $LASTEXITCODE"
+          }
+
       - name: Run deterministic LLamaSharp contracts with MTP
         run: |
           $ErrorActionPreference = 'Stop'
@@ -97,6 +107,19 @@ jobs:
 
           if ($LASTEXITCODE -ne 0) {
             throw "Deterministic LLamaSharp tests failed: $LASTEXITCODE"
+          }
+
+      - name: Compile trusted real-model tests without executing them
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet build "$env:REAL_MODEL_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted real-model test compilation failed: $LASTEXITCODE"
           }
 
       - name: Build and publish the Windows x64 feasibility tool
