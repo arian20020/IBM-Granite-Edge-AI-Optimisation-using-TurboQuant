@@ -17,9 +17,6 @@ public sealed class VocabOnlyModelProbe
 {
     private readonly ModelFileSnapshotService _snapshotService;
 
-    /// <summary>
-    /// Creates the probe with the production read-only snapshot service.
-    /// </summary>
     public VocabOnlyModelProbe()
         : this(new ModelFileSnapshotService())
     {
@@ -33,8 +30,7 @@ public sealed class VocabOnlyModelProbe
     }
 
     /// <summary>
-    /// Runs one read-only VocabOnly probe with only caller-controlled
-    /// cancellation.
+    /// Runs one read-only probe with caller-controlled cancellation only.
     /// </summary>
     public Task<VocabOnlyModelProbeResult> RunAsync(
         string modelPath,
@@ -42,24 +38,49 @@ public sealed class VocabOnlyModelProbe
     {
         return RunAsync(
             modelPath,
+            cancelAfterPreflightMilliseconds: null,
             cancelNativeAfterMilliseconds: null,
             cancellationToken);
     }
 
     /// <summary>
-    /// Runs one read-only VocabOnly probe and optionally starts a diagnostic
-    /// timer immediately before LLamaSharp enters native model loading.
+    /// Runs one read-only probe with an optional timer scoped to native loading.
     /// </summary>
-    public async Task<VocabOnlyModelProbeResult> RunAsync(
+    public Task<VocabOnlyModelProbeResult> RunAsync(
         string modelPath,
         int? cancelNativeAfterMilliseconds,
         CancellationToken cancellationToken)
     {
-        if (cancelNativeAfterMilliseconds <= 0)
+        return RunAsync(
+            modelPath,
+            cancelAfterPreflightMilliseconds: null,
+            cancelNativeAfterMilliseconds,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs one read-only probe. The post-preflight timer begins only after the
+    /// initial model snapshot exists; the native timer begins immediately before
+    /// LLamaSharp model loading. Caller cancellation remains active throughout.
+    /// </summary>
+    public async Task<VocabOnlyModelProbeResult> RunAsync(
+        string modelPath,
+        int? cancelAfterPreflightMilliseconds,
+        int? cancelNativeAfterMilliseconds,
+        CancellationToken cancellationToken)
+    {
+        ValidatePositiveDelay(
+            cancelAfterPreflightMilliseconds,
+            nameof(cancelAfterPreflightMilliseconds));
+        ValidatePositiveDelay(
+            cancelNativeAfterMilliseconds,
+            nameof(cancelNativeAfterMilliseconds));
+
+        if (cancelAfterPreflightMilliseconds.HasValue &&
+            cancelNativeAfterMilliseconds.HasValue)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(cancelNativeAfterMilliseconds),
-                "Native-load cancellation delay must be positive.");
+            throw new ArgumentException(
+                "Post-preflight and native-load cancellation timers are mutually exclusive.");
         }
 
         DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow;
@@ -92,15 +113,31 @@ public sealed class VocabOnlyModelProbe
             ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
             fullModelPath = Path.GetFullPath(modelPath);
 
+            // Caller cancellation is honored during hashing. Timed diagnostic
+            // cancellation starts only after this baseline exists so the final
+            // result can still prove model preservation.
             beforeSnapshot = await _snapshotService.CaptureAsync(
                 fullModelPath,
                 cancellationToken);
 
+            using var operationCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken);
+
+            if (cancelAfterPreflightMilliseconds.HasValue)
+            {
+                operationCancellation.CancelAfter(
+                    cancelAfterPreflightMilliseconds.Value);
+            }
+
+            operationCancellation.Token.ThrowIfCancellationRequested();
             CpuNativeRuntimeConfiguration.Configure(logs);
 
             bool nativeBackendAvailable =
                 NativeLibraryConfig.LLama.DryRun(
                     out INativeLibrary? selectedLibrary);
+
+            operationCancellation.Token.ThrowIfCancellationRequested();
 
             selectedBackend =
                 CpuNativeRuntimeConfiguration.Describe(selectedLibrary);
@@ -126,7 +163,7 @@ public sealed class VocabOnlyModelProbe
                 var loadStopwatch = Stopwatch.StartNew();
                 using var nativeLoadCancellation =
                     CancellationTokenSource.CreateLinkedTokenSource(
-                        cancellationToken);
+                        operationCancellation.Token);
 
                 if (cancelNativeAfterMilliseconds.HasValue)
                 {
@@ -276,5 +313,17 @@ public sealed class VocabOnlyModelProbe
                 fullModelPath),
             Logs = SensitiveTextRedactor.RedactLogs(logs, fullModelPath)
         };
+    }
+
+    private static void ValidatePositiveDelay(
+        int? milliseconds,
+        string parameterName)
+    {
+        if (milliseconds.HasValue && milliseconds.Value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                "Cancellation delay must be positive.");
+        }
     }
 }
