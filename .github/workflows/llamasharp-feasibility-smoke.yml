@@ -1,0 +1,147 @@
+name: LLamaSharp feasibility smoke
+
+on:
+  push:
+    paths:
+      - '.github/workflows/llamasharp-feasibility-smoke.yml'
+      - 'tools/ModelInspection.LlamaSharpSpike/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'global.json'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/llamasharp-feasibility-smoke.yml'
+      - 'tools/ModelInspection.LlamaSharpSpike/**'
+      - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
+      - 'global.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llamasharp-feasibility-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  SPIKE_PROJECT: 'tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj'
+  SPIKE_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj'
+  EVIDENCE_PATH: 'artifacts/model-inspection/llamasharp/runtime-smoke.json'
+  TEST_RESULTS_DIRECTORY: 'artifacts/model-inspection/llamasharp/test-results'
+
+jobs:
+  test-build-and-smoke:
+    name: Test, build and dry-run LLamaSharp CPU backend
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out spike inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            tools/ModelInspection.LlamaSharpSpike
+            tools/ModelInspection.LlamaSharpSpike.Tests
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Display .NET information
+        run: dotnet --info
+
+      - name: Restore spike tests and referenced runtime project
+        run: |
+          dotnet restore "$env:SPIKE_TEST_PROJECT" `
+            --runtime win-x64
+
+      - name: Run deterministic spike unit tests
+        run: |
+          dotnet test "$env:SPIKE_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            --logger "trx;LogFileName=ModelInspection.LlamaSharpSpike.Tests.trx" `
+            --results-directory "$env:TEST_RESULTS_DIRECTORY"
+
+      - name: Build the Windows x64 spike
+        run: |
+          dotnet build "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64
+
+      - name: Dry-run the published CPU native backend
+        run: |
+          dotnet run `
+            --project "$env:SPIKE_PROJECT" `
+            --configuration Release `
+            --no-build `
+            --runtime win-x64 `
+            -- `
+            --output "$env:EVIDENCE_PATH"
+
+      - name: Validate runtime-smoke evidence
+        run: |
+          if (-not (Test-Path -LiteralPath $env:EVIDENCE_PATH -PathType Leaf)) {
+            throw "Runtime-smoke evidence was not created: $env:EVIDENCE_PATH"
+          }
+
+          $report = Get-Content `
+            -LiteralPath $env:EVIDENCE_PATH `
+            -Raw |
+            ConvertFrom-Json
+
+          if (-not $report.succeeded) {
+            throw "LLamaSharp dry run failed: $($report.failureCode) $($report.failureMessage)"
+          }
+
+          if ($report.managedPackageVersion -ne '0.27.0') {
+            throw "Unexpected LLamaSharp version: $($report.managedPackageVersion)"
+          }
+
+          if ($report.backendPackageVersion -ne '0.27.0') {
+            throw "Unexpected CPU backend version: $($report.backendPackageVersion)"
+          }
+
+          if (
+            $report.expectedLlamaCppCommit -ne
+            '3f7c29d318e317b63f54c558bc69803963d7d88c'
+          ) {
+            throw "Unexpected mapped llama.cpp commit: $($report.expectedLlamaCppCommit)"
+          }
+
+          if ($null -eq $report.selectedBackend) {
+            throw 'The report did not record the selected native backend.'
+          }
+
+          if ($report.selectedBackend.usesCuda -ne $false) {
+            throw 'The first feasibility gate must not select CUDA.'
+          }
+
+          if ($report.selectedBackend.usesVulkan -ne $false) {
+            throw 'The first feasibility gate must not select Vulkan.'
+          }
+
+          if (
+            [string]::IsNullOrWhiteSpace(
+              [string]$report.selectedBackend.nativeLibraryName
+            )
+          ) {
+            throw 'The report did not identify the selected native library.'
+          }
+
+      - name: Upload smoke and test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: llamasharp-feasibility-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/model-inspection/llamasharp/**
+          if-no-files-found: warn
+          retention-days: 30
