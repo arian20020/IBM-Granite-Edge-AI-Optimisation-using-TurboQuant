@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" />
+    <ProjectReference Include="..\ModelInspection.LlamaSharpSpike.TestSupport\ModelInspection.LlamaSharpSpike.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>
