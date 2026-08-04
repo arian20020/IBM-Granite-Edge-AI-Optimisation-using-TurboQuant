@@ -1,3 +1,5 @@
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
 
 /// <summary>
