@@ -174,13 +174,32 @@ Tier 1 does not prove:
 - Vulkan;
 - TurboQuant.
 
-Those items belong to the manual trusted real-model workflow or later backend
-and application-integration gates.
+Those items belong to the trusted real-model project or later backend and
+application-integration gates.
 
-## Next verification gate
+## Next verification gates
 
-Run `.github/workflows/llamasharp-real-model-integration.yml` manually on the
-trusted runner labels:
+### Immediate pre-merge gate
+
+Run the complete `RealModelIntegration` test category locally on the target
+Windows machine against the exact controlled model. This can execute before
+merge and verifies the expanded success, repeatability, cancellation,
+malformed-input, file-access, privacy, network-observation and integrity
+contracts.
+
+Use:
+
+- [LLamaSharp Trusted Real-Model Execution Runbook](../runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md)
+
+### Later self-hosted workflow gate
+
+GitHub documents that a `workflow_dispatch` event runs only when the workflow
+file exists on the repository default branch. The new trusted workflow currently
+exists on `feature/model-inspection`, not `main`. Therefore the restricted
+self-hosted workflow is a later gate after its workflow file is present on the
+default branch; it must not be replaced with an automatic pull-request trigger.
+
+The workflow will use these trusted runner labels:
 
 ```text
 self-hosted
@@ -190,8 +209,8 @@ workbook05
 intel-target
 ```
 
-The repository variable `GRANITE_TEST_MODEL_PATH` must point to the exact
-controlled model from the runner service account's perspective:
+Its repository variable `GRANITE_TEST_MODEL_PATH` must point to the exact model
+from the runner service account's perspective:
 
 ```text
 Filename:     granite-4.1-3b-Q4_K_M.gguf
