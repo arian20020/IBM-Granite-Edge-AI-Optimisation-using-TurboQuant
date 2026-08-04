@@ -210,12 +210,13 @@ public sealed partial class RuntimeDependencyPolicyTests
             .FirstOrDefault();
 
         Assert.IsNotNull(actual, $"Project property {propertyName} is missing.");
-        Assert.AreEqual(
-            expected,
-            actual,
-            ignoreCase: true,
-            culture: null,
-            message: $"Unexpected value for project property {propertyName}.");
+        Assert.IsTrue(
+            string.Equals(
+                expected,
+                actual,
+                StringComparison.OrdinalIgnoreCase),
+            $"Unexpected value for project property {propertyName}. " +
+            $"Expected '{expected}', actual '{actual}'.");
     }
 
     private static IReadOnlyDictionary<string, string> ReadConstStringValues(
