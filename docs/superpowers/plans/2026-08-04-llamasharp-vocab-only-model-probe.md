@@ -2,10 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** First target-laptop run completed and diagnosed; metadata-only correction implemented; verification rerun pending.  
+**Status:** Corrected deterministic suite, Release build and real Granite VocabOnly probe passed; controlled cancellation remains  
 **Last reviewed:** 2026-08-04
 
-**Goal:** Extend the isolated LLamaSharp feasibility tool so it can probe one real local GGUF through the matched CPU runtime using `VocabOnly`, capture lightweight evidence, verify file preservation, and remain outside the WinUI application.
+**Goal:** Extend the isolated LLamaSharp feasibility tool so it can probe one real local GGUF through the matched CPU runtime using `VocabOnly`, capture proportionate evidence, verify file preservation, and remain outside the WinUI application.
 
 **Architecture:** Native smoke and model probing remain separate modes in one console tool. Model-specific source lives under `ModelProbe`, returns project-owned evidence, and lets LLamaSharp types appear only in the probe/collector implementation.
 
@@ -27,7 +27,7 @@
 - Capture file identity before and after.
 - Redact the full canonical model path from serialized failures and native logs.
 - Do not classify a final application model outcome.
-- Do not claim success without a complete real-model run and evidence file.
+- Do not claim cancellation support until a controlled cancellation result exists.
 
 ---
 
@@ -40,6 +40,8 @@
 - `tools/ModelInspection.LlamaSharpSpike.Tests/NativeLoadProgressRecorderTests.cs`
 - `tools/ModelInspection.LlamaSharpSpike.Tests/SmokeEvidenceWriterTests.cs`
 - `tools/ModelInspection.LlamaSharpSpike.Tests/VocabOnlyMetadataProjectionTests.cs`
+- `tools/ModelInspection.LlamaSharpSpike.Tests/VocabOnlyModelProbeFailureTests.cs`
+- `tools/ModelInspection.LlamaSharpSpike.Tests/PinnedApplicationRuntimeTests.cs`
 
 - [x] Test `--model` and mode-specific default output.
 - [x] Test model, output and cancellation options in arbitrary order.
@@ -50,24 +52,21 @@
 - [x] Test progress clamping, duplicate suppression and snapshot independence.
 - [x] Test generic JSON writing, atomic overwrite and string enums.
 - [x] Add metadata-only structural projection tests.
-- [x] Execute the first target-laptop test run.
-- [x] Diagnose the single failing parser assertion as incidental wording coupling.
-- [x] Change the parser test to assert both required option names semantically.
-- [ ] Rerun the full deterministic suite after the correction.
+- [x] Replace constant-to-literal assertions with project-file dependency-policy tests.
+- [x] Correct the parser test to assert behaviour rather than incidental sentence wording.
+- [x] Run the complete corrected target-laptop suite.
 
-### First deterministic test result
+### Corrected deterministic result
 
 ```text
-Total:      25
-Passed:     24
-Failed:      1
-Skipped:     0
+Project:       ModelInspection.LlamaSharpSpike.Tests
+Configuration: Release / win-x64
+Total:         28
+Passed:        28
+Failed:        0
+Skipped:       0
+Exit code:     0
 ```
-
-The failure was not parser behaviour. The test required one exact contiguous
-phrase while the production message contained the same two required options
-with introductory wording. The corrected test now checks that the message
-contains both `--cancel-after-ms` and `--model` independently.
 
 ---
 
@@ -117,9 +116,9 @@ Vulkan:                     false
 - [x] Reject output/model path collision.
 - [x] Implement thread-safe genuine native-progress recording.
 - [x] Add source-adjacent folder documentation.
-- [x] Independently hash the real Granite model before and after the first run.
-- [x] Verify the original SHA-256 remained unchanged after native process termination.
-- [ ] Rerun helper tests after the complete correction set.
+- [x] Independently hash the real Granite model before and after both native runs.
+- [x] Verify the original SHA-256 remained unchanged after the native abort and corrected success.
+- [x] Run the corrected helper tests as part of the 28-test suite.
 
 ---
 
@@ -143,36 +142,30 @@ Vulkan:                     false
 - [x] Add architecture-scoped GGUF metadata projection.
 - [x] Make unavailable evidence nullable rather than representing it as zero.
 - [x] Bump the VocabOnly evidence schema to `1.1`.
-- [ ] Verify the corrected collector against the real Granite model.
+- [x] Verify the corrected collector against the real Granite model.
 
-### Root cause established from the first real-model run
-
-The first collector called LLamaSharp properties such as:
+### Verified evidence from the controlled model
 
 ```text
-HeadCount
-KVHeadCount
-LayerCount
-ContextSize
-EmbeddingSize
+Architecture:                granite
+Model name:                  Granite 4.1 3b
+File type:                   15
+Quantisation version:        2
+Tokenizer model:             gpt2
+Context size:                131,072
+Embedding size:              2,560
+Layer count:                 40
+Attention head count:        40
+KV-head count:               8
+Metadata count:              31
+Vocabulary count:            100,352
+Tokenizer smoke:             PASS / 1 token
+Chat template:               present
+Parameter count:             unavailable / null
 ```
 
-The mapped llama.cpp implementation deliberately returns from hyperparameter
-loading when `vocab_only` is enabled. Therefore no native layer/head arrays are
-initialised at this depth.
-
-`HeadCount` called llama.cpp's `n_head(0)`. Since `n_layer` was zero, the native
-code reached:
-
-```text
-GGML_ABORT("fatal error")
-```
-
-The process terminated before C# exception handling or JSON writing could
-complete.
-
-The correction now projects safe structural values from ordinary GGUF metadata
-and leaves unavailable runtime-derived fields null.
+The parameter count remains unavailable at this depth. This is represented as
+`null`; it is not guessed from the filename and is not treated as zero.
 
 ---
 
@@ -183,7 +176,7 @@ and leaves unavailable runtime-derived fields null.
 
 - [x] Validate and snapshot the model before native loading.
 - [x] Configure and dry-run the matched CPU backend.
-- [x] Load asynchronously with `VocabOnly = true`, zero GPU layers, genuine progress and cancellation.
+- [x] Load asynchronously with `VocabOnly = true`, zero GPU layers, genuine progress and cancellation support.
 - [x] Collect evidence only while the native handle is valid.
 - [x] Dispose native weights in success/failure paths where a handle exists.
 - [x] Capture post-probe identity and compare integrity.
@@ -191,36 +184,27 @@ and leaves unavailable runtime-derived fields null.
 - [x] Map operational, native, load and cancellation failures to stable codes.
 - [x] Record memory observations without treating them as final Hardware Fit estimates.
 - [x] Redact the full canonical model path from serialized failures and logs.
-- [x] Run the first controlled real Granite probe.
-- [x] Record the process-level native abort and unchanged model hash.
-- [ ] Rerun after removing unsafe VocabOnly getters.
-- [ ] Confirm JSON evidence is written.
-- [ ] Confirm deterministic native disposal and integrity fields.
+- [x] Run the first controlled real Granite probe and diagnose the unsafe getter abort.
+- [x] Rerun after removing unsafe VocabOnly getters.
+- [x] Confirm JSON evidence is written.
+- [x] Confirm deterministic native disposal and integrity fields.
+- [ ] Run controlled cancellation and verify `Cancelled`, exit code `3`, evidence writing and file preservation.
 
-### First real-model input and result
+### Corrected real-model result
 
 ```text
-Model:
-granite-4.1-3b-Q4_K_M.gguf
-
-Size:
-2,099,501,664 bytes
-
-SHA-256 before and after:
-662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
-
-Native result:
-llama-hparams.cpp:35: fatal error
-
-Windows exit code:
--1073740791
-
-JSON result:
-not written because the process was terminated by native code
+Run ID:                      20260804-154719
+Model:                       granite-4.1-3b-Q4_K_M.gguf
+Size:                        2,099,501,664 bytes
+SHA-256 before and after:    662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
+Completion status:           Succeeded
+Exit code:                   0
+Evidence schema:             1.1
+Native progress samples:     1
+Load duration:               398 ms
+Native handle closed:        true
+File preserved:              true
 ```
-
-This is recorded as a probe implementation failure at the selected depth, not
-as an invalid or unsupported Granite outcome.
 
 ---
 
@@ -237,9 +221,9 @@ as an invalid or unsupported Granite outcome.
 - [x] Connect `Ctrl+C` and optional timed cancellation.
 - [x] Write evidence for success, failure and cancellation when native code returns control.
 - [x] Use exit codes `0`, `1`, `2` and `3`.
-- [x] Diagnose and correct the brittle parser test.
-- [ ] Rerun parser/writer/helper tests.
-- [ ] Rebuild Release `win-x64`.
+- [x] Run parser/writer/helper tests.
+- [x] Build Release `win-x64` successfully.
+- [ ] Execute and review the real cancellation path.
 
 ---
 
@@ -256,13 +240,13 @@ as an invalid or unsupported Granite outcome.
 - [x] Add the `ModelProbe` folder to the README hierarchy.
 - [x] State that the WinUI page remains unconnected.
 - [x] Preserve Vulkan and TurboQuant as later gates.
-- [x] Record the first target-laptop run, native abort and unchanged hash in the nearest README.
-- [x] Record the root-cause correction and pending rerun.
-- [ ] Update broader feature documentation after the corrected runtime result is known.
+- [x] Record the first target-laptop abort and root cause.
+- [x] Record the corrected 28/28 suite, Release build and successful real-model result in the nearest READMEs.
+- [ ] Update the broader feature READMEs when controlled cancellation closes the feasibility stage.
 
 ---
 
-## Task 8: Verification rerun
+## Task 8: Remaining cancellation verification
 
 Run from Developer PowerShell at the repository root:
 
@@ -270,34 +254,17 @@ Run from Developer PowerShell at the repository root:
 $SpikeProject =
     "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj"
 
-$SpikeTests =
-    "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj"
-
 $ModelPath = Join-Path `
     $env:USERPROFILE `
     "Downloads\granite-4.1-3b-Q4_K_M.gguf"
 
-# Pull the correction.
-git pull --ff-only origin feature/model-inspection
+$ExpectedModelHash = (
+    Get-FileHash -LiteralPath $ModelPath -Algorithm SHA256
+).Hash.ToLowerInvariant()
 
-# Restore, test and build.
-dotnet restore $SpikeTests --runtime win-x64
-
-dotnet test $SpikeTests `
-    --configuration Release `
-    --no-restore `
-    --runtime win-x64 `
-    --minimum-expected-tests 1
-
-dotnet build $SpikeProject `
-    --configuration Release `
-    --no-restore `
-    --runtime win-x64
-
-# Run a new, uniquely identified model probe.
 $RunId = Get-Date -Format "yyyyMMdd-HHmmss"
-$ProbeOutput =
-    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-model-probe.json"
+$CancellationOutput =
+    "artifacts\model-inspection\llamasharp\runs\$RunId\vocab-only-cancellation.json"
 
 dotnet run `
     --project $SpikeProject `
@@ -306,38 +273,48 @@ dotnet run `
     --runtime win-x64 `
     -- `
     --model $ModelPath `
-    --output $ProbeOutput
+    --cancel-after-ms 1 `
+    --output $CancellationOutput
+
+$CancellationExitCode = $LASTEXITCODE
+
+$ActualModelHashAfter = (
+    Get-FileHash -LiteralPath $ModelPath -Algorithm SHA256
+).Hash.ToLowerInvariant()
 ```
 
-Expected exit codes:
+Required result:
 
 ```text
-0 = requested probe succeeded and evidence was written
-1 = controlled failure and evidence was written where possible
-2 = invalid or unsafe arguments
-3 = controlled cancellation and evidence was written
+Completion status: Cancelled
+Failure code:       MI-PROBE-CANCELLED
+Exit code:          3
+Evidence JSON:      present
+File hash:          unchanged
 ```
+
+If a one-millisecond timer cancels before model loading begins, that is still a
+valid token-propagation result. A later integration test may also cancel after a
+reported native progress sample when a slower controlled model or test hook is
+available.
 
 ## Stop conditions
 
 Stop immediately and preserve the first new failure when:
 
-- any deterministic test fails;
-- Release build fails;
-- the native process terminates again;
-- no JSON is produced;
+- the cancellation process terminates natively;
+- no cancellation JSON is produced;
+- completion is reported as model failure rather than cancellation;
 - the before/after model hashes differ.
-
-If the native process still terminates before the corrected collector runs, the
-next architecture review is process isolation behind the existing
-`ILlamaModelProbe` boundary. Do not classify the model as invalid.
 
 ## Current execution state
 
 - Matched CPU native smoke: **passed on target laptop**.
-- First deterministic suite: **24 passed, 1 wording-coupled failure; corrected**.
-- First real Granite VocabOnly run: **native abort diagnosed**.
-- Original model SHA-256: **unchanged**.
-- Metadata-only collector correction: **implemented**.
-- Corrected test/build/real-model rerun: **pending**.
-- WinUI integration, Vulkan, TurboQuant and final outcome classification: **outside this slice**.
+- Corrected deterministic suite: **28/28 passed**.
+- Corrected Release `win-x64` build: **passed**.
+- Corrected real Granite VocabOnly probe: **passed**.
+- Runtime metadata, vocabulary, tokenizer and chat-template evidence: **captured**.
+- Native model handle disposal: **verified**.
+- Original model SHA-256 preservation: **verified**.
+- Controlled cancellation: **pending**.
+- Production `ILlamaModelProbe`, service, ViewModel, Vulkan and TurboQuant: **outside this slice**.
