@@ -12,6 +12,7 @@ public sealed class ProbeProcessRunner
     /// Executes one child process with redirected streams and a bounded timeout.
     /// A timeout kills the complete child process tree and returns a result.
     /// Caller cancellation kills the tree and then propagates cancellation.
+    /// An optional observer is cancelled and awaited on every termination path.
     /// </summary>
     public async Task<ProbeExecutionResult> RunAsync(
         ProbeProcessRequest request,
@@ -95,6 +96,24 @@ public sealed class ProbeProcessRunner
         Task<string> standardErrorTask =
             process.StandardError.ReadToEndAsync();
 
+        using var observerSource =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+        Task observerTask;
+
+        try
+        {
+            observerTask = request.WhileRunningObserver?.Invoke(
+                processId,
+                observerSource.Token) ?? Task.CompletedTask;
+        }
+        catch
+        {
+            KillProcessTree(process);
+            await WaitAfterKillAsync(process);
+            throw;
+        }
+
         using var timeoutSource =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(request.Timeout);
@@ -102,12 +121,16 @@ public sealed class ProbeProcessRunner
         try
         {
             await process.WaitForExitAsync(timeoutSource.Token);
+            observerSource.Cancel();
+            await AwaitObserverAsync(observerTask, observerSource.Token);
         }
         catch (OperationCanceledException)
             when (!cancellationToken.IsCancellationRequested)
         {
+            observerSource.Cancel();
             KillProcessTree(process);
             await WaitAfterKillAsync(process);
+            await AwaitObserverAsync(observerTask, observerSource.Token);
             stopwatch.Stop();
 
             return new ProbeExecutionResult
@@ -122,8 +145,18 @@ public sealed class ProbeProcessRunner
         }
         catch (OperationCanceledException)
         {
+            observerSource.Cancel();
             KillProcessTree(process);
             await WaitAfterKillAsync(process);
+            await AwaitObserverAsync(observerTask, observerSource.Token);
+            throw;
+        }
+        catch
+        {
+            observerSource.Cancel();
+            KillProcessTree(process);
+            await WaitAfterKillAsync(process);
+            await AwaitObserverAsync(observerTask, observerSource.Token);
             throw;
         }
 
@@ -153,6 +186,22 @@ public sealed class ProbeProcessRunner
             Duration = duration,
             ProcessId = 0
         };
+    }
+
+    private static async Task AwaitObserverAsync(
+        Task observerTask,
+        CancellationToken observerToken)
+    {
+        try
+        {
+            await observerTask;
+        }
+        catch (OperationCanceledException)
+            when (observerToken.IsCancellationRequested)
+        {
+            // Normal observer shutdown after the child has exited, timed out,
+            // or caller cancellation has begun.
+        }
     }
 
     private static void KillProcessTree(Process process)
