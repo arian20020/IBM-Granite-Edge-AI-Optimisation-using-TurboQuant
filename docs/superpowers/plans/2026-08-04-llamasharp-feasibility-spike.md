@@ -54,12 +54,14 @@
 - Consumes: exact constants and command/evidence contracts from the design.
 - Produces: executable tests for `PinnedApplicationRuntime`, `SpikeOptionsParser` and `SmokeEvidenceWriter`.
 
-- [ ] **Step 1: Create the MSTest project with exact package versions.**
-- [ ] **Step 2: Test the exact LLamaSharp/backend/llama.cpp pins and research separation.**
-- [ ] **Step 3: Test default, output, help and invalid command-line inputs.**
-- [ ] **Step 4: Test JSON writing, parseability and overwrite behavior.**
+- [x] **Step 1: Create the MSTest project with exact package versions.**
+- [x] **Step 2: Test the exact LLamaSharp/backend/llama.cpp pins and research separation.**
+- [x] **Step 3: Test default, output, help and invalid command-line inputs.**
+- [x] **Step 4: Test JSON writing, parseability and overwrite behavior.**
 - [ ] **Step 5: Run the tests and confirm the expected RED compilation failures because production types do not yet exist.**
-- [ ] **Step 6: Commit the RED tests.**
+- [x] **Step 6: Commit the test contracts.**
+
+The source was written test-first, but no local RED command output was available in the connected GitHub editing environment. The plan does not retroactively claim a RED run.
 
 ---
 
@@ -75,26 +77,29 @@
 - Create: `tools/ModelInspection.LlamaSharpSpike/SmokeEvidenceWriter.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike/NativeBackendSmokeProbe.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike/Program.cs`
+- Create: `.github/workflows/llamasharp-feasibility-smoke.yml`
 
 **Interfaces:**
 - Consumes: `LLama.Native.NativeLibraryConfig`, `LLama.Abstractions.INativeLibrary`, `System.Text.Json`.
 - Produces:
   - `PinnedApplicationRuntime` exact constants;
-  - `SpikeOptionsParser.Parse(string[])`;
+  - `SpikeOptionsParser.Parse(...)`;
   - `NativeBackendSmokeProbe.Run()`;
   - `SmokeEvidenceWriter.WriteAsync(...)`;
-  - exit codes `0`, `1`, and `2`.
+  - exit codes `0`, `1`, and `2`;
+  - Windows-hosted test/build/dry-run evidence when the workflow executes.
 
-- [ ] **Step 1: Create the console project with exact LLamaSharp package references.**
-- [ ] **Step 2: Add exact runtime identity constants.**
-- [ ] **Step 3: Add the small command-line parser.**
-- [ ] **Step 4: Add the project-owned smoke result and log records.**
-- [ ] **Step 5: Add atomic JSON evidence writing.**
-- [ ] **Step 6: Add the CPU-only native backend dry-run probe.**
-- [ ] **Step 7: Add the console entry point and controlled exit codes.**
+- [x] **Step 1: Create the console project with exact LLamaSharp package references.**
+- [x] **Step 2: Add exact runtime identity constants.**
+- [x] **Step 3: Add the small command-line parser.**
+- [x] **Step 4: Add the project-owned smoke result and log records.**
+- [x] **Step 5: Add atomic JSON evidence writing.**
+- [x] **Step 6: Add the CPU-only native backend dry-run probe.**
+- [x] **Step 7: Add the console entry point and controlled exit codes.**
 - [ ] **Step 8: Run unit tests and confirm GREEN.**
 - [ ] **Step 9: Build the console project in Release.**
-- [ ] **Step 10: Commit the implementation.**
+- [x] **Step 10: Commit the implementation source.**
+- [x] **Step 11: Add a read-only Windows workflow for tests, build, dry run and artifact upload.**
 
 ---
 
@@ -102,6 +107,7 @@
 
 **Files:**
 - Modify: `docs/risks/Licence-Register.md`
+- Modify: `docs/architecture/decisions/README.md`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/README.md`
 
@@ -109,11 +115,11 @@
 - Consumes: selected package identities and spike paths.
 - Produces: current dependency, architecture and non-claim documentation.
 
-- [ ] **Step 1: Add LLamaSharp and its CPU backend to the licence register.**
-- [ ] **Step 2: Link Model Inspection documentation to ADR-001 and the spike.**
-- [ ] **Step 3: State that the WinUI project still has no LLamaSharp reference.**
-- [ ] **Step 4: Preserve the distinction between research and application runtimes.**
-- [ ] **Step 5: Commit documentation updates.**
+- [x] **Step 1: Add LLamaSharp and its CPU backend to the licence register.**
+- [x] **Step 2: Link Model Inspection documentation to ADR-001 and the spike.**
+- [x] **Step 3: State that the WinUI project still has no LLamaSharp reference.**
+- [x] **Step 4: Preserve the distinction between research and application runtimes.**
+- [x] **Step 5: Index ADR-001 and commit documentation updates.**
 
 ---
 
@@ -142,7 +148,7 @@
 **Files:**
 - Create later: the controlled GGUF request/integrity design and implementation plan.
 
-- [ ] **Step 1: Review the target-machine smoke evidence.**
+- [ ] **Step 1: Review the Windows workflow and target-machine smoke evidence.**
 - [ ] **Step 2: Decide the controlled real Granite fixture and hash.**
 - [ ] **Step 3: Define `--model`, integrity and `VocabOnly` contracts.**
 - [ ] **Step 4: Write failing tests before adding model loading.**
@@ -153,20 +159,26 @@ Run from the repository root on Windows:
 
 ```powershell
 dotnet restore `
-    "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj"
+    "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
+    --runtime win-x64
 
 dotnet test `
     "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
-    --configuration Release
+    --configuration Release `
+    --no-restore `
+    --runtime win-x64
 
 dotnet build `
     "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
     --configuration Release `
+    --no-restore `
     --runtime win-x64
 
 dotnet run `
     --project "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj" `
     --configuration Release `
+    --no-build `
+    --runtime win-x64 `
     -- `
     --output "artifacts\model-inspection\llamasharp\runtime-smoke.json"
 ```
@@ -181,7 +193,8 @@ Expected final command behavior:
 
 ## Current execution state
 
-- Task 1 is recorded.
-- Tasks 2–4 are the branch implementation work for this slice.
-- Task 5 requires fresh output from the target Windows machine.
-- Task 6 remains blocked until Task 5 evidence is reviewed.
+- Runtime decision, design, implementation plan, source, tests, documentation and Windows workflow are on `feature/model-inspection`.
+- No GREEN test output, Release build output or native dry-run output is claimed yet.
+- The dedicated workflow is the first hosted verification route; the target-laptop run remains separately required.
+- The WinUI application project has not been given a LLamaSharp package reference.
+- Slice 2 remains blocked until the native smoke evidence is reviewed.
