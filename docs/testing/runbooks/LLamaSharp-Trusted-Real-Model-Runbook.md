@@ -2,18 +2,33 @@
 
 **Runbook ID:** RUNBOOK-LLAMASHARP-TRUSTED-001  
 **Workflow:** `.github/workflows/llamasharp-real-model-integration.yml`  
-**Trigger:** `workflow_dispatch` only  
-**Branch:** `feature/model-inspection`  
+**Workflow trigger:** `workflow_dispatch` only  
+**Feature branch:** `feature/model-inspection`  
 **Prerequisite evidence:** [Tier 1 verified](../evidence/2026-08-04-llamasharp-tier1-verification.md)
 
 ## Purpose
 
-This runbook stages the exact controlled Granite model in a location readable by
-the self-hosted GitHub Actions service account, configures the repository
-variable, dispatches the trusted workflow, waits for completion and downloads
-the retained privacy-scanned evidence.
+This runbook defines two distinct verification gates:
 
-The model remains outside Git and outside the checked-out repository.
+1. **Pre-merge target-machine execution** — run the complete trusted test
+   project locally against the controlled Granite model now.
+2. **Post-default-branch trusted workflow** — after the workflow file exists on
+   the repository default branch, run the same suite through the restricted
+   self-hosted GitHub Actions service account and retain privacy-scanned
+   evidence.
+
+The distinction is required by GitHub Actions. A `workflow_dispatch` event runs
+only when that workflow file exists on the repository default branch. The
+feature branch currently contains the new workflow, while `main` does not.
+Therefore, `gh workflow run` cannot be the first pre-merge execution route
+without weakening the approved trigger policy or first merging the workflow.
+
+Official GitHub references:
+
+- <https://docs.github.com/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch>
+- <https://cli.github.com/manual/gh_workflow_run>
+
+The model remains outside Git and outside every checked-out repository.
 
 ## Controlled model identity
 
@@ -23,41 +38,50 @@ Length:    2,099,501,664 bytes
 SHA-256:   662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29
 ```
 
-## Before running
+---
 
-- Open **Visual Studio Developer PowerShell**.
-- Ensure GitHub CLI (`gh`) is installed and authenticated.
-- Ensure the self-hosted GitHub Actions runner service is installed and running.
-- Ensure the controlled source model exists in the current user's Downloads
-  directory.
-- Keep the pull request in draft state.
+# Phase A — pre-merge local target-machine gate
 
-The script uses a shared staging location under:
+## What this phase proves
 
-```text
-C:\Users\Public\Documents\GraniteEdgeAI\Models
-```
+This phase executes the complete `RealModelIntegration` category on the target
+Windows machine using the same published feasibility executable and
+child-process test harness as the future trusted workflow.
 
-This is intentionally outside the repository and is usually easier for a
-restricted Windows service account to read than an interactive user's Downloads
-folder.
+It covers:
 
-## Complete PowerShell sequence
+- exact Granite success evidence;
+- three sequential repeatability runs;
+- whole-operation cancellation;
+- native-load-scoped cancellation;
+- every committed malformed GGUF fixture;
+- deterministic random bytes with a `.gguf` extension;
+- missing, directory, locked-model, locked-output, invalid-parent and
+  model/output-collision scenarios;
+- canonical-path and chat-template privacy;
+- process-owned TCP endpoint observation;
+- model integrity before and after the complete suite;
+- evidence-tree scanning for accidental model copies.
+
+It does **not** prove the GitHub Actions service account can read the model or
+that the post-merge workflow dispatch and artifact upload work. Those are Phase
+B concerns.
+
+## Complete Developer PowerShell command
+
+Run this from **Visual Studio Developer PowerShell**:
 
 ```powershell
-# Stop at the first PowerShell error and reject accidental uninitialised values.
+# Stop at the first PowerShell error and reject uninitialised variables.
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-# Define the repository, branch, workflow and exact controlled-model identity.
-$Repository = `
-    "arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant"
+# Define the exact repository, branch and controlled-model identity.
+$RepositoryRoot = `
+    "C:\Users\Arian\source\repos\IBM-Granite-TurboQuant-Intel"
 
 $Branch = `
     "feature/model-inspection"
-
-$Workflow = `
-    "llamasharp-real-model-integration.yml"
 
 $KnownModelFileName = `
     "granite-4.1-3b-Q4_K_M.gguf"
@@ -68,9 +92,8 @@ $KnownModelLength = `
 $KnownModelHash = `
     "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29"
 
-# Move to the local repository and confirm the expected feature branch.
-Set-Location `
-    "C:\Users\Arian\source\repos\IBM-Granite-TurboQuant-Intel"
+# Enter the repository and protect any uncommitted work.
+Set-Location $RepositoryRoot
 
 git switch $Branch
 
@@ -78,19 +101,19 @@ if ($LASTEXITCODE -ne 0) {
     throw "Could not switch to $Branch. Git exit code: $LASTEXITCODE"
 }
 
-# Protect local work before pulling the verified branch state.
 $LocalChanges = git status --porcelain
 
 if ($LocalChanges) {
     throw @"
 The working tree contains local changes.
 
-Commit or restore them before running the trusted workflow:
+Commit or restore them before running the trusted suite:
 
 $LocalChanges
 "@
 }
 
+# Pull only a fast-forward so the local branch cannot silently diverge.
 git pull `
     --ff-only `
     origin `
@@ -103,22 +126,337 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Current branch head:" -ForegroundColor Cyan
 git log -1 --oneline
 
-# Confirm GitHub CLI exists and is authenticated for this repository.
-$GitHubCli = Get-Command `
-    gh `
-    -ErrorAction SilentlyContinue
+# Resolve the exact source model used by the earlier successful baseline.
+$ModelPath = Join-Path `
+    $env:USERPROFILE `
+    "Downloads\$KnownModelFileName"
 
-if ($null -eq $GitHubCli) {
-    throw "GitHub CLI (gh) is not installed or is not on PATH."
+if (-not (Test-Path -LiteralPath $ModelPath -PathType Leaf)) {
+    throw "Controlled Granite model not found: $ModelPath"
 }
 
-gh auth status
+$Model = Get-Item `
+    -LiteralPath $ModelPath
+
+if ($Model.Name -cne $KnownModelFileName) {
+    throw "Unexpected controlled-model filename: $($Model.Name)"
+}
+
+if ($Model.Length -ne $KnownModelLength) {
+    throw @"
+Controlled-model length mismatch.
+
+Expected: $KnownModelLength
+Actual:   $($Model.Length)
+"@
+}
+
+$ModelHashBefore = (
+    Get-FileHash `
+        -LiteralPath $ModelPath `
+        -Algorithm SHA256
+).Hash.ToLowerInvariant()
+
+if ($ModelHashBefore -ne $KnownModelHash) {
+    throw @"
+Controlled-model SHA-256 mismatch.
+
+Expected: $KnownModelHash
+Actual:   $ModelHashBefore
+"@
+}
+
+# Define the production feasibility project and trusted test project.
+$SpikeProject = `
+    "tools\ModelInspection.LlamaSharpSpike\ModelInspection.LlamaSharpSpike.csproj"
+
+$TrustedTestProject = `
+    "tools\ModelInspection.LlamaSharpSpike.RealModelIntegrationTests\ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj"
+
+# Use fresh, bounded directories for the published executable and retained
+# evidence. Both remain outside source-controlled project files.
+$RunId = Get-Date `
+    -Format "yyyyMMdd-HHmmss"
+
+$PublishDirectory = Join-Path `
+    $env:TEMP `
+    "GraniteEdgeAI-LlamaSharp-Publish-$RunId"
+
+$EvidenceDirectory = Join-Path `
+    $RepositoryRoot `
+    "artifacts\model-inspection\llamasharp\real-model-local\$RunId"
+
+foreach ($Directory in @($PublishDirectory, $EvidenceDirectory)) {
+    if (Test-Path -LiteralPath $Directory) {
+        Remove-Item `
+            -LiteralPath $Directory `
+            -Recurse `
+            -Force
+    }
+
+    New-Item `
+        -ItemType Directory `
+        -Path $Directory `
+        -Force |
+    Out-Null
+}
+
+# Configure only the environment variables consumed by the trusted tests.
+$env:LLAMASHARP_SPIKE_PUBLISH_DIR = `
+    $PublishDirectory
+
+$env:GRANITE_TEST_MODEL_PATH = `
+    $ModelPath
+
+$env:LLAMASHARP_REAL_MODEL_EVIDENCE_DIR = `
+    $EvidenceDirectory
+
+# Track the test process exit code without skipping the independent post-suite
+# model-integrity and artifact-privacy checks.
+$TrustedTestExitCode = $null
+
+try {
+    # Restore the exact runtime and trusted test dependency graphs.
+    dotnet restore `
+        $SpikeProject `
+        --runtime win-x64
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Feasibility project restore failed: $LASTEXITCODE"
+    }
+
+    dotnet restore `
+        $TrustedTestProject `
+        --runtime win-x64
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Trusted test restore failed: $LASTEXITCODE"
+    }
+
+    # Publish the exact framework-dependent Windows x64 feasibility tool.
+    dotnet publish `
+        $SpikeProject `
+        --configuration Release `
+        --no-restore `
+        --runtime win-x64 `
+        --self-contained false `
+        --output $PublishDirectory
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Feasibility tool publish failed: $LASTEXITCODE"
+    }
+
+    # Execute every trusted real-model integration test. The minimum count
+    # prevents a false green result where filtering accidentally runs no tests.
+    dotnet test `
+        $TrustedTestProject `
+        --configuration Release `
+        --no-restore `
+        --runtime win-x64 `
+        --filter "TestCategory=RealModelIntegration" `
+        --minimum-expected-tests 20
+
+    $TrustedTestExitCode = $LASTEXITCODE
+}
+finally {
+    # Re-hash the controlled model even when restore, publish or tests fail.
+    $ModelHashAfter = (
+        Get-FileHash `
+            -LiteralPath $ModelPath `
+            -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+
+    Write-Host "Model SHA-256 before: $ModelHashBefore" -ForegroundColor Cyan
+    Write-Host "Model SHA-256 after:  $ModelHashAfter" -ForegroundColor Cyan
+
+    if ($ModelHashAfter -ne $ModelHashBefore) {
+        throw @"
+The controlled Granite model changed during trusted testing.
+
+Before: $ModelHashBefore
+After:  $ModelHashAfter
+"@
+    }
+}
+
+# Independently scan the retained evidence tree before treating the run as safe.
+$ArtifactFindings = @()
+$MaximumEvidenceBytes = 100MB
+
+foreach ($File in Get-ChildItem `
+    -LiteralPath $EvidenceDirectory `
+    -File `
+    -Recurse `
+    -ErrorAction Stop) {
+
+    $RelativePath = [IO.Path]::GetRelativePath(
+        $EvidenceDirectory,
+        $File.FullName)
+
+    if ($File.Extension -ieq ".gguf") {
+        $ArtifactFindings += [PSCustomObject]@{
+            RelativePath = $RelativePath
+            Reason = "GGUF file found under retained evidence."
+        }
+    }
+
+    if ($File.Length -eq $KnownModelLength) {
+        $ArtifactFindings += [PSCustomObject]@{
+            RelativePath = $RelativePath
+            Reason = "File length matches the controlled model."
+        }
+    }
+
+    if ($File.Length -gt $MaximumEvidenceBytes) {
+        $ArtifactFindings += [PSCustomObject]@{
+            RelativePath = $RelativePath
+            Reason = "Evidence file exceeds $MaximumEvidenceBytes bytes."
+        }
+    }
+
+    if ($File.Length -le $MaximumEvidenceBytes) {
+        $FileHash = (
+            Get-FileHash `
+                -LiteralPath $File.FullName `
+                -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+
+        if ($FileHash -eq $KnownModelHash) {
+            $ArtifactFindings += [PSCustomObject]@{
+                RelativePath = $RelativePath
+                Reason = "File SHA-256 matches the controlled model."
+            }
+        }
+    }
+}
+
+if ($ArtifactFindings.Count -gt 0) {
+    throw @"
+The retained-evidence privacy scan failed.
+
+$($ArtifactFindings | Format-Table -AutoSize | Out-String)
+"@
+}
+
+if ($TrustedTestExitCode -ne 0) {
+    throw "Trusted real-model tests failed with exit code $TrustedTestExitCode."
+}
+
+Write-Host `
+    "Trusted local real-model gate passed." `
+    -ForegroundColor Green
+
+Write-Host `
+    "Retained evidence: $EvidenceDirectory" `
+    -ForegroundColor Green
+
+Get-ChildItem `
+    -LiteralPath $EvidenceDirectory `
+    -File `
+    -Recurse |
+Select-Object `
+    FullName,
+    Length,
+    LastWriteTimeUtc |
+Format-Table `
+    -AutoSize
+```
+
+## Phase A failure handling
+
+Do not rerun immediately without reading the first failing test and its child
+process evidence.
+
+- A restore or publish failure means no real-model test ran.
+- A controlled-model precondition failure means the selected file identity is
+  wrong.
+- A cancellation failure should be examined separately from ordinary model-load
+  failure.
+- A native abort is expected to remain contained in the child-process result;
+  the complete MSTest host must survive.
+- A model-integrity mismatch is load-bearing and blocks all further work.
+- An evidence-tree privacy finding is load-bearing and blocks retention or
+  upload.
+
+Keep the pull request in draft while any required trusted scenario is failing.
+
+---
+
+# Phase B — post-default-branch self-hosted workflow
+
+## Why this phase waits
+
+GitHub documents that `workflow_dispatch` only triggers when the workflow file
+exists on the repository default branch. The approved trusted workflow is new
+on `feature/model-inspection`, so it is not dispatchable through the Actions UI,
+CLI or REST API until the workflow path also exists on `main`.
+
+Do not work around this by adding an automatic pull-request trigger to the
+self-hosted workflow. Pull-request code must not be allowed to execute
+implicitly on the repository-owned target machine.
+
+After the workflow exists on `main`, `--ref` may select the branch or tag whose
+workflow version should run.
+
+## Runner-visible model staging
+
+The runner service account should read a shared, read-only model copy outside
+the repository, for example:
+
+```text
+C:\Users\Public\Documents\GraniteEdgeAI\Models\granite-4.1-3b-Q4_K_M.gguf
+```
+
+Use the following block after the workflow file is present on `main`:
+
+```powershell
+# Stop on errors and define the exact model identity.
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+$Repository = `
+    "arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant"
+
+$Branch = `
+    "feature/model-inspection"
+
+$Workflow = `
+    "llamasharp-real-model-integration.yml"
+
+$ModelFileName = `
+    "granite-4.1-3b-Q4_K_M.gguf"
+
+$ExpectedLength = `
+    [int64]2099501664
+
+$ExpectedHash = `
+    "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29"
+
+$SourceModelPath = Join-Path `
+    $env:USERPROFILE `
+    "Downloads\$ModelFileName"
+
+$StagedDirectory = Join-Path `
+    $env:PUBLIC `
+    "Documents\GraniteEdgeAI\Models"
+
+$StagedModelPath = Join-Path `
+    $StagedDirectory `
+    $ModelFileName
+
+# Verify the workflow is now registered from the default branch.
+gh workflow view `
+    $Workflow `
+    --repo $Repository
 
 if ($LASTEXITCODE -ne 0) {
-    throw "GitHub CLI is not authenticated."
+    throw @"
+The trusted workflow is not registered from the default branch.
+Do not attempt workflow_dispatch until its file exists on main.
+"@
 }
 
-# Discover the Windows account used by the running self-hosted runner service.
+# Discover the running self-hosted runner's Windows service account.
 $RunnerServices = @(
     Get-CimInstance `
         Win32_Service |
@@ -126,10 +464,6 @@ $RunnerServices = @(
         $_.Name -like "actions.runner.*"
     }
 )
-
-if ($RunnerServices.Count -eq 0) {
-    throw "No actions.runner.* Windows service was found."
-}
 
 $RunnerService = `
     $RunnerServices |
@@ -140,17 +474,11 @@ $RunnerService = `
         -First 1
 
 if ($null -eq $RunnerService) {
-    throw @"
-A GitHub Actions runner service exists, but none is running.
-
-Services found:
-$($RunnerServices | Format-Table Name, StartName, State -AutoSize | Out-String)
-"@
+    throw "No running actions.runner.* Windows service was found."
 }
 
 $RunnerAccount = [string]$RunnerService.StartName
 
-# Convert service-account aliases into ACL-friendly Windows account names.
 if ($RunnerAccount.StartsWith(".\", [StringComparison]::Ordinal)) {
     $RunnerAccount = `
         "$env:COMPUTERNAME\$($RunnerAccount.Substring(2))"
@@ -160,39 +488,9 @@ elseif ($RunnerAccount -eq "LocalSystem") {
         "NT AUTHORITY\SYSTEM"
 }
 
-Write-Host "Runner service:" -ForegroundColor Cyan
-
-[PSCustomObject]@{
-    Name = $RunnerService.Name
-    State = $RunnerService.State
-    Account = $RunnerAccount
-} |
-Format-List
-
-# Locate and independently validate the source model before copying anything.
-$SourceModelPath = Join-Path `
-    $env:USERPROFILE `
-    "Downloads\$KnownModelFileName"
-
-if (-not (Test-Path -LiteralPath $SourceModelPath -PathType Leaf)) {
-    throw "Controlled source model not found: $SourceModelPath"
-}
-
+# Validate and stage the exact model outside the repository.
 $SourceModel = Get-Item `
     -LiteralPath $SourceModelPath
-
-if ($SourceModel.Name -cne $KnownModelFileName) {
-    throw "Unexpected source filename: $($SourceModel.Name)"
-}
-
-if ($SourceModel.Length -ne $KnownModelLength) {
-    throw @"
-Controlled source-model length mismatch.
-
-Expected: $KnownModelLength
-Actual:   $($SourceModel.Length)
-"@
-}
 
 $SourceHash = (
     Get-FileHash `
@@ -200,80 +498,36 @@ $SourceHash = (
         -Algorithm SHA256
 ).Hash.ToLowerInvariant()
 
-if ($SourceHash -ne $KnownModelHash) {
-    throw @"
-Controlled source-model SHA-256 mismatch.
-
-Expected: $KnownModelHash
-Actual:   $SourceHash
-"@
+if ($SourceModel.Length -ne $ExpectedLength -or
+    $SourceHash -ne $ExpectedHash) {
+    throw "The source model does not match the controlled identity."
 }
-
-# Create a shared model directory outside the repository.
-$StagedModelDirectory = Join-Path `
-    $env:PUBLIC `
-    "Documents\GraniteEdgeAI\Models"
-
-$StagedModelPath = Join-Path `
-    $StagedModelDirectory `
-    $KnownModelFileName
 
 New-Item `
     -ItemType Directory `
-    -Path $StagedModelDirectory `
+    -Path $StagedDirectory `
     -Force |
 Out-Null
 
-# Reuse an exact staged copy; otherwise replace it from the validated source.
-$CopyRequired = $true
-
 if (Test-Path -LiteralPath $StagedModelPath -PathType Leaf) {
-    $ExistingStagedModel = Get-Item `
-        -LiteralPath $StagedModelPath
-
-    if ($ExistingStagedModel.Length -eq $KnownModelLength) {
-        $ExistingHash = (
-            Get-FileHash `
-                -LiteralPath $StagedModelPath `
-                -Algorithm SHA256
-        ).Hash.ToLowerInvariant()
-
-        if ($ExistingHash -eq $KnownModelHash) {
-            $CopyRequired = $false
-        }
-    }
-
-    if ($CopyRequired) {
-        # Clear read-only before replacing a stale or incorrect staged file.
-        $ExistingStagedModel.IsReadOnly = $false
-
-        Remove-Item `
-            -LiteralPath $StagedModelPath `
-            -Force
-    }
+    (Get-Item -LiteralPath $StagedModelPath).IsReadOnly = $false
 }
 
-if ($CopyRequired) {
-    Copy-Item `
-        -LiteralPath $SourceModelPath `
-        -Destination $StagedModelPath `
-        -Force
-}
+Copy-Item `
+    -LiteralPath $SourceModelPath `
+    -Destination $StagedModelPath `
+    -Force
 
-# Mark the staged model read-only at the ordinary file-attribute level.
-$StagedModel = Get-Item `
-    -LiteralPath $StagedModelPath
+(Get-Item -LiteralPath $StagedModelPath).IsReadOnly = $true
 
-$StagedModel.IsReadOnly = $true
-
-# Grant only read/traverse access to the runner service account.
+# Grant the runner account read/traverse access only.
 & icacls.exe `
-    $StagedModelDirectory `
+    $StagedDirectory `
     /grant `
     "${RunnerAccount}:(OI)(CI)(RX)"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Failed to grant runner access to the staged model directory."
+    throw "Could not grant runner directory access."
 }
 
 & icacls.exe `
@@ -282,10 +536,9 @@ if ($LASTEXITCODE -ne 0) {
     "${RunnerAccount}:(R)"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Failed to grant runner read access to the staged model file."
+    throw "Could not grant runner model-file access."
 }
 
-# Re-verify the exact staged identity after copying and ACL changes.
 $StagedModel = Get-Item `
     -LiteralPath $StagedModelPath
 
@@ -295,30 +548,13 @@ $StagedHash = (
         -Algorithm SHA256
 ).Hash.ToLowerInvariant()
 
-if ($StagedModel.Length -ne $KnownModelLength) {
-    throw "Staged model length changed unexpectedly."
+if ($StagedModel.Length -ne $ExpectedLength -or
+    $StagedHash -ne $ExpectedHash -or
+    -not $StagedModel.IsReadOnly) {
+    throw "The staged model failed identity or read-only verification."
 }
 
-if ($StagedHash -ne $KnownModelHash) {
-    throw "Staged model SHA-256 changed unexpectedly."
-}
-
-if (-not $StagedModel.IsReadOnly) {
-    throw "The staged model is not marked read-only."
-}
-
-Write-Host "Controlled model staged and verified:" -ForegroundColor Green
-
-[PSCustomObject]@{
-    Path = $StagedModelPath
-    LengthBytes = $StagedModel.Length
-    Sha256 = $StagedHash
-    ReadOnly = $StagedModel.IsReadOnly
-    RunnerAccount = $RunnerAccount
-} |
-Format-List
-
-# Store the runner-visible path as a repository Actions variable.
+# Configure the repository variable consumed by the workflow.
 gh variable set `
     GRANITE_TEST_MODEL_PATH `
     --body $StagedModelPath `
@@ -328,22 +564,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Could not set GRANITE_TEST_MODEL_PATH."
 }
 
-# Capture existing run IDs so the newly dispatched run is identified exactly.
-$KnownRunIds = @(
-    gh run list `
-        --repo $Repository `
-        --workflow $Workflow `
-        --branch $Branch `
-        --event workflow_dispatch `
-        --limit 20 `
-        --json databaseId |
-    ConvertFrom-Json |
-    ForEach-Object {
-        [int64]$_.databaseId
-    }
-)
-
-# Dispatch the manual trusted workflow against the feature branch.
+# Dispatch the manual workflow and select the branch to test.
 gh workflow run `
     $Workflow `
     --ref $Branch `
@@ -353,113 +574,72 @@ if ($LASTEXITCODE -ne 0) {
     throw "Trusted workflow dispatch failed."
 }
 
-# Wait briefly for GitHub to register the new workflow run.
-$RunDiscoveryDeadline = `
-    (Get-Date).AddMinutes(2)
+# Find and watch the newest trusted run for the selected branch.
+Start-Sleep -Seconds 5
 
-$NewRun = $null
+$Run = `
+    gh run list `
+        --repo $Repository `
+        --workflow $Workflow `
+        --branch $Branch `
+        --event workflow_dispatch `
+        --limit 1 `
+        --json databaseId,status,conclusion,createdAt,url,headSha |
+    ConvertFrom-Json |
+    Select-Object `
+        -First 1
 
-do {
-    Start-Sleep `
-        -Seconds 3
-
-    $CandidateRuns = @(
-        gh run list `
-            --repo $Repository `
-            --workflow $Workflow `
-            --branch $Branch `
-            --event workflow_dispatch `
-            --limit 20 `
-            --json databaseId,status,conclusion,createdAt,url,headSha |
-        ConvertFrom-Json
-    )
-
-    $NewRun = `
-        $CandidateRuns |
-        Where-Object {
-            $KnownRunIds -notcontains [int64]$_.databaseId
-        } |
-        Sort-Object {
-            [DateTimeOffset]$_.createdAt
-        } `
-            -Descending |
-        Select-Object `
-            -First 1
-}
-until (
-    $null -ne $NewRun -or
-    (Get-Date) -ge $RunDiscoveryDeadline
-)
-
-if ($null -eq $NewRun) {
-    throw "The trusted workflow was dispatched, but its new run ID was not found."
+if ($null -eq $Run) {
+    throw "The dispatched trusted run was not found."
 }
 
-$RunId = [int64]$NewRun.databaseId
+$RunId = [int64]$Run.databaseId
 
-Write-Host "Trusted workflow run:" -ForegroundColor Cyan
-$NewRun | Format-List
+$Run | Format-List
 
-# Stream the run and return a non-zero exit code when any required gate fails.
 gh run watch `
     $RunId `
     --repo $Repository `
     --exit-status
 
-$TrustedRunExitCode = $LASTEXITCODE
-
-if ($TrustedRunExitCode -ne 0) {
-    Write-Host `
-        "Trusted workflow failed. Showing failed-step logs." `
-        -ForegroundColor Red
-
+if ($LASTEXITCODE -ne 0) {
     gh run view `
         $RunId `
         --repo $Repository `
         --log-failed
 
-    throw "Trusted workflow failed with exit code $TrustedRunExitCode."
+    throw "Trusted workflow failed."
 }
 
-# Display the final run summary.
-gh run view `
-    $RunId `
-    --repo $Repository
-
-# Download the privacy-scanned evidence artifact into the local repository's
-# ignored artifact area for review. The controlled GGUF is never downloaded.
-$RepositoryRoot = (
-    git rev-parse --show-toplevel
-).Trim()
-
-$DownloadedEvidenceDirectory = Join-Path `
-    $RepositoryRoot `
+# Download only the workflow's privacy-scanned retained evidence.
+$DownloadDirectory = Join-Path `
+    (git rev-parse --show-toplevel).Trim() `
     "artifacts\downloaded\llamasharp-real-model-run-$RunId"
 
 New-Item `
     -ItemType Directory `
-    -Path $DownloadedEvidenceDirectory `
+    -Path $DownloadDirectory `
     -Force |
 Out-Null
 
 gh run download `
     $RunId `
     --repo $Repository `
-    --dir $DownloadedEvidenceDirectory
+    --dir $DownloadDirectory
 
 if ($LASTEXITCODE -ne 0) {
     throw "Trusted evidence download failed."
 }
 
 Write-Host `
-    "Trusted evidence downloaded to: $DownloadedEvidenceDirectory" `
+    "Trusted evidence downloaded to: $DownloadDirectory" `
     -ForegroundColor Green
 ```
 
-## Expected workflow order
+## Expected Phase B workflow order
 
 ```text
-Validate exact model identity
+Validate exact model identity from the runner service account
         ↓
 Restore projects
         ↓
@@ -471,22 +651,15 @@ Re-hash controlled model
         ↓
 Scan retained evidence for model leakage
         ↓
-Upload evidence only when integrity and privacy scans pass
+Upload only when integrity and privacy scans both pass
 ```
 
-## Failure handling
+## Closure
 
-Do not rerun immediately without reading the first failing step.
+Phase A can be executed before merge and supplies the next immediate technical
+evidence. Phase B supplies the final self-hosted workflow and service-account
+evidence after the workflow exists on the default branch.
 
-- A precondition failure means the runner path, filename, length, hash or ACL is
-  wrong; the native runtime was not tested.
-- A compile failure is a source/analyzer defect; the model was not tested.
-- A test failure must be diagnosed from the exact child-process result and
-  retained JSON/log evidence.
-- A model-integrity failure is load-bearing and blocks artifact upload.
-- An artifact-privacy failure is load-bearing and blocks artifact upload.
-- A queued run that never starts usually means the required self-hosted labels
-  or runner service are unavailable.
-
-Keep the pull request in draft until the trusted evidence is reviewed and the
-coverage register is reconciled with actual results.
+The pull request remains draft until the required real-model behaviours have
+passed, the coverage matrix reflects the actual evidence, and final whole-branch
+review is complete.
