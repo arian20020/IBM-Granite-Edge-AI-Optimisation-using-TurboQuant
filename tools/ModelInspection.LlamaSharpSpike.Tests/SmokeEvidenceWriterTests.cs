@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
@@ -40,11 +41,16 @@ public sealed class SmokeEvidenceWriterTests
                 document.RootElement
                     .GetProperty("succeeded")
                     .GetBoolean());
-            Assert.AreEqual(
-                "0.27.0",
+
+            string? managedPackageVersion =
                 document.RootElement
                     .GetProperty("managedPackageVersion")
-                    .GetString());
+                    .GetString();
+
+            Assert.IsNotNull(managedPackageVersion);
+            Assert.AreEqual(
+                "0.27.0",
+                managedPackageVersion);
         }
         finally
         {
