@@ -1,152 +1,240 @@
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 
 /// <summary>
-/// Verifies that repository project files implement the runtime dependency
-/// decision recorded by ADR-001.
+/// Verifies actual project and source files implement the approved runtime,
+/// test-runner and dependency-isolation decisions.
 /// </summary>
 [TestClass]
 [TestCategory("Deterministic")]
-public sealed class RuntimeDependencyPolicyTests
+public sealed partial class RuntimeDependencyPolicyTests
 {
-    /// <summary>
-    /// Checks the actual spike project rather than comparing compile-time
-    /// constants with the same literal values.
-    /// </summary>
     [TestMethod]
     public void SpikeProject_PinsApprovedManagedAndCpuBackendPackages()
     {
-        string repositoryRoot = FindRepositoryRoot();
-        string spikeProjectPath = Path.Combine(
-            repositoryRoot,
+        XDocument project = LoadProject(SpikeProjectPath());
+        IReadOnlyDictionary<string, string> packages =
+            ReadPackageReferences(project);
+
+        Assert.AreEqual("0.27.0", packages["LLamaSharp"]);
+        Assert.AreEqual("0.27.0", packages["LLamaSharp.Backend.Cpu"]);
+    }
+
+    [TestMethod]
+    public void SpikeProject_UsesOnlyExactNonFloatingPackageVersions()
+    {
+        IReadOnlyDictionary<string, string> packages =
+            ReadPackageReferences(LoadProject(SpikeProjectPath()));
+
+        foreach ((string packageName, string version) in packages)
+        {
+            Assert.IsFalse(
+                string.IsNullOrWhiteSpace(version),
+                $"{packageName} must declare an exact version.");
+            Assert.IsFalse(
+                version.Contains('*', StringComparison.Ordinal) ||
+                version.Contains('[', StringComparison.Ordinal) ||
+                version.Contains(']', StringComparison.Ordinal) ||
+                version.Contains('(', StringComparison.Ordinal) ||
+                version.Contains(')', StringComparison.Ordinal) ||
+                version.Contains(',', StringComparison.Ordinal),
+                $"{packageName} uses a floating or ranged version: {version}");
+            Assert.IsTrue(
+                Regex.IsMatch(version, "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$"),
+                $"{packageName} version is not an exact semantic version: {version}");
+        }
+    }
+
+    [TestMethod]
+    public void SpikeProject_DoesNotReferenceGpuOrTurboQuantDependencies()
+    {
+        XDocument project = LoadProject(SpikeProjectPath());
+        string[] includes = ReadAllIncludes(project);
+        string[] forbiddenFragments =
+        {
+            "LLamaSharp.Backend.Cuda",
+            "LLamaSharp.Backend.Vulkan",
+            "TurboQuant"
+        };
+
+        foreach (string fragment in forbiddenFragments)
+        {
+            Assert.IsFalse(
+                includes.Any(include => include.Contains(
+                    fragment,
+                    StringComparison.OrdinalIgnoreCase)),
+                $"CPU feasibility project unexpectedly references {fragment}.");
+        }
+    }
+
+    [TestMethod]
+    public void WinUiApplicationProject_DoesNotReferenceExperimentalRuntimePackages()
+    {
+        XDocument application = LoadProject(ApplicationProjectPath());
+        string[] includes = ReadAllIncludes(application);
+        string[] forbiddenFragments =
+        {
+            "LLamaSharp",
+            "TurboQuant"
+        };
+
+        foreach (string fragment in forbiddenFragments)
+        {
+            Assert.IsFalse(
+                includes.Any(include => include.Contains(
+                    fragment,
+                    StringComparison.OrdinalIgnoreCase)),
+                $"WinUI application must not reference {fragment} during feasibility work.");
+        }
+    }
+
+    [TestMethod]
+    public void DeterministicTestProject_RemainsConfiguredForMicrosoftTestingPlatform()
+    {
+        XDocument project = LoadProject(DeterministicTestProjectPath());
+
+        AssertPropertyEquals(project, "OutputType", "Exe");
+        AssertPropertyEquals(project, "IsTestProject", "true");
+        AssertPropertyEquals(project, "EnableMSTestRunner", "true");
+        AssertPropertyEquals(
+            project,
+            "TestingPlatformDotnetTestSupport",
+            "true");
+        AssertPropertyEquals(
+            project,
+            "TestingPlatformShowTestsFailure",
+            "true");
+    }
+
+    [TestMethod]
+    public void RuntimeIdentitySource_RecordsMappedAndResearchCommitsSeparately()
+    {
+        string sourcePath = Path.Combine(
+            RepositoryPaths.FindRoot(),
+            "tools",
+            "ModelInspection.LlamaSharpSpike",
+            "PinnedApplicationRuntime.cs");
+        IReadOnlyDictionary<string, string> values =
+            ReadConstStringValues(sourcePath);
+
+        Assert.AreEqual("LLamaSharp", values["ManagedPackageName"]);
+        Assert.AreEqual("0.27.0", values["ManagedPackageVersion"]);
+        Assert.AreEqual(
+            "LLamaSharp.Backend.Cpu",
+            values["BackendPackageName"]);
+        Assert.AreEqual("0.27.0", values["BackendPackageVersion"]);
+        Assert.AreEqual(
+            "3f7c29d318e317b63f54c558bc69803963d7d88c",
+            values["ExpectedLlamaCppCommit"]);
+        Assert.AreEqual("b9870", values["ResearchRuntimeTag"]);
+        Assert.AreEqual(
+            "2d973636e292ee6f75fadcf08d29cb33511f509f",
+            values["ResearchRuntimeCommit"]);
+        Assert.AreNotEqual(
+            values["ExpectedLlamaCppCommit"],
+            values["ResearchRuntimeCommit"]);
+    }
+
+    private static string SpikeProjectPath()
+    {
+        return Path.Combine(
+            RepositoryPaths.FindRoot(),
             "tools",
             "ModelInspection.LlamaSharpSpike",
             "ModelInspection.LlamaSharpSpike.csproj");
-
-        IReadOnlyDictionary<string, string> packageReferences =
-            ReadPackageReferences(spikeProjectPath);
-
-        Assert.IsTrue(
-            packageReferences.TryGetValue(
-                PinnedApplicationRuntime.ManagedPackageName,
-                out string? managedVersion),
-            $"{PinnedApplicationRuntime.ManagedPackageName} is missing from " +
-            "the LLamaSharp feasibility project.");
-
-        Assert.AreEqual(
-            PinnedApplicationRuntime.ManagedPackageVersion,
-            managedVersion);
-
-        Assert.IsTrue(
-            packageReferences.TryGetValue(
-                PinnedApplicationRuntime.BackendPackageName,
-                out string? backendVersion),
-            $"{PinnedApplicationRuntime.BackendPackageName} is missing from " +
-            "the LLamaSharp feasibility project.");
-
-        Assert.AreEqual(
-            PinnedApplicationRuntime.BackendPackageVersion,
-            backendVersion);
     }
 
-    /// <summary>
-    /// Protects the architectural boundary that keeps experimental native
-    /// dependencies out of the WinUI application project.
-    /// </summary>
-    [TestMethod]
-    public void WinUiApplicationProject_DoesNotReferenceLlamaSharpPackages()
+    private static string DeterministicTestProjectPath()
     {
-        string repositoryRoot = FindRepositoryRoot();
-        string applicationProjectPath = Path.Combine(
-            repositoryRoot,
+        return Path.Combine(
+            RepositoryPaths.FindRoot(),
+            "tools",
+            "ModelInspection.LlamaSharpSpike.Tests",
+            "ModelInspection.LlamaSharpSpike.Tests.csproj");
+    }
+
+    private static string ApplicationProjectPath()
+    {
+        return Path.Combine(
+            RepositoryPaths.FindRoot(),
             "IBM Granite with TurboQuant (Intel)",
             "IBM Granite with TurboQuant (Intel).csproj");
-
-        IReadOnlyDictionary<string, string> packageReferences =
-            ReadPackageReferences(applicationProjectPath);
-
-        string[] llamaSharpReferences = packageReferences.Keys
-            .Where(
-                packageName => packageName.StartsWith(
-                    "LLamaSharp",
-                    StringComparison.OrdinalIgnoreCase))
-            .OrderBy(
-                packageName => packageName,
-                StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        Assert.AreEqual(
-            0,
-            llamaSharpReferences.Length,
-            "LLamaSharp dependencies must remain isolated under tools/ " +
-            "until the feasibility gates pass. Unexpected references: " +
-            string.Join(", ", llamaSharpReferences));
     }
 
-    private static IReadOnlyDictionary<string, string>
-        ReadPackageReferences(string projectPath)
+    private static XDocument LoadProject(string path)
     {
-        Assert.IsTrue(
-            File.Exists(projectPath),
-            $"Expected project file was not found: {projectPath}");
+        Assert.IsTrue(File.Exists(path), $"Expected project file not found: {path}");
+        return XDocument.Load(path);
+    }
 
-        XDocument project = XDocument.Load(projectPath);
-
+    private static IReadOnlyDictionary<string, string> ReadPackageReferences(
+        XDocument project)
+    {
         return project
             .Descendants("PackageReference")
-            .Select(
-                element => new
-                {
-                    Name = element.Attribute("Include")?.Value,
-                    Version = element.Attribute("Version")?.Value ??
-                        element.Element("Version")?.Value
-                })
-            .Where(
-                reference =>
-                    !string.IsNullOrWhiteSpace(reference.Name))
+            .Select(element => new
+            {
+                Name = element.Attribute("Include")?.Value,
+                Version = element.Attribute("Version")?.Value ??
+                    element.Element("Version")?.Value
+            })
+            .Where(reference => !string.IsNullOrWhiteSpace(reference.Name))
             .ToDictionary(
                 reference => reference.Name!,
                 reference => reference.Version ?? string.Empty,
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    private static string FindRepositoryRoot()
+    private static string[] ReadAllIncludes(XDocument project)
     {
-        DirectoryInfo? currentDirectory =
-            new(AppContext.BaseDirectory);
-
-        while (currentDirectory is not null)
-        {
-            bool hasGlobalJson = File.Exists(
-                Path.Combine(
-                    currentDirectory.FullName,
-                    "global.json"));
-
-            bool hasToolsFolder = Directory.Exists(
-                Path.Combine(
-                    currentDirectory.FullName,
-                    "tools"));
-
-            bool hasApplicationFolder = Directory.Exists(
-                Path.Combine(
-                    currentDirectory.FullName,
-                    "IBM Granite with TurboQuant (Intel)"));
-
-            if (hasGlobalJson &&
-                hasToolsFolder &&
-                hasApplicationFolder)
-            {
-                return currentDirectory.FullName;
-            }
-
-            currentDirectory = currentDirectory.Parent;
-        }
-
-        throw new DirectoryNotFoundException(
-            "The repository root could not be located from the test output " +
-            "directory.");
+        return project
+            .Descendants()
+            .Select(element => element.Attribute("Include")?.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .ToArray();
     }
+
+    private static void AssertPropertyEquals(
+        XDocument project,
+        string propertyName,
+        string expected)
+    {
+        string? actual = project
+            .Descendants(propertyName)
+            .Select(element => element.Value.Trim())
+            .FirstOrDefault();
+
+        Assert.IsNotNull(actual, $"Project property {propertyName} is missing.");
+        Assert.AreEqual(
+            expected,
+            actual,
+            ignoreCase: true,
+            culture: null,
+            message: $"Unexpected value for project property {propertyName}.");
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadConstStringValues(
+        string sourcePath)
+    {
+        Assert.IsTrue(File.Exists(sourcePath), $"Runtime identity source not found: {sourcePath}");
+        string source = File.ReadAllText(sourcePath);
+
+        return ConstStringRegex()
+            .Matches(source)
+            .Cast<Match>()
+            .ToDictionary(
+                match => match.Groups["name"].Value,
+                match => match.Groups["value"].Value,
+                StringComparer.Ordinal);
+    }
+
+    [GeneratedRegex(
+        "public\\s+const\\s+string\\s+(?<name>[A-Za-z0-9_]+)\\s*=\\s*\"(?<value>[^\"]*)\"\\s*;",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex ConstStringRegex();
 }
