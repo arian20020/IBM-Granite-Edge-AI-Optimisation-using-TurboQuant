@@ -200,6 +200,7 @@ jobs:
           }
 
       - name: Verify controlled model remained unchanged
+        id: model_integrity
         if: ${{ always() }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -235,6 +236,7 @@ jobs:
               -Encoding UTF8
 
       - name: Scan retained evidence before upload
+        id: artifact_scan
         if: ${{ always() }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -318,7 +320,7 @@ jobs:
           }
 
       - name: Upload privacy-scanned trusted evidence
-        if: ${{ always() }}
+        if: ${{ always() && steps.model_integrity.outcome == 'success' && steps.artifact_scan.outcome == 'success' }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: llamasharp-real-model-${{ github.run_id }}-${{ github.run_attempt }}
