@@ -4,32 +4,31 @@
 
 **Goal:** Extend the isolated LLamaSharp feasibility tool so it can probe one real local GGUF through the matched CPU runtime using `VocabOnly`, capture lightweight evidence, verify file preservation, and remain outside the WinUI application.
 
-**Architecture:** Keep native smoke and model probing as separate modes in one console tool. The model-specific code lives in a `ModelProbe` folder, uses project-owned evidence records, and interacts with LLamaSharp only inside `VocabOnlyModelProbe` and `VocabOnlyEvidenceCollector`.
+**Architecture:** Native smoke and model probing remain separate modes in one console tool. Model-specific source lives under `ModelProbe`, returns project-owned evidence, and lets LLamaSharp types appear only in the probe/collector implementation.
 
 **Tech Stack:** .NET 8, C# 12, LLamaSharp 0.27.0, LLamaSharp.Backend.Cpu 0.27.0, MSTest 4.3.2, System.Text.Json, SHA-256.
 
-## Global Constraints
+## Global constraints
 
 - Target branch: `feature/model-inspection`.
 - Preserve the native-smoke command.
-- Pin `LLamaSharp` and `LLamaSharp.Backend.Cpu` to `0.27.0`.
-- Keep mapped `llama.cpp` commit `3f7c29d318e317b63f54c558bc69803963d7d88c`.
-- Use `ModelParams.VocabOnly = true`.
-- Use `ModelParams.GpuLayerCount = 0`.
+- Pin both LLamaSharp packages to `0.27.0`.
+- Keep mapped llama.cpp commit `3f7c29d318e317b63f54c558bc69803963d7d88c`.
+- Use `VocabOnly = true` and `GpuLayerCount = 0`.
 - Disable CUDA and Vulkan selection.
-- Do not add LLamaSharp to the WinUI project.
+- Do not reference LLamaSharp from the WinUI project.
 - Do not create a context, KV cache or inference request.
 - Do not add Vulkan, TurboQuant or OpenVINO.
 - Open the model read-only.
 - Reject an output path equal to the model path.
 - Capture file identity before and after.
-- Do not classify a final model outcome.
-- Add a README for the new `ModelProbe` folder.
-- Do not claim runtime success without a real Windows x64 model run.
+- Redact the full canonical model path from serialized failures and native logs.
+- Do not classify a final application model outcome.
+- Do not claim success without a real Windows x64 run.
 
 ---
 
-### Task 1: Define command, integrity and progress contracts with tests
+### Task 1: Define deterministic command, integrity and progress contracts
 
 **Files:**
 - Modify: `tools/ModelInspection.LlamaSharpSpike.Tests/SpikeOptionsParserTests.cs`
@@ -38,43 +37,36 @@
 - Create: `tools/ModelInspection.LlamaSharpSpike.Tests/NativeLoadProgressRecorderTests.cs`
 - Modify: `tools/ModelInspection.LlamaSharpSpike.Tests/SmokeEvidenceWriterTests.cs`
 
-**Interfaces:**
-- Consumes future `SpikeOptionsParser`, `ModelProbeSafetyValidator`, `ModelFileSnapshotService`, `ModelFileIntegrityComparison`, `NativeLoadProgressRecorder`, and `JsonEvidenceWriter`.
-- Produces executable contracts for the new command and safety boundaries.
+- [x] Test `--model` and mode-specific default output.
+- [x] Test model, output and cancellation options in arbitrary order.
+- [x] Test invalid, missing, duplicate and model-less cancellation arguments.
+- [x] Test that evidence cannot overwrite the model.
+- [x] Test SHA-256 snapshots and unchanged integrity.
+- [x] Test detection of changed content/length/hash.
+- [x] Test progress clamping, duplicate suppression and snapshot independence.
+- [x] Test generic JSON writing, atomic overwrite and string enums.
+- [ ] Run the focused tests and record actual output.
 
-- [ ] **Step 1: Test `--model` defaulting to the VocabOnly evidence path.**
-- [ ] **Step 2: Test model, output and cancellation options in arbitrary order.**
-- [ ] **Step 3: Test invalid, missing, duplicate and model-less cancellation arguments.**
-- [ ] **Step 4: Test that evidence cannot overwrite the model.**
-- [ ] **Step 5: Test SHA-256 snapshots and unchanged integrity.**
-- [ ] **Step 6: Test detection of changed content, length or timestamp.**
-- [ ] **Step 7: Test progress clamping and duplicate suppression.**
-- [ ] **Step 8: Update evidence-writer tests for generic JSON and string enums.**
-- [ ] **Step 9: Run the focused tests and record the expected RED failures.**
-- [ ] **Step 10: Commit test contracts.**
+Test source was created before the corresponding implementation, but this
+connected GitHub editing environment could not execute .NET. No retrospective
+RED or GREEN run is claimed.
 
 ---
 
-### Task 2: Refactor shared CPU and JSON infrastructure
+### Task 2: Share CPU-native and JSON infrastructure
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike/CpuNativeRuntimeConfiguration.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike/JsonEvidenceWriter.cs`
 - Modify: `tools/ModelInspection.LlamaSharpSpike/NativeBackendSmokeProbe.cs`
-- Modify: `tools/ModelInspection.LlamaSharpSpike/Program.cs`
 - Delete: `tools/ModelInspection.LlamaSharpSpike/SmokeEvidenceWriter.cs`
 
-**Interfaces:**
-- Produces `CpuNativeRuntimeConfiguration.Configure(...)`, `CpuNativeRuntimeConfiguration.Describe(...)`, and `JsonEvidenceWriter.WriteAsync<T>(...)`.
-- Existing native smoke must retain the same output and exit behavior.
-
-- [ ] **Step 1: Extract thread-safe CPU-only native configuration.**
-- [ ] **Step 2: Extract selected-backend description.**
-- [ ] **Step 3: Replace the smoke-only writer with generic atomic JSON writing.**
-- [ ] **Step 4: Configure enum values as strings.**
-- [ ] **Step 5: Update native smoke to use the shared helpers.**
-- [ ] **Step 6: Run existing smoke unit tests.**
-- [ ] **Step 7: Commit the infrastructure refactor.**
+- [x] Extract thread-safe CPU-only native configuration.
+- [x] Extract selected-backend description.
+- [x] Replace the smoke-only writer with generic atomic JSON writing.
+- [x] Configure enums as readable JSON strings.
+- [x] Update native smoke to use shared helpers.
+- [ ] Run existing native-smoke tests.
 
 ---
 
@@ -87,17 +79,14 @@
 - Create: `tools/ModelInspection.LlamaSharpSpike/ModelProbe/ModelProbeSafetyValidator.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike/ModelProbe/NativeLoadProgressRecorder.cs`
 
-**Interfaces:**
-- Produces read-only file snapshots, integrity comparison, path-overwrite validation and `IProgress<float>` samples.
-
-- [ ] **Step 1: Implement read-only asynchronous SHA-256 capture.**
-- [ ] **Step 2: Implement before/after integrity comparison.**
-- [ ] **Step 3: Implement canonical path fingerprinting.**
-- [ ] **Step 4: Implement output/model path collision rejection.**
-- [ ] **Step 5: Implement thread-safe native progress recording.**
-- [ ] **Step 6: Run helper tests and confirm GREEN.**
-- [ ] **Step 7: Document the folder boundary.**
-- [ ] **Step 8: Commit helpers.**
+- [x] Implement asynchronous read-only SHA-256 capture.
+- [x] Verify length and last-write time remain stable while hashing.
+- [x] Implement before/after integrity comparison.
+- [x] Implement canonical-path SHA-256 rather than path serialization.
+- [x] Reject output/model path collision.
+- [x] Implement thread-safe genuine native-progress recording.
+- [x] Add source-adjacent folder documentation.
+- [ ] Run helper tests.
 
 ---
 
@@ -107,39 +96,34 @@
 - Create: `tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyModelProbeResult.cs`
 - Create: `tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyEvidenceCollector.cs`
 
-**Interfaces:**
-- Consumes `LLamaWeights` only inside the collector.
-- Produces framework-neutral records for runtime, model, metadata, vocabulary, tokenizer, chat-template, progress, disposal and integrity evidence.
-
-- [ ] **Step 1: Add completion-state and failure-code records.**
-- [ ] **Step 2: Add model-file and integrity evidence records.**
-- [ ] **Step 3: Add runtime model evidence fields.**
-- [ ] **Step 4: Add vocabulary, special-token and tokenizer-smoke evidence.**
-- [ ] **Step 5: Add chat-template presence, length and SHA-256.**
-- [ ] **Step 6: Add selected metadata values and complete sorted key list.**
-- [ ] **Step 7: Keep native objects out of every result type.**
-- [ ] **Step 8: Commit evidence contracts and collector.**
+- [x] Add `Succeeded`, `Cancelled` and `Failed` operation states.
+- [x] Add runtime/package identity and selected CPU backend evidence.
+- [x] Add before/after file identity and integrity evidence.
+- [x] Add metadata, architecture, context, size, parameters and structural fields.
+- [x] Add vocabulary and known special-token evidence.
+- [x] Add fixed non-sensitive `Hello` tokenizer smoke.
+- [x] Add chat-template presence, length and SHA-256 without full template text.
+- [x] Add progress, memory and disposal fields.
+- [x] Keep LLamaSharp/native objects out of every result type.
 
 ---
 
-### Task 5: Implement the VocabOnly probe orchestration
+### Task 5: Implement VocabOnly orchestration
 
 **Files:**
 - Create: `tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyModelProbe.cs`
 
-**Interfaces:**
-- Produces `Task<VocabOnlyModelProbeResult> RunAsync(string modelPath, CancellationToken cancellationToken)`.
-- Uses `ModelParams` with `VocabOnly = true`, `GpuLayerCount = 0`, `UseMemorymap = true`, and `UseMemoryLock = false`.
-
-- [ ] **Step 1: Validate and snapshot the model before native loading.**
-- [ ] **Step 2: configure and dry-run the matched CPU backend.**
-- [ ] **Step 3: asynchronously load with genuine progress and cancellation.**
-- [ ] **Step 4: collect evidence while the native handle is valid.**
-- [ ] **Step 5: dispose in every success/failure/cancellation path.**
-- [ ] **Step 6: capture post-probe identity and compare integrity.**
-- [ ] **Step 7: map operational and load exceptions to stable feasibility codes.**
-- [ ] **Step 8: record memory observations without presenting them as final estimates.**
-- [ ] **Step 9: commit probe orchestration.**
+- [x] Validate and snapshot the model before native loading.
+- [x] Configure and dry-run the matched CPU backend.
+- [x] Load asynchronously with `VocabOnly = true`, zero GPU layers, genuine progress and cancellation.
+- [x] Collect evidence only while the native handle is valid.
+- [x] Dispose native weights in success/failure paths where a handle exists.
+- [x] Capture post-probe identity and compare integrity.
+- [x] Convert integrity change or unverifiable successful probe to controlled failure.
+- [x] Map operational, native, load and cancellation failures to stable codes.
+- [x] Record memory observations without treating them as final Hardware Fit estimates.
+- [x] Redact the full canonical model path from serialized failures and logs.
+- [ ] Run one controlled real Granite integration probe.
 
 ---
 
@@ -149,59 +133,89 @@
 - Modify: `tools/ModelInspection.LlamaSharpSpike/SpikeOptionsParser.cs`
 - Modify: `tools/ModelInspection.LlamaSharpSpike/Program.cs`
 
-**Interfaces:**
-- Existing no-model mode returns native smoke.
-- `--model` returns VocabOnly model-probe evidence.
-- Exit codes: `0` success, `1` failure, `2` invalid arguments, `3` cancellation.
-
-- [ ] **Step 1: Parse model, output and cancellation options in any order.**
-- [ ] **Step 2: choose the correct default output path by mode.**
-- [ ] **Step 3: reject unsafe output/model equality before probing.**
-- [ ] **Step 4: connect `Ctrl+C` and optional timed cancellation.**
-- [ ] **Step 5: write evidence for success, failure and cancellation.**
-- [ ] **Step 6: preserve native smoke behavior.**
-- [ ] **Step 7: run parser, writer and helper tests.**
-- [ ] **Step 8: build Release `win-x64`.**
-- [ ] **Step 9: commit command integration.**
+- [x] Preserve no-model native-smoke mode.
+- [x] Add `--model`, `--output` and `--cancel-after-ms` in arbitrary order.
+- [x] Choose the correct default output by mode.
+- [x] Reject unsafe output/model equality before probing.
+- [x] Connect `Ctrl+C` and optional timed cancellation.
+- [x] Write evidence for success, failure and cancellation.
+- [x] Use exit codes `0`, `1`, `2` and `3`.
+- [ ] Run parser/writer/helper tests.
+- [ ] Build Release `win-x64`.
 
 ---
 
-### Task 7: Reconcile READMEs and implementation tracking
+### Task 7: Reconcile README hierarchy
 
 **Files:**
 - Modify: `tools/ModelInspection.LlamaSharpSpike/README.md`
+- Create: `tools/ModelInspection.LlamaSharpSpike/ModelProbe/README.md`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/README.md`
-- Modify: `docs/superpowers/plans/2026-08-04-llamasharp-feasibility-spike.md`
-- Modify: `docs/superpowers/plans/2026-08-04-llamasharp-vocab-only-model-probe.md`
 
-**Interfaces:**
-- Produces accurate current-state documentation and target-machine commands.
-
-- [ ] **Step 1: document the new CLI and evidence schema.**
-- [ ] **Step 2: document `VocabOnly`, CPU-only and no-context boundaries.**
-- [ ] **Step 3: log the new ModelProbe folder in the README hierarchy.**
-- [ ] **Step 4: state that source exists but a real Granite run remains pending.**
-- [ ] **Step 5: state that the WinUI page is still not connected.**
-- [ ] **Step 6: preserve Vulkan and TurboQuant as later gates.**
-- [ ] **Step 7: record exact verification commands and pending evidence.**
-- [ ] **Step 8: commit documentation.**
+- [x] Document both native-smoke and VocabOnly modes.
+- [x] Document the new CLI, exit codes and evidence schema.
+- [x] Document CPU-only, VocabOnly and no-context boundaries.
+- [x] Add the `ModelProbe` folder to the README hierarchy.
+- [x] State that source exists but real Granite verification remains pending.
+- [x] State that the WinUI page remains unconnected.
+- [x] Preserve Vulkan and TurboQuant as later gates.
+- [x] Record exact local verification commands.
 
 ---
 
 ### Task 8: Final source verification
 
-**Files:**
-- Modify: `docs/superpowers/plans/2026-08-04-llamasharp-vocab-only-model-probe.md`
+Pre-slice commit:
 
-- [ ] **Step 1: compare from pre-slice commit `f640c306bda3e44b85c3ce4412a55707c5e569f1`.**
-- [ ] **Step 2: confirm no WinUI project package change.**
-- [ ] **Step 3: confirm no Vulkan or TurboQuant dependency.**
-- [ ] **Step 4: confirm the model is never opened for write.**
-- [ ] **Step 5: record available test/build evidence or explicitly leave it pending.**
-- [ ] **Step 6: commit verification status.**
+```text
+f640c306bda3e44b85c3ce4412a55707c5e569f1
+```
 
-## Verification Commands
+- [x] Compare the branch from the pre-slice commit.
+- [x] Confirm no WinUI application project file was changed.
+- [x] Confirm no Vulkan or TurboQuant dependency was added.
+- [x] Confirm the selected model is opened only with `FileAccess.Read`.
+- [x] Confirm output/model collision protection exists.
+- [x] Confirm serialized results omit the full canonical model path.
+- [x] Record that test/build/runtime evidence is still pending rather than claiming success.
+
+## Source verification evidence
+
+The branch diff from `f640c306...` contains only:
+
+```text
+LLamaSharp feasibility source under tools/
+deterministic feasibility test source
+ModelProbe and parent READMEs
+design and implementation-plan Markdown
+```
+
+It does not modify:
+
+```text
+IBM Granite with TurboQuant (Intel).csproj
+application XAML or C# source
+Vulkan dependencies
+TurboQuant dependencies
+OpenVINO dependencies
+```
+
+Model access is implemented through a `FileStream` created with:
+
+```text
+FileMode.Open
+FileAccess.Read
+FileShare.Read
+```
+
+The evidence output is rejected when its canonical path equals the model path.
+Before/after length, last-write time and SHA-256 are compared. Canonical model
+paths are represented by SHA-256 fingerprints and redacted from errors/logs.
+
+## Verification commands
+
+Run from Developer PowerShell at the repository root:
 
 ```powershell
 $SpikeProject =
@@ -210,21 +224,22 @@ $SpikeProject =
 $SpikeTests =
     "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj"
 
-# Restore and run deterministic tests.
+# Restore exact packages.
 dotnet restore $SpikeTests --runtime win-x64
 
+# Run deterministic unit tests.
 dotnet test $SpikeTests `
     --configuration Release `
     --no-restore `
     --runtime win-x64
 
-# Compile the exact Windows x64 tool.
+# Build the Windows x64 tool.
 dotnet build $SpikeProject `
     --configuration Release `
     --no-restore `
     --runtime win-x64
 
-# Preserve the existing native-library-only smoke.
+# Preserve and verify native-library-only smoke mode.
 dotnet run `
     --project $SpikeProject `
     --configuration Release `
@@ -233,7 +248,7 @@ dotnet run `
     -- `
     --output "artifacts\model-inspection\llamasharp\runtime-smoke.json"
 
-# Run the new controlled model probe.
+# Probe a controlled, provenance-recorded Granite GGUF.
 dotnet run `
     --project $SpikeProject `
     --configuration Release `
@@ -247,15 +262,15 @@ dotnet run `
 Expected exit codes:
 
 ```text
-0 = requested probe succeeded and evidence was written
+0 = requested smoke/probe succeeded and evidence was written
 1 = controlled failure and evidence was written where possible
 2 = invalid or unsafe arguments
 3 = controlled cancellation and evidence was written
 ```
 
-## Current Execution State
+## Current execution state
 
-- Design and this implementation plan are recorded.
-- Source, tests and README reconciliation follow in this slice.
-- No real Granite run is claimed until fresh Windows evidence is reviewed.
-- WinUI integration, Vulkan and TurboQuant remain outside this plan.
+- Design, source, deterministic test contracts and README reconciliation are on `feature/model-inspection`.
+- No test pass, Release build, native-smoke pass or real-model pass is claimed yet.
+- The next action is fresh Windows verification followed by review of one controlled Granite evidence file.
+- WinUI integration, Vulkan, TurboQuant and final outcome classification remain outside this slice.
