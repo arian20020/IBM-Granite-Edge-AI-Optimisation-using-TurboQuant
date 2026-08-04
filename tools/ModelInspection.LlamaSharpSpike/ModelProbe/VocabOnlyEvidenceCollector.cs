@@ -129,7 +129,7 @@ internal static class VocabOnlyEvidenceCollector
                 TokenizerSmokeEvidence.InputText,
                 add_bos: false,
                 special: false,
-                Encoding.UTF8);
+                encoding: Encoding.UTF8);
 
             return new TokenizerSmokeEvidence
             {
