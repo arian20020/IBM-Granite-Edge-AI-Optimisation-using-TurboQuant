@@ -1,7 +1,7 @@
 # Model Inspection architecture
 
 **Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-03  
+**Last reviewed:** 2026-08-04  
 **Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`  
 **Current branch:** `feature/model-inspection`
 
@@ -11,7 +11,7 @@
 
 Model Inspection is onboarding stage two. It is intended to inspect the selected model package before Hardware Fit is checked, present progressive evidence, and classify the final model outcome.
 
-The current implementation establishes the **navigation and UI architecture**. It does not yet perform real llama.cpp, LLamaSharp, or OpenVINO runtime inspection.
+The current application implementation establishes the **navigation and UI architecture**. A separate feasibility tool now pins and dry-runs the selected LLamaSharp CPU backend, but the WinUI feature does not yet call that runtime or inspect a model.
 
 ## Current status
 
@@ -25,6 +25,9 @@ The current implementation establishes the **navigation and UI architecture**. I
 | Build initial five-stage progress presentation | Implemented |
 | Build initial action presentation | Implemented |
 | Select Progress versus Findings XAML template | Implemented with bootstrap handling |
+| Application runtime decision | Accepted in ADR-001 |
+| Isolated LLamaSharp CPU-backend smoke source | Implemented; Windows verification pending |
+| LLamaSharp reference in the WinUI application | Not added |
 | Local cold-run verification of the latest selector fix | Required before claiming the screen is fully verified |
 | Real GGUF runtime inspection | Not implemented |
 | OpenVINO runtime inspection | Not implemented |
@@ -52,10 +55,19 @@ ModelInspection/
     └── mode, status, tone, badge, and outcome enums
 ```
 
+The isolated native feasibility code lives outside the application feature:
+
+```text
+tools/
+├── ModelInspection.LlamaSharpSpike/
+└── ModelInspection.LlamaSharpSpike.Tests/
+```
+
 Child documentation:
 
 - [Inspection controls](./Controls/README.md)
 - [Inspection presentation models](./Models/README.md)
+- [LLamaSharp feasibility spike](../../../tools/ModelInspection.LlamaSharpSpike/README.md)
 
 ## Responsibility boundary
 
@@ -79,6 +91,8 @@ Child documentation:
 - result classification rules;
 - cancellation-token ownership;
 - Hardware Fit navigation or calculation.
+
+The native smoke tool is supporting feasibility evidence, not a production dependency of this page.
 
 ## Page composition
 
@@ -298,6 +312,37 @@ ModelInspectionPage.OnNavigatedTo(parameter)
 
 The page does not know or manipulate the onboarding shell.
 
+## Selected application runtime
+
+[ADR-001](../../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md) separates the research and application runtimes:
+
+```text
+Research evidence
+    llama.cpp b9870
+    2d973636e292ee6f75fadcf08d29cb33511f509f
+
+Selected application pair
+    LLamaSharp 0.27.0
+    LLamaSharp.Backend.Cpu 0.27.0
+    mapped llama.cpp 3f7c29d318e317b63f54c558bc69803963d7d88c
+```
+
+The selected pair is intended for both Model Inspection and later in-application GGUF inference. It is currently referenced only by the isolated feasibility project.
+
+### First feasibility slice
+
+The first tool slice:
+
+- pins both packages to exact versions;
+- disables CUDA and Vulkan selection;
+- calls `NativeLibraryConfig.LLama.DryRun`;
+- records runtime and selected-backend metadata as JSON;
+- maps native infrastructure failures to operational codes;
+- does not accept or inspect a model;
+- does not change the WinUI project file.
+
+A dedicated Windows workflow tests, builds and dry-runs this tool. A successful hosted run is useful integration evidence, but the target-laptop run remains a separate gate.
+
 ## Tests and evidence
 
 Destination navigation:
@@ -316,7 +361,17 @@ Content-template selection and bootstrap handling:
 
 - [`InspectionContentTemplateSelectorTests.cs`](../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs)
 
-The selector fix was committed on the feature branch, but there was no GitHub workflow attached to that direct commit. A local cold build, Test Explorer run, and manual navigation check remain required before claiming final runtime verification.
+Runtime smoke unit tests:
+
+- [`PinnedApplicationRuntimeTests.cs`](../../../tools/ModelInspection.LlamaSharpSpike.Tests/PinnedApplicationRuntimeTests.cs)
+- [`SpikeOptionsParserTests.cs`](../../../tools/ModelInspection.LlamaSharpSpike.Tests/SpikeOptionsParserTests.cs)
+- [`SmokeEvidenceWriterTests.cs`](../../../tools/ModelInspection.LlamaSharpSpike.Tests/SmokeEvidenceWriterTests.cs)
+
+Runtime workflow:
+
+- [`.github/workflows/llamasharp-feasibility-smoke.yml`](../../../.github/workflows/llamasharp-feasibility-smoke.yml)
+
+The selector fix still requires a local cold build, Test Explorer run, and manual navigation check before final UI verification is claimed. The new runtime tool similarly requires fresh workflow and target-machine output before backend-loading success is claimed.
 
 ## Implemented now
 
@@ -332,19 +387,24 @@ The selector fix was committed on the feature branch, but there was no GitHub wo
 - action-card inspecting and result layouts;
 - initial selected-model, progress, outcome, and action presentations;
 - template selector bootstrap handling;
-- focused navigation and selector tests.
+- focused navigation and selector tests;
+- accepted application-runtime ADR;
+- isolated exact-version LLamaSharp CPU-backend smoke source and tests;
+- dedicated Windows smoke workflow.
 
 ## Not implemented and non-claims
 
-- no LLamaSharp package or integration;
-- no pinned llama.cpp runtime probe;
+- no LLamaSharp reference in the WinUI application project;
+- no production `ILlamaModelProbe` or `LlamaSharpModelProbe`;
+- no model is loaded by the first native smoke slice;
 - no OpenVINO Runtime or GenAI inspection adapter;
-- no real package, tokenizer, structure, or runtime check executes;
+- no real package, tokenizer, structure, or runtime check executes in the page;
 - no dynamic stage updates;
-- no inspection evidence or diagnostic report is produced;
+- no inspection evidence or diagnostic report is produced for a model;
 - no deterministic outcome classifier exists;
 - no enabled cancellation command or active inspection token exists;
-- no continuation to Hardware Fit exists.
+- no continuation to Hardware Fit exists;
+- no successful hosted or target-machine backend run is claimed until fresh evidence exists.
 
 ## Known technical debt
 
@@ -353,7 +413,8 @@ The selector fix was committed on the feature branch, but there was no GitHub wo
 - `Models` is an ambiguous folder name in an AI project because it contains UI presentation models;
 - some status brushes are constructed in C# rather than resolved through shared theme resources;
 - presentation contracts use WinUI types such as `Visibility`, `Symbol`, and `ICommand`, which is acceptable for the presentation layer but unsuitable for future runtime/domain results;
-- there is no central inspection state machine, ViewModel, service interface, runtime probe, or classifier yet.
+- there is no central inspection state machine, ViewModel, service interface, production runtime probe, or classifier yet;
+- the spike does not yet prove whether `VocabOnly` is sufficient for lightweight inspection.
 
 ## Recommended next architecture layer
 
@@ -365,8 +426,8 @@ ModelInspectionViewModel
 IModelInspectionService
         ↓
 ModelInspectionService
-        ├── IGgufModelProbe
-        │       └── LLamaSharp / pinned llama.cpp
+        ├── ILlamaModelProbe
+        │       └── LLamaSharp / matched llama.cpp CPU backend
         └── IOpenVinoModelProbe
                 └── OpenVINO Runtime / GenAI
 
@@ -390,3 +451,7 @@ The real service layer must keep lightweight pre-Hardware-Fit inspection proport
 - [Onboarding architecture](../Onboarding/README.md)
 - [Inspection controls](./Controls/README.md)
 - [Inspection presentation models](./Models/README.md)
+- [ADR-001: selected LLamaSharp application runtime](../../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
+- [LLamaSharp spike design](../../../docs/superpowers/specs/2026-08-04-llamasharp-feasibility-spike-design.md)
+- [LLamaSharp spike implementation plan](../../../docs/superpowers/plans/2026-08-04-llamasharp-feasibility-spike.md)
+- [LLamaSharp feasibility tool](../../../tools/ModelInspection.LlamaSharpSpike/README.md)
