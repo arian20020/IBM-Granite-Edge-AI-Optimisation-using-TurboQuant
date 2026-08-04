@@ -1,10 +1,10 @@
 # Model Inspection presentation models
 
 **Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-03  
+**Last reviewed:** 2026-08-04  
 **Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`
 
-[← Model Inspection architecture](../README.md) · [Inspection controls](../Controls/README.md)
+[← Model Inspection architecture](../README.md) · [Inspection controls](../Controls/README.md) · [Presentation construction](../Presentation/README.md)
 
 ## Important naming clarification
 
@@ -22,20 +22,37 @@ These classes are structured instructions telling the four reusable controls wha
 
 ## Purpose
 
-The folder separates display data from control geometry.
+The folder separates display data from control geometry and from state-construction behavior.
 
 ```text
+Models/
+    → defines which presentation data exists
+
+Presentation/
+    → constructs an approved presentation state
+
 ModelInspectionPage or future ViewModel
-    → creates presentation objects
+    → chooses when that state is applied
 
-Presentation objects
-    → describe text, mode, status, visibility, actions, and rows
-
-Controls
-    → render the presentations
+Controls/
+    → renders the supplied presentation
 ```
 
 This allows one control layout to support many states without embedding state-specific decisions directly in XAML code-behind.
+
+## Relationship to the `Presentation` folder
+
+The new [`Presentation`](../Presentation/README.md) folder does not replace these models.
+
+```text
+InspectionContentCardPresentation
+    = data contract
+
+InitialInspectionProgressPresentationFactory
+    = construction behavior that fills the contract
+```
+
+The first factory currently creates the approved five-stage initial progress state. Future runtime/domain results must still be converted into these UI-facing models only above the runtime and classifier boundaries.
 
 ## Responsibility boundary
 
@@ -50,6 +67,7 @@ This allows one control layout to support many states without embedding state-sp
 
 ### This folder does not own
 
+- presentation-factory orchestration;
 - filesystem access;
 - GGUF or OpenVINO parsing;
 - native runtime evidence;
@@ -224,6 +242,18 @@ AutomationName
 ```
 
 The same type is deliberately reused across multiple DataTemplates because the rows share a common semantic shape.
+
+The initial factory currently supplies these five progress titles:
+
+```text
+Check model package
+Read model configuration
+Validate tokenizer and chat setup
+Validate model structure
+Confirm core runtime compatibility
+```
+
+The titles deliberately exclude Vulkan, TurboQuant, GPU and Hardware Fit. Those belong to later backend verification rather than pre-Hardware-Fit model inspection.
 
 [Open file](./InspectionContentItemPresentation.cs)
 
@@ -462,11 +492,20 @@ Mixing both patterns without a clear rule would make binding updates difficult t
 
 ## Tests and evidence
 
-Presentation objects are exercised indirectly through:
+Presentation objects are exercised through:
 
+- [`InitialInspectionProgressPresentationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs)
 - [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs)
 - [`ModelInspectionPageNavigationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs)
 - [`OnboardingModelInspectionNavigationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs)
+
+The new initial-progress test protects:
+
+- exact five-stage wording and order;
+- initial active/waiting status;
+- connector count;
+- completed-stage summary;
+- separation from backend-specific terminology.
 
 Dedicated presentation-contract tests are still needed for:
 
@@ -486,7 +525,8 @@ Dedicated presentation-contract tests are still needed for:
 - empty list defaults;
 - one observable expanded-state property;
 - action-command slots;
-- accessibility fields throughout presentation data.
+- accessibility fields throughout presentation data;
+- a separate initial-progress factory using these contracts.
 
 ## Not implemented and non-claims
 
@@ -494,34 +534,36 @@ Dedicated presentation-contract tests are still needed for:
 - no classifier creates final presentations from real inspection results;
 - no ViewModel owns the complete state transition graph;
 - no domain result or diagnostic-code contract exists yet;
-- enum values alone do not mean the corresponding runtime route is implemented.
+- enum values alone do not mean the corresponding runtime route is implemented;
+- the presence of a core-runtime stage does not mean CPU, Vulkan or TurboQuant has passed.
 
 ## Known limitations and change hazards
 
 - the folder name `Models` is ambiguous in an AI application;
 - presentation types are coupled to WinUI and should not cross into runtime adapters;
 - shared mutable hidden state is a risk around `IsExpanded`;
-- adding an enum value requires selector, visual-state, presentation factory, test, and documentation review;
+- adding an enum value requires selector, visual-state, presentation-factory, test, and documentation review;
 - fixed action slots are simple now but may need a different layout strategy if result actions become highly variable;
-- required versus optional fields are currently enforced mainly by page/control construction rather than dedicated factories.
+- required versus optional fields are currently enforced mainly by page/control/factory construction rather than domain-level contracts.
 
-## Recommended future organization
-
-When the runtime layer is added, consider:
+## Current and future organization
 
 ```text
 ModelInspection/
-├── Presentation/        ← current UI presentation types
-├── Domain/              ← framework-neutral results and findings
-├── Services/            ← workflow orchestration
-├── Runtime/Gguf/        ← llama.cpp adapter
-├── Runtime/OpenVino/    ← OpenVINO adapter
+├── Models/              ← current WinUI presentation data contracts
+├── Presentation/        ← current presentation construction behavior
+├── Domain/              ← future framework-neutral results and findings
+├── Services/            ← future workflow orchestration
+├── Runtime/Gguf/        ← future llama.cpp adapter
+├── Runtime/OpenVino/    ← future OpenVINO adapter
 └── Controls/
 ```
 
-Any rename should be performed only with coordinated namespace, XAML `x:DataType`, project, test, and documentation updates.
+A future rename of `Models` should be performed only with coordinated namespace, XAML `x:DataType`, project, test, and documentation updates.
 
 ## Related documentation
 
 - [Model Inspection architecture](../README.md)
 - [Inspection controls](../Controls/README.md)
+- [Presentation construction](../Presentation/README.md)
+- [ADR-002: core inspection versus backend verification](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
