@@ -40,11 +40,12 @@ public sealed class RuntimeEvidenceProcessTests
         Assert.AreEqual(
             "3f7c29d318e317b63f54c558bc69803963d7d88c",
             root.GetProperty("expectedLlamaCppCommit").GetString());
-        Assert.AreEqual(
-            "X64",
-            root.GetProperty("processArchitecture").GetString(),
-            ignoreCase: true,
-            culture: null);
+        Assert.IsTrue(
+            string.Equals(
+                "X64",
+                root.GetProperty("processArchitecture").GetString(),
+                StringComparison.OrdinalIgnoreCase),
+            "Runtime-smoke process architecture must be X64.");
         Assert.IsFalse(string.IsNullOrWhiteSpace(
             backend.GetProperty("nativeLibraryName").GetString()));
         Assert.IsFalse(backend.GetProperty("usesCuda").GetBoolean());
