@@ -6,55 +6,60 @@ using LLama.Native;
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
 
 /// <summary>
-/// Converts an active LLamaSharp model handle into project-owned lightweight
-/// evidence. No LLamaSharp type escapes this class.
+/// Converts an active LLamaSharp VocabOnly handle into project-owned
+/// lightweight evidence. No LLamaSharp type escapes this class.
 /// </summary>
 internal static class VocabOnlyEvidenceCollector
 {
     /// <summary>
-    /// Collects metadata, vocabulary, tokenizer and chat-template evidence while
-    /// the native handle remains valid.
+    /// Collects only evidence that remains valid when llama.cpp returns before
+    /// loading native hyperparameters.
     /// </summary>
     internal static VocabOnlyRuntimeModelEvidence Collect(
         LLamaWeights weights)
     {
         ArgumentNullException.ThrowIfNull(weights);
 
-        SafeLlamaModelHandle handle = weights.NativeHandle;
         SafeLlamaModelHandle.Vocabulary vocabulary = weights.Vocab;
         IReadOnlyDictionary<string, string> metadata = weights.Metadata;
+        VocabOnlyMetadataProjection projection =
+            VocabOnlyMetadataProjection.Create(metadata);
 
-        string? chatTemplate = handle.GetTemplate(
-            name: null,
-            strict: false);
+        // The embedded default template is ordinary GGUF metadata. Reading the
+        // metadata value directly avoids asking a partially initialised native
+        // model object to derive additional state in VocabOnly mode.
+        string? chatTemplate = GetMetadata(
+            metadata,
+            "tokenizer.chat_template");
 
         return new VocabOnlyRuntimeModelEvidence
         {
-            Description = handle.Description,
-            MetadataCount = handle.MetadataCount,
+            Description =
+                projection.ModelName ?? projection.Architecture,
+            MetadataCount = metadata.Count,
             MetadataKeys = metadata.Keys
                 .OrderBy(key => key, StringComparer.Ordinal)
                 .ToArray(),
-            Architecture = GetMetadata(metadata, "general.architecture"),
-            ModelName = GetMetadata(metadata, "general.name"),
-            FileType = GetMetadata(metadata, "general.file_type"),
-            QuantizationVersion = GetMetadata(
-                metadata,
-                "general.quantization_version"),
-            TokenizerModel = GetMetadata(
-                metadata,
-                "tokenizer.ggml.model"),
-            ContextSize = weights.ContextSize,
-            RuntimeReportedSizeBytes = weights.SizeInBytes,
-            ParameterCount = weights.ParameterCount,
-            EmbeddingSize = weights.EmbeddingSize,
-            LayerCount = handle.LayerCount,
-            HeadCount = handle.HeadCount,
-            KvHeadCount = handle.KVHeadCount,
-            HasEncoder = handle.HasEncoder,
-            HasDecoder = handle.HasDecoder,
-            IsRecurrent = handle.IsRecurrent,
-            IsDiffusion = handle.IsDiffusion,
+            Architecture = projection.Architecture,
+            ModelName = projection.ModelName,
+            FileType = projection.FileType,
+            QuantizationVersion = projection.QuantizationVersion,
+            TokenizerModel = projection.TokenizerModel,
+            ContextSize = projection.ContextSize,
+
+            // llama.cpp deliberately does not populate model hyperparameters or
+            // tensor-derived values when vocab_only is enabled. The original
+            // file size is already recorded by ModelFileSnapshot.
+            RuntimeReportedSizeBytes = null,
+            ParameterCount = projection.ParameterCount,
+            EmbeddingSize = projection.EmbeddingSize,
+            LayerCount = projection.LayerCount,
+            HeadCount = projection.HeadCount,
+            KvHeadCount = projection.KvHeadCount,
+            HasEncoder = null,
+            HasDecoder = null,
+            IsRecurrent = null,
+            IsDiffusion = null,
             Vocabulary = new VocabularyEvidence
             {
                 Count = vocabulary.Count,
