@@ -37,18 +37,43 @@ Without that configuration, `.NET 10` rejects the project as VSTest-only before
 any tests run. The runner configuration is infrastructure; it does not change
 the test assertions or the LLamaSharp runtime under test.
 
+## Assertion-quality correction
+
+The first MTP build exposed `MSTEST0032` in
+`PinnedApplicationRuntimeTests.cs`. The original assertions compared
+compile-time constants directly with the same literal values, so the compiler
+could prove that they would always pass.
+
+The rule was not suppressed. The tests were rewritten to inspect actual
+repository project files at runtime:
+
+```text
+feasibility spike .csproj
+    → must reference LLamaSharp 0.27.0
+    → must reference LLamaSharp.Backend.Cpu 0.27.0
+
+WinUI application .csproj
+    → must contain zero LLamaSharp package references
+```
+
+This now verifies a real architectural boundary instead of testing that a
+constant equals itself.
+
 ## Current test areas
 
-### Runtime identity
+### Runtime dependency policy
 
-`PinnedApplicationRuntimeTests.cs` protects:
+`PinnedApplicationRuntimeTests.cs` verifies:
 
-- `LLamaSharp` `0.27.0`;
-- `LLamaSharp.Backend.Cpu` `0.27.0`;
-- mapped llama.cpp commit
-  `3f7c29d318e317b63f54c558bc69803963d7d88c`;
-- intended `win-x64` application runtime;
-- explicit separation from the standalone `b9870` research runtime.
+- the feasibility project contains the approved exact `LLamaSharp` version;
+- the feasibility project contains the approved exact CPU-backend version;
+- the WinUI application project still contains no `LLamaSharp*` dependency;
+- the experimental native dependency remains isolated under `tools/` until the
+  feasibility gates pass.
+
+The mapped llama.cpp commit and separate `b9870` research identity remain
+recorded by `PinnedApplicationRuntime`, ADR-001 and runtime evidence. Direct
+constant-to-literal assertions are deliberately avoided.
 
 ### Command parsing
 
@@ -130,7 +155,8 @@ dotnet test `
     "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
     --configuration Release `
     --no-restore `
-    --runtime win-x64
+    --runtime win-x64 `
+    --minimum-expected-tests 1
 ```
 
 No passing result is claimed until the command output is captured and reviewed.
