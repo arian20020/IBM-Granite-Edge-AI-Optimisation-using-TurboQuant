@@ -33,13 +33,35 @@ public sealed class VocabOnlyModelProbe
     }
 
     /// <summary>
-    /// Runs one read-only VocabOnly probe and returns ordinary project-owned
-    /// evidence.
+    /// Runs one read-only VocabOnly probe with only caller-controlled
+    /// cancellation.
     /// </summary>
-    public async Task<VocabOnlyModelProbeResult> RunAsync(
+    public Task<VocabOnlyModelProbeResult> RunAsync(
         string modelPath,
         CancellationToken cancellationToken)
     {
+        return RunAsync(
+            modelPath,
+            cancelNativeAfterMilliseconds: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs one read-only VocabOnly probe and optionally starts a diagnostic
+    /// timer immediately before LLamaSharp enters native model loading.
+    /// </summary>
+    public async Task<VocabOnlyModelProbeResult> RunAsync(
+        string modelPath,
+        int? cancelNativeAfterMilliseconds,
+        CancellationToken cancellationToken)
+    {
+        if (cancelNativeAfterMilliseconds <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(cancelNativeAfterMilliseconds),
+                "Native-load cancellation delay must be positive.");
+        }
+
         DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow;
         var totalStopwatch = Stopwatch.StartNew();
         var logs = new ConcurrentQueue<NativeBackendLogEntry>();
@@ -102,12 +124,21 @@ public sealed class VocabOnlyModelProbe
 
                 LLamaWeights? weights = null;
                 var loadStopwatch = Stopwatch.StartNew();
+                using var nativeLoadCancellation =
+                    CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken);
+
+                if (cancelNativeAfterMilliseconds.HasValue)
+                {
+                    nativeLoadCancellation.CancelAfter(
+                        cancelNativeAfterMilliseconds.Value);
+                }
 
                 try
                 {
                     weights = await LLamaWeights.LoadFromFileAsync(
                         modelParameters,
-                        cancellationToken,
+                        nativeLoadCancellation.Token,
                         progressRecorder);
 
                     loadStopwatch.Stop();
