@@ -15,6 +15,7 @@ public sealed class JsonEvidenceWriter
 
     /// <summary>
     /// Writes one evidence object and returns the absolute output path.
+    /// Existing evidence remains untouched when serialization or writing fails.
     /// </summary>
     public async Task<string> WriteAsync<T>(
         T result,
@@ -23,6 +24,7 @@ public sealed class JsonEvidenceWriter
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        cancellationToken.ThrowIfCancellationRequested();
 
         string fullOutputPath = Path.GetFullPath(outputPath);
         string? outputDirectory =
@@ -34,6 +36,12 @@ public sealed class JsonEvidenceWriter
                 "The evidence output directory could not be resolved.");
         }
 
+        // Serialize before creating a temporary file so a serialization failure
+        // cannot leave partial output or a stale temp artifact.
+        string json = JsonSerializer.Serialize(
+            result,
+            SerializerOptions);
+
         Directory.CreateDirectory(outputDirectory);
 
         string temporaryPath =
@@ -41,10 +49,6 @@ public sealed class JsonEvidenceWriter
 
         try
         {
-            string json = JsonSerializer.Serialize(
-                result,
-                SerializerOptions);
-
             await File.WriteAllTextAsync(
                 temporaryPath,
                 json,
