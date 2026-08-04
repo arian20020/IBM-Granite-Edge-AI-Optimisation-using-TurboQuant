@@ -566,4 +566,4 @@ A future rename of `Models` should be performed only with coordinated namespace,
 - [Model Inspection architecture](../README.md)
 - [Inspection controls](../Controls/README.md)
 - [Presentation construction](../Presentation/README.md)
-- [ADR-002: core inspection versus backend verification](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
+- [ADR-002: core inspection versus backend verification](../../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
