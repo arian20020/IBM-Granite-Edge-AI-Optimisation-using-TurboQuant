@@ -1,6 +1,6 @@
 # Project engineering tools
 
-**Status:** Living source-adjacent documentation  
+**Status:** Tier 1 LLamaSharp runtime boundary verified; trusted Tier 2 execution pending  
 **Last reviewed:** 2026-08-04  
 **Current branch:** `feature/model-inspection`
 
@@ -25,7 +25,7 @@ tools/
 ├── ModelInspection.LlamaSharpSpike.NativeIntegrationTests/
 │   └── README.md
 └── ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/
-    └── planned by the approved Tier 2 implementation plan
+    └── README.md
 ```
 
 ## Current LLamaSharp tool chain
@@ -35,6 +35,7 @@ tools/
 - [Deterministic feasibility tests](./ModelInspection.LlamaSharpSpike.Tests/README.md)
 - [Shared child-process test support](./ModelInspection.LlamaSharpSpike.TestSupport/README.md)
 - [Hosted native integration tests](./ModelInspection.LlamaSharpSpike.NativeIntegrationTests/README.md)
+- [Trusted real-model integration tests](./ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/README.md)
 
 The runtime tool supports:
 
@@ -57,10 +58,12 @@ Diagnostic cancellation scopes
 Tier 1 — every relevant push and pull request
     deterministic contracts
     Release win-x64 build/publish
+    trusted-suite model-free compile gate
     contained CPU-native success
     missing native DLL
     invalid native image
     model-free evidence contract
+    no-GGUF artifact scan
 
 Tier 2 — manual trusted Windows runner
     controlled Granite success and repeatability
@@ -71,9 +74,27 @@ Tier 2 — manual trusted Windows runner
     original-file integrity
 ```
 
-Tier 1 source and workflow are implemented. Fresh workflow evidence is required
-before the expanded suite is marked verified. Tier 2 remains governed by its
-separate implementation plan.
+### Tier 1 verified result
+
+Fresh hosted workflow run `30939159409` produced:
+
+```text
+Deterministic tests:             170 / 170 passed
+Trusted real-model assembly:     compiled with analyzers, not executed
+Release win-x64 build/publish:   passed
+Direct CPU smoke:                passed
+Contained native tests:          4 / 4 passed
+No-GGUF artifact scan:           passed
+Privacy-gated evidence upload:   passed
+```
+
+The formal record is:
+
+- [LLamaSharp Tier 1 Runtime Verification](../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
+
+Tier 2 source is compile-ready, but no expanded real-model, cancellation,
+malformed-input, file-access, privacy, or network scenario is marked verified
+until the manual trusted workflow executes and its evidence is reviewed.
 
 ## Boundary rules
 
@@ -88,6 +109,8 @@ separate implementation plan.
   path that would overwrite the input.
 - Tool evidence must not contain full local model paths, full chat-template
   text, model files, native pointers, or native handles.
+- Artifact upload is fail-closed: required integrity/privacy scans must have an
+  explicit successful outcome.
 - The application project must not reference a console tool project.
   Production behavior will later be extracted behind project-owned interfaces
   such as `ILlamaModelProbe`.
