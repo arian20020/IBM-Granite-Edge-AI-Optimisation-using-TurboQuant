@@ -97,13 +97,10 @@ public static class Program
             return 2;
         }
 
+        // Ctrl+C remains active throughout preflight and native work. Timed
+        // diagnostic cancellation is started inside VocabOnlyModelProbe after
+        // the initial integrity snapshot or directly before native loading.
         using var cancellationSource = new CancellationTokenSource();
-
-        if (options.CancelAfterMilliseconds.HasValue)
-        {
-            cancellationSource.CancelAfter(
-                options.CancelAfterMilliseconds.Value);
-        }
 
         ConsoleCancelEventHandler cancelHandler = (_, eventArguments) =>
         {
@@ -119,6 +116,7 @@ public static class Program
         {
             result = await new VocabOnlyModelProbe().RunAsync(
                 modelPath,
+                options.CancelAfterMilliseconds,
                 options.CancelNativeAfterMilliseconds,
                 cancellationSource.Token);
         }
