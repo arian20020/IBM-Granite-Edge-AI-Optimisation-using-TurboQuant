@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.NativeIntegrationTests</RootNamespace>
-    <AssemblyName>GraniteEdgeAI.ModelInspection.LlamaSharpSpike.NativeIntegrationTests</AssemblyName>
+    <AssemblyName>GraniteEdgeAI.LlamaSharp.NativeTests</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
