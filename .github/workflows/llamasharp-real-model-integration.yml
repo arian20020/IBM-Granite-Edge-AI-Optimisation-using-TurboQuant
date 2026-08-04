@@ -97,9 +97,17 @@ jobs:
             throw "Controlled Granite model not found: $modelPath"
           }
 
-          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+          $workspace = (
+            [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+          ).TrimEnd(
+            [IO.Path]::DirectorySeparatorChar,
+            [IO.Path]::AltDirectorySeparatorChar
+          )
+          $workspacePrefix = `
+            $workspace + [IO.Path]::DirectorySeparatorChar
+
           if ($modelPath.StartsWith(
-              $workspace,
+              $workspacePrefix,
               [StringComparison]::OrdinalIgnoreCase
           )) {
             throw 'The controlled model must remain outside the repository workspace.'
@@ -115,6 +123,10 @@ jobs:
               "Unexpected controlled model length: $($model.Length); " +
               "expected $env:CONTROLLED_MODEL_LENGTH"
             )
+          }
+
+          if (-not $model.IsReadOnly) {
+            throw 'The staged controlled model must be marked read-only.'
           }
 
           $actualHash = (
@@ -134,6 +146,7 @@ jobs:
             FileName = $model.Name
             LengthBytes = $model.Length
             Sha256 = $actualHash
+            IsReadOnly = $model.IsReadOnly
             RunnerName = [string]$env:RUNNER_NAME
             ComputerName = [string]$env:COMPUTERNAME
             RunnerArchitecture = [string]$env:RUNNER_ARCH
@@ -246,6 +259,15 @@ jobs:
             throw "Trusted evidence directory was not created: $evidenceRoot"
           }
 
+          $evidenceRootFullPath = (
+            [IO.Path]::GetFullPath($evidenceRoot)
+          ).TrimEnd(
+            [IO.Path]::DirectorySeparatorChar,
+            [IO.Path]::AltDirectorySeparatorChar
+          )
+          $evidenceRootPrefix = `
+            $evidenceRootFullPath + [IO.Path]::DirectorySeparatorChar
+
           $findings = @()
           $maximumEvidenceBytes = 100MB
 
@@ -254,9 +276,21 @@ jobs:
               -File `
               -Recurse `
               -ErrorAction Stop) {
-            $relativePath = [IO.Path]::GetRelativePath(
-              $evidenceRoot,
-              $file.FullName
+            $fileFullPath = [IO.Path]::GetFullPath($file.FullName)
+
+            if (-not $fileFullPath.StartsWith(
+                $evidenceRootPrefix,
+                [StringComparison]::OrdinalIgnoreCase
+            )) {
+              $findings += [pscustomobject]@{
+                RelativePath = $fileFullPath
+                Reason = 'File resolved outside the evidence root.'
+              }
+              continue
+            }
+
+            $relativePath = $fileFullPath.Substring(
+              $evidenceRootPrefix.Length
             )
 
             if ($file.Extension -ieq '.gguf') {
@@ -278,20 +312,19 @@ jobs:
                 RelativePath = $relativePath
                 Reason = "Evidence file exceeds $maximumEvidenceBytes bytes."
               }
+              continue
             }
 
-            if ($file.Length -le $maximumEvidenceBytes) {
-              $fileHash = (
-                Get-FileHash `
-                  -LiteralPath $file.FullName `
-                  -Algorithm SHA256
-              ).Hash.ToLowerInvariant()
+            $fileHash = (
+              Get-FileHash `
+                -LiteralPath $file.FullName `
+                -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
 
-              if ($fileHash -eq $env:CONTROLLED_MODEL_SHA256) {
-                $findings += [pscustomobject]@{
-                  RelativePath = $relativePath
-                  Reason = 'File SHA-256 matches controlled model.'
-                }
+            if ($fileHash -eq $env:CONTROLLED_MODEL_SHA256) {
+              $findings += [pscustomobject]@{
+                RelativePath = $relativePath
+                Reason = 'File SHA-256 matches controlled model.'
               }
             }
           }
