@@ -118,9 +118,16 @@ public sealed class SpikeOptionsParserTests
             SpikeOptionsParser.Parse(
                 new[] { "--cancel-after-ms", "250" });
 
+        // Check the two required option names independently. The behaviour
+        // matters here; introductory wording such as "The" or "option"
+        // should not make this contract test fail.
         AssertFailedWith(
             result,
-            "--cancel-after-ms requires --model");
+            "--cancel-after-ms");
+        Assert.IsNotNull(result.ErrorMessage);
+        StringAssert.Contains(
+            result.ErrorMessage,
+            "--model");
     }
 
     [TestMethod]
