@@ -18,10 +18,9 @@ public sealed class ModelFileSnapshotServiceTests
         try
         {
             string modelPath = Path.Combine(testDirectory, "granite.gguf");
-            await File.WriteAllTextAsync(
+            await File.WriteAllBytesAsync(
                 modelPath,
-                "granite",
-                Encoding.UTF8);
+                Encoding.UTF8.GetBytes("granite"));
 
             var service = new ModelFileSnapshotService();
 
