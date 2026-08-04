@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using LLama;
 using LLama.Native;
@@ -25,13 +24,6 @@ internal static class VocabOnlyEvidenceCollector
         VocabOnlyMetadataProjection projection =
             VocabOnlyMetadataProjection.Create(metadata);
 
-        // The embedded default template is ordinary GGUF metadata. Reading the
-        // metadata value directly avoids asking a partially initialised native
-        // model object to derive additional state in VocabOnly mode.
-        string? chatTemplate = GetMetadata(
-            metadata,
-            "tokenizer.chat_template");
-
         return new VocabOnlyRuntimeModelEvidence
         {
             Description =
@@ -47,9 +39,9 @@ internal static class VocabOnlyEvidenceCollector
             TokenizerModel = projection.TokenizerModel,
             ContextSize = projection.ContextSize,
 
-            // llama.cpp deliberately does not populate model hyperparameters or
-            // tensor-derived values when vocab_only is enabled. The original
-            // file size is already recorded by ModelFileSnapshot.
+            // llama.cpp deliberately does not populate tensor-derived values
+            // when vocab_only is enabled. The original file size is already
+            // recorded by ModelFileSnapshot.
             RuntimeReportedSizeBytes = null,
             ParameterCount = projection.ParameterCount,
             EmbeddingSize = projection.EmbeddingSize,
@@ -84,17 +76,8 @@ internal static class VocabOnlyEvidenceCollector
                     vocabulary.SEP)
             },
             TokenizerSmoke = RunTokenizerSmoke(weights),
-            ChatTemplate = CreateChatTemplateEvidence(chatTemplate)
+            ChatTemplate = ChatTemplateEvidenceFactory.Create(metadata)
         };
-    }
-
-    private static string? GetMetadata(
-        IReadOnlyDictionary<string, string> metadata,
-        string key)
-    {
-        return metadata.TryGetValue(key, out string? value)
-            ? value
-            : null;
     }
 
     private static SpecialTokenEvidence CreateSpecialTokenEvidence(
@@ -151,29 +134,5 @@ internal static class VocabOnlyEvidenceCollector
                 FailureMessage = exception.Message
             };
         }
-    }
-
-    private static ChatTemplateEvidence CreateChatTemplateEvidence(
-        string? chatTemplate)
-    {
-        if (chatTemplate is null)
-        {
-            return new ChatTemplateEvidence
-            {
-                Present = false
-            };
-        }
-
-        byte[] templateBytes = Encoding.UTF8.GetBytes(chatTemplate);
-        byte[] hash = SHA256.HashData(templateBytes);
-
-        return new ChatTemplateEvidence
-        {
-            Present = true,
-            LengthCharacters = chatTemplate.Length,
-            Sha256 = Convert
-                .ToHexString(hash)
-                .ToLowerInvariant()
-        };
     }
 }
