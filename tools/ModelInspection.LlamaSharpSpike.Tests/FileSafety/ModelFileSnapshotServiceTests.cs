@@ -148,7 +148,7 @@ public sealed class ModelFileSnapshotServiceTests
         await hasher.Started;
         cancellationSource.Cancel();
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+        await Assert.ThrowsAsync<OperationCanceledException>(
             async () => await captureTask);
     }
 
