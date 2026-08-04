@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
+      - '.github/workflows/llamasharp-real-model-integration.yml'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
@@ -17,6 +18,7 @@ on:
       - main
     paths:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
+      - '.github/workflows/llamasharp-real-model-integration.yml'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
