@@ -1,11 +1,12 @@
 using System.Text;
 using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 
 /// <summary>
-/// Verifies read-only model identity capture and before/after comparison.
+/// Verifies read-only model identity capture, hashing and cancellation.
 /// </summary>
 [TestClass]
 [TestCategory("Deterministic")]
@@ -14,117 +15,196 @@ public sealed class ModelFileSnapshotServiceTests
     [TestMethod]
     public async Task CaptureAsync_RecordsExpectedFileIdentity()
     {
-        string testDirectory = CreateTestDirectory();
+        using var directory = new TemporaryDirectory("known-file-identity");
+        string modelPath = await TestFileBuilder.WriteBytesAsync(
+            directory,
+            "granite.gguf",
+            Encoding.UTF8.GetBytes("granite"));
 
-        try
-        {
-            string modelPath = Path.Combine(testDirectory, "granite.gguf");
-            await File.WriteAllBytesAsync(
-                modelPath,
-                Encoding.UTF8.GetBytes("granite"));
-
-            var service = new ModelFileSnapshotService();
-
-            ModelFileSnapshot snapshot = await service.CaptureAsync(
+        ModelFileSnapshot snapshot =
+            await new ModelFileSnapshotService().CaptureAsync(
                 modelPath,
                 CancellationToken.None);
 
-            Assert.AreEqual("granite.gguf", snapshot.FileName);
-            Assert.AreEqual(7L, snapshot.LengthBytes);
+        Assert.AreEqual("granite.gguf", snapshot.FileName);
+        Assert.AreEqual(7L, snapshot.LengthBytes);
+        Assert.AreEqual(
+            "ac7daf28fd6bfc7a5c3e4b83c7fc9fd51f92ddff10bdc848f99417eca6fafc7c",
+            snapshot.Sha256);
+        Assert.AreEqual(64, snapshot.CanonicalPathSha256.Length);
+    }
+
+    [TestMethod]
+    public async Task CaptureAsync_WithEmptyFile_RecordsKnownEmptySha256()
+    {
+        using var directory = new TemporaryDirectory("empty-file");
+        string modelPath = await TestFileBuilder.WriteBytesAsync(
+            directory,
+            "empty.gguf",
+            Array.Empty<byte>());
+
+        ModelFileSnapshot snapshot =
+            await new ModelFileSnapshotService().CaptureAsync(
+                modelPath,
+                CancellationToken.None);
+
+        Assert.AreEqual(0L, snapshot.LengthBytes);
+        Assert.AreEqual(
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            snapshot.Sha256);
+    }
+
+    [TestMethod]
+    public async Task CaptureAsync_WithReadOnlyFile_SucceedsWithoutChangingFile()
+    {
+        using var directory = new TemporaryDirectory("read-only-file");
+        string modelPath = await TestFileBuilder.WriteTextAsync(
+            directory,
+            "read-only.gguf",
+            "read-only-model");
+
+        FileAttributes originalAttributes = File.GetAttributes(modelPath);
+        File.SetAttributes(
+            modelPath,
+            originalAttributes | FileAttributes.ReadOnly);
+
+        try
+        {
+            ModelFileSnapshot snapshot =
+                await new ModelFileSnapshotService().CaptureAsync(
+                    modelPath,
+                    CancellationToken.None);
+
             Assert.AreEqual(
-                "ac7daf28fd6bfc7a5c3e4b83c7fc9fd51f92ddff10bdc848f99417eca6fafc7c",
-                snapshot.Sha256);
-            Assert.AreEqual(64, snapshot.CanonicalPathSha256.Length);
+                new FileInfo(modelPath).Length,
+                snapshot.LengthBytes);
+            Assert.IsTrue(
+                File.GetAttributes(modelPath).HasFlag(
+                    FileAttributes.ReadOnly));
         }
         finally
         {
-            DeleteDirectory(testDirectory);
+            File.SetAttributes(modelPath, originalAttributes);
         }
     }
 
     [TestMethod]
-    public async Task Compare_WithUnchangedFile_ReportsPreserved()
+    public async Task CaptureAsync_WithMissingFile_ThrowsFileNotFoundException()
     {
-        string testDirectory = CreateTestDirectory();
+        using var directory = new TemporaryDirectory("missing-file");
+        string modelPath = directory.Combine("missing.gguf");
 
-        try
-        {
-            string modelPath = Path.Combine(testDirectory, "granite.gguf");
-            await File.WriteAllTextAsync(modelPath, "granite");
-            var service = new ModelFileSnapshotService();
-
-            ModelFileSnapshot before = await service.CaptureAsync(
+        await Assert.ThrowsExactlyAsync<FileNotFoundException>(
+            async () => await new ModelFileSnapshotService().CaptureAsync(
                 modelPath,
-                CancellationToken.None);
-            ModelFileSnapshot after = await service.CaptureAsync(
-                modelPath,
-                CancellationToken.None);
-
-            ModelFileIntegrityComparison comparison =
-                ModelFileIntegrityComparison.Compare(before, after);
-
-            Assert.IsTrue(comparison.IsPreserved);
-            Assert.IsTrue(comparison.LengthUnchanged);
-            Assert.IsTrue(comparison.LastWriteTimeUnchanged);
-            Assert.IsTrue(comparison.Sha256Unchanged);
-        }
-        finally
-        {
-            DeleteDirectory(testDirectory);
-        }
+                CancellationToken.None));
     }
 
     [TestMethod]
-    public async Task Compare_AfterContentChange_ReportsNotPreserved()
+    public async Task CaptureAsync_WithDirectoryPath_ThrowsFileNotFoundException()
     {
-        string testDirectory = CreateTestDirectory();
+        using var directory = new TemporaryDirectory("directory-input");
 
-        try
-        {
-            string modelPath = Path.Combine(testDirectory, "granite.gguf");
-            await File.WriteAllTextAsync(modelPath, "granite");
-            var service = new ModelFileSnapshotService();
-
-            ModelFileSnapshot before = await service.CaptureAsync(
-                modelPath,
-                CancellationToken.None);
-
-            await Task.Delay(20);
-            await File.WriteAllTextAsync(modelPath, "granite-changed");
-
-            ModelFileSnapshot after = await service.CaptureAsync(
-                modelPath,
-                CancellationToken.None);
-
-            ModelFileIntegrityComparison comparison =
-                ModelFileIntegrityComparison.Compare(before, after);
-
-            Assert.IsFalse(comparison.IsPreserved);
-            Assert.IsFalse(comparison.LengthUnchanged);
-            Assert.IsFalse(comparison.Sha256Unchanged);
-        }
-        finally
-        {
-            DeleteDirectory(testDirectory);
-        }
+        await Assert.ThrowsExactlyAsync<FileNotFoundException>(
+            async () => await new ModelFileSnapshotService().CaptureAsync(
+                directory.Path,
+                CancellationToken.None));
     }
 
-    private static string CreateTestDirectory()
+    [TestMethod]
+    public async Task CaptureAsync_WithPreCancelledToken_ThrowsOperationCanceledException()
     {
-        string path = Path.Combine(
-            Path.GetTempPath(),
-            "GraniteEdgeAI-ModelSnapshotTests",
-            Guid.NewGuid().ToString("N"));
+        using var directory = new TemporaryDirectory("pre-cancelled");
+        string modelPath = await TestFileBuilder.WriteTextAsync(
+            directory,
+            "model.gguf",
+            "model-bytes");
+        using var cancellationSource = new CancellationTokenSource();
+        cancellationSource.Cancel();
 
-        Directory.CreateDirectory(path);
-        return path;
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await new ModelFileSnapshotService().CaptureAsync(
+                modelPath,
+                cancellationSource.Token));
     }
 
-    private static void DeleteDirectory(string path)
+    [TestMethod]
+    public async Task CaptureAsync_WhenCancelledDuringHash_ThrowsOperationCanceledException()
     {
-        if (Directory.Exists(path))
+        using var directory = new TemporaryDirectory("cancel-during-hash");
+        string modelPath = await TestFileBuilder.WriteTextAsync(
+            directory,
+            "model.gguf",
+            "model-bytes");
+
+        var hasher = new BlockingModelFileHasher();
+        var service = new ModelFileSnapshotService(hasher);
+        using var cancellationSource = new CancellationTokenSource();
+
+        Task<ModelFileSnapshot> captureTask = service.CaptureAsync(
+            modelPath,
+            cancellationSource.Token);
+
+        await hasher.Started;
+        cancellationSource.Cancel();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            async () => await captureTask);
+    }
+
+    [TestMethod]
+    public async Task CaptureAsync_ForSameCanonicalPath_ReturnsStablePathFingerprint()
+    {
+        using var directory = new TemporaryDirectory("stable-path-hash");
+        string modelPath = await TestFileBuilder.WriteTextAsync(
+            directory,
+            "model.gguf",
+            "model-bytes");
+        var service = new ModelFileSnapshotService();
+
+        ModelFileSnapshot first = await service.CaptureAsync(
+            modelPath,
+            CancellationToken.None);
+        ModelFileSnapshot second = await service.CaptureAsync(
+            Path.GetFullPath(modelPath),
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            first.CanonicalPathSha256,
+            second.CanonicalPathSha256);
+    }
+
+    [TestMethod]
+    public async Task CaptureAsync_OnWindowsCaseVariant_ReturnsSamePathFingerprint()
+    {
+        if (!OperatingSystem.IsWindows())
         {
-            Directory.Delete(path, recursive: true);
+            return;
         }
+
+        using var directory = new TemporaryDirectory("case-path-hash");
+        string modelPath = await TestFileBuilder.WriteTextAsync(
+            directory,
+            "Granite.gguf",
+            "model-bytes");
+        var service = new ModelFileSnapshotService();
+
+        ModelFileSnapshot original = await service.CaptureAsync(
+            modelPath,
+            CancellationToken.None);
+        ModelFileSnapshot upperCase = await service.CaptureAsync(
+            modelPath.ToUpperInvariant(),
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            original.CanonicalPathSha256,
+            upperCase.CanonicalPathSha256);
+    }
+
+    [TestMethod]
+    public void Constructor_WithNullHasher_ThrowsArgumentNullException()
+    {
+        Assert.ThrowsExactly<ArgumentNullException>(
+            () => new ModelFileSnapshotService(null!));
     }
 }
