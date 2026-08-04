@@ -6,7 +6,7 @@ namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
 /// Records one genuine progress fraction reported by LLamaSharp.
 /// </summary>
 /// <param name="ElapsedMilliseconds">Elapsed time since recording began.</param>
-/// <param name="Fraction">Clamped native fraction from zero to one.</param>
+/// <param name="Fraction">Normalized native fraction from zero to one.</param>
 public sealed record NativeLoadProgressSample(
     long ElapsedMilliseconds,
     float Fraction);
@@ -22,11 +22,22 @@ public sealed class NativeLoadProgressRecorder : IProgress<float>
     private readonly List<NativeLoadProgressSample> _samples = new();
 
     /// <summary>
-    /// Records a clamped fraction unless it is identical to the previous one.
+    /// Ignores NaN, normalizes infinities, clamps finite values and omits only
+    /// consecutive duplicate fractions.
     /// </summary>
     public void Report(float value)
     {
-        float fraction = Math.Clamp(value, 0f, 1f);
+        if (float.IsNaN(value))
+        {
+            return;
+        }
+
+        float fraction = value switch
+        {
+            float.NegativeInfinity => 0f,
+            float.PositiveInfinity => 1f,
+            _ => Math.Clamp(value, 0f, 1f)
+        };
 
         lock (_sync)
         {
