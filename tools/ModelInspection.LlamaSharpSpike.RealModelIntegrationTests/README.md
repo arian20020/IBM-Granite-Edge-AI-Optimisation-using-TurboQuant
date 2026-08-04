@@ -1,9 +1,12 @@
 # LLamaSharp trusted real-model integration tests
 
-**Status:** Trusted-suite source implemented; target-runner execution pending  
+**Status:** Source and analyzers compile on hosted Windows x64; trusted model execution pending  
+**Compile verification date:** 2026-08-04  
+**Compile-gate workflow run:** `30939159409`  
 **CI tier:** Tier 2 — manual repository-owned workflow only  
 **Shared support:** [Probe process test support](../ModelInspection.LlamaSharpSpike.TestSupport/README.md)  
-**Coverage register:** [LLamaSharp Runtime Test Coverage Matrix](../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
+**Coverage register:** [LLamaSharp Runtime Test Coverage Matrix](../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)  
+**Tier 1 evidence:** [Verified model-free runtime tier](../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
 
 ## Purpose
 
@@ -13,6 +16,24 @@ malformed GGUF fixture.
 
 All native/model scenarios execute the published feasibility tool as a child
 process. The MSTest host never loads llama.cpp directly.
+
+## Current verification state
+
+The hosted model-free workflow now restores and compiles this complete project
+in `Release / win-x64` without executing any `RealModelIntegration` test:
+
+```text
+Restore:              PASS
+C# compilation:       PASS
+MSTest analyzers:     PASS
+Controlled model read: not attempted
+Real-model tests run:  not attempted
+```
+
+This compile gate found and corrected namespace shadowing of
+`System.IO.FileAccess` and one expected/actual assertion-role issue before the
+self-hosted runner or 2 GB model was touched. A successful compile is a
+prerequisite, not a Tier 2 pass claim.
 
 ## Controlled model identity
 
@@ -86,6 +107,16 @@ RealModelIntegrationTests/
     ├── EvidencePrivacyTests.cs
     └── NetworkObservationTests.cs
 ```
+
+The physical test assembly name is shortened to:
+
+```text
+GraniteEdgeAI.LlamaSharp.RealModelTests
+```
+
+The namespace remains descriptive. Only the assembly name was shortened after
+the hosted Windows environment proved the original generated executable path
+would exceed the supported process-start path.
 
 The assembly is non-parallel because scenarios share one large read-only model
 and native-runtime package while retaining separate child processes and evidence
@@ -214,7 +245,7 @@ dotnet test `
 The GitHub Actions service account must be able to read the model. A path under
 an interactive user's Downloads folder is usually not suitable for the
 restricted runner service. Stage the exact model in a runner-readable,
-read-only location and configure the repository/environment variable:
+read-only location and configure the repository variable:
 
 ```text
 GRANITE_TEST_MODEL_PATH
@@ -230,8 +261,11 @@ workbook05
 intel-target
 ```
 
-Before upload it scans retained evidence for model files, model-sized files,
-oversized files, and files whose SHA-256 equals the controlled model.
+Before upload it verifies the controlled model hash again and scans retained
+evidence for model files, model-sized files, oversized files, and files whose
+SHA-256 equals the controlled model. The artifact upload step is fail-closed:
+it runs only when both the final model-integrity step and artifact-privacy scan
+have the explicit `success` outcome.
 
 ## Non-claims
 
@@ -248,6 +282,6 @@ This suite does not test:
 - OpenVINO;
 - Hardware Fit.
 
-Source presence is not a pass claim. The trusted suite becomes verified only
-after its workflow or equivalent local commands complete and evidence is
-reviewed.
+A clean compile is not a real-model pass claim. The trusted suite becomes
+verified only after its manual workflow or equivalent local commands complete
+and the retained evidence is reviewed.
