@@ -87,7 +87,7 @@ public sealed class VocabOnlyModelProbe
             {
                 failure = new ProbeFailure(
                     "MI-OP-RUNTIME-UNAVAILABLE",
-                    Type: null,
+                    null,
                     "LLamaSharp could not load a published CPU backend.");
             }
             else
