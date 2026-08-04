@@ -1,162 +1,135 @@
-# LLamaSharp feasibility tests
+# LLamaSharp deterministic feasibility tests
 
-**Status:** Deterministic test source implemented; fresh execution pending  
+**Status:** Responsibility-based hierarchy implemented; expanded coverage is being added  
 **Test runner:** Microsoft.Testing.Platform through the embedded MSTest runner  
 **Tool:** [Model Inspection LLamaSharp feasibility tool](../ModelInspection.LlamaSharpSpike/README.md)
 
 ## Purpose
 
-This MSTest project verifies deterministic behavior around the isolated
+This MSTest project verifies deterministic behaviour around the isolated
 LLamaSharp feasibility tool without treating a real native model load as a unit
 test.
 
-The project references the console project directly. It does not reference the
-WinUI application.
+The project references the feasibility console project directly. It does not
+reference the WinUI application and no test in this project requires the 2 GB
+Granite model.
 
 ## Test-runner configuration
 
-The repository-level `global.json` selects:
-
-```json
-{
-  "test": {
-    "runner": "Microsoft.Testing.Platform"
-  }
-}
-```
-
-The test project therefore enables the embedded MSTest runner explicitly:
+The repository-level `global.json` selects Microsoft.Testing.Platform. The test
+project therefore remains an executable MSTest project with:
 
 ```xml
 <OutputType>Exe</OutputType>
 <EnableMSTestRunner>true</EnableMSTestRunner>
 <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+<TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
 ```
 
-Without that configuration, `.NET 10` rejects the project as VSTest-only before
-any tests run. The runner configuration is infrastructure; it does not change
-the test assertions or the LLamaSharp runtime under test.
-
-## Assertion-quality correction
-
-The first MTP build exposed `MSTEST0032` in
-`PinnedApplicationRuntimeTests.cs`. The original assertions compared
-compile-time constants directly with the same literal values, so the compiler
-could prove that they would always pass.
-
-The rule was not suppressed. The tests were rewritten to inspect actual
-repository project files at runtime:
+## Folder hierarchy
 
 ```text
-feasibility spike .csproj
-    → must reference LLamaSharp 0.27.0
-    → must reference LLamaSharp.Backend.Cpu 0.27.0
-
-WinUI application .csproj
-    → must contain zero LLamaSharp package references
+ModelInspection.LlamaSharpSpike.Tests/
+├── README.md
+├── ModelInspection.LlamaSharpSpike.Tests.csproj
+├── DependencyPolicy/
+│   └── RuntimeDependencyPolicyTests.cs
+├── CommandLine/
+│   └── SpikeOptionsParserTests.cs
+├── FileSafety/
+│   ├── ModelProbeSafetyValidatorTests.cs
+│   └── ModelFileSnapshotServiceTests.cs
+├── Metadata/
+│   └── VocabOnlyMetadataProjectionTests.cs
+├── Progress/
+│   └── NativeLoadProgressRecorderTests.cs
+├── Evidence/
+│   └── JsonEvidenceWriterTests.cs
+├── Failures/
+│   └── VocabOnlyModelProbeFailureTests.cs
+└── Support/
+    ├── TemporaryDirectory.cs
+    └── TestFileBuilder.cs
 ```
 
-This now verifies a real architectural boundary instead of testing that a
-constant equals itself.
+Every deterministic test class is marked:
 
-## Current test areas
+```csharp
+[TestCategory("Deterministic")]
+```
 
-### Runtime dependency policy
+This category allows normal CI to run pure contract tests separately from
+child-process native integration tests.
 
-`PinnedApplicationRuntimeTests.cs` verifies:
+## Responsibility boundaries
 
-- the feasibility project contains the approved exact `LLamaSharp` version;
-- the feasibility project contains the approved exact CPU-backend version;
-- the WinUI application project still contains no `LLamaSharp*` dependency;
-- the experimental native dependency remains isolated under `tools/` until the
-  feasibility gates pass.
+### Dependency policy
 
-The mapped llama.cpp commit and separate `b9870` research identity remain
-recorded by `PinnedApplicationRuntime`, ADR-001 and runtime evidence. Direct
-constant-to-literal assertions are deliberately avoided.
+Reads actual repository project files and protects exact LLamaSharp package
+pins and the boundary that keeps LLamaSharp out of the WinUI project.
 
-### Command parsing
+### Command line
 
-`SpikeOptionsParserTests.cs` verifies:
+Verifies native-smoke and model-probe parsing, option validation and controlled
+argument errors.
 
-- native-smoke defaults;
-- `--model` VocabOnly defaults;
-- model/output/cancellation options in arbitrary order;
-- help;
-- missing values;
-- duplicate options;
-- invalid cancellation delays;
-- rejection of cancellation without a model;
-- unknown arguments.
+### File safety
 
-### Evidence writing
+Verifies evidence/model path separation, read-only identity snapshots, SHA-256
+and integrity comparison.
 
-`SmokeEvidenceWriterTests.cs` now exercises the generic
-`JsonEvidenceWriter` and verifies:
+### Metadata
 
-- parseable camel-case JSON;
-- readable string enum values;
-- atomic replacement of earlier local evidence.
+Verifies architecture-scoped metadata projection without unsafe native
+hyperparameter accessors.
 
-The historical filename remains for continuity even though the writer is now
-shared by both feasibility modes.
+### Progress
 
-### Model-file safety
+Verifies genuine callback fractions, clamping, duplicate suppression and
+snapshot independence.
 
-`ModelProbeSafetyValidatorTests.cs` verifies that an evidence path cannot
-resolve to the selected model path.
+### Evidence
 
-`ModelFileSnapshotServiceTests.cs` verifies:
+Verifies parseable camel-case JSON, string enums and atomic replacement.
 
-- deterministic SHA-256 capture;
-- filename, length and path-fingerprint evidence;
-- unchanged before/after comparison;
-- detection of changed file content.
+### Failures
 
-### Native progress
+Verifies deterministic failures that occur before LLamaSharp enters native
+code, including missing-file classification and path redaction.
 
-`NativeLoadProgressRecorderTests.cs` verifies:
+### Support
 
-- clamping to `0..1`;
-- suppression of consecutive duplicate fractions;
-- independent progress snapshots.
+Owns small reusable test helpers only. These helpers do not call LLamaSharp and
+do not contain assertions.
 
-### Pre-native failure handling
+## What is not a deterministic unit test
 
-`VocabOnlyModelProbeFailureTests.cs` verifies that a missing model returns the
-controlled `MI-OP-MODEL-FILE-NOT-FOUND` result without calling the native
-runtime and without serialising the full canonical model path.
-
-## What is not a unit test
-
-These require integration evidence on Windows x64:
+The following require child-process integration tests:
 
 - native CPU library discovery;
+- missing or corrupted native DLL behaviour;
 - actual `LLamaWeights.LoadFromFileAsync`;
 - Granite architecture recognition;
-- real metadata/vocabulary/chat-template availability;
-- native progress callback behavior;
-- cancellation during model loading;
-- native disposal after a successful load;
+- real metadata, vocabulary and chat-template availability;
+- cancellation while native loading is active;
+- disposal after a real load;
+- malformed GGUF containment;
 - before/after integrity of a real GGUF;
-- process-memory observations.
+- process-owned socket observations.
 
-Those checks use the console command and a controlled, provenance-recorded
-model. They must not be replaced by mocks and then described as runtime proof.
+A native call must never execute inside this MSTest host because llama.cpp can
+terminate the process before managed exception handling runs.
 
-## Commands
+## Command
 
 ```powershell
-dotnet restore `
-    "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
-    --runtime win-x64
-
 dotnet test `
     "tools\ModelInspection.LlamaSharpSpike.Tests\ModelInspection.LlamaSharpSpike.Tests.csproj" `
     --configuration Release `
-    --no-restore `
     --runtime win-x64 `
-    --minimum-expected-tests 1
+    --filter "TestCategory=Deterministic" `
+    --minimum-expected-tests 28
 ```
 
-No passing result is claimed until the command output is captured and reviewed.
+The previous verified baseline was 28/28. Test source added after that baseline
+must receive fresh execution evidence before the documented count is raised.
