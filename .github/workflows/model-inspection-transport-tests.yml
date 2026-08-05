@@ -1,0 +1,58 @@
+name: Model Inspection transport tests
+
+# Run the pure transport boundary whenever its implementation, tests, or this
+# workflow changes. The wider Windows workflow still protects WinUI and the
+# process-bearing projects.
+on:
+  push:
+    paths:
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/**'
+      - '.github/workflows/model-inspection-transport-tests.yml'
+  pull_request:
+    paths:
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/**'
+      - '.github/workflows/model-inspection-transport-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-inspection-transport-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  transport-tests:
+    name: Run bounded UTF-8 transport tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # Pinned immutable commit for actions/checkout v7.0.0.
+      - name: Check out transport boundary
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            shared/GraniteEdgeAI.ModelInspection.Transport
+            tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests
+
+      # Pinned immutable commit for actions/setup-dotnet v5.0.0. The root-level
+      # global.json remains present in cone-mode sparse checkouts.
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Display selected SDK
+        run: dotnet --info
+
+      # Microsoft.Testing.Platform exits non-zero for compilation failures,
+      # failing tests, or fewer tests than the complete Task 2 behaviour set.
+      - name: Run strict transport behaviour tests
+        run: >-
+          dotnet test
+          tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
+          --configuration Release
+          --minimum-expected-tests 18
