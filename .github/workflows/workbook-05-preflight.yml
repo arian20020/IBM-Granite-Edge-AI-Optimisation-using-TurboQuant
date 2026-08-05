@@ -17,14 +17,10 @@ on:
       - 'tests/testing/workbook05/**'
   workflow_dispatch:
 
-# Both jobs can only read repository and workflow metadata. The Intel runner
-# captures evidence into an artifact and never receives repository-write access.
 permissions:
   contents: read
   actions: read
 
-# Workbook 05 has one controlled preflight at a time. A newer request waits
-# rather than cancelling an in-progress evidence capture.
 concurrency:
   group: workbook-05-preflight
   cancel-in-progress: false
@@ -32,25 +28,23 @@ concurrency:
 jobs:
   collect-preflight:
     name: Collect Intel preflight evidence
-
-    # Pull-request runs are accepted only from the exact same-repository branch.
-    # Manual runs may use that reviewed branch or main after this workflow is
-    # merged; arbitrary branch code is never routed to the self-hosted machine.
     if: >-
       (
         github.event_name == 'workflow_dispatch' &&
         (
           github.ref == 'refs/heads/main' ||
-          github.ref == 'refs/heads/testing/workbook-05-two-route-memory-frontier'
+          github.ref == 'refs/heads/testing/workbook-05-two-route-memory-frontier' ||
+          github.ref == 'refs/heads/testing/workbook-05-source-admission'
         )
       ) ||
       (
         github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.head.ref == 'testing/workbook-05-two-route-memory-frontier'
+        (
+          github.event.pull_request.head.ref == 'testing/workbook-05-two-route-memory-frontier' ||
+          github.event.pull_request.head.ref == 'testing/workbook-05-source-admission'
+        )
       )
 
-    # All labels are required so the job cannot be routed to another Windows
-    # computer or to an unspecified GitHub-hosted virtual machine.
     runs-on:
       - self-hosted
       - Windows
@@ -65,15 +59,9 @@ jobs:
         shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
 
     steps:
-      # Retrieve the exact pull-request or manually selected repository commit.
-      # The action is pinned to an immutable commit rather than a moving tag.
-      # Only controlled preflight inputs are materialised: unrelated research
-      # and historical log paths exceed the legacy Windows path boundary.
       - name: Check out controlled preflight inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          # The job needs no authenticated Git operation after checkout, so the
-          # read-only token is removed from Git configuration immediately.
           persist-credentials: false
           sparse-checkout: |
             .github/workflows
@@ -88,7 +76,6 @@ jobs:
 
       - name: Verify the pinned machine-wide Python
         run: |
-          # Stop on a missing executable or a mismatched controlled version.
           $ErrorActionPreference = 'Stop'
           $pythonPath = 'C:\Program Files\Python312\python.exe'
 
@@ -108,8 +95,6 @@ jobs:
 
       - name: Install the preflight validation dependency in runner temp
         run: |
-          # Do not modify the machine-wide Python installation in Program Files.
-          # PYTHONPATH lets the pinned interpreter load this job-local package.
           $ErrorActionPreference = 'Stop'
           $pythonPath = 'C:\Program Files\Python312\python.exe'
           $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-python-packages'
@@ -132,8 +117,6 @@ jobs:
 
       - name: Run repository preflight unit tests
         run: |
-          # These tests validate schemas, admission rules, command capture,
-          # checkpoints, evidence integrity, and workflow contracts.
           $ErrorActionPreference = 'Stop'
           & 'C:\Program Files\Python312\python.exe' `
               -m unittest discover `
@@ -146,17 +129,11 @@ jobs:
 
       - name: Run PowerShell preflight module tests
         run: |
-          # Exercise the pure PowerShell evaluation functions before they read
-          # the real target laptop. A terminating script error fails this step
-          # because ErrorActionPreference is Stop; LASTEXITCODE is only for
-          # native processes and is deliberately not consulted here.
           $ErrorActionPreference = 'Stop'
           & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
 
       - name: Collect read-only preflight evidence
         run: |
-          # Evidence is written only to the runner-owned temporary directory.
-          # The orchestration script does not build OpenVINO or run a model.
           $ErrorActionPreference = 'Stop'
           $outputDirectory = Join-Path $env:RUNNER_TEMP 'workbook-05-preflight'
 
@@ -167,8 +144,6 @@ jobs:
               throw "Workbook 05 preflight exited with code $LASTEXITCODE."
           }
 
-      # Preserve both successful and failed preflight evidence. A failed gate is
-      # useful evidence and must not be discarded or converted into a pass.
       - name: Upload preflight evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -180,22 +155,15 @@ jobs:
 
   validate-preflight:
     name: Validate preflight artifact as untrusted data
-
-    # Validation still runs when collection fails, because the failure bundle
-    # must be checked for integrity, honest status, unsafe paths, and secrets.
-    if: ${{ always() }}
+    if: ${{ always() && needs.collect-preflight.result != 'skipped' }}
     needs: collect-preflight
     runs-on: windows-latest
     timeout-minutes: 20
 
     steps:
-      # Use the same sparse boundary as the Intel job. The hosted Windows
-      # worktree is also subject to the repository's deeply nested paths.
       - name: Check out the same repository revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          # Validation also performs no authenticated Git operation after the
-          # checkout and therefore does not retain the job token.
           persist-credentials: false
           sparse-checkout: |
             .github/workflows
@@ -245,8 +213,6 @@ jobs:
       - name: Validate the downloaded bundle without executing captured commands
         shell: powershell
         run: |
-          # The validator treats every downloaded file as untrusted data. It
-          # parses schemas and hashes but never executes captured README text.
           $ErrorActionPreference = 'Stop'
           $bundleRoot = Join-Path $env:RUNNER_TEMP 'workbook-05-preflight'
           $summaryPath = Join-Path $env:RUNNER_TEMP 'workbook-05-preflight-validation.md'
