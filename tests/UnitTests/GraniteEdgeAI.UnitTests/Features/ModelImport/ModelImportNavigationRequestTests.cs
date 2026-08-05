@@ -123,29 +123,45 @@ public sealed class ModelImportNavigationRequestTests
                 "ContinueToModelInspectionButton");
             InvokeButton(continueButton);
 
-            var importCard = (ImportModelCard)page.FindName(
-                "ImportModelCardControl");
-            var failureCode = (TextBlock)importCard.FindName(
-                "FailureCodeTextBlock");
-            var failureMessage = (TextBlock)importCard.FindName(
-                "FailureMessageTextBlock");
-            var failureFileName = (TextBlock)importCard.FindName(
-                "FailureFileNameTextBlock");
-
-            Assert.AreEqual(0, requestCount);
-            Assert.IsFalse(page.HasValidatedModel);
-            Assert.IsNull(page.ValidatedScanResult);
-            Assert.IsNull(page.SelectedModelPath);
-            Assert.IsFalse(continueButton.IsEnabled);
-            Assert.AreEqual(ImportModelCardState.ScanFailed, importCard.CurrentState);
-            Assert.AreEqual("model-selection-changed", failureCode.Text);
-            Assert.AreEqual(
-                "The selected model changed after validation. Choose the model again.",
-                failureMessage.Text);
-            Assert.AreEqual(Path.GetFileName(selectedPath), failureFileName.Text);
-            Assert.IsFalse(failureMessage.Text.Contains(
+            AssertChangedSelectionFailure(
+                page,
+                continueButton,
                 selectedPath,
-                StringComparison.OrdinalIgnoreCase));
+                requestCount);
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(selectedPath);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ContinueButton_AfterFileIsDeleted_InvalidatesSelectionWithoutNavigation()
+    {
+        string selectedPath = CreateTemporaryModelFile(lengthBytes: 64);
+
+        try
+        {
+            var page = CreateSuccessfulPage(selectedPath, fileSizeBytes: 64);
+            int requestCount = 0;
+            page.ModelInspectionRequested += (_, _) => requestCount++;
+
+            await page.BrowseFilesAsync();
+
+            // Remove the file after quick-scan success. Model Import must not
+            // navigate using stale metadata for a model that no longer exists.
+            File.Delete(selectedPath);
+
+            var continueButton = (Button)page.FindName(
+                "ContinueToModelInspectionButton");
+            InvokeButton(continueButton);
+
+            AssertChangedSelectionFailure(
+                page,
+                continueButton,
+                selectedPath,
+                requestCount);
         }
         finally
         {
@@ -186,6 +202,37 @@ public sealed class ModelImportNavigationRequestTests
             () => Task.FromResult<string?>(selectedPath),
             (format, path, cancellationToken) =>
                 Task.FromResult(successfulResult));
+    }
+
+    private static void AssertChangedSelectionFailure(
+        ModelImportPage page,
+        Button continueButton,
+        string selectedPath,
+        int requestCount)
+    {
+        var importCard = (ImportModelCard)page.FindName(
+            "ImportModelCardControl");
+        var failureCode = (TextBlock)importCard.FindName(
+            "FailureCodeTextBlock");
+        var failureMessage = (TextBlock)importCard.FindName(
+            "FailureMessageTextBlock");
+        var failureFileName = (TextBlock)importCard.FindName(
+            "FailureFileNameTextBlock");
+
+        Assert.AreEqual(0, requestCount);
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsNull(page.ValidatedScanResult);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsFalse(continueButton.IsEnabled);
+        Assert.AreEqual(ImportModelCardState.ScanFailed, importCard.CurrentState);
+        Assert.AreEqual("model-selection-changed", failureCode.Text);
+        Assert.AreEqual(
+            "The selected model changed after validation. Choose the model again.",
+            failureMessage.Text);
+        Assert.AreEqual(Path.GetFileName(selectedPath), failureFileName.Text);
+        Assert.IsFalse(failureMessage.Text.Contains(
+            selectedPath,
+            StringComparison.OrdinalIgnoreCase));
     }
 
     private static string CreateTemporaryModelFile(int lengthBytes)
