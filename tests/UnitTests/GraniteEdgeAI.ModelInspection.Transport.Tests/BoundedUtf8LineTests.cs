@@ -74,6 +74,8 @@ public sealed class BoundedUtf8LineTests
         byte[]? second = await reader.ReadLineAsync(CancellationToken.None);
         byte[]? end = await reader.ReadLineAsync(CancellationToken.None);
 
+        Assert.IsNotNull(first);
+        Assert.IsNotNull(second);
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("first"), first);
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("second"), second);
         Assert.IsNull(end);
@@ -201,10 +203,13 @@ public sealed class BoundedUtf8LineTests
         await using BlockingReadStream stream = new();
         BoundedUtf8LineReader reader = new(stream, maximumLineBytes: 32);
         using CancellationTokenSource cancellation = new();
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        ValueTask<byte[]?> pendingRead = reader.ReadLineAsync(cancellation.Token);
+        await stream.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => reader.ReadLineAsync(cancellation.Token).AsTask());
+            () => pendingRead.AsTask());
     }
 
     /// <summary>
@@ -222,7 +227,7 @@ public sealed class BoundedUtf8LineTests
         byte[] expected = [.. payload, (byte)'\n'];
         CollectionAssert.AreEqual(expected, stream.ToArray());
         Assert.AreEqual(1, stream.FlushCalls);
-        Assert.AreNotEqual(0xEF, stream.ToArray()[0]);
+        Assert.AreNotEqual((byte)0xEF, stream.ToArray()[0]);
         Assert.IsFalse(stream.ToArray().Contains((byte)'\r'));
     }
 
@@ -407,6 +412,11 @@ public sealed class BoundedUtf8LineTests
     /// </summary>
     private sealed class BlockingReadStream : Stream
     {
+        private readonly TaskCompletionSource<bool> _readStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task ReadStarted => _readStarted.Task;
+
         public override bool CanRead => true;
 
         public override bool CanSeek => false;
@@ -425,6 +435,7 @@ public sealed class BoundedUtf8LineTests
             Memory<byte> buffer,
             CancellationToken cancellationToken = default)
         {
+            _readStarted.TrySetResult(true);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
                 .ConfigureAwait(false);
             return 0;
