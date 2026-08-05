@@ -448,13 +448,16 @@ def _check_provenance(
         command_records = report.get("command_records", ())
         if isinstance(command_records, list):
             for command_record in command_records:
-                # R2 stores these paths relative to the report's route directory.
-                candidate = (
-                    report_path.parent / str(command_record)
-                    if _safe(command_record)
-                    else None
-                )
-                if candidate is None or not candidate.is_file():
+                if not _safe(command_record):
+                    candidates: tuple[Path, ...] = ()
+                else:
+                    # Accept the current route-local R2 convention and the
+                    # earlier explicit bundle-root-qualified fixture form.
+                    candidates = (
+                        report_path.parent / str(command_record),
+                        bundle / str(command_record),
+                    )
+                if not any(candidate.is_file() for candidate in candidates):
                     _add(
                         issues,
                         "SOURCE_COMMAND_RECORD_MISSING",
