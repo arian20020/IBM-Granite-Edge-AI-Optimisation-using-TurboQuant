@@ -220,7 +220,9 @@ public sealed class WorkerMessageSequenceValidatorTests
         Assert.IsTrue(validator.HasExpectedRequest);
         Assert.IsTrue(validator.HasStarted);
         Assert.IsTrue(validator.IsTerminal);
-        Assert.AreEqual(RequestId, validator.ExpectedRequestId);
+        Assert.AreEqual(
+            expected: RequestId,
+            actual: validator.ExpectedRequestId);
         Assert.AreEqual(
             WorkerStage.ConfirmCoreRuntimeCompatibility,
             validator.LastStage);
