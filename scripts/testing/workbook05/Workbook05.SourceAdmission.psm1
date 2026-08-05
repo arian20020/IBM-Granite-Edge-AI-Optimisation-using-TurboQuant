@@ -225,7 +225,156 @@ function Invoke-Workbook05RecordedCommand {
     }
 }
 
+function Test-Workbook05RelativeBundlePath {
+    <#
+    .SYNOPSIS
+    Rejects absolute, traversal, empty-segment, and backslash evidence paths.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $false
+    }
+    if ([IO.Path]::IsPathRooted($Path) -or $Path.Contains('\')) {
+        return $false
+    }
+
+    $segments = $Path.Split('/')
+    return @($segments | Where-Object { $_ -in @('', '.', '..') }).Count -eq 0
+}
+
+function Invoke-Workbook05SourceAdmissionPipeline {
+    <#
+    .SYNOPSIS
+    Executes ordered source-admission steps and separates blockers from failures.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OutputDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$StepOrder,
+
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$StepExecutor,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$RequiredBundleFiles
+    )
+
+    # Refuse contaminated evidence roots instead of deleting or silently reusing them.
+    if (Test-Path -LiteralPath $OutputDirectory) {
+        if (-not (Test-Path -LiteralPath $OutputDirectory -PathType Container)) {
+            throw "The evidence output path is not a directory: $OutputDirectory"
+        }
+        if (@(Get-ChildItem -LiteralPath $OutputDirectory -Force).Count -ne 0) {
+            throw "The evidence output directory must be empty: $OutputDirectory"
+        }
+    }
+    else {
+        New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+    }
+
+    # Validate the declared pipeline before the first external operation begins.
+    if ($StepOrder.Count -eq 0) {
+        throw 'The source-admission pipeline must contain at least one step.'
+    }
+    if (($StepOrder | Select-Object -Unique).Count -ne $StepOrder.Count) {
+        throw 'The source-admission pipeline contains a duplicate step identifier.'
+    }
+
+    $executedSteps = New-Object System.Collections.Generic.List[string]
+    $stepResults = New-Object System.Collections.Generic.List[object]
+    $routeAStatus = $null
+    $routeBStatus = $null
+    $checkpointStatus = $null
+    $currentStep = ''
+
+    try {
+        # Execute each reviewed stage exactly once and preserve its reported outcome.
+        foreach ($stepId in $StepOrder) {
+            $currentStep = $stepId
+            $result = & $StepExecutor $stepId $OutputDirectory
+            if ($null -eq $result) {
+                throw "Step '$stepId' returned no result."
+            }
+            if ($result.StepId -ne $stepId) {
+                throw "Step '$stepId' returned the mismatched identifier '$($result.StepId)'."
+            }
+            if ($result.Kind -notin @('Success', 'ScientificBlocker')) {
+                throw "Step '$stepId' reported $($result.Kind): $($result.Reason)"
+            }
+
+            $executedSteps.Add($stepId)
+            $stepResults.Add($result)
+
+            # Only the decision step is allowed to set final route/checkpoint states.
+            if ($stepId -eq 'route-decisions') {
+                $routeAStatus = [string]$result.RouteAStatus
+                $routeBStatus = [string]$result.RouteBStatus
+                $checkpointStatus = [string]$result.CheckpointStatus
+            }
+        }
+
+        # Verify every expected artifact using traversal-free relative paths.
+        foreach ($relativePath in $RequiredBundleFiles) {
+            if (-not (Test-Workbook05RelativeBundlePath -Path $relativePath)) {
+                throw "Unsafe required bundle file path: $relativePath"
+            }
+            $candidate = Join-Path $OutputDirectory ($relativePath -replace '/', '\')
+            if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                throw "Missing required bundle file: $relativePath"
+            }
+        }
+
+        # Write one reviewer-facing orchestration record after all required files exist.
+        $reportPath = Join-Path $OutputDirectory 'orchestration-report.json'
+        $report = [ordered]@{
+            schema_version = '1.0'
+            campaign_id = 'GTQ-WB05-MF-v1'
+            phase_id = 'phase-1-source-admission'
+            outcome = 'Completed'
+            route_a_status = $routeAStatus
+            route_b_status = $routeBStatus
+            checkpoint_status = $checkpointStatus
+            executed_steps = $executedSteps.ToArray()
+            step_results = $stepResults.ToArray()
+        }
+        $report | ConvertTo-Json -Depth 30 |
+            Set-Content -LiteralPath $reportPath -Encoding UTF8
+
+        return [pscustomobject]@{
+            Outcome = 'Completed'
+            RouteAStatus = $routeAStatus
+            RouteBStatus = $routeBStatus
+            CheckpointStatus = $checkpointStatus
+            ExecutedSteps = $executedSteps.ToArray()
+            ReportPath = $reportPath
+        }
+    }
+    catch {
+        # Preserve an integrity/orchestration failure before returning a non-zero exit.
+        $errorPath = Join-Path $OutputDirectory 'orchestration-error.json'
+        [ordered]@{
+            schema_version = '1.0'
+            campaign_id = 'GTQ-WB05-MF-v1'
+            phase_id = 'phase-1-source-admission'
+            failed_step = $currentStep
+            reason = $_.Exception.Message
+            executed_steps = $executedSteps.ToArray()
+        } | ConvertTo-Json -Depth 20 |
+            Set-Content -LiteralPath $errorPath -Encoding UTF8
+        throw
+    }
+}
+
 Export-ModuleMember -Function @(
     'Test-Workbook05ExternalWorkspace',
-    'Invoke-Workbook05RecordedCommand'
+    'Invoke-Workbook05RecordedCommand',
+    'Invoke-Workbook05SourceAdmissionPipeline'
 )
