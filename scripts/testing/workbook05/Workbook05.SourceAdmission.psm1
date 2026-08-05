@@ -264,6 +264,7 @@ function Invoke-Workbook05SourceAdmissionPipeline {
         [scriptblock]$StepExecutor,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [string[]]$RequiredBundleFiles
     )
 
@@ -284,7 +285,7 @@ function Invoke-Workbook05SourceAdmissionPipeline {
     if ($StepOrder.Count -eq 0) {
         throw 'The source-admission pipeline must contain at least one step.'
     }
-    if (($StepOrder | Select-Object -Unique).Count -ne $StepOrder.Count) {
+    if (@($StepOrder | Select-Object -Unique).Count -ne $StepOrder.Count) {
         throw 'The source-admission pipeline contains a duplicate step identifier.'
     }
 
