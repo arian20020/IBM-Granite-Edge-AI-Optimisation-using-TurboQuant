@@ -26,6 +26,10 @@ TEMPLATE = (
     REPOSITORY_ROOT
     / "experiments/granite_turboquant_intel/manifests/templates/workbook05/measured-run-manifest-template.json"
 )
+RUBRIC = (
+    REPOSITORY_ROOT
+    / "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json"
+)
 
 
 class MeasurementControlTests(unittest.TestCase):
@@ -46,6 +50,17 @@ class MeasurementControlTests(unittest.TestCase):
             "material_degradation",
         ):
             self.assertIn(field, required_quality)
+
+    def test_dimension_score_names_match_the_frozen_rubric_exactly(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        rubric = json.loads(RUBRIC.read_text(encoding="utf-8"))
+        schema_names = set(
+            schema["properties"]["quality"]["properties"]["dimension_scores"]
+            ["properties"]
+        )
+        rubric_names = {dimension["name"] for dimension in rubric["dimensions"]}
+
+        self.assertEqual(rubric_names, schema_names)
 
     def test_controlling_assets_are_hashed_and_valid(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
