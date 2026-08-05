@@ -746,7 +746,7 @@ def _walk_paths(
             child_location = f"{location}.{key}"
             lowered = key.casefold()
             if (
-                lowered != "canonical_path"
+                lowered not in {"canonical_path", "file_path"}
                 and lowered.endswith("_path")
                 and isinstance(child, str)
                 and child
