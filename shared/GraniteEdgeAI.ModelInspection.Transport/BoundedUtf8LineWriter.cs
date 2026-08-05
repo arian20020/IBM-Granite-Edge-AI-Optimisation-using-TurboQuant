@@ -3,7 +3,11 @@ namespace GraniteEdgeAI.ModelInspection.Transport;
 /// <summary>
 /// Writes strict UTF-8 protocol payloads as serialized LF-delimited frames.
 /// </summary>
-public sealed class BoundedUtf8LineWriter
+/// <remarks>
+/// The caller owns the supplied stream. Disposing this writer releases only its
+/// internal serialization gate and must occur after all writer calls complete.
+/// </remarks>
+public sealed class BoundedUtf8LineWriter : IDisposable
 {
     private static readonly ReadOnlyMemory<byte> LineFeed =
         new byte[] { (byte)'\n' };
@@ -13,6 +17,8 @@ public sealed class BoundedUtf8LineWriter
     private readonly SemaphoreSlim _writeGate = new(
         initialCount: 1,
         maxCount: 1);
+
+    private int _disposeState;
 
     /// <summary>
     /// Creates a writer for one LF-delimited protocol stream.
@@ -38,6 +44,9 @@ public sealed class BoundedUtf8LineWriter
     /// Cancels waiting, writing, or flushing without converting cancellation
     /// into a protocol failure.
     /// </param>
+    /// <exception cref="ObjectDisposedException">
+    /// The writer has already been disposed.
+    /// </exception>
     /// <exception cref="ProtocolStreamException">
     /// The payload is empty, malformed, contains framing bytes, or exceeds the
     /// configured byte limit.
@@ -46,6 +55,7 @@ public sealed class BoundedUtf8LineWriter
         ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken)
     {
+        ThrowIfDisposed();
         cancellationToken.ThrowIfCancellationRequested();
 
         // Validate the length before allocating so an untrusted caller cannot
@@ -75,6 +85,28 @@ public sealed class BoundedUtf8LineWriter
         finally
         {
             _writeGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Releases the internal serialization gate without closing the caller-owned
+    /// protocol stream.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposeState, 1) == 0)
+        {
+            _writeGate.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposeState) != 0)
+        {
+            throw new ObjectDisposedException(nameof(BoundedUtf8LineWriter));
         }
     }
 }
