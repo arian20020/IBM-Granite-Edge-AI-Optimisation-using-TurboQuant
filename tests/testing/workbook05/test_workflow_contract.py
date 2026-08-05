@@ -124,10 +124,7 @@ class WorkflowContractTests(unittest.TestCase):
                 checkout_step,
                 f"Checkout {checkout_number} must use sparse checkout.",
             )
-            self.assertIn(
-                "persist-credentials: false",
-                checkout_step,
-            )
+            self.assertIn("persist-credentials: false", checkout_step)
             for required_root in required_sparse_roots:
                 self.assertIn(
                     required_root,
@@ -135,7 +132,7 @@ class WorkflowContractTests(unittest.TestCase):
                     f"Checkout {checkout_number} is missing {required_root}.",
                 )
 
-    def test_powershell_module_test_step_does_not_read_native_exit_code(self) -> None:
+    def test_powershell_module_test_step_runs_both_suites_without_native_exit_checks(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         step = text.split(
             "      - name: Run PowerShell preflight module tests",
@@ -144,6 +141,10 @@ class WorkflowContractTests(unittest.TestCase):
 
         self.assertIn(
             "& '.\\tests\\testing\\workbook05\\Invoke-PreflightModuleTests.ps1'",
+            step,
+        )
+        self.assertIn(
+            "& '.\\tests\\testing\\workbook05\\Invoke-SourceAdmissionModuleTests.ps1'",
             step,
         )
         self.assertNotIn("$LASTEXITCODE", step)
