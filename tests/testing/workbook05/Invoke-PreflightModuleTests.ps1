@@ -64,7 +64,8 @@ $validObservation = [pscustomobject]@{
     PythonVersion = '3.12.10'
     PythonPath = 'C:\Program Files\Python312\python.exe'
     GitVersion = 'git version 2.53.0.windows.3'
-    CMakeVersion = '3.31.6'
+    # Visual Studio's bundled CMake appends a vendor suffix to its SemVer core.
+    CMakeVersion = '4.3.1-msvc1'
     MSBuildVersion = '17.14.51.32402'
     CompilerVersion = '19.44.35228.0'
     WindowsSdkVersion = '10.0.28000.0'
