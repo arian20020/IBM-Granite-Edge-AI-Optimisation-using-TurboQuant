@@ -13,17 +13,28 @@ public sealed class WorkerProtocolTests
     [TestMethod]
     public void WorkerProtocol_UsesApprovedIdentityLimitsAndTimeouts()
     {
-        Assert.AreEqual(1, WorkerProtocol.Version);
-        Assert.AreEqual(
-            "GraniteEdgeAI.ModelInspection.Worker",
-            WorkerProtocol.WorkerId);
+        // Read compile-time constants through the public metadata surface so
+        // this verifies the published contract rather than asserting a value
+        // the test compiler has already substituted into its own assembly.
+        int version = ReadPublicConstant<int>(nameof(WorkerProtocol.Version));
+        string workerId =
+            ReadPublicConstant<string>(nameof(WorkerProtocol.WorkerId));
+        string runtimeProfile =
+            ReadPublicConstant<string>(nameof(WorkerProtocol.RuntimeProfile));
+        int maximumMessageBytes =
+            ReadPublicConstant<int>(nameof(WorkerProtocol.MaximumMessageBytes));
+        int maximumRetainedStandardErrorBytes = ReadPublicConstant<int>(
+            nameof(WorkerProtocol.MaximumRetainedStandardErrorBytes));
+
+        Assert.AreEqual(1, version);
+        Assert.AreEqual("GraniteEdgeAI.ModelInspection.Worker", workerId);
         Assert.AreEqual(
             "llamasharp-0.27.0-cpu-win-x64-vocab-only-v1",
-            WorkerProtocol.RuntimeProfile);
-        Assert.AreEqual(1024 * 1024, WorkerProtocol.MaximumMessageBytes);
+            runtimeProfile);
+        Assert.AreEqual(1024 * 1024, maximumMessageBytes);
         Assert.AreEqual(
             256 * 1024,
-            WorkerProtocol.MaximumRetainedStandardErrorBytes);
+            maximumRetainedStandardErrorBytes);
         Assert.AreEqual(TimeSpan.FromSeconds(5), WorkerProtocol.StartupTimeout);
         Assert.AreEqual(TimeSpan.FromMinutes(5), WorkerProtocol.OverallTimeout);
         Assert.AreEqual(
@@ -230,6 +241,28 @@ public sealed class WorkerProtocolTests
         Assert.IsNull(evidence.LayerCount);
         Assert.IsNull(evidence.AttentionHeadCount);
         Assert.IsNull(evidence.KvHeadCount);
+    }
+
+    private static T ReadPublicConstant<T>(string fieldName)
+    {
+        FieldInfo? field = typeof(WorkerProtocol).GetField(
+            fieldName,
+            BindingFlags.Public | BindingFlags.Static);
+
+        if (field is null || !field.IsLiteral || field.IsInitOnly)
+        {
+            throw new AssertFailedException(
+                $"WorkerProtocol.{fieldName} is not a public constant.");
+        }
+
+        object? rawValue = field.GetRawConstantValue();
+        if (rawValue is not T typedValue)
+        {
+            throw new AssertFailedException(
+                $"WorkerProtocol.{fieldName} is not a {typeof(T).Name} constant.");
+        }
+
+        return typedValue;
     }
 
     private static WorkerHelloMessage CreateValidHello()
