@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml.Controls;
 using System;
 
@@ -68,24 +69,23 @@ namespace GraniteEdgeAI.Features.Onboarding
         /// <summary>
         /// Navigates the onboarding frame to the model-inspection stage.
         /// </summary>
-        /// <param name="modelPath">
-        /// The validated local model path.
+        /// <param name="request">
+        /// The immutable, validated Model Inspection request.
         /// </param>
         /// <returns>
         /// True when Frame navigation succeeds; otherwise, false.
         /// </returns>
-        internal bool NavigateToModelInspection(string modelPath)
+        internal bool NavigateToModelInspection(
+            ModelInspectionRequest request)
         {
-            // Never navigate with an invalid model path.
-            ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
+            // Never navigate without the validated request created by Model Import.
+            ArgumentNullException.ThrowIfNull(request);
 
             // Ask the onboarding Frame to create ModelInspectionPage.
-            //
-            // The second argument becomes NavigationEventArgs.Parameter on
-            // the destination page.
+            // The request becomes NavigationEventArgs.Parameter on that page.
             bool navigationSucceeded = StageFrame.Navigate(
                 typeof(ModelInspectionPage),
-                modelPath);
+                request);
 
             // Preserve the current stage when WinUI reports navigation failure.
             if (!navigationSucceeded)
@@ -139,8 +139,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             object? sender,
             ModelInspectionRequestedEventArgs eventArguments)
         {
-            // Forward the validated path to the shell-owned navigation method.
-            NavigateToModelInspection(eventArguments.ModelPath);
+            // Forward the exact immutable request without reconstructing it.
+            NavigateToModelInspection(eventArguments.Request);
         }
 
         /// <summary>
