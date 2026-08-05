@@ -16,6 +16,7 @@ CHECKOUT_SHA = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
 SETUP_PYTHON_SHA = "bfe8cc55a7890e3d6672eda6460ef37bfcc70755"
 UPLOAD_ARTIFACT_SHA = "bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
 DOWNLOAD_ARTIFACT_SHA = "974686ed5098c7f9c9289ec946b9058e496a2561"
+REPOSITORY_GATE = ".\\scripts\\testing\\Validate-Workbook05-SourceAdmission.ps1"
 
 
 class SourceAdmissionWorkflowContractTests(unittest.TestCase):
@@ -165,35 +166,27 @@ class SourceAdmissionWorkflowContractTests(unittest.TestCase):
             f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}",
         ):
             self.assertIn(action, text)
+        self.assertIn("python-version: '3.12.10'", text)
 
-    def test_all_repository_tests_run_before_intel_collection(self) -> None:
-        """The laptop must not collect evidence from an unverified checkout."""
+    def test_repository_phase_gate_runs_before_intel_collection(self) -> None:
+        """The laptop must not collect evidence before the indivisible R5 gate."""
 
         job = self._job_section(
             "collect-source-admission",
             "validate-source-admission",
         )
-        python_position = job.index("- name: Run every Workbook 05 Python test")
-        powershell_position = job.index(
-            "- name: Run every Workbook 05 PowerShell test"
-        )
+        gate_position = job.index("- name: Run repository-level Phase 1 gate")
         collection_position = job.index(
             "- name: Collect read-only source-admission evidence"
         )
-        self.assertLess(python_position, powershell_position)
-        self.assertLess(powershell_position, collection_position)
-
-        self.assertIn("-m unittest discover", job)
-        self.assertIn("-s 'tests/testing/workbook05'", job)
-        self.assertIn("-p 'test_*.py'", job)
+        self.assertLess(gate_position, collection_position)
+        self.assertIn(REPOSITORY_GATE, job)
         self.assertIn(
-            "& '.\\tests\\testing\\workbook05\\Invoke-PreflightModuleTests.ps1'",
+            "-PythonPath 'C:\\Program Files\\Python312\\python.exe'",
             job,
         )
-        self.assertIn(
-            "& '.\\tests\\testing\\workbook05\\Invoke-SourceAdmissionModuleTests.ps1'",
-            job,
-        )
+        self.assertNotIn("- name: Run every Workbook 05 Python test", job)
+        self.assertNotIn("- name: Run every Workbook 05 PowerShell test", job)
 
     def test_collection_uploads_the_exact_artifact_even_for_scientific_blockers(self) -> None:
         """A truthful blocked route remains reviewable instead of disappearing."""
@@ -240,8 +233,16 @@ class SourceAdmissionWorkflowContractTests(unittest.TestCase):
             "${{ github.run_attempt }}",
             job,
         )
-        self.assertIn("- name: Run every Workbook 05 Python test", job)
-        self.assertIn("- name: Run every Workbook 05 PowerShell test", job)
+        gate_position = job.index("- name: Run repository-level Phase 1 gate")
+        validation_position = job.index(
+            "- name: Validate the downloaded source-admission bundle as "
+            "untrusted data"
+        )
+        self.assertLess(gate_position, validation_position)
+        self.assertIn(REPOSITORY_GATE, job)
+        self.assertIn("-PythonPath 'python'", job)
+        self.assertNotIn("- name: Run every Workbook 05 Python test", job)
+        self.assertNotIn("- name: Run every Workbook 05 PowerShell test", job)
         self.assertIn(
             "python -m scripts.testing.workbook05."
             "source_admission_bundle_validation",
