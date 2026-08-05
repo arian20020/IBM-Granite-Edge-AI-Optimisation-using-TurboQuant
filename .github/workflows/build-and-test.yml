@@ -192,6 +192,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
 
+          dotnet sln 'IBM Granite with TurboQuant (Intel).slnx' list
+          if ($LASTEXITCODE -ne 0) {
+            throw "Gate 2 solution validation failed with exit code $LASTEXITCODE."
+          }
+
           $gate2Projects = @(
             'shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj'
             'workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj'
