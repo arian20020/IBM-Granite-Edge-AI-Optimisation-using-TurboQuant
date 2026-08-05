@@ -136,6 +136,23 @@ def _route_evidence_paths(record: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(sorted(paths))
 
 
+def _calculated_route_reason(
+    record: Mapping[str, Any],
+    decision: AdmissionDecision,
+) -> str:
+    """Explain the calculated state rather than repeating a stale requested state."""
+
+    # Calculated failures take priority because they explain why the route did
+    # not receive its requested status. A clean route keeps its controlled text.
+    if decision.reasons:
+        return "; ".join(decision.reasons)
+
+    controlled_reason = str(record.get("decision_reason", "")).strip()
+    if not controlled_reason:
+        raise ValueError("Each route requires a non-empty decision_reason")
+    return controlled_reason
+
+
 def _render_summary_markdown(summary: Mapping[str, Any]) -> str:
     """Render the machine summary into a deterministic reviewer-facing report."""
 
@@ -212,6 +229,8 @@ def assemble_phase_outputs(
         route_b_record,
         measurement_report,
     )
+    route_a_decision = evaluate_source_admission(route_a_record)
+    route_b_decision = evaluate_source_admission(route_b_record)
 
     # Validate every path before it becomes a trusted reference in the summary
     # or the future hash manifest.
@@ -234,13 +253,6 @@ def assemble_phase_outputs(
     route_a_paths = _route_evidence_paths(route_a_record)
     route_b_paths = _route_evidence_paths(route_b_record)
 
-    # The controlled record supplies the human explanation. Admission logic has
-    # already blocked blank explanations before this summary is assembled.
-    route_a_reason = str(route_a_record.get("decision_reason", "")).strip()
-    route_b_reason = str(route_b_record.get("decision_reason", "")).strip()
-    if not route_a_reason or not route_b_reason:
-        raise ValueError("Each route requires a non-empty decision_reason")
-
     summary = {
         "schema_version": "1.0",
         "campaign_id": CAMPAIGN_ID,
@@ -250,12 +262,18 @@ def assemble_phase_outputs(
         "route_decisions": {
             ROUTE_A_ID: {
                 "status": decision.route_a_status,
-                "decision_reason": route_a_reason,
+                "decision_reason": _calculated_route_reason(
+                    route_a_record,
+                    route_a_decision,
+                ),
                 "evidence_paths": list(route_a_paths),
             },
             ROUTE_B_ID: {
                 "status": decision.route_b_status,
-                "decision_reason": route_b_reason,
+                "decision_reason": _calculated_route_reason(
+                    route_b_record,
+                    route_b_decision,
+                ),
                 "evidence_paths": list(route_b_paths),
             },
         },
