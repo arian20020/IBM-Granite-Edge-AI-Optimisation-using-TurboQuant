@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import copy
 import hashlib
 import json
 import shutil
@@ -274,6 +273,7 @@ class SourceAdmissionBundleValidationTests(unittest.TestCase):
             / "experiments/granite_turboquant_intel/manifests/"
             "campaigns/GTQ-WB05-MF-v1"
         )
+        (bundle / "controls").mkdir(parents=True, exist_ok=True)
         shutil.copyfile(
             campaign_root / "campaign-manifest.json",
             bundle / "controls/campaign-manifest.json",
