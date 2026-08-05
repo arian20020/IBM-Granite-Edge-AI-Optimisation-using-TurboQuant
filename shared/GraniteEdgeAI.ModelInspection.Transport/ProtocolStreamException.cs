@@ -123,25 +123,37 @@ internal static class ProtocolStreamValidation
     }
 
     /// <summary>
-    /// Validates one caller-supplied output payload before any byte is written.
+    /// Rejects an empty or oversized output payload before an owned snapshot is
+    /// allocated. This preserves the configured memory boundary for untrusted
+    /// callers.
     /// </summary>
-    public static void ValidateOutputPayload(
-        ReadOnlyMemory<byte> payload,
+    public static void ValidateOutputPayloadLength(
+        int payloadLength,
         int maximumLineBytes)
     {
-        if (payload.IsEmpty)
+        if (payloadLength == 0)
         {
             throw Create(
                 ProtocolStreamErrorKind.EmptyLine,
                 "Protocol lines cannot be empty.");
         }
 
-        if (payload.Length > maximumLineBytes)
+        if (payloadLength < 0 || payloadLength > maximumLineBytes)
         {
             throw Create(
                 ProtocolStreamErrorKind.LineTooLong,
                 "The protocol payload exceeds the configured byte limit.");
         }
+    }
+
+    /// <summary>
+    /// Validates one caller-supplied output payload before any byte is written.
+    /// </summary>
+    public static void ValidateOutputPayload(
+        ReadOnlyMemory<byte> payload,
+        int maximumLineBytes)
+    {
+        ValidateOutputPayloadLength(payload.Length, maximumLineBytes);
 
         ReadOnlySpan<byte> payloadBytes = payload.Span;
         ValidateNoBom(payloadBytes);
