@@ -47,13 +47,19 @@ internal sealed record ModelInspectionResult
             recommendedAction,
             nameof(recommendedAction));
 
-        // ConversionRequired is valid only when an implemented route is known.
+        // The route is conditionally required only for ConversionRequired. Use
+        // a cross-property argument error rather than treating this otherwise
+        // optional parameter as universally non-null.
         if (Outcome == ModelInspectionOutcome.ConversionRequired)
         {
-            VerifiedConversionRouteId =
-                ModelInspectionContractValidation.RequireText(
-                    verifiedConversionRouteId,
+            if (string.IsNullOrWhiteSpace(verifiedConversionRouteId))
+            {
+                throw new ArgumentException(
+                    "ConversionRequired must identify a verified conversion route.",
                     nameof(verifiedConversionRouteId));
+            }
+
+            VerifiedConversionRouteId = verifiedConversionRouteId;
         }
         else
         {
