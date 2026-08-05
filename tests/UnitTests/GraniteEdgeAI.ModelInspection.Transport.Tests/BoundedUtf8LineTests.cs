@@ -220,7 +220,7 @@ public sealed class BoundedUtf8LineTests
     {
         byte[] payload = Encoding.UTF8.GetBytes("{\"protocolVersion\":1}");
         await using RecordingWriteStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 128);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 128);
 
         await writer.WriteLineAsync(payload, CancellationToken.None);
 
@@ -232,13 +232,32 @@ public sealed class BoundedUtf8LineTests
     }
 
     /// <summary>
+    /// Disposing the writer releases only its owned gate, leaves the caller's
+    /// stream open, and prevents later writes through the disposed writer.
+    /// </summary>
+    [TestMethod]
+    public async Task WriteLineAsyncRejectsUseAfterDisposeWithoutClosingStream()
+    {
+        await using MemoryStream stream = new();
+        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        writer.Dispose();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(
+            () => writer
+                .WriteLineAsync(Encoding.UTF8.GetBytes("valid"), CancellationToken.None)
+                .AsTask());
+
+        Assert.IsTrue(stream.CanWrite);
+    }
+
+    /// <summary>
     /// Emitting an empty payload would create the forbidden blank frame.
     /// </summary>
     [TestMethod]
     public async Task WriteLineAsyncRejectsEmptyPayloadBeforeWriting()
     {
         await using RecordingWriteStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
         ProtocolStreamException error = await Assert.ThrowsExactlyAsync<ProtocolStreamException>(
             () => writer.WriteLineAsync(ReadOnlyMemory<byte>.Empty, CancellationToken.None).AsTask());
@@ -256,7 +275,7 @@ public sealed class BoundedUtf8LineTests
     {
         byte[] payload = [0xEF, 0xBB, 0xBF, (byte)'{', (byte)'}'];
         await using RecordingWriteStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
         ProtocolStreamException error = await Assert.ThrowsExactlyAsync<ProtocolStreamException>(
             () => writer.WriteLineAsync(payload, CancellationToken.None).AsTask());
@@ -280,7 +299,7 @@ public sealed class BoundedUtf8LineTests
         foreach ((byte[] payload, ProtocolStreamErrorKind expectedKind) in cases)
         {
             await using RecordingWriteStream stream = new();
-            BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+            using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
             ProtocolStreamException error = await Assert.ThrowsExactlyAsync<ProtocolStreamException>(
                 () => writer.WriteLineAsync(payload, CancellationToken.None).AsTask());
@@ -299,7 +318,7 @@ public sealed class BoundedUtf8LineTests
     {
         byte[] payload = [0xC3, 0x28];
         await using RecordingWriteStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
         ProtocolStreamException error = await Assert.ThrowsExactlyAsync<ProtocolStreamException>(
             () => writer.WriteLineAsync(payload, CancellationToken.None).AsTask());
@@ -317,7 +336,7 @@ public sealed class BoundedUtf8LineTests
         byte[] payload = new byte[33];
         Array.Fill(payload, (byte)'a');
         await using RecordingWriteStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
         ProtocolStreamException error = await Assert.ThrowsExactlyAsync<ProtocolStreamException>(
             () => writer.WriteLineAsync(payload, CancellationToken.None).AsTask());
