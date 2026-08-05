@@ -134,6 +134,25 @@ class WorkflowContractTests(unittest.TestCase):
                     f"Checkout {checkout_number} is missing {required_root}.",
                 )
 
+    def test_powershell_module_test_step_does_not_read_native_exit_code(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        step = text.split(
+            "      - name: Run PowerShell preflight module tests",
+            1,
+        )[1].split("\n      - name:", 1)[0]
+
+        # A .ps1 script runs inside PowerShell and does not set LASTEXITCODE.
+        # Terminating errors propagate because ErrorActionPreference is Stop.
+        self.assertIn(
+            "& '.\\tests\\testing\\workbook05\\Invoke-PreflightModuleTests.ps1'",
+            step,
+        )
+        self.assertNotIn(
+            "$LASTEXITCODE",
+            step,
+            "The PowerShell script step must not use the native-process exit code.",
+        )
+
     def test_workflow_contains_no_repository_write_command(self) -> None:
         lowered = WORKFLOW.read_text(encoding="utf-8").lower()
         for forbidden in (
