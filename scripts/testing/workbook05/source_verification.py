@@ -145,6 +145,14 @@ def _parse_submodule_status(
     status_text: str,
     module_configuration: Mapping[str, Mapping[str, str]],
 ) -> tuple[list[dict[str, str]], bool]:
+    """Parse recursive status while treating root declarations as a subset.
+
+    The root repository's `.gitmodules` contains only top-level declarations.
+    `git submodule status --recursive` also returns descendants declared by each
+    child repository, so extra observed paths are expected and must not be
+    misclassified as missing top-level modules.
+    """
+
     by_path = {
         values["path"]: values.get("url", "")
         for values in module_configuration.values()
@@ -181,9 +189,12 @@ def _parse_submodule_status(
             }
         )
 
-    if set(by_path) != observed_paths:
+    # Only declarations missing from the recursive status are incomplete.
+    # Additional observed paths are legitimate nested submodules.
+    missing_declared_paths = set(by_path) - observed_paths
+    if missing_declared_paths:
         complete = False
-        for missing_path in sorted(set(by_path) - observed_paths):
+        for missing_path in sorted(missing_declared_paths):
             rows.append(
                 {
                     "path": missing_path,
@@ -193,6 +204,27 @@ def _parse_submodule_status(
                 }
             )
     return rows, complete
+
+
+def _safe_submodule_directory(
+    source_directory: Path,
+    relative_path: str,
+) -> Path | None:
+    """Resolve a Git-reported submodule path without allowing source escape."""
+
+    candidate_path = Path(relative_path)
+    if candidate_path.is_absolute() or ".." in candidate_path.parts:
+        return None
+
+    candidate = (source_directory / candidate_path).resolve()
+    try:
+        candidate.relative_to(source_directory)
+    except ValueError:
+        return None
+
+    if not candidate.is_dir() or not (candidate / ".git").exists():
+        return None
+    return candidate
 
 
 def verify_source_tree(
@@ -310,6 +342,44 @@ def verify_source_tree(
         submodule_status,
         _parse_gitmodules(gitmodules_text),
     )
+
+    # Root `.gitmodules` cannot describe descendants declared inside child
+    # repositories. For every nested row whose URL is still empty, ask that
+    # initialized child repository for its actual `origin` using an argument
+    # list command. This preserves recursive provenance without a command shell.
+    for index, submodule in enumerate(submodules):
+        if submodule["url"].strip():
+            continue
+
+        submodule_directory = _safe_submodule_directory(
+            source_directory,
+            submodule["path"],
+        )
+        if submodule_directory is None:
+            submodules_complete = False
+            continue
+
+        remote = run_git(
+            [
+                "-C",
+                str(submodule_directory),
+                "remote",
+                "get-url",
+                "origin",
+            ],
+            f"submodule-origin-{index:03d}",
+            check=False,
+        )
+        actual_submodule_origin = remote.stdout.strip()
+        if remote.returncode != 0 or not actual_submodule_origin:
+            submodules_complete = False
+            continue
+        submodule["url"] = actual_submodule_origin
+
+    # A complete recursive manifest must include a non-empty provenance URL for
+    # every observed submodule, including nested descendants.
+    if any(not submodule["url"].strip() for submodule in submodules):
+        submodules_complete = False
 
     reasons: list[str] = []
     if origin != expected_origin:
