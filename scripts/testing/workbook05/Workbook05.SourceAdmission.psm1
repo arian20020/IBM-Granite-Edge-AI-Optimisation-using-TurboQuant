@@ -294,11 +294,31 @@ function Invoke-Workbook05SourceAdmissionPipeline {
     $routeBStatus = $null
     $checkpointStatus = $null
     $currentStep = ''
+    $reportPath = Join-Path $OutputDirectory 'orchestration-report.json'
 
     try {
         # Execute each reviewed stage exactly once and preserve its reported outcome.
         foreach ($stepId in $StepOrder) {
             $currentStep = $stepId
+
+            # The report must exist before the final hash step, otherwise the
+            # completed manifest cannot protect the orchestration decision record.
+            if ($stepId -eq 'hashes') {
+                [ordered]@{
+                    schema_version = '1.0'
+                    campaign_id = 'GTQ-WB05-MF-v1'
+                    phase_id = 'phase-1-source-admission'
+                    outcome = 'Decision pipeline complete; final hash follows.'
+                    route_a_status = $routeAStatus
+                    route_b_status = $routeBStatus
+                    checkpoint_status = $checkpointStatus
+                    ordered_steps = $StepOrder
+                    completed_steps_before_hash = $executedSteps.ToArray()
+                    step_results_before_hash = $stepResults.ToArray()
+                } | ConvertTo-Json -Depth 30 |
+                    Set-Content -LiteralPath $reportPath -Encoding UTF8
+            }
+
             $result = & $StepExecutor $stepId $OutputDirectory
             if ($null -eq $result) {
                 throw "Step '$stepId' returned no result."
@@ -331,22 +351,6 @@ function Invoke-Workbook05SourceAdmissionPipeline {
                 throw "Missing required bundle file: $relativePath"
             }
         }
-
-        # Write one reviewer-facing orchestration record after all required files exist.
-        $reportPath = Join-Path $OutputDirectory 'orchestration-report.json'
-        $report = [ordered]@{
-            schema_version = '1.0'
-            campaign_id = 'GTQ-WB05-MF-v1'
-            phase_id = 'phase-1-source-admission'
-            outcome = 'Completed'
-            route_a_status = $routeAStatus
-            route_b_status = $routeBStatus
-            checkpoint_status = $checkpointStatus
-            executed_steps = $executedSteps.ToArray()
-            step_results = $stepResults.ToArray()
-        }
-        $report | ConvertTo-Json -Depth 30 |
-            Set-Content -LiteralPath $reportPath -Encoding UTF8
 
         return [pscustomobject]@{
             Outcome = 'Completed'
