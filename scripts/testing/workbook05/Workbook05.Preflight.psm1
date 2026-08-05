@@ -96,7 +96,23 @@ function Test-Workbook05PreflightObservation {
     Add-Check 'Python version' $true ([string]$Observation.PythonVersion -eq [string]$Settings.python_version) ([string]$Settings.python_version) ([string]$Observation.PythonVersion)
 
     $cmakePassed = $false
-    try { $cmakePassed = ([version]$Observation.CMakeVersion -ge [version]$Settings.minimum_cmake_version) } catch { $cmakePassed = $false }
+    try {
+        # Visual Studio can report values such as `4.3.1-msvc1`. Preserve that
+        # complete identity in evidence, but compare the leading numeric core.
+        $cmakeVersionMatch = [regex]::Match(
+            [string]$Observation.CMakeVersion,
+            '^(\d+(?:\.\d+){1,3})'
+        )
+        if ($cmakeVersionMatch.Success) {
+            $cmakePassed = (
+                [version]$cmakeVersionMatch.Groups[1].Value -ge
+                [version]$Settings.minimum_cmake_version
+            )
+        }
+    }
+    catch {
+        $cmakePassed = $false
+    }
     Add-Check 'CMake version' $true $cmakePassed "At least $($Settings.minimum_cmake_version)" ([string]$Observation.CMakeVersion)
 
     $msbuildPassed = $false
