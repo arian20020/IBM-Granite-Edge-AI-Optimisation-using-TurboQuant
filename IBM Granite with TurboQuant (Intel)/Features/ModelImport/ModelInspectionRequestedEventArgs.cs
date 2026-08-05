@@ -1,30 +1,32 @@
-﻿using System;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using System;
 
 namespace GraniteEdgeAI.Features.ModelImport
 {
     /// <summary>
-    /// Carries the validated model selected for full model inspection.
+    /// Carries the immutable, validated request for full model inspection.
     /// </summary>
     internal sealed class ModelInspectionRequestedEventArgs : EventArgs
     {
         /// <summary>
-        /// Creates one model-inspection navigation request.
+        /// Creates one model-inspection navigation request event.
         /// </summary>
-        /// <param name="modelPath">
-        /// The authoritative local path of the validated model package.
+        /// <param name="request">
+        /// The immutable request created from the current validated model file.
         /// </param>
-        public ModelInspectionRequestedEventArgs(string modelPath)
+        public ModelInspectionRequestedEventArgs(
+            ModelInspectionRequest request)
         {
-            // Reject null, empty, or whitespace-only model paths.
-            ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
+            // A navigation event cannot exist without its validated request.
+            ArgumentNullException.ThrowIfNull(request);
 
-            // Preserve the original validated path without changing it.
-            ModelPath = modelPath;
+            // Preserve the exact request object for the shell to forward.
+            Request = request;
         }
 
         /// <summary>
-        /// Gets the validated model path passed to the inspection stage.
+        /// Gets the immutable request passed to the inspection stage.
         /// </summary>
-        public string ModelPath { get; }
+        public ModelInspectionRequest Request { get; }
     }
 }
