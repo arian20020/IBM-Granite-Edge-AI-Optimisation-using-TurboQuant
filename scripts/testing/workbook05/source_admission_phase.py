@@ -13,6 +13,7 @@ from scripts.testing.workbook05.source_admission import (
     AdmissionDecision,
     evaluate_source_admission,
     is_safe_relative_evidence_path,
+    source_admission_integrity_issues,
 )
 
 
@@ -59,11 +60,17 @@ def calculate_phase_decision(
     route_b_record: Mapping[str, Any],
     measurement_report: Mapping[str, Any],
 ) -> PhaseDecision:
-    """Calculate route states without allowing a blocked Route B to stop Route A."""
+    """Calculate route states without hiding evidence-integrity failures."""
 
     # Measurement controls govern every later benchmark. Phase 1 cannot pass
     # when those controls are incomplete or weakened.
     measurement_issues = validate_measurement_controls(measurement_report)
+
+    # Record-integrity failures are evaluated separately from scientific source
+    # blockers. A truthful Route B blocker is allowed; corrupt Route B evidence
+    # is not an acceptable basis for passing the phase.
+    route_a_integrity = source_admission_integrity_issues(route_a_record)
+    route_b_integrity = source_admission_integrity_issues(route_b_record)
 
     # Each route is evaluated independently so experimental Route B evidence
     # can remain blocked while the merged Route A proceeds to documented build.
@@ -78,9 +85,9 @@ def calculate_phase_decision(
         for issue in measurement_issues
     )
 
-    # A truthful Route B blocker is an allowed scientific outcome. Route A must
-    # still be admitted, and the frozen measurement controls must remain valid.
-    if measurement_issues:
+    # A truthful Route B blocker is an allowed scientific outcome. Evidence
+    # integrity failures, invalid controls, or a blocked Route A stop the phase.
+    if measurement_issues or route_a_integrity or route_b_integrity:
         checkpoint_status = "Blocked"
     elif (
         route_a.calculated_status == "Admitted"
