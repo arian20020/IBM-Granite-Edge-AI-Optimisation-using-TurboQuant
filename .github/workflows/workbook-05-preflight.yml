@@ -135,6 +135,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
+          & '.\tests\testing\workbook05\Invoke-SourceAdmissionModuleTests.ps1'
 
       - name: Collect read-only preflight evidence
         run: |
