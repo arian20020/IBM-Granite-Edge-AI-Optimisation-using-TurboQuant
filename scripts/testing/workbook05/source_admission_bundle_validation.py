@@ -137,7 +137,7 @@ PINNED_SOURCE_REPORTS = {
     },
     "routes/route-a/source-tree-genai.json": {
         "route_id": ROUTE_A_ID,
-        "source_role": "genai",
+        "source_role": "genai-compatibility-candidate",
         "repository_full_name": "openvinotoolkit/openvino.genai",
         "expected_origin_url": (
             "https://github.com/openvinotoolkit/openvino.genai.git"
@@ -148,7 +148,7 @@ PINNED_SOURCE_REPORTS = {
     },
     "routes/route-b/source-tree-runtime.json": {
         "route_id": ROUTE_B_ID,
-        "source_role": "runtime",
+        "source_role": "experimental-runtime",
         "repository_full_name": "EgorDuplensky/openvino",
         "expected_origin_url": (
             "https://github.com/EgorDuplensky/openvino.git"
