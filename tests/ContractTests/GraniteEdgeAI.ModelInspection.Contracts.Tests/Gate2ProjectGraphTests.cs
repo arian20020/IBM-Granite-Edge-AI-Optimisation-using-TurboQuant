@@ -281,16 +281,17 @@ public sealed class Gate2ProjectGraphTests
                 .Select(element => element.Value.Trim())
                 .ToArray();
 
-            Assert.HasCount(
-                1,
-                values,
-                $"{projectPath} must define {propertyName} exactly once.");
             Assert.AreEqual(
-                expectedValue,
-                values[0],
-                ignoreCase: true,
-                culture: null,
-                message: $"Unexpected {propertyName} in {projectPath}.");
+                1,
+                values.Length,
+                $"{projectPath} must define {propertyName} exactly once.");
+            Assert.IsTrue(
+                string.Equals(
+                    expectedValue,
+                    values[0],
+                    StringComparison.OrdinalIgnoreCase),
+                $"Unexpected {propertyName} in {projectPath}. " +
+                $"Expected '{expectedValue}' but found '{values[0]}'.");
         }
 
         public static void ContainsNoPackageReference(
@@ -313,8 +314,9 @@ public sealed class Gate2ProjectGraphTests
                         StringComparison.OrdinalIgnoreCase)))
                 .ToArray();
 
-            Assert.IsEmpty(
-                forbiddenMatches,
+            Assert.AreEqual(
+                0,
+                forbiddenMatches.Length,
                 $"{projectPath} contains forbidden Gate 2 packages: " +
                 string.Join(", ", forbiddenMatches));
         }
