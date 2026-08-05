@@ -9,6 +9,7 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 /// </summary>
 [TestClass]
 [TestCategory("Architecture")]
+[TestCategory("Contract")]
 public sealed class Gate2ProjectGraphTests
 {
     private static readonly string Root = RepositoryRoot.Find();
