@@ -122,27 +122,13 @@ jobs:
 
           "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
 
-      # Run the complete Python contract before any external source tree is read,
-      # cloned, configured, or admitted by the Phase 1 controller.
-      - name: Run every Workbook 05 Python test
+      # Run the complete repository-controlled R5 command before external source
+      # collection. The workflow cannot substitute a smaller set of checks.
+      - name: Run repository-level Phase 1 gate
         run: |
           $ErrorActionPreference = 'Stop'
-          & 'C:\Program Files\Python312\python.exe' `
-              -m unittest discover `
-              -s 'tests/testing/workbook05' `
-              -p 'test_*.py' `
-              -v
-          if ($LASTEXITCODE -ne 0) {
-              throw "Workbook 05 Python tests exited with code $LASTEXITCODE."
-          }
-
-      # These PowerShell suites validate both the machine-observation helpers and
-      # the shell-free source-admission process boundary.
-      - name: Run every Workbook 05 PowerShell test
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
-          & '.\tests\testing\workbook05\Invoke-SourceAdmissionModuleTests.ps1'
+          & '.\scripts\testing\Validate-Workbook05-SourceAdmission.ps1' `
+              -PythonPath 'C:\Program Files\Python312\python.exe'
 
       # Run the reviewed R2 controller. A truthful scientific blocker returns
       # success so its evidence remains uploadable; integrity failures are fatal.
@@ -202,14 +188,14 @@ jobs:
             tests/testing/workbook05
 
       # A fresh GitHub-hosted interpreter keeps validation independent from the
-      # Intel evidence-producing machine.
+      # Intel evidence-producing machine while retaining the approved version.
       - name: Set up hosted validation Python
         uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
         with:
-          python-version: '3.12'
+          python-version: '3.12.10'
 
-      # Install only the repository-pinned schema dependency required by tests
-      # and by the untrusted-data validator.
+      # Install only the repository-pinned schema dependency required by the
+      # repository gate and by the untrusted-data validator.
       - name: Install hosted validation dependencies
         shell: powershell
         run: |
@@ -221,6 +207,15 @@ jobs:
               throw "Hosted dependency installation exited with code $LASTEXITCODE."
           }
 
+      # Run the same indivisible repository gate used by the Intel producer. This
+      # independently verifies the validator and all Phase 1 controls.
+      - name: Run repository-level Phase 1 gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\Validate-Workbook05-SourceAdmission.ps1' `
+              -PythonPath 'python'
+
       # Download only the artifact produced by this run ID and attempt. No search
       # for an earlier or similarly named artifact is permitted.
       - name: Download the exact source-admission artifact
@@ -228,29 +223,6 @@ jobs:
         with:
           name: workbook-05-source-admission-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/workbook-05-source-admission
-
-      # Rerun the complete Python suite on a clean host before trusting the
-      # repository validator implementation.
-      - name: Run every Workbook 05 Python test
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          python -m unittest discover `
-              -s 'tests/testing/workbook05' `
-              -p 'test_*.py' `
-              -v
-          if ($LASTEXITCODE -ne 0) {
-              throw "Hosted Workbook 05 Python tests exited with code $LASTEXITCODE."
-          }
-
-      # Rerun both PowerShell contracts so the hosted job validates the same
-      # repository control surface as the Intel job.
-      - name: Run every Workbook 05 PowerShell test
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
-          & '.\tests\testing\workbook05\Invoke-SourceAdmissionModuleTests.ps1'
 
       # Treat the downloaded directory strictly as data. The R3 module writes a
       # deterministic report for both success and failure and executes no payload.
