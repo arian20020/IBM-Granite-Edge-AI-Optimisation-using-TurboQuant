@@ -27,8 +27,6 @@ Set-StrictMode -Version Latest
 $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 if ([string]::IsNullOrWhiteSpace($SettingsPath)) {
     $SettingsPath = Join-Path $RepositoryRoot `
-        'experiments/testing-placeholder'
-    $SettingsPath = Join-Path $RepositoryRoot `
         'experiments/granite_turboquant_intel/configurations/workbook05/source-admission-settings.json'
 }
 $SettingsPath = (Resolve-Path -LiteralPath $SettingsPath).Path
