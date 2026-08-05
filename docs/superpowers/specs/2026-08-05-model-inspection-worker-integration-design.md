@@ -1,6 +1,6 @@
 # Model Inspection Worker Integration — Production Design
 
-**Status:** Approved design baseline; awaiting written-specification review  
+**Status:** Approved conversational design; self-reviewed specification awaiting user approval  
 **Date:** 2026-08-05  
 **Branch:** `feature/model-inspection-runtime-integration`  
 **Stacked base branch:** `feature/model-inspection`  
@@ -12,7 +12,7 @@
 
 ## 1. Executive summary
 
-The application will inspect GGUF models through a dedicated local worker executable:
+The application will inspect GGUF models through a dedicated short-lived local worker executable:
 
 ```text
 GraniteEdgeAI.exe
@@ -32,7 +32,7 @@ LLamaSharp 0.27.0
 matched llama.cpp CPU runtime
 ```
 
-The worker performs the technical inspection and returns structured evidence. It does **not** select WinUI controls or decide the final user-facing model outcome. The application classifier converts the returned evidence into one of six model outcomes:
+The worker performs the technical inspection and returns structured evidence. It does **not** select WinUI controls or decide the final user-facing model outcome. The application classifier converts reliable worker evidence into one of six model outcomes:
 
 1. `Ready`
 2. `ReadyWithWarnings`
@@ -43,9 +43,9 @@ The worker performs the technical inspection and returns structured evidence. It
 
 `Cancelled` and `OperationalFailure` remain execution states, not model outcomes.
 
-The worker communicates with the application through redirected standard input, standard output, and standard error. It does not open an HTTP server, listen on a TCP port, or require network access. The model path is sent through standard input rather than placed on the process command line.
+The worker communicates through redirected standard input, standard output, and standard error. It does not open an HTTP server, listen on a TCP port, or require network access. The model path is sent through standard input rather than exposed on the process command line.
 
-Chat remains a separate later feature:
+Chat remains a separate later route:
 
 ```text
 GraniteEdgeAI.exe
@@ -57,24 +57,24 @@ pinned llama-cli.exe
 local Granite inference
 ```
 
-The inspection worker and `llama-cli.exe` must have recorded runtime identities. Before chat integration, their llama.cpp revisions must either be aligned or explicitly verified as compatible.
+The worker and `llama-cli.exe` must each report an exact runtime identity. Before chat integration, their llama.cpp revisions must either be aligned or explicitly verified as compatible.
 
 ---
 
-## 2. Context and evidence supporting the decision
+## 2. Context and verified evidence
 
-The `feature/model-inspection` branch established the current presentation and feasibility foundation:
+The `feature/model-inspection` branch established:
 
 - Model Import → Model Inspection navigation;
 - onboarding-stage synchronisation;
 - the initial Model Inspection page and reusable presentation controls;
 - an isolated LLamaSharp CPU feasibility tool;
-- deterministic, contained native, and trusted real-model test tiers;
-- read-only model hashing and integrity checks;
+- deterministic, contained-native, and trusted-real-model test tiers;
+- read-only hashing and model-integrity controls;
 - path and chat-template privacy controls;
-- native child-process containment for testing.
+- native child-process containment for test execution.
 
-Verified evidence includes:
+Verified evidence:
 
 ```text
 Tier 1 deterministic tests:       170 / 170 passed
@@ -90,9 +90,9 @@ Retained evidence files scanned:  56
 Privacy findings:                 0
 ```
 
-A previous `VocabOnly` experiment also demonstrated that unsafe native access can trigger a process-level llama.cpp abort before managed C# exception handling can recover. That observation changes worker-process isolation from a possible future hardening measure into a production requirement for Model Inspection.
+A previous `VocabOnly` experiment also demonstrated that unsafe native access can cause a process-level llama.cpp abort before managed C# exception handling can recover. That evidence changes worker isolation from optional future hardening into a production requirement for Model Inspection.
 
-Relevant evidence:
+Related evidence:
 
 - `docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md`
 - `docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md`
@@ -101,34 +101,34 @@ Relevant evidence:
 
 ---
 
-## 3. Relationship to the earlier Model Inspection design
+## 3. Relationship to the earlier design
 
-This specification supersedes only the parts of the earlier design that deferred worker-process isolation or proposed direct in-process LLamaSharp loading.
+This specification supersedes only the earlier decisions that deferred worker-process isolation or proposed direct in-process LLamaSharp loading.
 
 Earlier design:
 
 - `docs/superpowers/specs/2026-07-30-model-inspection-design.md`
 
-Preserved decisions:
+Preserved:
 
-- WinUI page → ViewModel → application service → runtime probe layering;
+- Page → ViewModel → service → runtime-probe layering;
 - project-owned data contracts;
-- deterministic application classifier;
+- deterministic classification;
 - lightweight inspection before Hardware Fit;
 - operational failures separated from model invalidity;
-- Ready and Ready-with-warnings as the only Hardware Fit continuation outcomes;
-- one shared page and reusable result/presentation components;
+- only Ready outcomes may continue to Hardware Fit;
+- one shared page and reusable presentation controls;
 - stale-result protection and cancellable asynchronous work.
 
-Superseded decisions:
+Superseded:
 
-- direct `LlamaSharpModelProbe` inside the WinUI process;
-- worker-process isolation being deferred;
-- passing only a path through navigation;
-- treating `InvalidOrIncomplete` as one combined outcome;
+- direct `LlamaSharpModelProbe` inside WinUI;
+- worker isolation being deferred;
+- path-only navigation;
+- combined `InvalidOrIncomplete` outcome;
 - using the engineering feasibility executable as production infrastructure.
 
-The feasibility tool remains an engineering front end. The production worker will use the same extracted runtime implementation but will have a separate protocol, lifecycle, packaging, and security boundary.
+The feasibility tool remains an engineering front end. The worker will use the same extracted runtime implementation but will have its own protocol, lifecycle, packaging, and security boundary.
 
 ---
 
@@ -136,21 +136,21 @@ The feasibility tool remains an engineering front end. The production worker wil
 
 The implementation must:
 
-1. replace the current path-only handoff with an immutable validated `ModelInspectionRequest`;
-2. preserve the existing quick-scan evidence without coupling Model Inspection to Model Import internals;
-3. run LLamaSharp and native llama.cpp outside the WinUI process;
-4. communicate locally without HTTP, localhost, or a listening port;
+1. replace the path-only handoff with an immutable validated `ModelInspectionRequest`;
+2. preserve quick-scan evidence without coupling Model Inspection to Model Import internals;
+3. run LLamaSharp/native llama.cpp outside WinUI;
+4. use no HTTP, localhost server, listening port, or required internet access;
 5. stream truthful progress through a versioned bounded protocol;
-6. support cooperative cancellation and forced cleanup after a bounded grace period;
-7. retain the WinUI process when the worker or native runtime crashes;
-8. return project-owned technical evidence without native handles or XAML types;
-9. classify model outcomes in deterministic application code rather than the worker;
-10. keep infrastructure failures, cancellation, and model outcomes separate;
+6. support cooperative cancellation and bounded forced cleanup;
+7. preserve WinUI when the worker/native runtime crashes;
+8. return project-owned evidence without native handles or XAML types;
+9. classify user-facing outcomes in application code, not in the worker;
+10. keep model outcomes, cancellation, and infrastructure failure separate;
 11. preserve the selected model byte-for-byte;
-12. prevent canonical local paths, full chat templates, model bytes, and secrets from leaking into results or retained logs;
-13. include the worker and exact native dependencies in x64 build, publish, and MSIX outputs;
-14. keep the WinUI application project free from LLamaSharp and TurboQuant references;
-15. add source-adjacent READMEs, architecture records, tests, and verification evidence at every completed gate.
+12. prevent path, chat-template, model-byte, prompt, health-data, environment, and secret leakage;
+13. include the exact worker closure in x64 build, publish, and MSIX outputs;
+14. keep LLamaSharp and TurboQuant out of the WinUI project;
+15. update source-adjacent READMEs and evidence only after executable verification.
 
 ---
 
@@ -158,103 +158,57 @@ The implementation must:
 
 This design does not implement or claim:
 
-- chat UI or chat orchestration;
-- `llama-cli.exe` prompting or token streaming;
-- an HTTP server, localhost endpoint, or listening port;
-- full tensor allocation;
-- context or KV-cache creation;
-- token generation;
-- TTFT, tokens-per-second, RAM, KV memory, or quality benchmarking;
-- Vulkan initialisation or GPU offload;
+- chat UI, `llama-cli` prompting, or token streaming;
+- a local web server or port;
+- full tensor allocation, context creation, KV cache, or generation;
+- TTFT, throughput, RAM, KV memory, or quality benchmarking;
+- Vulkan or GPU offload;
 - TurboQuant, PolarQuant, QJL, or TurboVec;
-- OpenVINO model inspection;
-- Hardware Fit or LLM Fit integration;
-- x86 or ARM64 native worker support;
-- worker auto-update or download;
-- user-selectable worker executables;
+- OpenVINO inspection;
+- Hardware Fit/LLM Fit integration;
+- x86 or ARM64 worker support;
+- worker download, auto-update, or user-selected executables;
 - named-pipe IPC in protocol version 1;
 - Windows App Service activation;
 - exported end-user inspection reports.
-
-These remain separate design and verification campaigns.
 
 ---
 
 ## 6. Alternatives considered
 
-### 6.1 Direct LLamaSharp inside the WinUI process — rejected
+### 6.1 Direct LLamaSharp in WinUI — rejected
 
-```text
-GraniteEdgeAI.exe
-    ↓
-LLamaSharp
-    ↓
-llama.cpp
-```
+A native abort could terminate the complete application. Managed exception handling does not reliably contain process-level native termination.
 
-Advantages:
+### 6.2 `llama-cli.exe` for inspection and chat — rejected for inspection
 
-- fewer projects;
-- no process protocol;
-- simpler initial wiring.
+Console logs are not a stable structured inspection API. Parsing revision-specific log wording would make progress, evidence, and classification fragile. `llama-cli.exe` remains the approved later chat route.
 
-Reasons for rejection:
+### 6.3 One custom worker for inspection and chat — rejected
 
-- a native abort can terminate the complete WinUI process;
-- managed `try/catch` cannot reliably contain process-level native termination;
-- native dependencies would enter the application deployment boundary directly;
-- testing failure paths would require risking the UI test host.
+It would mix short-lived inspection with long-running generation, duplicate `llama-cli` capability, and reduce cohesion.
 
-### 6.2 `llama-cli.exe` for both inspection and chat — rejected for inspection
+### 6.4 Windows App Service — rejected for version 1
 
-Advantages:
-
-- one native executable family;
-- fewer custom native integration components.
-
-Reasons for rejection:
-
-- console log wording is not a stable structured inspection API;
-- parsing ordinary llama.cpp logs would couple the application to revision-specific text;
-- lightweight metadata, tokenizer, chat-template, integrity, and progress contracts are easier to guarantee through the tested LLamaSharp path;
-- inspection and generation have different lifecycle and evidence needs.
-
-`llama-cli.exe` remains the approved later chat route.
-
-### 6.3 One custom worker for both inspection and chat — rejected
-
-Reasons for rejection:
-
-- combines short-lived inspection with long-running generation sessions;
-- increases protocol, state, streaming, and cancellation complexity;
-- duplicates capabilities already provided by `llama-cli.exe`;
-- reduces component cohesion.
-
-### 6.4 Windows App Service — rejected for protocol version 1
-
-Reasons for rejection:
-
-- requires additional activation, manifest, lifecycle, and deployment complexity;
-- does not improve the narrow one-client/one-worker inspection use case enough to justify that complexity;
-- standard redirected streams already provide local, port-free communication.
+It adds activation, manifest, lifecycle, and deployment complexity without enough benefit for one short-lived local request.
 
 ### 6.5 Named pipe — deferred
 
-A named pipe could support a long-lived bidirectional worker. The first version requires only one request per short-lived process, so redirected standard streams are simpler and proportionate. The `ILlamaModelProbe` boundary allows a future transport replacement without changing the page, ViewModel, service, or classifier.
+A named pipe may help a future long-lived service. One worker per inspection is simpler through redirected streams, and `ILlamaModelProbe` keeps transport replaceable.
 
 ---
 
-## 7. Selected system architecture
+## 7. Selected architecture
 
-### 7.1 Model Inspection route
+### 7.1 Inspection route
 
 ```text
 ModelImportPage
-    ↓ immutable validated request
+    ↓ immutable request
 OnboardingShellPage
     ↓
 ModelInspectionPage
-    ↓ binding and commands
+    ↓ binding/commands
 ModelInspectionViewModel
     ↓
 IModelInspectionService
@@ -277,7 +231,7 @@ ModelInspectionService
     └── ModelInspectionClassifier
 ```
 
-Commands travel down the dependency chain. Progress and results return upward as ordinary immutable data.
+Commands travel downward. Progress and results return upward as immutable data.
 
 ### 7.2 Chat route
 
@@ -293,18 +247,18 @@ ILlamaCliProcessAdapter
 pinned llama-cli.exe
 ```
 
-This route is documented now but implemented later.
+This route is documented now and implemented later.
 
-### 7.3 Dependency direction
+### 7.3 Project dependency rules
 
-Allowed project references:
+Allowed:
 
 ```text
 WinUI application
-    → shared worker-contract project
+    → shared worker contracts
 
 Worker executable
-    → shared worker-contract project
+    → shared worker contracts
     → LLamaSharp runtime library
 
 LLamaSharp runtime library
@@ -315,55 +269,54 @@ Engineering spike
     → LLamaSharp runtime library
 ```
 
-Forbidden references:
+Forbidden:
 
 ```text
 WinUI application
     ✕ LLamaSharp
     ✕ LLamaSharp.Backend.Cpu
-    ✕ worker project
+    ✕ worker implementation project
     ✕ engineering spike project
 
 Shared contracts
     ✕ WinUI
     ✕ LLamaSharp
-    ✕ worker implementation
-    ✕ application service implementation
+    ✕ worker/service implementations
 ```
 
 ---
 
 ## 8. Trust boundaries
 
-The selected GGUF is untrusted local input.
-
 ```text
-User-selected model file
-        │ untrusted file boundary
+User-selected GGUF
+        │ untrusted file
         ▼
 Worker process
-        │ native-runtime boundary
+        │ volatile native boundary
         ▼
 LLamaSharp / llama.cpp
-        │ bounded JSON protocol boundary
+
+Worker stdout
+        │ untrusted bounded protocol
         ▼
-WinUI application
+WinUI application adapter
 ```
 
-The worker process is a safety container, not a trust elevation. The application validates every worker message even though the worker ships with the app.
+The worker is a safety container, not a trust elevation. Every worker message is validated.
 
-Trust rules:
+Rules:
 
-- the model is opened read-only;
-- the model path must be absolute and canonicalisable;
-- the worker must not accept an evidence-output path;
-- the worker must not write beside the installed executable;
-- the worker must not search the current directory or `PATH` for alternate native binaries;
-- the application resolves the worker only from its controlled installed/build output location;
-- the worker returns no native pointer, handle, model bytes, complete chat template, or canonical directory path;
-- stdout is treated as untrusted protocol input by the application;
-- stderr is bounded and redacted before retention;
-- an inconsistent exit code and terminal result is an operational protocol failure.
+- model opened read-only;
+- model path absolute and canonicalisable;
+- no evidence-output path accepted by worker;
+- no writes beside installed executable;
+- no search of `PATH`, current directory, model directory, or Downloads for alternate binaries;
+- worker resolved only from controlled build/installed root;
+- no native pointer, handle, model bytes, complete chat template, or canonical directory in output;
+- stdout parsed as untrusted data;
+- stderr continuously drained, bounded for retention, and redacted;
+- result/exit-code inconsistency fails operationally.
 
 ---
 
@@ -375,25 +328,7 @@ shared/
     ├── README.md
     ├── GraniteEdgeAI.ModelInspection.Contracts.csproj
     ├── Protocol/
-    │   ├── WorkerProtocol.cs
-    │   ├── WorkerMessageKind.cs
-    │   ├── WorkerCommandKind.cs
-    │   ├── WorkerHelloMessage.cs
-    │   ├── WorkerStartInspectionCommand.cs
-    │   ├── WorkerCancelInspectionCommand.cs
-    │   ├── WorkerStartedMessage.cs
-    │   ├── WorkerProgressMessage.cs
-    │   ├── WorkerCompletedMessage.cs
-    │   └── WorkerOperationalFailure.cs
     └── Evidence/
-        ├── WorkerInspectionEvidence.cs
-        ├── WorkerRuntimeIdentity.cs
-        ├── WorkerModelFileEvidence.cs
-        ├── WorkerModelConfigurationEvidence.cs
-        ├── WorkerTokenizerEvidence.cs
-        ├── WorkerChatTemplateEvidence.cs
-        ├── WorkerModelStructureEvidence.cs
-        └── WorkerObservation.cs
 
 runtime/
 └── GraniteEdgeAI.ModelInspection.LlamaSharp/
@@ -415,61 +350,33 @@ workers/
     ├── Program.cs
     ├── WorkerHost.cs
     ├── Protocol/
-    │   ├── WorkerCommandReader.cs
-    │   ├── WorkerMessageWriter.cs
-    │   ├── WorkerProtocolStateMachine.cs
-    │   └── WorkerProtocolLimits.cs
     └── Inspection/
-        └── WorkerInspectionCoordinator.cs
 
-IBM Granite with TurboQuant (Intel)/
-└── Features/
-    └── ModelInspection/
-        ├── README.md
-        ├── ModelInspectionPage.xaml
-        ├── ModelInspectionPage.xaml.cs
-        ├── Contracts/
-        │   ├── README.md
-        │   ├── ModelInspectionRequest.cs
-        │   ├── ValidatedQuickScanSnapshot.cs
-        │   ├── ExpectedModelFileIdentity.cs
-        │   ├── ModelInspectionExecutionResult.cs
-        │   ├── ModelInspectionResult.cs
-        │   ├── ModelInspectionFinding.cs
-        │   └── ModelInspectionEnums.cs
-        ├── Runtime/
-        │   ├── README.md
-        │   ├── ILlamaModelProbe.cs
-        │   ├── WorkerProcessLlamaModelProbe.cs
-        │   ├── IInspectionWorkerProcess.cs
-        │   ├── InspectionWorkerProcess.cs
-        │   ├── InspectionWorkerPathResolver.cs
-        │   ├── WorkerRequestMapper.cs
-        │   └── WorkerResultMapper.cs
-        ├── Classification/
-        │   ├── README.md
-        │   └── ModelInspectionClassifier.cs
-        ├── Services/
-        │   ├── README.md
-        │   ├── IModelInspectionService.cs
-        │   └── ModelInspectionService.cs
-        ├── ViewModels/
-        │   ├── README.md
-        │   └── ModelInspectionViewModel.cs
-        ├── Controls/
-        ├── Models/
-        └── Presentation/
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/
+├── README.md
+├── ModelInspectionPage.xaml
+├── ModelInspectionPage.xaml.cs
+├── Contracts/
+├── Runtime/
+├── Classification/
+├── Services/
+├── ViewModels/
+├── Controls/
+├── Models/
+└── Presentation/
 ```
 
-Files may be split further when a class gains more than one responsibility, but unrelated abstractions must not be added speculatively.
+The worker is a plain .NET 8 Windows console executable, not a WinUI application.
+
+Files are split when a class gains more than one responsibility; speculative abstractions are prohibited.
 
 ---
 
-## 10. Application contracts
+## 10. Application request contracts
 
 ### 10.1 `ModelInspectionRequest`
 
-The application request is immutable and contains:
+Immutable fields:
 
 ```text
 ModelPath
@@ -478,15 +385,16 @@ ExpectedModelFileIdentity
 ValidatedQuickScanSnapshot
 ```
 
-Required invariants:
+Invariants:
 
-- `ModelPath` is non-empty;
-- `FileName` is the final filename only;
-- `ExpectedModelFileIdentity.LengthBytes` is positive;
-- `ExpectedModelFileIdentity.LastWriteTimeUtc` is present;
-- `ValidatedQuickScanSnapshot.Format` is `GGUF` for this worker;
-- the quick-scan outcome was successful before request creation;
-- the request contains no Model Import page, scanner, XAML control, native handle, or LLamaSharp type.
+- `ModelPath` non-empty and absolute;
+- `FileName == Path.GetFileName(ModelPath)` using Windows case-insensitive comparison;
+- expected length positive;
+- expected timestamp UTC;
+- expected length equals quick-scan file size;
+- format is `GGUF`;
+- request created only from a successful current quick scan;
+- no page, scanner, XAML, native, or LLamaSharp object retained.
 
 ### 10.2 `ValidatedQuickScanSnapshot`
 
@@ -501,29 +409,28 @@ DeclaredContextLength
 GgufVersion
 ```
 
-This snapshot is copied from the successful quick-scan result. Model Inspection does not retain or depend directly on the internal `ModelQuickScanResult` type.
+The snapshot is copied from the successful internal quick-scan result. The worker treats it as comparison context, not as authoritative native evidence.
 
-### 10.3 Navigation handoff
+### 10.3 Handoff
 
-The current `ModelInspectionRequestedEventArgs` changes from carrying `string ModelPath` to carrying `ModelInspectionRequest Request`.
+`ModelInspectionRequestedEventArgs` changes from `string ModelPath` to `ModelInspectionRequest Request`.
 
 ```text
 ModelImportPage
-    → validates current successful state
-    → captures current file identity
-    → creates ModelInspectionRequest
-    → raises ModelInspectionRequested
+    → revalidates successful current state
+    → captures current length/timestamp
+    → creates request
+    → raises event
 
 OnboardingShellPage
-    → receives request
-    → navigates to ModelInspectionPage with request
+    → navigates with request
 
 ModelInspectionPage
     → validates parameter type
-    → creates or initialises ModelInspectionViewModel
+    → initialises ViewModel
 ```
 
-A disabled button is not the only guard. The guarded request-creation method must independently reject missing or stale validated state.
+The guarded request method must reject stale/missing state independently of button enablement.
 
 ---
 
@@ -531,15 +438,15 @@ A disabled button is not the only guard. The guarded request-creation method mus
 
 ### 11.1 Transport
 
-The transport is one compact UTF-8 JSON object per line:
+One compact JSON object per UTF-8 line:
 
 ```text
 stdin   → application commands
-stdout  → worker protocol messages only
-stderr  → bounded redacted diagnostics only
+stdout  → protocol messages only
+stderr  → redacted diagnostics only
 ```
 
-Process configuration:
+Configuration:
 
 ```text
 UseShellExecute = false
@@ -549,65 +456,74 @@ RedirectStandardError = true
 CreateNoWindow = true
 ```
 
-The model path is not supplied as a command-line argument.
+The model path is never a command-line argument.
 
-### 11.2 Protocol constants
+The protocol uses UTF-8 without a byte-order mark. Newlines inside strings are JSON-escaped. Both sides use a bounded line reader that stops once the byte limit is exceeded; ordinary unbounded `ReadLineAsync` is not sufficient for untrusted worker output.
+
+Stderr is always drained to prevent pipe backpressure. Retention stops at its limit, but draining continues until process exit.
+
+### 11.2 Constants
 
 ```text
 Protocol version:                 1
 Maximum command/message line:     1 MiB UTF-8
 Maximum retained stderr:          256 KiB UTF-8
+Maximum JSON depth:               named bounded value
 Startup handshake timeout:        5 seconds
 Overall inspection timeout:       5 minutes
 Graceful cancellation timeout:    5 seconds
-Requests per worker process:      1
+Requests per worker:              1
 Terminal results per request:     1
 ```
 
-These values are named constants, covered by tests, and not repeated as unexplained literals.
+All are named constants and directly tested.
 
-### 11.3 Compatibility policy
+### 11.3 JSON validation
 
 Within protocol version 1:
 
-- unknown additional JSON properties are tolerated;
-- missing required properties fail validation;
-- unknown command or message kinds fail validation;
-- unknown enum values fail validation;
-- breaking field or sequence changes require protocol version 2;
-- the application does not silently downgrade to an older protocol;
-- the application validates the worker runtime profile before sending the model path.
+- unknown additional properties tolerated;
+- duplicate property names rejected at every protocol object level;
+- missing required properties rejected;
+- unknown command/message kinds rejected;
+- unknown enum values rejected;
+- invalid UTF-8 rejected;
+- trailing non-whitespace after the JSON object rejected;
+- breaking changes require protocol version 2;
+- no automatic protocol downgrade.
 
-### 11.4 Handshake
+### 11.4 Hello handshake
 
-The worker immediately writes one `hello` message:
+Worker output:
 
 ```json
 {
   "protocolVersion": 1,
   "messageType": "hello",
+  "workerId": "granite-edge-ai-model-inspection",
   "workerVersion": "1.0.0",
+  "workerProcessId": 5678,
   "runtimeProfile": "llamasharp-0.27.0-cpu-win-x64-vocab-only-v1",
   "processArchitecture": "X64"
 }
 ```
 
-The `hello` message is connection-scoped and deliberately has no `requestId`, because no inspection request exists yet.
+Hello is connection-scoped and has no request ID because no request exists yet.
 
-The application verifies:
+The adapter verifies:
 
-- supported protocol version;
-- expected worker identity/version policy;
+- protocol version;
+- exact worker ID;
+- worker version policy;
+- `workerProcessId == Process.Id`;
 - exact runtime profile;
-- `X64` process architecture;
-- the handshake arrives within five seconds;
-- stdout contained no preceding non-protocol text.
+- x64 architecture;
+- timeout;
+- no preceding stdout text.
 
-Failure becomes `OperationalFailure`.
+Failure is operational.
 
 ### 11.5 Start command
-
-After a valid handshake, the application writes one start command:
 
 ```json
 {
@@ -615,10 +531,11 @@ After a valid handshake, the application writes one start command:
   "commandType": "startInspection",
   "requestId": "37b89687-2da7-4daf-bd75-a3c16c235534",
   "parentProcessId": 1234,
+  "parentProcessStartTimeUtc": "2026-08-05T11:00:00.0000000Z",
   "modelPath": "C:\\Models\\granite.gguf",
   "expectedFileIdentity": {
     "lengthBytes": 2099501664,
-    "lastWriteTimeUtc": "2026-08-05T00:00:00Z"
+    "lastWriteTimeUtc": "2026-08-05T00:00:00.0000000Z"
   },
   "quickScan": {
     "format": "GGUF",
@@ -626,22 +543,22 @@ After a valid handshake, the application writes one start command:
     "modelName": "Granite 4.1 3B",
     "parameterSizeLabel": "3B",
     "quantisation": "Q4_K_M",
+    "fileSizeBytes": 2099501664,
     "declaredContextLength": 131072,
     "ggufVersion": 3
   }
 }
 ```
 
-Request rules:
+Rules:
 
-- `requestId` is a canonical GUID string;
-- `parentProcessId` is positive;
-- `modelPath` is absolute;
-- `modelPath` is canonicalised before file access;
-- request length is bounded before deserialization;
-- the worker accepts exactly one start command;
-- malformed or duplicate starts return protocol failure and exit code `2`;
-- the model path is never echoed in stdout or stderr.
+- request ID canonical GUID;
+- parent PID positive and start time UTC;
+- worker verifies parent PID and start time together to reduce PID-reuse ambiguity;
+- path absolute/canonicalised before access;
+- one start only;
+- malformed/duplicate start → protocol failure, exit `2`;
+- model path never echoed.
 
 ### 11.6 Started message
 
@@ -653,7 +570,7 @@ Request rules:
 }
 ```
 
-### 11.7 Progress message
+### 11.7 Progress
 
 ```json
 {
@@ -668,7 +585,7 @@ Request rules:
 }
 ```
 
-Stable protocol stages:
+Stable stages:
 
 1. `CheckModelPackage`
 2. `ReadModelConfiguration`
@@ -676,17 +593,15 @@ Stable protocol stages:
 4. `ValidateModelStructure`
 5. `ConfirmCoreRuntimeCompatibility`
 
-Progress rules:
+Rules:
 
-- stage order cannot move backwards;
-- completed count cannot decrease;
-- completed count must be in `0..5`;
-- `stageFraction` is nullable;
-- only genuine runtime fractions are reported;
-- `NaN` and infinity are not serializable protocol values;
-- finite fractions are constrained to `0..1`;
-- duplicated consecutive progress may be coalesced;
-- the ViewModel maps protocol stages to existing presentation rows.
+- stage never moves backward;
+- completed count never decreases and remains `0..5`;
+- fraction nullable;
+- only genuine fractions emitted;
+- finite fraction constrained to `0..1`;
+- no NaN/infinity;
+- consecutive duplicates may be coalesced.
 
 ### 11.8 Cancel command
 
@@ -700,17 +615,14 @@ Progress rules:
 
 Rules:
 
-- cancellation is valid only after a start command and before a terminal result;
-- repeated cancel commands are idempotent;
-- wrong request ID is a protocol failure;
-- cancellation reaches a linked `CancellationTokenSource` in the worker;
-- the worker still attempts final model-integrity verification;
-- the worker emits one cancelled terminal result when cooperative cancellation completes;
-- the application kills the complete process tree after the five-second grace period if the worker does not exit.
+- valid only after start and before terminal result;
+- duplicate cancel idempotent;
+- wrong request ID is protocol failure;
+- worker cancels linked token;
+- worker attempts disposal and final integrity verification;
+- cooperative completion emits one Cancelled terminal result and exit `3`.
 
-### 11.9 Terminal completion message
-
-The worker operation status is separate from the application model outcome.
+### 11.9 Terminal message
 
 ```json
 {
@@ -718,40 +630,66 @@ The worker operation status is separate from the application model outcome.
   "messageType": "completed",
   "requestId": "37b89687-2da7-4daf-bd75-a3c16c235534",
   "completionStatus": "Completed",
-  "evidence": {}
+  "evidence": {},
+  "cancellation": null,
+  "operationalFailure": null
 }
 ```
 
-Worker completion statuses:
+Statuses:
 
-- `Completed` — the worker completed the diagnostic workflow and returned reliable technical evidence. The evidence may still classify the model as Ready, warning, conversion required, incomplete, unsupported, or invalid.
-- `Cancelled` — the user/application cancelled the operation.
-- `OperationalFailure` — reliable model classification evidence could not be produced because the worker, protocol, filesystem, runtime infrastructure, integrity verification, or native backend failed operationally.
+- `Completed`: diagnostic workflow completed with reliable evidence. The model may still classify as any of the six outcomes.
+- `Cancelled`: cooperative cancellation completed, native resources were disposed, and integrity was verified.
+- `OperationalFailure`: reliable classification evidence could not be produced.
 
-This distinction prevents a technically successful diagnosis of an invalid model from being confused with a failed worker operation.
+Terminal invariants:
+
+```text
+Completed
+    evidence required
+    cancellation null
+    operationalFailure null
+
+Cancelled
+    evidence null
+    cancellation required
+    operationalFailure null
+
+OperationalFailure
+    evidence null
+    cancellation null
+    operationalFailure required
+```
+
+Runtime identity in Completed evidence must match hello identity. A mismatch is operational failure.
 
 ### 11.10 Exit codes
 
 ```text
-0 = worker operation completed and terminal status is Completed
-1 = terminal status is OperationalFailure
-2 = invalid command, invalid protocol, or protocol state violation
-3 = terminal status is Cancelled
+0 = Completed
+1 = OperationalFailure
+2 = invalid protocol/command/state
+3 = cooperative Cancelled
 ```
 
-The application validates the terminal message against the process exit code.
+The adapter cross-checks result and exit code.
 
-Examples:
+### 11.11 Forced termination rule
+
+Only a cooperative terminal result may become application status `Cancelled`.
+
+If cancellation grace expires:
 
 ```text
-Completed + exit 0               valid
-Cancelled + exit 3               valid
-OperationalFailure + exit 1      valid
-Completed + exit 1               inconsistency → operational failure
-No terminal JSON + crash code    worker crash → operational failure
-Timeout + forced kill            timeout → operational failure
-User cancel + forced kill        cancelled with forced-termination diagnostic
+application kills worker process tree
+    ↓
+terminal result/integrity proof unavailable
+    ↓
+OperationalFailure
+MI-OP-WORKER-CANCELLATION-TIMEOUT
 ```
+
+The UI may explain that the inspection could not stop cleanly, but it must not classify the model or claim verified cancellation. This fail-closed rule resolves the conflict between user intent and unavailable integrity evidence.
 
 ---
 
@@ -759,106 +697,99 @@ User cancel + forced kill        cancelled with forced-termination diagnostic
 
 ```text
 Created
-    ↓ worker writes hello
+    ↓ hello
 HelloSent
-    ↓ application sends start
+    ↓ start
 InspectionStarted
     ├── zero or more progress messages
-    ├── application may send cancel
-    ├── stdin EOF / parent exit requests cancellation
+    ├── optional cancel command
+    ├── stdin EOF / parent disappearance requests cancellation
     ↓
 TerminalMessageSent
     ↓
 ProcessExit
 ```
 
-Invalid sequences:
+Invalid:
 
-- output before hello;
-- two hello messages;
+- output before/two hello messages;
 - progress before start;
-- request-scoped message with wrong request ID;
-- backward stage transition;
-- two terminal messages;
-- message after terminal completion;
-- exit without a terminal message, except process-level crash;
-- start after cancellation or completion;
-- more than one inspection request per worker.
+- wrong request ID;
+- backward progress;
+- duplicate terminal result;
+- message after terminal result;
+- start after cancel/completion;
+- more than one request;
+- normal exit without terminal result.
 
-Every invalid sequence is covered by a test-only protocol worker or worker unit test.
-
----
-
-## 13. Worker lifecycle and orphan prevention
-
-### 13.1 Startup
-
-The application:
-
-1. resolves the worker path from the controlled application installation/build location;
-2. confirms the current process architecture is x64;
-3. confirms the worker file exists;
-4. starts the worker without a shell;
-5. begins asynchronous stdout and stderr readers immediately;
-6. waits at most five seconds for hello;
-7. validates hello;
-8. sends the start command.
-
-### 13.2 Normal completion
-
-The application:
-
-1. reads progress until one terminal message;
-2. waits for process exit;
-3. verifies the exit-code/result pairing;
-4. awaits both redirected-stream readers;
-5. disposes process resources;
-6. maps worker evidence to application evidence;
-7. calls the classifier only for `Completed` worker status.
-
-### 13.3 Cancellation
-
-The application:
-
-1. sends one cancel command;
-2. marks cancellation requested;
-3. waits up to five seconds;
-4. kills the complete process tree when the worker does not exit;
-5. awaits stream readers;
-6. disposes the process;
-7. returns application execution status `Cancelled`;
-8. records whether cancellation was cooperative or forced.
-
-### 13.4 Parent disappearance
-
-The worker must not continue indefinitely if the WinUI application terminates.
-
-The worker cancels when either:
-
-- standard input reaches EOF before normal completion; or
-- the recorded parent process no longer exists.
-
-A future Windows Job Object may add stronger kill-on-parent-close semantics. Parent-PID monitoring plus stdin EOF is the required first implementation.
-
-### 13.5 Overall timeout
-
-The adapter enforces a five-minute overall timeout beginning immediately after process start.
-
-On timeout:
-
-- send cancellation when possible;
-- wait the normal cancellation grace period;
-- kill the complete process tree;
-- return `OperationalFailure` with `MI-OP-WORKER-TIMEOUT`;
-- do not call the model classifier.
+A process-level crash may exit without terminal JSON; the adapter records it as operational failure.
 
 ---
 
-## 14. Worker technical evidence
+## 13. Lifecycle and cleanup
 
-### 14.1 Runtime identity
+### Startup
+
+1. Resolve fixed worker path.
+2. Reject non-x64 process before launch.
+3. Confirm file exists and is contained under controlled root.
+4. Start without shell.
+5. Start bounded asynchronous stdout and continuously drained stderr readers immediately.
+6. Validate hello within five seconds.
+7. Send start command.
+
+### Normal completion
+
+1. Validate progress/terminal sequence.
+2. Wait for process exit.
+3. Cross-check exit code.
+4. Await both stream readers.
+5. Dispose process resources.
+6. Map evidence.
+7. Call classifier only for Completed status.
+
+### Cooperative cancellation
+
+1. Send cancel once.
+2. Wait five seconds.
+3. Accept Cancelled only with valid terminal result, matching exit `3`, and verified integrity.
+4. Dispose resources.
+
+### Forced cancellation
+
+1. Kill complete process tree after grace expiry.
+2. Continue draining streams until closure.
+3. Return OperationalFailure, not Cancelled.
+4. Never classify the model.
+
+### Parent disappearance
+
+Worker requests cancellation when:
+
+- stdin reaches EOF before normal completion; or
+- parent PID no longer exists; or
+- parent start time no longer matches.
+
+A Windows Job Object is deferred hardening.
+
+### Overall timeout
+
+Five minutes from process start. On timeout:
+
+- request cancellation when possible;
+- wait grace period;
+- kill process tree;
+- return `MI-OP-WORKER-TIMEOUT`;
+- do not classify.
+
+---
+
+## 14. Worker evidence
+
+### Runtime identity
 
 ```text
+WorkerId
 WorkerVersion
 ProtocolVersion
 RuntimeProfile
@@ -873,35 +804,32 @@ UsesVulkan
 GpuLayerCount
 ```
 
-Expected first profile:
+First profile:
 
 ```text
-LLamaSharp:             0.27.0
-CPU backend:            0.27.0
-Mapped llama.cpp:       3f7c29d318e317b63f54c558bc69803963d7d88c
-Runtime identifier:     win-x64
-Inspection mode:        VocabOnly
-CUDA:                   false
-Vulkan:                 false
-GPU layers:             0
+LLamaSharp:          0.27.0
+CPU backend:         0.27.0
+Mapped llama.cpp:    3f7c29d318e317b63f54c558bc69803963d7d88c
+RID:                 win-x64
+Mode:                VocabOnly
+CUDA/Vulkan:         false/false
+GPU layers:          0
 ```
 
-### 14.2 Model file evidence
+### File evidence
 
 ```text
 FileName
-LengthBefore
-LengthAfter
-LastWriteTimeBefore
-LastWriteTimeAfter
-Sha256Before
-Sha256After
+CanonicalPathFingerprint
+LengthBefore/After
+LastWriteTimeBefore/After
+Sha256Before/After
 IntegrityPreserved
 ```
 
-The canonical full path is never returned.
+No full path returned.
 
-### 14.3 Configuration evidence
+### Configuration/structure
 
 ```text
 Architecture
@@ -917,9 +845,9 @@ KvHeadCount
 ParameterCount
 ```
 
-Unavailable values remain `null`. Values are not guessed from the filename.
+Unavailable values remain null and are never guessed.
 
-### 14.4 Tokenizer evidence
+### Tokenizer
 
 ```text
 VocabularyCount
@@ -929,9 +857,7 @@ TokenizerSmokeTokenCount
 KnownSpecialTokenIds
 ```
 
-The smoke input is fixed, non-sensitive, and versioned.
-
-### 14.5 Chat-template evidence
+### Chat template
 
 ```text
 Present
@@ -939,68 +865,66 @@ LengthCharacters
 Sha256
 ```
 
-The complete chat template does not cross the worker boundary.
+No complete template text.
 
-### 14.6 Observations
-
-The worker returns technical observations, not final application findings.
+### Technical observations
 
 ```text
 Code
-TechnicalCategory
+Domain
+Impact
 TechnicalDetail
 ```
 
-Examples:
+The application maintains an explicit registry of supported observation codes. Any unknown observation from the exact worker profile causes `MI-OP-UNRECOGNISED-WORKER-OBSERVATION`; it is not silently ignored or guessed.
 
-```text
-MI-OBS-CHAT-TEMPLATE-MISSING
-MI-OBS-OPTIONAL-METADATA-MISSING
-MI-OBS-MODEL-STRUCTURE-MALFORMED
-MI-OBS-SPLIT-SHARD-MISSING
-MI-OBS-ARCHITECTURE-UNSUPPORTED
-MI-OBS-TOKENIZER-UNSUPPORTED
-```
-
-Observation codes are stable and testable. User-facing titles and recommended actions belong to the application classifier/presentation layer.
+User-facing wording and conversion-route selection remain application responsibilities.
 
 ---
 
-## 15. File continuity and integrity
+## 15. File continuity, integrity, and evidence conflicts
 
-### 15.1 Before worker launch
+### Request continuity
 
-The application request carries the file length and last-write timestamp captured from the validated selection.
+The request carries length/timestamp from the current validated selection.
 
-### 15.2 Worker preflight
+### Worker preflight
 
-The worker:
+Worker:
 
-- canonicalises the path;
-- confirms it is a file;
-- opens it read-only;
-- compares current length and timestamp with the request;
+- canonicalises path;
+- confirms normal file;
+- opens read-only;
+- compares requested length/timestamp;
 - computes SHA-256;
-- records the pre-inspection snapshot.
+- records snapshot.
 
-A continuity mismatch is operational evidence that the selected file changed after quick scan. It is not automatically proof that the new file is invalid.
+A continuity mismatch means the selected file changed after quick scan and returns operational failure, not a model outcome.
 
-### 15.3 Worker postflight
+### Postflight
 
-The worker:
+After native disposal, worker captures a second snapshot and compares path fingerprint, length, timestamp, and SHA-256.
 
-- disposes native resources;
-- captures a second read-only snapshot;
-- compares path fingerprint, length, timestamp, and SHA-256;
-- makes changed or unverifiable integrity outrank success or cancellation.
+Changed or unverifiable integrity outranks Completed or Cancelled and becomes OperationalFailure.
 
-`IntegrityPreserved=false` or unverifiable integrity produces `OperationalFailure` and bypasses model classification.
+### Cross-source evidence consistency
+
+Before classification, the application service compares required quick-scan and worker evidence:
+
+- format;
+- file length;
+- architecture where both are available;
+- GGUF version where both are available.
+
+A required conflict returns `MI-OP-EVIDENCE-CONFLICT` and bypasses classification because the two trusted stages disagree.
+
+Optional differences such as filename/display-name wording may become warnings through explicit rules.
 
 ---
 
-## 16. Application execution and classification model
+## 16. Execution and outcome model
 
-### 16.1 Execution status
+### Execution status
 
 ```text
 Completed
@@ -1008,27 +932,12 @@ Cancelled
 OperationalFailure
 ```
 
-Invariants:
+- Completed requires evidence and one classified result.
+- Cancelled requires cooperative worker cancellation and verified integrity.
+- OperationalFailure has no model outcome.
+- Classifier is called only for Completed.
 
-- `Completed` requires worker evidence and one classified `ModelInspectionResult`;
-- `Cancelled` has no model outcome;
-- `OperationalFailure` has no model outcome and includes a stable operational diagnostic;
-- the classifier is never called for Cancelled or OperationalFailure.
-
-### 16.2 Model outcomes
-
-```text
-Ready
-ReadyWithWarnings
-ConversionRequired
-IncompletePackage
-Unsupported
-Invalid
-```
-
-### 16.3 Classifier precedence
-
-The first applicable blocking rule wins:
+### Model outcomes and precedence
 
 ```text
 1. Invalid
@@ -1039,653 +948,301 @@ The first applicable blocking rule wins:
 6. Ready
 ```
 
-Operational failures and cancellation are handled before this list.
+### Invalid
 
-### 16.4 Invalid
+Only reliable evidence that the model itself is malformed/corrupt: invalid header, truncated metadata, impossible encoding, corrupt required tokenizer data, or inconsistent required structure.
 
-Use only when reliable technical evidence establishes that the file itself is malformed or corrupt.
+A native crash while examining malformed input remains OperationalFailure unless independent reliable evidence already establishes invalidity.
 
-Examples:
+### IncompletePackage
 
-- invalid GGUF header;
-- truncated metadata;
-- impossible field encoding;
-- corrupt required tokenizer metadata;
-- internally inconsistent required structure.
+Recognisable package with a required component missing, such as split shard or required vocabulary component. Missing optional chat template alone is not incomplete.
 
-### 16.5 Incomplete package
+### Unsupported
 
-Use when the package is recognisable but a required companion or component is missing.
+Readable model requiring architecture, tokenizer, or GGUF feature unsupported by the pinned runtime.
 
-Examples:
+### ConversionRequired
 
-- missing split GGUF shard;
-- required vocabulary data absent;
-- required model component missing.
+Only when the application’s versioned conversion-route registry contains a tested route. Worker never chooses the route. Without a verified route, return Unsupported.
 
-A missing optional chat template alone is not incomplete.
+### ReadyWithWarnings
 
-### 16.6 Unsupported
+All blocking checks pass, but explicit non-blocking findings exist: missing configurable chat template, optional metadata absent, context review needed, or harmless display-name mismatch.
 
-Use when the model/package is readable but the pinned runtime cannot support a required feature.
+### Ready
 
-Examples:
+Required package/runtime/tokenizer/structure checks pass, integrity is preserved, and no warning/blocking finding exists.
 
-- unsupported architecture;
-- unsupported tokenizer implementation;
-- unsupported GGUF feature.
+### Hardware Fit continuation
 
-### 16.7 Conversion required
-
-Use only when a tested and versioned conversion/preparation route exists.
-
-Required fields:
-
-```text
-VerifiedConversionRouteId
-RecommendedAction
-```
-
-Without a verified route, the classifier returns `Unsupported`, not `ConversionRequired`.
-
-### 16.8 Ready with warnings
-
-Use when all required checks pass but non-blocking findings exist.
-
-Examples:
-
-- chat template missing but configurable later;
-- optional metadata unavailable;
-- declared context needs review during Hardware Fit;
-- filename and embedded model name differ.
-
-### 16.9 Ready
-
-Use only when:
-
-- required package checks pass;
-- runtime recognises the model;
-- tokenizer evidence is usable;
-- structure evidence passes;
-- integrity is preserved;
-- no blocking findings exist;
-- no warnings exist.
-
-### 16.10 Hardware Fit continuation
-
-```text
-Ready                  → allowed
-ReadyWithWarnings      → allowed
-ConversionRequired     → blocked
-IncompletePackage      → blocked
-Unsupported            → blocked
-Invalid                → blocked
-Cancelled              → blocked
-OperationalFailure     → blocked
-```
+Only Ready and ReadyWithWarnings are eligible.
 
 ---
 
-## 17. Application service responsibility
+## 17. Service and ViewModel responsibilities
 
-`ModelInspectionService` coordinates the use case:
+### `ModelInspectionService`
 
-1. validate the application request;
-2. publish `CheckModelPackage` progress;
-3. call `ILlamaModelProbe`;
-4. map worker progress to application progress;
-5. map worker technical evidence to application evidence;
-6. bypass classification for cancellation/operational failure;
-7. classify completed evidence;
-8. create one immutable execution result;
-9. preserve cancellation and stale-run identity.
+- validate request;
+- call probe;
+- map progress;
+- map worker evidence;
+- enforce evidence-consistency checks;
+- bypass classifier for cancellation/failure;
+- classify Completed evidence;
+- return immutable result;
+- preserve run identity.
 
-The service does not:
+It does not reference XAML, navigate, parse raw stdout, or construct LLamaSharp objects.
 
-- reference XAML controls;
-- navigate pages;
-- construct native LLamaSharp types;
-- read worker stdout directly;
-- choose visual colours/icons;
-- perform Hardware Fit.
+### `ModelInspectionViewModel`
 
----
-
-## 18. ViewModel responsibility
-
-`ModelInspectionViewModel` owns observable page state:
-
-```text
-Request
-PageState
-CurrentStage
-StagePresentations
-CurrentStageFraction
-Result
-Findings
-CanCancel
-CanRetry
-CanChooseAnotherModel
-CanContinueToHardwareFit
-```
+Owns observable page state, stage presentations, nullable genuine fraction, result/findings, and action availability.
 
 Commands:
 
-- start inspection automatically after valid navigation and loaded state;
-- cancel inspection;
-- retry inspection;
+- automatic start after valid page initialisation;
+- cancel;
+- retry;
 - choose another model;
-- show finding details;
+- show details;
 - continue to Hardware Fit when eligible.
 
-Stale-result rule:
+Stale-run protection mirrors Model Import: publish replacement run identity before cancelling the old run; all callbacks verify current identity.
 
-- each run has a unique run identity;
-- a replacement run publishes its identity before cancelling the previous run;
-- progress and result callbacks check the current identity;
-- an old run cannot update the page after retry, replacement, removal, or navigation.
-
-The current disabled Cancel presentation becomes enabled only while a real active cancellable service run exists. Supporting text must not claim that the user can return or cancel unless the corresponding command is functional.
+The Cancel button becomes enabled only during a real active run. Forced cancellation timeout is displayed as operational failure, not successful cancellation.
 
 ---
 
-## 19. Security and privacy requirements
+## 18. Security and privacy
 
-### 19.1 Process launch
+### Launch
 
-- absolute controlled executable path;
-- no shell execution;
+- absolute fixed executable path;
+- path canonicalised and proven contained under build/installed root using a separator-qualified root check;
+- no shell;
 - no command-line model path;
-- no arbitrary user-supplied executable;
-- controlled working directory;
-- redirected streams read asynchronously;
-- complete process-tree termination on timeout/forced cancellation.
+- no arbitrary executable;
+- working directory fixed to worker directory;
+- async bounded stream handling;
+- process-tree termination on timeout.
 
-### 19.2 Protocol input
+### Protocol
 
-- line length checked before deserialization;
-- UTF-8 decoding errors fail closed;
-- JSON depth bounded by serializer settings;
-- required fields validated explicitly;
-- request ID compared ordinally;
-- message sequence checked by a state machine;
-- unknown message kinds rejected;
-- additional known-version fields tolerated.
+- bounded byte-aware line reader;
+- bounded JSON depth;
+- duplicate-property rejection;
+- required-field validation;
+- exact request ID;
+- strict state machine;
+- unknown kind/code fails closed;
+- unknown additive fields tolerated.
 
-### 19.3 Sensitive data
+### Sensitive data
 
-Never return or retain:
+Never retain/return:
 
-- canonical model directory path;
-- complete chat-template text;
+- canonical model directory;
+- complete chat template;
 - model bytes;
 - prompt or health information;
 - environment variables;
-- native pointers/handles;
-- arbitrary native logs without redaction.
+- native handles/pointers;
+- raw unbounded native logs;
+- raw protocol lines after successful parsing.
 
 Allowed:
 
 - filename;
-- path fingerprint hash;
+- path fingerprint;
 - model SHA-256;
-- metadata keys/values approved by the evidence contract;
-- bounded redacted technical diagnostics.
+- approved metadata;
+- bounded redacted diagnostics.
 
-### 19.4 Network
+### Network
 
-The worker:
-
-- opens no HTTP endpoint;
-- opens no listening TCP port;
-- performs no download;
-- requires no internet access;
-- is verified with process-owned TCP observation tests.
-
-### 19.5 Package trust
-
-The application starts the worker only from its signed/controlled package or local build output. It does not search `PATH`, the model directory, downloads, or current working directory.
+No HTTP endpoint, TCP listener, download, or required internet. Verify exact process PID with TCP observation tests.
 
 ---
 
-## 20. Packaging and deployment
+## 19. Packaging and architecture support
 
-### 20.1 Packaged application
+### Worker closure
 
-The existing WinUI application is configured as a packaged application. The x64 package must include a dedicated worker folder containing:
+The x64 package must include a fixed worker subfolder containing:
 
 ```text
 GraniteEdgeAI.ModelInspection.Worker.exe
 GraniteEdgeAI.ModelInspection.Contracts.dll
 GraniteEdgeAI.ModelInspection.LlamaSharp.dll
 LLamaSharp.dll
-LLamaSharp.Backend.Cpu dependencies
-matched native llama.cpp CPU libraries
-required .NET runtime configuration files
+approved LLamaSharp CPU backend/native dependencies
+runtime configuration files
 ```
 
-The application resolves the worker from the installed package location or controlled build output, not from `PATH`.
+### Path resolution
 
-### 20.2 Read-only installed location
+Resolver order:
 
-The worker treats its installation directory as read-only.
+1. packaged run: `Package.Current.InstalledLocation.Path`;
+2. controlled local build/test: `AppContext.BaseDirectory`;
+3. append fixed worker subdirectory and filename;
+4. canonicalise root and candidate;
+5. require separator-qualified candidate containment;
+6. never search `PATH` or working directory.
 
-It does not:
+Installed location is treated as read-only. Worker streams evidence; it does not write there.
 
-- write evidence beside the executable;
-- unpack native libraries into the package folder;
-- modify package files;
-- create temporary files under the installation root.
+### x64-only first boundary
 
-Protocol results are streamed through stdout. Any later retained application diagnostics must use the application’s controlled local-data/evidence directory.
+Only win-x64 is verified.
 
-### 20.3 x64-only first production boundary
+- worker built/packaged for x64 only;
+- adapter rejects non-x64 before process start with `MI-OP-WORKER-ARCHITECTURE-UNSUPPORTED`;
+- x86/ARM64 builds do not silently include/launch x64 worker;
+- UI gives a plain operational explanation;
+- no non-x64 support claim until separate native/package verification.
 
-Only `win-x64` has verified LLamaSharp/native evidence.
+### Package verification
 
-Therefore:
+Inspect worker build, application publish, and x64 MSIX for:
 
-- the first production worker is built and packaged only for x64;
-- x64 application build/publish/MSIX outputs must contain the complete worker closure;
-- the adapter checks `RuntimeInformation.ProcessArchitecture == X64` before launch;
-- x86/ARM64 application builds must not silently launch an x64 worker;
-- unsupported process architecture returns `MI-OP-WORKER-ARCHITECTURE-UNSUPPORTED`;
-- no x86/ARM64 Model Inspection support claim is made until separate native and packaging gates pass.
-
-The application may continue compiling for other platforms, but this feature remains explicitly unavailable there.
-
-### 20.4 Package verification
-
-Automated checks inspect:
-
-1. worker Release build output;
-2. application publish output;
-3. generated x64 MSIX contents.
-
-They verify:
-
-- worker executable exists;
-- shared contracts exist;
-- runtime library exists;
-- LLamaSharp assemblies exist;
-- approved CPU native library exists;
-- CUDA and Vulkan worker binaries are absent;
-- no GGUF is included;
-- no development evidence or test fixture is included;
-- worker handshake runtime profile matches the packaged dependency policy.
+- complete approved worker closure;
+- exact CPU native dependency;
+- absence of CUDA/Vulkan worker binaries;
+- absence of GGUF, test fixtures, and evidence;
+- runtime-profile/package-policy consistency.
 
 ---
 
-## 21. Chat and `llama-cli.exe` compatibility boundary
+## 20. Chat compatibility boundary
 
-The chat feature will later start a pinned `llama-cli.exe` directly and read/write redirected streams. It will not use this inspection worker.
+Chat later launches pinned `llama-cli.exe` directly through a separate process adapter, with no port.
 
-Before chat integration:
+Before integration:
 
-- record exact `llama-cli` tag/commit/build identity;
-- compare it with the LLamaSharp mapped llama.cpp commit;
-- align revisions where practical; otherwise perform a formal compatibility campaign;
-- record the decision in an ADR;
-- ensure a model is not approved by one runtime and silently executed by an incompatible runtime;
-- add separate packaging, cancellation, streaming, privacy, and no-port tests.
+- record exact CLI tag/commit/build;
+- compare with LLamaSharp mapped commit;
+- align or run formal compatibility campaign;
+- record ADR;
+- add packaging, streaming, cancellation, privacy, and no-port tests.
 
-Current research identity remains distinct:
+Current research identity remains separate:
 
 ```text
-llama.cpp tag:    b9870
-commit:           2d973636e292ee6f75fadcf08d29cb33511f509f
+llama.cpp tag: b9870
+commit:        2d973636e292ee6f75fadcf08d29cb33511f509f
 ```
 
-No compatibility claim is made in this specification.
+No compatibility claim is made here.
 
 ---
 
-## 22. Test architecture
-
-Tests are separated by what they prove.
+## 21. Test architecture
 
 ```text
 tests/
-├── ContractTests/
-│   └── GraniteEdgeAI.ModelInspection.Contracts.Tests/
-├── UnitTests/
-│   ├── GraniteEdgeAI.UnitTests/
-│   └── GraniteEdgeAI.ModelInspection.Worker.Tests/
-├── IntegrationTests/
-│   └── GraniteEdgeAI.ModelInspection.WorkerIntegrationTests/
-└── ProcessFixtures/
-    └── GraniteEdgeAI.ModelInspection.ProtocolTestWorker/
+├── ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/
+├── UnitTests/GraniteEdgeAI.UnitTests/
+├── UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/
+├── IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerIntegrationTests/
+└── ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/
 ```
 
-The production worker contains no hidden test commands such as `--crash`, `--hang`, or `--send-invalid-json`. A separate test-only worker simulates hostile and abnormal process behaviour.
+The production worker contains no hidden crash/hang/test modes. A test-only worker simulates abnormal processes.
 
-### 22.1 Contract tests
+### Contract tests
 
-- JSON round-trip for every command/message;
-- exact protocol version;
-- enum string representation;
-- required-field validation;
-- unknown-field tolerance;
-- unknown-kind rejection;
-- maximum line size;
-- canonical GUID request IDs;
-- nullable unavailable evidence;
-- no WinUI or LLamaSharp type in the contract graph;
-- no model-path output property;
-- no full chat-template property;
-- runtime profile stability.
+Round-trip, version, enum strings, required fields, unknown-field tolerance, duplicate rejection, unknown-kind rejection, size/depth/UTF-8 limits, GUIDs, nullable evidence, no WinUI/LLamaSharp graph, no path/template property, runtime-profile stability.
 
-### 22.2 Worker unit tests
+### Worker unit tests
 
-Using a fake `IWorkerInspectionEngine`:
+Hello once/before request; one start; progress order; one terminal result; all statuses; malformed/oversized input; wrong ID; idempotent cancel; stdout JSON only; stderr redaction; exit consistency; EOF and parent-disappearance cancellation.
 
-- hello exactly once;
-- hello before request;
-- one start accepted;
-- second start rejected;
-- valid progress ordering;
-- exactly one terminal result;
-- completed evidence;
-- cancelled completion;
-- operational failure;
-- malformed command;
-- oversized input;
-- wrong request ID;
-- idempotent cancellation;
-- stdout contains protocol JSON only;
-- stderr path redaction;
-- exit-code/result consistency;
-- stdin EOF cancellation;
-- parent-process disappearance cancellation.
+### Adapter process tests
 
-### 22.3 Adapter process tests
+Missing/start failure; hello timeout/malformed/version/profile/architecture; invalid/duplicate/oversized JSON; wrong ID; bad progress; duplicate/no terminal; crash; hang; overall timeout; cooperative cancel; cancellation-timeout forced kill → OperationalFailure; stderr truncation while continuous draining; exit mismatch; resource disposal.
 
-Using the test-only protocol worker:
+### Runtime deterministic tests
 
-- worker missing;
-- worker start failure;
-- hello timeout;
-- malformed hello;
-- unsupported protocol;
-- wrong runtime profile;
-- wrong architecture;
-- invalid JSON;
-- oversized stdout line;
-- wrong request ID;
-- out-of-order progress;
-- backward progress;
-- duplicate terminal result;
-- exit before terminal result;
-- crash;
-- hang/overall timeout;
-- graceful cancellation;
-- forced process-tree cancellation;
-- stderr truncation;
-- result/exit-code mismatch;
-- proper stream/resource disposal.
+Preserve all existing package-policy, CPU configuration, path/hash/integrity, cancellation, metadata, tokenizer, template, progress, failure, redaction, precedence, and type-isolation coverage. No coverage silently dropped during extraction.
 
-### 22.4 Runtime-library deterministic tests
+### Production worker integration
 
-Migrate and preserve the existing verified contracts for:
+Exact Granite success; three runs; both cancellation scopes; malformed fixtures; random bytes; missing/directory/locked model; continuity mismatch; SHA unchanged; no path/template leak; no TCP endpoint; native resources disposed; x64 identity exact.
 
-- package/version policy;
-- CPU-only configuration;
-- path validation;
-- hashing and integrity;
-- cancellation;
-- metadata projection;
-- tokenizer smoke;
-- chat-template hashing;
-- progress normalisation;
-- exception mapping;
-- sensitive-text redaction;
-- result precedence;
-- evidence-type isolation.
+Real native termination is recorded and contained when a controlled fixture naturally produces it. The implementation must not introduce a production backdoor solely to manufacture a native crash. Generic crash containment is proved deterministically with the test-only worker.
 
-No existing passing coverage may be silently dropped during extraction from the feasibility tool.
+### Classifier
 
-### 22.5 Production worker integration tests
+All six outcomes, precedence, conversion registry requirement, only Ready continuation, unknown observation → OperationalFailure, cancellation/failure bypass.
 
-Using the real production worker:
+### Service
 
-- exact Granite success;
-- three-run repeatability;
-- post-preflight cancellation;
-- native-load cancellation;
-- every committed malformed GGUF fixture;
-- deterministic random bytes;
-- missing model;
-- directory supplied as model;
-- locked model;
-- file continuity mismatch;
-- model SHA-256 unchanged;
-- canonical path absent from stdout/stderr/evidence;
-- full chat template absent;
-- no process-owned TCP listener/established connection;
-- worker/native crash contained outside the test host;
-- native resources disposed;
-- x64 runtime identity exact.
+Request validation, progress/evidence mapping, required conflict detection, classifier invocation rules, cancellation, immutable result, stale suppression, no XAML.
 
-### 22.6 Classifier tests
+### ViewModel/WinUI
 
-- Ready;
-- ReadyWithWarnings;
-- ConversionRequired with verified route;
-- conversion candidate without verified route → Unsupported;
-- IncompletePackage;
-- Unsupported;
-- Invalid;
-- Invalid outranks warning;
-- Incomplete outranks conversion;
-- Unsupported outranks warning;
-- only Ready outcomes permit Hardware Fit;
-- operational failure never reaches classifier;
-- cancellation never reaches classifier.
+Valid request, automatic start, five stages, one spinner, nullable fraction, Cancel only while active, cooperative cancellation, forced-timeout operational state, all outcomes, retry, stale suppression, continuation policy, card/action binding, keyboard, automation, scaling, high contrast, stable layout.
 
-### 22.7 Service tests
+### Packaging
 
-Using fake `ILlamaModelProbe`:
-
-- request validation;
-- progress mapping;
-- completed evidence classification;
-- cancellation propagation;
-- operational-failure separation;
-- immutable result construction;
-- classifier called exactly once when applicable;
-- classifier not called otherwise;
-- stale-run suppression;
-- no XAML dependency.
-
-### 22.8 ViewModel tests
-
-Using fake `IModelInspectionService`:
-
-- valid navigation initialisation;
-- automatic inspection start;
-- five-stage progress;
-- only one active spinner;
-- genuine nullable fraction;
-- Cancel enabled only while active;
-- Cancel command;
-- cooperative/forced cancellation presentation;
-- all six completed outcomes;
-- operational failure;
-- retry;
-- stale progress/result ignored;
-- Hardware Fit continuation only for Ready outcomes;
-- page state does not change from a superseded run.
-
-### 22.9 WinUI tests
-
-- request navigation parameter;
-- initial model card uses quick-scan snapshot;
-- progress control updates;
-- Cancel command wiring;
-- outcome/content/action cards use ViewModel state;
-- disabled actions are not presented as available;
-- keyboard focus and automation names;
-- layout remains stable across progress and results;
-- large text scaling and high contrast remain readable.
-
-### 22.10 Packaging tests
-
-- x64 worker project publishes;
-- application x64 publish includes worker closure;
-- x64 MSIX contains approved worker files;
-- MSIX contains no model or test fixture;
-- WinUI project has no LLamaSharp package reference;
-- worker package contains CPU dependencies only;
-- worker path resolver locates local build and installed package layouts;
-- non-x64 process returns explicit unsupported-architecture operation result.
+x64 worker publish; application publish/MSIX closure; no model/fixtures/evidence; no LLamaSharp in WinUI project; CPU only; installed/local resolver; non-x64 explicit rejection.
 
 ---
 
-## 23. Test-driven implementation rule
-
-Every behaviour change follows:
+## 22. Test-driven implementation rule
 
 ```text
-1. Add one focused failing test.
-2. Run it and preserve the expected failure.
-3. Add the smallest production implementation.
-4. Run the focused test until green.
-5. Run the affected test project.
-6. Run broader application/runtime gates.
-7. Update README and evidence only after executable verification.
+1. Add focused failing test.
+2. Run and preserve intended failure.
+3. Add smallest production code.
+4. Run focused test green.
+5. Run affected project.
+6. Run broader gates.
+7. Update README/evidence only after verification.
 ```
 
-Tests must fail for the intended reason before production code is added. Existing source-presence tests cannot substitute for behavioural tests where executable verification is practical.
+Source-presence tests do not substitute for behavioural tests where execution is practical.
 
 ---
 
-## 24. Incremental delivery gates
+## 23. Incremental gates
 
-### Gate 1 — contracts, protocol, and architecture record
+### Gate 1 — contracts, protocol, ADR
 
-Deliver:
+Shared contract project, application contracts, state-machine contract, contract tests, `ADR-003`, root/source READMEs, stacked draft PR.
 
-- stacked branch and draft PR;
-- shared contract project;
-- application request/result contracts;
-- protocol state machine contract;
-- contract tests;
-- `ADR-003` worker-process decision;
-- README hierarchy for new roots.
+Do not add worker/native code before protocol tests define it.
 
-Acceptance:
+### Gate 2 — worker host and test process
 
-- pure contracts compile without WinUI/LLamaSharp;
-- contract tests pass;
-- old path-only navigation is not yet removed unless the complete request mapping is implemented in the same green task;
-- no worker/native code is introduced before protocol tests define it.
+Worker shell with fake engine seam, protocol, abnormal test worker, adapter process tests, timeout/cancellation/orphan cleanup. No LLamaSharp required yet.
 
-### Gate 2 — worker host and test-only process fixture
+### Gate 3 — extracted LLamaSharp engine
 
-Deliver:
+Extract proven source into one runtime library; update spike to consume it; connect worker; migrate all coverage. Exact Granite/cancellation/malformed/privacy/integrity/no-port gates must pass. No duplicate independent LLamaSharp implementation.
 
-- production worker shell with fake engine seam;
-- hello/start/progress/cancel/completion protocol;
-- test-only abnormal worker;
-- worker and adapter process tests;
-- timeout/cancellation/orphan cleanup.
+### Gate 4 — packaging
 
-Acceptance:
+x64 worker closure, fixed resolver, MSIX tests, non-x64 handling. Build, publish, and MSIX must pass.
 
-- no LLamaSharp needed for worker protocol tests;
-- native crash/hang simulations cannot terminate the test host;
-- stdout/stderr rules pass;
-- process resources close on every path.
+### Gate 5 — classifier and service
 
-### Gate 3 — extracted LLamaSharp runtime engine
+All outcomes/precedence, evidence conflicts, execution separation, progress, stale identity.
 
-Deliver:
+### Gate 6 — ViewModel and UI
 
-- runtime library extracted from proven feasibility source;
-- engineering spike updated to consume the shared runtime library;
-- production worker connected to the runtime engine;
-- existing deterministic/native/trusted tests migrated without lost coverage.
+Complete request handoff, real progress, functional cooperative Cancel, forced-timeout operational recovery, outcomes/actions/retry/stale protection, accessibility.
 
-Acceptance:
-
-- exact Granite passes through the production worker;
-- cancellation passes;
-- malformed cases remain contained;
-- model SHA remains unchanged;
-- no port/path leak;
-- no duplicated independent LLamaSharp implementation remains.
-
-### Gate 4 — packaging boundary
-
-Deliver:
-
-- x64 worker inclusion in application output and MSIX;
-- controlled path resolver;
-- package-content tests;
-- explicit non-x64 architecture handling.
-
-Acceptance:
-
-- build, publish, and MSIX contain complete approved worker closure;
-- installed/build worker starts and handshakes;
-- no model/test/evidence leakage into package;
-- WinUI project remains free of LLamaSharp.
-
-### Gate 5 — classifier and application service
-
-Deliver:
-
-- deterministic classifier;
-- service orchestration;
-- execution/result distinction;
-- progress mapping;
-- service and classifier tests.
-
-Acceptance:
-
-- all outcomes and precedence verified;
-- operational/cancelled routes bypass classifier;
-- only Ready outcomes permit Hardware Fit continuation.
-
-### Gate 6 — ViewModel and WinUI integration
-
-Deliver:
-
-- complete request handoff from Model Import;
-- ModelInspectionViewModel;
-- functional progress and Cancel;
-- real result/finding/action presentations;
-- retry and stale-run protection;
-- UI/accessibility tests.
-
-Acceptance:
-
-- end-to-end production-worker inspection updates the existing page;
-- native worker failure does not close the app;
-- Cancel works;
-- all user-visible states are honest and recoverable;
-- full application build and packaged tests pass.
-
-No gate begins until the preceding gate has executable evidence and no unresolved blocker.
+No gate begins until the previous gate has executable evidence and no unresolved blocker.
 
 ---
 
-## 25. README and evidence policy
+## 24. README and evidence policy
 
-Every new responsibility folder receives a README containing:
-
-- purpose;
-- owned responsibilities;
-- forbidden responsibilities;
-- dependencies;
-- inputs and outputs;
-- lifecycle;
-- error/cancellation behaviour;
-- security/privacy boundary;
-- tests;
-- verified status;
-- deferred work;
-- related ADR/spec/evidence.
+Every new responsibility folder gets a README covering purpose, owned/forbidden responsibility, dependencies, input/output, lifecycle, errors/cancellation, security/privacy, tests, verified status, deferred work, and related ADR/spec/evidence.
 
 Required hierarchy:
 
@@ -1704,221 +1261,111 @@ Features/ModelInspection/Services/README.md
 Features/ModelInspection/ViewModels/README.md
 ```
 
-Evidence records go under:
+Evidence: `docs/testing/evidence/`.
 
-```text
-docs/testing/evidence/
-```
+No README/PR says passed, implemented, supported, or packaged without fresh exact-scope evidence.
 
-A README or PR must not say `passed`, `implemented`, `supported`, or `packaged` until fresh executable evidence supports that exact claim.
-
-Each pull request description must include:
-
-- purpose and architecture boundary;
-- exact files/components changed;
-- why the change was selected;
-- test-first evidence;
-- current build/test results;
-- security/privacy controls;
-- known limitations;
-- non-claims;
-- review focus;
-- next gate.
+PR descriptions include purpose, boundary, changes, rationale, test-first evidence, results, security/privacy, limitations, non-claims, review focus, and next gate.
 
 ---
 
-## 26. Branch and pull-request strategy
+## 25. Branch and PR strategy
 
 ```text
 feature/model-inspection
-    verified feasibility/presentation foundation
-        ↓ stacked branch
+    ↓ stacked
 feature/model-inspection-runtime-integration
-    production worker/application integration
 ```
 
-The new draft PR targets `feature/model-inspection` while PR #44 is open.
+New draft PR targets `feature/model-inspection` while PR #44 is open. After #44 merges, update from `main`, retarget, review diff, rerun gates, and preserve design history.
 
-After PR #44 merges:
-
-- update the stacked branch from `main` without rewriting reviewed evidence unnecessarily;
-- retarget the new PR to `main`;
-- review the resulting diff;
-- rerun all affected CI gates;
-- preserve the design/spec commit history.
-
-The implementation PR remains draft until its current gate has complete evidence. Later gates may remain in the same stacked PR only while the diff remains reviewable; otherwise a further stacked PR is preferred over an unreviewable monolith.
+Further stacked PRs are preferred if the integration diff stops being reviewable.
 
 ---
 
-## 27. Acceptance criteria for the complete worker integration
-
-The complete slice is accepted only when:
+## 26. Complete acceptance criteria
 
 ```text
-[ ] Shared contracts compile with no WinUI or LLamaSharp dependencies.
-[ ] Protocol version, limits, and state machine tests pass.
+[ ] Pure contracts compile without WinUI/LLamaSharp.
+[ ] Protocol/version/limit/state tests pass.
 [ ] Worker unit tests pass.
 [ ] Adapter process tests pass.
-[ ] Production worker real-model integration tests pass.
-[ ] Exact controlled Granite passes through the production worker.
+[ ] Exact Granite passes through production worker.
 [ ] Three-run repeatability passes.
-[ ] Cooperative cancellation passes.
-[ ] Forced cancellation terminates the process tree and leaves WinUI/test host alive.
-[ ] Worker/native crash remains outside the WinUI/test host.
-[ ] Original model SHA-256 remains unchanged.
-[ ] No TCP endpoint is observed.
-[ ] No canonical model path leaks through stdout, stderr, application evidence, or retained logs.
-[ ] No complete chat-template text crosses the worker boundary.
-[ ] x64 build output contains the worker closure.
-[ ] x64 publish output contains the worker closure.
-[ ] x64 MSIX contains the worker closure.
-[ ] MSIX contains no model, test fixture, or test evidence.
-[ ] Non-x64 execution is explicitly rejected without attempting to start the x64 worker.
-[ ] WinUI application project has no LLamaSharp/TurboQuant dependency.
-[ ] Classifier outcome and precedence tests pass.
-[ ] Service cancellation/operational/stale-run tests pass.
-[ ] ViewModel and WinUI progress/cancel/outcome tests pass.
-[ ] Full application build and packaged test workflow pass.
-[ ] Source-adjacent READMEs are current.
-[ ] ADR-003 is accepted and agrees with code.
-[ ] Verification evidence is recorded.
-[ ] Whole-slice static and executable review finds no unresolved blocker.
+[ ] Cooperative cancellation passes with verified integrity.
+[ ] Cancellation timeout kills tree and returns OperationalFailure.
+[ ] Simulated crash remains outside WinUI/test host.
+[ ] Any naturally observed native abort is contained.
+[ ] Original model SHA remains unchanged.
+[ ] No TCP endpoint observed.
+[ ] No canonical path or full template leaks.
+[ ] x64 build/publish/MSIX contain worker closure.
+[ ] Package contains no model/fixture/evidence.
+[ ] Non-x64 rejects before worker start.
+[ ] WinUI project has no LLamaSharp/TurboQuant dependency.
+[ ] Classifier/service/ViewModel/WinUI tests pass.
+[ ] Full application build and packaged workflow pass.
+[ ] READMEs, ADR-003, evidence, and code agree.
+[ ] Whole-slice review has no unresolved blocker.
 ```
 
 ---
 
-## 28. Risks and trade-offs
+## 27. Risks and deferred hardening
 
-### 28.1 Additional packaging complexity
+Risks: packaging complexity, protocol maintenance, uncooperative native cancellation, orphan process, chat runtime mismatch, large stacked history.
 
-The worker adds executable and native dependencies to the package. Mitigation: explicit package-content tests and x64-only support until other architectures are independently verified.
+Mitigations are the x64 package gate, versioned protocol, fail-closed forced termination, EOF/parent monitoring, compatibility ADR, and gated PR decomposition.
 
-### 28.2 Protocol maintenance
-
-The application and worker must evolve compatibly. Mitigation: versioned envelopes, additive-field policy, strict state-machine tests, and runtime-profile handshake.
-
-### 28.3 Cancellation may require forced termination
-
-Native code may not honour cancellation immediately. Mitigation: cooperative request first, bounded grace period second, full process-tree kill last, and explicit diagnostic recording.
-
-### 28.4 Parent application may terminate
-
-A child worker could otherwise become orphaned. Mitigation: stdin EOF cancellation and parent-process monitoring; consider a Windows Job Object as later hardening.
-
-### 28.5 Runtime mismatch with chat
-
-LLamaSharp and `llama-cli.exe` may map to different llama.cpp commits. Mitigation: no chat compatibility claim until alignment or a formal compatibility campaign is complete.
-
-### 28.6 Large branch history
-
-The base branch is already substantial. Mitigation: stacked PR, gate-based commits, detailed PR context, and further decomposition if reviewability degrades.
-
----
-
-## 29. Deferred hardening
-
-Explicitly deferred, not forgotten:
+Deferred:
 
 - Windows Job Object kill-on-close;
-- filesystem-link alias/hard-link protection beyond current canonical path checks;
-- x86 and ARM64 workers;
-- signed binary hash attestation inside the application;
-- named-pipe transport;
-- persistent worker pooling;
-- physically disconnected-network acceptance test;
-- crash dump capture with privacy controls;
-- full CPU allocation/generation;
-- Vulkan/TurboQuant/OpenVINO;
-- `llama-cli.exe` chat integration.
-
-Each deferred item requires a separate risk/evidence route before it can become a claim.
+- filesystem-link/hard-link strengthening;
+- x86/ARM64 workers;
+- runtime binary hash attestation;
+- named pipe/persistent worker;
+- physically disconnected acceptance;
+- privacy-controlled crash dumps;
+- full CPU/Vulkan/TurboQuant/OpenVINO;
+- `llama-cli` chat integration.
 
 ---
 
-## 30. Engineering basis
+## 28. Engineering basis
 
 ### Fundamentals of Software Architecture
 
-Applied guidance:
-
-- modularity, cohesion, and coupling;
-- stable interfaces around volatile native infrastructure;
-- component-based decomposition;
-- trade-off analysis rather than one universally “best” architecture;
-- ADRs for consequential architecture decisions.
-
-Relevant themes: Chapters 3, 8, and 21.
+Modularity, cohesion/coupling, stable component interfaces, trade-off analysis, and ADRs (notably Chapters 3, 8, and 21).
 
 ### Code Complete
 
-Applied guidance:
-
-- consistent abstraction levels;
-- information hiding;
-- cohesive classes and routines;
-- defensive programming at external boundaries;
-- developer testing;
-- incremental integration rather than big-bang integration.
-
-Relevant themes: Chapters 5, 6, 8, 22, and 29.
+Consistent abstraction, information hiding, cohesive classes, defensive boundaries, developer testing, and incremental integration (notably Chapters 5, 6, 8, 22, and 29).
 
 ### Designing Secure Software
 
-Applied guidance:
-
-- explicit trust boundaries;
-- least exposure and attack-surface minimisation;
-- no unnecessary listening service;
-- bounded untrusted input;
-- fail-secure protocol handling;
-- sensitive-data minimisation;
-- secure interface design;
-- security-focused testing.
+Trust boundaries, least exposure, no unnecessary listening service, bounded untrusted input, fail-secure protocol handling, sensitive-data minimisation, secure interfaces, and security testing.
 
 ### The Art of Unit Testing
 
-Applied guidance:
-
-- distinguish unit tests from integration/process tests;
-- use interfaces, fakes, seams, and test doubles;
-- keep native and process dependencies out of ordinary application unit tests;
-- make tests deterministic and focused on one behavioural contract.
+Separate unit/integration/process tests; use seams, fakes, and test doubles; keep native/process dependencies out of normal application tests.
 
 ### Why Programs Fail
 
-Applied guidance:
-
-- preserve the first observable failure at the process boundary;
-- separate symptom from cause;
-- capture stdout, stderr, exit code, timing, and protocol state;
-- reproduce failures with controlled process fixtures;
-- avoid attributing infrastructure failure to the model.
+Preserve the first failure at the process boundary; separate cause from symptom; retain bounded stdout/stderr/exit/timing/protocol evidence; do not blame the model for infrastructure failure.
 
 ### Refactoring
 
-Applied guidance:
-
-- extract the proven LLamaSharp implementation into one shared runtime library;
-- avoid duplicate production and feasibility implementations;
-- move behaviour in small verified steps;
-- preserve tests while changing structure.
+Extract one tested runtime implementation, avoid duplicated feasibility/production logic, move in small verified steps, preserve behaviour while changing structure.
 
 ### Windows application guidance
 
-The project’s `windows-apps.pdf` and current Microsoft documentation support:
-
-- WinUI through the Windows App SDK;
-- MVVM/data-binding/test separation;
-- packaged WinUI deployment and MSIX verification;
-- explicit runtime and process design covering safe command construction, standard streams, exit codes, timeouts, cancellation, and cleanup;
-- using application packaging and installed-location APIs rather than searching arbitrary executable locations.
+The project’s `windows-apps.pdf` and current Microsoft guidance support WinUI/Windows App SDK, MVVM/test separation, packaged/MSIX deployment, safe process construction, standard-stream handling, exit interpretation, timeouts, cancellation, cleanup, and controlled installed-location resolution.
 
 ---
 
-## 31. Primary external references
+## 29. Primary external references
 
-Official Microsoft sources used to verify platform assumptions:
+Official Microsoft sources:
 
 - `ProcessStartInfo.RedirectStandardInput`  
   <https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.redirectstandardinput>
@@ -1930,58 +1377,70 @@ Official Microsoft sources used to verify platform assumptions:
   <https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.kill>
 - `Process.WaitForExitAsync`  
   <https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexitasync>
-- Windows App SDK packaged-app deployment  
+- Windows App SDK packaged deployment  
   <https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/deploy-packaged-apps>
-- Windows application package/deployment overview  
+- Windows package/deployment overview  
   <https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/>
 - `Package.InstalledLocation`  
   <https://learn.microsoft.com/en-us/uwp/api/windows.applicationmodel.package.installedlocation>
 
-The implementation must re-check current official documentation when packaging or API details are coded.
+Implementation must re-check current official documentation when packaging/API details are coded.
 
 ---
 
-## 32. Final decision summary
+## 30. Final self-review and adjustments
 
-Approved decisions:
+The specification was reviewed for placeholders, contradictions, ambiguity, scope, testability, security, and unsupported claims.
+
+Adjustments made before this revision:
+
+1. **Handshake identity:** `hello` is connection-scoped and does not require a request ID before a request exists. It now includes stable worker ID and process ID.
+2. **Operation versus outcome:** worker `Completed` means the diagnostic workflow completed; it does not mean the model is Ready. Invalid/unsupported models can be reliable completed diagnoses.
+3. **Forced cancellation:** forced kill is now OperationalFailure because terminal/integrity proof is unavailable. Only cooperative verified cancellation is Cancelled.
+4. **Stream safety:** both sides require byte-bounded line readers; stderr is continuously drained even after retention truncation.
+5. **JSON ambiguity:** duplicate properties are rejected; unknown additive fields remain compatible.
+6. **Parent monitoring:** parent PID is paired with start time to reduce PID-reuse ambiguity; EOF is also monitored.
+7. **Evidence conflicts:** required quick-scan/worker disagreement bypasses classification as operational evidence conflict.
+8. **Unknown observations:** no unknown worker code is silently ignored or guessed.
+9. **Packaging containment:** fixed installed/build roots use canonical separator-qualified containment; no `PATH` search.
+10. **Architecture claim:** first production worker is explicitly x64-only.
+11. **Native crash testing:** deterministic crash containment uses a test-only worker; production code receives no hidden crash command.
+12. **Installed-folder writes:** production worker streams evidence and treats package installation as read-only.
+
+Placeholder scan: no `TBD`, `TODO`, or unresolved decision remains in the approved first-version scope.
+
+---
+
+## 31. Final decision summary
 
 ```text
-Inspection runtime:
-    dedicated short-lived worker executable
+Inspection:
+    dedicated short-lived x64 worker
+    LLamaSharp 0.27.0 / matched CPU llama.cpp
 
-Native inspection API:
-    LLamaSharp 0.27.0 / matched CPU llama.cpp runtime
-
-Chat runtime:
-    pinned llama-cli.exe in a later separate feature
+Chat later:
+    pinned llama-cli.exe
 
 Network:
-    no HTTP server, no listening port, no required internet
+    no server, no port, no required internet
 
 Transport:
-    bounded compact JSON lines over redirected stdin/stdout
+    bounded UTF-8 JSON lines over stdin/stdout
+    bounded redacted continuously drained stderr
 
-Diagnostics:
-    bounded redacted stderr
-
-Crash safety:
-    native work outside WinUI process
-
-Model outcome owner:
-    application classifier, not worker
+Outcome ownership:
+    application classifier
 
 Cancellation:
-    cooperative request, then bounded process-tree termination
+    cooperative verified cancellation → Cancelled
+    forced termination → OperationalFailure
 
 Packaging:
-    signed/controlled x64 application package with worker closure
+    controlled x64 build/publish/MSIX worker closure
 
-Architecture support:
-    x64 only until separately verified
-
-Development method:
-    gate-based TDD, incremental integration, source-adjacent documentation,
-    fresh evidence before claims
+Method:
+    gate-based TDD, incremental integration,
+    README/evidence updates only after verification
 ```
 
 No production implementation begins until this written specification is reviewed and approved.
