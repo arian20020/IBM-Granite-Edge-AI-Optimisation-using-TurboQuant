@@ -10,6 +10,8 @@ on:
       - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/**'
       - '.github/workflows/model-inspection-transport-tests.yml'
   pull_request:
+    branches:
+      - main
     paths:
       - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
       - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/**'
@@ -55,4 +57,4 @@ jobs:
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
           --configuration Release
-          --minimum-expected-tests 18
+          --minimum-expected-tests 19
