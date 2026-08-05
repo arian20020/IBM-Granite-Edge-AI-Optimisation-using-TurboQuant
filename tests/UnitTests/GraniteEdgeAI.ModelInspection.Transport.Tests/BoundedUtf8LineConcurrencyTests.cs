@@ -19,7 +19,7 @@ public sealed class BoundedUtf8LineConcurrencyTests
     public async Task WriteLineAsyncSerializesConcurrentFrames()
     {
         await using ConcurrentWriteProbeStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
         Task first = writer
             .WriteLineAsync(Encoding.UTF8.GetBytes("first"), CancellationToken.None)
@@ -50,7 +50,7 @@ public sealed class BoundedUtf8LineConcurrencyTests
     public async Task WriteLineAsyncPreservesValidatedQueuedPayload()
     {
         await using FirstWriteBlockingStream stream = new();
-        BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
         byte[] mutableSecondPayload = Encoding.UTF8.GetBytes("second");
 
         Task first = writer
