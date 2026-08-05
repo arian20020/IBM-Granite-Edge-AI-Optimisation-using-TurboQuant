@@ -5,12 +5,21 @@ using System.Reflection;
 namespace GraniteEdgeAI.UnitTests;
 
 /// <summary>
-/// Defines the application-owned Model Inspection request, progress, evidence,
-/// result, finding, and execution-state contracts.
+/// Defines the immutable application language used by Model Import, Model
+/// Inspection, classification, the service layer, and the future ViewModel.
 /// </summary>
 [TestClass]
 public sealed class ModelInspectionContractTests
 {
+    private const string ModelPath = @"C:\Models\granite.gguf";
+    private const string ModelFileName = "granite.gguf";
+    private const string ModelSha256 =
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    private const string CanonicalPathSha256 =
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    private const string LlamaCppCommit =
+        "3f7c29d318e317b63f54c558bc69803963d7d88c";
+
     private static readonly DateTimeOffset FixedUtcTime = new(
         2026,
         8,
@@ -41,11 +50,20 @@ public sealed class ModelInspectionContractTests
     {
         ValidatedQuickScanSnapshot snapshot = CreateQuickScan();
 
-        Assert.AreEqual("GGUF", snapshot.Format);
-        Assert.AreEqual("Granite 4.1 3B", snapshot.ModelName);
-        Assert.AreEqual("granite", snapshot.Architecture);
-        Assert.AreEqual(100L, snapshot.FileSizeBytes);
-        Assert.AreEqual(3U, snapshot.GgufVersion);
+        Assert.IsTrue(string.Equals(
+            "GGUF",
+            snapshot.Format,
+            StringComparison.Ordinal));
+        Assert.IsTrue(string.Equals(
+            "Granite 4.1 3B",
+            snapshot.ModelName,
+            StringComparison.Ordinal));
+        Assert.IsTrue(string.Equals(
+            "granite",
+            snapshot.Architecture,
+            StringComparison.Ordinal));
+        Assert.IsTrue(snapshot.FileSizeBytes == 100);
+        Assert.IsTrue(snapshot.GgufVersion == 3);
     }
 
     [TestMethod]
@@ -68,7 +86,7 @@ public sealed class ModelInspectionContractTests
         Assert.ThrowsExactly<ArgumentException>(() =>
             new ModelInspectionRequest(
                 "models/granite.gguf",
-                "granite.gguf",
+                ModelFileName,
                 CreateFileIdentity(),
                 CreateQuickScan()));
     }
@@ -78,7 +96,7 @@ public sealed class ModelInspectionContractTests
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
             new ModelInspectionRequest(
-                @"C:\Models\granite.gguf",
+                ModelPath,
                 "different.gguf",
                 CreateFileIdentity(),
                 CreateQuickScan()));
@@ -89,7 +107,7 @@ public sealed class ModelInspectionContractTests
     {
         Assert.ThrowsExactly<ArgumentException>(() =>
             new ModelInspectionRequest(
-                @"C:\Models\granite.gguf",
+                ModelPath,
                 @"Models\granite.gguf",
                 CreateFileIdentity(),
                 CreateQuickScan()));
@@ -103,8 +121,8 @@ public sealed class ModelInspectionContractTests
 
         Assert.ThrowsExactly<ArgumentException>(() =>
             new ModelInspectionRequest(
-                @"C:\Models\granite.gguf",
-                "granite.gguf",
+                ModelPath,
+                ModelFileName,
                 identity,
                 CreateQuickScan()));
     }
@@ -132,6 +150,115 @@ public sealed class ModelInspectionContractTests
             userMessage: "Reading model configuration.");
 
         Assert.IsNull(progress.StageFraction);
+    }
+
+    [TestMethod]
+    public void FileEvidence_RejectsDirectoryInFileName()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelInspectionFileEvidence(
+                fileName: @"Models\granite.gguf",
+                canonicalPathSha256: CanonicalPathSha256,
+                lengthBytes: 100,
+                lastWriteTimeUtc: FixedUtcTime,
+                modelSha256: ModelSha256,
+                integrityPreserved: true));
+    }
+
+    [TestMethod]
+    public void FileEvidence_RequiresPreservedIntegrity()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelInspectionFileEvidence(
+                fileName: ModelFileName,
+                canonicalPathSha256: CanonicalPathSha256,
+                lengthBytes: 100,
+                lastWriteTimeUtc: FixedUtcTime,
+                modelSha256: ModelSha256,
+                integrityPreserved: false));
+    }
+
+    [TestMethod]
+    public void ConfigurationEvidence_AllowsUnavailableNativeValues()
+    {
+        ModelInspectionConfigurationEvidence configuration =
+            CreateConfigurationEvidence();
+
+        Assert.IsNull(configuration.GgufVersion);
+        Assert.IsNull(configuration.ParameterCount);
+        Assert.IsNull(configuration.DeclaredContextLength);
+        Assert.IsNull(configuration.LayerCount);
+        Assert.IsNull(configuration.AttentionHeadCount);
+        Assert.IsNull(configuration.KvHeadCount);
+    }
+
+    [TestMethod]
+    public void TokenizerEvidence_DefensivelyCopiesSpecialTokenIds()
+    {
+        Dictionary<string, int> source = new(StringComparer.Ordinal)
+        {
+            ["bos"] = 1
+        };
+
+        ModelInspectionTokenizerEvidence tokenizer = new(
+            tokenizerModel: "gpt2",
+            vocabularyCount: 49_152,
+            vocabularyType: "BPE",
+            tokenizerSmokePassed: true,
+            tokenizerSmokeTokenCount: 3,
+            knownSpecialTokenIds: source);
+
+        source["eos"] = 2;
+
+        Assert.HasCount(1, tokenizer.KnownSpecialTokenIds);
+        Assert.IsTrue(tokenizer.KnownSpecialTokenIds.ContainsKey("bos"));
+    }
+
+    [TestMethod]
+    public void ChatTemplate_AbsentRequiresNoLengthOrDigest()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelInspectionChatTemplateEvidence(
+                present: false,
+                lengthCharacters: 100,
+                sha256: ModelSha256));
+    }
+
+    [TestMethod]
+    public void RuntimeIdentity_PreservesCompleteApprovedClosure()
+    {
+        ModelInspectionRuntimeIdentity runtime = CreateRuntimeIdentity();
+
+        Assert.IsTrue(string.Equals(
+            "GraniteEdgeAI.ModelInspection.Worker",
+            runtime.WorkerId,
+            StringComparison.Ordinal));
+        Assert.IsTrue(runtime.ProtocolVersion == 1);
+        Assert.IsTrue(string.Equals(
+            "llamasharp-0.27.0-cpu-win-x64-vocab-only-v1",
+            runtime.RuntimeProfile,
+            StringComparison.Ordinal));
+        Assert.IsTrue(string.Equals(
+            "llama.dll",
+            runtime.NativeLibraryName,
+            StringComparison.Ordinal));
+        Assert.IsFalse(runtime.UsesCuda);
+        Assert.IsFalse(runtime.UsesVulkan);
+        Assert.IsTrue(runtime.GpuLayerCount == 0);
+    }
+
+    [TestMethod]
+    public void Evidence_DefensivelyCopiesTechnicalObservations()
+    {
+        List<ModelInspectionObservation> source =
+        [
+            CreateObservation()
+        ];
+
+        ModelInspectionEvidence evidence = CreateEvidence(source);
+        source.Add(CreateObservation());
+
+        Assert.HasCount(1, evidence.Observations);
     }
 
     [TestMethod]
@@ -206,7 +333,8 @@ public sealed class ModelInspectionContractTests
         ModelInspectionExecutionResult execution =
             ModelInspectionExecutionResult.Completed(expected);
 
-        Assert.AreEqual(ModelInspectionExecutionStatus.Completed, execution.Status);
+        Assert.IsTrue(
+            execution.Status == ModelInspectionExecutionStatus.Completed);
         Assert.AreSame(expected, execution.Result);
         Assert.IsNull(execution.OperationalFailure);
         Assert.IsNull(execution.CancellationWasCooperative);
@@ -218,10 +346,11 @@ public sealed class ModelInspectionContractTests
         ModelInspectionExecutionResult execution =
             ModelInspectionExecutionResult.Cancelled(cooperative: true);
 
-        Assert.AreEqual(ModelInspectionExecutionStatus.Cancelled, execution.Status);
+        Assert.IsTrue(
+            execution.Status == ModelInspectionExecutionStatus.Cancelled);
         Assert.IsNull(execution.Result);
         Assert.IsNull(execution.OperationalFailure);
-        Assert.AreEqual(true, execution.CancellationWasCooperative);
+        Assert.IsTrue(execution.CancellationWasCooperative is true);
     }
 
     [TestMethod]
@@ -242,24 +371,12 @@ public sealed class ModelInspectionContractTests
         ModelInspectionExecutionResult execution =
             ModelInspectionExecutionResult.OperationalFailure(expected);
 
-        Assert.AreEqual(
-            ModelInspectionExecutionStatus.OperationalFailure,
-            execution.Status);
+        Assert.IsTrue(
+            execution.Status ==
+            ModelInspectionExecutionStatus.OperationalFailure);
         Assert.IsNull(execution.Result);
         Assert.AreSame(expected, execution.OperationalFailure);
         Assert.IsNull(execution.CancellationWasCooperative);
-    }
-
-    [TestMethod]
-    public void Evidence_AllowsUnavailableNativeValues()
-    {
-        ModelInspectionEvidence evidence = CreateEvidence();
-
-        Assert.IsNull(evidence.ParameterCount);
-        Assert.IsNull(evidence.DeclaredContextLength);
-        Assert.IsNull(evidence.LayerCount);
-        Assert.IsNull(evidence.AttentionHeadCount);
-        Assert.IsNull(evidence.KvHeadCount);
     }
 
     [TestMethod]
@@ -333,6 +450,84 @@ public sealed class ModelInspectionContractTests
             ggufVersion: 3);
     }
 
+    private static ModelInspectionFileEvidence CreateFileEvidence()
+    {
+        return new ModelInspectionFileEvidence(
+            fileName: ModelFileName,
+            canonicalPathSha256: CanonicalPathSha256,
+            lengthBytes: 100,
+            lastWriteTimeUtc: FixedUtcTime,
+            modelSha256: ModelSha256,
+            integrityPreserved: true);
+    }
+
+    private static ModelInspectionConfigurationEvidence
+        CreateConfigurationEvidence()
+    {
+        return new ModelInspectionConfigurationEvidence(
+            format: "GGUF",
+            ggufVersion: null,
+            modelName: "Granite 4.1 3B",
+            architecture: "granite",
+            fileType: null,
+            quantisationVersion: null,
+            declaredContextLength: null,
+            embeddingSize: null,
+            layerCount: null,
+            attentionHeadCount: null,
+            kvHeadCount: null,
+            parameterCount: null);
+    }
+
+    private static ModelInspectionTokenizerEvidence CreateTokenizerEvidence()
+    {
+        return new ModelInspectionTokenizerEvidence(
+            tokenizerModel: null,
+            vocabularyCount: null,
+            vocabularyType: null,
+            tokenizerSmokePassed: null,
+            tokenizerSmokeTokenCount: null,
+            knownSpecialTokenIds: new Dictionary<string, int>(
+                StringComparer.Ordinal));
+    }
+
+    private static ModelInspectionChatTemplateEvidence
+        CreateChatTemplateEvidence()
+    {
+        return new ModelInspectionChatTemplateEvidence(
+            present: null,
+            lengthCharacters: null,
+            sha256: null);
+    }
+
+    private static ModelInspectionRuntimeIdentity CreateRuntimeIdentity()
+    {
+        return new ModelInspectionRuntimeIdentity(
+            workerId: "GraniteEdgeAI.ModelInspection.Worker",
+            workerVersion: "1.0.0",
+            protocolVersion: 1,
+            runtimeProfile:
+                "llamasharp-0.27.0-cpu-win-x64-vocab-only-v1",
+            llamaSharpVersion: "0.27.0",
+            backendPackageVersion: "0.27.0",
+            mappedLlamaCppCommit: LlamaCppCommit,
+            nativeLibraryName: "llama.dll",
+            processArchitecture: "X64",
+            inspectionMode: "VocabOnly",
+            usesCuda: false,
+            usesVulkan: false,
+            gpuLayerCount: 0);
+    }
+
+    private static ModelInspectionObservation CreateObservation()
+    {
+        return new ModelInspectionObservation(
+            code: "MI-OBS-CHAT-TEMPLATE-MISSING",
+            domain: "ChatTemplate",
+            impact: "NonBlocking",
+            technicalDetail: "No embedded chat template was reported.");
+    }
+
     private static ModelInspectionFinding CreateFinding(
         ModelInspectionFindingSeverity severity)
     {
@@ -345,33 +540,16 @@ public sealed class ModelInspectionContractTests
             technicalDetail: "The runtime returned no embedded template.");
     }
 
-    private static ModelInspectionEvidence CreateEvidence()
+    private static ModelInspectionEvidence CreateEvidence(
+        IEnumerable<ModelInspectionObservation>? observations = null)
     {
         return new ModelInspectionEvidence(
-            modelName: "Granite 4.1 3B",
-            architecture: "granite",
-            fileType: null,
-            quantisationVersion: null,
-            tokenizerModel: null,
-            declaredContextLength: null,
-            embeddingSize: null,
-            layerCount: null,
-            attentionHeadCount: null,
-            kvHeadCount: null,
-            parameterCount: null,
-            vocabularyCount: null,
-            tokenizerSmokePassed: null,
-            chatTemplatePresent: null,
-            modelIntegrityPreserved: true,
-            modelSha256: new string('a', 64),
-            runtimeIdentity: new ModelInspectionRuntimeIdentity(
-                workerVersion: "1.0.0",
-                llamaSharpVersion: "0.27.0",
-                backendPackageVersion: "0.27.0",
-                mappedLlamaCppCommit:
-                    "3f7c29d318e317b63f54c558bc69803963d7d88c",
-                processArchitecture: "X64",
-                inspectionMode: "VocabOnly"));
+            file: CreateFileEvidence(),
+            configuration: CreateConfigurationEvidence(),
+            tokenizer: CreateTokenizerEvidence(),
+            chatTemplate: CreateChatTemplateEvidence(),
+            runtime: CreateRuntimeIdentity(),
+            observations: observations ?? Array.Empty<ModelInspectionObservation>());
     }
 
     private static ModelInspectionResult CreateResult(
