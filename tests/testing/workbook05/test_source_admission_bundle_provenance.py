@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.testing.workbook05.source_admission_bundle_validation import (
     PINNED_SOURCE_REPORTS,
+    validate_source_admission_bundle,
 )
 
 
@@ -83,6 +85,66 @@ class SourceAdmissionBundleProvenanceContractTests(unittest.TestCase):
             ],
             source_roles,
         )
+
+    def test_command_records_are_resolved_from_the_route_report_directory(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            bundle = Path(temporary_directory) / "bundle"
+            report_path = (
+                bundle / "routes/route-a/source-tree-runtime.json"
+            )
+            command_path = (
+                bundle
+                / "routes/route-a/commands/runtime-status.command.json"
+            )
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            command_path.parent.mkdir(parents=True, exist_ok=True)
+
+            report = {
+                "schema_version": "1.0",
+                "campaign_id": "GTQ-WB05-MF-v1",
+                "phase_id": "phase-1-source-admission",
+                "route_id": ROUTE_A_ID,
+                "source_role": "runtime",
+                "repository_full_name": "openvinotoolkit/openvino",
+                "expected_origin_url": (
+                    "https://github.com/openvinotoolkit/openvino.git"
+                ),
+                "actual_origin_url": (
+                    "https://github.com/openvinotoolkit/openvino.git"
+                ),
+                "expected_commit": (
+                    "b9a1f201c109e0bed74763934f79483cf6c4cbf4"
+                ),
+                "actual_commit": (
+                    "b9a1f201c109e0bed74763934f79483cf6c4cbf4"
+                ),
+                "working_tree_clean": True,
+                "submodules_complete": True,
+                "submodules": [],
+                "command_records": [
+                    "commands/runtime-status.command.json"
+                ],
+                "decision": "Passed",
+                "decision_reason": "Exact source verification passed.",
+            }
+            report_path.write_text(
+                json.dumps(report, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            command_path.write_text("{}\n", encoding="utf-8")
+
+            issues = validate_source_admission_bundle(bundle, ROOT)
+            command_record_issues = [
+                issue
+                for issue in issues
+                if issue.code == "SOURCE_COMMAND_RECORD_MISSING"
+                and issue.path
+                == "routes/route-a/source-tree-runtime.json"
+            ]
+
+        self.assertEqual([], command_record_issues)
 
 
 if __name__ == "__main__":
