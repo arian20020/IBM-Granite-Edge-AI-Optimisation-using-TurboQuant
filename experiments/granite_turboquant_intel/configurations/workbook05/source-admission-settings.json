@@ -1,0 +1,169 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "phase_id": "phase-1-source-admission",
+  "workspace_root": "C:\\wb05",
+  "minimum_free_bytes": 85899345920,
+  "clone_timeout_seconds": 3600,
+  "submodule_timeout_seconds": 7200,
+  "configure_timeout_seconds": 3600,
+  "python_path": "C:\\Program Files\\Python312\\python.exe",
+  "python_version": "3.12.10",
+  "git_path": "C:\\Program Files\\Git\\cmd\\git.exe",
+  "cmake_path": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+  "cmake_version": "4.3.1-msvc1",
+  "route_a_configure_options": [
+    "-G",
+    "Visual Studio 17 2022",
+    "-A",
+    "x64",
+    "-DENABLE_INTEL_GPU=OFF"
+  ],
+  "allow_route_b_configure_while_blocked": false,
+  "allowed_repositories": [
+    "openvinotoolkit/openvino",
+    "openvinotoolkit/openvino.genai",
+    "EgorDuplensky/openvino"
+  ],
+  "routes": {
+    "route-a-merged-openvino": {
+      "support_boundary": "merged",
+      "runtime": {
+        "repository_full_name": "openvinotoolkit/openvino",
+        "origin_url": "https://github.com/openvinotoolkit/openvino.git",
+        "commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+        "base_commit": "816d60598f9b37135cf7d9ee7ca11b75082896b2",
+        "source_directory": "C:\\wb05\\source\\route-a\\openvino"
+      },
+      "genai": {
+        "repository_full_name": "openvinotoolkit/openvino.genai",
+        "origin_url": "https://github.com/openvinotoolkit/openvino.genai.git",
+        "commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+        "source_directory": "C:\\wb05\\source\\route-a\\openvino.genai"
+      },
+      "build_directory": "C:\\wb05\\build\\route-a-runtime",
+      "install_directory": "C:\\wb05\\install\\route-a",
+      "source_requirements": [
+        {
+          "capability_id": "RA-CAP-001-cache-algorithm-properties",
+          "path": "src/inference/dev_api/openvino/runtime/internal_properties.hpp",
+          "required_tokens": [
+            "enum class CacheQuantAlgorithm",
+            "SCALAR = 0",
+            "TURBO = 1",
+            "key_cache_quant_alg",
+            "value_cache_quant_alg"
+          ],
+          "contradictory_tokens": []
+        },
+        {
+          "capability_id": "RA-CAP-002-u3-u4-precision",
+          "path": "src/plugins/intel_cpu/src/config.cpp",
+          "required_tokens": [
+            "ov::element::u3",
+            "ov::element::u4",
+            "key_cache_precision",
+            "value_cache_precision"
+          ],
+          "contradictory_tokens": []
+        },
+        {
+          "capability_id": "RA-CAP-003-turboquant-write-path",
+          "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp",
+          "required_tokens": [
+            "turboq_quantize_head"
+          ],
+          "contradictory_tokens": []
+        },
+        {
+          "capability_id": "RA-CAP-004-turboquant-read-path",
+          "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_codec.hpp",
+          "required_tokens": [
+            "TurboQCodec"
+          ],
+          "contradictory_tokens": []
+        }
+      ]
+    },
+    "route-b-experimental-qjl-polar": {
+      "support_boundary": "experimental",
+      "runtime": {
+        "repository_full_name": "EgorDuplensky/openvino",
+        "origin_url": "https://github.com/EgorDuplensky/openvino.git",
+        "commit": "1827f6458d049de11c1a8203c793af67c99935dc",
+        "base_commit": "7de5a4fbb178a1de43f6bc3cccc95ff656abed05",
+        "source_directory": "C:\\wb05\\source\\route-b\\openvino"
+      },
+      "build_directory": "C:\\wb05\\build\\route-b-runtime",
+      "install_directory": "C:\\wb05\\install\\route-b",
+      "blocker_id": "RB-SRC-001",
+      "test_root": "src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src",
+      "test_class_file_name": "concat_sdp_turboq.cpp",
+      "expected_test_sources": [
+        "instances/x64/concat_sdp_turboq.cpp",
+        "x64/concat_sdp_turboq.cpp",
+        "instances/common/concat_sdp_turboq.cpp",
+        "common/concat_sdp_turboq.cpp"
+      ],
+      "source_requirements": [
+        {
+          "capability_id": "RB-CAP-001-codec-properties",
+          "path": "src/inference/dev_api/openvino/runtime/internal_properties.hpp",
+          "required_tokens": [
+            "TURBO_QUANT_3_QJL",
+            "TURBO_QUANT_4_QJL",
+            "POLAR_QUANT_3",
+            "POLAR_QUANT_4",
+            "key_cache_codec",
+            "value_cache_codec"
+          ],
+          "contradictory_tokens": [
+            "not yet supported"
+          ]
+        },
+        {
+          "capability_id": "RB-CAP-002-qjl-write-read-paths",
+          "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/attn_quant_turboq.cpp",
+          "required_tokens": [
+            "turboq_quantize_head_qjl",
+            "turboq_codec_qk_dot_qjl",
+            "SignCodec"
+          ],
+          "contradictory_tokens": []
+        },
+        {
+          "capability_id": "RB-CAP-003-polar-api",
+          "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/attn_quant_turboq.hpp",
+          "required_tokens": [
+            "polarq_quantize_head",
+            "polarq_fused_qk_dot",
+            "polarq_fused_v_accum",
+            "polarq_head_bytes"
+          ],
+          "contradictory_tokens": []
+        },
+        {
+          "capability_id": "RB-CAP-004-polar-decode-codecs",
+          "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/polar_codecs.hpp",
+          "required_tokens": [
+            "PolarCodec5",
+            "PolarCodec4",
+            "PolarCodec3",
+            "PolarCodec2"
+          ],
+          "contradictory_tokens": []
+        },
+        {
+          "capability_id": "RB-CAP-005-test-discovery",
+          "path": "src/plugins/intel_cpu/tests/functional/cmake/target_per_test.cmake",
+          "required_tokens": [
+            "LIST_OF_TEST_ARCH_INSTANCES",
+            "LIST_OF_TEST_COMMON_INSTANCES",
+            "GLOB_RECURSE"
+          ],
+          "contradictory_tokens": []
+        }
+      ]
+    }
+  }
+}
