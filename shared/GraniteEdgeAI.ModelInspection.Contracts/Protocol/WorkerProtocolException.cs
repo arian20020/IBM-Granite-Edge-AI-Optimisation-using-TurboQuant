@@ -31,6 +31,20 @@ internal static class WorkerProtocolValidation
         }
     }
 
+    internal static T RequireNotNull<T>(
+        T? value,
+        string propertyName)
+        where T : class
+    {
+        if (value is null)
+        {
+            throw new WorkerProtocolException(
+                $"{propertyName} must be present.");
+        }
+
+        return value;
+    }
+
     internal static void RequireProtocolVersion(int protocolVersion)
     {
         Require(

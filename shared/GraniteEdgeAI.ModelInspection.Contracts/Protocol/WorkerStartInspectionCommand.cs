@@ -44,20 +44,21 @@ public sealed record WorkerStartInspectionCommand
             Path.IsPathFullyQualified(ModelPath),
             nameof(ModelPath),
             "must be a non-empty fully qualified path");
-        WorkerProtocolValidation.Require(
-            ExpectedFileIdentity is not null,
-            nameof(ExpectedFileIdentity),
-            "must be present");
-        WorkerProtocolValidation.Require(
-            QuickScan is not null,
-            nameof(QuickScan),
-            "must be present");
 
-        ExpectedFileIdentity.Validate();
-        QuickScan.Validate();
+        WorkerExpectedFileIdentity expectedFileIdentity =
+            WorkerProtocolValidation.RequireNotNull(
+                ExpectedFileIdentity,
+                nameof(ExpectedFileIdentity));
+        WorkerQuickScanSnapshot quickScan =
+            WorkerProtocolValidation.RequireNotNull(
+                QuickScan,
+                nameof(QuickScan));
+
+        expectedFileIdentity.Validate();
+        quickScan.Validate();
 
         WorkerProtocolValidation.Require(
-            ExpectedFileIdentity.LengthBytes == QuickScan.FileSizeBytes,
+            expectedFileIdentity.LengthBytes == quickScan.FileSizeBytes,
             nameof(ExpectedFileIdentity),
             "length must match QuickScan.FileSizeBytes");
     }

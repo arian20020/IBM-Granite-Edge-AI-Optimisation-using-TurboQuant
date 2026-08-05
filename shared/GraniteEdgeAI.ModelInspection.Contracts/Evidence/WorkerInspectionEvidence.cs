@@ -24,32 +24,33 @@ public sealed record WorkerInspectionEvidence
     /// </summary>
     public void Validate()
     {
-        Runtime.Validate();
-        ModelFile.Validate();
+        WorkerRuntimeIdentity runtime =
+            WorkerProtocolValidation.RequireNotNull(Runtime, nameof(Runtime));
+        WorkerModelFileEvidence modelFile =
+            WorkerProtocolValidation.RequireNotNull(ModelFile, nameof(ModelFile));
+        _ = WorkerProtocolValidation.RequireNotNull(
+            Configuration,
+            nameof(Configuration));
+        _ = WorkerProtocolValidation.RequireNotNull(
+            Tokenizer,
+            nameof(Tokenizer));
+        _ = WorkerProtocolValidation.RequireNotNull(
+            ChatTemplate,
+            nameof(ChatTemplate));
+        IReadOnlyList<WorkerObservation> observations =
+            WorkerProtocolValidation.RequireNotNull(
+                Observations,
+                nameof(Observations));
 
-        WorkerProtocolValidation.Require(
-            Configuration is not null,
-            nameof(Configuration),
-            "must be present");
-        WorkerProtocolValidation.Require(
-            Tokenizer is not null,
-            nameof(Tokenizer),
-            "must be present");
-        WorkerProtocolValidation.Require(
-            ChatTemplate is not null,
-            nameof(ChatTemplate),
-            "must be present");
-        WorkerProtocolValidation.Require(
-            Observations is not null,
-            nameof(Observations),
-            "must be present");
+        runtime.Validate();
+        modelFile.Validate();
 
-        foreach (WorkerObservation observation in Observations)
+        foreach (WorkerObservation? candidate in observations)
         {
-            WorkerProtocolValidation.Require(
-                observation is not null,
-                nameof(Observations),
-                "must not contain null entries");
+            WorkerObservation observation =
+                WorkerProtocolValidation.RequireNotNull(
+                    candidate,
+                    nameof(Observations));
             observation.Validate();
         }
     }
