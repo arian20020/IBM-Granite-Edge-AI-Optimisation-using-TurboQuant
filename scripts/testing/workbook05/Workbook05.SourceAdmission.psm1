@@ -1,0 +1,231 @@
+Set-StrictMode -Version Latest
+
+function ConvertTo-Workbook05ProcessArgument {
+    <#
+    .SYNOPSIS
+    Quotes one argument for ProcessStartInfo on Windows PowerShell 5.1.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Argument
+    )
+
+    if ($Argument.Length -eq 0) {
+        return '""'
+    }
+    if ($Argument -notmatch '[\s"]') {
+        return $Argument
+    }
+
+    # Follow the Windows command-line quoting rules used by CommandLineToArgvW.
+    $builder = [System.Text.StringBuilder]::new()
+    [void]$builder.Append('"')
+    $backslashCount = 0
+    foreach ($character in $Argument.ToCharArray()) {
+        if ($character -eq '\') {
+            $backslashCount++
+            continue
+        }
+        if ($character -eq '"') {
+            [void]$builder.Append(('\' * (($backslashCount * 2) + 1)))
+            [void]$builder.Append('"')
+            $backslashCount = 0
+            continue
+        }
+        if ($backslashCount -gt 0) {
+            [void]$builder.Append(('\' * $backslashCount))
+            $backslashCount = 0
+        }
+        [void]$builder.Append($character)
+    }
+    if ($backslashCount -gt 0) {
+        [void]$builder.Append(('\' * ($backslashCount * 2)))
+    }
+    [void]$builder.Append('"')
+    return $builder.ToString()
+}
+
+function Test-Workbook05ExternalWorkspace {
+    <#
+    .SYNOPSIS
+    Verifies the controlled external workspace without deleting existing data.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WorkspaceRoot,
+
+        [string]$AllowedRoot = 'C:\wb05',
+
+        [switch]$CreateIfMissing
+    )
+
+    $requestedPath = [IO.Path]::GetFullPath($WorkspaceRoot).TrimEnd('\')
+    $allowedPath = [IO.Path]::GetFullPath($AllowedRoot).TrimEnd('\')
+    if (-not [string]::Equals(
+        $requestedPath,
+        $allowedPath,
+        [StringComparison]::OrdinalIgnoreCase
+    )) {
+        throw "The external workspace must be exactly '$allowedPath'; found '$requestedPath'."
+    }
+
+    $created = $false
+    if (Test-Path -LiteralPath $requestedPath) {
+        $item = Get-Item -LiteralPath $requestedPath -Force
+        if (-not $item.PSIsContainer) {
+            throw "The external workspace exists but is not a directory: $requestedPath"
+        }
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "The external workspace must not be a reparse point: $requestedPath"
+        }
+    }
+    elseif ($CreateIfMissing) {
+        New-Item -ItemType Directory -Path $requestedPath -Force | Out-Null
+        $created = $true
+    }
+    else {
+        throw "The external workspace does not exist: $requestedPath"
+    }
+
+    [pscustomobject]@{
+        Permitted = $true
+        CanonicalPath = $requestedPath
+        Created = $created
+    }
+}
+
+function Stop-Workbook05ProcessTree {
+    <#
+    .SYNOPSIS
+    Terminates a timed-out native process and its descendants.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Diagnostics.Process]$Process
+    )
+
+    if ($Process.HasExited) {
+        return
+    }
+
+    $taskKill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+    & $taskKill '/PID' ([string]$Process.Id) '/T' '/F' 2>$null | Out-Null
+    if (-not $Process.WaitForExit(10000)) {
+        $Process.Kill()
+        [void]$Process.WaitForExit(5000)
+    }
+}
+
+function Invoke-Workbook05RecordedCommand {
+    <#
+    .SYNOPSIS
+    Runs one native executable without a command shell and records its evidence.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$ArgumentList,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WorkingDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$EvidenceDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')]
+        [string]$CommandId,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(1, 86400)]
+        [int]$TimeoutSeconds
+    )
+
+    if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
+        throw "Native executable was not found: $FilePath"
+    }
+    if (-not (Test-Path -LiteralPath $WorkingDirectory -PathType Container)) {
+        throw "Native working directory was not found: $WorkingDirectory"
+    }
+
+    New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
+    $stdoutPath = Join-Path $EvidenceDirectory "$CommandId.stdout.txt"
+    $stderrPath = Join-Path $EvidenceDirectory "$CommandId.stderr.txt"
+    $recordPath = Join-Path $EvidenceDirectory "$CommandId.command.json"
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = [IO.Path]::GetFullPath($FilePath)
+    $startInfo.WorkingDirectory = [IO.Path]::GetFullPath($WorkingDirectory)
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.Arguments = (($ArgumentList | ForEach-Object {
+        ConvertTo-Workbook05ProcessArgument -Argument $_
+    }) -join ' ')
+
+    $startedUtc = [DateTime]::UtcNow
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+        throw "Native command could not be started: $FilePath"
+    }
+
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
+    if ($timedOut) {
+        Stop-Workbook05ProcessTree -Process $process
+    }
+    else {
+        # WaitForExit without a timeout flushes asynchronous stream events.
+        $process.WaitForExit()
+    }
+
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    $endedUtc = [DateTime]::UtcNow
+    $exitCode = if ($timedOut) { -1 } else { $process.ExitCode }
+
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    [IO.File]::WriteAllText($stdoutPath, $stdout, $utf8)
+    [IO.File]::WriteAllText($stderrPath, $stderr, $utf8)
+
+    $record = [ordered]@{
+        command_id = $CommandId
+        file_path = $startInfo.FileName
+        argv = @($ArgumentList)
+        working_directory = $startInfo.WorkingDirectory
+        started_utc = $startedUtc.ToString('o')
+        ended_utc = $endedUtc.ToString('o')
+        timeout_seconds = $TimeoutSeconds
+        timed_out = $timedOut
+        exit_code = $exitCode
+        stdout_path = [IO.Path]::GetFileName($stdoutPath)
+        stderr_path = [IO.Path]::GetFileName($stderrPath)
+    }
+    [IO.File]::WriteAllText(
+        $recordPath,
+        (($record | ConvertTo-Json -Depth 8) + [Environment]::NewLine),
+        $utf8
+    )
+
+    [pscustomobject]@{
+        Record = [pscustomobject]$record
+        RecordPath = $recordPath
+        StandardOutputPath = $stdoutPath
+        StandardErrorPath = $stderrPath
+    }
+}
+
+Export-ModuleMember -Function @(
+    'Test-Workbook05ExternalWorkspace',
+    'Invoke-Workbook05RecordedCommand'
+)
