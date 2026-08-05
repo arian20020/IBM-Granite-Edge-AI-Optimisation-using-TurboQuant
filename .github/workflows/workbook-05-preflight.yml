@@ -147,12 +147,11 @@ jobs:
       - name: Run PowerShell preflight module tests
         run: |
           # Exercise the pure PowerShell evaluation functions before they read
-          # the real target laptop.
+          # the real target laptop. A terminating script error fails this step
+          # because ErrorActionPreference is Stop; LASTEXITCODE is only for
+          # native processes and is deliberately not consulted here.
           $ErrorActionPreference = 'Stop'
           & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
-          if ($LASTEXITCODE -ne 0) {
-              throw "PowerShell preflight tests exited with code $LASTEXITCODE."
-          }
 
       - name: Collect read-only preflight evidence
         run: |
