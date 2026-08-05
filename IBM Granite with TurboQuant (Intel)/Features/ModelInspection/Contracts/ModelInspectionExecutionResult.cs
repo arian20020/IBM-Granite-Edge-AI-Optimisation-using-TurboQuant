@@ -1,3 +1,5 @@
+using System;
+
 namespace GraniteEdgeAI.Features.ModelInspection.Contracts;
 
 /// <summary>
@@ -9,12 +11,12 @@ internal sealed record ModelInspectionExecutionResult
     private ModelInspectionExecutionResult(
         ModelInspectionExecutionStatus status,
         ModelInspectionResult? result,
-        ModelInspectionOperationalFailure? operationalFailure,
+        ModelInspectionOperationalFailure? failure,
         bool? cancellationWasCooperative)
     {
         Status = status;
         Result = result;
-        OperationalFailure = operationalFailure;
+        Failure = failure;
         CancellationWasCooperative = cancellationWasCooperative;
     }
 
@@ -22,7 +24,7 @@ internal sealed record ModelInspectionExecutionResult
 
     internal ModelInspectionResult? Result { get; }
 
-    internal ModelInspectionOperationalFailure? OperationalFailure { get; }
+    internal ModelInspectionOperationalFailure? Failure { get; }
 
     internal bool? CancellationWasCooperative { get; }
 
@@ -38,7 +40,7 @@ internal sealed record ModelInspectionExecutionResult
         return new ModelInspectionExecutionResult(
             ModelInspectionExecutionStatus.Completed,
             result,
-            operationalFailure: null,
+            failure: null,
             cancellationWasCooperative: null);
     }
 
@@ -60,7 +62,7 @@ internal sealed record ModelInspectionExecutionResult
         return new ModelInspectionExecutionResult(
             ModelInspectionExecutionStatus.Cancelled,
             result: null,
-            operationalFailure: null,
+            failure: null,
             cancellationWasCooperative: true);
     }
 
@@ -76,7 +78,7 @@ internal sealed record ModelInspectionExecutionResult
         return new ModelInspectionExecutionResult(
             ModelInspectionExecutionStatus.OperationalFailure,
             result: null,
-            failure,
+            failure: failure,
             cancellationWasCooperative: null);
     }
 }

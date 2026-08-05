@@ -336,7 +336,7 @@ public sealed class ModelInspectionContractTests
         Assert.IsTrue(
             execution.Status == ModelInspectionExecutionStatus.Completed);
         Assert.AreSame(expected, execution.Result);
-        Assert.IsNull(execution.OperationalFailure);
+        Assert.IsNull(execution.Failure);
         Assert.IsNull(execution.CancellationWasCooperative);
     }
 
@@ -349,7 +349,7 @@ public sealed class ModelInspectionContractTests
         Assert.IsTrue(
             execution.Status == ModelInspectionExecutionStatus.Cancelled);
         Assert.IsNull(execution.Result);
-        Assert.IsNull(execution.OperationalFailure);
+        Assert.IsNull(execution.Failure);
         Assert.IsTrue(execution.CancellationWasCooperative is true);
     }
 
@@ -375,7 +375,7 @@ public sealed class ModelInspectionContractTests
             execution.Status ==
             ModelInspectionExecutionStatus.OperationalFailure);
         Assert.IsNull(execution.Result);
-        Assert.AreSame(expected, execution.OperationalFailure);
+        Assert.AreSame(expected, execution.Failure);
         Assert.IsNull(execution.CancellationWasCooperative);
     }
 

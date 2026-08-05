@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+
 namespace GraniteEdgeAI.Features.ModelInspection.Contracts;
 
 /// <summary>
