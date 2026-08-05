@@ -101,7 +101,7 @@
     "deterministic_failures": [],
     "dimension_scores": {
       "correctness_and_grounding": 10.0,
-      "instruction_and_format": 10.0,
+      "instruction_and_format_adherence": 10.0,
       "completeness_and_fact_retention": 10.0,
       "relevance_clarity_and_coherence": 10.0,
       "stability_and_output_integrity": 10.0
