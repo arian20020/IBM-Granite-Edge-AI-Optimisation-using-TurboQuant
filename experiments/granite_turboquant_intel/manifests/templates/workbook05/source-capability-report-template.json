@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "phase_id": "phase-1-source-admission",
+  "route_id": "route-b-experimental-qjl-polar",
+  "findings": [
+    {
+      "capability_id": "RB-CAP-001-codec-properties",
+      "classification": "Contradictory",
+      "source_path": "src/inference/dev_api/openvino/runtime/internal_properties.hpp",
+      "matched_tokens": [
+        "TURBO_QUANT_3_QJL",
+        "TURBO_QUANT_4_QJL",
+        "POLAR_QUANT_3",
+        "POLAR_QUANT_4",
+        "key_cache_codec",
+        "value_cache_codec"
+      ],
+      "missing_tokens": [],
+      "contradictory_tokens": [
+        "not yet supported"
+      ],
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "excerpt_path": "excerpts/RB-CAP-001-codec-properties.txt"
+    }
+  ],
+  "decision": "Candidate",
+  "decision_reason": "The declared QJL values coexist with a source comment that says they are not yet supported."
+}
