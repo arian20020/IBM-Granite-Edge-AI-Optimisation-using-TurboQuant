@@ -55,6 +55,7 @@ class WorkflowContractTests(unittest.TestCase):
             "docs/superpowers/plans/2026-08-03-workbook-05-preflight-scaffolding.md",
             "docs/superpowers/specs/2026-08-03-workbook-05-two-route-memory-frontier-design.md",
             "docs/testing/**",
+            "experiments/granite_turboquant_intel/manifests/templates/workbook05/**",
         )
         for required_path in required_paths:
             self.assertIn(
@@ -100,6 +101,7 @@ class WorkflowContractTests(unittest.TestCase):
             "docs/testing",
             "experiments/granite_turboquant_intel/configurations/workbook05",
             "experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1",
+            "experiments/granite_turboquant_intel/manifests/templates/workbook05",
             "experiments/granite_turboquant_intel/schemas/workbook05",
             "scripts/testing",
             "tests/testing/workbook05",
