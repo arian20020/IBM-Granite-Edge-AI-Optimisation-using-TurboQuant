@@ -13,6 +13,8 @@ on:
       - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
       - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
       - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
+      - 'experiments/granite_turboquant_intel/prompts/**'
+      - 'experiments/granite_turboquant_intel/rubrics/**'
       - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
       - 'tests/testing/workbook05/**'
   workflow_dispatch:
@@ -70,6 +72,8 @@ jobs:
             experiments/granite_turboquant_intel/configurations/workbook05
             experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
             experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
             experiments/granite_turboquant_intel/schemas/workbook05
             scripts/testing
             tests/testing/workbook05
@@ -172,6 +176,8 @@ jobs:
             experiments/granite_turboquant_intel/configurations/workbook05
             experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
             experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
             experiments/granite_turboquant_intel/schemas/workbook05
             scripts/testing
             tests/testing/workbook05
