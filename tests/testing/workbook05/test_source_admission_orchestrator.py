@@ -89,6 +89,7 @@ class SourceAdmissionOrchestratorStaticTests(unittest.TestCase):
             "cmake --package",
             "--target",
             "huggingface.co",
+            "allow_route_b_configure_while_blocked = true",
         )
         for forbidden in forbidden_literals:
             with self.subTest(forbidden=forbidden):
@@ -101,14 +102,15 @@ class SourceAdmissionOrchestratorStaticTests(unittest.TestCase):
         )
         self.assertNotRegex(
             executable_text,
-            r"route-b[^\r\n]{0,160}(?:cmake|configure)",
-            "Route B configuration is forbidden while RB-SRC-001 is open.",
+            r"(?:cmake\.exe|cmake_path)[^\r\n]{0,200}route-b",
+            "No CMake invocation may target Route B while RB-SRC-001 is open.",
         )
 
     def test_script_uses_argument_list_execution_and_not_a_command_shell(self) -> None:
         text = SCRIPT_PATH.read_text(encoding="utf-8")
         self.assertIn("Invoke-Workbook05SourceAdmissionPipeline", text)
         self.assertIn("Invoke-Workbook05RecordedCommand", text)
+        self.assertIn("source_admission_orchestration", text)
         self.assertNotIn("cmd.exe", text.casefold())
 
 
@@ -117,6 +119,7 @@ class SourceAdmissionOrchestratorSimulationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             output_root = Path(temporary_directory) / "bundle"
             required_files = [f"steps/{step_id}.json" for step_id in EXPECTED_STEP_ORDER]
+            required_files.extend(("orchestration-report.json", "hash-snapshot.txt"))
             step_array = ",".join(f"'{step_id}'" for step_id in EXPECTED_STEP_ORDER)
             required_array = ",".join(f"'{path}'" for path in required_files)
             command = rf"""
@@ -151,6 +154,33 @@ $executor = {{
             Reason = 'Route A may continue while Route B is truthfully blocked.'
         }}
     }}
+    if ($StepId -eq 'hashes') {{
+        $reportPath = Join-Path $OutputDirectory 'orchestration-report.json'
+        if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {{
+            return [pscustomobject]@{{
+                StepId = $StepId
+                Kind = 'IntegrityFailure'
+                Status = 'Failed'
+                Reason = 'The orchestration report was not final before hashing.'
+            }}
+        }}
+        $snapshotPath = Join-Path $OutputDirectory 'hash-snapshot.txt'
+        $relativeFiles = @(
+            Get-ChildItem -LiteralPath $OutputDirectory -Recurse -File |
+                Where-Object {{ $_.FullName -ne $snapshotPath }} |
+                ForEach-Object {{
+                    $_.FullName.Substring($OutputDirectory.Length).TrimStart('\').Replace('\', '/')
+                }} |
+                Sort-Object
+        )
+        $relativeFiles | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
+        return [pscustomobject]@{{
+            StepId = $StepId
+            Kind = 'Success'
+            Status = 'Passed'
+            Reason = 'The final simulated bundle was snapshotted.'
+        }}
+    }}
     return [pscustomobject]@{{
         StepId = $StepId
         Kind = 'Success'
@@ -173,7 +203,20 @@ $result | ConvertTo-Json -Depth 20 -Compress
             self.assertEqual("Blocked", result.RouteBStatus)
             self.assertEqual("Passed", result.CheckpointStatus)
             self.assertEqual(list(EXPECTED_STEP_ORDER), result.ExecutedSteps)
-            self.assertTrue((output_root / "orchestration-report.json").is_file())
+
+            snapshot = {
+                line.strip()
+                for line in (output_root / "hash-snapshot.txt").read_text(
+                    encoding="utf-8-sig"
+                ).splitlines()
+                if line.strip()
+            }
+            actual = {
+                path.relative_to(output_root).as_posix()
+                for path in output_root.rglob("*")
+                if path.is_file() and path.name != "hash-snapshot.txt"
+            }
+            self.assertEqual(actual, snapshot)
 
     def test_integrity_failure_stops_the_pipeline_and_returns_nonzero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
