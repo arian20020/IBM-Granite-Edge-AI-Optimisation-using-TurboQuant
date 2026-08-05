@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "test_id": "OVT-01",
+  "run_id": "OVT-01-R001",
+  "route": "official-openvino",
+  "workbook_id": "WB-05",
+  "run_purpose": "Measured matched-baseline quality and performance comparison",
+  "timestamps": {
+    "start_utc": "2026-08-05T00:00:00Z",
+    "end_utc": "2026-08-05T00:00:01Z",
+    "timezone": "Europe/London"
+  },
+  "references": {
+    "environment_id": "ENV-WB05-INTEL-01",
+    "repository_id": "REPO-WB05-01",
+    "build_id": "BUILD-WB05-01",
+    "model_id": "MODEL-WB05-01",
+    "model_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "tokenizer_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "weight_quantization": "INT4-asymmetric",
+    "configuration_id": "CFG-WB05-01",
+    "prompt_set_id": "GTQ-PROMPTS-v1",
+    "prompt_id": "P1",
+    "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+    "matched_baseline_run_id": "OVT-BASE-R001"
+  },
+  "execution": {
+    "working_directory": "work/OVT-01-R001",
+    "command_path": "commands/OVT-01-R001.txt",
+    "environment_variables_path": "environment/OVT-01-R001.json",
+    "exit_code": 0,
+    "requested_backend": "OpenVINO GenAI",
+    "actual_backend": "OpenVINO GenAI",
+    "requested_device": "CPU",
+    "actual_device": "CPU",
+    "requested_model_placement": "CPU",
+    "actual_model_placement": "CPU",
+    "actual_kv_placement": "CPU",
+    "requested_k_precision": "u3",
+    "verified_k_precision": "u3",
+    "requested_v_precision": "u3",
+    "verified_v_precision": "u3",
+    "requested_k_codec": "TURBO",
+    "verified_k_codec": "TURBO",
+    "requested_v_codec": "TURBO",
+    "verified_v_codec": "TURBO",
+    "optimisation_requested": true,
+    "optimisation_activated": true,
+    "activation_proof_path": "proof/activation.json",
+    "fallback_check_path": "proof/fallback.json",
+    "fallback_observed": false
+  },
+  "generation": {
+    "seed": 42,
+    "sampling_settings": {
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    "max_output_tokens": 256,
+    "context_target_tokens": 512,
+    "actual_input_tokens": 128,
+    "actual_output_tokens": 64,
+    "stop_reason": "end-of-sequence"
+  },
+  "performance": {
+    "model_load_time_ms": 1.0,
+    "ttft_ms": 1.0,
+    "ttft_includes_tokenization": false,
+    "ttft_includes_prefill": true,
+    "prompt_processing_tokens_per_second": 1.0,
+    "tpot_ms": 1.0,
+    "decode_tokens_per_second": 1.0,
+    "total_generation_time_ms": 1.0,
+    "perplexity": null,
+    "perplexity_fixture_id": null,
+    "perplexity_token_count": null
+  },
+  "resources": {
+    "peak_working_set_bytes": 1,
+    "peak_private_bytes": 1,
+    "available_ram_before_bytes": 1,
+    "minimum_available_ram_during_bytes": 1,
+    "available_ram_after_bytes": 1,
+    "k_cache_allocated_bytes": 1,
+    "v_cache_allocated_bytes": 1,
+    "cpu_mean_percent": 1.0,
+    "cpu_peak_percent": 1.0,
+    "gpu_dedicated_peak_bytes": null,
+    "gpu_shared_peak_bytes": null
+  },
+  "procedure": {
+    "run_role": "Measured",
+    "repetition_number": 1,
+    "included_in_formal_statistics": true
+  },
+  "quality": {
+    "raw_output_path": "outputs/P1.txt",
+    "raw_output_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "deterministic_checks_path": "quality/P1-checks.json",
+    "deterministic_failures": [],
+    "dimension_scores": {
+      "correctness_and_grounding": 10.0,
+      "instruction_and_format": 10.0,
+      "completeness_and_fact_retention": 10.0,
+      "relevance_clarity_and_coherence": 10.0,
+      "stability_and_output_integrity": 10.0
+    },
+    "critical_caps": [],
+    "score_0_to_10": 10.0,
+    "matched_baseline_run_id": "OVT-BASE-R001",
+    "paired_score_delta": 0.0,
+    "judge_label_hidden": true,
+    "pairwise_order": "candidate-first",
+    "adjudication_path": "quality/P1-adjudication.json",
+    "material_degradation": "No",
+    "stability_result": "Stable"
+  },
+  "evidence": {
+    "stdout_path": "logs/stdout.txt",
+    "stderr_path": "logs/stderr.txt",
+    "raw_response_path": "outputs/P1.txt",
+    "resource_samples_path": "metrics/resources.csv",
+    "device_proof_path": "proof/device.json",
+    "processed_result_path": "results/P1.json",
+    "hash_manifest_path": "hash-manifest.sha256"
+  },
+  "classification": {
+    "result": "Passed",
+    "result_reason": "All required evidence is present.",
+    "failure_ids": [],
+    "missing_data_codes": [
+      "PPL_NOT_SUPPORTED",
+      "GPU_NOT_APPLICABLE"
+    ],
+    "next_action": "Compare against matched baseline."
+  }
+}
