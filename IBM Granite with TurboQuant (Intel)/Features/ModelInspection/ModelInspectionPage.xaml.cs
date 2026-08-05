@@ -1,3 +1,4 @@
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
@@ -31,12 +32,17 @@ namespace GraniteEdgeAI.Features.ModelInspection
         }
 
         /// <summary>
-        /// Gets the authoritative model path supplied by onboarding navigation.
+        /// Gets the immutable request supplied by onboarding navigation.
         /// </summary>
-        internal string? SelectedModelPath { get; private set; }
+        internal ModelInspectionRequest? Request { get; private set; }
 
         /// <summary>
-        /// Receives the model path passed through StageFrame.Navigate.
+        /// Gets the authoritative model path from the immutable request.
+        /// </summary>
+        internal string? SelectedModelPath => Request?.ModelPath;
+
+        /// <summary>
+        /// Receives the immutable request passed through StageFrame.Navigate.
         /// </summary>
         protected override void OnNavigatedTo(
             NavigationEventArgs eventArguments)
@@ -44,17 +50,17 @@ namespace GraniteEdgeAI.Features.ModelInspection
             // Preserve the standard WinUI navigation lifecycle.
             base.OnNavigatedTo(eventArguments);
 
-            // The inspection page requires one valid local model path.
-            if (eventArguments.Parameter is not string modelPath ||
-                string.IsNullOrWhiteSpace(modelPath))
+            // The inspection page requires the complete validated request rather
+            // than a path that would lose its quick-scan and file-identity facts.
+            if (eventArguments.Parameter is not ModelInspectionRequest request)
             {
                 throw new ArgumentException(
-                    "ModelInspectionPage requires a non-empty model path.",
+                    "ModelInspectionPage requires a validated ModelInspectionRequest.",
                     nameof(eventArguments));
             }
 
-            // Preserve the exact original path for the future inspection service.
-            SelectedModelPath = modelPath;
+            // Preserve the exact request object for the future inspection service.
+            Request = request;
 
             // A new navigation should receive a fresh initial presentation when
             // the page's visual tree finishes loading.
@@ -76,17 +82,17 @@ namespace GraniteEdgeAI.Features.ModelInspection
                 return;
             }
 
-            // Navigation must have supplied a valid path before the page can load.
-            string modelPath = SelectedModelPath
+            // Navigation must have supplied the immutable request before loading.
+            ModelInspectionRequest request = Request
                 ?? throw new InvalidOperationException(
-                    "ModelInspectionPage loaded without a selected model path.");
+                    "ModelInspectionPage loaded without an inspection request.");
 
             // Mark initialization before updating the controls so a re-entrant
             // Loaded event cannot apply the state twice.
             _initialPresentationApplied = true;
 
             // The controls and their compiled bindings are now ready.
-            ShowInitialInspectionState(modelPath);
+            ShowInitialInspectionState(request.ModelPath);
         }
 
         /// <summary>
