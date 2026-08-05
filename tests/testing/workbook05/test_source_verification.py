@@ -13,6 +13,8 @@ GIT = shutil.which("git")
 
 
 def _git(*arguments: str, cwd: Path | None = None) -> str:
+    """Run one Git command for a temporary integration fixture."""
+
     completed = subprocess.run(
         [GIT or "git", *arguments],
         cwd=cwd,
@@ -30,6 +32,8 @@ def _git(*arguments: str, cwd: Path | None = None) -> str:
 
 
 def _create_remote(root: Path, name: str = "remote") -> tuple[Path, str]:
+    """Create a bare remote whose advertised default branch is valid."""
+
     remote = root / f"{name}.git"
     seed = root / f"{name}-seed"
     _git("init", "--bare", str(remote))
@@ -42,6 +46,17 @@ def _create_remote(root: Path, name: str = "remote") -> tuple[Path, str]:
     commit = _git("rev-parse", "HEAD", cwd=seed)
     _git("remote", "add", "origin", str(remote), cwd=seed)
     _git("push", "origin", "HEAD:refs/heads/main", cwd=seed)
+
+    # A bare repository created by `git init --bare` may still advertise
+    # `master`. Point HEAD to the branch we actually pushed so ordinary clones
+    # materialise the controlled commit on every Windows runner.
+    _git(
+        "--git-dir",
+        str(remote),
+        "symbolic-ref",
+        "HEAD",
+        "refs/heads/main",
+    )
     return remote, commit
 
 
@@ -57,6 +72,25 @@ def _spec(origin: Path, commit: str) -> dict[str, str]:
 
 @unittest.skipUnless(GIT, "Git is required for source-verification tests.")
 class SourceVerificationTests(unittest.TestCase):
+    def test_absent_source_tree_is_cloned_at_the_exact_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            remote, commit = _create_remote(root)
+            source = root / "source"
+
+            result = verify_source_tree(
+                _spec(remote, commit),
+                source,
+                root / "evidence",
+                60,
+                allow_local_origins_for_tests=True,
+            )
+
+            self.assertTrue((source / ".git").exists())
+            self.assertEqual(commit, _git("rev-parse", "HEAD", cwd=source))
+        self.assertEqual("Passed", result.report["decision"])
+        self.assertGreaterEqual(len(result.command_records), 10)
+
     def test_existing_exact_source_tree_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -169,7 +203,7 @@ class SourceVerificationTests(unittest.TestCase):
             root = Path(directory)
             sub_remote, _ = _create_remote(root, "submodule")
             remote, _ = _create_remote(root, "parent")
-            seed = root / "parent-seed"
+            seed = root / "parent-working-copy"
             _git("clone", str(remote), str(seed))
             _git("config", "user.email", "wb05-tests@example.invalid", cwd=seed)
             _git("config", "user.name", "Workbook 05 Tests", cwd=seed)
