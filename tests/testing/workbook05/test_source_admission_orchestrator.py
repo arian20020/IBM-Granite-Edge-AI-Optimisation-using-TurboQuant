@@ -30,24 +30,13 @@ EXPECTED_STEP_ORDER = (
 
 
 def _powershell_executable() -> str:
-    """Return the Windows PowerShell executable used by the controlled runner."""
-
     executable = shutil.which("powershell.exe") or shutil.which("powershell")
     if executable is None:
-        raise unittest.SkipTest("Windows PowerShell is required for orchestration tests.")
+        raise unittest.SkipTest("Windows PowerShell is required.")
     return executable
 
 
-def _strip_powershell_comments(text: str) -> str:
-    """Remove comments before checking executable command text."""
-
-    without_blocks = re.sub(r"(?s)<#.*?#>", "", text)
-    return re.sub(r"(?m)^\s*#.*$", "", without_blocks)
-
-
 def _run_powershell(command: str) -> subprocess.CompletedProcess[str]:
-    """Run one isolated PowerShell harness and preserve both output streams."""
-
     return subprocess.run(
         [
             _powershell_executable(),
@@ -67,11 +56,20 @@ def _run_powershell(command: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _strip_powershell_comments(text: str) -> str:
+    without_blocks = re.sub(r"(?s)<#.*?#>", "", text)
+    return re.sub(r"(?m)^\s*#.*$", "", without_blocks)
+
+
+def _quoted(values: tuple[str, ...] | list[str]) -> str:
+    return ",".join(f"'{value}'" for value in values)
+
+
 class SourceAdmissionOrchestratorStaticTests(unittest.TestCase):
     def test_script_declares_the_exact_approved_step_order(self) -> None:
         text = SCRIPT_PATH.read_text(encoding="utf-8")
         match = re.search(r"(?s)\$StepOrder\s*=\s*@\((.*?)\)", text)
-        self.assertIsNotNone(match, "The orchestrator must declare one visible StepOrder array.")
+        self.assertIsNotNone(match)
         declared = tuple(re.findall(r"['\"]([^'\"]+)['\"]", match.group(1)))
         self.assertEqual(EXPECTED_STEP_ORDER, declared)
 
@@ -79,8 +77,7 @@ class SourceAdmissionOrchestratorStaticTests(unittest.TestCase):
         executable_text = _strip_powershell_comments(
             SCRIPT_PATH.read_text(encoding="utf-8")
         ).casefold()
-
-        forbidden_literals = (
+        for forbidden in (
             "invoke-expression",
             "git reset --hard",
             "git clean",
@@ -90,20 +87,17 @@ class SourceAdmissionOrchestratorStaticTests(unittest.TestCase):
             "--target",
             "huggingface.co",
             "allow_route_b_configure_while_blocked = true",
-        )
-        for forbidden in forbidden_literals:
+        ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, executable_text)
 
         self.assertNotRegex(
             executable_text,
             r"remove-item[^\r\n]*c:\\wb05[^\r\n]*-recurse",
-            "The controlled external workspace must never be recursively removed.",
         )
         self.assertNotRegex(
             executable_text,
             r"(?:cmake\.exe|cmake_path)[^\r\n]{0,200}route-b",
-            "No CMake invocation may target Route B while RB-SRC-001 is open.",
         )
 
     def test_script_uses_argument_list_execution_and_not_a_command_shell(self) -> None:
@@ -118,15 +112,13 @@ class SourceAdmissionOrchestratorSimulationTests(unittest.TestCase):
     def test_scientific_route_b_blocker_completes_with_zero_exit_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             output_root = Path(temporary_directory) / "bundle"
-            required_files = [f"steps/{step_id}.json" for step_id in EXPECTED_STEP_ORDER]
-            required_files.extend(("orchestration-report.json", "hash-snapshot.txt"))
-            step_array = ",".join(f"'{step_id}'" for step_id in EXPECTED_STEP_ORDER)
-            required_array = ",".join(f"'{path}'" for path in required_files)
+            required = [f"steps/{step}.json" for step in EXPECTED_STEP_ORDER]
+            required += ["orchestration-report.json", "hash-snapshot.txt"]
             command = rf"""
 $ErrorActionPreference = 'Stop'
 Import-Module '{MODULE_PATH.as_posix()}' -Force
-$stepOrder = @({step_array})
-$requiredFiles = @({required_array})
+$stepOrder = @({_quoted(EXPECTED_STEP_ORDER)})
+$requiredFiles = @({_quoted(required)})
 $executor = {{
     param([string]$StepId, [string]$OutputDirectory)
     $stepDirectory = Join-Path $OutputDirectory 'steps'
@@ -137,19 +129,14 @@ $executor = {{
 
     if ($StepId -eq 'route-b-cmake-audit') {{
         return [pscustomobject]@{{
-            StepId = $StepId
-            Kind = 'ScientificBlocker'
-            Status = 'Blocked'
+            StepId = $StepId; Kind = 'ScientificBlocker'; Status = 'Blocked'
             Reason = 'RB-SRC-001 remains open.'
         }}
     }}
     if ($StepId -eq 'route-decisions') {{
         return [pscustomobject]@{{
-            StepId = $StepId
-            Kind = 'Success'
-            Status = 'Passed'
-            RouteAStatus = 'Admitted'
-            RouteBStatus = 'Blocked'
+            StepId = $StepId; Kind = 'Success'; Status = 'Passed'
+            RouteAStatus = 'Admitted'; RouteBStatus = 'Blocked'
             CheckpointStatus = 'Passed'
             Reason = 'Route A may continue while Route B is truthfully blocked.'
         }}
@@ -158,33 +145,27 @@ $executor = {{
         $reportPath = Join-Path $OutputDirectory 'orchestration-report.json'
         if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {{
             return [pscustomobject]@{{
-                StepId = $StepId
-                Kind = 'IntegrityFailure'
-                Status = 'Failed'
+                StepId = $StepId; Kind = 'IntegrityFailure'; Status = 'Failed'
                 Reason = 'The orchestration report was not final before hashing.'
             }}
         }}
-        $snapshotPath = Join-Path $OutputDirectory 'hash-snapshot.txt'
-        $relativeFiles = @(
-            Get-ChildItem -LiteralPath $OutputDirectory -Recurse -File |
+        $canonicalRoot = [IO.Path]::GetFullPath($OutputDirectory).TrimEnd('\')
+        $snapshotPath = Join-Path $canonicalRoot 'hash-snapshot.txt'
+        @(
+            Get-ChildItem -LiteralPath $canonicalRoot -Recurse -File |
                 Where-Object {{ $_.FullName -ne $snapshotPath }} |
                 ForEach-Object {{
-                    $_.FullName.Substring($OutputDirectory.Length).TrimStart('\').Replace('\', '/')
+                    $_.FullName.Substring($canonicalRoot.Length).TrimStart('\').Replace('\', '/')
                 }} |
                 Sort-Object
-        )
-        $relativeFiles | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
+        ) | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
         return [pscustomobject]@{{
-            StepId = $StepId
-            Kind = 'Success'
-            Status = 'Passed'
+            StepId = $StepId; Kind = 'Success'; Status = 'Passed'
             Reason = 'The final simulated bundle was snapshotted.'
         }}
     }}
     return [pscustomobject]@{{
-        StepId = $StepId
-        Kind = 'Success'
-        Status = 'Passed'
+        StepId = $StepId; Kind = 'Success'; Status = 'Passed'
         Reason = 'Simulated controlled success.'
     }}
 }}
@@ -221,32 +202,26 @@ $result | ConvertTo-Json -Depth 20 -Compress
     def test_integrity_failure_stops_the_pipeline_and_returns_nonzero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             output_root = Path(temporary_directory) / "bundle"
-            step_array = ",".join(f"'{step_id}'" for step_id in EXPECTED_STEP_ORDER)
             command = rf"""
 $ErrorActionPreference = 'Stop'
 Import-Module '{MODULE_PATH.as_posix()}' -Force
-$stepOrder = @({step_array})
 $executor = {{
     param([string]$StepId, [string]$OutputDirectory)
     if ($StepId -eq 'route-a-runtime-verification') {{
         return [pscustomobject]@{{
-            StepId = $StepId
-            Kind = 'IntegrityFailure'
-            Status = 'Failed'
+            StepId = $StepId; Kind = 'IntegrityFailure'; Status = 'Failed'
             Reason = 'The pinned origin did not match.'
         }}
     }}
     return [pscustomobject]@{{
-        StepId = $StepId
-        Kind = 'Success'
-        Status = 'Passed'
+        StepId = $StepId; Kind = 'Success'; Status = 'Passed'
         Reason = 'Simulated controlled success.'
     }}
 }}
 try {{
     Invoke-Workbook05SourceAdmissionPipeline `
         -OutputDirectory '{output_root.as_posix()}' `
-        -StepOrder $stepOrder `
+        -StepOrder @({_quoted(EXPECTED_STEP_ORDER)}) `
         -StepExecutor $executor `
         -RequiredBundleFiles @() | Out-Null
     exit 0
@@ -257,13 +232,10 @@ catch {{
 }}
 """
             completed = _run_powershell(command)
-            self.assertEqual(17, completed.returncode)
-            self.assertTrue((output_root / "orchestration-error.json").is_file())
-            error = json.loads(
-                (output_root / "orchestration-error.json").read_text(
-                    encoding="utf-8-sig"
-                )
-            )
+            self.assertEqual(17, completed.returncode, completed.stderr)
+            error_path = output_root / "orchestration-error.json"
+            self.assertTrue(error_path.is_file(), completed.stderr)
+            error = json.loads(error_path.read_text(encoding="utf-8-sig"))
             self.assertEqual("route-a-runtime-verification", error["failed_step"])
             self.assertIn("pinned origin", error["reason"])
 
@@ -276,9 +248,7 @@ Import-Module '{MODULE_PATH.as_posix()}' -Force
 $executor = {{
     param([string]$StepId, [string]$OutputDirectory)
     return [pscustomobject]@{{
-        StepId = $StepId
-        Kind = 'Success'
-        Status = 'Passed'
+        StepId = $StepId; Kind = 'Success'; Status = 'Passed'
         Reason = 'No file was written.'
     }}
 }}
@@ -296,7 +266,7 @@ catch {{
 }}
 """
             completed = _run_powershell(command)
-            self.assertEqual(19, completed.returncode)
+            self.assertEqual(19, completed.returncode, completed.stderr)
             self.assertIn("required bundle file", completed.stderr.casefold())
 
 
