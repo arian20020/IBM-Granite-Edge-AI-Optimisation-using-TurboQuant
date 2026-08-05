@@ -22,55 +22,49 @@
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P02-source-commit-reachable",
+      "proof_id": "RB-P02-runtime-source-tree",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P03-documented-build",
+      "proof_id": "RB-P03-runtime-submodules",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P04-qjl-selectable",
+      "proof_id": "RB-P04-qjl-source-paths",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P05-polar-selectable",
+      "proof_id": "RB-P05-polar-source-paths",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P06-encode-decode-present",
+      "proof_id": "RB-P06-encode-decode-source-paths",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P07-packed-size-conformance",
+      "proof_id": "RB-P07-independent-kv-source-paths",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P08-repository-tests",
+      "proof_id": "RB-P08-test-discovery-audit",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RB-P09-independent-kv-dispatch",
-      "required": true,
-      "status": "Pending",
-      "evidence_path": ""
-    },
-    {
-      "proof_id": "RB-P10-no-silent-fallback",
+      "proof_id": "RB-P09-generated-test-metadata",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
@@ -86,5 +80,5 @@
       "evidence_url": "https://github.com/openvinotoolkit/openvino/pull/35092#discussion_r3042885748"
     }
   ],
-  "decision_reason": "The open experimental source contains QJL and PolarQuant candidates, but admission remains blocked by unverified build, activation, storage, repository-test, and fallback evidence plus RB-SRC-001."
+  "decision_reason": "Route B remains experimental and blocked at the Phase 1 boundary until the pinned source tree, recursive submodules, QJL and PolarQuant source paths, encode/decode paths, independent K/V source controls, test-discovery audit, generated test metadata, and controlling documents are captured and independently validated, and RB-SRC-001 is resolved or disproved. Build, activation, packed-size conformance, and fallback proof belong to later phases."
 }
