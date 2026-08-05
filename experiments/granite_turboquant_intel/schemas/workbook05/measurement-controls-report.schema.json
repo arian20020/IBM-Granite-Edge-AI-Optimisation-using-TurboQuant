@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "prompt_set_id",
+    "rubric_id",
+    "prompt_count",
+    "prompt_ids",
+    "rubric_weight_total",
+    "required_metric_names",
+    "controls",
+    "raw_output_required",
+    "activation_proof_required",
+    "fallback_result_required",
+    "separate_k_v_allocation_required",
+    "weight_and_kv_axes_separate"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "campaign_id": { "const": "GTQ-WB05-MF-v1" },
+    "prompt_set_id": { "const": "GTQ-PROMPTS-v1" },
+    "rubric_id": { "const": "GTQ-QUALITY-RUBRIC-v1" },
+    "prompt_count": { "const": 6 },
+    "prompt_ids": { "const": ["P1", "P2", "P3", "P4", "P5", "P6"] },
+    "rubric_weight_total": {
+      "type": "number",
+      "minimum": 0.999999999,
+      "maximum": 1.000000001
+    },
+    "required_metric_names": {
+      "type": "array",
+      "minItems": 12,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/]{2})(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).*$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "raw_output_required": { "const": true },
+    "activation_proof_required": { "const": true },
+    "fallback_result_required": { "const": true },
+    "separate_k_v_allocation_required": { "const": true },
+    "weight_and_kv_axes_separate": { "const": true }
+  }
+}
