@@ -32,6 +32,15 @@ RUBRIC = (
 )
 
 
+def _validate_instance(instance: dict[str, object]) -> list[object]:
+    """Validate one temporary run without leaving repository files behind."""
+
+    with tempfile.TemporaryDirectory() as directory:
+        instance_path = Path(directory) / "run.json"
+        instance_path.write_text(json.dumps(instance), encoding="utf-8")
+        return validate_json_file(instance_path, SCHEMA)
+
+
 class MeasurementControlTests(unittest.TestCase):
     def test_measured_run_schema_requires_quality_and_separate_kv_metrics(self) -> None:
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
@@ -88,15 +97,44 @@ class MeasurementControlTests(unittest.TestCase):
     def test_valid_measured_run_template_passes_its_schema(self) -> None:
         self.assertEqual([], validate_json_file(TEMPLATE, SCHEMA))
 
+    def test_successful_scalar_baseline_does_not_claim_optimisation_activation(self) -> None:
+        instance = json.loads(TEMPLATE.read_text(encoding="utf-8"))
+        execution = instance["execution"]
+        execution["optimisation_requested"] = False
+        execution["optimisation_activated"] = False
+        execution["requested_k_codec"] = "SCALAR"
+        execution["verified_k_codec"] = "SCALAR"
+        execution["requested_v_codec"] = "SCALAR"
+        execution["verified_v_codec"] = "SCALAR"
+
+        self.assertEqual([], _validate_instance(instance))
+
+    def test_successful_compressed_candidate_requires_activation(self) -> None:
+        instance = json.loads(TEMPLATE.read_text(encoding="utf-8"))
+        instance["execution"]["optimisation_activated"] = False
+
+        issues = _validate_instance(instance)
+
+        self.assertTrue(
+            any("optimisation_activated" in issue.json_path for issue in issues)
+        )
+
+    def test_passed_run_requires_complete_blinded_quality_scores(self) -> None:
+        instance = json.loads(TEMPLATE.read_text(encoding="utf-8"))
+        instance["quality"]["dimension_scores"]["correctness_and_grounding"] = None
+        instance["quality"]["judge_label_hidden"] = False
+        instance["quality"]["material_degradation"] = "Not evaluated"
+
+        issues = _validate_instance(instance)
+
+        self.assertGreaterEqual(len(issues), 3)
+
     def test_passed_run_cannot_drop_raw_output_or_quality_score(self) -> None:
         instance = json.loads(TEMPLATE.read_text(encoding="utf-8"))
         instance["quality"]["raw_output_path"] = ""
         instance["quality"]["score_0_to_10"] = None
 
-        with tempfile.TemporaryDirectory() as directory:
-            instance_path = Path(directory) / "run.json"
-            instance_path.write_text(json.dumps(instance), encoding="utf-8")
-            issues = validate_json_file(instance_path, SCHEMA)
+        issues = _validate_instance(instance)
 
         self.assertGreaterEqual(len(issues), 2)
 
