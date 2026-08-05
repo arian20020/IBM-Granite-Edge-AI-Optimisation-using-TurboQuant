@@ -25,6 +25,7 @@ class WorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(f"- {label}", text)
         self.assertIn("testing/workbook-05-two-route-memory-frontier", text)
+        self.assertIn("testing/workbook-05-source-admission", text)
 
     def test_actions_are_pinned_to_immutable_shas(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -47,10 +48,6 @@ class WorkflowContractTests(unittest.TestCase):
 
     def test_pull_request_paths_cover_controlled_document_inputs(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-
-        # The test suite reads these documents directly. A pull request that
-        # changes one of them must therefore run the same preflight gate rather
-        # than bypassing validation because only Python files changed earlier.
         required_paths = (
             "docs/superpowers/plans/2026-08-03-workbook-05-preflight-scaffolding.md",
             "docs/superpowers/specs/2026-08-03-workbook-05-two-route-memory-frontier-design.md",
@@ -67,16 +64,30 @@ class WorkflowContractTests(unittest.TestCase):
     def test_manual_dispatch_is_limited_to_reviewed_refs(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
 
-        # A read-only repository token does not make arbitrary branch code safe
-        # on a self-hosted machine. Manual execution is therefore restricted to
-        # main or the exact reviewed campaign branch.
         self.assertIn("github.event_name == 'workflow_dispatch' &&", text)
         self.assertIn("github.ref == 'refs/heads/main'", text)
         self.assertIn(
             "github.ref == 'refs/heads/testing/workbook-05-two-route-memory-frontier'",
             text,
         )
+        self.assertIn(
+            "github.ref == 'refs/heads/testing/workbook-05-source-admission'",
+            text,
+        )
+        self.assertIn(
+            "github.event.pull_request.head.ref == 'testing/workbook-05-source-admission'",
+            text,
+        )
         self.assertNotIn("github.event_name == 'workflow_dispatch' ||", text)
+
+    def test_validator_does_not_request_an_artifact_after_collection_is_skipped(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        validator = text.split("  validate-preflight:", 1)[1]
+
+        self.assertIn(
+            "if: ${{ always() && needs.collect-preflight.result != 'skipped' }}",
+            validator,
+        )
 
     def test_each_checkout_limits_the_windows_worktree_to_preflight_inputs(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -84,17 +95,9 @@ class WorkflowContractTests(unittest.TestCase):
             "uses: actions/checkout@"
             "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
         )
-
-        # Both the Intel collection job and the hosted validation job run on
-        # Windows. Splitting at the pinned action lets this test inspect each
-        # checkout step independently rather than accepting one safe checkout
-        # and one accidental full-repository checkout.
         checkout_sections = text.split(checkout_action)[1:]
         self.assertEqual(2, len(checkout_sections))
 
-        # These are the complete repository inputs consumed by the workflow's
-        # scripts and tests. Deep research and historical log trees are omitted
-        # because their paths can exceed the legacy Windows path boundary.
         required_sparse_roots = (
             ".github/workflows",
             "docs/superpowers",
@@ -111,8 +114,6 @@ class WorkflowContractTests(unittest.TestCase):
             checkout_sections,
             start=1,
         ):
-            # Stop at the following workflow step so required settings and paths
-            # must belong to this checkout rather than appearing elsewhere.
             checkout_step = checkout_section.split("\n      - name:", 1)[0]
             self.assertIn(
                 "sparse-checkout: |",
@@ -122,10 +123,6 @@ class WorkflowContractTests(unittest.TestCase):
             self.assertIn(
                 "persist-credentials: false",
                 checkout_step,
-                (
-                    f"Checkout {checkout_number} must not retain the job token "
-                    "in Git configuration."
-                ),
             )
             for required_root in required_sparse_roots:
                 self.assertIn(
@@ -141,17 +138,11 @@ class WorkflowContractTests(unittest.TestCase):
             1,
         )[1].split("\n      - name:", 1)[0]
 
-        # A .ps1 script runs inside PowerShell and does not set LASTEXITCODE.
-        # Terminating errors propagate because ErrorActionPreference is Stop.
         self.assertIn(
             "& '.\\tests\\testing\\workbook05\\Invoke-PreflightModuleTests.ps1'",
             step,
         )
-        self.assertNotIn(
-            "$LASTEXITCODE",
-            step,
-            "The PowerShell script step must not use the native-process exit code.",
-        )
+        self.assertNotIn("$LASTEXITCODE", step)
 
     def test_workflow_contains_no_repository_write_command(self) -> None:
         lowered = WORKFLOW.read_text(encoding="utf-8").lower()
