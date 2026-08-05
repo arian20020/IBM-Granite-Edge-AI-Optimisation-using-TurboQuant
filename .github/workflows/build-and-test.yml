@@ -172,7 +172,7 @@ jobs:
             --configuration Release `
             --no-restore `
             --filter "TestCategory=Contract" `
-            --minimum-expected-tests 1
+            --minimum-expected-tests 41
           if ($LASTEXITCODE -ne 0) {
             throw "Model Inspection contract tests failed: $LASTEXITCODE"
           }
