@@ -5,6 +5,10 @@
     "relative_path": {
       "type": "string",
       "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/]{2})(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+    },
+    "github_origin": {
+      "type": "string",
+      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?$"
     }
   },
   "type": "object",
@@ -50,8 +54,10 @@
       "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
     },
     "actual_origin_url": {
-      "type": "string",
-      "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?$"
+      "anyOf": [
+        { "const": "" },
+        { "$ref": "#/$defs/github_origin" }
+      ]
     },
     "expected_commit": { "$ref": "#/$defs/sha" },
     "actual_commit": { "$ref": "#/$defs/sha" },
@@ -73,10 +79,31 @@
     },
     "command_records": {
       "type": "array",
-      "minItems": 1,
       "items": { "$ref": "#/$defs/relative_path" }
     },
     "decision": { "enum": ["Passed", "Blocked", "Candidate"] },
     "decision_reason": { "type": "string", "minLength": 1 }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "decision": { "const": "Passed" } },
+        "required": ["decision"]
+      },
+      "then": {
+        "properties": {
+          "actual_origin_url": { "$ref": "#/$defs/github_origin" },
+          "actual_commit": {
+            "allOf": [
+              { "$ref": "#/$defs/sha" },
+              { "not": { "const": "0000000000000000000000000000000000000000" } }
+            ]
+          },
+          "working_tree_clean": { "const": true },
+          "submodules_complete": { "const": true },
+          "command_records": { "minItems": 1 }
+        }
+      }
+    }
+  ]
 }
