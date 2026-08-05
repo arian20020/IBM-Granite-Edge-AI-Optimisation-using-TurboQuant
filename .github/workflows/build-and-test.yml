@@ -9,17 +9,18 @@ on:
       - main
   workflow_dispatch:
 
-# give the workflow permission to only read the repository, not to cahnge anything else.
+# Give the workflow permission to read repository content only.
 permissions:
   contents: read
 
-## prevents GitHub from wasting time on obsolete builds. For example: You push commit A. GitHub starts testing commit A. You quickly push commit B. The commit A run is cancelled. GitHub tests the newer commit B instead.
-
+# Prevent GitHub from wasting time on obsolete builds. For example, when a
+# newer commit is pushed while an older commit is still building, only the
+# newer branch state remains relevant.
 concurrency:
   group: build-and-test-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# tell workflow to use PowerShell consistently for all command-line build steps.
+# Use PowerShell consistently for command-line build steps.
 defaults:
   run:
     shell: pwsh
@@ -27,11 +28,12 @@ defaults:
     # intermediate paths that can exceed legacy Windows path limits.
     working-directory: D:\s
 
-# Keep project paths in one place so the commands cannot accidentally
-# point to different projects.
+# Keep project paths in one place so commands cannot accidentally point to
+# different projects.
 env:
   APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
   TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
+  CONTRACT_TEST_PROJECT: 'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj'
   TEST_RECIPE: 'tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
   TEST_RESULTS_DIRECTORY: 'TestResults/UnitTests'
 
@@ -64,6 +66,8 @@ jobs:
         with:
           sparse-checkout: |
             IBM Granite with TurboQuant (Intel)
+            shared
+            tests/ContractTests
             tests/UnitTests/GraniteEdgeAI.UnitTests
             tests/TestFixtures
 
@@ -146,6 +150,32 @@ jobs:
         run: |
           dotnet --info
           msbuild -version
+
+      # Restore the pure framework-neutral contract-test project before any
+      # WinUI build. This provides a fast boundary check for the worker
+      # protocol and prevents native/UI dependencies entering the shared model.
+      - name: Restore Model Inspection contract tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet restore "$env:CONTRACT_TEST_PROJECT"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Model Inspection contract restore failed: $LASTEXITCODE"
+          }
+
+      # Run the contract category through Microsoft.Testing.Platform.
+      - name: Run Model Inspection contract tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          dotnet test "$env:CONTRACT_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --filter "TestCategory=Contract" `
+            --minimum-expected-tests 1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Model Inspection contract tests failed: $LASTEXITCODE"
+          }
 
       # Resolve all dependencies required to compile the packaged
       # WinUI application.
