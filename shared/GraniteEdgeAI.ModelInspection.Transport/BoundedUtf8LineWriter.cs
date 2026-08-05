@@ -46,15 +46,27 @@ public sealed class BoundedUtf8LineWriter
         ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Validate the length before allocating so an untrusted caller cannot
+        // force an output snapshot larger than the configured protocol limit.
+        ProtocolStreamValidation.ValidateOutputPayloadLength(
+            payload.Length,
+            _maximumLineBytes);
+
+        // ReadOnlyMemory can still wrap a mutable array. Take one bounded copy
+        // before waiting so later caller mutations cannot alter the frame that
+        // already passed validation.
+        byte[] ownedPayload = payload.ToArray();
         ProtocolStreamValidation.ValidateOutputPayload(
-            payload,
+            ownedPayload,
             _maximumLineBytes);
 
         await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
-            await _stream.WriteAsync(payload, cancellationToken)
+            await _stream.WriteAsync(ownedPayload, cancellationToken)
                 .ConfigureAwait(false);
             await _stream.WriteAsync(LineFeed, cancellationToken)
                 .ConfigureAwait(false);
