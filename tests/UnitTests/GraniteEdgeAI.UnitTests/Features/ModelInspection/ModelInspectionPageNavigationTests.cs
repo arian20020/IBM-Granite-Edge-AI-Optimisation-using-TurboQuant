@@ -1,47 +1,61 @@
 using GraniteEdgeAI.Features.ModelInspection;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System;
+using System.IO;
 
 namespace GraniteEdgeAI.UnitTests;
 
 /// <summary>
-/// Verifies the navigation contract of ModelInspectionPage.
+/// Verifies the immutable navigation contract of ModelInspectionPage.
 /// </summary>
 [TestClass]
 public sealed class ModelInspectionPageNavigationTests
 {
-    /// <summary>
-    /// Verifies that Frame navigation supplies the validated model path to the
-    /// inspection page.
-    /// </summary>
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void FrameNavigation_WithModelPath_StoresSelectedModelPath()
+    public void FrameNavigation_WithRequest_StoresRequestAndDerivedPath()
     {
-        // Arrange one authoritative model path.
-        const string selectedModelPath =
-            @"C:\Models\granite-4.1-3b-instruct.gguf";
-
-        // Use a real WinUI navigation Frame.
+        ModelInspectionRequest request = CreateRequest(
+            @"C:\Models\granite-4.1-3b-instruct.gguf");
         var frame = new Frame();
 
-        // Navigate using the same parameter mechanism the shell will use.
-        bool navigationSucceeded =
-            frame.Navigate(
-                typeof(ModelInspectionPage),
-                selectedModelPath);
+        bool navigationSucceeded = frame.Navigate(
+            typeof(ModelInspectionPage),
+            request);
 
-        // Read the destination page created by the Frame.
-        var inspectionPage =
-            frame.Content as ModelInspectionPage;
+        var inspectionPage = frame.Content as ModelInspectionPage;
 
-        // The destination must retain the original path.
         Assert.IsTrue(navigationSucceeded);
         Assert.IsNotNull(inspectionPage);
+        Assert.AreSame(request, inspectionPage.Request);
+        Assert.AreEqual(request.ModelPath, inspectionPage.SelectedModelPath);
+    }
 
-        Assert.AreEqual(
-            selectedModelPath,
-            inspectionPage.SelectedModelPath);
+    private static ModelInspectionRequest CreateRequest(string modelPath)
+    {
+        return new ModelInspectionRequest(
+            modelPath,
+            Path.GetFileName(modelPath),
+            new ExpectedModelFileIdentity(
+                lengthBytes: 64,
+                lastWriteTimeUtc: new DateTimeOffset(
+                    2026,
+                    8,
+                    5,
+                    12,
+                    0,
+                    0,
+                    TimeSpan.Zero)),
+            ValidatedQuickScanSnapshot.CreateGguf(
+                modelName: "Granite 4.1 3B Instruct",
+                architecture: "granite",
+                parameterSizeLabel: "3B",
+                quantisation: "Q4_K_M",
+                fileSizeBytes: 64,
+                declaredContextLength: 131_072,
+                ggufVersion: 3));
     }
 }

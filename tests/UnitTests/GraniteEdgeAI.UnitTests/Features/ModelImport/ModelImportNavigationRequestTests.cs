@@ -1,10 +1,13 @@
 using GraniteEdgeAI.Features.ModelImport;
+using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System;
+using System.IO;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -14,123 +17,170 @@ namespace GraniteEdgeAI.UnitTests;
 [TestClass]
 public sealed class ModelImportNavigationRequestTests
 {
-    /// <summary>
-    /// Proves that inspection cannot be requested before a model is validated.
-    /// </summary>
     [UITestMethod]
     [TestCategory("WinUI")]
     public void Constructor_DisablesContinueToInspectionButton()
     {
-        // Create the page in its initial state.
         var page = new ModelImportPage();
-
-        // Locate the real button declared in ModelImportPage.xaml.
         var continueButton = (Button)page.FindName(
             "ContinueToModelInspectionButton");
 
-        // The button must not allow progression before quick-scan success.
         Assert.IsFalse(continueButton.IsEnabled);
     }
 
-    /// <summary>
-    /// Proves that a successful quick scan enables the next onboarding action.
-    /// </summary>
     [UITestMethod]
     [TestCategory("WinUI")]
     public async Task SuccessfulScan_EnablesContinueToInspectionButton()
     {
-        // Arrange a deterministic valid model path and quick-scan result.
-        const string selectedPath =
-            @"C:\Models\granite-4.1-3b-instruct-q4_k_m.gguf";
-        var page = CreateSuccessfulPage(selectedPath);
+        string selectedPath = CreateTemporaryModelFile(lengthBytes: 64);
 
-        // Run the same page operation used after the Browse button is selected.
-        await page.BrowseFilesAsync();
+        try
+        {
+            var page = CreateSuccessfulPage(selectedPath, fileSizeBytes: 64);
 
-        // Locate the real Continue button.
-        var continueButton = (Button)page.FindName(
-            "ContinueToModelInspectionButton");
+            await page.BrowseFilesAsync();
 
-        // A validated model is the only state that enables progression.
-        Assert.IsTrue(page.HasValidatedModel);
-        Assert.IsTrue(continueButton.IsEnabled);
+            var continueButton = (Button)page.FindName(
+                "ContinueToModelInspectionButton");
+
+            Assert.IsTrue(page.HasValidatedModel);
+            Assert.IsTrue(continueButton.IsEnabled);
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(selectedPath);
+        }
     }
 
-    /// <summary>
-    /// Proves that clicking Continue raises exactly one request containing
-    /// the authoritative validated model path.
-    /// </summary>
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ContinueButton_AfterSuccessfulScan_RaisesRequestWithValidatedPath()
+    public async Task ContinueButton_AfterSuccessfulScan_RaisesImmutableRequest()
     {
-        // Arrange a deterministic successful import.
-        const string selectedPath =
-            @"C:\Models\granite-4.1-3b-instruct-q4_k_m.gguf";
-        var page = CreateSuccessfulPage(selectedPath);
+        string selectedPath = CreateTemporaryModelFile(lengthBytes: 64);
 
-        // Capture the navigation request raised by the page.
-        ModelInspectionRequestedEventArgs? capturedRequest = null;
-        int requestCount = 0;
-        page.ModelInspectionRequested += (_, eventArguments) =>
+        try
         {
-            requestCount++;
-            capturedRequest = eventArguments;
-        };
+            var page = CreateSuccessfulPage(selectedPath, fileSizeBytes: 64);
+            ModelInspectionRequestedEventArgs? capturedRequest = null;
+            int requestCount = 0;
+            page.ModelInspectionRequested += (_, eventArguments) =>
+            {
+                requestCount++;
+                capturedRequest = eventArguments;
+            };
 
-        // Put the page into its validated-model state.
-        await page.BrowseFilesAsync();
+            await page.BrowseFilesAsync();
 
-        // Invoke the real WinUI button through its automation peer.
-        var continueButton = (Button)page.FindName(
-            "ContinueToModelInspectionButton");
-        InvokeButton(continueButton);
+            var continueButton = (Button)page.FindName(
+                "ContinueToModelInspectionButton");
+            InvokeButton(continueButton);
 
-        // One click must produce one request with the original model path.
-        Assert.AreEqual(1, requestCount);
-        Assert.IsNotNull(capturedRequest);
-        Assert.AreEqual(selectedPath, capturedRequest.ModelPath);
+            Assert.AreEqual(1, requestCount);
+            Assert.IsNotNull(capturedRequest);
+            Assert.AreEqual(selectedPath, capturedRequest.Request.ModelPath);
+            Assert.AreEqual(
+                Path.GetFileName(selectedPath),
+                capturedRequest.Request.FileName);
+            Assert.AreEqual(
+                64L,
+                capturedRequest.Request.ExpectedFileIdentity.LengthBytes);
+            Assert.AreEqual(
+                "Granite 4.1 3B Instruct",
+                capturedRequest.Request.QuickScan.ModelName);
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(selectedPath);
+        }
     }
 
-    /// <summary>
-    /// Proves that the request method rejects invalid state even if it is
-    /// called independently of the disabled UI button.
-    /// </summary>
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ContinueButton_AfterFileChanges_InvalidatesSelectionWithoutNavigation()
+    {
+        string selectedPath = CreateTemporaryModelFile(lengthBytes: 64);
+
+        try
+        {
+            var page = CreateSuccessfulPage(selectedPath, fileSizeBytes: 64);
+            int requestCount = 0;
+            page.ModelInspectionRequested += (_, _) => requestCount++;
+
+            await page.BrowseFilesAsync();
+
+            // Change the selected file after quick-scan success but before the
+            // navigation boundary captures its expected identity.
+            using (FileStream stream = new(
+                selectedPath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.None))
+            {
+                stream.WriteByte(0);
+            }
+
+            var continueButton = (Button)page.FindName(
+                "ContinueToModelInspectionButton");
+            InvokeButton(continueButton);
+
+            var importCard = (ImportModelCard)page.FindName(
+                "ImportModelCardControl");
+            var failureCode = (TextBlock)importCard.FindName(
+                "FailureCodeTextBlock");
+            var failureMessage = (TextBlock)importCard.FindName(
+                "FailureMessageTextBlock");
+            var failureFileName = (TextBlock)importCard.FindName(
+                "FailureFileNameTextBlock");
+
+            Assert.AreEqual(0, requestCount);
+            Assert.IsFalse(page.HasValidatedModel);
+            Assert.IsNull(page.ValidatedScanResult);
+            Assert.IsNull(page.SelectedModelPath);
+            Assert.IsFalse(continueButton.IsEnabled);
+            Assert.AreEqual(ImportModelCardState.ScanFailed, importCard.CurrentState);
+            Assert.AreEqual("model-selection-changed", failureCode.Text);
+            Assert.AreEqual(
+                "The selected model changed after validation. Choose the model again.",
+                failureMessage.Text);
+            Assert.AreEqual(Path.GetFileName(selectedPath), failureFileName.Text);
+            Assert.IsFalse(failureMessage.Text.Contains(
+                selectedPath,
+                StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(selectedPath);
+        }
+    }
+
     [UITestMethod]
     [TestCategory("WinUI")]
     public void TryRequestModelInspection_WithoutValidatedModel_ReturnsFalse()
     {
-        // Create an initial page with no validated model.
         var page = new ModelImportPage();
         int requestCount = 0;
         page.ModelInspectionRequested += (_, _) => requestCount++;
 
-        // Call the guarded page action directly.
         bool requestAccepted = page.TryRequestModelInspection();
 
-        // The page must not raise a request from an invalid state.
         Assert.IsFalse(requestAccepted);
         Assert.AreEqual(0, requestCount);
     }
 
-    /// <summary>
-    /// Creates a Model Import page whose picker and scanner always produce
-    /// one valid GGUF model.
-    /// </summary>
-    private static ModelImportPage CreateSuccessfulPage(string selectedPath)
+    private static ModelImportPage CreateSuccessfulPage(
+        string selectedPath,
+        long fileSizeBytes)
     {
-        // Create the exact quick-scan success data used by the page state machine.
         ModelQuickScanResult successfulResult =
             ModelQuickScanResult.CreateSuccess(
                 modelName: "Granite 4.1 3B Instruct",
                 architecture: "granite",
                 parameterSizeLabel: "3B",
                 quantization: "Q4_K_M",
-                fileSizeBytes: 2_000_000_000L,
+                fileSizeBytes: fileSizeBytes,
                 contextLength: 131_072UL,
                 ggufVersion: 3);
 
-        // Inject deterministic format selection, file picking and scanning.
         return new ModelImportPage(
             () => Task.FromResult(ModelFormatSelection.Gguf),
             () => Task.FromResult<string?>(selectedPath),
@@ -138,20 +188,34 @@ public sealed class ModelImportNavigationRequestTests
                 Task.FromResult(successfulResult));
     }
 
-    /// <summary>
-    /// Invokes a WinUI Button using the same accessibility action used by
-    /// the existing model-import state-machine tests.
-    /// </summary>
+    private static string CreateTemporaryModelFile(int lengthBytes)
+    {
+        string directoryPath = Path.Combine(
+            Path.GetTempPath(),
+            $"granite-edge-ai-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directoryPath);
+
+        string modelPath = Path.Combine(
+            directoryPath,
+            "granite-4.1-3b-instruct-q4_k_m.gguf");
+        File.WriteAllBytes(modelPath, new byte[lengthBytes]);
+        return modelPath;
+    }
+
+    private static void DeleteTemporaryModelFile(string modelPath)
+    {
+        string? directoryPath = Path.GetDirectoryName(modelPath);
+        if (directoryPath is not null && Directory.Exists(directoryPath))
+        {
+            Directory.Delete(directoryPath, recursive: true);
+        }
+    }
+
     private static void InvokeButton(Button button)
     {
-        // Create an automation peer for the real button.
         var automationPeer = new ButtonAutomationPeer(button);
-
-        // Obtain the standard invoke provider.
         var invokeProvider = (IInvokeProvider)automationPeer.GetPattern(
             PatternInterface.Invoke);
-
-        // Perform one user-equivalent invocation.
         invokeProvider.Invoke();
     }
 }
