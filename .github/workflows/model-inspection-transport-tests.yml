@@ -57,4 +57,4 @@ jobs:
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
           --configuration Release
-          --minimum-expected-tests 19
+          --minimum-expected-tests 20
