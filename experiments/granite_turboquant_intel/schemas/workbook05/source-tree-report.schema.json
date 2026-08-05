@@ -41,7 +41,13 @@
         "route-b-experimental-qjl-polar"
       ]
     },
-    "source_role": { "enum": ["runtime", "genai"] },
+    "source_role": {
+      "enum": [
+        "runtime",
+        "genai-compatibility-candidate",
+        "experimental-runtime"
+      ]
+    },
     "repository_full_name": {
       "enum": [
         "openvinotoolkit/openvino",
