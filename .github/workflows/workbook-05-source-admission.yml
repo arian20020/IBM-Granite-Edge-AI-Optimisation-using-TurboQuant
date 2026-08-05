@@ -1,0 +1,277 @@
+name: Workbook 05 source admission
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/workbook-05-source-admission.yml'
+      - 'docs/superpowers/**'
+      - 'docs/testing/**'
+      - 'scripts/testing/**'
+      - 'tests/testing/workbook05/**'
+      - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
+      - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
+      - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
+      - 'experiments/granite_turboquant_intel/prompts/**'
+      - 'experiments/granite_turboquant_intel/rubrics/**'
+      - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: workbook-05-source-admission
+  cancel-in-progress: false
+
+jobs:
+  collect-source-admission:
+    name: Collect Intel source-admission evidence
+    if: >-
+      (
+        github.event_name == 'workflow_dispatch' &&
+        (
+          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/testing/workbook-05-source-admission'
+        )
+      ) ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'testing/workbook-05-source-admission'
+      )
+
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+
+    timeout-minutes: 180
+
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+
+    steps:
+      # Check out the exact reviewed branch head rather than GitHub's synthetic
+      # pull-request merge commit. Both jobs use this same immutable revision.
+      - name: Check out the exact source-admission revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      # The Intel runner has a machine-wide Python installation pinned by the
+      # reviewed Workbook 05 machine contract. Refuse silent version drift.
+      - name: Verify the pinned machine-wide Python
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = 'C:\Program Files\Python312\python.exe'
+
+          if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
+              throw "Pinned Python was not found at: $pythonPath"
+          }
+
+          $pythonVersion = ((& $pythonPath --version 2>&1) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) {
+              throw "Pinned Python version check exited with code $LASTEXITCODE."
+          }
+          if ($pythonVersion -ne 'Python 3.12.10') {
+              throw "Expected Python 3.12.10, found: $pythonVersion"
+          }
+
+          Write-Host "Verified $pythonVersion at $pythonPath"
+
+      # Install only the repository-pinned schema dependency into runner temp.
+      # The system Python installation and the repository remain unchanged.
+      - name: Install source-admission validation dependencies in runner temp
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = 'C:\Program Files\Python312\python.exe'
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-python-packages'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Dependency installation exited with code $LASTEXITCODE."
+          }
+
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      # Run the complete Python contract before any external source tree is read,
+      # cloned, configured, or admitted by the Phase 1 controller.
+      - name: Run every Workbook 05 Python test
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & 'C:\Program Files\Python312\python.exe' `
+              -m unittest discover `
+              -s 'tests/testing/workbook05' `
+              -p 'test_*.py' `
+              -v
+          if ($LASTEXITCODE -ne 0) {
+              throw "Workbook 05 Python tests exited with code $LASTEXITCODE."
+          }
+
+      # These PowerShell suites validate both the machine-observation helpers and
+      # the shell-free source-admission process boundary.
+      - name: Run every Workbook 05 PowerShell test
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
+          & '.\tests\testing\workbook05\Invoke-SourceAdmissionModuleTests.ps1'
+
+      # Run the reviewed R2 controller. A truthful scientific blocker returns
+      # success so its evidence remains uploadable; integrity failures are fatal.
+      - name: Collect read-only source-admission evidence
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outputDirectory = Join-Path $env:RUNNER_TEMP 'workbook-05-source-admission'
+
+          if (Test-Path -LiteralPath $outputDirectory) {
+              Remove-Item -LiteralPath $outputDirectory -Recurse -Force
+          }
+
+          & '.\scripts\testing\workbook05\Invoke-Workbook05SourceAdmission.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -OutputDirectory $outputDirectory
+          if ($LASTEXITCODE -ne 0) {
+              throw "Workbook 05 source admission exited with code $LASTEXITCODE."
+          }
+
+      # Always preserve a produced scientific result, including a truthful Route
+      # B blocker. An absent bundle remains a workflow failure.
+      - name: Upload source-admission evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-source-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/workbook-05-source-admission
+          if-no-files-found: error
+          retention-days: 30
+
+  validate-source-admission:
+    name: Validate source-admission artifact as untrusted data
+    if: ${{ always() && needs.collect-source-admission.result != 'skipped' }}
+    needs: collect-source-admission
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      # Use the same exact branch head as the Intel job. Credentials are removed
+      # after checkout because hosted validation needs no repository writes.
+      - name: Check out the exact source-admission revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      # A fresh GitHub-hosted interpreter keeps validation independent from the
+      # Intel evidence-producing machine.
+      - name: Set up hosted validation Python
+        uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
+        with:
+          python-version: '3.12'
+
+      # Install only the repository-pinned schema dependency required by tests
+      # and by the untrusted-data validator.
+      - name: Install hosted validation dependencies
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install `
+              --disable-pip-version-check `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Hosted dependency installation exited with code $LASTEXITCODE."
+          }
+
+      # Download only the artifact produced by this run ID and attempt. No search
+      # for an earlier or similarly named artifact is permitted.
+      - name: Download the exact source-admission artifact
+        uses: actions/download-artifact@974686ed5098c7f9c9289ec946b9058e496a2561
+        with:
+          name: workbook-05-source-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/workbook-05-source-admission
+
+      # Rerun the complete Python suite on a clean host before trusting the
+      # repository validator implementation.
+      - name: Run every Workbook 05 Python test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m unittest discover `
+              -s 'tests/testing/workbook05' `
+              -p 'test_*.py' `
+              -v
+          if ($LASTEXITCODE -ne 0) {
+              throw "Hosted Workbook 05 Python tests exited with code $LASTEXITCODE."
+          }
+
+      # Rerun both PowerShell contracts so the hosted job validates the same
+      # repository control surface as the Intel job.
+      - name: Run every Workbook 05 PowerShell test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\tests\testing\workbook05\Invoke-PreflightModuleTests.ps1'
+          & '.\tests\testing\workbook05\Invoke-SourceAdmissionModuleTests.ps1'
+
+      # Treat the downloaded directory strictly as data. The R3 module writes a
+      # deterministic report for both success and failure and executes no payload.
+      - name: Validate the downloaded source-admission bundle as untrusted data
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundleRoot = Join-Path $env:RUNNER_TEMP 'workbook-05-source-admission'
+          $reportPath = Join-Path $env:RUNNER_TEMP 'workbook-05-source-admission-validation.md'
+
+          python -m scripts.testing.workbook05.source_admission_bundle_validation `
+              --bundle-root $bundleRoot `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --report $reportPath
+          $validationExitCode = $LASTEXITCODE
+
+          if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
+              Get-Content -LiteralPath $reportPath |
+                  Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+          if ($validationExitCode -ne 0) {
+              throw "Source-admission bundle validation exited with code $validationExitCode."
+          }
