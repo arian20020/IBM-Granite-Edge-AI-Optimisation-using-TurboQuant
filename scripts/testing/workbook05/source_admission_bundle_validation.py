@@ -310,7 +310,8 @@ def _walk_evidence_paths(
             child_location = f"{location}.{key}"
             lowered = key.casefold()
             if (
-                lowered.endswith("_path")
+                lowered != "canonical_path"
+                and lowered.endswith("_path")
                 and isinstance(child, str)
                 and child
             ):
