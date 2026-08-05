@@ -15,6 +15,11 @@ SETTINGS_PATH = (
     / "experiments/granite_turboquant_intel/configurations/workbook05/"
     "source-admission-settings.json"
 )
+SOURCE_TREE_SCHEMA_PATH = (
+    ROOT
+    / "experiments/granite_turboquant_intel/schemas/workbook05/"
+    "source-tree-report.schema.json"
+)
 ROUTE_A_ID = "route-a-merged-openvino"
 ROUTE_B_ID = "route-b-experimental-qjl-polar"
 
@@ -61,6 +66,23 @@ class SourceAdmissionBundleProvenanceContractTests(unittest.TestCase):
                     configured["commit"],
                     pinned["expected_commit"],
                 )
+
+    def test_source_tree_schema_accepts_only_live_orchestrator_roles(
+        self,
+    ) -> None:
+        schema = json.loads(
+            SOURCE_TREE_SCHEMA_PATH.read_text(encoding="utf-8")
+        )
+        source_roles = schema["properties"]["source_role"]["enum"]
+
+        self.assertEqual(
+            [
+                "runtime",
+                "genai-compatibility-candidate",
+                "experimental-runtime",
+            ],
+            source_roles,
+        )
 
 
 if __name__ == "__main__":
