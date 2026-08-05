@@ -104,9 +104,8 @@ public sealed class BoundedUtf8LineWriter : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (Volatile.Read(ref _disposeState) != 0)
-        {
-            throw new ObjectDisposedException(nameof(BoundedUtf8LineWriter));
-        }
+        ObjectDisposedException.ThrowIf(
+            Volatile.Read(ref _disposeState) != 0,
+            this);
     }
 }
