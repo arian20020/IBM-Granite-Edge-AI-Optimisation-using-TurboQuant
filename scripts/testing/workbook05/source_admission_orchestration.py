@@ -11,10 +11,8 @@ import argparse
 import copy
 import hashlib
 import json
-import re
 import shutil
 import subprocess
-from dataclasses import asdict
 from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -240,10 +238,13 @@ def _run_source_verification(
             result.report["decision_reason"],
             EvidencePath=report_path.relative_to(arguments.output_directory).as_posix(),
         )
+
+    # A source-tree mismatch means the evidence boundary itself is untrusted.
+    # It is therefore an integrity failure, not a scientific capability result.
     return _result(
         arguments.step,
-        "ScientificBlocker",
-        "Blocked",
+        "IntegrityFailure",
+        "Failed",
         result.report["decision_reason"],
         EvidencePath=report_path.relative_to(arguments.output_directory).as_posix(),
     )
