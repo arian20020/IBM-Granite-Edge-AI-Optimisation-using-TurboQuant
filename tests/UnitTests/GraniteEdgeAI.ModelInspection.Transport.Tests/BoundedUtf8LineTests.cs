@@ -17,7 +17,7 @@ public sealed class BoundedUtf8LineTests
     /// A non-positive line limit cannot provide a meaningful memory boundary.
     /// </summary>
     [TestMethod]
-    public void ReaderConstructor_NonPositiveLimit_ThrowsInvalidConfiguration()
+    public void ReaderConstructorRejectsNonPositiveLimit()
     {
         using MemoryStream stream = new();
 
@@ -31,7 +31,7 @@ public sealed class BoundedUtf8LineTests
     /// Clean EOF before any bytes is the normal end of a protocol stream.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_EmptyStream_ReturnsNull()
+    public async Task ReadLineAsyncReturnsNullForEmptyStream()
     {
         await using MemoryStream stream = new();
         BoundedUtf8LineReader reader = new(stream, maximumLineBytes: 32);
@@ -45,7 +45,7 @@ public sealed class BoundedUtf8LineTests
     /// The configured maximum excludes the terminating line-feed byte.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_ExactOneMiBLimit_ReturnsPayload()
+    public async Task ReadLineAsyncReturnsPayloadAtExactOneMiBLimit()
     {
         byte[] payload = Enumerable.Repeat((byte)'a', OneMiB).ToArray();
         byte[] frame = [.. payload, (byte)'\n'];
@@ -64,7 +64,7 @@ public sealed class BoundedUtf8LineTests
     /// Bytes read beyond one line must remain available for the next call.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_TwoBufferedLines_ReturnsBothInOrder()
+    public async Task ReadLineAsyncReturnsTwoBufferedLinesInOrder()
     {
         byte[] input = Encoding.UTF8.GetBytes("first\nsecond\n");
         await using MemoryStream stream = new(input, writable: false);
@@ -83,7 +83,7 @@ public sealed class BoundedUtf8LineTests
     /// A blank frame cannot be a valid command or worker message.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_EmptyLine_ThrowsEmptyLine()
+    public async Task ReadLineAsyncRejectsEmptyLine()
     {
         await using MemoryStream stream = new([(byte)'\n'], writable: false);
         BoundedUtf8LineReader reader = new(stream, maximumLineBytes: 32);
@@ -98,7 +98,7 @@ public sealed class BoundedUtf8LineTests
     /// UTF-8 BOM bytes are valid Unicode but forbidden protocol framing.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_BomPrefixedLine_ThrowsBomNotAllowed()
+    public async Task ReadLineAsyncRejectsBomPrefixedLine()
     {
         byte[] input = [0xEF, 0xBB, 0xBF, (byte)'{', (byte)'}', (byte)'\n'];
         await using MemoryStream stream = new(input, writable: false);
@@ -114,7 +114,7 @@ public sealed class BoundedUtf8LineTests
     /// Production framing is LF-only, so both CR and CRLF are rejected.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_CarriageReturnFraming_ThrowsCarriageReturnNotAllowed()
+    public async Task ReadLineAsyncRejectsCarriageReturnFraming()
     {
         byte[][] inputs =
         [
@@ -140,7 +140,7 @@ public sealed class BoundedUtf8LineTests
     /// Invalid byte sequences must fail rather than being replacement-decoded.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_InvalidUtf8_ThrowsInvalidUtf8()
+    public async Task ReadLineAsyncRejectsInvalidUtf8()
     {
         byte[] input = [0xC3, 0x28, (byte)'\n'];
         await using MemoryStream stream = new(input, writable: false);
@@ -157,7 +157,7 @@ public sealed class BoundedUtf8LineTests
     /// the complete untrusted frame and measuring it afterward.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_StopsAtFirstByteBeyondLimit()
+    public async Task ReadLineAsyncStopsAtFirstByteBeyondLimit()
     {
         byte[] input = [1, 2, 3, 4, 5, (byte)'\n'];
         await using OneByteAtATimeReadStream stream = new(input);
@@ -177,7 +177,7 @@ public sealed class BoundedUtf8LineTests
     /// EOF after payload bytes is not a complete protocol frame.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_PartialEof_ThrowsUnexpectedEndOfStream()
+    public async Task ReadLineAsyncRejectsPartialEof()
     {
         await using MemoryStream stream = new(
             Encoding.UTF8.GetBytes("unterminated"),
@@ -196,7 +196,7 @@ public sealed class BoundedUtf8LineTests
     /// A blocked pipe read must observe caller cancellation.
     /// </summary>
     [TestMethod]
-    public async Task ReadLineAsync_BlockedRead_ObservesCancellation()
+    public async Task ReadLineAsyncObservesCancellationWhileBlocked()
     {
         await using BlockingReadStream stream = new();
         BoundedUtf8LineReader reader = new(stream, maximumLineBytes: 32);
@@ -211,7 +211,7 @@ public sealed class BoundedUtf8LineTests
     /// The writer appends exactly one LF, adds no BOM or CR, and flushes once.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsync_ValidPayload_WritesOneLfAndFlushes()
+    public async Task WriteLineAsyncWritesOneLfAndFlushes()
     {
         byte[] payload = Encoding.UTF8.GetBytes("{\"protocolVersion\":1}");
         await using RecordingWriteStream stream = new();
@@ -230,7 +230,7 @@ public sealed class BoundedUtf8LineTests
     /// Emitting an empty payload would create the forbidden blank frame.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsync_EmptyPayload_RejectsBeforeWriting()
+    public async Task WriteLineAsyncRejectsEmptyPayloadBeforeWriting()
     {
         await using RecordingWriteStream stream = new();
         BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
@@ -247,7 +247,7 @@ public sealed class BoundedUtf8LineTests
     /// The writer must not pass a caller-supplied BOM into the protocol stream.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsync_BomPrefixedPayload_RejectsBeforeWriting()
+    public async Task WriteLineAsyncRejectsBomPrefixedPayloadBeforeWriting()
     {
         byte[] payload = [0xEF, 0xBB, 0xBF, (byte)'{', (byte)'}'];
         await using RecordingWriteStream stream = new();
@@ -264,7 +264,7 @@ public sealed class BoundedUtf8LineTests
     /// Raw CR and LF bytes would allow one payload to alter frame boundaries.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsync_EmbeddedCrOrLf_RejectsBeforeWriting()
+    public async Task WriteLineAsyncRejectsEmbeddedCrOrLfBeforeWriting()
     {
         (byte[] Payload, ProtocolStreamErrorKind ExpectedKind)[] cases =
         [
@@ -290,7 +290,7 @@ public sealed class BoundedUtf8LineTests
     /// The writer applies the same strict UTF-8 rule as the reader.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsync_InvalidUtf8_RejectsBeforeWriting()
+    public async Task WriteLineAsyncRejectsInvalidUtf8BeforeWriting()
     {
         byte[] payload = [0xC3, 0x28];
         await using RecordingWriteStream stream = new();
@@ -307,7 +307,7 @@ public sealed class BoundedUtf8LineTests
     /// Oversized output is rejected before any bytes reach the pipe.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsync_OversizedPayload_RejectsBeforeWriting()
+    public async Task WriteLineAsyncRejectsOversizedPayloadBeforeWriting()
     {
         byte[] payload = new byte[33];
         Array.Fill(payload, (byte)'a');
