@@ -8,40 +8,6 @@ namespace GraniteEdgeAI.ModelInspection.Transport;
 public sealed class ProtocolStreamException : Exception
 {
     /// <summary>
-    /// Creates a general protocol stream exception for framework compatibility.
-    /// </summary>
-    public ProtocolStreamException()
-        : this(
-            ProtocolStreamErrorKind.InvalidConfiguration,
-            "The protocol stream operation failed.")
-    {
-    }
-
-    /// <summary>
-    /// Creates a general protocol stream exception with a safe message.
-    /// </summary>
-    /// <param name="message">A message that contains no protocol payload.</param>
-    public ProtocolStreamException(string message)
-        : this(ProtocolStreamErrorKind.InvalidConfiguration, message)
-    {
-    }
-
-    /// <summary>
-    /// Creates a general protocol stream exception with a safe message and cause.
-    /// </summary>
-    /// <param name="message">A message that contains no protocol payload.</param>
-    /// <param name="innerException">The underlying controlled exception.</param>
-    public ProtocolStreamException(
-        string message,
-        Exception innerException)
-        : this(
-            ProtocolStreamErrorKind.InvalidConfiguration,
-            message,
-            innerException)
-    {
-    }
-
-    /// <summary>
     /// Creates a typed protocol stream exception.
     /// </summary>
     /// <param name="errorKind">The stable framing failure category.</param>
@@ -151,8 +117,9 @@ internal static class ProtocolStreamValidation
                 "The protocol input payload length is invalid.");
         }
 
-        ValidateNoBom(payloadBuffer, payloadLength);
-        ValidateStrictUtf8(payloadBuffer, payloadLength);
+        ReadOnlySpan<byte> payload = payloadBuffer.AsSpan(0, payloadLength);
+        ValidateNoBom(payload);
+        ValidateStrictUtf8(payload);
     }
 
     /// <summary>
@@ -176,12 +143,12 @@ internal static class ProtocolStreamValidation
                 "The protocol payload exceeds the configured byte limit.");
         }
 
-        byte[] validatedCopy = payload.ToArray();
-        ValidateNoBom(validatedCopy, validatedCopy.Length);
+        ReadOnlySpan<byte> payloadBytes = payload.Span;
+        ValidateNoBom(payloadBytes);
 
-        for (int index = 0; index < validatedCopy.Length; index++)
+        foreach (byte currentByte in payloadBytes)
         {
-            switch (validatedCopy[index])
+            switch (currentByte)
             {
                 case (byte)'\r':
                     throw Create(
@@ -194,7 +161,7 @@ internal static class ProtocolStreamValidation
             }
         }
 
-        ValidateStrictUtf8(validatedCopy, validatedCopy.Length);
+        ValidateStrictUtf8(payloadBytes);
     }
 
     /// <summary>
@@ -208,10 +175,10 @@ internal static class ProtocolStreamValidation
         return new ProtocolStreamException(errorKind, message, innerException);
     }
 
-    private static void ValidateNoBom(byte[] payload, int payloadLength)
+    private static void ValidateNoBom(ReadOnlySpan<byte> payload)
     {
         if (
-            payloadLength >= 3 &&
+            payload.Length >= 3 &&
             payload[0] == 0xEF &&
             payload[1] == 0xBB &&
             payload[2] == 0xBF)
@@ -222,18 +189,17 @@ internal static class ProtocolStreamValidation
         }
     }
 
-    private static void ValidateStrictUtf8(byte[] payload, int payloadLength)
+    private static void ValidateStrictUtf8(ReadOnlySpan<byte> payload)
     {
         try
         {
-            _ = StrictUtf8.GetCharCount(payload, 0, payloadLength);
+            _ = StrictUtf8.GetCharCount(payload);
         }
-        catch (DecoderFallbackException error)
+        catch (DecoderFallbackException)
         {
             throw Create(
                 ProtocolStreamErrorKind.InvalidUtf8,
-                "The protocol payload is not valid UTF-8.",
-                error);
+                "The protocol payload is not valid UTF-8.");
         }
     }
 }
