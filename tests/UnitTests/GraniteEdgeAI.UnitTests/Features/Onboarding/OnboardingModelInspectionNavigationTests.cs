@@ -118,6 +118,20 @@ public sealed class OnboardingModelInspectionNavigationTests
         Assert.AreEqual(request.ModelPath, inspectionPage.SelectedModelPath);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void NavigateToModelInspection_WithNullRequest_Throws()
+    {
+        var shell = new OnboardingShellPage();
+
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
+            shell.NavigateToModelInspection(null!));
+
+        Assert.AreEqual(
+            OnboardingStage.ImportModel,
+            shell.CurrentStage);
+    }
+
     private static ModelImportPage CreateSuccessfulModelImportPage(
         string selectedModelPath,
         long fileSizeBytes)
