@@ -1,6 +1,6 @@
 # Model Inspection worker contracts
 
-**Status:** Protocol identity, immutable command/message/evidence records, invariant validation and strict bounded JSON are implemented and verified; sequence validators, worker host, process adapter, packaging and runtime integration remain deferred to later tasks and gates
+**Status:** Protocol identity, immutable command/message/evidence records, invariant validation, strict bounded JSON, and deterministic command/message sequence validation are implemented and verified; worker host, process adapter, packaging and runtime integration remain deferred to later gates
 
 ## Purpose
 
@@ -21,7 +21,7 @@ It performs no model inspection, opens no model file and starts no process.
 - deterministic property-oriented invariant validation;
 - compact UTF-8 JSON serialization;
 - strict bounded command/message deserialization;
-- later command/message sequence validation.
+- deterministic command and message sequence validation.
 
 ## Forbidden responsibilities
 
@@ -114,6 +114,46 @@ It:
 
 Later process-stream readers must stop reading and fail before buffering more than the same 1 MiB limit. Deserialization is already bounded, but this contract project does not own stream I/O.
 
+## Sequence rules
+
+`WorkerCommandSequenceValidator` enforces:
+
+```text
+one StartInspection command
+    ↓
+zero or more matching CancelInspection commands
+    ↓
+one terminal mark
+```
+
+- cancellation before start is rejected;
+- a second start is rejected;
+- repeated matching cancellation is idempotent;
+- a mismatched request ID is rejected;
+- no command is accepted after terminal state.
+
+`WorkerMessageSequenceValidator` enforces:
+
+```text
+one Hello
+    ↓
+one application-supplied expected request ID
+    ↓
+one Started
+    ↓
+zero or more monotonic Progress messages
+    ↓
+one Completed
+```
+
+- request-scoped output before the request identity is established is rejected;
+- wrong request IDs are rejected;
+- stage and completed-count progress cannot move backwards;
+- completion may occur after Started even when no progress was emitted;
+- duplicate terminal messages and all output after terminal state are rejected.
+
+These validators model protocol order only. They do not read streams, start processes, manage timeouts or inspect files.
+
 ## Testing and evidence
 
 The adjacent pure contract-test project currently covers:
@@ -131,13 +171,23 @@ The adjacent pure contract-test project currently covers:
 - invalid versions and enums;
 - duplicate nested properties;
 - compact command/message round trips;
-- pre-serialization validation and output-size enforcement.
+- pre-serialization validation and output-size enforcement;
+- command ordering, matching request identity and idempotent cancellation;
+- hello/request/started ordering;
+- monotonic progress;
+- terminal uniqueness and post-terminal rejection.
 
-Verified implementation checkpoint:
+Verified implementation checkpoints:
 
 ```text
+Strict JSON:
 Commit:  4c01903692fa0d446ff5764920d5f0bf36599eb5
 Run:     31009200037
+Result:  contract tests, WinUI build and packaged application tests passed
+
+Sequence validation:
+Commit:  047fa2eb135009022ef560aa9cfae644c8f4a5f4
+Run:     31011809050
 Result:  contract tests, WinUI build and packaged application tests passed
 ```
 
@@ -145,7 +195,6 @@ Result:  contract tests, WinUI build and packaged application tests passed
 
 This project does not yet provide:
 
-- command or message sequence validators;
 - stream framing or bounded stream readers;
 - a worker executable;
 - process crash, timeout or cancellation containment;
