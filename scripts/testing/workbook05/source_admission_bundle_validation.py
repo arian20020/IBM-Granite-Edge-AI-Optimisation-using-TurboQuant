@@ -1,7 +1,7 @@
 """Validate a Workbook 05 source-admission bundle as untrusted data.
 
-The validator reads text and JSON evidence only. It never imports, loads, starts,
-or executes a file from the evidence bundle.
+The validator only reads text and JSON evidence. It never imports, loads,
+starts, or executes a file from the evidence bundle.
 """
 
 from __future__ import annotations
@@ -13,22 +13,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from scripts.testing.workbook05.configure_probe import (
-    evaluate_route_a_configure_probe,
-)
+from scripts.testing.workbook05.configure_probe import evaluate_route_a_configure_probe
 from scripts.testing.workbook05.hash_manifest import verify_hash_manifest
-from scripts.testing.workbook05.measurement_controls import (
-    validate_measurement_controls,
-)
+from scripts.testing.workbook05.measurement_controls import validate_measurement_controls
 from scripts.testing.workbook05.schema_validation import validate_json_file
 from scripts.testing.workbook05.source_admission import (
     evaluate_source_admission,
     is_safe_relative_evidence_path,
 )
-from scripts.testing.workbook05.source_admission_phase import (
-    calculate_phase_decision,
-)
-
+from scripts.testing.workbook05.source_admission_phase import calculate_phase_decision
 
 CAMPAIGN_ID = "GTQ-WB05-MF-v1"
 PHASE_ID = "phase-1-source-admission"
@@ -80,26 +73,11 @@ SCHEMA_BINDINGS = (
         "measurement-controls-report.schema.json",
     ),
     ("controls/campaign-manifest.json", "campaign-manifest.schema.json"),
-    (
-        "controls/route-a-source-admission.json",
-        "source-admission.schema.json",
-    ),
-    (
-        "controls/route-b-source-admission.json",
-        "source-admission.schema.json",
-    ),
-    (
-        "routes/route-a/source-tree-runtime.json",
-        "source-tree-report.schema.json",
-    ),
-    (
-        "routes/route-a/source-tree-genai.json",
-        "source-tree-report.schema.json",
-    ),
-    (
-        "routes/route-b/source-tree-runtime.json",
-        "source-tree-report.schema.json",
-    ),
+    ("controls/route-a-source-admission.json", "source-admission.schema.json"),
+    ("controls/route-b-source-admission.json", "source-admission.schema.json"),
+    ("routes/route-a/source-tree-runtime.json", "source-tree-report.schema.json"),
+    ("routes/route-a/source-tree-genai.json", "source-tree-report.schema.json"),
+    ("routes/route-b/source-tree-runtime.json", "source-tree-report.schema.json"),
     (
         "routes/route-a/source-capabilities.json",
         "source-capability-report.schema.json",
@@ -112,10 +90,7 @@ SCHEMA_BINDINGS = (
         "routes/route-b/cmake-test-discovery.json",
         "cmake-test-discovery-report.schema.json",
     ),
-    (
-        "routes/route-a/configure-probe.json",
-        "configure-probe-report.schema.json",
-    ),
+    ("routes/route-a/configure-probe.json", "configure-probe-report.schema.json"),
     (
         "summary/source-admission-summary.json",
         "source-admission-summary.schema.json",
@@ -128,12 +103,8 @@ PINNED_SOURCE_REPORTS = {
         "route_id": ROUTE_A_ID,
         "source_role": "runtime",
         "repository_full_name": "openvinotoolkit/openvino",
-        "expected_origin_url": (
-            "https://github.com/openvinotoolkit/openvino.git"
-        ),
-        "expected_commit": (
-            "b9a1f201c109e0bed74763934f79483cf6c4cbf4"
-        ),
+        "expected_origin_url": "https://github.com/openvinotoolkit/openvino.git",
+        "expected_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
     },
     "routes/route-a/source-tree-genai.json": {
         "route_id": ROUTE_A_ID,
@@ -142,20 +113,14 @@ PINNED_SOURCE_REPORTS = {
         "expected_origin_url": (
             "https://github.com/openvinotoolkit/openvino.genai.git"
         ),
-        "expected_commit": (
-            "05e5c7670b597746f858946974d11f38e3baf42f"
-        ),
+        "expected_commit": "05e5c7670b597746f858946974d11f38e3baf42f",
     },
     "routes/route-b/source-tree-runtime.json": {
         "route_id": ROUTE_B_ID,
         "source_role": "experimental-runtime",
         "repository_full_name": "EgorDuplensky/openvino",
-        "expected_origin_url": (
-            "https://github.com/EgorDuplensky/openvino.git"
-        ),
-        "expected_commit": (
-            "1827f6458d049de11c1a8203c793af67c99935dc"
-        ),
+        "expected_origin_url": "https://github.com/EgorDuplensky/openvino.git",
+        "expected_commit": "1827f6458d049de11c1a8203c793af67c99935dc",
     },
 }
 
@@ -181,7 +146,6 @@ FORBIDDEN_SUFFIXES = {
     ".xml",
     ".zip",
 }
-
 SECRET_PATTERNS = (
     "ghp_",
     "gho_",
@@ -192,7 +156,6 @@ SECRET_PATTERNS = (
     "HUGGING_FACE_HUB_TOKEN=",
     "Authorization: Bearer ",
 )
-
 EXPECTED_MEASURED_RUN_TOP_LEVEL = {
     "schema_version",
     "campaign_id",
@@ -212,7 +175,6 @@ EXPECTED_MEASURED_RUN_TOP_LEVEL = {
     "evidence",
     "classification",
 }
-
 EXPECTED_QUALITY_FIELDS = {
     "raw_output_path",
     "raw_output_sha256",
@@ -233,14 +195,14 @@ EXPECTED_QUALITY_FIELDS = {
 
 @dataclass(frozen=True)
 class SourceAdmissionBundleIssue:
-    """One deterministic problem found in an untrusted Phase 1 bundle."""
+    """One deterministic issue found in an untrusted Phase 1 bundle."""
 
     code: str
     path: str
     message: str
 
 
-def _issue(
+def _add(
     issues: list[SourceAdmissionBundleIssue],
     code: str,
     path: str,
@@ -251,8 +213,17 @@ def _issue(
     issues.append(SourceAdmissionBundleIssue(code, path, message))
 
 
+def _load_json(path: Path) -> dict[str, Any]:
+    """Read a BOM-tolerant JSON object without importing bundle code."""
+
+    value = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected a JSON object: {path}")
+    return value
+
+
 def _sha256(path: Path) -> str:
-    """Hash a complete evidence file without interpreting its contents."""
+    """Hash a complete evidence file."""
 
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -261,48 +232,510 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    """Read one BOM-tolerant JSON object without importing any payload."""
+def _safe(value: object) -> bool:
+    """Accept only traversal-free portable relative evidence paths."""
 
-    value = json.loads(path.read_text(encoding="utf-8-sig"))
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected a JSON object: {path}")
-    return value
+    return isinstance(value, str) and is_safe_relative_evidence_path(value)
 
 
-def _safe_relative_path(value: object) -> bool:
-    """Accept only portable POSIX-style paths that stay inside the bundle."""
+def _schema_root(repository_root: Path) -> Path:
+    """Return the controlled Workbook 05 schema directory."""
 
-    if not isinstance(value, str):
-        return False
-    return is_safe_relative_evidence_path(value)
+    return (
+        repository_root
+        / "experiments/granite_turboquant_intel/schemas/workbook05"
+    )
 
 
-def _schema_issues(
+def _check_required_and_hashes(
+    bundle: Path,
     issues: list[SourceAdmissionBundleIssue],
-    instance_path: Path,
-    schema_path: Path,
-    relative_path: str,
 ) -> None:
-    """Translate shared JSON-schema findings into bundle issues."""
+    """Check stable bundle membership and the exact hash manifest first."""
 
-    try:
-        for finding in validate_json_file(instance_path, schema_path):
-            _issue(
+    for relative in REQUIRED_PATHS:
+        if not (bundle / relative).is_file():
+            _add(
                 issues,
-                "SCHEMA_INVALID",
-                relative_path,
-                f"{finding.json_path}: {finding.message}",
+                "REQUIRED_PATH_MISSING",
+                relative,
+                "Required source-admission evidence file is missing.",
             )
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeError) as error:
-        _issue(issues, "SCHEMA_INVALID", relative_path, str(error))
+    manifest = bundle / "hash-manifest.sha256"
+    if manifest.is_file():
+        for message in verify_hash_manifest(bundle, manifest):
+            _add(issues, "HASH_MISMATCH", "hash-manifest.sha256", message)
 
 
-def _walk_evidence_paths(
+def _check_schemas(
+    bundle: Path,
+    repository: Path,
+    issues: list[SourceAdmissionBundleIssue],
+) -> None:
+    """Validate every controlled JSON object against repository schemas."""
+
+    root = _schema_root(repository)
+    bindings = list(SCHEMA_BINDINGS) + [
+        (
+            "commands/route-a-merged-openvino-documented-commands.json",
+            "documented-command-manifest.schema.json",
+        ),
+        (
+            "commands/route-b-experimental-qjl-polar-documented-commands.json",
+            "documented-command-manifest.schema.json",
+        ),
+    ]
+    for relative, schema_name in bindings:
+        instance = bundle / relative
+        if not instance.is_file():
+            continue
+        try:
+            for finding in validate_json_file(instance, root / schema_name):
+                _add(
+                    issues,
+                    "SCHEMA_INVALID",
+                    relative,
+                    f"{finding.json_path}: {finding.message}",
+                )
+        except (
+            OSError,
+            ValueError,
+            json.JSONDecodeError,
+            UnicodeError,
+        ) as error:
+            _add(issues, "SCHEMA_INVALID", relative, str(error))
+
+
+def _check_measurement_controls(
+    bundle: Path,
+    repository: Path,
+    issues: list[SourceAdmissionBundleIssue],
+) -> dict[str, Any] | None:
+    """Recompute frozen hashes and enforce the full measured-run schema."""
+
+    relative = "measurement/measurement-controls.json"
+    path = bundle / relative
+    if not path.is_file():
+        return None
+    try:
+        report = _load_json(path)
+        configuration_path = repository / (
+            "experiments/granite_turboquant_intel/configurations/"
+            "workbook05/measurement-controls.json"
+        )
+        for finding in validate_measurement_controls(
+            report,
+            repository_root=repository,
+            configuration_path=configuration_path,
+        ):
+            _add(issues, finding.code, relative, finding.message)
+
+        configuration = _load_json(configuration_path)
+        schema_relative = configuration["measured_run_schema_path"]
+        schema = _load_json(repository / schema_relative)
+        properties = schema.get("properties", {})
+        quality = (
+            properties.get("quality", {})
+            if isinstance(properties, dict)
+            else {}
+        )
+        top_required = set(schema.get("required", ()))
+        quality_required = (
+            set(quality.get("required", ()))
+            if isinstance(quality, dict)
+            else set()
+        )
+        if (
+            schema.get("type") != "object"
+            or schema.get("additionalProperties") is not False
+            or not EXPECTED_MEASURED_RUN_TOP_LEVEL.issubset(top_required)
+            or not EXPECTED_QUALITY_FIELDS.issubset(quality_required)
+        ):
+            _add(
+                issues,
+                "MEASURED_RUN_SCHEMA_PERMISSIVE",
+                str(schema_relative),
+                (
+                    "The measured-run schema must remain closed and require "
+                    "the complete performance and quality contract."
+                ),
+            )
+        return report
+    except (
+        OSError,
+        KeyError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        UnicodeError,
+    ) as error:
+        _add(issues, "MEASUREMENT_CONTROL_INVALID", relative, str(error))
+        return None
+
+
+def _check_provenance(
+    bundle: Path,
+    issues: list[SourceAdmissionBundleIssue],
+) -> None:
+    """Verify pins, clean trees, submodules, and recorded commands."""
+
+    for relative, expected in PINNED_SOURCE_REPORTS.items():
+        report_path = bundle / relative
+        if not report_path.is_file():
+            continue
+        try:
+            report = _load_json(report_path)
+        except (
+            OSError,
+            ValueError,
+            json.JSONDecodeError,
+            UnicodeError,
+        ) as error:
+            _add(issues, "SOURCE_PROVENANCE_MISMATCH", relative, str(error))
+            continue
+
+        for field, expected_value in expected.items():
+            if report.get(field) != expected_value:
+                _add(
+                    issues,
+                    "SOURCE_PROVENANCE_MISMATCH",
+                    relative,
+                    (
+                        f"{field} must be {expected_value!r}; "
+                        f"found {report.get(field)!r}."
+                    ),
+                )
+        if report.get("actual_origin_url") != expected["expected_origin_url"]:
+            _add(
+                issues,
+                "SOURCE_PROVENANCE_MISMATCH",
+                relative,
+                "Actual origin does not match the pinned origin.",
+            )
+        if report.get("actual_commit") != expected["expected_commit"]:
+            _add(
+                issues,
+                "SOURCE_PROVENANCE_MISMATCH",
+                relative,
+                "Actual commit does not match the pinned commit.",
+            )
+        if report.get("working_tree_clean") is not True:
+            _add(
+                issues,
+                "SOURCE_PROVENANCE_MISMATCH",
+                relative,
+                "The verified source tree is not clean.",
+            )
+
+        submodules = report.get("submodules")
+        incomplete = (
+            report.get("submodules_complete") is not True
+            or not isinstance(submodules, list)
+        )
+        if isinstance(submodules, list):
+            incomplete = incomplete or any(
+                not isinstance(item, dict) or item.get("status") != "clean"
+                for item in submodules
+            )
+        if incomplete:
+            _add(
+                issues,
+                "SUBMODULE_INCOMPLETE",
+                relative,
+                "Recursive submodule evidence is incomplete or not clean.",
+            )
+
+        command_records = report.get("command_records", ())
+        if isinstance(command_records, list):
+            for command_record in command_records:
+                # R2 stores these paths relative to the report's route directory.
+                candidate = (
+                    report_path.parent / str(command_record)
+                    if _safe(command_record)
+                    else None
+                )
+                if candidate is None or not candidate.is_file():
+                    _add(
+                        issues,
+                        "SOURCE_COMMAND_RECORD_MISSING",
+                        relative,
+                        f"Missing or unsafe command record: {command_record!r}",
+                    )
+
+
+def _load_route_records(
+    bundle: Path,
+    issues: list[SourceAdmissionBundleIssue],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Load both route records and independently reject false admission."""
+
+    records: list[dict[str, Any] | None] = []
+    for relative in (
+        "controls/route-a-source-admission.json",
+        "controls/route-b-source-admission.json",
+    ):
+        path = bundle / relative
+        if not path.is_file():
+            records.append(None)
+            continue
+        try:
+            record = _load_json(path)
+            decision = evaluate_source_admission(record)
+            if (
+                record.get("admission_status") == "Admitted"
+                and not decision.permitted
+            ):
+                _add(
+                    issues,
+                    "FALSE_ADMISSION",
+                    relative,
+                    "; ".join(decision.reasons),
+                )
+            for proof in record.get("proofs", ()):
+                if (
+                    not isinstance(proof, dict)
+                    or proof.get("status") != "Passed"
+                ):
+                    continue
+                evidence = proof.get("evidence_path")
+                if (
+                    not _safe(evidence)
+                    or not (bundle / str(evidence)).is_file()
+                ):
+                    _add(
+                        issues,
+                        "FALSE_ADMISSION",
+                        relative,
+                        (
+                            f"Passed proof {proof.get('proof_id')} has missing "
+                            f"or unsafe evidence: {evidence!r}"
+                        ),
+                    )
+            records.append(record)
+        except (
+            OSError,
+            KeyError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+            UnicodeError,
+        ) as error:
+            _add(issues, "FALSE_ADMISSION", relative, str(error))
+            records.append(None)
+    return records[0], records[1]
+
+
+def _check_summary(
+    bundle: Path,
+    route_a: Mapping[str, Any] | None,
+    route_b: Mapping[str, Any] | None,
+    measurement: Mapping[str, Any] | None,
+    issues: list[SourceAdmissionBundleIssue],
+) -> dict[str, Any] | None:
+    """Recalculate route and checkpoint decisions instead of trusting them."""
+
+    relative = "summary/source-admission-summary.json"
+    path = bundle / relative
+    if not path.is_file():
+        return None
+    try:
+        summary = _load_json(path)
+        measurement_path = bundle / "measurement/measurement-controls.json"
+        if (
+            measurement_path.is_file()
+            and summary.get("measurement_controls_sha256")
+            != _sha256(measurement_path)
+        ):
+            _add(
+                issues,
+                "CONTROL_HASH_MISMATCH",
+                relative,
+                "Summary measurement-control hash does not match the file.",
+            )
+        if route_a is None or route_b is None or measurement is None:
+            return summary
+
+        phase = calculate_phase_decision(route_a, route_b, measurement)
+        expected = {
+            ROUTE_A_ID: phase.route_a_status,
+            ROUTE_B_ID: phase.route_b_status,
+        }
+        decisions = summary.get("route_decisions")
+        if not isinstance(decisions, dict):
+            raise ValueError("Summary route_decisions must be an object.")
+        for route_id, expected_status in expected.items():
+            route_summary = decisions.get(route_id)
+            actual = (
+                route_summary.get("status")
+                if isinstance(route_summary, dict)
+                else None
+            )
+            if actual != expected_status:
+                _add(
+                    issues,
+                    "DECISION_MISMATCH",
+                    relative,
+                    (
+                        f"{route_id} must be {expected_status}; "
+                        f"found {actual!r}."
+                    ),
+                )
+            if isinstance(route_summary, dict):
+                for evidence in route_summary.get("evidence_paths", ()):
+                    if (
+                        not _safe(evidence)
+                        or not (bundle / str(evidence)).is_file()
+                    ):
+                        _add(
+                            issues,
+                            "UNSAFE_EVIDENCE_PATH",
+                            relative,
+                            f"Missing or unsafe route evidence: {evidence!r}",
+                        )
+        if summary.get("checkpoint_status") != phase.checkpoint_status:
+            _add(
+                issues,
+                "DECISION_MISMATCH",
+                relative,
+                (
+                    "Checkpoint status does not match recalculated Phase 1 "
+                    f"status {phase.checkpoint_status}."
+                ),
+            )
+        return summary
+    except (
+        OSError,
+        KeyError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        UnicodeError,
+    ) as error:
+        _add(issues, "DECISION_MISMATCH", relative, str(error))
+        return None
+
+
+def _check_route_a_configure(
+    bundle: Path,
+    route_a: Mapping[str, Any] | None,
+    summary: Mapping[str, Any] | None,
+    issues: list[SourceAdmissionBundleIssue],
+) -> None:
+    """Require truthful CPU-only generation evidence for Route A."""
+
+    summary_status = None
+    if isinstance(summary, Mapping):
+        decisions = summary.get("route_decisions")
+        route = decisions.get(ROUTE_A_ID) if isinstance(decisions, dict) else None
+        summary_status = route.get("status") if isinstance(route, dict) else None
+    admitted = (
+        route_a is not None
+        and route_a.get("admission_status") == "Admitted"
+    ) or summary_status == "Admitted"
+    if not admitted:
+        return
+
+    relative = "routes/route-a/configure-probe.json"
+    report_path = bundle / relative
+    if not report_path.is_file():
+        _add(
+            issues,
+            "ROUTE_A_CONFIGURE_INVALID",
+            relative,
+            "Route A is admitted without a configure-probe report.",
+        )
+        return
+    try:
+        report = _load_json(report_path)
+        cache_relative = report.get("cmake_cache_path")
+        if not _safe(cache_relative):
+            raise ValueError(f"Unsafe CMake cache path: {cache_relative!r}")
+        cache = report_path.parent / str(cache_relative)
+        if not cache.is_file():
+            raise ValueError(f"CMake cache is missing: {cache_relative}")
+        if _sha256(cache) != report.get("cmake_cache_sha256"):
+            raise ValueError("CMake cache SHA-256 does not match the report.")
+
+        decision = evaluate_route_a_configure_probe(
+            report.get("command", ()),
+            int(report.get("exit_code", -1)),
+            cache.read_text(encoding="utf-8-sig", errors="replace"),
+        )
+        reasons = list(decision.reasons)
+        if report.get("status") != "Passed":
+            reasons.append("Configure report status is not Passed.")
+        for flag in ("build_invoked", "install_invoked", "package_invoked"):
+            if report.get(flag) is not False:
+                reasons.append(f"{flag} must remain false.")
+        if report.get("cache_values") != dict(decision.cache_values):
+            reasons.append("Reported cache values do not match the CMake cache.")
+        for field in ("stdout_path", "stderr_path"):
+            evidence = report.get(field)
+            if (
+                not _safe(evidence)
+                or not (report_path.parent / str(evidence)).is_file()
+            ):
+                reasons.append(f"{field} is missing or unsafe: {evidence!r}.")
+        for reason in reasons:
+            _add(issues, "ROUTE_A_CONFIGURE_INVALID", relative, reason)
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        UnicodeError,
+    ) as error:
+        _add(issues, "ROUTE_A_CONFIGURE_INVALID", relative, str(error))
+
+
+def _check_route_b_blocker(
+    bundle: Path,
+    route_b: Mapping[str, Any] | None,
+    summary: Mapping[str, Any] | None,
+    issues: list[SourceAdmissionBundleIssue],
+) -> None:
+    """Forbid Route B admission while RB-SRC-001 is confirmed."""
+
+    relative = "routes/route-b/cmake-test-discovery.json"
+    path = bundle / relative
+    if not path.is_file():
+        return
+    try:
+        audit = _load_json(path)
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        UnicodeError,
+    ):
+        return
+    if audit.get("status") != "Confirmed":
+        return
+    record_admitted = (
+        route_b is not None
+        and route_b.get("admission_status") == "Admitted"
+    )
+    summary_admitted = False
+    if isinstance(summary, Mapping):
+        decisions = summary.get("route_decisions")
+        route = decisions.get(ROUTE_B_ID) if isinstance(decisions, dict) else None
+        summary_admitted = (
+            isinstance(route, dict) and route.get("status") == "Admitted"
+        )
+    if record_admitted or summary_admitted:
+        _add(
+            issues,
+            "ROUTE_B_BLOCKER_CONFLICT",
+            relative,
+            "Route B cannot be admitted while RB-SRC-001 is confirmed.",
+        )
+
+
+def _walk_paths(
     value: Any,
     location: str = "$",
 ) -> list[tuple[str, str]]:
-    """Collect evidence-path strings from common singular and plural fields."""
+    """Find evidence paths without treating machine paths as bundle files."""
 
     found: list[tuple[str, str]] = []
     if isinstance(value, dict):
@@ -317,606 +750,69 @@ def _walk_evidence_paths(
             ):
                 found.append((child_location, child))
             elif lowered.endswith("_paths") and isinstance(child, list):
-                for index, item in enumerate(child):
-                    if isinstance(item, str) and item:
-                        found.append((f"{child_location}[{index}]", item))
-            elif key == "command_records" and isinstance(child, list):
-                for index, item in enumerate(child):
-                    if isinstance(item, str) and item:
-                        found.append((f"{child_location}[{index}]", item))
-            found.extend(_walk_evidence_paths(child, child_location))
+                found.extend(
+                    (f"{child_location}[{index}]", item)
+                    for index, item in enumerate(child)
+                    if isinstance(item, str) and item
+                )
+            found.extend(_walk_paths(child, child_location))
     elif isinstance(value, list):
         for index, child in enumerate(value):
-            found.extend(
-                _walk_evidence_paths(child, f"{location}[{index}]")
-            )
+            found.extend(_walk_paths(child, f"{location}[{index}]"))
     return found
 
 
-def _check_required_files(
-    bundle_root: Path,
+def _check_payloads_and_paths(
+    bundle: Path,
     issues: list[SourceAdmissionBundleIssue],
 ) -> None:
-    """Require every stable R2 bundle member before trusting decisions."""
-
-    for relative_path in REQUIRED_PATHS:
-        if not (bundle_root / relative_path).is_file():
-            _issue(
-                issues,
-                "REQUIRED_PATH_MISSING",
-                relative_path,
-                "Required source-admission evidence file is missing.",
-            )
-
-
-def _check_hash_manifest(
-    bundle_root: Path,
-    issues: list[SourceAdmissionBundleIssue],
-) -> None:
-    """Verify exact file membership and hashes before semantic checks."""
-
-    manifest_path = bundle_root / "hash-manifest.sha256"
-    if not manifest_path.is_file():
-        return
-    for message in verify_hash_manifest(bundle_root, manifest_path):
-        _issue(
-            issues,
-            "HASH_MISMATCH",
-            "hash-manifest.sha256",
-            message,
-        )
-
-
-def _check_schemas(
-    bundle_root: Path,
-    repository_root: Path,
-    issues: list[SourceAdmissionBundleIssue],
-) -> None:
-    """Validate every controlled JSON document with its repository schema."""
-
-    schema_root = (
-        repository_root
-        / "experiments/granite_turboquant_intel/schemas/workbook05"
-    )
-    for relative_path, schema_name in SCHEMA_BINDINGS:
-        instance_path = bundle_root / relative_path
-        if instance_path.is_file():
-            _schema_issues(
-                issues,
-                instance_path,
-                schema_root / schema_name,
-                relative_path,
-            )
-
-    command_schema = schema_root / "documented-command-manifest.schema.json"
-    for relative_path in (
-        "commands/route-a-merged-openvino-documented-commands.json",
-        "commands/route-b-experimental-qjl-polar-documented-commands.json",
-    ):
-        instance_path = bundle_root / relative_path
-        if instance_path.is_file():
-            _schema_issues(
-                issues,
-                instance_path,
-                command_schema,
-                relative_path,
-            )
-
-
-def _check_measurement_controls(
-    bundle_root: Path,
-    repository_root: Path,
-    issues: list[SourceAdmissionBundleIssue],
-) -> dict[str, Any] | None:
-    """Recompute frozen-control hashes against the reviewed repository."""
-
-    relative_path = "measurement/measurement-controls.json"
-    report_path = bundle_root / relative_path
-    if not report_path.is_file():
-        return None
-
-    try:
-        report = _load_json(report_path)
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeError) as error:
-        _issue(issues, "MEASUREMENT_CONTROL_INVALID", relative_path, str(error))
-        return None
-
-    configuration_path = (
-        repository_root
-        / "experiments/granite_turboquant_intel/configurations/"
-        "workbook05/measurement-controls.json"
-    )
-    for finding in validate_measurement_controls(
-        report,
-        repository_root=repository_root,
-        configuration_path=configuration_path,
-    ):
-        _issue(issues, finding.code, relative_path, finding.message)
-
-    # A captured hash can truthfully describe a weakened schema. Inspect the
-    # schema's required structure as a separate semantic control.
-    try:
-        configuration = _load_json(configuration_path)
-        schema_path = repository_root / configuration["measured_run_schema_path"]
-        schema = _load_json(schema_path)
-        top_required = set(schema.get("required", ()))
-        top_properties = schema.get("properties", {})
-        quality = (
-            top_properties.get("quality", {})
-            if isinstance(top_properties, dict)
-            else {}
-        )
-        quality_required = set(
-            quality.get("required", ()) if isinstance(quality, dict) else ()
-        )
-        if (
-            schema.get("type") != "object"
-            or schema.get("additionalProperties") is not False
-            or not EXPECTED_MEASURED_RUN_TOP_LEVEL.issubset(top_required)
-            or not EXPECTED_QUALITY_FIELDS.issubset(quality_required)
-        ):
-            _issue(
-                issues,
-                "MEASURED_RUN_SCHEMA_PERMISSIVE",
-                str(configuration["measured_run_schema_path"]),
-                (
-                    "The measured-run schema must remain closed and require "
-                    "the complete performance and quality contract."
-                ),
-            )
-    except (
-        OSError,
-        KeyError,
-        TypeError,
-        ValueError,
-        json.JSONDecodeError,
-        UnicodeError,
-    ) as error:
-        _issue(
-            issues,
-            "MEASURED_RUN_SCHEMA_PERMISSIVE",
-            "measured-run-manifest.schema.json",
-            str(error),
-        )
-    return report
-
-
-def _check_source_provenance(
-    bundle_root: Path,
-    issues: list[SourceAdmissionBundleIssue],
-) -> None:
-    """Verify every Passed source report against the three pinned sources."""
-
-    for relative_path, expected in PINNED_SOURCE_REPORTS.items():
-        report_path = bundle_root / relative_path
-        if not report_path.is_file():
-            continue
-        try:
-            report = _load_json(report_path)
-        except (OSError, ValueError, json.JSONDecodeError, UnicodeError) as error:
-            _issue(
-                issues,
-                "SOURCE_PROVENANCE_MISMATCH",
-                relative_path,
-                str(error),
-            )
-            continue
-
-        for field, expected_value in expected.items():
-            actual = report.get(field)
-            if actual != expected_value:
-                _issue(
-                    issues,
-                    "SOURCE_PROVENANCE_MISMATCH",
-                    relative_path,
-                    (
-                        f"{field} must be {expected_value!r}; "
-                        f"found {actual!r}."
-                    ),
-                )
-
-        if report.get("actual_origin_url") != expected["expected_origin_url"]:
-            _issue(
-                issues,
-                "SOURCE_PROVENANCE_MISMATCH",
-                relative_path,
-                "Actual origin does not match the pinned origin.",
-            )
-        if report.get("actual_commit") != expected["expected_commit"]:
-            _issue(
-                issues,
-                "SOURCE_PROVENANCE_MISMATCH",
-                relative_path,
-                "Actual commit does not match the pinned commit.",
-            )
-        if report.get("working_tree_clean") is not True:
-            _issue(
-                issues,
-                "SOURCE_PROVENANCE_MISMATCH",
-                relative_path,
-                "The verified source tree is not clean.",
-            )
-
-        submodules = report.get("submodules")
-        incomplete = report.get("submodules_complete") is not True
-        if not isinstance(submodules, list):
-            incomplete = True
-        else:
-            incomplete = incomplete or any(
-                not isinstance(submodule, dict)
-                or submodule.get("status") != "clean"
-                for submodule in submodules
-            )
-        if incomplete:
-            _issue(
-                issues,
-                "SUBMODULE_INCOMPLETE",
-                relative_path,
-                "Recursive submodule evidence is incomplete or not clean.",
-            )
-
-        command_records = report.get("command_records")
-        if isinstance(command_records, list):
-            for command_record in command_records:
-                if (
-                    not _safe_relative_path(command_record)
-                    or not (bundle_root / command_record).is_file()
-                ):
-                    _issue(
-                        issues,
-                        "SOURCE_COMMAND_RECORD_MISSING",
-                        relative_path,
-                        f"Missing or unsafe command record: {command_record!r}",
-                    )
-
-
-def _load_route_records(
-    bundle_root: Path,
-    issues: list[SourceAdmissionBundleIssue],
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Load and independently recalculate both route admission records."""
-
-    records: list[dict[str, Any] | None] = []
-    for relative_path in (
-        "controls/route-a-source-admission.json",
-        "controls/route-b-source-admission.json",
-    ):
-        path = bundle_root / relative_path
-        if not path.is_file():
-            records.append(None)
-            continue
-        try:
-            record = _load_json(path)
-            decision = evaluate_source_admission(record)
-            if (
-                record.get("admission_status") == "Admitted"
-                and not decision.permitted
-            ):
-                _issue(
-                    issues,
-                    "FALSE_ADMISSION",
-                    relative_path,
-                    "; ".join(decision.reasons),
-                )
-
-            for proof in record.get("proofs", ()):
-                if isinstance(proof, dict) and proof.get("status") == "Passed":
-                    evidence_path = proof.get("evidence_path")
-                    if (
-                        not _safe_relative_path(evidence_path)
-                        or not (bundle_root / str(evidence_path)).is_file()
-                    ):
-                        _issue(
-                            issues,
-                            "FALSE_ADMISSION",
-                            relative_path,
-                            (
-                                f"Passed proof {proof.get('proof_id')} has "
-                                f"missing or unsafe evidence: {evidence_path!r}"
-                            ),
-                        )
-            records.append(record)
-        except (
-            KeyError,
-            OSError,
-            TypeError,
-            ValueError,
-            json.JSONDecodeError,
-            UnicodeError,
-        ) as error:
-            _issue(issues, "FALSE_ADMISSION", relative_path, str(error))
-            records.append(None)
-    return records[0], records[1]
-
-
-def _check_route_a_configure(
-    bundle_root: Path,
-    route_a_record: Mapping[str, Any] | None,
-    summary: Mapping[str, Any] | None,
-    issues: list[SourceAdmissionBundleIssue],
-) -> None:
-    """Require exact CPU-only CMake generation before Route A admission."""
-
-    summary_status = None
-    if summary is not None:
-        route_decisions = summary.get("route_decisions")
-        if isinstance(route_decisions, dict):
-            route_a = route_decisions.get(ROUTE_A_ID)
-            if isinstance(route_a, dict):
-                summary_status = route_a.get("status")
-
-    admitted = (
-        route_a_record is not None
-        and route_a_record.get("admission_status") == "Admitted"
-    ) or summary_status == "Admitted"
-    if not admitted:
-        return
-
-    relative_path = "routes/route-a/configure-probe.json"
-    report_path = bundle_root / relative_path
-    if not report_path.is_file():
-        _issue(
-            issues,
-            "ROUTE_A_CONFIGURE_INVALID",
-            relative_path,
-            "Route A is admitted without a configure-probe report.",
-        )
-        return
-
-    try:
-        report = _load_json(report_path)
-        cache_relative = report.get("cmake_cache_path")
-        if not _safe_relative_path(cache_relative):
-            raise ValueError(f"Unsafe CMake cache path: {cache_relative!r}")
-        cache_path = report_path.parent / str(cache_relative)
-        if not cache_path.is_file():
-            raise ValueError(f"CMake cache is missing: {cache_relative}")
-        if _sha256(cache_path) != report.get("cmake_cache_sha256"):
-            raise ValueError("CMake cache SHA-256 does not match the report.")
-
-        decision = evaluate_route_a_configure_probe(
-            report.get("command", ()),
-            int(report.get("exit_code", -1)),
-            cache_path.read_text(
-                encoding="utf-8-sig",
-                errors="replace",
-            ),
-        )
-        reasons: list[str] = list(decision.reasons)
-        if report.get("status") != "Passed":
-            reasons.append("Configure report status is not Passed.")
-        for flag in (
-            "build_invoked",
-            "install_invoked",
-            "package_invoked",
-        ):
-            if report.get(flag) is not False:
-                reasons.append(f"{flag} must remain false.")
-        if report.get("cache_values") != dict(decision.cache_values):
-            reasons.append("Reported cache values do not match the CMake cache.")
-
-        for evidence_field in ("stdout_path", "stderr_path"):
-            evidence_relative = report.get(evidence_field)
-            if (
-                not _safe_relative_path(evidence_relative)
-                or not (report_path.parent / str(evidence_relative)).is_file()
-            ):
-                reasons.append(
-                    f"{evidence_field} is missing or unsafe: "
-                    f"{evidence_relative!r}."
-                )
-
-        for reason in reasons:
-            _issue(
-                issues,
-                "ROUTE_A_CONFIGURE_INVALID",
-                relative_path,
-                reason,
-            )
-    except (
-        OSError,
-        TypeError,
-        ValueError,
-        json.JSONDecodeError,
-        UnicodeError,
-    ) as error:
-        _issue(
-            issues,
-            "ROUTE_A_CONFIGURE_INVALID",
-            relative_path,
-            str(error),
-        )
-
-
-def _check_decision_consistency(
-    bundle_root: Path,
-    route_a_record: Mapping[str, Any] | None,
-    route_b_record: Mapping[str, Any] | None,
-    measurement_report: Mapping[str, Any] | None,
-    issues: list[SourceAdmissionBundleIssue],
-) -> dict[str, Any] | None:
-    """Recalculate the summary so stale or optimistic claims cannot pass."""
-
-    relative_path = "summary/source-admission-summary.json"
-    summary_path = bundle_root / relative_path
-    if not summary_path.is_file():
-        return None
-    try:
-        summary = _load_json(summary_path)
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeError) as error:
-        _issue(issues, "DECISION_MISMATCH", relative_path, str(error))
-        return None
-
-    measurement_path = bundle_root / "measurement/measurement-controls.json"
-    if measurement_path.is_file():
-        actual_measurement_hash = _sha256(measurement_path)
-        if summary.get("measurement_controls_sha256") != actual_measurement_hash:
-            _issue(
-                issues,
-                "CONTROL_HASH_MISMATCH",
-                relative_path,
-                "Summary measurement-control hash does not match the file.",
-            )
-
-    if (
-        route_a_record is None
-        or route_b_record is None
-        or measurement_report is None
-    ):
-        return summary
-
-    try:
-        phase = calculate_phase_decision(
-            route_a_record,
-            route_b_record,
-            measurement_report,
-        )
-        expected_statuses = {
-            ROUTE_A_ID: phase.route_a_status,
-            ROUTE_B_ID: phase.route_b_status,
-        }
-        route_decisions = summary.get("route_decisions")
-        if not isinstance(route_decisions, dict):
-            raise ValueError("Summary route_decisions must be an object.")
-
-        for route_id, expected_status in expected_statuses.items():
-            route_summary = route_decisions.get(route_id)
-            actual_status = (
-                route_summary.get("status")
-                if isinstance(route_summary, dict)
-                else None
-            )
-            if actual_status != expected_status:
-                _issue(
-                    issues,
-                    "DECISION_MISMATCH",
-                    relative_path,
-                    (
-                        f"{route_id} must be {expected_status}; "
-                        f"found {actual_status!r}."
-                    ),
-                )
-            if isinstance(route_summary, dict):
-                for evidence_path in route_summary.get("evidence_paths", ()):
-                    if (
-                        not _safe_relative_path(evidence_path)
-                        or not (bundle_root / str(evidence_path)).is_file()
-                    ):
-                        _issue(
-                            issues,
-                            "UNSAFE_EVIDENCE_PATH",
-                            relative_path,
-                            f"Missing or unsafe route evidence: {evidence_path!r}",
-                        )
-
-        if summary.get("checkpoint_status") != phase.checkpoint_status:
-            _issue(
-                issues,
-                "DECISION_MISMATCH",
-                relative_path,
-                (
-                    "Checkpoint status does not match the recalculated "
-                    f"Phase 1 status {phase.checkpoint_status}."
-                ),
-            )
-    except (KeyError, TypeError, ValueError) as error:
-        _issue(issues, "DECISION_MISMATCH", relative_path, str(error))
-    return summary
-
-
-def _check_route_b_blocker(
-    bundle_root: Path,
-    route_b_record: Mapping[str, Any] | None,
-    summary: Mapping[str, Any] | None,
-    issues: list[SourceAdmissionBundleIssue],
-) -> None:
-    """Forbid experimental admission while RB-SRC-001 is confirmed."""
-
-    audit_path = bundle_root / "routes/route-b/cmake-test-discovery.json"
-    if not audit_path.is_file():
-        return
-    try:
-        audit = _load_json(audit_path)
-    except (OSError, ValueError, json.JSONDecodeError, UnicodeError):
-        return
-    if audit.get("status") != "Confirmed":
-        return
-
-    record_admitted = (
-        route_b_record is not None
-        and route_b_record.get("admission_status") == "Admitted"
-    )
-    summary_admitted = False
-    if summary is not None:
-        route_decisions = summary.get("route_decisions")
-        if isinstance(route_decisions, dict):
-            route = route_decisions.get(ROUTE_B_ID)
-            summary_admitted = (
-                isinstance(route, dict) and route.get("status") == "Admitted"
-            )
-    if record_admitted or summary_admitted:
-        _issue(
-            issues,
-            "ROUTE_B_BLOCKER_CONFLICT",
-            "routes/route-b/cmake-test-discovery.json",
-            "Route B cannot be admitted while RB-SRC-001 is confirmed.",
-        )
-
-
-def _check_json_paths_and_payloads(
-    bundle_root: Path,
-    issues: list[SourceAdmissionBundleIssue],
-) -> None:
-    """Reject dangerous suffixes, secrets, and traversal in JSON references."""
+    """Reject forbidden payload types, secrets, and traversal references."""
 
     for candidate in sorted(
-        path for path in bundle_root.rglob("*") if path.is_file()
+        path for path in bundle.rglob("*") if path.is_file()
     ):
-        relative_path = candidate.relative_to(bundle_root).as_posix()
+        relative = candidate.relative_to(bundle).as_posix()
         suffix = candidate.suffix.casefold()
         if suffix in FORBIDDEN_SUFFIXES:
-            _issue(
+            _add(
                 issues,
                 "FORBIDDEN_PAYLOAD",
-                relative_path,
+                relative,
                 f"Forbidden source-admission payload suffix: {suffix}",
             )
             continue
-
         try:
             text = candidate.read_text(encoding="utf-8-sig")
         except (OSError, UnicodeDecodeError):
             text = ""
-
         for pattern in SECRET_PATTERNS:
             if pattern in text:
-                _issue(
+                _add(
                     issues,
                     "SECRET_PATTERN",
-                    relative_path,
+                    relative,
                     f"Matched forbidden secret pattern: {pattern}",
                 )
-
         if suffix != ".json" or not text:
             continue
         try:
             value = json.loads(text)
         except json.JSONDecodeError:
             continue
-        for location, evidence_path in _walk_evidence_paths(value):
-            if not _safe_relative_path(evidence_path):
-                _issue(
+        for location, evidence in _walk_paths(value):
+            if not _safe(evidence):
+                _add(
                     issues,
                     "UNSAFE_EVIDENCE_PATH",
-                    relative_path,
-                    f"{location}: {evidence_path}",
+                    relative,
+                    f"{location}: {evidence}",
                 )
 
 
-def _deduplicate_and_sort(
+def _ordered(
     issues: Iterable[SourceAdmissionBundleIssue],
 ) -> list[SourceAdmissionBundleIssue]:
-    """Return stable unique findings for deterministic review reports."""
+    """Deduplicate and sort findings for deterministic reports."""
 
     unique = {
         (issue.code, issue.path, issue.message): issue
@@ -931,76 +827,44 @@ def validate_source_admission_bundle(
 ) -> list[SourceAdmissionBundleIssue]:
     """Return every integrity and scientific-claim issue in the bundle."""
 
-    bundle_root = bundle_root.resolve()
-    repository_root = repository_root.resolve()
+    bundle = bundle_root.resolve()
+    repository = repository_root.resolve()
     issues: list[SourceAdmissionBundleIssue] = []
-
-    _check_required_files(bundle_root, issues)
-    _check_hash_manifest(bundle_root, issues)
-    _check_schemas(bundle_root, repository_root, issues)
-    measurement_report = _check_measurement_controls(
-        bundle_root,
-        repository_root,
-        issues,
-    )
-    _check_source_provenance(bundle_root, issues)
-    route_a_record, route_b_record = _load_route_records(
-        bundle_root,
-        issues,
-    )
-    summary = _check_decision_consistency(
-        bundle_root,
-        route_a_record,
-        route_b_record,
-        measurement_report,
-        issues,
-    )
-    _check_route_a_configure(
-        bundle_root,
-        route_a_record,
-        summary,
-        issues,
-    )
-    _check_route_b_blocker(
-        bundle_root,
-        route_b_record,
-        summary,
-        issues,
-    )
-    _check_json_paths_and_payloads(bundle_root, issues)
-    return _deduplicate_and_sort(issues)
+    _check_required_and_hashes(bundle, issues)
+    _check_schemas(bundle, repository, issues)
+    measurement = _check_measurement_controls(bundle, repository, issues)
+    _check_provenance(bundle, issues)
+    route_a, route_b = _load_route_records(bundle, issues)
+    summary = _check_summary(bundle, route_a, route_b, measurement, issues)
+    _check_route_a_configure(bundle, route_a, summary, issues)
+    _check_route_b_blocker(bundle, route_b, summary, issues)
+    _check_payloads_and_paths(bundle, issues)
+    return _ordered(issues)
 
 
 def render_validation_report(
     issues: Iterable[SourceAdmissionBundleIssue],
 ) -> str:
-    """Render one deterministic Markdown report for every validator outcome."""
+    """Always render a deterministic Markdown report."""
 
-    ordered = _deduplicate_and_sort(issues)
-    lines = [
-        "# Workbook 05 source-admission artifact validation",
-        "",
-    ]
+    ordered = _ordered(issues)
+    lines = ["# Workbook 05 source-admission artifact validation", ""]
     if not ordered:
         lines.extend(
             [
                 "Validation passed.",
                 "",
                 (
-                    "Hashes, schemas, pinned provenance, recursive "
-                    "submodules, route decisions, Route A configure "
-                    "evidence, Route B blocker boundaries, measurement "
-                    "controls, paths, secrets, and payload suffixes are "
-                    "valid."
+                    "Hashes, schemas, pinned provenance, recursive submodules, "
+                    "route decisions, Route A configure evidence, Route B "
+                    "blocker boundaries, measurement controls, paths, secrets, "
+                    "and payload suffixes are valid."
                 ),
             ]
         )
     else:
         lines.extend(
-            [
-                f"Validation failed with {len(ordered)} issue(s).",
-                "",
-            ]
+            [f"Validation failed with {len(ordered)} issue(s).", ""]
         )
         lines.extend(
             f"- `{issue.code}` `{issue.path}` — {issue.message}"
@@ -1010,7 +874,7 @@ def render_validation_report(
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    """Validate one bundle, always write the Markdown report, and exit truthfully."""
+    """Validate one bundle, write the report, and return a truthful code."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle-root", type=Path, required=True)
@@ -1022,36 +886,26 @@ def main(argv: Iterable[str] | None = None) -> int:
         type=Path,
         required=True,
     )
-    arguments = parser.parse_args(list(argv) if argv is not None else None)
-
+    arguments = parser.parse_args(
+        list(argv) if argv is not None else None
+    )
     try:
         issues = validate_source_admission_bundle(
             arguments.bundle_root,
             arguments.repository_root,
         )
     except (
-        KeyError,
         OSError,
+        KeyError,
         TypeError,
         ValueError,
         json.JSONDecodeError,
         UnicodeError,
     ) as error:
-        issues = [
-            SourceAdmissionBundleIssue(
-                "VALIDATOR_ERROR",
-                ".",
-                str(error),
-            )
-        ]
-
+        issues = [SourceAdmissionBundleIssue("VALIDATOR_ERROR", ".", str(error))]
     report = render_validation_report(issues)
     arguments.report.parent.mkdir(parents=True, exist_ok=True)
-    arguments.report.write_text(
-        report,
-        encoding="utf-8",
-        newline="\n",
-    )
+    arguments.report.write_text(report, encoding="utf-8", newline="\n")
     print(report, end="")
     return 1 if issues else 0
 
