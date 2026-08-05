@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
@@ -280,6 +281,41 @@ namespace GraniteEdgeAI.Features.ModelImport
             ImportModelCardControl.ShowAwaitingSelection();
         }
 
+        /// <summary>
+        /// Invalidates a model that no longer agrees with its successful quick
+        /// scan immediately before the navigation handoff.
+        /// </summary>
+        private void InvalidateChangedModelSelection(
+            string selectedModelPath)
+        {
+            // Preserve only the safe final file name for UI and diagnostics.
+            string selectedFileName = Path.GetFileName(selectedModelPath);
+            const string failureCode = "model-selection-changed";
+            const string userMessage =
+                "The selected model changed after validation. Choose the model again.";
+            const string technicalMessage =
+                "The model file could not be reopened with the identity expected from its successful quick scan.";
+
+            // Remove every value that could otherwise permit stale navigation.
+            SelectedModelPath = null;
+            ValidatedScanResult = null;
+            HasValidatedModel = false;
+            ContinueToModelInspectionButton.IsEnabled = false;
+
+            // Record a path-minimised diagnostic without exposing the directory.
+            RecordFailureDiagnostic(
+                new ModelQuickScanFailureDiagnostic(
+                    selectedFileName,
+                    failureCode,
+                    technicalMessage));
+
+            // Keep the user on Model Import with one recoverable failure state.
+            ImportModelCardControl.ShowFailure(
+                selectedFileName,
+                failureCode,
+                userMessage);
+        }
+
         private async Task<ModelFormatSelection>
             ShowModelFormatSelectionAsync()
         {
@@ -322,27 +358,40 @@ namespace GraniteEdgeAI.Features.ModelImport
         /// </returns>
         internal bool TryRequestModelInspection()
         {
-            // Copy the current path into a local variable so that the same validated
-            // value is used throughout this method.
+            // Copy the current state into locals so one coherent validated
+            // selection is used throughout this boundary method.
             string? selectedModelPath = SelectedModelPath;
+            ModelQuickScanResult? validatedScanResult = ValidatedScanResult;
 
             // Protect the navigation boundary even if this method is called directly.
-            //
-            // The disabled button is a user-interface guard, but the method must also
-            // defend itself because future code or tests may call it independently.
+            // The disabled button is only the first user-interface guard.
             if (!HasValidatedModel ||
-                ValidatedScanResult is null ||
+                validatedScanResult is null ||
                 string.IsNullOrWhiteSpace(selectedModelPath))
             {
                 return false;
             }
 
-            // Tell the onboarding shell that the user wants to inspect this model.
-            //
+            // Reopen the file and convert the successful scan into one immutable
+            // request immediately before any navigation is raised.
+            bool requestCreated = ModelInspectionRequestFactory.TryCreate(
+                selectedModelPath,
+                validatedScanResult,
+                out ModelInspectionRequest? request);
+
+            // A missing, changed, locked, or otherwise untrusted selection must
+            // remain on this page and require explicit reselection.
+            if (!requestCreated || request is null)
+            {
+                InvalidateChangedModelSelection(selectedModelPath);
+                return false;
+            }
+
+            // Tell the onboarding shell to forward the exact validated request.
             // ModelImportPage deliberately does not manipulate StageFrame directly.
             ModelInspectionRequested?.Invoke(
                 this,
-                new ModelInspectionRequestedEventArgs(selectedModelPath));
+                new ModelInspectionRequestedEventArgs(request));
 
             // Report that the current state allowed the request.
             return true;
