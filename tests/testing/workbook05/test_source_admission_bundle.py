@@ -334,7 +334,7 @@ class SourceAdmissionBundleValidationTests(unittest.TestCase):
             bundle / "routes/route-a/source-tree-genai.json",
             self._source_report(
                 route_id=ROUTE_A_ID,
-                source_role="genai",
+                source_role="genai-compatibility-candidate",
                 repository_full_name="openvinotoolkit/openvino.genai",
                 origin_url=(
                     "https://github.com/openvinotoolkit/openvino.genai.git"
@@ -349,7 +349,7 @@ class SourceAdmissionBundleValidationTests(unittest.TestCase):
             bundle / "routes/route-b/source-tree-runtime.json",
             self._source_report(
                 route_id=ROUTE_B_ID,
-                source_role="runtime",
+                source_role="experimental-runtime",
                 repository_full_name="EgorDuplensky/openvino",
                 origin_url=(
                     "https://github.com/EgorDuplensky/openvino.git"
