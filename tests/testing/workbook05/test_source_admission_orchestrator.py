@@ -198,11 +198,11 @@ $result | ConvertTo-Json -Depth 20 -Compress
             completed = _run_powershell(command)
             self.assertEqual(0, completed.returncode, completed.stderr)
             result = json.loads(completed.stdout.strip().splitlines()[-1])
-            self.assertEqual("Completed", result.Outcome)
-            self.assertEqual("Admitted", result.RouteAStatus)
-            self.assertEqual("Blocked", result.RouteBStatus)
-            self.assertEqual("Passed", result.CheckpointStatus)
-            self.assertEqual(list(EXPECTED_STEP_ORDER), result.ExecutedSteps)
+            self.assertEqual("Completed", result["Outcome"])
+            self.assertEqual("Admitted", result["RouteAStatus"])
+            self.assertEqual("Blocked", result["RouteBStatus"])
+            self.assertEqual("Passed", result["CheckpointStatus"])
+            self.assertEqual(list(EXPECTED_STEP_ORDER), result["ExecutedSteps"])
 
             snapshot = {
                 line.strip()
@@ -252,7 +252,7 @@ try {{
     exit 0
 }}
 catch {{
-    Write-Error $_
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 17
 }}
 """
@@ -291,7 +291,7 @@ try {{
     exit 0
 }}
 catch {{
-    Write-Error $_
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 19
 }}
 """
