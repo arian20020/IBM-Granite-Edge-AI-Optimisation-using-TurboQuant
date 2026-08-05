@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "route_id": "route-a-merged-openvino",
+  "support_boundary": "merged",
+  "source": {
+    "repository_full_name": "openvinotoolkit/openvino",
+    "repository_url": "https://github.com/openvinotoolkit/openvino.git",
+    "source_role": "runtime",
+    "commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+    "base_commit": "816d60598f9b37135cf7d9ee7ca11b75082896b2",
+    "pull_request_url": "https://github.com/openvinotoolkit/openvino/pull/35853",
+    "pull_request_state": "merged"
+  },
+  "genai_candidate": null,
+  "admission_status": "Candidate",
+  "proofs": [],
+  "known_blockers": [],
+  "decision_reason": "Template example; no source-admission decision is implied."
+}

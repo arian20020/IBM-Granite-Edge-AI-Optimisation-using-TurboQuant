@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "workbook_id": "WB-05",
+  "workbook_revision": "1.4",
+  "status": "Not started",
+  "target": {
+    "computer_name": "LENOVO-PF4HMD0T",
+    "processor": "12th Gen Intel Core i5-12450H",
+    "physical_memory_gib": 15.7,
+    "runner_name": "lenovo-pf4hmd0t-wb05"
+  },
+  "routes": [
+    {
+      "route_id": "route-a-merged-openvino",
+      "evidence_folder": "official-openvino",
+      "admission_record": "route-a-source-admission.json"
+    },
+    {
+      "route_id": "route-b-experimental-qjl-polar",
+      "evidence_folder": "custom-openvino-turboquant",
+      "admission_record": "route-b-source-admission.json"
+    }
+  ],
+  "controls": {
+    "prompt_set_id": "GTQ-PROMPTS-v1",
+    "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+    "allowed_result_states": [
+      "Passed",
+      "Failed",
+      "Blocked",
+      "Skipped by frontier",
+      "Not applicable"
+    ],
+    "phase_order": [
+      "phase-0-preflight",
+      "phase-1-source-admission",
+      "phase-2-documented-build",
+      "phase-3-conformance",
+      "phase-4-capability-sweep",
+      "phase-5-granite-3b-frontier",
+      "phase-6-granite-3b-formal",
+      "phase-7-asymmetric-cross-family",
+      "phase-8-granite-8b-frontier",
+      "phase-9-ablations-repeatability",
+      "phase-10-conclusion"
+    ]
+  },
+  "created_at_utc": "2026-08-03T00:00:00Z"
+}
