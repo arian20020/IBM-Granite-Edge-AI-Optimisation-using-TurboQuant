@@ -203,3 +203,98 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
         for token in forbidden:
             with self.subTest(token=token):
                 self.assertNotIn(token.lower(), self.text.lower())
+
+
+ROUTE_A_GENAI_SCRIPT = (
+    REPOSITORY_ROOT
+    / "scripts/testing/workbook05/Invoke-Workbook05RouteAGenAIBuild.ps1"
+)
+
+
+class RouteAGenAIBuildContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.text = ROUTE_A_GENAI_SCRIPT.read_text(encoding="utf-8")
+
+    def test_pins_exact_genai_source_and_runtime_prerequisite(self) -> None:
+        expected = (
+            "https://github.com/openvinotoolkit/openvino.genai.git",
+            "05e5c7670b597746f858946974d11f38e3baf42f",
+            "src/docs/BUILD.md",
+            "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+            "route-a-merged-openvino",
+            "RuntimeDecisionPath",
+            "RuntimeInstallDirectory",
+        )
+        for token in expected:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
+
+    def test_requires_passed_exact_runtime_decision(self) -> None:
+        self.assertIn("$runtimeDecision.status -ne 'Passed'", self.text)
+        self.assertIn("$runtimeDecision.component -ne 'runtime'", self.text)
+        self.assertIn("$runtimeDecision.source_commit -ne $RuntimeSourceCommit", self.text)
+        self.assertIn("$runtimeDecision.route_id -ne $RouteId", self.text)
+
+    def test_resolves_exactly_one_installed_openvino_config(self) -> None:
+        self.assertIn("-Filter 'OpenVINOConfig.cmake'", self.text)
+        self.assertIn("$openvinoConfigs.Count -ne 1", self.text)
+        self.assertIn("$openvinoConfigDirectory = $openvinoConfigs[0].DirectoryName", self.text)
+
+    def test_uses_separate_genai_source_build_and_install_paths(self) -> None:
+        self.assertIn("Join-Path $workDirectory 'genai'", self.text)
+        self.assertIn("Join-Path $workDirectory 'b-genai'", self.text)
+        self.assertIn("Join-Path $workDirectory 'i-genai'", self.text)
+        self.assertIn("External GenAI path already exists", self.text)
+
+    def test_configures_against_exact_runtime_install(self) -> None:
+        expected = (
+            "'--G', $Generator",
+            "'-A', 'x64'",
+            "'-DCMAKE_BUILD_TYPE=Release'",
+            "\" -DOpenVINO_DIR=$openvinoConfigDirectory\"",
+            "'-DENABLE_PYTHON=ON'",
+            "'-DENABLE_JS=OFF'",
+            "\" -DPython3_EXECUTABLE=$PythonPath\"",
+        )
+        for token in expected:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
+
+    def test_builds_installs_and_records_compatibility_attempt(self) -> None:
+        expected = (
+            "'--build', $buildRoot",
+            "'--config', 'Release'",
+            "'--parallel', '2'",
+            "'--install', $buildRoot",
+            "'--prefix', $installRoot",
+            "compatibility-attempt.json",
+            "record_type = 'build-compatibility-attempt'",
+            "retained = $true",
+            "binaries.json",
+            "decision.json",
+        )
+        for token in expected:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
+
+    def test_snapshots_and_restores_runtime_environment(self) -> None:
+        for name in ("PATH", "PYTHONPATH", "OPENVINO_LIB_PATHS", "OpenVINO_DIR"):
+            with self.subTest(name=name):
+                self.assertIn(f'{name}'', self.text)
+        self.assertIn("Restore-Wb05Environment -Snapshot $environmentSnapshot", self.text)
+        self.assertRegex(self.text, r"finally\s*\{.*?Restore-Wb05Environment", re.S)
+
+    def test_does_not_mix_with_archives_or_execute_models(self) -> None:
+        forbidden = (
+            "download.openvino",
+            "storage.openvinotoolkit.org/repositories/openvino_genai",
+            ".zip",
+            ".whl",
+            "huggingface.co",
+            "generate(",
+            "benchmark_app",
+        )
+        for token in forbidden:
+            with self.subTest(token=token):
+                self.assertNotIn(token.lower(), self.text.lower())
