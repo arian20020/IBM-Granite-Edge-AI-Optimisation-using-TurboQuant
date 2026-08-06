@@ -41,10 +41,13 @@ _GLOB_LINE = re.compile(
     r"\$\{TEST_DIR\}/(?P<directory>[^/\s\)]+(?:/[^/\s\)]+)*)/"
     r"\$\{TEST_CLASS_FILE_NAME\}\)\s*$"
 )
+_ARCH_BRANCH_LINE = re.compile(r"^(?P<indent>\s*)if\(X86_64\)\s*$")
 
-# The repaired form uses a unique temporary variable for each directory and an
-# explicit append operation immediately afterwards.
+# The repaired form uses per-class resets, a unique temporary variable for each
+# directory and an explicit append operation immediately afterwards.
 _REPAIRED_MARKERS: Final = (
+    "set(LIST_OF_TEST_ARCH_INSTANCES)",
+    "set(LIST_OF_TEST_COMMON_INSTANCES)",
     "list(APPEND LIST_OF_TEST_ARCH_INSTANCES",
     "list(APPEND LIST_OF_TEST_COMMON_INSTANCES",
 )
@@ -88,11 +91,12 @@ def _temporary_variable(variable: str, directory: str) -> str:
 
 
 def repair_target_per_test_text(cmake_text: str) -> str:
-    """Replace repeated assignments with explicit, branch-local accumulation.
+    """Replace repeated assignments with isolated, branch-local accumulation.
 
     The function is fail-closed: it repairs only the exact reviewed directory
-    set. Already repaired text is returned unchanged, making the operation safe
-    to rerun during validation.
+    set. Each foreach iteration receives fresh architecture and common instance
+    lists before directory-specific matches are appended. Already repaired text
+    is returned unchanged, making the operation safe to rerun during validation.
     """
 
     # Preserve the source file's existing newline convention while generating a
@@ -104,8 +108,36 @@ def repair_target_per_test_text(cmake_text: str) -> str:
     seen_arch: set[str] = set()
     seen_common: set[str] = set()
     matched_original = 0
+    inserted_arch_reset = False
+    inserted_common_reset = False
 
-    for line in lines:
+    for index, line in enumerate(lines):
+        # The architecture list is shared by mutually exclusive platform
+        # branches, so reset it immediately before the reviewed X64 branch. This
+        # location executes for every TEST_CLASS_FILE foreach iteration.
+        branch_match = _ARCH_BRANCH_LINE.match(line)
+        if branch_match is not None:
+            next_match = (
+                _GLOB_LINE.match(lines[index + 1])
+                if index + 1 < len(lines)
+                else None
+            )
+            if (
+                next_match is not None
+                and next_match.group("variable") == _ARCH_VARIABLE
+                and next_match.group("directory") == "instances/x64"
+            ):
+                if inserted_arch_reset:
+                    raise RouteBContractError(
+                        "Duplicate reviewed architecture reset anchor was found."
+                    )
+                replacements.append(
+                    f"{branch_match.group('indent')}set({_ARCH_VARIABLE})"
+                )
+                inserted_arch_reset = True
+            replacements.append(line)
+            continue
+
         match = _GLOB_LINE.match(line)
         if match is None:
             replacements.append(line)
@@ -132,6 +164,17 @@ def repair_target_per_test_text(cmake_text: str) -> str:
         target_set.add(directory)
         matched_original += 1
 
+        # The common list is independent from the architecture list but has the
+        # same foreach lifetime. Reset it immediately before its first reviewed
+        # directory so results from a previous class cannot leak into this target.
+        if variable == _COMMON_VARIABLE and directory == "instances/common":
+            if inserted_common_reset:
+                raise RouteBContractError(
+                    "Duplicate reviewed common reset anchor was found."
+                )
+            replacements.append(f"{indent}set({_COMMON_VARIABLE})")
+            inserted_common_reset = True
+
         temporary = _temporary_variable(variable, directory)
         replacements.append(
             f"{indent}file(GLOB_RECURSE {temporary} "
@@ -142,9 +185,9 @@ def repair_target_per_test_text(cmake_text: str) -> str:
         )
 
     if matched_original == 0:
-        # An already repaired file contains both append markers and no unsafe
-        # base-variable GLOB assignment. Return it byte-for-byte except for the
-        # deterministic final newline.
+        # An already repaired file contains both resets and both append markers,
+        # with no unsafe base-variable GLOB assignment. Return it byte-for-byte
+        # except for the deterministic final newline.
         if all(marker in cmake_text for marker in _REPAIRED_MARKERS):
             return newline.join(lines) + newline
         raise RouteBContractError(
@@ -162,6 +205,14 @@ def repair_target_per_test_text(cmake_text: str) -> str:
         raise RouteBContractError(
             "Common source directories did not match the reviewed set: "
             f"{sorted(seen_common)}"
+        )
+    if not inserted_arch_reset:
+        raise RouteBContractError(
+            "The reviewed architecture reset anchor was not found; refusing to edit."
+        )
+    if not inserted_common_reset:
+        raise RouteBContractError(
+            "The reviewed common reset anchor was not found; refusing to edit."
         )
 
     repaired = newline.join(replacements) + newline
