@@ -14,7 +14,9 @@ SCRIPT_PATH = (
 class RouteAGenAIStagingContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.text = SCRIPT_PATH.read_text(encoding="utf-8")
+        # Strict decoding also protects the GenAI orchestrator from the binary
+        # truncation defect already found in other Phase 2 PowerShell controls.
+        cls.text = SCRIPT_PATH.read_text(encoding="utf-8", errors="strict")
 
     def test_genai_uses_a_fresh_external_workspace(self) -> None:
         self.assertIn("New-Wb05ExternalWorkspace", self.text)
@@ -37,6 +39,16 @@ class RouteAGenAIStagingContractTests(unittest.TestCase):
         self.assertIn("Assert-Wb05SafePath", self.text)
         self.assertIn("Split-Path -Leaf $resolvedRuntimeInstall", self.text)
         self.assertIn("accepted Route A i-ov directory", self.text)
+
+    def test_resource_safety_stops_are_not_reported_as_source_failures(self) -> None:
+        # A sampler-triggered termination is an environmental safety decision,
+        # not evidence that the pinned GenAI source failed to compile.
+        self.assertIn("function Test-Wb05SafetyStop", self.text)
+        self.assertGreaterEqual(self.text.count("Test-Wb05SafetyStop -Result"), 3)
+        self.assertGreaterEqual(self.text.count("-Status 'Infrastructure interrupted'"), 3)
+        self.assertIn("GenAI configure was terminated by the reviewed resource-safety boundary", self.text)
+        self.assertIn("GenAI build was terminated by the reviewed resource-safety boundary", self.text)
+        self.assertIn("GenAI install was terminated by the reviewed resource-safety boundary", self.text)
 
 
 if __name__ == "__main__":
