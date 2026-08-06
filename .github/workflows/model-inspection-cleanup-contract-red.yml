@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: model-inspection-cleanup-contract-red-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   contract-red:
     name: Prove cleanup contract regression
