@@ -140,7 +140,6 @@ jobs:
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --filter "TestCategory=Contract" `
             --minimum-expected-tests 75 `
             --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Contracts.Tests.trx" `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts"
