@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
@@ -11,6 +12,8 @@ internal sealed class WindowsJobObject : IDisposable
 {
     private const int ProcessIdCapacity = 64;
     private const int ProcessIdListHeaderBytes = sizeof(uint) * 2;
+    private static readonly TimeSpan EmptyPollInterval =
+        TimeSpan.FromMilliseconds(25);
     private bool _disposed;
 
     private WindowsJobObject(SafeJobHandle handle)
@@ -96,6 +99,38 @@ internal sealed class WindowsJobObject : IDisposable
 
     internal uint GetActiveProcessCount() =>
         QueryBasicAccounting().ActiveProcesses;
+
+    /// <summary>
+    /// Waits for authoritative Job Object accounting to report no active
+    /// process. Root-process exit alone is not accepted as tree cleanup.
+    /// </summary>
+    internal async Task<bool> WaitUntilEmptyAsync(
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            timeout,
+            TimeSpan.Zero);
+        long startedAt = Stopwatch.GetTimestamp();
+
+        while (GetActiveProcessCount() != 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TimeSpan elapsed = Stopwatch.GetElapsedTime(startedAt);
+            if (elapsed >= timeout)
+            {
+                return false;
+            }
+
+            TimeSpan remaining = timeout - elapsed;
+            TimeSpan delay = remaining < EmptyPollInterval
+                ? remaining
+                : EmptyPollInterval;
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// Returns the process IDs currently assigned to this Job Object. This is
