@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -61,27 +62,72 @@ public sealed class NativeLayoutTests
     public void LockedNativeConstantsContainNoBreakawayFlag()
     {
         uint expectedCreationFlags =
-            NativeConstants.ExtendedStartupInfoPresent |
-            NativeConstants.CreateNoWindow |
-            NativeConstants.CreateUnicodeEnvironment;
+            ReadUInt32Constant(nameof(NativeConstants.ExtendedStartupInfoPresent)) |
+            ReadUInt32Constant(nameof(NativeConstants.CreateNoWindow)) |
+            ReadUInt32Constant(nameof(NativeConstants.CreateUnicodeEnvironment));
+        uint actualCreationFlags =
+            ReadUInt32Constant(nameof(NativeConstants.RequiredCreationFlags));
+        uint breakawayFlag =
+            ReadUInt32Constant(nameof(NativeConstants.CreateBreakawayFromJob));
 
-        Assert.AreEqual(expectedCreationFlags, NativeConstants.RequiredCreationFlags);
-        Assert.AreEqual(
-            0u,
-            NativeConstants.RequiredCreationFlags &
-                NativeConstants.CreateBreakawayFromJob);
+        Assert.AreEqual(expectedCreationFlags, actualCreationFlags);
+        Assert.AreEqual(0u, actualCreationFlags & breakawayFlag);
         Assert.AreEqual(
             (nuint)0x00020002,
-            NativeConstants.ProcThreadAttributeHandleList);
+            ReadNativeUIntField(
+                nameof(NativeConstants.ProcThreadAttributeHandleList)));
         Assert.AreEqual(
             (nuint)0x0002000D,
-            NativeConstants.ProcThreadAttributeJobList);
-        Assert.AreEqual(0x00002000u, NativeConstants.JobObjectLimitKillOnJobClose);
-        Assert.AreEqual(0x00000100u, NativeConstants.StartUseStandardHandles);
-        Assert.AreEqual(0x00000001u, NativeConstants.HandleFlagInherit);
-        Assert.AreEqual(259u, NativeConstants.StillActive);
+            ReadNativeUIntField(
+                nameof(NativeConstants.ProcThreadAttributeJobList)));
+        Assert.AreEqual(
+            0x00002000u,
+            ReadUInt32Constant(
+                nameof(NativeConstants.JobObjectLimitKillOnJobClose)));
+        Assert.AreEqual(
+            0x00000100u,
+            ReadUInt32Constant(nameof(NativeConstants.StartUseStandardHandles)));
+        Assert.AreEqual(
+            0x00000001u,
+            ReadUInt32Constant(nameof(NativeConstants.HandleFlagInherit)));
+        Assert.AreEqual(
+            259u,
+            ReadUInt32Constant(nameof(NativeConstants.StillActive)));
     }
 
     private static int OffsetOf<T>(string fieldName)
         where T : struct => checked((int)Marshal.OffsetOf<T>(fieldName));
+
+    /// <summary>
+    /// Reads a constant through reflection so the assertion observes the built
+    /// assembly at runtime instead of being folded into an always-true compile-
+    /// time comparison.
+    /// </summary>
+    private static uint ReadUInt32Constant(string fieldName)
+    {
+        FieldInfo field = typeof(NativeConstants).GetField(
+            fieldName,
+            BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException(
+                $"The native constant '{fieldName}' was not found.");
+        return (uint)(field.GetRawConstantValue()
+            ?? throw new InvalidOperationException(
+                $"The native constant '{fieldName}' has no value."));
+    }
+
+    /// <summary>
+    /// Reads a pointer-sized static field through reflection for the same
+    /// runtime-observation reason as <see cref="ReadUInt32Constant"/>.
+    /// </summary>
+    private static nuint ReadNativeUIntField(string fieldName)
+    {
+        FieldInfo field = typeof(NativeConstants).GetField(
+            fieldName,
+            BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException(
+                $"The native field '{fieldName}' was not found.");
+        return (nuint)(field.GetValue(null)
+            ?? throw new InvalidOperationException(
+                $"The native field '{fieldName}' has no value."));
+    }
 }
