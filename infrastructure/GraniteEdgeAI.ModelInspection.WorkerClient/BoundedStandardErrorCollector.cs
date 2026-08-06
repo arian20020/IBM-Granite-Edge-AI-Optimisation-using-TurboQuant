@@ -36,8 +36,12 @@ internal sealed class BoundedStandardErrorCollector
         }
 
         byte[] readBuffer = new byte[ReadBufferSize];
+        char[] validationBuffer = new char[
+            StrictUtf8.GetMaxCharCount(ReadBufferSize)];
+        Decoder fullStreamDecoder = StrictUtf8.GetDecoder();
         using MemoryStream retained = new(_maximumRetainedBytes);
         bool discardedBytes = false;
+        bool invalidUtf8Detected = false;
 
         while (true)
         {
@@ -48,6 +52,27 @@ internal sealed class BoundedStandardErrorCollector
             if (bytesRead == 0)
             {
                 break;
+            }
+
+            // Validate every byte, including bytes beyond the retained prefix.
+            // The decoded characters are intentionally discarded so memory use
+            // remains fixed while malformed data anywhere is still detected.
+            if (!invalidUtf8Detected)
+            {
+                try
+                {
+                    fullStreamDecoder.Convert(
+                        readBuffer.AsSpan(0, bytesRead),
+                        validationBuffer.AsSpan(),
+                        flush: false,
+                        out _,
+                        out _,
+                        out _);
+                }
+                catch (DecoderFallbackException)
+                {
+                    invalidUtf8Detected = true;
+                }
             }
 
             int remainingCapacity = checked(
@@ -66,21 +91,37 @@ internal sealed class BoundedStandardErrorCollector
             }
         }
 
-        string decodedText;
-        try
+        if (!invalidUtf8Detected)
         {
-            decodedText = StrictUtf8.GetString(retained.ToArray());
+            try
+            {
+                // Flush the decoder so an incomplete final UTF-8 sequence is
+                // treated as invalid even though no more bytes arrive.
+                fullStreamDecoder.Convert(
+                    ReadOnlySpan<byte>.Empty,
+                    validationBuffer.AsSpan(),
+                    flush: true,
+                    out _,
+                    out _,
+                    out _);
+            }
+            catch (DecoderFallbackException)
+            {
+                invalidUtf8Detected = true;
+            }
         }
-        catch (DecoderFallbackException)
+
+        if (invalidUtf8Detected)
         {
             // Invalid bytes are never converted with replacement characters or
-            // exposed as hexadecimal content; the raw pipe has already drained.
+            // exposed as hexadecimal content; the raw pipe is already drained.
             return new StandardErrorSnapshot(
                 retainedText: string.Empty,
                 isTruncated: discardedBytes,
                 invalidUtf8Detected: true);
         }
 
+        string decodedText = StrictUtf8.GetString(retained.ToArray());
         string redactedText = StandardErrorRedactor.Redact(decodedText);
         string boundedText = LimitUtf8(
             redactedText,
