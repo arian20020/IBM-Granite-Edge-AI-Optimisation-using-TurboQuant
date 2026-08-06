@@ -14,8 +14,8 @@
     {
       "route_id": "route-b-experimental-qjl-polar",
       "enabled": false,
-      "prerequisite_status": "Pending",
-      "prerequisite_evidence_path": "br8/decision.json"
+      "prerequisite_status": "Blocked",
+      "prerequisite_evidence_path": "docs/testing/workbook05/2026-08-06-route-b-phase-2-closure.md"
     }
   ],
   "granite_model_test_authorised": false,
