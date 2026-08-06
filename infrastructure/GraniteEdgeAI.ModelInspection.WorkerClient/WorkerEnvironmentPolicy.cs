@@ -68,7 +68,9 @@ internal static class WorkerEnvironmentPolicy
             UnauthorizedAccessException or
             NotSupportedException)
         {
-            throw Failure(error);
+            // Path APIs can echo environment values in exception text. Replace
+            // expected validation failures with the stable sanitized error.
+            throw Failure();
         }
     }
 
@@ -126,14 +128,11 @@ internal static class WorkerEnvironmentPolicy
         return canonical;
     }
 
-    private static WorkerClientPolicyException Failure(
-        Exception? innerException = null)
+    private static WorkerClientPolicyException Failure()
     {
         WorkerClientFailure failure = new(
             WorkerClientFailureCodes.WorkerEnvironmentPolicyFailed,
             FailureMessage);
-        return innerException is null
-            ? new WorkerClientPolicyException(failure)
-            : new WorkerClientPolicyException(failure, innerException);
+        return new WorkerClientPolicyException(failure);
     }
 }
