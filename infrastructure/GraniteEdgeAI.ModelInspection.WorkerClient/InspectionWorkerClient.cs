@@ -24,10 +24,14 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         "The Model Inspection worker process ended unexpectedly.";
     private const string OverallTimeoutMessage =
         "The Model Inspection worker exceeded the approved execution time.";
+    private const string CancellationForcedMessage =
+        "The Model Inspection worker did not stop within the cancellation grace period.";
     private const string ExitMismatchMessage =
         "The Model Inspection worker terminal result did not match its process exit.";
     private const string ProcessTreeMessage =
         "The Model Inspection worker process tree did not become empty.";
+    private static readonly Task NeverCompletingTask =
+        Task.Delay(Timeout.InfiniteTimeSpan);
 
     private readonly WorkerClientOptions _options;
     private readonly WorkerExecutableResolver _resolver;
@@ -97,6 +101,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         WorkerFailureAccumulator failures = new();
         WorkerProcessSession? session = null;
         Task<StandardErrorSnapshot>? standardErrorTask = null;
+        Task? processExitTask = null;
         StandardErrorSnapshot standardError = new(
             retainedText: string.Empty,
             isTruncated: false,
@@ -105,6 +110,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         int? exitCode = null;
         bool forcedTermination = false;
         bool handshakeCompleted = false;
+        bool startSent = false;
+        bool rethrowPreStartCancellation = false;
 
         try
         {
@@ -120,79 +127,97 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
 
             session = WindowsWorkerProcessLauncher.Launch(launchRequest);
 
-            // Start both observation tasks immediately so neither redirected
-            // stream nor the process handle can deadlock behind sequential I/O.
+            // Start all independent observations immediately. No redirected
+            // stream waits behind another stream or behind process exit.
             BoundedStandardErrorCollector stderrCollector = new(
                 _options.MaximumRetainedStandardErrorBytes);
             standardErrorTask = stderrCollector.DrainAsync(
                 session.StandardError,
                 CancellationToken.None);
-            Task processExitTask = session.WaitForExitAsync(
-                CancellationToken.None);
+            processExitTask = session.WaitForExitAsync(CancellationToken.None);
             BoundedUtf8LineReader stdoutReader = new(
                 session.StandardOutput,
                 WorkerProtocol.MaximumMessageBytes);
-
-            using CancellationTokenSource overallTimeout =
-                CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken);
-            overallTimeout.CancelAfter(_options.OverallTimeout);
+            Task overallSignal = Task.Delay(_options.OverallTimeout);
+            Task callerSignal = cancellationToken.CanBeCanceled
+                ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                : NeverCompletingTask;
 
             WorkerHelloMessage hello = await ReadAndValidateHelloAsync(
                     stdoutReader,
                     session,
                     processExitTask,
-                    overallTimeout.Token,
+                    callerSignal,
+                    overallSignal,
                     cancellationToken)
                 .ConfigureAwait(false);
             handshakeCompleted = true;
+
+            // Cancellation before StartSent cannot produce a trusted worker
+            // Cancelled terminal because no request has become active.
+            cancellationToken.ThrowIfCancellationRequested();
+            if (overallSignal.IsCompleted)
+            {
+                throw PolicyFailure(
+                    WorkerClientFailureCodes.WorkerOverallTimeout,
+                    OverallTimeoutMessage);
+            }
 
             using BoundedUtf8LineWriter stdinWriter = new(
                 session.StandardInput,
                 WorkerProtocol.MaximumMessageBytes);
             await stdinWriter.WriteLineAsync(
                     WorkerProtocolJson.Serialize(command),
-                    overallTimeout.Token)
+                    CancellationToken.None)
                 .ConfigureAwait(false);
+            startSent = true;
 
             WorkerConversation conversation = new(
                 hello,
                 command.RequestId);
-            terminal = await ReadConversationToEndAsync(
+            Task<WorkerCompletedMessage> conversationTask =
+                ReadConversationToEndAsync(
                     stdoutReader,
                     conversation,
-                    progress,
-                    overallTimeout.Token)
-                .ConfigureAwait(false);
+                    progress);
+            WorkerCancellationCoordinator cancellationCoordinator = new(
+                stdinWriter,
+                command.RequestId);
 
-            // No further commands are valid after the terminal result. Closing
-            // stdin also lets a worker waiting for EOF complete naturally.
-            await session.StandardInput.DisposeAsync().ConfigureAwait(false);
-            await processExitTask.WaitAsync(overallTimeout.Token)
+            ActiveRunResult activeResult = await RunActiveRequestAsync(
+                    session,
+                    conversationTask,
+                    processExitTask,
+                    cancellationCoordinator,
+                    callerSignal,
+                    overallSignal)
                 .ConfigureAwait(false);
-            exitCode = session.GetExitCode();
-            standardError = await standardErrorTask.ConfigureAwait(false);
-
-            if (session.Job.GetActiveProcessCount() != 0)
+            terminal = activeResult.TerminalMessage;
+            exitCode = activeResult.ExitCode;
+            forcedTermination = activeResult.ForcedTermination;
+            if (activeResult.Failure is not null)
             {
-                throw PolicyFailure(
+                _ = failures.TrySetPrimary(activeResult.Failure);
+            }
+
+            // Closing stdin after completion prevents a worker from waiting for
+            // more commands and makes the parent-loss signal unambiguous.
+            await session.StandardInput.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (WorkerClientPolicyException error)
+        {
+            WorkerClientFailure failure = error.Failure;
+            if (failure.Code == WorkerClientFailureCodes.WorkerProtocolInvalid &&
+                session is not null &&
+                processExitTask?.IsCompleted == true &&
+                TryGetActiveProcessCount(session) != 0)
+            {
+                failure = new WorkerClientFailure(
                     WorkerClientFailureCodes.WorkerProcessTreeIntegrityFailed,
                     ProcessTreeMessage);
             }
 
-            if (!WorkerExitConsistencyValidator.IsConsistent(
-                    terminal.CompletionStatus,
-                    exitCode.Value,
-                    forcedTermination: false))
-            {
-                throw PolicyFailure(
-                    WorkerClientFailureCodes.WorkerExitMismatch,
-                    ExitMismatchMessage);
-            }
-        }
-        catch (WorkerClientPolicyException error)
-        {
-            _ = failures.TrySetPrimary(error.Failure);
+            _ = failures.TrySetPrimary(failure);
         }
         catch (ProtocolStreamException error)
         {
@@ -221,19 +246,9 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                     : HandshakeInvalidMessage));
         }
         catch (OperationCanceledException)
-            when (cancellationToken.IsCancellationRequested)
+            when (!startSent && cancellationToken.IsCancellationRequested)
         {
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            _ = failures.TrySetPrimary(new WorkerClientFailure(
-                handshakeCompleted
-                    ? WorkerClientFailureCodes.WorkerOverallTimeout
-                    : WorkerClientFailureCodes.WorkerHandshakeTimeout,
-                handshakeCompleted
-                    ? OverallTimeoutMessage
-                    : HandshakeTimeoutMessage));
+            rethrowPreStartCancellation = true;
         }
         catch (Exception error) when (IsExpectedProcessFailure(error))
         {
@@ -245,14 +260,66 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         {
             if (session is not null)
             {
-                try
+                // Any non-success path must leave the Job Object empty before
+                // its handle is released. TerminateJobObject is recorded as a
+                // forced operational outcome, never ordinary cancellation.
+                if (rethrowPreStartCancellation ||
+                    failures.PrimaryFailure is not null)
                 {
-                    forcedTermination =
-                        session.Job.GetActiveProcessCount() != 0;
+                    try
+                    {
+                        forcedTermination |=
+                            await session.TerminateAndVerifyEmptyAsync(
+                                    _options.ProcessTreeCleanupTimeout)
+                                .ConfigureAwait(false);
+                    }
+                    catch (WorkerClientPolicyException error)
+                    {
+                        if (!failures.TrySetPrimary(error.Failure))
+                        {
+                            failures.AddSecondary(error);
+                        }
+                    }
+                    catch (Exception error) when (
+                        IsExpectedProcessFailure(error))
+                    {
+                        failures.AddSecondary(error);
+                        _ = failures.TrySetPrimary(new WorkerClientFailure(
+                            WorkerClientFailureCodes.WorkerCleanupFailed,
+                            "The Model Inspection worker cleanup could not be verified."));
+                    }
                 }
-                catch (Exception error) when (IsExpectedProcessFailure(error))
+
+                if (exitCode is null && processExitTask?.IsCompleted == true)
                 {
-                    failures.AddSecondary(error);
+                    try
+                    {
+                        exitCode = session.GetExitCode();
+                    }
+                    catch (Exception error) when (
+                        IsExpectedProcessFailure(error) ||
+                        error is WorkerClientPolicyException)
+                    {
+                        failures.AddSecondary(error);
+                    }
+                }
+
+                if (standardErrorTask is not null)
+                {
+                    try
+                    {
+                        standardError = await standardErrorTask
+                            .WaitAsync(
+                                _options.ProcessTreeCleanupTimeout,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception error) when (
+                        IsExpectedProcessFailure(error) ||
+                        error is TimeoutException)
+                    {
+                        failures.AddSecondary(error);
+                    }
                 }
 
                 try
@@ -274,25 +341,11 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                         "The Model Inspection worker cleanup could not be verified."));
                 }
             }
+        }
 
-            if (standardErrorTask is not null &&
-                !standardErrorTask.IsCompletedSuccessfully)
-            {
-                try
-                {
-                    standardError = await standardErrorTask
-                        .WaitAsync(
-                            _options.ProcessTreeCleanupTimeout,
-                            CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception error) when (
-                    IsExpectedProcessFailure(error) ||
-                    error is TimeoutException)
-                {
-                    failures.AddSecondary(error);
-                }
-            }
+        if (rethrowPreStartCancellation)
+        {
+            throw new OperationCanceledException(cancellationToken);
         }
 
         WorkerClientFailure? failure = failures.PrimaryFailure;
@@ -310,49 +363,398 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             forcedTermination,
             standardError.IsTruncated,
             standardError.RetainedText,
-            failures.SecondaryDiagnostics);
+            failures.SecondaryDiagnostics,
+            standardError.InvalidUtf8Detected);
         result.Validate();
         return result;
+    }
+
+    private async Task<ActiveRunResult> RunActiveRequestAsync(
+        WorkerProcessSession session,
+        Task<WorkerCompletedMessage> conversationTask,
+        Task processExitTask,
+        WorkerCancellationCoordinator cancellationCoordinator,
+        Task callerSignal,
+        Task overallSignal)
+    {
+        Task first = await Task.WhenAny(
+                conversationTask,
+                processExitTask,
+                callerSignal,
+                overallSignal)
+            .ConfigureAwait(false);
+
+        if (first == callerSignal)
+        {
+            return await FinishAfterCancellationAsync(
+                    session,
+                    conversationTask,
+                    processExitTask,
+                    cancellationCoordinator,
+                    overallTimeoutTriggered: false)
+                .ConfigureAwait(false);
+        }
+
+        if (first == overallSignal)
+        {
+            return await FinishAfterCancellationAsync(
+                    session,
+                    conversationTask,
+                    processExitTask,
+                    cancellationCoordinator,
+                    overallTimeoutTriggered: true)
+                .ConfigureAwait(false);
+        }
+
+        if (first == processExitTask)
+        {
+            return await FinishAfterRootExitAsync(
+                    session,
+                    conversationTask,
+                    processExitTask)
+                .ConfigureAwait(false);
+        }
+
+        WorkerCompletedMessage terminal = await conversationTask
+            .ConfigureAwait(false);
+        return await FinishAfterTerminalAsync(
+                session,
+                terminal,
+                processExitTask,
+                overallSignal)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<ActiveRunResult> FinishAfterCancellationAsync(
+        WorkerProcessSession session,
+        Task<WorkerCompletedMessage> conversationTask,
+        Task processExitTask,
+        WorkerCancellationCoordinator cancellationCoordinator,
+        bool overallTimeoutTriggered)
+    {
+        WorkerClientFailure triggerFailure = new(
+            overallTimeoutTriggered
+                ? WorkerClientFailureCodes.WorkerOverallTimeout
+                : WorkerClientFailureCodes.WorkerCancellationForced,
+            overallTimeoutTriggered
+                ? OverallTimeoutMessage
+                : CancellationForcedMessage);
+
+        try
+        {
+            using CancellationTokenSource sendDeadline = new(
+                _options.CancellationGracePeriod);
+            _ = await cancellationCoordinator.RequestAsync(sendDeadline.Token)
+                .ConfigureAwait(false);
+        }
+        catch (Exception error) when (
+            error is OperationCanceledException or
+            IOException or
+            ObjectDisposedException or
+            ProtocolStreamException)
+        {
+            bool forced = await session.TerminateAndVerifyEmptyAsync(
+                    _options.ProcessTreeCleanupTimeout)
+                .ConfigureAwait(false);
+            return new ActiveRunResult(
+                TerminalMessage: null,
+                ExitCode: TryGetExitCode(session),
+                ForcedTermination: forced,
+                Failure: triggerFailure);
+        }
+
+        Task<ProcessCompletion> completionTask =
+            CompleteConversationAndExitAsync(
+                session,
+                conversationTask,
+                processExitTask,
+                cancellationWasRequested: true);
+        Task graceExpired = Task.Delay(_options.CancellationGracePeriod);
+        Task winner = await Task.WhenAny(completionTask, graceExpired)
+            .ConfigureAwait(false);
+
+        if (winner != completionTask)
+        {
+            bool forced = await session.TerminateAndVerifyEmptyAsync(
+                    _options.ProcessTreeCleanupTimeout)
+                .ConfigureAwait(false);
+            return new ActiveRunResult(
+                TerminalMessage: null,
+                ExitCode: TryGetExitCode(session),
+                ForcedTermination: forced,
+                Failure: triggerFailure);
+        }
+
+        try
+        {
+            ProcessCompletion completion = await completionTask
+                .ConfigureAwait(false);
+            if (overallTimeoutTriggered)
+            {
+                // The cooperative terminal proves orderly cleanup, but it does
+                // not erase that the safety timeout initiated cancellation.
+                return new ActiveRunResult(
+                    TerminalMessage: null,
+                    ExitCode: completion.ExitCode,
+                    ForcedTermination: false,
+                    Failure: triggerFailure);
+            }
+
+            return new ActiveRunResult(
+                completion.TerminalMessage,
+                completion.ExitCode,
+                ForcedTermination: false,
+                Failure: null);
+        }
+        catch (WorkerClientPolicyException error)
+        {
+            if (overallTimeoutTriggered)
+            {
+                return new ActiveRunResult(
+                    TerminalMessage: null,
+                    ExitCode: TryGetExitCode(session),
+                    ForcedTermination: false,
+                    Failure: triggerFailure);
+            }
+
+            return new ActiveRunResult(
+                TerminalMessage: null,
+                ExitCode: TryGetExitCode(session),
+                ForcedTermination: false,
+                Failure: error.Failure);
+        }
+    }
+
+    private async Task<ActiveRunResult> FinishAfterRootExitAsync(
+        WorkerProcessSession session,
+        Task<WorkerCompletedMessage> conversationTask,
+        Task processExitTask)
+    {
+        await processExitTask.ConfigureAwait(false);
+        if (session.Job.GetActiveProcessCount() != 0)
+        {
+            bool forced = await session.TerminateAndVerifyEmptyAsync(
+                    _options.ProcessTreeCleanupTimeout)
+                .ConfigureAwait(false);
+            return new ActiveRunResult(
+                TerminalMessage: null,
+                ExitCode: session.GetExitCode(),
+                ForcedTermination: forced,
+                Failure: new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerProcessTreeIntegrityFailed,
+                    ProcessTreeMessage));
+        }
+
+        WorkerCompletedMessage terminal;
+        try
+        {
+            terminal = await conversationTask
+                .WaitAsync(
+                    _options.ProcessTreeCleanupTimeout,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            bool forced = await session.TerminateAndVerifyEmptyAsync(
+                    _options.ProcessTreeCleanupTimeout)
+                .ConfigureAwait(false);
+            return new ActiveRunResult(
+                TerminalMessage: null,
+                ExitCode: session.GetExitCode(),
+                ForcedTermination: forced,
+                Failure: new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerProcessTreeIntegrityFailed,
+                    ProcessTreeMessage));
+        }
+
+        int exitCode = session.GetExitCode();
+        ValidateCompletion(
+            terminal,
+            exitCode,
+            cancellationWasRequested: false);
+        return new ActiveRunResult(
+            terminal,
+            exitCode,
+            ForcedTermination: false,
+            Failure: null);
+    }
+
+    private async Task<ActiveRunResult> FinishAfterTerminalAsync(
+        WorkerProcessSession session,
+        WorkerCompletedMessage terminal,
+        Task processExitTask,
+        Task overallSignal)
+    {
+        if (!processExitTask.IsCompleted)
+        {
+            Task winner = await Task.WhenAny(processExitTask, overallSignal)
+                .ConfigureAwait(false);
+            if (winner == overallSignal)
+            {
+                bool forced = await session.TerminateAndVerifyEmptyAsync(
+                        _options.ProcessTreeCleanupTimeout)
+                    .ConfigureAwait(false);
+                return new ActiveRunResult(
+                    TerminalMessage: null,
+                    ExitCode: TryGetExitCode(session),
+                    ForcedTermination: forced,
+                    Failure: new WorkerClientFailure(
+                        WorkerClientFailureCodes.WorkerOverallTimeout,
+                        OverallTimeoutMessage));
+            }
+        }
+
+        await processExitTask.ConfigureAwait(false);
+        int exitCode = session.GetExitCode();
+        if (!await session.WaitForTreeEmptyAsync(
+                _options.ProcessTreeCleanupTimeout)
+            .ConfigureAwait(false))
+        {
+            bool forced = await session.TerminateAndVerifyEmptyAsync(
+                    _options.ProcessTreeCleanupTimeout)
+                .ConfigureAwait(false);
+            return new ActiveRunResult(
+                TerminalMessage: null,
+                ExitCode: exitCode,
+                ForcedTermination: forced,
+                Failure: new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerProcessTreeIntegrityFailed,
+                    ProcessTreeMessage));
+        }
+
+        ValidateCompletion(
+            terminal,
+            exitCode,
+            cancellationWasRequested: false);
+        return new ActiveRunResult(
+            terminal,
+            exitCode,
+            ForcedTermination: false,
+            Failure: null);
+    }
+
+    private async Task<ProcessCompletion> CompleteConversationAndExitAsync(
+        WorkerProcessSession session,
+        Task<WorkerCompletedMessage> conversationTask,
+        Task processExitTask,
+        bool cancellationWasRequested)
+    {
+        WorkerCompletedMessage terminal = await conversationTask
+            .ConfigureAwait(false);
+        await processExitTask.ConfigureAwait(false);
+        int exitCode = session.GetExitCode();
+        if (!await session.WaitForTreeEmptyAsync(
+                _options.ProcessTreeCleanupTimeout)
+            .ConfigureAwait(false))
+        {
+            throw PolicyFailure(
+                WorkerClientFailureCodes.WorkerProcessTreeIntegrityFailed,
+                ProcessTreeMessage);
+        }
+
+        ValidateCompletion(
+            terminal,
+            exitCode,
+            cancellationWasRequested);
+        return new ProcessCompletion(terminal, exitCode);
+    }
+
+    private static void ValidateCompletion(
+        WorkerCompletedMessage terminal,
+        int exitCode,
+        bool cancellationWasRequested)
+    {
+        if (terminal.CompletionStatus == WorkerCompletionStatus.Cancelled &&
+            !cancellationWasRequested)
+        {
+            throw PolicyFailure(
+                WorkerClientFailureCodes.WorkerExitMismatch,
+                ExitMismatchMessage);
+        }
+
+        if (!WorkerExitConsistencyValidator.IsConsistent(
+                terminal.CompletionStatus,
+                exitCode,
+                forcedTermination: false))
+        {
+            throw PolicyFailure(
+                WorkerClientFailureCodes.WorkerExitMismatch,
+                ExitMismatchMessage);
+        }
     }
 
     private async Task<WorkerHelloMessage> ReadAndValidateHelloAsync(
         BoundedUtf8LineReader stdoutReader,
         WorkerProcessSession session,
         Task processExitTask,
-        CancellationToken operationToken,
+        Task callerSignal,
+        Task overallSignal,
         CancellationToken callerToken)
     {
-        using CancellationTokenSource startupTimeout =
-            CancellationTokenSource.CreateLinkedTokenSource(operationToken);
-        startupTimeout.CancelAfter(_options.StartupTimeout);
+        Task<byte[]?> helloTask = stdoutReader
+            .ReadLineAsync(CancellationToken.None)
+            .AsTask();
+        Task startupExpired = Task.Delay(_options.StartupTimeout);
+        Task winner = await Task.WhenAny(
+                helloTask,
+                startupExpired,
+                callerSignal,
+                overallSignal,
+                processExitTask)
+            .ConfigureAwait(false);
 
-        byte[]? payload;
-        try
+        if (winner == callerSignal)
         {
-            payload = await stdoutReader.ReadLineAsync(startupTimeout.Token)
-                .ConfigureAwait(false);
+            throw new OperationCanceledException(callerToken);
         }
-        catch (OperationCanceledException)
-            when (!callerToken.IsCancellationRequested &&
-                  !operationToken.IsCancellationRequested)
+
+        if (winner == overallSignal)
+        {
+            throw PolicyFailure(
+                WorkerClientFailureCodes.WorkerOverallTimeout,
+                OverallTimeoutMessage);
+        }
+
+        if (winner == startupExpired)
         {
             throw PolicyFailure(
                 WorkerClientFailureCodes.WorkerHandshakeTimeout,
                 HandshakeTimeoutMessage);
         }
 
-        if (payload is null)
+        byte[]? payload;
+        if (winner == processExitTask && !helloTask.IsCompleted)
         {
-            if (processExitTask.IsCompleted)
+            try
+            {
+                payload = await helloTask
+                    .WaitAsync(
+                        TimeSpan.FromMilliseconds(250),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
             {
                 throw PolicyFailure(
                     WorkerClientFailureCodes.WorkerCrashed,
                     WorkerCrashedMessage);
             }
+        }
+        else
+        {
+            payload = await helloTask.ConfigureAwait(false);
+        }
 
+        if (payload is null)
+        {
             throw PolicyFailure(
-                WorkerClientFailureCodes.WorkerHandshakeInvalid,
-                HandshakeInvalidMessage);
+                processExitTask.IsCompleted
+                    ? WorkerClientFailureCodes.WorkerCrashed
+                    : WorkerClientFailureCodes.WorkerHandshakeInvalid,
+                processExitTask.IsCompleted
+                    ? WorkerCrashedMessage
+                    : HandshakeInvalidMessage);
         }
 
         object parsed;
@@ -381,13 +783,12 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         ReadConversationToEndAsync(
             BoundedUtf8LineReader stdoutReader,
             WorkerConversation conversation,
-            IProgress<WorkerProgressMessage>? progress,
-            CancellationToken cancellationToken)
+            IProgress<WorkerProgressMessage>? progress)
     {
         while (true)
         {
             byte[]? payload = await stdoutReader
-                .ReadLineAsync(cancellationToken)
+                .ReadLineAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             if (payload is null)
             {
@@ -421,6 +822,33 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         return values;
     }
 
+    private static uint TryGetActiveProcessCount(
+        WorkerProcessSession session)
+    {
+        try
+        {
+            return session.Job.GetActiveProcessCount();
+        }
+        catch (Exception error) when (IsExpectedProcessFailure(error))
+        {
+            return 0;
+        }
+    }
+
+    private static int? TryGetExitCode(WorkerProcessSession session)
+    {
+        try
+        {
+            return session.GetExitCode();
+        }
+        catch (Exception error) when (
+            IsExpectedProcessFailure(error) ||
+            error is WorkerClientPolicyException)
+        {
+            return null;
+        }
+    }
+
     private static WorkerClientPolicyException PolicyFailure(
         string code,
         string message) =>
@@ -433,4 +861,14 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         InvalidOperationException or
         System.ComponentModel.Win32Exception or
         OverflowException;
+
+    private sealed record ProcessCompletion(
+        WorkerCompletedMessage TerminalMessage,
+        int ExitCode);
+
+    private sealed record ActiveRunResult(
+        WorkerCompletedMessage? TerminalMessage,
+        int? ExitCode,
+        bool ForcedTermination,
+        WorkerClientFailure? Failure);
 }
