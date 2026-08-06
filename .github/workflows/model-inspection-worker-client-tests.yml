@@ -83,6 +83,6 @@ jobs:
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests"
-          --minimum-expected-tests 32
+          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests"
+          --minimum-expected-tests 33
           -p:Platform=x64
