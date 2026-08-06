@@ -88,3 +88,118 @@ class BuildPowerShellContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+ROUTE_A_RUNTIME_SCRIPT = (
+    REPOSITORY_ROOT
+    / "scripts/testing/workbook05/Invoke-Workbook05RouteARuntimeBuild.ps1"
+)
+
+
+class RouteARuntimeBuildContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.text = ROUTE_A_RUNTIME_SCRIPT.read_text(encoding="utf-8")
+
+    def test_pins_exact_source_toolchain_and_short_workspace(self) -> None:
+        expected_tokens = (
+            "https://github.com/openvinotoolkit/openvino.git",
+            "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+            "docs/dev/build_windows.md",
+            "C:\\w5a",
+            "Visual Studio 17 2022",
+            "C:\\Program Files\\Python312\\python.exe",
+            "Python 3.12.10",
+            "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+        )
+        for token in expected_tokens:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
+
+    def test_creates_separate_source_build_and_install_directories(self) -> None:
+        self.assertIn("Join-Path $workspace.work_directory 'ov'", self.text)
+        self.assertIn("Join-Path $workspace.work_directory 'b-ov'", self.text)
+        self.assertIn("Join-Path $workspace.work_directory 'i-ov'", self.text)
+
+    def test_follows_documented_source_acquisition_order(self) -> None:
+        ordered_ids = (
+            "route-a-git-init",
+            "route-a-git-config-longpaths",
+            "route-a-git-remote-add",
+            "route-a-git-fetch",
+            "route-a-git-checkout",
+            "route-a-git-submodules",
+            "route-a-git-remote-verify",
+            "route-a-git-head-verify",
+            "route-a-git-status-verify",
+            "route-a-git-submodules-verify",
+        )
+        positions = [self.text.index(command_id) for command_id in ordered_ids]
+        self.assertEqual(sorted(positions), positions)
+        self.assertNotIn("git reset --hard", self.text.lower())
+        self.assertNotIn("git clean", self.text.lower())
+
+    def test_uses_the_exact_reviewed_runtime_configure_arguments(self) -> None:
+        expected_arguments = (
+            "'-G', $Generator",
+            "'-A', 'x64'",
+            "'-DCMAKE_BUILD_TYPE=Release'",
+            "'-DENABLE_INTEL_GPU=OFF'",
+            "'-DENABLE_INTEL_NPU=OFF'",
+            "'-DENABLE_TESTS=OFF'",
+            "'-DENABLE_FUNCTIONAL_TESTS=OFF'",
+            "'-DENABLE_SAMPLES=ON'",
+            "'-DENABLE_PYTHON=ON'",
+            "'-DENABLE_WHEEL=OFF'",
+            "\"-DPython3_EXECUTABLE=$PythonPath\"",
+        )
+        for argument in expected_arguments:
+            with self.subTest(argument=argument):
+                self.assertIn(argument, self.text)
+
+    def test_builds_and_installs_release_with_conservative_parallelism(self) -> None:
+        self.assertIn("'--config', 'Release'", self.text)
+        self.assertIn("'--parallel', '2'", self.text)
+        self.assertIn("'--verbose'", self.text)
+        self.assertIn("'--install', $buildRoot", self.text)
+        self.assertIn("'--prefix', $installRoot", self.text)
+
+    def test_records_provenance_cache_resources_dependencies_binaries_and_decision(self) -> None:
+        expected_tokens = (
+            "environment.json",
+            "source-provenance.json",
+            "cmake-cache-summary.json",
+            "dependencies.json",
+            "binaries.json",
+            "decision.json",
+            "Write-Wb05Manifest",
+            "Get-Wb05BinaryRecords",
+            "MonitorResources",
+        )
+        for token in expected_tokens:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
+
+    def test_decisions_keep_all_later_claims_disabled(self) -> None:
+        for flag in (
+            "granite_model_test_authorised = $false",
+            "activation_claim_authorised = $false",
+            "packed_storage_claim_authorised = $false",
+            "performance_claim_authorised = $false",
+            "quality_claim_authorised = $false",
+        ):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, self.text)
+
+    def test_contains_no_model_or_inference_execution(self) -> None:
+        forbidden = (
+            "huggingface.co",
+            ".gguf",
+            ".safetensors",
+            "generate(",
+            "benchmark_app",
+            "openvino_genai",
+        )
+        for token in forbidden:
+            with self.subTest(token=token):
+                self.assertNotIn(token.lower(), self.text.lower())
