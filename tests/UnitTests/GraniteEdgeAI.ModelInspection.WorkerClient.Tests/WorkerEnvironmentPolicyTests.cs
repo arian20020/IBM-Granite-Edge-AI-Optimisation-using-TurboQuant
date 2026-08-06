@@ -11,6 +11,20 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.Tests;
 [TestClass]
 public sealed class WorkerEnvironmentPolicyTests
 {
+    private static readonly string[] ExpectedChildKeys =
+    [
+        "SystemRoot",
+        "WINDIR",
+        "TEMP",
+        "TMP",
+        "DOTNET_ROOT",
+        "DOTNET_ROOT_X64",
+        "DOTNET_EnableDiagnostics",
+        "DOTNET_EnableDiagnostics_IPC",
+        "DOTNET_EnableDiagnostics_Debugger",
+        "DOTNET_EnableDiagnostics_Profiler"
+    ];
+
     [TestMethod]
     public void CreateDropsPathSecretsRequestsAndDiagnosticPorts()
     {
@@ -59,19 +73,7 @@ public sealed class WorkerEnvironmentPolicyTests
             WorkerEnvironmentPolicy.Create(parent);
 
         CollectionAssert.AreEquivalent(
-            new[]
-            {
-                "SystemRoot",
-                "WINDIR",
-                "TEMP",
-                "TMP",
-                "DOTNET_ROOT",
-                "DOTNET_ROOT_X64",
-                "DOTNET_EnableDiagnostics",
-                "DOTNET_EnableDiagnostics_IPC",
-                "DOTNET_EnableDiagnostics_Debugger",
-                "DOTNET_EnableDiagnostics_Profiler"
-            },
+            ExpectedChildKeys,
             child.Keys.ToArray());
         Assert.AreEqual(parent["SystemRoot"], child["SystemRoot"]);
         Assert.AreEqual(parent["TEMP"], child["TEMP"]);
