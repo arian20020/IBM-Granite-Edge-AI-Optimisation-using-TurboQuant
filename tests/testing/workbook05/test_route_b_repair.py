@@ -75,6 +75,22 @@ class RouteBRepairTests(unittest.TestCase):
             repaired,
         )
 
+    def test_repair_resets_accumulators_for_each_test_class(self) -> None:
+        repaired = repair_target_per_test_text(BROKEN_CMAKE)
+
+        # BR6 linked concat_sdp.cpp into the concat_sdp_turboq target because the
+        # new APPEND variables survived from the preceding foreach iteration.
+        # Each class must start from empty architecture and common instance lists.
+        arch_reset = "set(LIST_OF_TEST_ARCH_INSTANCES)"
+        common_reset = "set(LIST_OF_TEST_COMMON_INSTANCES)"
+        first_arch_glob = "file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES_INSTANCES_X64"
+        first_common_glob = "file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES_INSTANCES_COMMON"
+
+        self.assertEqual(1, repaired.count(arch_reset))
+        self.assertEqual(1, repaired.count(common_reset))
+        self.assertLess(repaired.index(arch_reset), repaired.index(first_arch_glob))
+        self.assertLess(repaired.index(common_reset), repaired.index(first_common_glob))
+
     def test_repair_is_idempotent(self) -> None:
         repaired_once = repair_target_per_test_text(BROKEN_CMAKE)
         repaired_twice = repair_target_per_test_text(repaired_once)
