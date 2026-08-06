@@ -281,7 +281,9 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 try
                 {
                     standardError = await standardErrorTask
-                        .WaitAsync(_options.ProcessTreeCleanupTimeout)
+                        .WaitAsync(
+                            _options.ProcessTreeCleanupTimeout,
+                            CancellationToken.None)
                         .ConfigureAwait(false);
                 }
                 catch (Exception error) when (
