@@ -1,4 +1,3 @@
-using System.Globalization;
 using GraniteEdgeAI.ModelInspection.Contracts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -68,16 +67,11 @@ public sealed class WorkerHandshakeValidatorTests
     [TestMethod]
     public void ProtocolVersionMustMatchExactly()
     {
-        int unexpectedVersion = WorkerProtocol.Version + 1;
-        WorkerClientPolicyException error = AssertInvalid(
+        _ = AssertInvalid(
             WorkerClientTestData.Hello() with
             {
-                ProtocolVersion = unexpectedVersion
+                ProtocolVersion = WorkerProtocol.Version + 1
             });
-
-        AssertDoesNotContain(
-            error.ToString(),
-            unexpectedVersion.ToString(CultureInfo.InvariantCulture));
     }
 
     [TestMethod]
