@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace GraniteEdgeAI.ModelInspection.ProtocolTestWorker;
@@ -13,10 +15,24 @@ internal static class Program
 
     internal static async Task<int> Main(string[] args)
     {
-        // Accept exactly one fixture-only mode. Extra or unknown arguments
-        // cannot accidentally become an unreviewed production launch path.
-        if (args.Length != 1 ||
-            !string.Equals(args[0], "launch-probe", StringComparison.Ordinal))
+        long handleValue = 0;
+        bool isLaunchProbe =
+            args.Length == 1 &&
+            string.Equals(args[0], "launch-probe", StringComparison.Ordinal);
+        bool isHandleProbe =
+            args.Length == 2 &&
+            string.Equals(
+                args[0],
+                "probe-unrelated-handle",
+                StringComparison.Ordinal) &&
+            long.TryParse(
+                args[1],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out handleValue);
+
+        // Unknown or extra fixture arguments fail without touching model data.
+        if (!isLaunchProbe && !isHandleProbe)
         {
             return UsageError;
         }
@@ -45,10 +61,28 @@ internal static class Program
             NewLine = "\n"
         };
 
-        // Signal only after inherited streams are open, then remain alive until
-        // the parent closes or writes one line to standard input.
-        await writer.WriteLineAsync("fixture-ready").ConfigureAwait(false);
+        string milestone;
+        if (isHandleProbe)
+        {
+            // The parent deliberately marks this Event handle inheritable but
+            // excludes it from PROC_THREAD_ATTRIBUTE_HANDLE_LIST. Signalling
+            // must therefore fail in this child process.
+            milestone = SetEvent(new IntPtr(handleValue))
+                ? "handle-signaled"
+                : "handle-unavailable";
+        }
+        else
+        {
+            milestone = "fixture-ready";
+        }
+
+        await writer.WriteLineAsync(milestone).ConfigureAwait(false);
         _ = await reader.ReadLineAsync().ConfigureAwait(false);
         return 0;
     }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetEvent(IntPtr eventHandle);
 }

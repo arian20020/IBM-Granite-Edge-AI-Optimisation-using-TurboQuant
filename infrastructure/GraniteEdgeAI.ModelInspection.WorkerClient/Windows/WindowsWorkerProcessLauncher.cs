@@ -13,6 +13,8 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 /// </summary>
 internal static class WindowsWorkerProcessLauncher
 {
+    private const string EnvironmentFailureMessage =
+        "The Model Inspection worker environment could not be prepared.";
     private const string LaunchFailureMessage =
         "The Model Inspection worker process could not be started.";
     private const string ContainmentFailureMessage =
@@ -21,12 +23,20 @@ internal static class WindowsWorkerProcessLauncher
         "The Model Inspection worker handle policy could not be applied.";
 
     internal static WorkerProcessSession Launch(
-        WindowsProcessLaunchRequest request)
+        WindowsProcessLaunchRequest request) =>
+        Launch(request, WindowsWorkerProcessPlatform.Instance);
+
+    /// <summary>
+    /// Internal overload used by focused tests to make each Windows failure
+    /// deterministic. The injected object represents operating-system calls,
+    /// not worker behaviour or production scenario switches.
+    /// </summary>
+    internal static WorkerProcessSession Launch(
+        WindowsProcessLaunchRequest request,
+        IWindowsWorkerProcessPlatform platform)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ObjectDisposedException.ThrowIf(
-            request.Executable.VerificationHandle.IsClosed,
-            request.Executable);
+        ArgumentNullException.ThrowIfNull(platform);
 
         WindowsJobObject? job = null;
         WindowsPipeSet? pipes = null;
@@ -39,42 +49,37 @@ internal static class WindowsWorkerProcessLauncher
 
         try
         {
+            if (request.Executable.VerificationHandle.IsClosed)
+            {
+                throw PolicyFailure(
+                    WorkerClientFailureCodes.WorkerLaunchFailed,
+                    LaunchFailureMessage);
+            }
+
             using WindowsEnvironmentBlock environment =
-                WindowsEnvironmentBlock.Create(request.Environment);
+                CreateEnvironmentBlock(platform, request.Environment);
 
-            job = CreateJob();
-            pipes = CreatePipes();
-            using SafeAttributeListBuffer attributes = CreateAttributeList();
+            job = CreateJob(platform);
+            pipes = CreatePipes(platform);
+            using SafeAttributeListBuffer attributes =
+                CreateAttributeList(platform);
 
-            ApplyHandleAllowlist(attributes, pipes);
-            ApplyJobContainment(attributes, job);
+            ApplyHandleAllowlist(platform, attributes, pipes);
+            ApplyJobContainment(platform, attributes, job);
 
             StartupInfoEx startupInfo = CreateStartupInfo(attributes, pipes);
             char[] commandLine = BuildWritableCommandLine(
                 request.Executable.ExecutableFinalPath,
                 request.TestOnlyArguments);
 
-            bool created = NativeMethods.CreateProcess(
-                request.Executable.ExecutableFinalPath,
+            ProcessInformation processInformation = CreateProcess(
+                platform,
+                request,
                 commandLine,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                inheritHandles: true,
-                NativeConstants.RequiredCreationFlags,
                 environment.Pointer,
-                request.WorkingDirectory,
-                ref startupInfo,
-                out ProcessInformation processInformation);
-            int createError = Marshal.GetLastPInvokeError();
-            if (!created)
-            {
-                _ = createError;
-                throw PolicyFailure(
-                    WorkerClientFailureCodes.WorkerLaunchFailed,
-                    LaunchFailureMessage);
-            }
-
+                ref startupInfo);
             processWasCreated = true;
+
             processHandle = new SafeProcessHandle(
                 processInformation.ProcessHandle,
                 ownsHandle: true);
@@ -151,11 +156,32 @@ internal static class WindowsWorkerProcessLauncher
         }
     }
 
-    private static WindowsJobObject CreateJob()
+    private static WindowsEnvironmentBlock CreateEnvironmentBlock(
+        IWindowsWorkerProcessPlatform platform,
+        IReadOnlyDictionary<string, string> environment)
     {
         try
         {
-            return WindowsJobObject.CreateKillOnClose();
+            return platform.CreateEnvironmentBlock(environment);
+        }
+        catch (WorkerClientPolicyException)
+        {
+            throw;
+        }
+        catch (Exception error) when (IsExpectedLaunchError(error))
+        {
+            throw PolicyFailure(
+                WorkerClientFailureCodes.WorkerEnvironmentPolicyFailed,
+                EnvironmentFailureMessage);
+        }
+    }
+
+    private static WindowsJobObject CreateJob(
+        IWindowsWorkerProcessPlatform platform)
+    {
+        try
+        {
+            return platform.CreateJob();
         }
         catch (Exception error) when (IsExpectedLaunchError(error))
         {
@@ -165,11 +191,12 @@ internal static class WindowsWorkerProcessLauncher
         }
     }
 
-    private static WindowsPipeSet CreatePipes()
+    private static WindowsPipeSet CreatePipes(
+        IWindowsWorkerProcessPlatform platform)
     {
         try
         {
-            return WindowsPipeSet.Create();
+            return platform.CreatePipes();
         }
         catch (Exception error) when (IsExpectedLaunchError(error))
         {
@@ -179,11 +206,12 @@ internal static class WindowsWorkerProcessLauncher
         }
     }
 
-    private static SafeAttributeListBuffer CreateAttributeList()
+    private static SafeAttributeListBuffer CreateAttributeList(
+        IWindowsWorkerProcessPlatform platform)
     {
         try
         {
-            return SafeAttributeListBuffer.Create(attributeCount: 2);
+            return platform.CreateAttributeList();
         }
         catch (Exception error) when (IsExpectedLaunchError(error))
         {
@@ -194,14 +222,13 @@ internal static class WindowsWorkerProcessLauncher
     }
 
     private static void ApplyHandleAllowlist(
+        IWindowsWorkerProcessPlatform platform,
         SafeAttributeListBuffer attributes,
         WindowsPipeSet pipes)
     {
         try
         {
-            attributes.UpdatePointerList(
-                NativeConstants.ProcThreadAttributeHandleList,
-                pipes.GetChildHandleAllowlist());
+            platform.ApplyHandleAllowlist(attributes, pipes);
         }
         catch (Exception error) when (IsExpectedLaunchError(error))
         {
@@ -212,20 +239,43 @@ internal static class WindowsWorkerProcessLauncher
     }
 
     private static void ApplyJobContainment(
+        IWindowsWorkerProcessPlatform platform,
         SafeAttributeListBuffer attributes,
         WindowsJobObject job)
     {
         try
         {
-            attributes.UpdatePointerList(
-                NativeConstants.ProcThreadAttributeJobList,
-                [job.Handle.DangerousGetHandle()]);
+            platform.ApplyJobContainment(attributes, job);
         }
         catch (Exception error) when (IsExpectedLaunchError(error))
         {
             throw PolicyFailure(
                 WorkerClientFailureCodes.WorkerContainmentFailed,
                 ContainmentFailureMessage);
+        }
+    }
+
+    private static ProcessInformation CreateProcess(
+        IWindowsWorkerProcessPlatform platform,
+        WindowsProcessLaunchRequest request,
+        char[] commandLine,
+        IntPtr environment,
+        ref StartupInfoEx startupInfo)
+    {
+        try
+        {
+            return platform.CreateProcess(
+                request.Executable.ExecutableFinalPath,
+                commandLine,
+                environment,
+                request.WorkingDirectory,
+                ref startupInfo);
+        }
+        catch (Exception error) when (IsExpectedLaunchError(error))
+        {
+            throw PolicyFailure(
+                WorkerClientFailureCodes.WorkerLaunchFailed,
+                LaunchFailureMessage);
         }
     }
 
