@@ -15,6 +15,14 @@ EXPECTED_SOURCE_COMMIT: Final = "1827f6458d049de11c1a8203c793af67c99935dc"
 EXPECTED_REPAIR_PATH: Final = (
     "src/plugins/intel_cpu/tests/functional/cmake/target_per_test.cmake"
 )
+EXPECTED_TEST_FILTERS: Final = {
+    "baseline_f32": "*Prc=f32*K=none_V=none*",
+    "qjl4": "*Prc=f32*K=tbq4_qjl_V=tbq4_qjl*",
+    "qjl3": "*Prc=f32*K=tbq3_qjl_V=tbq3_qjl*",
+    "polar4": "*Prc=f32*K=polar4_V=polar4*",
+    "polar3": "*Prc=f32*K=polar3_V=polar3*",
+    "asymmetric_f32_tbq4": "*Prc=f32*K=none_V=tbq4*",
+}
 FORBIDDEN_SUFFIXES: Final = {
     ".7z",
     ".a",
@@ -156,20 +164,37 @@ def _expect_mapping(value: object, name: str) -> dict[str, object]:
     return value
 
 
+def _validate_disabled_claims(record: dict[str, object], record_name: str) -> None:
+    """Require every later-campaign authorisation to remain explicitly false."""
+
+    for claim_field in (
+        "granite_model_test_authorised",
+        "performance_claim_authorised",
+        "quality_claim_authorised",
+    ):
+        if record.get(claim_field) is not False:
+            raise RouteBArtifactError(
+                f"{record_name} must keep {claim_field} false."
+            )
+
+
 def _validate_scientific_records(bundle_root: Path) -> str:
     integrity_path = bundle_root / "integrity-failure.json"
     decision_path = bundle_root / "decision.json"
     if integrity_path.is_file() and decision_path.is_file():
-        raise RouteBArtifactError("Artifact cannot contain both decision and integrity failure records.")
+        raise RouteBArtifactError(
+            "Artifact cannot contain both decision and integrity failure records."
+        )
     if integrity_path.is_file():
         failure = _expect_mapping(_load_json(integrity_path), integrity_path.name)
         if failure.get("source_commit") != EXPECTED_SOURCE_COMMIT:
             raise RouteBArtifactError("Integrity-failure source commit is incorrect.")
-        if failure.get("granite_model_test_authorised") is not False:
-            raise RouteBArtifactError("Integrity failure must not authorise Granite testing.")
+        _validate_disabled_claims(failure, "Integrity failure")
         return "IntegrityFailure"
     if not decision_path.is_file():
-        raise RouteBArtifactError("Neither decision.json nor integrity-failure.json exists.")
+        raise RouteBArtifactError(
+            "Neither decision.json nor integrity-failure.json exists."
+        )
 
     decision = _expect_mapping(_load_json(decision_path), decision_path.name)
     status = decision.get("status")
@@ -177,13 +202,7 @@ def _validate_scientific_records(bundle_root: Path) -> str:
         raise RouteBArtifactError(f"Unsupported scientific status: {status!r}")
     if decision.get("source_commit") != EXPECTED_SOURCE_COMMIT:
         raise RouteBArtifactError("Decision source commit is incorrect.")
-    for claim_field in (
-        "granite_model_test_authorised",
-        "performance_claim_authorised",
-        "quality_claim_authorised",
-    ):
-        if decision.get(claim_field) is not False:
-            raise RouteBArtifactError(f"Decision must keep {claim_field} false.")
+    _validate_disabled_claims(decision, "Decision")
 
     provenance = _expect_mapping(
         _load_json(bundle_root / "source-provenance.json"),
@@ -223,7 +242,9 @@ def _validate_scientific_records(bundle_root: Path) -> str:
     if benchmark.get("has_unconditional_f32") is not True:
         raise RouteBArtifactError("Pinned benchmark F32 safeguard was not verified.")
     if benchmark.get("has_k_f32_v_tbq") is not True:
-        raise RouteBArtifactError("Pinned asymmetric benchmark safeguard was not verified.")
+        raise RouteBArtifactError(
+            "Pinned asymmetric benchmark safeguard was not verified."
+        )
 
     if status == "ExecutableCandidate":
         membership = _expect_mapping(
@@ -239,10 +260,14 @@ def _validate_scientific_records(bundle_root: Path) -> str:
             _load_json(bundle_root / "test-discovery-summary.json"),
             "test-discovery-summary.json",
         )
-        if not isinstance(discovery.get("discovered_test_count"), int) or discovery["discovered_test_count"] <= 0:
+        if (
+            not isinstance(discovery.get("discovered_test_count"), int)
+            or discovery["discovered_test_count"] <= 0
+        ):
             raise RouteBArtifactError("Executable candidate has no discovered tests.")
         for field in (
             "has_f32_named_cases",
+            "has_baseline_none_none_cases",
             "has_qjl3_cases",
             "has_qjl4_cases",
             "has_polar3_cases",
@@ -250,17 +275,55 @@ def _validate_scientific_records(bundle_root: Path) -> str:
             "has_asymmetric_none_tbq_cases",
         ):
             if discovery.get(field) is not True:
-                raise RouteBArtifactError(f"Executable candidate is missing discovery proof: {field}")
+                raise RouteBArtifactError(
+                    f"Executable candidate is missing discovery proof: {field}"
+                )
 
         results = _load_json(bundle_root / "test-results.json")
-        if not isinstance(results, list) or len(results) != 5:
-            raise RouteBArtifactError("Executable candidate must contain five test-filter results.")
+        if not isinstance(results, list) or len(results) != 6:
+            raise RouteBArtifactError(
+                "Executable candidate must contain exactly six test-filter results."
+            )
+
+        seen_ids: set[str] = set()
         for result in results:
             record = _expect_mapping(result, "test result")
+            case_id = record.get("id")
+            if not isinstance(case_id, str) or case_id not in EXPECTED_TEST_FILTERS:
+                raise RouteBArtifactError(f"Unexpected test-filter ID: {case_id!r}")
+            if case_id in seen_ids:
+                raise RouteBArtifactError(f"Duplicate test-filter ID: {case_id}")
+            seen_ids.add(case_id)
+
+            if record.get("filter") != EXPECTED_TEST_FILTERS[case_id]:
+                raise RouteBArtifactError(
+                    f"Test filter changed for required case: {case_id}"
+                )
             if record.get("passed") is not True:
-                raise RouteBArtifactError(f"Required test filter did not pass: {record.get('id')}")
-            if not isinstance(record.get("run_count"), int) or record["run_count"] <= 0:
-                raise RouteBArtifactError(f"Required test filter ran zero tests: {record.get('id')}")
+                raise RouteBArtifactError(
+                    f"Required test filter did not pass: {case_id}"
+                )
+            if record.get("exit_code") != 0:
+                raise RouteBArtifactError(
+                    f"Required test filter has a non-zero exit code: {case_id}"
+                )
+            if (
+                not isinstance(record.get("run_count"), int)
+                or record["run_count"] <= 0
+            ):
+                raise RouteBArtifactError(
+                    f"Required test filter ran zero tests: {case_id}"
+                )
+            if record.get("skipped_count") != 0:
+                raise RouteBArtifactError(
+                    f"Required test filter contains skipped tests: {case_id}"
+                )
+
+        if seen_ids != set(EXPECTED_TEST_FILTERS):
+            missing = sorted(set(EXPECTED_TEST_FILTERS) - seen_ids)
+            raise RouteBArtifactError(
+                f"Executable candidate is missing required test-filter IDs: {missing}"
+            )
     return str(status)
 
 
