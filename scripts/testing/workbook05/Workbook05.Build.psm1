@@ -12,14 +12,14 @@ function Write-Wb05Utf8NoBomText {
         [string]$Text
     )
 
-    # Create the parent folder only when the caller has not created it yet.
+    # Create the parent directory only when the caller has not created it yet.
     $parent = Split-Path -Parent $Path
     if ($parent -and -not (Test-Path -LiteralPath $parent -PathType Container)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
 
-    # Windows PowerShell 5.1 writes a BOM for its built-in UTF-8 encoding.
-    # The .NET encoding object keeps evidence deterministic and BOM-free.
+    # Windows PowerShell 5.1 adds a BOM for its built-in UTF-8 encoding. Use a
+    # .NET UTF-8 encoder instead so all evidence is deterministic and BOM-free.
     $encoding = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($Path, $Text, $encoding)
 }
@@ -35,8 +35,8 @@ function Write-Wb05Json {
         [object]$Value
     )
 
-    # Use a stable depth so nested commands, decisions, and resource records
-    # cannot be silently shortened by ConvertTo-Json's default depth.
+    # A fixed deep JSON depth prevents nested command/evidence data from being
+    # silently shortened by ConvertTo-Json's small default depth.
     $json = $Value | ConvertTo-Json -Depth 32
     Write-Wb05Utf8NoBomText -Path $Path -Text ($json + "`n")
 }
@@ -53,8 +53,8 @@ function Assert-Wb05SafePath {
         [switch]$AllowRoot
     )
 
-    # Resolve both paths without following an unapproved sibling prefix such as
-    # C:\w5a-other when C:\w5a is the intended containment root.
+    # Canonicalise both paths before comparison so sibling prefixes such as
+    # C:\w5a-other cannot be mistaken for children of the approved C:\w5a root.
     $fullRoot = [IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
     $fullPath = [IO.Path]::GetFullPath($Path)
 
@@ -82,8 +82,7 @@ function Get-Wb05RelativePath {
         [string]$Path
     )
 
-    # Derive a slash-normalised relative evidence path only after containment
-    # has been proved by Assert-Wb05SafePath.
+    # Containment is proved before any relative path is written into evidence.
     $fullRoot = [IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
     $fullPath = Assert-Wb05SafePath -Root $fullRoot -Path $Path
     $prefixLength = ($fullRoot + [IO.Path]::DirectorySeparatorChar).Length
@@ -97,8 +96,8 @@ function Write-Wb05Manifest {
         [string]$EvidenceDirectory
     )
 
-    # Hash every evidence file except the manifest itself, then sort the lines
-    # so an independent validator receives a deterministic record.
+    # Hash every evidence file except the manifest itself. Sorting produces a
+    # deterministic manifest for the independent hosted validator.
     $root = (Resolve-Path -LiteralPath $EvidenceDirectory).Path
     $manifestPath = Join-Path $root 'manifest.sha256'
     $entries = Get-ChildItem -LiteralPath $root -File -Recurse |
@@ -131,8 +130,8 @@ function New-Wb05ExternalWorkspace {
         [string]$RunIdentity
     )
 
-    # The short root must be a normal directory, never a link, mount point, or
-    # regular file that could redirect writes outside the controlled boundary.
+    # The short external root must be a normal directory, never a link, mount
+    # point, or file that can redirect build writes outside the reviewed root.
     if (Test-Path -LiteralPath $Root) {
         $rootItem = Get-Item -LiteralPath $Root -Force
         if (-not $rootItem.PSIsContainer) {
@@ -146,17 +145,15 @@ function New-Wb05ExternalWorkspace {
         New-Item -ItemType Directory -Path $Root -Force:$false | Out-Null
     }
 
-    # A run/attempt receives one new directory. Existing content is evidence of
-    # possible contamination, so the function fails instead of cleaning it.
+    # One workflow run/attempt receives one new directory. Existing content is
+    # treated as possible contamination and is never silently reused or erased.
     $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path
     $workDirectory = Join-Path $resolvedRoot $RunIdentity
-    if (Test-Path -LiteralPath $workDirectory) { throw "External run directory already exists and will not be reused: $workDirectory" }
+    if (Test-Path -LiteralPath $workDirectory) {
+        throw "External run directory already exists and will not be reused: $workDirectory"
+    }
 
-    New-Item `
-        -ItemType Directory `
-        -Path $workDirectory `
-        -Force:$false | Out-Null
-
+    New-Item -ItemType Directory -Path $workDirectory -Force:$false | Out-Null
     $workItem = Get-Item -LiteralPath $workDirectory -Force
     if (($workItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw "External run directory must not be a reparse point: $workDirectory"
@@ -176,9 +173,9 @@ function ConvertTo-Wb05WindowsCommandLineArgument {
         [string]$Argument
     )
 
-    # ProcessStartInfo on Windows PowerShell 5.1 accepts one command-line
+    # ProcessStartInfo on Windows PowerShell 5.1 accepts a single command-line
     # string. Quote each reviewed argument with the Windows C-runtime rules so
-    # spaces, quotes, and trailing backslashes cannot change its boundary.
+    # whitespace, embedded quotes, and trailing backslashes keep their boundary.
     if ($Argument.Length -gt 0 -and $Argument -notmatch '[\s"]') {
         return $Argument
     }
@@ -235,8 +232,7 @@ function Start-Wb05ResourceSampler {
         [string]$HeartbeatPath
     )
 
-    # Prepare text evidence paths before the sampler moves into a background
-    # PowerShell job with its own process and variable scope.
+    # Prepare evidence paths before the sampler moves into an isolated job.
     foreach ($path in @($CsvPath, $SummaryPath)) {
         $parent = Split-Path -Parent $path
         if ($parent -and -not (Test-Path -LiteralPath $parent -PathType Container)) {
@@ -244,13 +240,14 @@ function Start-Wb05ResourceSampler {
         }
     }
 
+    # The stop file is process-local coordination data and is removed on close.
     $stopPath = $SummaryPath + '.stop'
     if (Test-Path -LiteralPath $stopPath) {
         Remove-Item -LiteralPath $stopPath -Force
     }
 
-    # The job samples the full descendant process tree, not merely cmake.exe,
-    # because Visual Studio builds spawn compiler and linker child processes.
+    # Sample the complete descendant process tree because CMake/MSBuild spawn
+    # compilers and linkers whose memory must count toward the safety boundary.
     $job = Start-Job `
         -ArgumentList @(
             $RootProcessId,
@@ -284,8 +281,8 @@ function Start-Wb05ResourceSampler {
             function Get-ProcessTreeIds {
                 param([int]$RootId)
 
-                # Build the descendant set from one CIM snapshot so all metrics
-                # in a sample refer to the same process topology.
+                # Use one CIM snapshot per sample so the process tree is
+                # internally consistent while child IDs are discovered.
                 $rows = @(
                     Get-CimInstance Win32_Process |
                         Select-Object ProcessId, ParentProcessId
@@ -298,9 +295,7 @@ function Start-Wb05ResourceSampler {
                     $parentId = $ids[$cursor]
                     foreach (
                         $row in $rows |
-                            Where-Object {
-                                [int]$_.ParentProcessId -eq $parentId
-                            }
+                            Where-Object { [int]$_.ParentProcessId -eq $parentId }
                     ) {
                         $childId = [int]$row.ProcessId
                         if (-not $ids.Contains($childId)) {
@@ -325,40 +320,23 @@ function Start-Wb05ResourceSampler {
             $csvExists = Test-Path -LiteralPath $CsvPath
 
             while (-not (Test-Path -LiteralPath $StopPath)) {
-                if (
-                    -not (
-                        Get-Process `
-                            -Id $RootProcessId `
-                            -ErrorAction SilentlyContinue
-                    )
-                ) {
+                # End normally after the root process exits.
+                if (-not (Get-Process -Id $RootProcessId -ErrorAction SilentlyContinue)) {
                     break
                 }
 
                 $process_tree_ids = @(Get-ProcessTreeIds -RootId $RootProcessId)
                 $processes = @(
                     foreach ($processId in $process_tree_ids) {
-                        Get-Process `
-                            -Id $processId `
-                            -ErrorAction SilentlyContinue
+                        Get-Process -Id $processId -ErrorAction SilentlyContinue
                     }
                 )
 
                 $workingSet = [int64](
-                    (
-                        $processes |
-                            Measure-Object `
-                                -Property WorkingSet64 `
-                                -Sum
-                    ).Sum
+                    ($processes | Measure-Object -Property WorkingSet64 -Sum).Sum
                 )
                 $privateBytes = [int64](
-                    (
-                        $processes |
-                            Measure-Object `
-                                -Property PrivateMemorySize64 `
-                              -Sum
-                    ).Sum
+                    ($processes | Measure-Object -Property PrivateMemorySize64 -Sum).Sum
                 )
 
                 $operatingSystem = Get-CimInstance Win32_OperatingSystem
@@ -386,14 +364,12 @@ function Start-Wb05ResourceSampler {
                     $highCommitSamples = 0
                 }
 
+                # The optional heartbeat is checked only when the caller supplies
+                # a path. The elapsed age is still recorded in every CSV sample.
                 $heartbeatAgeSeconds = 0
-                if (
-                    $HeartbeatPath -and
-                    (Test-Path -LiteralPath $HeartbeatPath -PathType Leaf)
-                ) {
+                if ($HeartbeatPath -and (Test-Path -LiteralPath $HeartbeatPath -PathType Leaf)) {
                     $heartbeatAgeSeconds = (
-                        (Get-Date) -
-                        (Get-Item -LiteralPath $HeartbeatPath).LastWriteTime
+                        (Get-Date) - (Get-Item -LiteralPath $HeartbeatPath).LastWriteTime
                     ).TotalSeconds
                 }
 
@@ -407,49 +383,27 @@ function Start-Wb05ResourceSampler {
                     commit_percent = $commitPercent
                     heartbeat_age_seconds = $heartbeatAgeSeconds
                 } |
-                    Export-Csv `
-                        -LiteralPath $CsvPath `
-                        -NoTypeInformation `
-                        -Append:$csvExists
+                    Export-Csv -LiteralPath $CsvPath -NoTypeInformation -Append:$csvExists
                 $csvExists = $true
 
                 if ($lowMemorySamples -ge $ConsecutiveSafetySamples) {
                     $safetyStopTriggered = $true
-                    $safetyStopReason = (
-                        'Available memory remained below 1.5 GiB for ' +
-                        '10 seconds.'
-                    )
+                    $safetyStopReason = 'Available memory remained below 1.5 GiB for 10 seconds.'
                 }
                 elseif ($highCommitSamples -ge $ConsecutiveSafetySamples) {
                     $safetyStopTriggered = $true
-                    $safetyStopReason = (
-                        'Windows commit usage remained above 90 percent for ' +
-                        '10 seconds.'
-                    )
+                    $safetyStopReason = 'Windows commit usage remained above 90 percent for 10 seconds.'
                 }
-                elseif (
-                    $HeartbeatPath -and
-                    $heartbeatAgeSeconds -gt $HeartbeatTimeoutSeconds
-                ) {
+                elseif ($HeartbeatPath -and $heartbeatAgeSeconds -gt $HeartbeatTimeoutSeconds) {
                     $safetyStopTriggered = $true
-                    $safetyStopReason = (
-                        'The native command heartbeat exceeded 900 seconds.'
-                    )
+                    $safetyStopReason = 'The native command heartbeat exceeded 900 seconds.'
                 }
 
                 if ($safetyStopTriggered) {
-                    # Kill descendants first, then the root, to avoid leaving a
-                    # compiler or linker orphan after the safety boundary fires.
-                    foreach (
-                        $processId in @(
-                            $process_tree_ids |
-                                Sort-Object -Descending
-                        )
-                    ) {
-                        Stop-Process `
-                            -Id $processId `
-                            -Force `
-                            -ErrorAction SilentlyContinue
+                    # Terminate descendants first and then the root so an MSBuild
+                    # compiler/linker child is not left running after a safety stop.
+                    foreach ($processId in @($process_tree_ids | Sort-Object -Descending)) {
+                        Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
                     }
                     break
                 }
@@ -461,6 +415,8 @@ function Start-Wb05ResourceSampler {
                 $minimumAvailable = 0
             }
 
+            # Keep this summary compatible with the existing evidence readers;
+            # command identity remains available in the matching command record.
             $summary = [ordered]@{
                 schema_version = '1.0'
                 sample_interval_seconds = $SampleIntervalSeconds
@@ -476,11 +432,7 @@ function Start-Wb05ResourceSampler {
 
             $encoding = New-Object System.Text.UTF8Encoding($false)
             $json = $summary | ConvertTo-Json -Depth 8
-            [IO.File]::WriteAllText(
-                $SummaryPath,
-                ($json + "`n"),
-                $encoding
-            )
+            [IO.File]::WriteAllText($SummaryPath, ($json + "`n"), $encoding)
         }
 
     return [pscustomobject]@{
@@ -500,11 +452,9 @@ function Stop-Wb05ResourceSampler {
         [int]$WaitSeconds = 90
     )
 
-    # Ask the sampler to finish, then surface job errors rather than silently
-    # discarding a failed measurement process.
-    Write-Wb05Utf8NoBomText `
-        -Path $Sampler.stop_path `
-        -Text "stop`n"
+    # Ask the sampler to close, then surface job errors rather than discarding a
+    # failed measurement process and pretending the evidence is complete.
+    Write-Wb05Utf8NoBomText -Path $Sampler.stop_path -Text "stop`n"
 
     if (-not (Wait-Job -Job $Sampler.job -Timeout $WaitSeconds)) {
         Stop-Job -Job $Sampler.job -ErrorAction SilentlyContinue
@@ -512,16 +462,10 @@ function Stop-Wb05ResourceSampler {
 
     Receive-Job -Job $Sampler.job -ErrorAction Stop | Out-Null
     Remove-Job -Job $Sampler.job -Force
-    Remove-Item `
-        -LiteralPath $Sampler.stop_path `
-        -Force `
-        -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $Sampler.stop_path -Force -ErrorAction SilentlyContinue
 
     if (-not (Test-Path -LiteralPath $Sampler.summary_path -PathType Leaf)) {
-        throw (
-            'Resource sampler did not produce its summary: ' +
-            $Sampler.summary_path
-        )
+        throw "Resource sampler did not produce its summary: $($Sampler.summary_path)"
     }
 
     return (
@@ -537,10 +481,7 @@ function Invoke-Wb05LoggedProcess {
         [string]$CommandId,
 
         [Parameter(Mandatory)]
-        [ValidateSet(
-            'route-a-merged-openvino',
-            'route-b-experimental-qjl-polar'
-        )]
+        [ValidateSet('route-a-merged-openvino', 'route-b-experimental-qjl-polar')]
         [string]$RouteId,
 
         [Parameter(Mandatory)]
@@ -563,12 +504,9 @@ function Invoke-Wb05LoggedProcess {
         [switch]$MonitorResources
     )
 
-    # Keep every command boundary in a dedicated set of text evidence files.
+    # Keep every command boundary in a dedicated text-only evidence set.
     if (-not (Test-Path -LiteralPath $EvidenceDirectory -PathType Container)) {
-        New-Item `
-            -ItemType Directory `
-            -Path $EvidenceDirectory `
-            -Force | Out-Null
+        New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
     }
 
     $safeId = $CommandId -replace '[^A-Za-z0-9._-]', '-'
@@ -576,15 +514,13 @@ function Invoke-Wb05LoggedProcess {
     $stderrPath = Join-Path $EvidenceDirectory "$safeId.stderr.log"
     $recordPath = Join-Path $EvidenceDirectory "$safeId.command.json"
 
-    # Build one ProcessStartInfo object without asking PowerShell to interpret
-    # a command string as code.
+    # Build one native process without asking PowerShell to interpret a command
+    # string as executable code. Every argument remains an explicit array item.
     $processStartInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processStartInfo.FileName = $FilePath
     $processStartInfo.Arguments = @(
         $ArgumentList |
-            ForEach-Object {
-                ConvertTo-Wb05WindowsCommandLineArgument -Argument $_
-            }
+            ForEach-Object { ConvertTo-Wb05WindowsCommandLineArgument -Argument $_ }
     ) -join ' '
     $processStartInfo.WorkingDirectory = $WorkingDirectory
     $processStartInfo.UseShellExecute = $false
@@ -613,8 +549,8 @@ function Invoke-Wb05LoggedProcess {
                 -SummaryPath (Join-Path $EvidenceDirectory "$safeId.resources.json")
         }
 
-        # Drain both redirected streams concurrently. Reading only one stream
-        # synchronously can deadlock when the child fills the other pipe.
+        # Drain stdout and stderr concurrently; reading either stream to the end
+        # synchronously first can deadlock when the child fills the other pipe.
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
         $process.WaitForExit()
@@ -633,8 +569,8 @@ function Invoke-Wb05LoggedProcess {
     Write-Wb05Utf8NoBomText -Path $stderrPath -Text $stderr
     $endedUtc = [DateTime]::UtcNow
 
-    # Record only explicitly allowlisted environment values, never the entire
-    # process environment where credentials might be present.
+    # Record only the explicitly allowed environment fields; never serialize the
+    # complete process environment where credentials could be present.
     $environment = [ordered]@{}
     foreach ($name in $EnvironmentAllowlist.Keys) {
         $environment[$name] = [string]$EnvironmentAllowlist[$name]
@@ -653,17 +589,10 @@ function Invoke-Wb05LoggedProcess {
         environment_allowlist = $environment
         started_utc = $startedUtc.ToString('o')
         ended_utc = $endedUtc.ToString('o')
-        elapsed_seconds = [Math]::Round(
-            ($endedUtc - $startedUtc).TotalSeconds,
-            3
-        )
+        elapsed_seconds = [Math]::Round(($endedUtc - $startedUtc).TotalSeconds, 3)
         exit_code = $exitCode
-        stdout_path = Get-Wb05RelativePath `
-            -Root $EvidenceDirectory `
-            -Path $stdoutPath
-        stderr_path = Get-Wb05RelativePath `
-            -Root $EvidenceDirectory `
-            -Path $stderrPath
+        stdout_path = Get-Wb05RelativePath -Root $EvidenceDirectory -Path $stdoutPath
+        stderr_path = Get-Wb05RelativePath -Root $EvidenceDirectory -Path $stderrPath
     }
     Write-Wb05Json -Path $recordPath -Value $record
 
@@ -683,10 +612,7 @@ function Get-Wb05BinaryRecords {
         [string]$Root,
 
         [Parameter(Mandatory)]
-        [ValidateSet(
-            'route-a-merged-openvino',
-            'route-b-experimental-qjl-polar'
-        )]
+        [ValidateSet('route-a-merged-openvino', 'route-b-experimental-qjl-polar')]
         [string]$RouteId,
 
         [Parameter(Mandatory)]
@@ -696,28 +622,17 @@ function Get-Wb05BinaryRecords {
         [Parameter(Mandatory)]
         [string]$ProducerCommandId,
 
-        [string[]]$AllowedExtensions = @(
-            '.exe',
-            '.dll',
-            '.lib',
-            '.pdb',
-            '.pyd'
-        )
+        [string[]]$AllowedExtensions = @('.exe', '.dll', '.lib', '.pdb', '.pyd')
     )
 
-    # Hash outputs in place. The records prove identity while the executable
-    # payloads remain outside Git and outside uploaded evidence.
+    # Hash installed binaries in place. The evidence contains identity metadata,
+    # never the executable payload itself.
     $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path
-    $extensions = @(
-        $AllowedExtensions |
-            ForEach-Object { $_.ToLowerInvariant() }
-    )
+    $extensions = @($AllowedExtensions | ForEach-Object { $_.ToLowerInvariant() })
 
     return @(
         Get-ChildItem -LiteralPath $resolvedRoot -File -Recurse |
-            Where-Object {
-                $extensions -contains $_.Extension.ToLowerInvariant()
-            } |
+            Where-Object { $extensions -contains $_.Extension.ToLowerInvariant() } |
             Sort-Object FullName |
             ForEach-Object {
                 [ordered]@{
@@ -726,14 +641,10 @@ function Get-Wb05BinaryRecords {
                     record_type = 'build-binary'
                     route_id = $RouteId
                     component = $Component
-                    relative_path = Get-Wb05RelativePath `
-                        -Root $resolvedRoot `
-                        -Path $_.FullName
+                    relative_path = Get-Wb05RelativePath -Root $resolvedRoot -Path $_.FullName
                     size_bytes = [int64]$_.Length
                     sha256 = (
-                        Get-FileHash `
-                            -LiteralPath $_.FullName `
-                            -Algorithm SHA256
+                        Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
                     ).Hash.ToLowerInvariant()
                     producer_command_id = $ProducerCommandId
                     configuration = 'Release'
@@ -750,7 +661,29 @@ function Restore-Wb05Environment {
         [hashtable]$Snapshot
     )
 
-    # Restore previous values and remove variables that were absent before the
-    # build stage, preventing one route from contaminating the next route.
+    # Restore previous process-scoped environment values and remove variables
+    # that did not exist before the build stage.
     foreach ($name in $Snapshot.Keys) {
-        $value = $Snapshot[8„çÖ™Ï∂ªßq´^
+        $value = $Snapshot[$name]
+        if ($null -eq $value) {
+            Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue
+        }
+        else {
+            Set-Item -Path "Env:$name" -Value ([string]$value)
+        }
+    }
+}
+
+# Export only the nine reviewed public primitives. All quoting and relative-path
+# helpers remain private implementation details of the module.
+Export-ModuleMember -Function @(
+    'New-Wb05ExternalWorkspace',
+    'Invoke-Wb05LoggedProcess',
+    'Start-Wb05ResourceSampler',
+    'Stop-Wb05ResourceSampler',
+    'Write-Wb05Json',
+    'Write-Wb05Manifest',
+    'Assert-Wb05SafePath',
+    'Get-Wb05BinaryRecords',
+    'Restore-Wb05Environment'
+)
