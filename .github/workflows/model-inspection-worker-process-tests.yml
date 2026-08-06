@@ -1,0 +1,88 @@
+name: Model Inspection worker process tests
+
+# Exercise the real Windows process boundary whenever its launcher, shared
+# contracts, process fixture, integration tests, or this workflow changes.
+on:
+  push:
+    paths:
+      - 'infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/**'
+      - 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/**'
+      - '.github/workflows/model-inspection-worker-process-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/**'
+      - 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/**'
+      - '.github/workflows/model-inspection-worker-process-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-inspection-worker-process-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+    working-directory: D:\s
+
+jobs:
+  worker-process-tests:
+    name: Run protected worker process tests
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out process-boundary inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient
+            shared/GraniteEdgeAI.ModelInspection.Contracts
+            shared/GraniteEdgeAI.ModelInspection.Transport
+            tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests
+            tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker
+
+      - name: Stage process-boundary inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $buildRoot = 'D:\s'
+          if (Test-Path -LiteralPath $buildRoot) {
+            Remove-Item -LiteralPath $buildRoot -Recurse -Force
+          }
+
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage process-boundary inputs at $buildRoot."
+          }
+          $global:LASTEXITCODE = 0
+
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw 'The staged checkout is incomplete: global.json was not found.'
+          }
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: D:/s/global.json
+
+      - name: Display selected SDK
+        run: dotnet --info
+
+      - name: Run atomic worker-launch integration test
+        run: >-
+          dotnet test
+          tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
+          --configuration Release
+          --filter "FullyQualifiedName~WorkerLaunchContainmentTests"
+          --minimum-expected-tests 1
+          -p:Platform=x64

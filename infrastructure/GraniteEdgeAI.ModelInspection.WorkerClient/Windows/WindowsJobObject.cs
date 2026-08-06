@@ -92,6 +92,9 @@ internal sealed class WindowsJobObject : IDisposable
         return accounting;
     }
 
+    internal uint GetActiveProcessCount() =>
+        QueryBasicAccounting().ActiveProcesses;
+
     internal void Terminate(uint exitCode)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

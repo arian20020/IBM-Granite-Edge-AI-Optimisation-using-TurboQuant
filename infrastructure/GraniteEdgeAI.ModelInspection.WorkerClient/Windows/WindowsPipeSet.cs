@@ -6,10 +6,17 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 
 /// <summary>
 /// Owns the six endpoints of three anonymous pipes. Only the child stdin-read,
-/// stdout-write and stderr-write endpoints remain inheritable.
+/// stdout-write and stderr-write endpoints remain inheritable. Parent endpoints
+/// can be transferred exactly once to a <see cref="WorkerProcessSession"/>.
 /// </summary>
 internal sealed class WindowsPipeSet : IDisposable
 {
+    private SafeFileHandle? _childStandardInputRead;
+    private SafeFileHandle? _parentStandardInputWrite;
+    private SafeFileHandle? _parentStandardOutputRead;
+    private SafeFileHandle? _childStandardOutputWrite;
+    private SafeFileHandle? _parentStandardErrorRead;
+    private SafeFileHandle? _childStandardErrorWrite;
     private bool _disposed;
 
     private WindowsPipeSet(
@@ -20,25 +27,31 @@ internal sealed class WindowsPipeSet : IDisposable
         SafeFileHandle parentStandardErrorRead,
         SafeFileHandle childStandardErrorWrite)
     {
-        ChildStandardInputRead = childStandardInputRead;
-        ParentStandardInputWrite = parentStandardInputWrite;
-        ParentStandardOutputRead = parentStandardOutputRead;
-        ChildStandardOutputWrite = childStandardOutputWrite;
-        ParentStandardErrorRead = parentStandardErrorRead;
-        ChildStandardErrorWrite = childStandardErrorWrite;
+        _childStandardInputRead = childStandardInputRead;
+        _parentStandardInputWrite = parentStandardInputWrite;
+        _parentStandardOutputRead = parentStandardOutputRead;
+        _childStandardOutputWrite = childStandardOutputWrite;
+        _parentStandardErrorRead = parentStandardErrorRead;
+        _childStandardErrorWrite = childStandardErrorWrite;
     }
 
-    internal SafeFileHandle ChildStandardInputRead { get; }
+    internal SafeFileHandle ChildStandardInputRead =>
+        RequireOwned(_childStandardInputRead, nameof(ChildStandardInputRead));
 
-    internal SafeFileHandle ParentStandardInputWrite { get; }
+    internal SafeFileHandle ParentStandardInputWrite =>
+        RequireOwned(_parentStandardInputWrite, nameof(ParentStandardInputWrite));
 
-    internal SafeFileHandle ParentStandardOutputRead { get; }
+    internal SafeFileHandle ParentStandardOutputRead =>
+        RequireOwned(_parentStandardOutputRead, nameof(ParentStandardOutputRead));
 
-    internal SafeFileHandle ChildStandardOutputWrite { get; }
+    internal SafeFileHandle ChildStandardOutputWrite =>
+        RequireOwned(_childStandardOutputWrite, nameof(ChildStandardOutputWrite));
 
-    internal SafeFileHandle ParentStandardErrorRead { get; }
+    internal SafeFileHandle ParentStandardErrorRead =>
+        RequireOwned(_parentStandardErrorRead, nameof(ParentStandardErrorRead));
 
-    internal SafeFileHandle ChildStandardErrorWrite { get; }
+    internal SafeFileHandle ChildStandardErrorWrite =>
+        RequireOwned(_childStandardErrorWrite, nameof(ChildStandardErrorWrite));
 
     internal static WindowsPipeSet Create()
     {
@@ -82,7 +95,7 @@ internal sealed class WindowsPipeSet : IDisposable
 
     /// <summary>
     /// Returns borrowed handle values for the exact creation-time inheritance
-    /// allowlist. Ownership remains with this pipe set.
+    /// allowlist. Ownership remains with this pipe set until creation completes.
     /// </summary>
     internal IReadOnlyList<IntPtr> GetChildHandleAllowlist()
     {
@@ -101,10 +114,19 @@ internal sealed class WindowsPipeSet : IDisposable
     /// </summary>
     internal void CloseChildEndpoints()
     {
-        ChildStandardInputRead.Dispose();
-        ChildStandardOutputWrite.Dispose();
-        ChildStandardErrorWrite.Dispose();
+        DisposeAndClear(ref _childStandardInputRead);
+        DisposeAndClear(ref _childStandardOutputWrite);
+        DisposeAndClear(ref _childStandardErrorWrite);
     }
+
+    internal SafeFileHandle TakeParentStandardInputWrite() =>
+        TakeOwned(ref _parentStandardInputWrite, nameof(ParentStandardInputWrite));
+
+    internal SafeFileHandle TakeParentStandardOutputRead() =>
+        TakeOwned(ref _parentStandardOutputRead, nameof(ParentStandardOutputRead));
+
+    internal SafeFileHandle TakeParentStandardErrorRead() =>
+        TakeOwned(ref _parentStandardErrorRead, nameof(ParentStandardErrorRead));
 
     public void Dispose()
     {
@@ -113,9 +135,9 @@ internal sealed class WindowsPipeSet : IDisposable
             return;
         }
 
-        ParentStandardInputWrite.Dispose();
-        ParentStandardOutputRead.Dispose();
-        ParentStandardErrorRead.Dispose();
+        DisposeAndClear(ref _parentStandardInputWrite);
+        DisposeAndClear(ref _parentStandardOutputRead);
+        DisposeAndClear(ref _parentStandardErrorRead);
         CloseChildEndpoints();
         _disposed = true;
         GC.SuppressFinalize(this);
@@ -150,5 +172,28 @@ internal sealed class WindowsPipeSet : IDisposable
                 Marshal.GetLastPInvokeError(),
                 "Windows could not restrict a parent pipe handle.");
         }
+    }
+
+    private static SafeFileHandle RequireOwned(
+        SafeFileHandle? handle,
+        string endpointName)
+    {
+        return handle ?? throw new InvalidOperationException(
+            $"Pipe endpoint {endpointName} is no longer owned by this pipe set.");
+    }
+
+    private static SafeFileHandle TakeOwned(
+        ref SafeFileHandle? handle,
+        string endpointName)
+    {
+        SafeFileHandle owned = RequireOwned(handle, endpointName);
+        handle = null;
+        return owned;
+    }
+
+    private static void DisposeAndClear(ref SafeFileHandle? handle)
+    {
+        handle?.Dispose();
+        handle = null;
     }
 }

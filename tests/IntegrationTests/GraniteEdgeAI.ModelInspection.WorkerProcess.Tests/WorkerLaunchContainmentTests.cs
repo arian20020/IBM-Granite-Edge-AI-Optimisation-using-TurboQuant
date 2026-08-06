@@ -59,7 +59,7 @@ public sealed class WorkerLaunchContainmentTests
         Assert.AreEqual(0u, session.Job.GetActiveProcessCount());
     }
 
-    private static IReadOnlyDictionary<string, string?> CaptureParentEnvironment()
+    private static Dictionary<string, string?> CaptureParentEnvironment()
     {
         Dictionary<string, string?> values =
             new(StringComparer.OrdinalIgnoreCase);
