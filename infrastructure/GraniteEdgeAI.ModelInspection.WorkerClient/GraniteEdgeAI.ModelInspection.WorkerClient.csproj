@@ -17,10 +17,13 @@
     <ProjectReference Include="..\..\shared\GraniteEdgeAI.ModelInspection.Transport\GraniteEdgeAI.ModelInspection.Transport.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Keep Task 4 policy implementation internal while allowing the focused
-         test assembly to exercise deterministic filesystem seams. -->
+    <!-- Keep the platform boundary internal while allowing focused test
+         assemblies to exercise deterministic policy and real process seams. -->
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>GraniteEdgeAI.ModelInspection.WorkerClient.Tests</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>GraniteEdgeAI.ModelInspection.WorkerProcess.Tests</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
 </Project>
