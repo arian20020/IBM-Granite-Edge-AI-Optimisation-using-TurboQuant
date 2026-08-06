@@ -84,6 +84,30 @@ class SourceAdmissionRepositoryGateContractTests(unittest.TestCase):
             text.count("WORKBOOK 05 SOURCE-ADMISSION PHASE 1 GATE: PASS"),
         )
 
+    def test_gate_selects_one_python_application_before_invocation(self) -> None:
+        """Multiple PATH matches for `python` must not become one invalid path."""
+
+        text = self._gate_text()
+        resolution_section = text.split(
+            "# Resolve either the approved absolute interpreter",
+            1,
+        )[1].split(
+            "# Verify the exact approved interpreter version",
+            1,
+        )[0]
+
+        self.assertIn("Get-Command", resolution_section)
+        self.assertIn("Select-Object -First 1", resolution_section)
+        self.assertIn("$ResolvedPythonPath = $PythonCommand.Source", resolution_section)
+        self.assertLess(
+            resolution_section.index("Get-Command"),
+            resolution_section.index("Select-Object -First 1"),
+        )
+        self.assertLess(
+            resolution_section.index("Select-Object -First 1"),
+            resolution_section.index("$ResolvedPythonPath"),
+        )
+
     def test_gate_checks_native_process_failures_and_avoids_unsafe_execution(self) -> None:
         """A later success must not hide Python or Git failure."""
 
