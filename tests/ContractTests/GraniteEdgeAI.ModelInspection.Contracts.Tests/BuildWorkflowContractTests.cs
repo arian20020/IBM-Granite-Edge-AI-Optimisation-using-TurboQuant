@@ -25,6 +25,23 @@ public sealed class BuildWorkflowContractTests
     }
 
     [TestMethod]
+    public void BuildWorkflowRunsCompleteContractProjectWithoutCategoryFilter()
+    {
+        string workflow = ReadWorkflow();
+        string contractStep = ExtractWorkflowStep(
+            workflow,
+            "Run Model Inspection contract tests");
+
+        Assert.IsFalse(
+            contractStep.Contains("--filter", StringComparison.Ordinal),
+            "The complete contract project must run because the category filter discovers zero tests under the selected Microsoft Testing Platform configuration.");
+        StringAssert.Contains(
+            contractStep,
+            "--minimum-expected-tests 75",
+            "The contract floor must remain after the incompatible filter is removed.");
+    }
+
+    [TestMethod]
     public void BuildWorkflowExecutesAndPreservesEveryGate2Layer()
     {
         string workflow = ReadWorkflow();
@@ -74,6 +91,26 @@ public sealed class BuildWorkflowContractTests
             ".github",
             "workflows",
             "build-and-test.yml"));
+
+    private static string ExtractWorkflowStep(
+        string workflow,
+        string stepName)
+    {
+        string marker = $"- name: {stepName}";
+        int stepStart = workflow.IndexOf(marker, StringComparison.Ordinal);
+        Assert.IsTrue(
+            stepStart >= 0,
+            $"Workflow step was not found: {stepName}");
+
+        int nextStep = workflow.IndexOf(
+            "\n      - name:",
+            stepStart + marker.Length,
+            StringComparison.Ordinal);
+
+        return nextStep >= 0
+            ? workflow[stepStart..nextStep]
+            : workflow[stepStart..];
+    }
 
     private static int CountOccurrences(
         string value,
