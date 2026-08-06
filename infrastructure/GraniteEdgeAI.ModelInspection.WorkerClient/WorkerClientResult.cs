@@ -20,7 +20,8 @@ public sealed record WorkerClientResult
         bool ForcedTermination,
         bool StandardErrorTruncated,
         string RetainedStandardError,
-        IReadOnlyList<string> SecondaryDiagnostics)
+        IReadOnlyList<string> SecondaryDiagnostics,
+        bool StandardErrorInvalidUtf8Detected = false)
     {
         ArgumentNullException.ThrowIfNull(RetainedStandardError);
         ArgumentNullException.ThrowIfNull(SecondaryDiagnostics);
@@ -33,6 +34,8 @@ public sealed record WorkerClientResult
         this.RetainedStandardError = RetainedStandardError;
         this.SecondaryDiagnostics = Array.AsReadOnly(
             SecondaryDiagnostics.ToArray());
+        this.StandardErrorInvalidUtf8Detected =
+            StandardErrorInvalidUtf8Detected;
     }
 
     public WorkerCompletedMessage? TerminalMessage { get; }
@@ -44,6 +47,12 @@ public sealed record WorkerClientResult
     public bool ForcedTermination { get; }
 
     public bool StandardErrorTruncated { get; }
+
+    /// <summary>
+    /// Indicates that at least one invalid UTF-8 sequence was observed anywhere
+    /// in the fully drained stderr stream. Invalid bytes are never retained.
+    /// </summary>
+    public bool StandardErrorInvalidUtf8Detected { get; }
 
     public string RetainedStandardError { get; }
 
