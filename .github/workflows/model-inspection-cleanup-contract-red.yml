@@ -1,0 +1,35 @@
+name: Model Inspection cleanup contract red
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-red:
+    name: Prove cleanup contract regression
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Restore contract tests
+        run: dotnet restore "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj"
+
+      - name: Run complete contract project
+        run: |
+          dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
+            --configuration Release `
+            --no-restore `
+            --minimum-expected-tests 75
