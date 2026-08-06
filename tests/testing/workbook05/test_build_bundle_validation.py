@@ -243,7 +243,7 @@ class BuildBundleValidationTests(unittest.TestCase):
             command["stdout_path"] = "../outside.log"
             _write_json(root / "commands/configure.command.json", command)
             _write_manifest(root)
-            self.assertIn("UNSAFE_EVIDENCE_PATH", _codes(validate_bundle(root, _expected(), REPOSITORY_ROOT)))
+            self.assertIn("UNSAFE_EVIDENCE_PATH", _codes(validate_build_bundle(root, _expected(), REPOSITORY_ROOT)))
 
     def test_executed_unapproved_deviation_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -267,7 +267,7 @@ class BuildBundleValidationTests(unittest.TestCase):
             _create_valid_bundle(root)
             _write_json(root / "decision.json", _decision(status="BuildCandidate", component="route", required_status="Failed"))
             _write_manifest(root)
-            self.assertIn("RECORD_INVALID", _codes(validate_bundle(root, _expected(), REPOSITORY_ROOT)))
+            self.assertIn("RECORD_INVALID", _codes(validate_build_bundle(root, _expected(), REPOSITORY_ROOT)))
 
     def test_route_b_requires_accepted_br8_prerequisite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
