@@ -154,6 +154,25 @@ class RouteBRepairTests(unittest.TestCase):
         self.assertIn("performance_claim_authorised = $false", orchestrator)
         self.assertIn("quality_claim_authorised = $false", orchestrator)
 
+    def test_native_adapter_drains_stderr_without_using_powershell_error_stream(self) -> None:
+        repository_root = Path(__file__).resolve().parents[3]
+        orchestrator = (
+            repository_root
+            / "scripts"
+            / "testing"
+            / "workbook05"
+            / "Invoke-Workbook05RouteBRepair.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("System.Diagnostics.ProcessStartInfo", orchestrator)
+        self.assertIn("RedirectStandardOutput = $true", orchestrator)
+        self.assertIn("RedirectStandardError = $true", orchestrator)
+        self.assertGreaterEqual(orchestrator.count("ReadToEndAsync()"), 2)
+        self.assertNotIn(
+            "& $FilePath @ArgumentList 1> $stdoutPath 2> $stderrPath",
+            orchestrator,
+        )
+
     def test_hosted_validator_requires_the_exact_six_case_catalogue(self) -> None:
         repository_root = Path(__file__).resolve().parents[3]
         validator = (
