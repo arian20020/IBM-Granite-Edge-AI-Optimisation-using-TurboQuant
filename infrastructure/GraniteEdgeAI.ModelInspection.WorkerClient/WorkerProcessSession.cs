@@ -10,6 +10,8 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 /// </summary>
 internal sealed class WorkerProcessSession : IAsyncDisposable
 {
+    private static readonly TimeSpan FallbackCleanupTimeout =
+        TimeSpan.FromSeconds(5);
     private readonly SafeProcessHandle _processHandle;
     private bool _disposed;
 
@@ -69,6 +71,64 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         return checked((int)exitCode);
     }
 
+    /// <summary>
+    /// Terminates every active process assigned to this session's Job Object and
+    /// then verifies authoritative active-process accounting reaches zero.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when TerminateJobObject was required; otherwise
+    /// <see langword="false"/> because the Job Object was already empty.
+    /// </returns>
+    internal async Task<bool> TerminateAndVerifyEmptyAsync(TimeSpan timeout)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+            timeout,
+            TimeSpan.Zero);
+
+        bool terminationRequired = Job.GetActiveProcessCount() != 0;
+        if (terminationRequired)
+        {
+            Job.Terminate(exitCode: 1);
+        }
+
+        // Root exit and complete tree cleanup are independent facts. Wait for
+        // both, then trust Job Object accounting as the tree-empty authority.
+        try
+        {
+            await WaitForExitAsync(CancellationToken.None)
+                .WaitAsync(timeout, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            throw WorkerClientPolicyException.For(
+                WorkerClientFailureCodes.WorkerCleanupFailed,
+                "The Model Inspection worker root process did not exit during cleanup.");
+        }
+
+        if (!await Job.WaitUntilEmptyAsync(
+                timeout,
+                CancellationToken.None)
+            .ConfigureAwait(false))
+        {
+            throw WorkerClientPolicyException.For(
+                WorkerClientFailureCodes.WorkerCleanupFailed,
+                "The Model Inspection worker process tree did not become empty during cleanup.");
+        }
+
+        return terminationRequired;
+    }
+
+    /// <summary>
+    /// Waits for the Job Object to become empty without forcing termination.
+    /// </summary>
+    internal Task<bool> WaitForTreeEmptyAsync(TimeSpan timeout)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return Job.WaitUntilEmptyAsync(timeout, CancellationToken.None);
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -90,20 +150,12 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
 
         try
         {
-            if (Job.GetActiveProcessCount() != 0)
-            {
-                Job.Terminate(exitCode: 1);
-                using CancellationTokenSource cleanupTimeout =
-                    new(TimeSpan.FromSeconds(5));
-                await WindowsProcessWaiter.WaitForExitAsync(
-                        _processHandle,
-                        cleanupTimeout.Token)
-                    .ConfigureAwait(false);
-            }
+            _ = await TerminateAndVerifyEmptyAsync(FallbackCleanupTimeout)
+                .ConfigureAwait(false);
         }
         catch (Exception error) when (
             IsExpectedCleanupError(error) ||
-            error is OperationCanceledException)
+            error is WorkerClientPolicyException)
         {
             // The final Job Object close below still enforces kill-on-close.
             cleanupFailed = true;
@@ -137,5 +189,6 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
         UnauthorizedAccessException or
         ObjectDisposedException or
         InvalidOperationException or
-        System.ComponentModel.Win32Exception;
+        System.ComponentModel.Win32Exception or
+        TimeoutException;
 }
