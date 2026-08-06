@@ -97,7 +97,7 @@ internal static class WorkerEnvironmentPolicy
     }
 
     private static string RequireExistingAbsolutePath(
-        IReadOnlyDictionary<string, string?> parent,
+        Dictionary<string, string?> parent,
         string key)
     {
         if (!parent.TryGetValue(key, out string? value) || value is null)
