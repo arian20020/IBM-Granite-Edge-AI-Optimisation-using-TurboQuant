@@ -1,8 +1,8 @@
-name: Model Inspection WorkerClient domain tests
+name: Model Inspection WorkerClient tests
 
-# Run the process-independent WorkerClient domain suite whenever its contracts,
-# implementation, tests, or this workflow changes. The wider Windows workflow
-# still protects the complete Gate 2 project graph and WinUI regressions.
+# Run the process-independent WorkerClient domain and policy suites whenever
+# their contracts, implementation, tests, or this workflow changes. The wider
+# Windows workflow still protects the complete Gate 2 graph and WinUI tests.
 on:
   push:
     paths:
@@ -20,31 +20,28 @@ on:
       - '.github/workflows/model-inspection-worker-client-tests.yml'
   workflow_dispatch:
 
-# The validation job only needs to read the checked-out source.
 permissions:
   contents: read
 
-# Cancel obsolete executions when a newer commit supersedes the same branch.
 concurrency:
   group: model-inspection-worker-client-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# The repository name creates a long default Windows checkout path. Run build
-# commands from the same short root used by the wider Windows workflow.
+# The long repository name can exceed Windows process-path limits after build
+# output directories are appended, so every command runs from a short root.
 defaults:
   run:
     shell: pwsh
     working-directory: D:\s
 
 jobs:
-  worker-client-domain-tests:
-    name: Run WorkerClient execution-domain tests
+  worker-client-tests:
+    name: Run WorkerClient domain and policy tests
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
-      # Pinned immutable commit for actions/checkout v7.0.0.
-      - name: Check out WorkerClient domain
+      - name: Check out WorkerClient boundary
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           sparse-checkout: |
@@ -53,44 +50,39 @@ jobs:
             shared/GraniteEdgeAI.ModelInspection.Transport
             tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests
 
-      # actions/checkout must write beneath GITHUB_WORKSPACE. Copy the sparse
-      # source tree to a short drive-root path before compilation and execution
-      # so Windows CreateProcess does not reject the generated test-app path.
       - name: Stage WorkerClient inputs at a short path
         working-directory: ${{ github.workspace }}
         run: |
           $buildRoot = 'D:\s'
-          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+          if (Test-Path -LiteralPath $buildRoot) {
+            Remove-Item -LiteralPath $buildRoot -Recurse -Force
+          }
 
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
           if ($LASTEXITCODE -ge 8) {
             throw "Failed to stage WorkerClient inputs at $buildRoot."
           }
-
-          # Robocopy exit codes 1-7 represent successful copy outcomes.
           $global:LASTEXITCODE = 0
 
           if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
             throw "The staged checkout is incomplete: global.json was not found."
           }
 
-      # Pinned immutable commit for actions/setup-dotnet v5.0.0. The SDK is
-      # selected from the staged repository's exact global.json file.
       - name: Set up repository .NET SDK
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
         with:
           global-json-file: D:/s/global.json
 
-      # Record the selected SDK and runtime identifier for reproducibility.
       - name: Display selected SDK
         run: dotnet --info
 
-      # Microsoft.Testing.Platform exits non-zero for compilation failures,
-      # failing tests, or fewer tests than the complete Task 3 behaviour set.
-      - name: Run WorkerClient domain behaviour tests
+      # The filter is intentionally explicit so a future unrelated test cannot
+      # satisfy the minimum count for this security boundary.
+      - name: Run WorkerClient domain and policy behaviour tests
         run: >-
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerClientDomainTests"
-          --minimum-expected-tests 13
+          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests"
+          --minimum-expected-tests 32
           -p:Platform=x64
