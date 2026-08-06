@@ -219,6 +219,17 @@ function Start-Wb05ResourceSampler {
         [int]$RootProcessId,
 
         [Parameter(Mandatory)]
+        [ValidateSet('route-a-merged-openvino', 'route-b-experimental-qjl-polar')]
+        [string]$RouteId,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('runtime', 'genai')]
+        [string]$Component,
+
+        [Parameter(Mandatory)]
+        [string]$CommandId,
+
+        [Parameter(Mandatory)]
         [string]$CsvPath,
 
         [Parameter(Mandatory)]
@@ -251,6 +262,9 @@ function Start-Wb05ResourceSampler {
     $job = Start-Job `
         -ArgumentList @(
             $RootProcessId,
+            $RouteId,
+            $Component,
+            $CommandId,
             $CsvPath,
             $SummaryPath,
             $stopPath,
@@ -264,6 +278,9 @@ function Start-Wb05ResourceSampler {
         -ScriptBlock {
             param(
                 $RootProcessId,
+                $RouteId,
+                $Component,
+                $CommandId,
                 $CsvPath,
                 $SummaryPath,
                 $StopPath,
@@ -415,10 +432,15 @@ function Start-Wb05ResourceSampler {
                 $minimumAvailable = 0
             }
 
-            # Keep this summary compatible with the existing evidence readers;
-            # command identity remains available in the matching command record.
+            # Write a complete build-resource-summary record so the independent
+            # hosted validator must schema-check every monitored native command.
             $summary = [ordered]@{
                 schema_version = '1.0'
+                campaign_id = 'GTQ-WB05-MF-v1'
+                record_type = 'build-resource-summary'
+                route_id = $RouteId
+                component = $Component
+                command_id = $CommandId
                 sample_interval_seconds = $SampleIntervalSeconds
                 sample_count = $sampleCount
                 peak_working_set_bytes = $peakWorkingSet
@@ -545,6 +567,9 @@ function Invoke-Wb05LoggedProcess {
         if ($MonitorResources) {
             $sampler = Start-Wb05ResourceSampler `
                 -RootProcessId $process.Id `
+                -RouteId $RouteId `
+                -Component $Component `
+                -CommandId $CommandId `
                 -CsvPath (Join-Path $EvidenceDirectory "$safeId.resources.csv") `
                 -SummaryPath (Join-Path $EvidenceDirectory "$safeId.resources.json")
         }
