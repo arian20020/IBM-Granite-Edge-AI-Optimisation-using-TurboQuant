@@ -90,7 +90,9 @@ internal sealed class WindowsEnvironmentBlock : IDisposable
             OverflowException or
             OutOfMemoryException)
         {
-            throw Failure(error);
+            // Allocation and validation errors can include caller data. Keep
+            // the public policy exception stable and privacy-safe.
+            throw Failure();
         }
     }
 
@@ -134,14 +136,11 @@ internal sealed class WindowsEnvironmentBlock : IDisposable
         }
     }
 
-    private static WorkerClientPolicyException Failure(
-        Exception? innerException = null)
+    private static WorkerClientPolicyException Failure()
     {
         WorkerClientFailure failure = new(
             WorkerClientFailureCodes.WorkerEnvironmentPolicyFailed,
             FailureMessage);
-        return innerException is null
-            ? new WorkerClientPolicyException(failure)
-            : new WorkerClientPolicyException(failure, innerException);
+        return new WorkerClientPolicyException(failure);
     }
 }
