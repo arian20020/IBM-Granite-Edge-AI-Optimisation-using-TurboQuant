@@ -9,10 +9,10 @@ param(
 Runs the complete repository-side Workbook 05 documented-build gate.
 
 .DESCRIPTION
-This gate validates every Workbook 05 Python contract, imports the reusable
-PowerShell build module, executes any repository PowerShell test scripts, reruns
-the focused build workflow contract, and checks the Git diff. It performs no
-external source build and cannot execute a model.
+The gate installs only the repository-pinned Python validation dependency into
+runner temporary storage, executes every Workbook 05 test, imports the real
+Windows build module, reruns the staged-workflow contracts, and checks the Git
+diff. It performs no external source build and cannot execute a model.
 #>
 
 Set-StrictMode -Version Latest
@@ -27,6 +27,61 @@ $pythonCommand = Get-Command `
     Select-Object -First 1
 $resolvedPythonPath = $pythonCommand.Source
 
+# Keep third-party validation packages outside both the repository and the
+# machine-wide Python installation. RUNNER_TEMP is job-specific in Actions;
+# local executions fall back to the operating-system temporary directory.
+$temporaryRoot = if ($env:RUNNER_TEMP) {
+    $env:RUNNER_TEMP
+}
+else {
+    [IO.Path]::GetTempPath()
+}
+$dependencyDirectory = Join-Path `
+    $temporaryRoot `
+    'workbook05-build-stage-python'
+$requirementsPath = Join-Path `
+    $RepositoryRoot `
+    'scripts/testing/workbook05/requirements.txt'
+if (-not (Test-Path -LiteralPath $requirementsPath -PathType Leaf)) {
+    throw "Workbook 05 requirements file is missing: $requirementsPath"
+}
+if (Test-Path -LiteralPath $dependencyDirectory) {
+    Remove-Item `
+        -LiteralPath $dependencyDirectory `
+        -Recurse `
+        -Force
+}
+New-Item `
+    -ItemType Directory `
+    -Path $dependencyDirectory `
+    -Force:$false | Out-Null
+
+& $resolvedPythonPath `
+    -m pip install `
+    --disable-pip-version-check `
+    --target $dependencyDirectory `
+    -r $requirementsPath
+if ($LASTEXITCODE -ne 0) {
+    throw "Pinned Workbook 05 dependency installation exited with code $LASTEXITCODE."
+}
+
+# PYTHONPATH is process-scoped and restored in the final boundary. This lets
+# both hosted and self-hosted jobs import jsonschema without persistent drift.
+$originalPythonPath = [Environment]::GetEnvironmentVariable(
+    'PYTHONPATH',
+    'Process'
+)
+if ([string]::IsNullOrWhiteSpace($originalPythonPath)) {
+    $env:PYTHONPATH = $dependencyDirectory
+}
+else {
+    $env:PYTHONPATH = (
+        $dependencyDirectory +
+        [IO.Path]::PathSeparator +
+        $originalPythonPath
+    )
+}
+
 Push-Location $RepositoryRoot
 try {
     # Run every Workbook 05 Python test so a later stage cannot bypass an
@@ -40,7 +95,9 @@ try {
 
     # Import the real Windows build module in a clean scope. This catches parser,
     # export, and module-initialisation defects that static text tests cannot see.
-    $modulePath = Join-Path $RepositoryRoot 'scripts/testing/workbook05/Workbook05.Build.psm1'
+    $modulePath = Join-Path `
+        $RepositoryRoot `
+        'scripts/testing/workbook05/Workbook05.Build.psm1'
     Import-Module $modulePath -Force -ErrorAction Stop
     $expectedFunctions = @(
         'New-Wb05ExternalWorkspace',
@@ -56,7 +113,12 @@ try {
     $missingFunctions = @(
         $expectedFunctions |
             Where-Object {
-                -not (Get-Command -Name $_ -CommandType Function -ErrorAction SilentlyContinue)
+                -not (
+                    Get-Command `
+                        -Name $_ `
+                        -CommandType Function `
+                        -ErrorAction SilentlyContinue
+                )
             }
     )
     if ($missingFunctions.Count -ne 0) {
@@ -68,7 +130,9 @@ try {
     # explicit file boundary; no dynamically constructed command string is used.
     $powerShellTests = @(
         Get-ChildItem `
-            -LiteralPath (Join-Path $RepositoryRoot 'tests/testing/workbook05') `
+            -LiteralPath (
+                Join-Path $RepositoryRoot 'tests/testing/workbook05'
+            ) `
             -Filter '*.Tests.ps1' `
             -File `
             -Recurse `
@@ -83,12 +147,13 @@ try {
     }
 
     # Rerun the workflow/security contract explicitly so the final PASS line can
-    # be traced to the exact staged-workflow rules as well as full discovery.
+    # be traced to the staged-workflow rules as well as full discovery.
     & $resolvedPythonPath -m unittest -v `
         tests.testing.workbook05.test_build_workflow_contract `
-        tests.testing.workbook05.test_build_workflow_bundle_contract
+        tests.testing.workbook05.test_build_workflow_bundle_contract `
+        tests.testing.workbook05.test_build_gate_dependency_contract
     if ($LASTEXITCODE -ne 0) {
-        throw "test_build_workflow_contract exited with code $LASTEXITCODE."
+        throw "Documented-build workflow contracts exited with code $LASTEXITCODE."
     }
 
     # Reject whitespace errors and conflict markers across the complete branch.
@@ -102,4 +167,10 @@ try {
 }
 finally {
     Pop-Location
+    if ([string]::IsNullOrWhiteSpace($originalPythonPath)) {
+        Remove-Item -Path 'Env:PYTHONPATH' -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PYTHONPATH = $originalPythonPath
+    }
 }
