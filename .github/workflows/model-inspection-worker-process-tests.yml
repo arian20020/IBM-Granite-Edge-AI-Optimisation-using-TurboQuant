@@ -87,3 +87,36 @@ jobs:
           --filter "FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests"
           --minimum-expected-tests 27
           -p:Platform=x64
+
+      # Repeat the timing-sensitive Task 10 cases to expose cancellation races,
+      # process-tree leaks, stream deadlocks, and cross-session interference.
+      # The already-built test assembly is reused so the loop measures runtime
+      # stability rather than repeated compilation.
+      - name: Repeat Task 10 process scenarios five times
+        run: |
+          $project = 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
+          $filter = 'FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
+          $fixtureProcessName = 'GraniteEdgeAI.ModelInspection.ProtocolTestWorker'
+
+          for ($iteration = 1; $iteration -le 5; $iteration++) {
+            Write-Host "Task 10 stability iteration $iteration of 5."
+            dotnet test $project `
+              --configuration Release `
+              --no-build `
+              --filter $filter `
+              --minimum-expected-tests 9 `
+              -p:Platform=x64
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Task 10 stability iteration $iteration failed."
+            }
+
+            $remaining = Get-Process `
+              -Name $fixtureProcessName `
+              -ErrorAction SilentlyContinue
+            if ($remaining) {
+              $processIds = ($remaining | Select-Object -ExpandProperty Id) -join ','
+              $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
+              throw "Task 10 stability iteration $iteration left fixture process IDs: $processIds."
+            }
+          }
