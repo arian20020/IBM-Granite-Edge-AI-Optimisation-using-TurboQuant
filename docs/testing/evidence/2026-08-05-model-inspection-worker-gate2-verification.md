@@ -1,179 +1,121 @@
 # Model Inspection Worker Gate 2 Verification
 
-> Living evidence record for the protected Model Inspection worker boundary. Gate 2 remains incomplete until Tasks 5–11 and the final closure checklist are verified on one exact documentation head.
+> Living evidence record for the protected Windows x64 worker boundary. Gate 2 is complete only when the final documentation head passes the unified workflow and the exact run metadata is recorded below.
 
-## Verified prerequisite tasks
+## Scope
 
-### Task 1 — project shells and architecture fitness
+Gate 2 establishes a hardened process and protocol boundary for future Model Inspection native work:
 
-- Verified head: `c247559f4bdcc7504621374a176830c5d6f4eaee`
-- Windows workflow: `31040807199`
-- Job: `92424504782`
-- Contract tests: 69/69 passed
-- Packaged tests: 207/207 passed
-- All eight Gate 2 projects built with zero warnings and zero errors
+- strict bounded UTF-8 transport;
+- trusted executable and minimal environment policy;
+- reviewed Win32 ownership primitives;
+- creation-time Job Object containment and exact handle inheritance;
+- one-request worker host with an honest unavailable-engine seam;
+- deterministic abnormal-process fixture;
+- handshake, conversation and exit integrity;
+- cancellation, timeout, descendant cleanup, stream-flood and concurrency proof;
+- executable architecture fitness checks and unified CI evidence.
 
-### Task 2 — bounded UTF-8 transport
+## Non-claims
 
-- Verified head: `f577a3589566614a430b2c39323f34118f6221d9`
-- Focused workflow: `31054971261`
-- Focused job: `92470388749`
-- Transport tests: 20/20 passed
-- Full workflow: `31054971260`
-- Full job: `92470408809`
-- Contract tests: 69/69 passed
-- Packaged tests: 207/207 passed
+Gate 2 does not implement or prove LLamaSharp model loading, factual GGUF evidence extraction, application mappers/classifier/service/ViewModel, live WinUI progress or cancellation, MSIX inclusion, a real-model application route, OpenVINO, TurboQuant, Hardware Fit, GPU acceleration or chat.
 
-### Task 3 — WorkerClient execution domain
+## Source identity
 
-- Verified head: `0d0e486967a2cbc46b4b618e1b91e6a0f5428d8a`
-- Focused workflow: `31061909890`
-- Focused job: `92491436316`
-- WorkerClient domain tests: 13/13 passed
-- Full workflow: `31061909876`
-- Full job: `92491458419`
-- Contract tests: 69/69 passed
-- Packaged tests: 207/207 passed
+- Repository: `arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant`
+- Branch: `feature/model-inspection-worker-host`
+- Draft PR: `#47`
+- Stacked base: `feature/model-inspection-runtime-integration` at `0d50f27405d66be944e1352284b68928ae228e74`
+- SDK selection: repository `global.json` on the .NET 10 SDK line; Gate 2 projects deliberately target .NET 8 and the process boundary targets `win-x64`.
 
-## Task 4 — trusted executable and environment policies
+## Task evidence
 
-### Scope verified
+### Tasks 1–4 — project graph, transport, client domain, trust policy
 
-Task 4 implements policy and ownership only. It does not launch a process.
+- Task 1 head `c247559f4bdcc7504621374a176830c5d6f4eaee`; hosted workflow `31040807199`, job `92424504782`.
+- Task 2 head `f577a3589566614a430b2c39323f34118f6221d9`; transport workflow `31054971261`, job `92470388749`; 20/20 tests passed.
+- Task 3 head `0d0e486967a2cbc46b4b618e1b91e6a0f5428d8a`; client workflow `31061909890`, job `92491436316`; 13/13 domain tests passed.
+- Task 4 head `4fd837ff31914d5e6686d42363cd115da4b525a3`; workflow `31065161555`, job `92501258960`; 33/33 trust-policy tests passed.
+- Each task also passed the complete Windows regression with 69/69 contracts and 207/207 packaged tests at its verified code head.
 
-The verified implementation provides:
+### Task 5 — safe Win32 process primitives
 
-- a fixed worker-relative-path resolver beneath one absolute approved root;
-- canonical path normalization and separator-aware containment checks;
-- reparse-point rejection for every checked path component;
-- regular-file validation;
-- minimal Portable Executable parsing and an AMD64-only requirement;
-- final directory and executable path resolution through maintained Windows handles;
-- repeated containment after final-path resolution;
-- a maintained verification handle owned until disposal;
-- an empty-by-default child environment with only the hardened allowlist;
-- forced disabling of all approved .NET diagnostic entry points;
-- deterministic case-insensitive environment sorting;
-- an exact UTF-16 double-NUL environment block;
-- zeroing and releasing unmanaged environment memory exactly once;
-- privacy-safe expected failures that do not preserve raw path-bearing exceptions.
+Verified implementation includes x64 Win32 structures/constants, owning SafeHandles, three redirected pipe pairs, a kill-on-close Job Object, managed `PROC_THREAD_ATTRIBUTE_LIST`, cancellable asynchronous process waiting and mutable UTF-16 `CreateProcessW` input. A reviewer regression fixed premature release of the Job/handle-list backing buffers.
 
-The child environment copies only:
+- Verified code head: `93aacbebb4411c2e99c2fe3ad2a4e263c763d663`
+- Focused native-boundary tests: 49/49 passed.
+- Complete Windows regression: passed.
 
-```text
-SystemRoot
-WINDIR
-TEMP
-TMP
-DOTNET_ROOT       (optional and validated)
-DOTNET_ROOT_X64   (optional and validated)
-```
+### Task 6 — atomic launch and exact inheritance
 
-It then fixes:
+`CreateProcessW` uses `STARTUPINFOEX`, `PROC_THREAD_ATTRIBUTE_JOB_LIST` and `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`. There is no `Process.Start`, post-start Job assignment, breakaway or uncontained fallback. Real child processes prove an unrelated inheritable handle is excluded and the Job becomes empty after exit.
 
-```text
-DOTNET_EnableDiagnostics=0
-DOTNET_EnableDiagnostics_IPC=0
-DOTNET_EnableDiagnostics_Debugger=0
-DOTNET_EnableDiagnostics_Profiler=0
-```
+- Verified code head: `331a94373b452406c5cc4d3d31f911d6d949565d`
+- WorkerClient tests: 54/54 passed.
+- Initial real-process tests: 2/2 passed.
+- Complete Windows regression: passed.
 
-It deliberately excludes `PATH`, `PATHEXT`, `ComSpec`, processor variables, `COMPlus_*`, diagnostic-port variables, model/request identifiers and secret-bearing provider variables.
+### Tasks 7–9 — worker host, fixture and conversation integrity
 
-### Test-first evidence
+The production worker implements hello-first lifecycle, one start command, started/progress/terminal sequencing, one-winner terminal arbitration, exact exit codes, parent monitoring and the controlled unavailable-engine seam. The fixture contains malformed output, crash, hang, cancellation, descendant, flood, environment and handle scenarios without leaking those switches into production code. The client verifies hello identity, request sequencing, bounded stderr and terminal/exit agreement.
 
-Initial clean red:
+- Worker-host focused tests: 4/4 passed.
+- Task 9 integration implementation reached code head `74a961e75b47a5bdb71f9be7c38973d979667e6d` before Task 10 cancellation/timeout closure.
+- Compiler/analyzer closure head: `84e11ef5fcf496e5f08004b88d38fb763dee3d28`.
+- Focused process workflow `31105370641`, job `92628994776`: 27/27 passed.
 
-```text
-Workflow: 31063610349
-Job:      92496601556
-```
+### Task 10 — cancellation, timeout and process-tree stability
 
-The workflow completed checkout, short-path staging and SDK setup, then failed at the first missing production abstraction, `IWorkerExecutableFileSystem`. No unrelated warning or regression preceded the expected failure.
+- Exact verified head: `6aa486751cf8a31d28469dbdfb898244f675d24b`
+- Focused workflow: `31105788735`
+- Focused job: `92630406714`
+- Full process suite: 27/27 passed.
+- Timing-sensitive stability set: 9/9 passed across five additional repetitions.
+- Total focused process executions: 72 passed, 0 failed, 0 skipped.
+- Fixture orphan check: passed after every repetition.
 
-Analyzer-driven corrections were retained rather than suppressed:
+Complete Windows regression on the same exact head:
 
-- run `31064214089`, job `92498423682`: source-generated `LibraryImport` required enabling unsafe code; the project-wide `AllowUnsafeBlocks=false` policy was preserved and the declarations were replaced with narrowly constrained `DllImport` calls using `System32`, Unicode, exact spelling and last-error capture;
-- run `31064365606`, job `92498866121`: `CA1859` identified an unnecessarily broad private collection type;
-- run `31064585887`, job `92499527389`: `CA1861` identified a repeatedly allocated expected-key array in test code.
+- Workflow: `31105788612`
+- Job: `92630448748`
+- Contract tests: 69/69 passed.
+- All eight Gate 2 projects restored and built.
+- WinUI application build: succeeded.
+- Packaged unit/UI-thread tests: 207/207 passed, 0 failed, 0 skipped.
+- Unit-test artifact: `unit-test-results-31105788612-1`
+- Artifact ID: `8969661936`
+- Size: `54,157` bytes
+- Digest: `sha256:c381db9137a87bd5e090b00ef21ea89b8c1d1f70a309b34a7d96d3da6e42ec20`
 
-First focused green before reviewer hardening:
+## Task 11 closure design
 
-```text
-Head:     5256614fbc132b09210a64fe420afecfdbb7601b
-Workflow: 31064716141
-Job:      92499921281
-Tests:    32/32 passed
-```
+The final unified workflow now requires at least 75 contract/fitness tests; builds all eight Gate 2 projects; publishes the production worker and fixture to separate roots; records distinct Contract, Transport, Worker, WorkerClient and WorkerProcess TRX reports; performs an always-run orphan check and bounded privacy scan; preserves a publish hash manifest; then executes the unchanged WinUI packaged regression.
 
-The reviewer gate then found that an expected filesystem exception could retain a raw absolute path in the inner exception even though the stable public failure message was safe. A new regression test was added.
+Architecture fitness checks enforce:
 
-Reviewer-regression red:
+- WinUI remains disconnected from WorkerClient in Gate 2;
+- abnormal fixture tokens do not enter production source;
+- no production `Process.Start` or local listener exists;
+- both creation-time Job and exact handle attributes remain present;
+- Gate 3 runtime packages do not enter Gate 2 projects.
 
-```text
-Head:     a725353fae30411a476b9abb5b6e269589b1b543
-Workflow: 31064947152
-Job:      92500640457
-Result:   32 passed, 1 failed
-```
+## Final exact-head closure
 
-The sole failure proved that the path-bearing exception remained visible through the complete exception chain.
+**Pending:** replace this paragraph with the exact final documentation commit, unified workflow/run/job IDs, per-TRX counters, artifact identity/digest, zero-orphan result, privacy scan result and warnings/errors. Until that exact-head run succeeds, PR #47 remains draft and Gate 3 is blocked.
 
-Final focused green:
+## Definition of Done
 
-```text
-Head:       4fd837ff31914d5e6686d42363cd115da4b525a3
-Workflow:   31065161555
-Job:        92501258960
-Conclusion: success
-Tests:      33/33 passed
-Failed:     0
-Skipped:    0
-```
-
-Final full Windows regression on the same exact code head:
-
-```text
-Workflow:   31065161523
-Job:        92501261825
-Conclusion: success
-Contracts:  69/69 passed
-Packaged:   207/207 passed
-```
-
-Every Gate 2 project restored and built successfully with zero warnings and zero errors. The packaged WinUI build retained the existing 47 warnings and zero errors; those warnings are the previously recorded XAML `WMC1506` warnings and missing local `win-x64.pubxml` warning.
-
-Artifact:
-
-```text
-Name:   unit-test-results-31065161523-1
-ID:     8953675151
-Size:   53,964 bytes
-SHA256: caf64842a818399168507b198dd098cfed9fb17f99827f09b8663ac544d92c42
-```
-
-Evidence-only commits followed the verified code head. Their workflows are regression checks only; no Task 4 production source changed. Final Task 11 will replace this living evidence with one immutable final-head block.
-
-### Task 4 reviewer checklist
-
-- [x] The worker location comes from a fixed relative path and controlled absolute root.
-- [x] Lexical containment is repeated after final handle-based path resolution.
-- [x] Path-component reparse points are rejected.
-- [x] The executable must be a regular AMD64 PE file.
-- [x] The verification file handle is maintained and disposed exactly once.
-- [x] The child environment is empty by default and allowlist-only.
-- [x] `PATH`, secrets, identifiers and diagnostic ports are not inherited.
-- [x] The Unicode environment block is sorted and double-NUL terminated.
-- [x] Expected trust-policy failures do not expose raw paths in the complete exception chain.
-- [x] Unsafe code remains disabled for the WorkerClient project.
-- [x] Task 4 does not launch a process or claim operating-system containment.
-
-## Remaining Gate 2 work
-
-- [ ] Task 5 — safe Win32 process primitives
-- [ ] Task 6 — creation-time containment and exact handle inheritance
-- [ ] Task 7 — production worker host and controlled engine seam
-- [ ] Task 8 — isolated abnormal-process fixture
-- [ ] Task 9 — handshake, conversation and exit integrity
-- [ ] Task 10 — timeout, cancellation, process-tree, stderr and concurrency proof
-- [ ] Task 11 — final architecture, CI, documentation, artifact and review closure
+- [x] Strict bounded transport.
+- [x] Trusted path and minimal environment.
+- [x] Explicit Win32 resource ownership.
+- [x] Creation-time Job containment and exact handle allowlist.
+- [x] Honest production worker host.
+- [x] Isolated abnormal fixture.
+- [x] Handshake, sequence and exit integrity.
+- [x] Cooperative cancellation and forced cleanup.
+- [x] Timeout, stderr flood, descendant and concurrency proof.
+- [x] Executable architecture fitness tests.
+- [x] Unified workflow and separate publish roots implemented.
+- [ ] Unified workflow passes on the exact final documentation head.
+- [ ] Final artifacts, privacy scan and zero-orphan evidence recorded on that same head.
+- [ ] Final Superpowers verification and code review completed.
