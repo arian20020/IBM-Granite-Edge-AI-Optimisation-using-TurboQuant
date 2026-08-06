@@ -29,6 +29,13 @@ concurrency:
   group: model-inspection-worker-client-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The repository name creates a long default Windows checkout path. Run build
+# commands from the same short root used by the wider Windows workflow.
+defaults:
+  run:
+    shell: pwsh
+    working-directory: D:\s
+
 jobs:
   worker-client-domain-tests:
     name: Run WorkerClient execution-domain tests
@@ -46,12 +53,32 @@ jobs:
             shared/GraniteEdgeAI.ModelInspection.Transport
             tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests
 
-      # Pinned immutable commit for actions/setup-dotnet v5.0.0. Cone-mode
-      # sparse checkout retains the root-level global.json SDK selection.
+      # actions/checkout must write beneath GITHUB_WORKSPACE. Copy the sparse
+      # source tree to a short drive-root path before compilation and execution
+      # so Windows CreateProcess does not reject the generated test-app path.
+      - name: Stage WorkerClient inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $buildRoot = 'D:\s'
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage WorkerClient inputs at $buildRoot."
+          }
+
+          # Robocopy exit codes 1-7 represent successful copy outcomes.
+          $global:LASTEXITCODE = 0
+
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw "The staged checkout is incomplete: global.json was not found."
+          }
+
+      # Pinned immutable commit for actions/setup-dotnet v5.0.0. The SDK is
+      # selected from the staged repository's exact global.json file.
       - name: Set up repository .NET SDK
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
         with:
-          global-json-file: global.json
+          global-json-file: D:/s/global.json
 
       # Record the selected SDK and runtime identifier for reproducibility.
       - name: Display selected SDK
