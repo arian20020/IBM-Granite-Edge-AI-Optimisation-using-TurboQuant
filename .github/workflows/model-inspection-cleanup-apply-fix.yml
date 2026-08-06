@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: model-inspection-cleanup-apply-fix-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   apply-fix:
     name: Apply exact contract workflow fix
