@@ -149,10 +149,31 @@ class RouteBRepairTests(unittest.TestCase):
             self.assertIn(expected_filter, orchestrator)
 
         self.assertIn("$testResults.Count -ne 6", orchestrator)
-        self.assertIn("$runCount -le 0", orchestrator)
+        self.assertIn("$runCount -gt 0", orchestrator)
         self.assertIn("granite_model_test_authorised = $false", orchestrator)
         self.assertIn("performance_claim_authorised = $false", orchestrator)
         self.assertIn("quality_claim_authorised = $false", orchestrator)
+
+    def test_hosted_validator_requires_the_exact_six_case_catalogue(self) -> None:
+        repository_root = Path(__file__).resolve().parents[3]
+        validator = (
+            repository_root
+            / "scripts"
+            / "testing"
+            / "workbook05"
+            / "route_b_repair_bundle_validation.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("len(results) != 6", validator)
+        for case_id in (
+            "baseline_f32",
+            "qjl4",
+            "qjl3",
+            "polar4",
+            "polar3",
+            "asymmetric_f32_tbq4",
+        ):
+            self.assertIn(case_id, validator)
 
 
 if __name__ == "__main__":
