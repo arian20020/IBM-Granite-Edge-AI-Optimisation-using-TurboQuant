@@ -55,8 +55,14 @@ public sealed class TestWorkerScenarioParserTests
     {
         foreach ((TestWorkerScenario scenario, string name) in ExpectedNames)
         {
+            // The handle probe intentionally requires one additional safe numeric
+            // value; every other public scenario accepts only its canonical name.
+            string[] arguments = scenario == TestWorkerScenario.ProbeUnrelatedHandle
+                ? [name, "1234"]
+                : [name];
+
             bool parsed = TestWorkerScenarioParser.TryParse(
-                [name],
+                arguments,
                 out TestWorkerScenarioRequest? request);
 
             Assert.IsTrue(parsed, name);
