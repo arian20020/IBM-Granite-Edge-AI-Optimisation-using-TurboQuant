@@ -1,0 +1,56 @@
+name: Workbook 05 Route B repair
+
+on:
+  pull_request:
+    branches:
+      - planning/workbook-05-route-b-repair
+    paths:
+      - '.github/workflows/workbook-05-route-b-repair.yml'
+      - 'docs/superpowers/**'
+      - 'scripts/testing/**'
+      - 'tests/testing/workbook05/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: workbook-05-route-b-repair-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-repair-contract:
+    name: Verify bounded repair contract
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      # Check out the exact reviewed head rather than a synthetic merge commit.
+      - name: Check out the exact Route B repair revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            scripts/testing
+            tests/testing/workbook05
+
+      # Use the same pinned Python version as the accepted Workbook 05 gate.
+      - name: Set up the controlled Python interpreter
+        uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
+        with:
+          python-version: '3.12.10'
+
+      # The first TDD commit is expected to fail here because the implementation
+      # module has intentionally not been written yet.
+      - name: Run the focused Route B repair contract tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m unittest -v tests.testing.workbook05.test_route_b_repair
+          if ($LASTEXITCODE -ne 0) {
+              throw "Route B repair contract tests exited with code $LASTEXITCODE."
+          }
