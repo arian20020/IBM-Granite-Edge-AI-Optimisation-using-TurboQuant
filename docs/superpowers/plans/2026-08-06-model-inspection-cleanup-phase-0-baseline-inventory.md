@@ -2,31 +2,31 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** repair the known unified-workflow test-discovery defect, prove the unchanged Model Inspection implementation on one exact branch head and establish a complete repeatable review inventory before any structural refactoring begins
+**Goal:** repair the unified-workflow test-discovery defect, prove the unchanged Model Inspection implementation on one exact head and establish a complete executable review inventory before structural refactoring begins
 
-**Architecture:** protect the workflow correction with a focused contract test, then run the complete hosted Windows campaign and retain machine-readable evidence. Build the review ledger from the deduplicated PR #44/#45/#47 file union plus all current included roots, and enforce completeness through a contract test and a PowerShell verification wrapper.
+**Architecture:** protect the workflow correction with a focused contract test, run the complete hosted Windows campaign and retain its artifacts, then generate a source ledger from PRs #44, #45 and #47 plus every current included root. Contract tests compare the current filesystem scope, source list and human ledger so new or moved files fail closed until inventoried.
 
-**Tech Stack:** C# 12, repository-selected .NET SDK `10.0.301` with `latestPatch` roll-forward, Microsoft Testing Platform, MSTest, PowerShell 7, Git, GitHub CLI or GitHub connector, GitHub Actions `windows-latest`, TRX and SHA-256
+**Tech Stack:** C# 12, repository-selected .NET SDK `10.0.301` with `latestPatch` roll-forward, Microsoft Testing Platform, MSTest, PowerShell 7, GitHub Actions `windows-latest`, TRX and SHA-256
 
 ## Global Constraints
 
 - work only on `refactor/model-inspection-cleanup`
 - preserve the stacked base `feature/model-inspection-worker-host` at `a4138a613dd643abe12858eec5d1c3beb09e95e7`
 - Phase 0 changes no production C#, XAML, protocol, process, worker or LLamaSharp behaviour
-- remove only the incompatible contract-test category filter from the unified workflow
-- keep `--minimum-expected-tests 75` so zero or reduced discovery fails closed
-- preserve every Gate 2 build, publish, test, orphan, privacy and artifact step
-- retain exact TRX files and artifact metadata from the exact verified head
-- build the source inventory from PRs #44, #45 and #47 plus every current included root and connected file
-- every source path must appear exactly once in the human review ledger
-- new or moved in-scope files after the cleanup base must fail the inventory contract until added
+- remove only the incompatible contract-test category filter during the baseline correction
+- retain a minimum expected test floor and raise it when new mandatory contract tests are added
+- preserve every Gate 2 build, publish, test, privacy, orphan and artifact step
+- retain exact TRX files and artifact metadata from the successful exact head
+- build the inventory from the deduplicated existing-file union of PRs #44, #45 and #47 plus every current included root and connected file
+- every source path appears exactly once in the review ledger
+- current in-scope files missing from the source list or ledger fail an executable contract test
 - comments added by this phase use simple English, start with a lower-case letter and do not end with a full stop
-- do not rewrite historical evidence to imply that it tested the cleanup branch
-- do not begin Phase 1 until all Phase 0 acceptance criteria are green
+- historical evidence keeps its original tested commit and is not rewritten as current evidence
+- Phase 1 planning is blocked until every Phase 0 acceptance condition is satisfied
 
 ---
 
-### Task 1: Establish the Isolated Execution Workspace
+### Task 1: Establish the Isolated Workspace
 
 **Files:**
 - Read: `docs/superpowers/specs/2026-08-06-model-inspection-cleanup-design.md`
@@ -36,11 +36,9 @@
 
 **Interfaces:**
 - Consumes: remote branch `refactor/model-inspection-cleanup`
-- Produces: clean isolated worktree at the exact remote head
+- Produces: clean dedicated worktree on the exact remote head
 
-- [ ] **Step 1: Create or select a dedicated worktree**
-
-Use `superpowers:using-git-worktrees` before editing
+- [ ] **Step 1: Create the worktree using `superpowers:using-git-worktrees`**
 
 ```powershell
 git fetch origin
@@ -48,9 +46,7 @@ git worktree add ..\model-inspection-cleanup refactor/model-inspection-cleanup
 Set-Location ..\model-inspection-cleanup
 ```
 
-Expected: the worktree checks out `refactor/model-inspection-cleanup` without modifying another feature workspace
-
-- [ ] **Step 2: Verify branch identity and cleanliness**
+- [ ] **Step 2: Verify identity and cleanliness**
 
 ```powershell
 git branch --show-current
@@ -58,16 +54,9 @@ git rev-parse HEAD
 git status --short
 ```
 
-Expected:
+Expected: branch is `refactor/model-inspection-cleanup` and status has no output
 
-```text
-branch: refactor/model-inspection-cleanup
-status: no output
-```
-
-Record the starting head in the execution notes. Do not continue if the branch or worktree is dirty
-
-- [ ] **Step 3: Verify the repository-selected SDK and test runner**
+- [ ] **Step 3: Verify the selected SDK**
 
 ```powershell
 Get-Content global.json
@@ -79,19 +68,19 @@ Expected: SDK `10.0.301` or a later patch selected by `latestPatch`, with Micros
 
 ---
 
-### Task 2: Add a Failing Contract Test for Complete Contract-Project Discovery
+### Task 2: Protect the Contract-Test Discovery Defect
 
 **Files:**
 - Modify: `tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs`
 - Test: `tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs`
 
 **Interfaces:**
-- Consumes: workflow step named `Run Model Inspection contract tests`
-- Produces: `BuildWorkflowRunsCompleteContractProjectWithoutCategoryFilter()` and `ExtractWorkflowStep(string workflow, string stepName)`
+- Consumes: workflow step `Run Model Inspection contract tests`
+- Produces: `BuildWorkflowRunsCompleteContractProjectWithoutCategoryFilter()` and `ExtractWorkflowStep(...)`
 
-- [ ] **Step 1: Add the focused failing test**
+- [ ] **Step 1: Add the failing test**
 
-Add this test after `BuildWorkflowContainsCurrentContractGate`
+Add after `BuildWorkflowContainsCurrentContractGate`
 
 ```csharp
 [TestMethod]
@@ -112,7 +101,7 @@ public void BuildWorkflowRunsCompleteContractProjectWithoutCategoryFilter()
 }
 ```
 
-Add this helper before `CountOccurrences`
+Add before `CountOccurrences`
 
 ```csharp
 private static string ExtractWorkflowStep(
@@ -121,9 +110,7 @@ private static string ExtractWorkflowStep(
 {
     string marker = $"- name: {stepName}";
     int stepStart = workflow.IndexOf(marker, StringComparison.Ordinal);
-    Assert.IsTrue(
-        stepStart >= 0,
-        $"Workflow step was not found: {stepName}");
+    Assert.IsTrue(stepStart >= 0, $"Workflow step was not found: {stepName}");
 
     int nextStep = workflow.IndexOf(
         "\n      - name:",
@@ -136,19 +123,11 @@ private static string ExtractWorkflowStep(
 }
 ```
 
-Do not change the workflow yet
-
-- [ ] **Step 2: Restore the contract project**
+- [ ] **Step 2: Restore and run the red test**
 
 ```powershell
 dotnet restore "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj"
-```
 
-Expected: restore succeeds
-
-- [ ] **Step 3: Run the new test and preserve the intended red result**
-
-```powershell
 dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
   --configuration Release `
   --no-restore `
@@ -156,18 +135,18 @@ dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/G
   --minimum-expected-tests 1
 ```
 
-Expected: one test is discovered and fails because the workflow step still contains `--filter "TestCategory=Contract"`
+Expected: one test fails because the step contains `--filter "TestCategory=Contract"`
 
-- [ ] **Step 4: Commit the red contract test**
+- [ ] **Step 3: Commit the red test**
 
 ```powershell
-git add "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs"
+git add tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
 git commit -m "test(model-inspection): expose contract discovery defect"
 ```
 
 ---
 
-### Task 3: Correct the Unified Workflow Without Weakening the Test Floor
+### Task 3: Correct the Unified Workflow
 
 **Files:**
 - Modify: `.github/workflows/build-and-test.yml`
@@ -175,11 +154,11 @@ git commit -m "test(model-inspection): expose contract discovery defect"
 
 **Interfaces:**
 - Consumes: complete contract test project
-- Produces: a contract step with no category filter and a minimum expected count of `75`
+- Produces: unfiltered contract execution with a fail-closed floor
 
 - [ ] **Step 1: Remove only the incompatible filter line**
 
-Change this command
+Change
 
 ```yaml
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
@@ -198,9 +177,9 @@ to
             --minimum-expected-tests 75 `
 ```
 
-Do not alter the logger, results directory, step order, orphan check, privacy scan or artifact upload
+Do not alter the logger, results directory, test order, privacy scan, orphan check or artifact uploads
 
-- [ ] **Step 2: Run the focused workflow contract test**
+- [ ] **Step 2: Run focused green and full local contracts**
 
 ```powershell
 dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
@@ -208,68 +187,48 @@ dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/G
   --no-restore `
   --filter "FullyQualifiedName~BuildWorkflowRunsCompleteContractProjectWithoutCategoryFilter" `
   --minimum-expected-tests 1
-```
 
-Expected: one test passes
-
-- [ ] **Step 3: Run the complete contract project without a filter**
-
-```powershell
 dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
   --configuration Release `
   --no-restore `
   --minimum-expected-tests 75
 ```
 
-Expected: at least 75 tests run, with zero failed and zero skipped
+Expected: focused test passes and at least 76 contract tests pass with none failed or skipped
 
-- [ ] **Step 4: Review the exact diff**
+- [ ] **Step 3: Review and commit**
 
 ```powershell
 git diff --check
-git diff -- .github/workflows/build-and-test.yml `
-  tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
-```
+git diff -- .github/workflows/build-and-test.yml tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
 
-Expected: one workflow command correction plus the focused contract test and helper
-
-- [ ] **Step 5: Commit the green workflow correction**
-
-```powershell
-git add .github/workflows/build-and-test.yml `
-  tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
-
+git add .github/workflows/build-and-test.yml tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
 git commit -m "fix(ci): run complete model inspection contract suite"
 ```
 
 ---
 
-### Task 4: Obtain the Exact-Head Hosted Baseline
+### Task 4: Obtain the Behaviour Baseline on the Exact Head
 
 **Files:**
 - Read: `.github/workflows/build-and-test.yml`
-- Create later in Task 8: `docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md`
+- Temporary: `artifacts/model-inspection-cleanup-baseline/`
 
 **Interfaces:**
-- Consumes: workflow-fix commit from Task 3
-- Produces: successful `Build and test` run, Gate 2 artifact and packaged-test artifact on the same head
+- Consumes: Task 3 commit
+- Produces: successful hosted run, job, TRX counters and artifact metadata for the unchanged implementation
 
-- [ ] **Step 1: Push the branch**
+- [ ] **Step 1: Push and capture the exact head**
 
 ```powershell
 git push origin refactor/model-inspection-cleanup
 $baselineHead = git rev-parse HEAD
-Write-Host "baseline head: $baselineHead"
 ```
 
-Expected: the push starts the `Build and test` workflow for `$baselineHead`
-
-- [ ] **Step 2: Locate the exact-head workflow run**
-
-With GitHub CLI
+- [ ] **Step 2: Select and watch the exact-head run**
 
 ```powershell
-$run = gh run list `
+$baselineRun = gh run list `
   --workflow build-and-test.yml `
   --branch refactor/model-inspection-cleanup `
   --limit 10 `
@@ -278,107 +237,67 @@ $run = gh run list `
   | Where-Object headSha -eq $baselineHead `
   | Select-Object -First 1
 
-if ($null -eq $run) {
+if ($null -eq $baselineRun) {
   throw "No Build and test run was found for $baselineHead"
 }
 
-$runId = [long]$run.databaseId
-gh run watch $runId --exit-status
+$baselineRunId = [long]$baselineRun.databaseId
+gh run watch $baselineRunId --exit-status
 ```
 
-When using the GitHub connector, fetch runs for the branch, select the run whose `head_sha` equals `$baselineHead`, then poll its jobs until completion
+When the GitHub connector is used, select the run whose `head_sha` exactly equals `$baselineHead` and poll its jobs to completion
 
-Expected: conclusion `success`
-
-- [ ] **Step 3: Diagnose any failure from the first failing step only**
-
-If the run fails, use `superpowers:systematic-debugging`
+- [ ] **Step 3: Apply systematic debugging to any failure**
 
 ```powershell
-gh run view $runId --log-failed
+gh run view $baselineRunId --log-failed
 ```
 
-Record the first failing command and its exact error. Add a focused regression test where practical, correct only the proven cause, commit, push and repeat Steps 1 and 2 on the new exact head. Do not weaken test floors, privacy checks, orphan checks or artifact conditions to make the workflow green
+Use `superpowers:systematic-debugging`, preserve the first failing command, add a focused regression where practical and fix only the proven cause. Never weaken a test floor, privacy gate, orphan check or artifact condition
 
-- [ ] **Step 4: Capture run and job metadata**
+- [ ] **Step 4: Capture run, job and required-step metadata**
 
 ```powershell
-$runJson = gh run view $runId --json databaseId,headSha,attempt,status,conclusion,createdAt,updatedAt,jobs,url | ConvertFrom-Json
-$job = $runJson.jobs | Where-Object name -eq "Build WinUI and run unit tests" | Select-Object -First 1
+$baselineRunJson = gh run view $baselineRunId --json databaseId,headSha,attempt,status,conclusion,createdAt,updatedAt,jobs,url | ConvertFrom-Json
+$baselineJob = $baselineRunJson.jobs | Where-Object name -eq "Build WinUI and run unit tests" | Select-Object -First 1
 
-if ($runJson.headSha -ne $baselineHead -or $runJson.conclusion -ne "success") {
+if ($baselineRunJson.headSha -ne $baselineHead -or $baselineRunJson.conclusion -ne "success") {
   throw "The selected run is not a successful exact-head baseline"
 }
 
-$jobId = [long]$job.databaseId
-```
+$baselineJobId = [long]$baselineJob.databaseId
 
-Expected: exact head matches and the job succeeded
-
-- [ ] **Step 5: Confirm orphan and privacy steps succeeded**
-
-```powershell
-$requiredSteps = @(
+foreach ($stepName in @(
   "Check for orphaned Gate 2 processes"
   "Scan retained evidence for sensitive data"
   "Upload Gate 2 verification results"
-  "Upload unit test results"
-)
-
-foreach ($stepName in $requiredSteps) {
-  $step = $job.steps | Where-Object name -eq $stepName | Select-Object -First 1
+  "Upload unit test results")) {
+  $step = $baselineJob.steps | Where-Object name -eq $stepName | Select-Object -First 1
   if ($null -eq $step -or $step.conclusion -ne "success") {
     throw "Required baseline step did not succeed: $stepName"
   }
 }
 ```
 
-Expected: all required steps succeeded
-
----
-
-### Task 5: Download and Validate Baseline Artifacts
-
-**Files:**
-- Temporary local directory: `artifacts/model-inspection-cleanup-baseline/`
-- Create later: `docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md`
-
-**Interfaces:**
-- Consumes: successful `$runId`
-- Produces: exact test counters and SHA-256 digests for both artifacts
-
-- [ ] **Step 1: List artifacts for the successful run**
+- [ ] **Step 5: Download and validate both artifacts**
 
 ```powershell
 $artifactRoot = Join-Path $PWD "artifacts/model-inspection-cleanup-baseline"
 New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
 
-$artifacts = gh api "repos/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/actions/runs/$runId/artifacts" | ConvertFrom-Json
-$gate2Artifact = $artifacts.artifacts | Where-Object name -eq "gate2-verification-$runId-$($runJson.attempt)" | Select-Object -First 1
-$unitArtifact = $artifacts.artifacts | Where-Object name -eq "unit-test-results-$runId-$($runJson.attempt)" | Select-Object -First 1
+$artifactResponse = gh api "repos/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/actions/runs/$baselineRunId/artifacts" | ConvertFrom-Json
+$gate2Artifact = $artifactResponse.artifacts | Where-Object name -eq "gate2-verification-$baselineRunId-$($baselineRunJson.attempt)" | Select-Object -First 1
+$unitArtifact = $artifactResponse.artifacts | Where-Object name -eq "unit-test-results-$baselineRunId-$($baselineRunJson.attempt)" | Select-Object -First 1
 
 if ($null -eq $gate2Artifact -or $null -eq $unitArtifact) {
   throw "Both exact baseline artifacts are required"
 }
+
+gh run download $baselineRunId --name $gate2Artifact.name --dir (Join-Path $artifactRoot "gate2")
+gh run download $baselineRunId --name $unitArtifact.name --dir (Join-Path $artifactRoot "unit")
 ```
 
-Expected: one Gate 2 artifact and one packaged unit-test artifact
-
-- [ ] **Step 2: Download both artifacts**
-
-```powershell
-gh run download $runId `
-  --name $gate2Artifact.name `
-  --dir (Join-Path $artifactRoot "gate2")
-
-gh run download $runId `
-  --name $unitArtifact.name `
-  --dir (Join-Path $artifactRoot "unit")
-```
-
-Expected: TRX files and the Gate 2 publish manifest are present
-
-- [ ] **Step 3: Parse every TRX counter**
+- [ ] **Step 6: Parse every TRX and reject zero, failed or skipped results**
 
 ```powershell
 $trxResults = foreach ($trxFile in Get-ChildItem $artifactRoot -Recurse -Filter *.trx) {
@@ -388,7 +307,6 @@ $trxResults = foreach ($trxFile in Get-ChildItem $artifactRoot -Recurse -Filter 
   [pscustomobject]@{
     File = $trxFile.Name
     Total = [int]$counters.total
-    Executed = [int]$counters.executed
     Passed = [int]$counters.passed
     Failed = [int]$counters.failed
     Error = [int]$counters.error
@@ -399,30 +317,27 @@ $trxResults = foreach ($trxFile in Get-ChildItem $artifactRoot -Recurse -Filter 
   }
 }
 
-$trxResults | Sort-Object File | Format-Table -AutoSize
-
 $badResults = $trxResults | Where-Object {
   $_.Total -le 0 -or
+  $_.Passed -ne $_.Total -or
   $_.Failed -ne 0 -or
   $_.Error -ne 0 -or
   $_.Timeout -ne 0 -or
   $_.Aborted -ne 0 -or
   $_.Inconclusive -ne 0 -or
-  $_.NotExecuted -ne 0 -or
-  $_.Passed -ne $_.Total
+  $_.NotExecuted -ne 0
 }
 
 if ($badResults) {
+  $badResults | Format-Table -AutoSize
   throw "One or more baseline TRX files contain a failed, skipped or zero-test result"
 }
 ```
 
-Expected: every retained suite has a positive count and all tests passed
-
-- [ ] **Step 4: Verify all required TRX files exist**
+Required files
 
 ```powershell
-$requiredTrxFiles = @(
+$requiredTrx = @(
   "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
   "GraniteEdgeAI.ModelInspection.Transport.Tests.trx"
   "GraniteEdgeAI.ModelInspection.Worker.Tests.trx"
@@ -431,16 +346,14 @@ $requiredTrxFiles = @(
   "GraniteEdgeAI.UnitTests.trx"
 )
 
-foreach ($requiredFile in $requiredTrxFiles) {
-  if (-not (Get-ChildItem $artifactRoot -Recurse -Filter $requiredFile)) {
-    throw "Required baseline TRX file is missing: $requiredFile"
+foreach ($name in $requiredTrx) {
+  if (-not (Get-ChildItem $artifactRoot -Recurse -Filter $name)) {
+    throw "Required baseline TRX file is missing: $name"
   }
 }
 ```
 
-- [ ] **Step 5: Compute artifact-content digests**
-
-GitHub may provide an artifact digest. Also create a deterministic local digest over sorted retained files
+- [ ] **Step 7: Compute deterministic local artifact-content digests**
 
 ```powershell
 function Get-DirectoryDigest([string]$Path) {
@@ -452,244 +365,35 @@ function Get-DirectoryDigest([string]$Path) {
       "$relative`t$hash"
     }
 
-  $manifest = [string]::Join("`n", $records)
-  $bytes = [System.Text.Encoding]::UTF8.GetBytes($manifest)
-  $sha = [System.Security.Cryptography.SHA256]::HashData($bytes)
-  return [Convert]::ToHexString($sha).ToLowerInvariant()
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes([string]::Join("`n", $records))
+  return [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
 }
 
 $gate2ContentDigest = Get-DirectoryDigest (Join-Path $artifactRoot "gate2")
 $unitContentDigest = Get-DirectoryDigest (Join-Path $artifactRoot "unit")
 ```
 
-Record GitHub artifact IDs, names, sizes, server digests when present and deterministic local content digests
-
 ---
 
-### Task 6: Generate the Complete Cleanup Source Set
-
-**Files:**
-- Create: `docs/reviews/model-inspection-cleanup-source-files.txt`
-- Create: `docs/reviews/model-inspection-cleanup-inventory.md`
-
-**Interfaces:**
-- Consumes: PR #44, #45 and #47 file lists plus current tracked files
-- Produces: sorted unique existing path list and one ledger row per path
-
-- [ ] **Step 1: Generate the PR file union and current-scope union**
-
-Run this PowerShell from the repository root
-
-```powershell
-$repository = "arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant"
-$sourcePath = "docs/reviews/model-inspection-cleanup-source-files.txt"
-$inventoryPath = "docs/reviews/model-inspection-cleanup-inventory.md"
-
-function Test-ModelInspectionScopePath([string]$Path) {
-  $normalized = $Path.Replace('\', '/')
-
-  $includedPrefixes = @(
-    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/"
-    "shared/GraniteEdgeAI.ModelInspection.Contracts/"
-    "shared/GraniteEdgeAI.ModelInspection.Transport/"
-    "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/"
-    "workers/GraniteEdgeAI.ModelInspection.Worker/"
-    "tools/ModelInspection.LlamaSharpSpike"
-    "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/"
-    "tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/"
-    "tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/"
-    "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/"
-    "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/"
-    "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/"
-  )
-
-  if ($includedPrefixes | Where-Object { $normalized.StartsWith($_, [StringComparison]::Ordinal) }) {
-    return $true
-  }
-
-  if ($normalized.StartsWith("IBM Granite with TurboQuant (Intel)/Features/ModelImport/", [StringComparison]::Ordinal) -or
-      $normalized.StartsWith("IBM Granite with TurboQuant (Intel)/Features/Onboarding/", [StringComparison]::Ordinal) -or
-      $normalized.StartsWith("tests/UnitTests/GraniteEdgeAI.UnitTests/", [StringComparison]::Ordinal)) {
-    if (Test-Path -LiteralPath $normalized -PathType Leaf) {
-      return (Get-Content -LiteralPath $normalized -Raw).Contains("ModelInspection", [StringComparison]::OrdinalIgnoreCase)
-    }
-  }
-
-  if ($normalized -eq ".github/workflows/build-and-test.yml" -or
-      $normalized -match "^\.github/workflows/(llamasharp|model-inspection)-.*\.yml$") {
-    return $true
-  }
-
-  if ($normalized.StartsWith("docs/", [StringComparison]::Ordinal) -and
-      ($normalized.Contains("model-inspection", [StringComparison]::OrdinalIgnoreCase) -or
-       $normalized.Contains("llamasharp", [StringComparison]::OrdinalIgnoreCase))) {
-    return $true
-  }
-
-  return $normalized -in @(
-    "IBM Granite with TurboQuant (Intel).slnx"
-    "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj"
-    "IBM Granite with TurboQuant (Intel)/MainWindow.xaml"
-    "IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs"
-    "shared/README.md"
-    "infrastructure/README.md"
-    "workers/README.md"
-    "tools/README.md"
-  )
-}
-
-$prFiles = foreach ($prNumber in 44, 45, 47) {
-  gh api --paginate "repos/$repository/pulls/$prNumber/files?per_page=100" --jq '.[].filename'
-}
-
-$trackedScopeFiles = git ls-files | Where-Object { Test-ModelInspectionScopePath $_ }
-
-$allFiles = @($prFiles + $trackedScopeFiles) |
-  ForEach-Object { $_.Replace('\', '/') } |
-  Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-  Sort-Object -Unique
-
-New-Item -ItemType Directory -Force -Path (Split-Path $sourcePath) | Out-Null
-[System.IO.File]::WriteAllLines(
-  (Join-Path $PWD $sourcePath),
-  $allFiles,
-  [System.Text.UTF8Encoding]::new($false))
-```
-
-Expected: sorted unique UTF-8 path list with no missing file
-
-- [ ] **Step 2: Generate the initial human ledger**
-
-Continue in the same PowerShell session
-
-```powershell
-function Get-Subsystem([string]$Path) {
-  switch -Regex ($Path) {
-    '^IBM Granite with TurboQuant \(Intel\)/Features/ModelInspection/' { return 'WinUI Model Inspection' }
-    '^IBM Granite with TurboQuant \(Intel\)/Features/ModelImport/' { return 'Model Import handoff' }
-    '^IBM Granite with TurboQuant \(Intel\)/Features/Onboarding/' { return 'Onboarding navigation' }
-    '^shared/GraniteEdgeAI\.ModelInspection\.Contracts/' { return 'worker contracts' }
-    '^shared/GraniteEdgeAI\.ModelInspection\.Transport/' { return 'transport' }
-    '^infrastructure/GraniteEdgeAI\.ModelInspection\.WorkerClient/' { return 'WorkerClient infrastructure' }
-    '^workers/GraniteEdgeAI\.ModelInspection\.Worker/' { return 'production worker' }
-    '^tools/ModelInspection\.LlamaSharpSpike' { return 'LLamaSharp feasibility' }
-    '^tests/ProcessFixtures/' { return 'abnormal process fixture' }
-    '^tests/IntegrationTests/' { return 'process integration tests' }
-    '^tests/ContractTests/' { return 'contract and architecture tests' }
-    '^tests/UnitTests/' { return 'unit tests' }
-    '^\.github/workflows/' { return 'GitHub Actions' }
-    '^docs/' { return 'documentation and evidence' }
-    default { return 'connected project infrastructure' }
-  }
-}
-
-function Get-Risk([string]$Path) {
-  if ($Path -match '/Windows/' -or
-      $Path -match 'Native(Methods|Structures|Handle|Backend)' -or
-      $Path -match 'Worker(Process|Conversation|Cancellation|Executable|Environment|Handshake|Exit|Failure)' -or
-      $Path -match 'Protocol/' -or
-      $Path -match '(Privacy|Redactor|Integrity|Hash)') {
-    return 'critical'
-  }
-
-  if ($Path -match '^workers/' -or
-      $Path -match '^tools/ModelInspection\.LlamaSharpSpike' -or
-      $Path -match '^\.github/workflows/' -or
-      $Path -match 'IntegrationTests|ProcessFixtures') {
-    return 'high'
-  }
-
-  if ($Path -match 'Contracts|ModelInspection|ModelImport|Onboarding|UnitTests|ContractTests') {
-    return 'medium'
-  }
-
-  return 'low'
-}
-
-function Get-Responsibility([string]$Subsystem) {
-  switch ($Subsystem) {
-    'WinUI Model Inspection' { return 'present Model Inspection state and actions' }
-    'Model Import handoff' { return 'create or forward the validated inspection request' }
-    'Onboarding navigation' { return 'navigate to Model Inspection and preserve onboarding stage state' }
-    'worker contracts' { return 'define stable worker protocol and evidence data' }
-    'transport' { return 'read and write bounded strict UTF-8 protocol frames' }
-    'WorkerClient infrastructure' { return 'verify, launch, communicate with and clean up the protected worker process' }
-    'production worker' { return 'host one bounded inspection conversation in the isolated worker process' }
-    'LLamaSharp feasibility' { return 'prove and test the selected LLamaSharp runtime boundary' }
-    'abnormal process fixture' { return 'simulate process failures without adding test switches to production' }
-    'process integration tests' { return 'prove real process lifecycle, containment and protocol behaviour' }
-    'contract and architecture tests' { return 'protect protocol, project and workflow contracts' }
-    'unit tests' { return 'prove isolated behaviour and failure rules' }
-    'GitHub Actions' { return 'build, execute and retain verification evidence' }
-    'documentation and evidence' { return 'record design, operation, verification and limitations' }
-    default { return 'connect the reviewed Model Inspection build and application boundary' }
-  }
-}
-
-$header = @(
-  '# Model Inspection Cleanup Review Inventory'
-  ''
-  '**Branch:** `refactor/model-inspection-cleanup`  '
-  '**Base:** `a4138a613dd643abe12858eec5d1c3beb09e95e7`  '
-  '**Source list:** `docs/reviews/model-inspection-cleanup-source-files.txt`  '
-  ''
-  'This ledger records one review disposition for every file in the complete cleanup scope'
-  ''
-  '| File | Subsystem | Primary responsibility | Risk | Review status | Findings | Changes made | Behaviour preserved | Tests | Verification evidence | Deferred work and reason |'
-  '|---|---|---|---|---|---|---|---|---|---|---|'
-)
-
-$rows = foreach ($file in $allFiles) {
-  $subsystem = Get-Subsystem $file
-  $responsibility = Get-Responsibility $subsystem
-  $risk = Get-Risk $file
-  "| ``$file`` | $subsystem | $responsibility | $risk | pending review | not reviewed | none | baseline behaviour | to be mapped during subsystem audit | baseline pending | none |"
-}
-
-[System.IO.File]::WriteAllLines(
-  (Join-Path $PWD $inventoryPath),
-  @($header + $rows),
-  [System.Text.UTF8Encoding]::new($false))
-```
-
-Expected: every source file has exactly one table row with subsystem, responsibility, risk and initial review state
-
-- [ ] **Step 3: Inspect counts and duplicates**
-
-```powershell
-$sourceFiles = Get-Content $sourcePath
-$inventoryRows = Get-Content $inventoryPath | Where-Object { $_ -match '^\| `[^`]+` \|' }
-
-if ($sourceFiles.Count -eq 0) {
-  throw "The cleanup source list is empty"
-}
-if (($sourceFiles | Sort-Object -Unique).Count -ne $sourceFiles.Count) {
-  throw "The cleanup source list contains duplicate paths"
-}
-if ($inventoryRows.Count -ne $sourceFiles.Count) {
-  throw "The inventory row count does not match the source file count"
-}
-```
-
----
-
-### Task 7: Add an Executable Inventory Completeness Contract
+### Task 5: Create the Inventory Files and Completeness Tests
 
 **Files:**
 - Create: `tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/CleanupInventoryContractTests.cs`
 - Create: `scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1`
-- Test: `tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/CleanupInventoryContractTests.cs`
+- Create: `docs/reviews/model-inspection-cleanup-source-files.txt`
+- Create: `docs/reviews/model-inspection-cleanup-inventory.md`
+- Modify: `tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs`
+- Modify: `.github/workflows/build-and-test.yml`
 
 **Interfaces:**
-- Consumes: source list, inventory ledger, cleanup base SHA and current Git diff
-- Produces: three contract tests and one developer/CI verification command
+- Consumes: PR file lists and current repository files
+- Produces: source list, review ledger, three inventory tests and workflow inputs required to execute them
 
 - [ ] **Step 1: Add the inventory contract test file**
 
-Create `CleanupInventoryContractTests.cs` with this content
+Create `CleanupInventoryContractTests.cs`
 
 ```csharp
-using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
@@ -699,22 +403,24 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 [TestCategory("Contract")]
 public sealed class CleanupInventoryContractTests
 {
-    private const string CleanupBase =
-        "a4138a613dd643abe12858eec5d1c3beb09e95e7";
-
     private static readonly string Root = FindRepositoryRoot();
 
-    private static readonly string SourcePath = Path.Combine(
-        Root,
-        "docs",
-        "reviews",
-        "model-inspection-cleanup-source-files.txt");
-
-    private static readonly string InventoryPath = Path.Combine(
-        Root,
-        "docs",
-        "reviews",
-        "model-inspection-cleanup-inventory.md");
+    private static readonly string[] CompleteRoots =
+    [
+        "IBM Granite with TurboQuant (Intel)/Features/ModelInspection",
+        "shared/GraniteEdgeAI.ModelInspection.Contracts",
+        "shared/GraniteEdgeAI.ModelInspection.Transport",
+        "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient",
+        "workers/GraniteEdgeAI.ModelInspection.Worker",
+        "tools/ModelInspection.LlamaSharpSpike",
+        "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests",
+        "tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests",
+        "tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests",
+        "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests",
+        "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests",
+        "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker",
+        "scripts/model-inspection"
+    ];
 
     [TestMethod]
     public void CleanupSourceListIsSortedUniqueAndContainsOnlyExistingFiles()
@@ -725,189 +431,199 @@ public sealed class CleanupInventoryContractTests
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
 
-        CollectionAssert.AreEqual(
-            sortedUnique,
-            sourceFiles,
-            "The cleanup source list must remain sorted and duplicate-free.");
+        CollectionAssert.AreEqual(sortedUnique, sourceFiles);
 
-        string[] missingFiles = sourceFiles
+        string[] missing = sourceFiles
             .Where(path => !File.Exists(Path.Combine(Root, path)))
             .ToArray();
 
         Assert.AreEqual(
             0,
-            missingFiles.Length,
-            $"The cleanup source list contains missing files:{Environment.NewLine}{string.Join(Environment.NewLine, missingFiles)}");
+            missing.Length,
+            $"The cleanup source list contains missing files:{Environment.NewLine}{string.Join(Environment.NewLine, missing)}");
     }
 
     [TestMethod]
     public void CleanupInventoryContainsEverySourceFileExactlyOnce()
     {
-        string[] sourceFiles = ReadSourceFiles();
-        string[] inventoryFiles = ReadInventoryFiles();
-
-        CollectionAssert.AreEqual(
-            sourceFiles,
-            inventoryFiles,
-            "The review inventory must contain one ordered row for every source file.");
+        CollectionAssert.AreEqual(ReadSourceFiles(), ReadInventoryFiles());
     }
 
     [TestMethod]
-    public void NewOrMovedModelInspectionFilesAreAddedToTheInventory()
+    public void CurrentCleanupScopeIsFullyInventoried()
     {
-        string[] inventoryFiles = ReadInventoryFiles();
-        string[] changedFiles = RunGit(
-                "diff",
-                "--name-only",
-                "--diff-filter=ACMR",
-                $"{CleanupBase}...HEAD")
-            .Where(IsInCleanupScope)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-
-        string[] missingRows = changedFiles
-            .Except(inventoryFiles, StringComparer.Ordinal)
+        string[] sourceFiles = ReadSourceFiles();
+        string[] currentFiles = DiscoverCurrentScopeFiles();
+        string[] missing = currentFiles
+            .Except(sourceFiles, StringComparer.Ordinal)
             .ToArray();
 
         Assert.AreEqual(
             0,
-            missingRows.Length,
-            $"New or moved Model Inspection files need inventory rows:{Environment.NewLine}{string.Join(Environment.NewLine, missingRows)}");
+            missing.Length,
+            $"Current Model Inspection files need inventory rows:{Environment.NewLine}{string.Join(Environment.NewLine, missing)}");
     }
 
     private static string[] ReadSourceFiles() =>
-        File.ReadAllLines(SourcePath)
+        File.ReadAllLines(Path.Combine(
+                Root,
+                "docs",
+                "reviews",
+                "model-inspection-cleanup-source-files.txt"))
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .Select(Normalize)
             .ToArray();
 
     private static string[] ReadInventoryFiles() =>
-        File.ReadLines(InventoryPath)
+        File.ReadLines(Path.Combine(
+                Root,
+                "docs",
+                "reviews",
+                "model-inspection-cleanup-inventory.md"))
             .Where(line => line.StartsWith("| `", StringComparison.Ordinal))
             .Select(line => line.Split('`')[1])
             .Select(Normalize)
             .ToArray();
 
-    private static bool IsInCleanupScope(string path)
+    private static string[] DiscoverCurrentScopeFiles()
     {
-        string normalized = Normalize(path);
+        HashSet<string> files = new(StringComparer.Ordinal);
 
-        string[] prefixes =
-        [
-            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/",
-            "shared/GraniteEdgeAI.ModelInspection.Contracts/",
-            "shared/GraniteEdgeAI.ModelInspection.Transport/",
-            "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/",
-            "workers/GraniteEdgeAI.ModelInspection.Worker/",
-            "tools/ModelInspection.LlamaSharpSpike",
-            "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/",
-            "tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/",
-            "tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/",
-            "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/",
-            "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/",
-            "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/"
-        ];
-
-        if (prefixes.Any(prefix =>
-            normalized.StartsWith(prefix, StringComparison.Ordinal)))
+        foreach (string root in CompleteRoots)
         {
-            return true;
+            string fullRoot = Path.Combine(Root, root);
+            if (!Directory.Exists(fullRoot))
+            {
+                continue;
+            }
+
+            foreach (string file in Directory.EnumerateFiles(
+                         fullRoot,
+                         "*",
+                         SearchOption.AllDirectories))
+            {
+                files.Add(ToRelative(file));
+            }
         }
 
-        if (normalized.Equals(
-                ".github/workflows/build-and-test.yml",
-                StringComparison.Ordinal) ||
-            normalized.StartsWith(
-                ".github/workflows/model-inspection-",
-                StringComparison.Ordinal) ||
-            normalized.StartsWith(
-                ".github/workflows/llamasharp-",
-                StringComparison.Ordinal))
+        AddMatchingFiles(
+            files,
+            "IBM Granite with TurboQuant (Intel)/Features/ModelImport",
+            contentMustContainModelInspection: true);
+        AddMatchingFiles(
+            files,
+            "IBM Granite with TurboQuant (Intel)/Features/Onboarding",
+            contentMustContainModelInspection: true);
+        AddMatchingFiles(
+            files,
+            "tests/UnitTests/GraniteEdgeAI.UnitTests",
+            contentMustContainModelInspection: true);
+
+        foreach (string workflow in Directory.EnumerateFiles(
+                     Path.Combine(Root, ".github", "workflows"),
+                     "*.yml"))
         {
-            return true;
+            string name = Path.GetFileName(workflow);
+            if (name.Equals("build-and-test.yml", StringComparison.Ordinal) ||
+                name.StartsWith("model-inspection-", StringComparison.Ordinal) ||
+                name.StartsWith("llamasharp-", StringComparison.Ordinal))
+            {
+                files.Add(ToRelative(workflow));
+            }
         }
 
-        if (normalized.StartsWith("docs/", StringComparison.Ordinal) &&
-            (normalized.Contains(
-                "model-inspection",
-                StringComparison.OrdinalIgnoreCase) ||
-             normalized.Contains(
-                "llamasharp",
-                StringComparison.OrdinalIgnoreCase)))
+        foreach (string document in Directory.EnumerateFiles(
+                     Path.Combine(Root, "docs"),
+                     "*",
+                     SearchOption.AllDirectories))
         {
-            return true;
+            string relative = ToRelative(document);
+            if (relative.Contains("model-inspection", StringComparison.OrdinalIgnoreCase) ||
+                relative.Contains("llamasharp", StringComparison.OrdinalIgnoreCase))
+            {
+                files.Add(relative);
+            }
         }
 
-        if (normalized.StartsWith(
-                "IBM Granite with TurboQuant (Intel)/Features/ModelImport/",
-                StringComparison.Ordinal) ||
-            normalized.StartsWith(
-                "IBM Granite with TurboQuant (Intel)/Features/Onboarding/",
-                StringComparison.Ordinal) ||
-            normalized.StartsWith(
-                "tests/UnitTests/GraniteEdgeAI.UnitTests/",
-                StringComparison.Ordinal))
+        foreach (string path in new[]
         {
-            string fullPath = Path.Combine(Root, normalized);
-            return File.Exists(fullPath) &&
-                   File.ReadAllText(fullPath).Contains(
-                       "ModelInspection",
-                       StringComparison.OrdinalIgnoreCase);
+            "IBM Granite with TurboQuant (Intel).slnx",
+            "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj",
+            "IBM Granite with TurboQuant (Intel)/MainWindow.xaml",
+            "IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs",
+            "shared/README.md",
+            "infrastructure/README.md",
+            "workers/README.md",
+            "tools/README.md"
+        })
+        {
+            if (File.Exists(Path.Combine(Root, path)))
+            {
+                files.Add(path);
+            }
         }
 
-        return false;
+        return files.OrderBy(path => path, StringComparer.Ordinal).ToArray();
     }
 
-    private static string[] RunGit(params string[] arguments)
+    private static void AddMatchingFiles(
+        ISet<string> files,
+        string relativeRoot,
+        bool contentMustContainModelInspection)
     {
-        ProcessStartInfo startInfo = new("git")
+        string fullRoot = Path.Combine(Root, relativeRoot);
+        if (!Directory.Exists(fullRoot))
         {
-            WorkingDirectory = Root,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        foreach (string argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
+            return;
         }
 
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Git did not start.");
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        Assert.AreEqual(
-            0,
-            process.ExitCode,
-            $"Git failed while checking the cleanup inventory: {error}");
-
-        return output
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(Normalize)
-            .ToArray();
+        foreach (string file in Directory.EnumerateFiles(
+                     fullRoot,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            if (!contentMustContainModelInspection ||
+                File.ReadAllText(file).Contains(
+                    "ModelInspection",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                files.Add(ToRelative(file));
+            }
+        }
     }
+
+    private static string ToRelative(string path) =>
+        Normalize(Path.GetRelativePath(Root, path));
 
     private static string Normalize(string path) =>
         path.Replace('\\', '/');
 
     private static string FindRepositoryRoot()
     {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "global.json")) &&
-                File.Exists(Path.Combine(
-                    directory.FullName,
-                    "IBM Granite with TurboQuant (Intel).slnx")))
-            {
-                return directory.FullName;
-            }
+        string[] startingPaths =
+        [
+            AppContext.BaseDirectory,
+            Environment.CurrentDirectory,
+            Path.GetDirectoryName(
+                typeof(CleanupInventoryContractTests).Assembly.Location)
+                ?? AppContext.BaseDirectory
+        ];
 
-            directory = directory.Parent;
+        foreach (string startingPath in startingPaths)
+        {
+            DirectoryInfo? directory = new(startingPath);
+            while (directory is not null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "global.json")) &&
+                    File.Exists(Path.Combine(
+                        directory.FullName,
+                        "IBM Granite with TurboQuant (Intel).slnx")))
+                {
+                    return directory.FullName;
+                }
+
+                directory = directory.Parent;
+            }
         }
 
         throw new DirectoryNotFoundException(
@@ -916,21 +632,7 @@ public sealed class CleanupInventoryContractTests
 }
 ```
 
-- [ ] **Step 2: Run the new tests**
-
-```powershell
-dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
-  --configuration Release `
-  --no-restore `
-  --filter "FullyQualifiedName~CleanupInventoryContractTests" `
-  --minimum-expected-tests 3
-```
-
-Expected: three tests pass
-
-If the repository-root search fails because the test output path does not have the checkout as an ancestor, use the existing multi-start-path search from `BuildWorkflowContractTests` while preserving the same two root markers
-
-- [ ] **Step 3: Add the developer verification wrapper**
+- [ ] **Step 2: Add the developer verification wrapper**
 
 Create `scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1`
 
@@ -960,55 +662,229 @@ finally {
 }
 ```
 
-Use the approved simple comment style if a comment becomes necessary. The script should not contain explanatory comments for obvious commands
+- [ ] **Step 3: Generate the source list and initial ledger after the new files exist**
 
-- [ ] **Step 4: Run the wrapper from the repository root**
+Use tracked and untracked files so the new test and script are included before their first commit
+
+```powershell
+$repository = "arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant"
+$sourcePath = "docs/reviews/model-inspection-cleanup-source-files.txt"
+$inventoryPath = "docs/reviews/model-inspection-cleanup-inventory.md"
+
+function Test-ScopePath([string]$Path) {
+  $normalized = $Path.Replace('\', '/')
+  $prefixes = @(
+    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/"
+    "shared/GraniteEdgeAI.ModelInspection.Contracts/"
+    "shared/GraniteEdgeAI.ModelInspection.Transport/"
+    "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/"
+    "workers/GraniteEdgeAI.ModelInspection.Worker/"
+    "tools/ModelInspection.LlamaSharpSpike"
+    "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/"
+    "tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/"
+    "tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/"
+    "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/"
+    "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/"
+    "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/"
+    "scripts/model-inspection/"
+  )
+
+  if ($prefixes | Where-Object { $normalized.StartsWith($_, [StringComparison]::Ordinal) }) {
+    return $true
+  }
+
+  if ($normalized.StartsWith("IBM Granite with TurboQuant (Intel)/Features/ModelImport/", [StringComparison]::Ordinal) -or
+      $normalized.StartsWith("IBM Granite with TurboQuant (Intel)/Features/Onboarding/", [StringComparison]::Ordinal) -or
+      $normalized.StartsWith("tests/UnitTests/GraniteEdgeAI.UnitTests/", [StringComparison]::Ordinal)) {
+    return (Test-Path -LiteralPath $normalized -PathType Leaf) -and
+      (Get-Content -LiteralPath $normalized -Raw).Contains("ModelInspection", [StringComparison]::OrdinalIgnoreCase)
+  }
+
+  if ($normalized -eq ".github/workflows/build-and-test.yml" -or
+      $normalized -match "^\.github/workflows/(llamasharp|model-inspection)-.*\.yml$") {
+    return $true
+  }
+
+  if ($normalized.StartsWith("docs/", [StringComparison]::Ordinal) -and
+      ($normalized.Contains("model-inspection", [StringComparison]::OrdinalIgnoreCase) -or
+       $normalized.Contains("llamasharp", [StringComparison]::OrdinalIgnoreCase))) {
+    return $true
+  }
+
+  return $normalized -in @(
+    "IBM Granite with TurboQuant (Intel).slnx"
+    "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj"
+    "IBM Granite with TurboQuant (Intel)/MainWindow.xaml"
+    "IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs"
+    "shared/README.md"
+    "infrastructure/README.md"
+    "workers/README.md"
+    "tools/README.md"
+  )
+}
+
+$prFiles = foreach ($prNumber in 44, 45, 47) {
+  gh api --paginate "repos/$repository/pulls/$prNumber/files?per_page=100" --jq '.[].filename'
+}
+
+$currentCandidates = git ls-files --cached --others --exclude-standard
+$currentScope = $currentCandidates | Where-Object { Test-ScopePath $_ }
+
+$allFiles = @(
+  $prFiles
+  $currentScope
+  $sourcePath
+  $inventoryPath
+) |
+  ForEach-Object { $_.Replace('\', '/') } |
+  Where-Object { $_ -in @($sourcePath, $inventoryPath) -or (Test-Path -LiteralPath $_ -PathType Leaf) } |
+  Sort-Object -Unique
+
+New-Item -ItemType Directory -Force -Path (Split-Path $sourcePath) | Out-Null
+[System.IO.File]::WriteAllLines(
+  (Join-Path $PWD $sourcePath),
+  $allFiles,
+  [System.Text.UTF8Encoding]::new($false))
+
+function Get-Subsystem([string]$Path) {
+  switch -Regex ($Path) {
+    '^IBM Granite with TurboQuant \(Intel\)/Features/ModelInspection/' { 'WinUI Model Inspection'; break }
+    '^IBM Granite with TurboQuant \(Intel\)/Features/ModelImport/' { 'Model Import handoff'; break }
+    '^IBM Granite with TurboQuant \(Intel\)/Features/Onboarding/' { 'Onboarding navigation'; break }
+    '^shared/GraniteEdgeAI\.ModelInspection\.Contracts/' { 'worker contracts'; break }
+    '^shared/GraniteEdgeAI\.ModelInspection\.Transport/' { 'transport'; break }
+    '^infrastructure/GraniteEdgeAI\.ModelInspection\.WorkerClient/' { 'WorkerClient infrastructure'; break }
+    '^workers/GraniteEdgeAI\.ModelInspection\.Worker/' { 'production worker'; break }
+    '^tools/ModelInspection\.LlamaSharpSpike' { 'LLamaSharp feasibility'; break }
+    '^tests/ProcessFixtures/' { 'abnormal process fixture'; break }
+    '^tests/IntegrationTests/' { 'process integration tests'; break }
+    '^tests/ContractTests/' { 'contract and architecture tests'; break }
+    '^tests/UnitTests/' { 'unit tests'; break }
+    '^\.github/workflows/' { 'GitHub Actions'; break }
+    '^scripts/' { 'verification scripts'; break }
+    '^docs/' { 'documentation and evidence'; break }
+    default { 'connected project infrastructure' }
+  }
+}
+
+function Get-Risk([string]$Path) {
+  if ($Path -match '/Windows/' -or
+      $Path -match 'Native(Methods|Structures|Handle|Backend)' -or
+      $Path -match 'Worker(Process|Conversation|Cancellation|Executable|Environment|Handshake|Exit|Failure)' -or
+      $Path -match 'Protocol/' -or
+      $Path -match '(Privacy|Redactor|Integrity|Hash)') { return 'critical' }
+
+  if ($Path -match '^workers/' -or
+      $Path -match '^tools/ModelInspection\.LlamaSharpSpike' -or
+      $Path -match '^\.github/workflows/' -or
+      $Path -match 'IntegrationTests|ProcessFixtures') { return 'high' }
+
+  if ($Path -match 'Contracts|ModelInspection|ModelImport|Onboarding|UnitTests|ContractTests') { return 'medium' }
+
+  return 'low'
+}
+
+$header = @(
+  '# Model Inspection Cleanup Review Inventory'
+  ''
+  '**Branch:** `refactor/model-inspection-cleanup`  '
+  '**Base:** `a4138a613dd643abe12858eec5d1c3beb09e95e7`  '
+  '**Source list:** `docs/reviews/model-inspection-cleanup-source-files.txt`  '
+  ''
+  'This ledger records one review disposition for every file in the complete cleanup scope'
+  ''
+  '| File | Subsystem | Primary responsibility | Risk | Review status | Findings | Changes made | Behaviour preserved | Tests | Verification evidence | Deferred work and reason |'
+  '|---|---|---|---|---|---|---|---|---|---|---|'
+)
+
+$rows = foreach ($file in $allFiles) {
+  $subsystem = Get-Subsystem $file
+  $risk = Get-Risk $file
+  "| ``$file`` | $subsystem | serve the recorded subsystem boundary | $risk | pending review | not reviewed | none | baseline behaviour | to be mapped during subsystem audit | baseline pending | none |"
+}
+
+[System.IO.File]::WriteAllLines(
+  (Join-Path $PWD $inventoryPath),
+  @($header + $rows),
+  [System.Text.UTF8Encoding]::new($false))
+```
+
+- [ ] **Step 4: Add workflow checkout coverage for the inventory inputs**
+
+Add this test to `BuildWorkflowContractTests`
+
+```csharp
+[TestMethod]
+public void BuildWorkflowChecksOutCleanupInventoryInputs()
+{
+    string workflow = ReadWorkflow();
+
+    StringAssert.Contains(workflow, "            docs");
+    StringAssert.Contains(workflow, "            scripts");
+    StringAssert.Contains(workflow, "            tools");
+}
+```
+
+Add these sparse-checkout roots after `.github`
+
+```yaml
+            docs
+            scripts
+            tools
+```
+
+Raise both the workflow and `BuildWorkflowContainsCurrentContractGate` expectation from `--minimum-expected-tests 75` to `--minimum-expected-tests 80`
+
+- [ ] **Step 5: Run focused and complete contract verification**
+
+```powershell
+dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
+  --configuration Release `
+  --filter "FullyQualifiedName~CleanupInventoryContractTests|FullyQualifiedName~BuildWorkflowChecksOutCleanupInventoryInputs" `
+  --minimum-expected-tests 4
+
+dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
+  --configuration Release `
+  --no-restore `
+  --minimum-expected-tests 80
+```
+
+Expected: four focused tests and at least 80 complete contract tests pass
+
+- [ ] **Step 6: Add and run the developer wrapper**
 
 ```powershell
 & .\scripts\model-inspection\Verify-ModelInspectionCleanupInventory.ps1
 ```
 
-Expected: three tests pass
+Expected: three inventory tests pass
 
-- [ ] **Step 5: Run the complete contract project again**
-
-The new tests raise the minimum discovered count. Keep the workflow floor at `75` because it remains a lower bound, then record the exact new count from this run
+- [ ] **Step 7: Commit the inventory gate**
 
 ```powershell
-dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
-  --configuration Release `
-  --no-restore `
-  --minimum-expected-tests 78
-```
-
-Expected: at least 78 tests run and all pass
-
-- [ ] **Step 6: Commit the inventory system**
-
-```powershell
-git add docs/reviews `
+git add .github/workflows/build-and-test.yml `
+  tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests `
   scripts/model-inspection `
-  tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/CleanupInventoryContractTests.cs
+  docs/reviews
 
 git commit -m "test(model-inspection): establish complete cleanup inventory"
 ```
 
 ---
 
-### Task 8: Record Exact Baseline Evidence and Open the Draft Cleanup PR
+### Task 6: Record Baseline Evidence
 
 **Files:**
 - Create: `docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md`
-- Update: `docs/testing/evidence/README.md`
-- Create: draft PR from `refactor/model-inspection-cleanup` to `feature/model-inspection-worker-host`
+- Modify: `docs/testing/evidence/README.md`
+- Regenerate: `docs/reviews/model-inspection-cleanup-source-files.txt`
+- Regenerate: `docs/reviews/model-inspection-cleanup-inventory.md`
 
 **Interfaces:**
-- Consumes: baseline run metadata, artifact metadata, TRX counters, source count and inventory count
-- Produces: immutable baseline record and reviewable stacked draft PR
+- Consumes: Task 4 run/artifact data and Task 5 inventory counts
+- Produces: immutable pre-refactoring baseline record
 
-- [ ] **Step 1: Create the evidence document from captured variables**
-
-Use the captured values from Tasks 4 and 5
+- [ ] **Step 1: Create the evidence document with captured values**
 
 ```powershell
 $sourceCount = (Get-Content "docs/reviews/model-inspection-cleanup-source-files.txt").Count
@@ -1023,17 +899,17 @@ $evidence = @"
 
 **Date:** 2026-08-06  
 **Branch:** ``refactor/model-inspection-cleanup``  
-**Commit:** ``$baselineHead``  
+**Behaviour baseline commit:** ``$baselineHead``  
 **Workflow:** ``Build and test``  
-**Run ID:** ``$runId``  
-**Job ID:** ``$jobId``  
-**Run attempt:** ``$($runJson.attempt)``  
-**Conclusion:** ``$($runJson.conclusion)``  
+**Run ID:** ``$baselineRunId``  
+**Job ID:** ``$baselineJobId``  
+**Run attempt:** ``$($baselineRunJson.attempt)``  
+**Conclusion:** ``$($baselineRunJson.conclusion)``  
 **Selected SDK:** ``$sdkVersion``  
 
 ## Purpose
 
-This run establishes the unchanged executable baseline before structural Model Inspection cleanup begins
+This run proves the unchanged executable Model Inspection behaviour before structural cleanup begins
 
 ## Test results
 
@@ -1066,19 +942,19 @@ $testTable
 - server digest: ``$($unitArtifact.digest)``
 - deterministic content digest: ``sha256:$unitContentDigest``
 
-## Cleanup inventory baseline
+## Cleanup inventory prepared after the behaviour baseline
 
 - source files: ``$sourceCount``
 - inventory rows: ``$inventoryCount``
 - duplicate paths: ``0``
-- missing files: ``0``
+- missing paths: ``0``
 - initial review state: ``pending review``
 
-## Baseline conclusion
+## Conclusion
 
-The exact recorded commit passed the complete existing Model Inspection and packaged WinUI verification boundary before structural cleanup
+The recorded behaviour-baseline commit passed the complete existing Model Inspection and packaged WinUI verification boundary before structural cleanup
 
-This evidence does not claim that any later cleanup commit has passed until that later commit receives its own verification
+The later Phase 0 documentation head requires its own successful hosted run and is recorded separately in the draft PR
 "@
 
 [System.IO.File]::WriteAllText(
@@ -1087,19 +963,17 @@ This evidence does not claim that any later cleanup commit has passed until that
   [System.Text.UTF8Encoding]::new($false))
 ```
 
-- [ ] **Step 2: Add the evidence link to the evidence index**
-
-Add one bullet under the Model Inspection evidence section in `docs/testing/evidence/README.md`
+- [ ] **Step 2: Add the evidence index entry**
 
 ```markdown
-- `2026-08-06-model-inspection-cleanup-baseline.md` — exact-head pre-refactoring baseline, retained artifacts, privacy/orphan gates and complete cleanup inventory count
+- `2026-08-06-model-inspection-cleanup-baseline.md` — exact pre-refactoring behaviour baseline, retained artifacts, privacy/orphan gates and cleanup inventory counts
 ```
 
-- [ ] **Step 3: Run inventory and contract verification after documentation changes**
+- [ ] **Step 3: Regenerate the source list and ledger**
 
-The new evidence file is in scope and must be added to both the source list and ledger before the tests can pass
+Rerun Task 5 Step 3 in full. No subsystem review data exists yet, so full regeneration is correct. The new evidence file and updated evidence index must appear in the source list and ledger
 
-Regenerate the source and inventory rows using Task 6 while preserving existing row data for unchanged paths, then run
+- [ ] **Step 4: Verify and commit evidence**
 
 ```powershell
 & .\scripts\model-inspection\Verify-ModelInspectionCleanupInventory.ps1
@@ -1107,32 +981,62 @@ Regenerate the source and inventory rows using Task 6 while preserving existing 
 dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
   --configuration Release `
   --no-restore `
-  --minimum-expected-tests 78
-```
+  --minimum-expected-tests 80
 
-Expected: inventory verification and complete contracts pass
-
-- [ ] **Step 4: Commit baseline evidence**
-
-```powershell
 git add docs/testing/evidence docs/reviews
 git commit -m "docs(model-inspection): record cleanup baseline evidence"
 ```
 
-- [ ] **Step 5: Push the documentation head and obtain one more full exact-head run**
+---
+
+### Task 7: Prove the Final Phase 0 Head and Open the Draft PR
+
+**Files:**
+- Read: final Phase 0 branch head
+- Create: draft PR from `refactor/model-inspection-cleanup` to `feature/model-inspection-worker-host`
+
+**Interfaces:**
+- Consumes: Task 6 commit
+- Produces: successful final Phase 0 hosted run and correctly stacked draft PR
+
+- [ ] **Step 1: Push and select the exact final Phase 0 run**
 
 ```powershell
 git push origin refactor/model-inspection-cleanup
 $phase0Head = git rev-parse HEAD
+
+$phase0Run = gh run list `
+  --workflow build-and-test.yml `
+  --branch refactor/model-inspection-cleanup `
+  --limit 10 `
+  --json databaseId,headSha,status,conclusion,attempt,createdAt `
+  | ConvertFrom-Json `
+  | Where-Object headSha -eq $phase0Head `
+  | Select-Object -First 1
+
+if ($null -eq $phase0Run) {
+  throw "No Build and test run was found for $phase0Head"
+}
+
+$phase0RunId = [long]$phase0Run.databaseId
+gh run watch $phase0RunId --exit-status
+$phase0RunJson = gh run view $phase0RunId --json headSha,conclusion,jobs,url | ConvertFrom-Json
+$phase0Job = $phase0RunJson.jobs | Where-Object name -eq "Build WinUI and run unit tests" | Select-Object -First 1
+$phase0JobId = [long]$phase0Job.databaseId
+
+if ($phase0RunJson.headSha -ne $phase0Head -or $phase0RunJson.conclusion -ne "success") {
+  throw "The final Phase 0 head is not fully verified"
+}
 ```
 
-Select and watch the `Build and test` run whose head SHA equals `$phase0Head`. It must succeed. This run proves the checked-in evidence and inventory files do not break the executable baseline
+Do not edit the evidence document again merely to insert this run and create a documentation/run loop. Record this final exact-head run in the PR body and later final closure evidence
 
-Do not edit the evidence document again merely to embed the second run and create an endless documentation/run loop. Record the final Phase 0 exact-head run in the draft PR body and later final evidence
-
-- [ ] **Step 6: Open the stacked draft PR**
+- [ ] **Step 2: Open the draft PR using the captured IDs**
 
 ```powershell
+$sourceCount = (Get-Content "docs/reviews/model-inspection-cleanup-source-files.txt").Count
+$inventoryCount = (Get-Content "docs/reviews/model-inspection-cleanup-inventory.md" | Where-Object { $_ -match '^\| `[^`]+` \|' }).Count
+
 $prBody = @"
 ## Purpose
 
@@ -1149,8 +1053,10 @@ The cleanup is behaviour-preserving and inventory-driven. It does not implement 
 
 ## Phase 0 baseline
 
-- exact final Phase 0 head: ``$phase0Head``
-- hosted run: record the exact successful run and job IDs here before submitting the command
+- behaviour baseline head: ``$baselineHead``
+- behaviour baseline run/job: ``$baselineRunId`` / ``$baselineJobId``
+- final Phase 0 head: ``$phase0Head``
+- final Phase 0 run/job: ``$phase0RunId`` / ``$phase0JobId``
 - complete contract, transport, worker, WorkerClient, process and packaged WinUI suites: passed
 - privacy scan: passed
 - orphan-process check: passed
@@ -1193,37 +1099,29 @@ gh pr create `
   --body $prBody
 ```
 
-Replace the Phase 0 run sentence in `$prBody` with the actual run and job IDs before invoking `gh pr create`
-
-- [ ] **Step 7: Verify the PR boundary**
+- [ ] **Step 3: Verify the PR boundary**
 
 ```powershell
 gh pr view --json number,title,isDraft,baseRefName,headRefName,url
 ```
 
-Expected:
-
-```text
-isDraft: true
-baseRefName: feature/model-inspection-worker-host
-headRefName: refactor/model-inspection-cleanup
-```
+Expected: draft is true, base is `feature/model-inspection-worker-host` and head is `refactor/model-inspection-cleanup`
 
 ---
 
-### Task 9: Perform the Phase 0 Review Gate
+### Task 8: Complete the Phase 0 Review Gate
 
 **Files:**
-- Review: complete Phase 0 diff
+- Review: complete diff from `a4138a613dd643abe12858eec5d1c3beb09e95e7`
 - Review: `docs/reviews/model-inspection-cleanup-inventory.md`
 - Review: `docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md`
-- Review: draft cleanup PR body
+- Review: draft PR body
 
 **Interfaces:**
 - Consumes: all Phase 0 outputs
-- Produces: decision to begin or block Phase 1 planning
+- Produces: explicit permit or block for Phase 1 planning
 
-- [ ] **Step 1: Review the complete branch diff against the stacked base**
+- [ ] **Step 1: Review the exact Phase 0 diff**
 
 ```powershell
 git diff --check
@@ -1236,52 +1134,42 @@ git diff a4138a613dd643abe12858eec5d1c3beb09e95e7...HEAD -- `
   docs/testing/evidence
 ```
 
-Confirm that no production Model Inspection file changed in Phase 0
+Confirm no production Model Inspection file changed
 
 - [ ] **Step 2: Review inventory completeness manually**
 
-Check:
+Confirm the PR #44/#45/#47 existing-file union, complete roots, connected workflows, scripts and documentation are represented exactly once. Confirm risk values are plausible and no file is marked reviewed before its subsystem audit
 
-```text
-all PR #44, #45 and #47 current files are represented
-all current files beneath included roots are represented
-all connected workflows and documentation are represented
-no duplicate path exists
-all paths exist
-risk levels are plausible
-no file has been marked reviewed before its subsystem audit
-```
-
-- [ ] **Step 3: Run final Phase 0 local checks**
+- [ ] **Step 3: Run final local gates**
 
 ```powershell
 & .\scripts\model-inspection\Verify-ModelInspectionCleanupInventory.ps1
 
 dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
   --configuration Release `
-  --minimum-expected-tests 78
+  --minimum-expected-tests 80
 
 git status --short
 ```
 
-Expected: tests pass and worktree is clean
+Expected: all checks pass and the worktree is clean
 
-- [ ] **Step 4: Confirm Phase 0 acceptance criteria**
+- [ ] **Step 4: Confirm every acceptance condition**
 
 ```text
-[ ] known workflow discovery defect has a red regression and minimal green fix
-[ ] complete contract project runs with no category filter
-[ ] minimum test floor remains present
-[ ] exact-head hosted baseline succeeds
-[ ] every retained TRX has positive all-pass counters
-[ ] Gate 2 artifact is retained and hashed
-[ ] packaged unit-test artifact is retained and hashed
+[ ] discovery defect has an authentic red test and minimal green fix
+[ ] complete contract project runs without a category filter
+[ ] final workflow floor is at least 80
+[ ] behaviour baseline exact head succeeds
+[ ] final Phase 0 exact head succeeds
+[ ] every required TRX exists and contains only passed tests
+[ ] Gate 2 and packaged-test artifacts are retained and hashed
 [ ] privacy scan passes
 [ ] no worker or fixture process remains
 [ ] source list is sorted, unique and contains only existing files
 [ ] inventory contains exactly one row per source file
-[ ] new or moved in-scope files fail closed when not inventoried
-[ ] baseline evidence identifies the exact tested commit
+[ ] current in-scope files missing from the ledger fail closed
+[ ] evidence distinguishes behaviour baseline from later inventory preparation
 [ ] draft PR is correctly stacked and remains draft
 [ ] no production behaviour changed
 ```
@@ -1290,31 +1178,11 @@ Do not write the Phase 1 implementation plan until every item is satisfied
 
 ---
 
-## Phase 0 Acceptance Evidence
-
-The phase is complete only when the following immutable facts are available
-
-```text
-workflow-fix red test run
-workflow-fix green focused run
-complete local contract count
-successful exact-head hosted run and job
-exact TRX counters for all retained suites
-artifact names, IDs, sizes and digests
-privacy step success
-orphan-process step success
-source file count
-inventory row count
-inventory contract test count
-successful documentation-head hosted run
-stacked draft PR URL
-```
-
 ## Engineering Basis
 
-- **Why Programs Fail** — establish a reproducible baseline and preserve the first failing observation before refactoring
-- **The Art of Unit Testing** — protect the CI discovery defect with a focused test and retain separate test layers
-- **Refactoring** — do not restructure code until behaviour is characterized and green
-- **Designing Secure Software** — do not weaken fail-closed test floors, privacy gates or orphan cleanup to obtain a green build
-- **Fundamentals of Software Architecture** — use the inventory and architecture tests as executable fitness functions
-- **Systems Engineering Principles and Practice** — preserve exact traceability from branch head through run, artifact and acceptance evidence
+- **Why Programs Fail** — establish a reproducible baseline and preserve the first failing observation
+- **The Art of Unit Testing** — protect discovery and inventory rules with focused executable tests
+- **Refactoring** — do not restructure code before behaviour is characterized and green
+- **Designing Secure Software** — preserve fail-closed floors, privacy checks and orphan cleanup
+- **Fundamentals of Software Architecture** — use the ledger and architecture tests as fitness functions
+- **Systems Engineering Principles and Practice** — preserve traceability from branch head through run, artifact and acceptance evidence
