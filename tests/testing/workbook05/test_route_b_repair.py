@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 # The implementation deliberately did not exist in the first TDD commit. The
 # initial workflow therefore failed before this module was introduced, providing
@@ -106,6 +107,52 @@ class RouteBRepairTests(unittest.TestCase):
         self.assertFalse(decision.has_unconditional_f32)
         self.assertFalse(decision.has_k_f32_v_tbq)
         self.assertEqual(2, len(decision.reasons))
+
+    def test_workflow_has_intel_collection_and_independent_hosted_validation(self) -> None:
+        repository_root = Path(__file__).resolve().parents[3]
+        workflow = (
+            repository_root / ".github" / "workflows" / "workbook-05-route-b-repair.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("collect-route-b-evidence:", workflow)
+        self.assertIn("validate-route-b-evidence:", workflow)
+        self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", workflow)
+        self.assertIn("github.event.pull_request.head.ref == 'testing/workbook-05-route-b-repair-implementation'", workflow)
+        for label in ("self-hosted", "Windows", "X64", "workbook05", "intel-target"):
+            self.assertIn(f"- {label}", workflow)
+        self.assertIn("Invoke-Workbook05RouteBRepair.ps1", workflow)
+        self.assertIn("actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f", workflow)
+        self.assertIn("needs: collect-route-b-evidence", workflow)
+        self.assertIn("actions/download-artifact@974686ed5098c7f9c9289ec946b9058e496a2561", workflow)
+        self.assertIn("route_b_repair_bundle_validation", workflow)
+        self.assertIn("workbook-05-route-b-repair-${{ github.run_id }}-${{ github.run_attempt }}", workflow)
+
+    def test_orchestrator_runs_nonzero_baseline_and_each_required_candidate_family(self) -> None:
+        repository_root = Path(__file__).resolve().parents[3]
+        orchestrator = (
+            repository_root
+            / "scripts"
+            / "testing"
+            / "workbook05"
+            / "Invoke-Workbook05RouteBRepair.ps1"
+        ).read_text(encoding="utf-8")
+
+        expected_filters = (
+            "baseline_f32 = '*Prc=f32*K=none_V=none*'",
+            "qjl4 = '*Prc=f32*K=tbq4_qjl_V=tbq4_qjl*'",
+            "qjl3 = '*Prc=f32*K=tbq3_qjl_V=tbq3_qjl*'",
+            "polar4 = '*Prc=f32*K=polar4_V=polar4*'",
+            "polar3 = '*Prc=f32*K=polar3_V=polar3*'",
+            "asymmetric_f32_tbq4 = '*Prc=f32*K=none_V=tbq4*'",
+        )
+        for expected_filter in expected_filters:
+            self.assertIn(expected_filter, orchestrator)
+
+        self.assertIn("$testResults.Count -ne 6", orchestrator)
+        self.assertIn("$runCount -le 0", orchestrator)
+        self.assertIn("granite_model_test_authorised = $false", orchestrator)
+        self.assertIn("performance_claim_authorised = $false", orchestrator)
+        self.assertIn("quality_claim_authorised = $false", orchestrator)
 
 
 if __name__ == "__main__":
