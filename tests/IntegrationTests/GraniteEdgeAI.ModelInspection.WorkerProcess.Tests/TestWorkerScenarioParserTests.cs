@@ -65,7 +65,7 @@ public sealed class TestWorkerScenarioParserTests
         }
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("unknown")]
     [DataRow("CrashAfterHello")]
     [DataRow("crash_after_hello")]
