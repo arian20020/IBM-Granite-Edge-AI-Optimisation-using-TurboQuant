@@ -8,7 +8,7 @@ namespace GraniteEdgeAI.ModelInspection.Worker;
 /// Owns the one-request worker protocol lifecycle. It does not inspect model
 /// files directly; all runtime work is delegated through the engine seam.
 /// </summary>
-internal sealed class WorkerHost
+internal sealed class WorkerHost : IAsyncDisposable
 {
     private readonly BoundedUtf8LineReader _input;
     private readonly BoundedUtf8LineWriter _output;
@@ -171,10 +171,16 @@ internal sealed class WorkerHost
                 .ConfigureAwait(false);
             return WorkerExitCodes.OperationalFailure;
         }
-        finally
-        {
-            _output.Dispose();
-        }
+    }
+
+    /// <summary>
+    /// Releases the bounded writer's internal serialization gate. The caller
+    /// still owns and disposes the standard streams supplied to this host.
+    /// </summary>
+    public ValueTask DisposeAsync()
+    {
+        _output.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private WorkerHelloMessage CreateHello() => new()

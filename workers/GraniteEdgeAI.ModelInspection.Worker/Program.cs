@@ -19,7 +19,7 @@ internal static class Program
             typeof(Program).Assembly.GetName().Version?.ToString() ??
             "0.0.0";
 
-        WorkerHost host = new(
+        await using WorkerHost host = new(
             input,
             output,
             error,

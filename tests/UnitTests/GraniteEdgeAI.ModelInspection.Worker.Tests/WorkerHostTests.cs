@@ -106,7 +106,7 @@ public sealed class WorkerHostTests
         input.Position = 0;
         using MemoryStream output = new();
         using MemoryStream error = new();
-        WorkerHost host = new(
+        await using WorkerHost host = new(
             input,
             output,
             error,
