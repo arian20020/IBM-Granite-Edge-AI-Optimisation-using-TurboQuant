@@ -19,4 +19,9 @@
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Transport\GraniteEdgeAI.ModelInspection.Transport.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>GraniteEdgeAI.ModelInspection.WorkerProcess.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>
