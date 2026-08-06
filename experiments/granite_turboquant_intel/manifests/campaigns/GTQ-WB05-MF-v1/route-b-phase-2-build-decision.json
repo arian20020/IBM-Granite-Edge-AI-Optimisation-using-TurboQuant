@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "record_type": "build-decision",
+  "route_id": "route-b-experimental-qjl-polar",
+  "component": "route",
+  "source_commit": "1827f6458d049de11c1a8203c793af67c99935dc",
+  "status": "Blocked",
+  "reasons": [
+    "The bounded Route B repair workflow run 31088162027 ended in failure after the latest evidence-producing and hosted-validation jobs were cancelled.",
+    "The only retained artifact, workbook-05-route-b-repair-31088162027-4, proves exact source provenance, the approved one-file CMake repair, successful configuration, and generated target membership only.",
+    "The retained artifact contains no final decision, no complete SHA-256 manifest, no compiled-target result, and no non-zero unskipped results for the six required baseline, QJL, PolarQuant, and asymmetric cases.",
+    "Route B therefore does not satisfy the ExecutableCandidate prerequisite and cannot enter the Phase 2 Runtime or GenAI build matrix."
+  ],
+  "required_components": [
+    {
+      "component": "runtime",
+      "status": "Blocked",
+      "evidence_path": "docs/testing/workbook05/2026-08-06-route-b-phase-2-closure.md"
+    },
+    {
+      "component": "genai",
+      "status": "Blocked",
+      "evidence_path": "docs/testing/workbook05/2026-08-06-route-b-phase-2-closure.md"
+    }
+  ],
+  "granite_model_test_authorised": false,
+  "activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false
+}
