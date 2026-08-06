@@ -92,33 +92,54 @@ internal sealed class ProtocolScenarioRunner
         await WriteHelloAsync().ConfigureAwait(false);
         await _milestones.WriteAsync("FIXTURE:HELLO_WRITTEN").ConfigureAwait(false);
         if (scenario == TestWorkerScenario.CrashAfterHello)
+        {
             Environment.FailFast("Fixture crash after hello.");
-        if (scenario == TestWorkerScenario.HangAfterHello)
-            await HangAsync().ConfigureAwait(false);
+        }
 
-        WorkerStartInspectionCommand start = await ReadCommandAsync<WorkerStartInspectionCommand>().ConfigureAwait(false);
+        if (scenario == TestWorkerScenario.HangAfterHello)
+        {
+            await HangAsync().ConfigureAwait(false);
+        }
+
+        WorkerStartInspectionCommand start =
+            await ReadCommandAsync<WorkerStartInspectionCommand>().ConfigureAwait(false);
         await _milestones.WriteAsync("FIXTURE:START_RECEIVED").ConfigureAwait(false);
         if (scenario == TestWorkerScenario.CrashAfterStart)
+        {
             Environment.FailFast("Fixture crash after start.");
+        }
+
         if (scenario == TestWorkerScenario.HangAfterStart)
         {
             await WriteStartedAsync(start.RequestId).ConfigureAwait(false);
             await HangAsync().ConfigureAwait(false);
         }
+
         if (scenario == TestWorkerScenario.ProgressBeforeStarted)
         {
-            await WriteProgressAsync(start.RequestId, WorkerStage.CheckModelPackage, 0).ConfigureAwait(false);
+            await WriteProgressAsync(
+                    start.RequestId,
+                    WorkerStage.CheckModelPackage,
+                    0)
+                .ConfigureAwait(false);
             await HangAsync().ConfigureAwait(false);
         }
-        if (scenario is TestWorkerScenario.SpawnChildAndWait or TestWorkerScenario.ExitRootWithLiveChild)
+
+        if (scenario is TestWorkerScenario.SpawnChildAndWait or
+            TestWorkerScenario.ExitRootWithLiveChild)
         {
             using Process child = ChildProcessScenario.StartWaitingChild();
-            await _milestones.WriteAsync($"FIXTURE:CHILD_STARTED:{child.Id}").ConfigureAwait(false);
+            await _milestones.WriteAsync($"FIXTURE:CHILD_STARTED:{child.Id}")
+                .ConfigureAwait(false);
             if (scenario == TestWorkerScenario.ExitRootWithLiveChild)
+            {
                 return 0;
+            }
+
             await WriteStartedAsync(start.RequestId).ConfigureAwait(false);
             await HangAsync().ConfigureAwait(false);
         }
+
         if (scenario == TestWorkerScenario.WrongRequestId)
         {
             Guid wrong = Guid.NewGuid();
@@ -130,23 +151,53 @@ internal sealed class ProtocolScenarioRunner
         await WriteStartedAsync(start.RequestId).ConfigureAwait(false);
         if (scenario == TestWorkerScenario.NonMonotonicProgress)
         {
-            await WriteProgressAsync(start.RequestId, WorkerStage.ReadModelConfiguration, 2).ConfigureAwait(false);
-            await WriteProgressAsync(start.RequestId, WorkerStage.CheckModelPackage, 1).ConfigureAwait(false);
+            await WriteProgressAsync(
+                    start.RequestId,
+                    WorkerStage.ReadModelConfiguration,
+                    2)
+                .ConfigureAwait(false);
+            await WriteProgressAsync(
+                    start.RequestId,
+                    WorkerStage.CheckModelPackage,
+                    1)
+                .ConfigureAwait(false);
             await HangAsync().ConfigureAwait(false);
         }
+
         if (scenario == TestWorkerScenario.ExitWithoutTerminal)
-            return 0;
-        if (scenario is TestWorkerScenario.CooperativeCancellation or TestWorkerScenario.IgnoreCancellation)
         {
-            WorkerCancelInspectionCommand cancel = await ReadCommandAsync<WorkerCancelInspectionCommand>().ConfigureAwait(false);
+            return 0;
+        }
+
+        if (scenario is TestWorkerScenario.CooperativeCancellation or
+            TestWorkerScenario.IgnoreCancellation)
+        {
+            // The progress frame gives process tests a deterministic point after
+            // StartSent at which to trigger caller cancellation.
+            await WriteProgressAsync(
+                    start.RequestId,
+                    WorkerStage.CheckModelPackage,
+                    0)
+                .ConfigureAwait(false);
+            WorkerCancelInspectionCommand cancel =
+                await ReadCommandAsync<WorkerCancelInspectionCommand>()
+                    .ConfigureAwait(false);
             if (cancel.RequestId != start.RequestId)
+            {
                 return 2;
-            await _milestones.WriteAsync("FIXTURE:CANCEL_RECEIVED").ConfigureAwait(false);
+            }
+
+            await _milestones.WriteAsync("FIXTURE:CANCEL_RECEIVED")
+                .ConfigureAwait(false);
             if (scenario == TestWorkerScenario.IgnoreCancellation)
+            {
                 await HangAsync().ConfigureAwait(false);
+            }
+
             await WriteCancelledAsync(start.RequestId).ConfigureAwait(false);
             return 3;
         }
+
         if (scenario == TestWorkerScenario.FloodStderr)
         {
             byte[] flood = Enumerable.Repeat((byte)'E', 1_048_576).ToArray();
@@ -155,28 +206,54 @@ internal sealed class ProtocolScenarioRunner
             await _error.WriteAsync(invalid).ConfigureAwait(false);
             await _error.FlushAsync().ConfigureAwait(false);
         }
+
         if (scenario == TestWorkerScenario.EchoEnvironmentKeys)
         {
-            string keys = string.Join(';', Environment.GetEnvironmentVariables().Keys.Cast<object>()
-                .Select(static value => value.ToString() ?? string.Empty)
-                .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase));
-            await _milestones.WriteAsync("FIXTURE:ENV_KEYS:" + keys).ConfigureAwait(false);
+            string keys = string.Join(
+                ';',
+                Environment.GetEnvironmentVariables().Keys.Cast<object>()
+                    .Select(static value => value.ToString() ?? string.Empty)
+                    .OrderBy(
+                        static value => value,
+                        StringComparer.OrdinalIgnoreCase));
+            await _milestones.WriteAsync("FIXTURE:ENV_KEYS:" + keys)
+                .ConfigureAwait(false);
+
+            bool diagnosticsDisabled =
+                IsEnvironmentZero("DOTNET_EnableDiagnostics") &&
+                IsEnvironmentZero("DOTNET_EnableDiagnostics_IPC") &&
+                IsEnvironmentZero("DOTNET_EnableDiagnostics_Debugger") &&
+                IsEnvironmentZero("DOTNET_EnableDiagnostics_Profiler");
+            await _milestones.WriteAsync(
+                    "FIXTURE:DIAGNOSTICS_DISABLED:" +
+                    diagnosticsDisabled.ToString().ToLowerInvariant())
+                .ConfigureAwait(false);
         }
 
         await WriteFailureAsync(start.RequestId).ConfigureAwait(false);
-        await _milestones.WriteAsync("FIXTURE:TERMINAL_WRITTEN").ConfigureAwait(false);
+        await _milestones.WriteAsync("FIXTURE:TERMINAL_WRITTEN")
+            .ConfigureAwait(false);
         if (scenario == TestWorkerScenario.DuplicateTerminal)
+        {
             await WriteFailureAsync(start.RequestId).ConfigureAwait(false);
+        }
+
         return scenario == TestWorkerScenario.TerminalExitMismatch ? 0 : 1;
     }
 
-    private async Task<TCommand> ReadCommandAsync<TCommand>() where TCommand : class
+    private async Task<TCommand> ReadCommandAsync<TCommand>()
+        where TCommand : class
     {
-        BoundedUtf8LineReader reader = new(_input, WorkerProtocol.MaximumMessageBytes);
-        byte[] payload = await reader.ReadLineAsync(CancellationToken.None).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Fixture command stream ended.");
+        BoundedUtf8LineReader reader = new(
+            _input,
+            WorkerProtocol.MaximumMessageBytes);
+        byte[] payload = await reader.ReadLineAsync(CancellationToken.None)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException(
+                "Fixture command stream ended.");
         return WorkerProtocolJson.DeserializeCommand(payload) as TCommand
-            ?? throw new InvalidOperationException("Fixture received the wrong command.");
+            ?? throw new InvalidOperationException(
+                "Fixture received the wrong command.");
     }
 
     private Task WriteHelloAsync() => WriteMessageAsync(new WorkerHelloMessage
@@ -190,25 +267,48 @@ internal sealed class ProtocolScenarioRunner
         ProcessArchitecture = "X64"
     });
 
-    private Task WriteRawHelloAsync(int protocolVersion = 1, string workerId = WorkerProtocol.WorkerId,
-        int? processId = null, string runtimeProfile = WorkerProtocol.RuntimeProfile, string architecture = "X64") =>
-        WriteLineAsync($"{{\"protocolVersion\":{protocolVersion},\"messageType\":\"hello\",\"workerId\":\"{workerId}\",\"workerVersion\":\"fixture-1.0.0\",\"workerProcessId\":{processId ?? Environment.ProcessId},\"runtimeProfile\":\"{runtimeProfile}\",\"processArchitecture\":\"{architecture}\"}}");
+    private Task WriteRawHelloAsync(
+        int protocolVersion = 1,
+        string workerId = WorkerProtocol.WorkerId,
+        int? processId = null,
+        string runtimeProfile = WorkerProtocol.RuntimeProfile,
+        string architecture = "X64") =>
+        WriteLineAsync(
+            $"{{\"protocolVersion\":{protocolVersion}," +
+            $"\"messageType\":\"hello\"," +
+            $"\"workerId\":\"{workerId}\"," +
+            "\"workerVersion\":\"fixture-1.0.0\"," +
+            $"\"workerProcessId\":{processId ?? Environment.ProcessId}," +
+            $"\"runtimeProfile\":\"{runtimeProfile}\"," +
+            $"\"processArchitecture\":\"{architecture}\"}}");
 
     private Task WriteStartedAsync(Guid id) => WriteMessageAsync(new WorkerStartedMessage
     {
-        ProtocolVersion = 1, MessageType = WorkerMessageKind.Started, RequestId = id
+        ProtocolVersion = 1,
+        MessageType = WorkerMessageKind.Started,
+        RequestId = id
     });
 
-    private Task WriteProgressAsync(Guid id, WorkerStage stage, int count) => WriteMessageAsync(new WorkerProgressMessage
+    private Task WriteProgressAsync(
+        Guid id,
+        WorkerStage stage,
+        int count) => WriteMessageAsync(new WorkerProgressMessage
     {
-        ProtocolVersion = 1, MessageType = WorkerMessageKind.Progress, RequestId = id,
-        Stage = stage, StageStatus = WorkerStageStatus.Active, CompletedStageCount = count,
-        TotalStageCount = 5, StageFraction = 0.5
+        ProtocolVersion = 1,
+        MessageType = WorkerMessageKind.Progress,
+        RequestId = id,
+        Stage = stage,
+        StageStatus = WorkerStageStatus.Active,
+        CompletedStageCount = count,
+        TotalStageCount = 5,
+        StageFraction = 0.5
     });
 
     private Task WriteFailureAsync(Guid id) => WriteMessageAsync(new WorkerCompletedMessage
     {
-        ProtocolVersion = 1, MessageType = WorkerMessageKind.Completed, RequestId = id,
+        ProtocolVersion = 1,
+        MessageType = WorkerMessageKind.Completed,
+        RequestId = id,
         CompletionStatus = WorkerCompletionStatus.OperationalFailure,
         OperationalFailure = new WorkerOperationalFailure
         {
@@ -219,17 +319,21 @@ internal sealed class ProtocolScenarioRunner
 
     private Task WriteCancelledAsync(Guid id) => WriteMessageAsync(new WorkerCompletedMessage
     {
-        ProtocolVersion = 1, MessageType = WorkerMessageKind.Completed, RequestId = id,
+        ProtocolVersion = 1,
+        MessageType = WorkerMessageKind.Completed,
+        RequestId = id,
         CompletionStatus = WorkerCompletionStatus.Cancelled
     });
 
     private async Task WriteMessageAsync(object message)
     {
-        await WriteRawAsync(WorkerProtocolJson.Serialize(message)).ConfigureAwait(false);
+        await WriteRawAsync(WorkerProtocolJson.Serialize(message))
+            .ConfigureAwait(false);
         await WriteRawAsync([(byte)'\n']).ConfigureAwait(false);
     }
 
-    private Task WriteLineAsync(string text) => WriteRawAsync(StrictUtf8.GetBytes(text + "\n"));
+    private Task WriteLineAsync(string text) =>
+        WriteRawAsync(StrictUtf8.GetBytes(text + "\n"));
 
     private async Task WriteRawAsync(byte[] bytes)
     {
@@ -240,15 +344,30 @@ internal sealed class ProtocolScenarioRunner
     private async Task<int> ProbeAsync(string milestone)
     {
         await WriteLineAsync(milestone).ConfigureAwait(false);
-        using StreamReader reader = new(_input, StrictUtf8, false, 1024, true);
+        using StreamReader reader = new(
+            _input,
+            StrictUtf8,
+            detectEncodingFromByteOrderMarks: false,
+            bufferSize: 1024,
+            leaveOpen: true);
         _ = await reader.ReadLineAsync().ConfigureAwait(false);
         return 0;
     }
 
     private Task<int> ProbeHandleAsync(long value) =>
-        ProbeAsync(SetEvent(new IntPtr(value)) ? "handle-signaled" : "handle-unavailable");
+        ProbeAsync(
+            SetEvent(new IntPtr(value))
+                ? "handle-signaled"
+                : "handle-unavailable");
 
-    private static Task HangAsync() => Task.Delay(Timeout.InfiniteTimeSpan);
+    private static bool IsEnvironmentZero(string key) =>
+        string.Equals(
+            Environment.GetEnvironmentVariable(key),
+            "0",
+            StringComparison.Ordinal);
+
+    private static Task HangAsync() =>
+        Task.Delay(Timeout.InfiniteTimeSpan);
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]

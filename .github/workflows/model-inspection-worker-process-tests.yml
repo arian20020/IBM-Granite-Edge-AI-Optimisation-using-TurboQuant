@@ -77,12 +77,13 @@ jobs:
           global-json-file: D:/s/global.json
 
       # The filter and minimum count guarantee that launcher, fixture isolation,
-      # handshake, conversation, and exit-integrity tests all execute.
+      # handshake, conversation, cancellation, timeout, process-tree, stderr,
+      # environment, and concurrency tests all execute.
       - name: Run process and fixture-boundary tests
         run: >-
           dotnet test
           tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests"
-          --minimum-expected-tests 18
+          --filter "FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests"
+          --minimum-expected-tests 27
           -p:Platform=x64
