@@ -5,13 +5,17 @@ using Microsoft.Win32.SafeHandles;
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 
 /// <summary>
-/// Owns one initialized PROC_THREAD_ATTRIBUTE_LIST allocation. Release deletes
-/// the Windows attribute list before zeroing and freeing its backing memory.
+/// Owns one initialized PROC_THREAD_ATTRIBUTE_LIST allocation together with
+/// every pointer-valued attribute buffer referenced by that list. Windows
+/// requires those value buffers to remain alive until process creation has
+/// consumed the list and the list is destroyed.
 /// </summary>
 internal sealed class SafeAttributeListBuffer :
     SafeHandleZeroOrMinusOneIsInvalid
 {
     private readonly int _byteCount;
+    private readonly List<RetainedValueBuffer> _retainedValueBuffers = [];
+    private bool _initialized;
 
     private SafeAttributeListBuffer(IntPtr buffer, int byteCount)
         : base(ownsHandle: true)
@@ -19,6 +23,14 @@ internal sealed class SafeAttributeListBuffer :
         _byteCount = byteCount;
         SetHandle(buffer);
     }
+
+    /// <summary>
+    /// Exposes only the retained-buffer count to the focused test assembly. The
+    /// unmanaged addresses remain private so tests cannot accidentally assume
+    /// ownership or mutate process-creation metadata.
+    /// </summary>
+    internal int RetainedValueBufferCountForTests =>
+        _retainedValueBuffers.Count;
 
     internal static SafeAttributeListBuffer Create(int attributeCount)
     {
@@ -57,13 +69,14 @@ internal sealed class SafeAttributeListBuffer :
                 "Windows could not initialize the process attribute list.");
         }
 
+        owner._initialized = true;
         return owner;
     }
 
     /// <summary>
-    /// Copies one or more borrowed handles into temporary unmanaged memory and
-    /// adds them to the initialized attribute list. The temporary copy is
-    /// always zeroed and freed before returning.
+    /// Copies one or more borrowed handles into unmanaged memory, attaches the
+    /// pointer array to the initialized attribute list, and retains ownership of
+    /// that array until this SafeHandle is released.
     /// </summary>
     internal void UpdatePointerList(nuint attribute, IReadOnlyList<IntPtr> values)
     {
@@ -76,8 +89,15 @@ internal sealed class SafeAttributeListBuffer :
                 nameof(values));
         }
 
+        // Reserve managed capacity before the native update. Once Windows has
+        // stored the pointer, freeing that buffer before CreateProcessW would be
+        // a use-after-free security defect.
+        _retainedValueBuffers.EnsureCapacity(
+            checked(_retainedValueBuffers.Count + 1));
+
         int byteCount = checked(values.Count * IntPtr.Size);
         IntPtr valueBuffer = Marshal.AllocHGlobal(byteCount);
+        bool ownershipTransferred = false;
         try
         {
             for (int index = 0; index < values.Count; index++)
@@ -101,27 +121,57 @@ internal sealed class SafeAttributeListBuffer :
                     Marshal.GetLastPInvokeError(),
                     "Windows could not apply the process attribute.");
             }
+
+            _retainedValueBuffers.Add(
+                new RetainedValueBuffer(valueBuffer, byteCount));
+            ownershipTransferred = true;
         }
         finally
         {
-            for (int index = 0; index < byteCount; index++)
+            if (!ownershipTransferred)
             {
-                Marshal.WriteByte(valueBuffer, index, 0);
+                ZeroAndFree(valueBuffer, byteCount);
             }
-
-            Marshal.FreeHGlobal(valueBuffer);
         }
     }
 
     protected override bool ReleaseHandle()
     {
-        NativeMethods.DeleteProcThreadAttributeList(handle);
-        for (int index = 0; index < _byteCount; index++)
+        // The attribute list can retain pointers to every value buffer, so the
+        // list must be deleted before those buffers are zeroed and released.
+        if (_initialized)
         {
-            Marshal.WriteByte(handle, index, 0);
+            NativeMethods.DeleteProcThreadAttributeList(handle);
+            _initialized = false;
         }
 
-        Marshal.FreeHGlobal(handle);
+        for (int index = _retainedValueBuffers.Count - 1; index >= 0; index--)
+        {
+            RetainedValueBuffer retained = _retainedValueBuffers[index];
+            ZeroAndFree(retained.Pointer, retained.ByteCount);
+        }
+
+        _retainedValueBuffers.Clear();
+        ZeroAndFree(handle, _byteCount);
         return true;
     }
+
+    private static void ZeroAndFree(IntPtr buffer, int byteCount)
+    {
+        if (buffer == IntPtr.Zero)
+        {
+            return;
+        }
+
+        for (int index = 0; index < byteCount; index++)
+        {
+            Marshal.WriteByte(buffer, index, 0);
+        }
+
+        Marshal.FreeHGlobal(buffer);
+    }
+
+    private readonly record struct RetainedValueBuffer(
+        IntPtr Pointer,
+        int ByteCount);
 }
