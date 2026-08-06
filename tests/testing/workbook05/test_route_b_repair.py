@@ -173,6 +173,25 @@ class RouteBRepairTests(unittest.TestCase):
             orchestrator,
         )
 
+    def test_external_workspace_is_short_and_git_long_path_aware(self) -> None:
+        repository_root = Path(__file__).resolve().parents[3]
+        orchestrator = (
+            repository_root
+            / "scripts"
+            / "testing"
+            / "workbook05"
+            / "Invoke-Workbook05RouteBRepair.ps1"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("$ShortWorkspaceRoot = 'C:\\w5b'", orchestrator)
+        self.assertIn("$SourceRoot = Join-Path $WorkRoot 'o'", orchestrator)
+        self.assertIn("$BuildRoot = Join-Path $WorkRoot 'b'", orchestrator)
+        self.assertIn("'core.longpaths=true'", orchestrator)
+        self.assertNotIn(
+            'Join-Path $env:RUNNER_TEMP "workbook-05-route-b-$runIdentity"',
+            orchestrator,
+        )
+
     def test_hosted_validator_requires_the_exact_six_case_catalogue(self) -> None:
         repository_root = Path(__file__).resolve().parents[3]
         validator = (
