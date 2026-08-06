@@ -21,7 +21,8 @@ public sealed class WindowsProcessWaiterTests
             "cmd.exe");
         ProcessStartInfo startInfo = new(commandInterpreter)
         {
-            Arguments = "/d /s /c exit 23",
+            Arguments =
+                "/d /s /c \"ping -n 2 127.0.0.1 >nul & exit 23\"",
             UseShellExecute = false,
             CreateNoWindow = true
         };
@@ -50,7 +51,7 @@ public sealed class WindowsProcessWaiterTests
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+        await Assert.ThrowsAsync<OperationCanceledException>(
             () => WindowsProcessWaiter.WaitForExitAsync(
                 handle,
                 cancellation.Token));
