@@ -92,6 +92,55 @@ function Get-SafeRelativePath {
     return $fullPath.Substring($rootPrefix.Length).Replace('\', '/')
 }
 
+function ConvertTo-WindowsCommandLineArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Argument
+    )
+
+    # ProcessStartInfo on Windows PowerShell 5.1 exposes one command-line string,
+    # not ArgumentList. Apply the documented Windows C runtime quoting rules so
+    # spaces, quotes and trailing backslashes cannot change argument boundaries.
+    if ($Argument.Length -gt 0 -and $Argument -notmatch '[\s"]') {
+        return $Argument
+    }
+
+    $builder = New-Object System.Text.StringBuilder
+    [void]$builder.Append([char]34)
+    $backslashCount = 0
+
+    foreach ($character in $Argument.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashCount++
+            continue
+        }
+
+        if ($character -eq [char]34) {
+            # Backslashes immediately before a quote are doubled, and the quote
+            # itself receives one additional escape backslash.
+            [void]$builder.Append([char]92, (($backslashCount * 2) + 1))
+            [void]$builder.Append([char]34)
+            $backslashCount = 0
+            continue
+        }
+
+        if ($backslashCount -gt 0) {
+            [void]$builder.Append([char]92, $backslashCount)
+            $backslashCount = 0
+        }
+        [void]$builder.Append($character)
+    }
+
+    # Backslashes before the closing quote must be doubled so none escapes that
+    # closing quote and changes the final argument value.
+    if ($backslashCount -gt 0) {
+        [void]$builder.Append([char]92, ($backslashCount * 2))
+    }
+    [void]$builder.Append([char]34)
+    return $builder.ToString()
+}
+
 function Invoke-LoggedNativeCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -111,7 +160,8 @@ function Invoke-LoggedNativeCommand {
     )
 
     # Keep stdout, stderr and an exact machine-readable invocation record for
-    # every native boundary. The command is never constructed through eval.
+    # every native boundary. Do not route native stderr through PowerShell's error
+    # stream: Git and CMake legitimately write progress to stderr even on success.
     if (-not (Test-Path -LiteralPath $EvidenceDirectory -PathType Container)) {
         New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
     }
@@ -122,14 +172,41 @@ function Invoke-LoggedNativeCommand {
     $startedUtc = [DateTime]::UtcNow
     $exitCode = -1
 
-    Push-Location $WorkingDirectory
+    $processStartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processStartInfo.FileName = $FilePath
+    $processStartInfo.Arguments = @(
+        $ArgumentList | ForEach-Object {
+            ConvertTo-WindowsCommandLineArgument -Argument $_
+        }
+    ) -join ' '
+    $processStartInfo.WorkingDirectory = $WorkingDirectory
+    $processStartInfo.UseShellExecute = $false
+    $processStartInfo.RedirectStandardOutput = $true
+    $processStartInfo.RedirectStandardError = $true
+    $processStartInfo.CreateNoWindow = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processStartInfo
     try {
-        & $FilePath @ArgumentList 1> $stdoutPath 2> $stderrPath
-        $exitCode = $LASTEXITCODE
+        if (-not $process.Start()) {
+            throw "Native command did not start: $Name"
+        }
+
+        # Drain both streams concurrently. Reading one synchronously before the
+        # other can deadlock when the child fills the unread pipe buffer.
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        $stdoutText = $stdoutTask.GetAwaiter().GetResult()
+        $stderrText = $stderrTask.GetAwaiter().GetResult()
+        $exitCode = $process.ExitCode
     }
     finally {
-        Pop-Location
+        $process.Dispose()
     }
+
+    Write-Utf8NoBomText -Path $stdoutPath -Text $stdoutText
+    Write-Utf8NoBomText -Path $stderrPath -Text $stderrText
 
     $endedUtc = [DateTime]::UtcNow
     $record = [ordered]@{
@@ -148,11 +225,11 @@ function Invoke-LoggedNativeCommand {
 
     # Echo the preserved logs into Actions for immediate diagnosis while keeping
     # the original files unchanged for independent validation.
-    if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) {
-        Get-Content -LiteralPath $stdoutPath | Write-Host
+    if (-not [string]::IsNullOrEmpty($stdoutText)) {
+        $stdoutText.TrimEnd("`r", "`n") | Write-Host
     }
-    if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
-        Get-Content -LiteralPath $stderrPath | Write-Warning
+    if (-not [string]::IsNullOrEmpty($stderrText)) {
+        $stderrText.TrimEnd("`r", "`n") | Write-Warning
     }
 
     return [pscustomobject]$record
