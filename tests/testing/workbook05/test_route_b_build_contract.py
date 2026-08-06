@@ -83,16 +83,12 @@ class RouteBBuildContractTests(unittest.TestCase):
 
     def test_reapplies_only_reviewed_repair_and_repeats_narrow_gate_before_full_build(self) -> None:
         ordered_tokens = (
-            "scripts.testing.workbook05.route_b_repair",
+            "-m scripts.testing.workbook05.route_b_repair `",
             "route-b-runtime-configure",
             "route-b-narrow-build",
             "route-b-gtest-discovery",
-            "route-b-test-baseline_f32",
-            "route-b-test-qjl4",
-            "route-b-test-qjl3",
-            "route-b-test-polar4",
-            "route-b-test-polar3",
-            "route-b-test-asymmetric_f32_tbq4",
+            "$selectedCases = @(",
+            '-CommandId "route-b-test-$($selectedCase.id)"',
             "route-b-runtime-build",
             "route-b-runtime-install",
         )
