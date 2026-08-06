@@ -1,6 +1,6 @@
 name: Model Inspection WorkerClient tests
 
-# Run the process-independent WorkerClient domain and policy suites whenever
+# Run the WorkerClient domain, trust-policy and native-primitive suites whenever
 # their contracts, implementation, tests, or this workflow changes. The wider
 # Windows workflow still protects the complete Gate 2 graph and WinUI tests.
 on:
@@ -27,8 +27,6 @@ concurrency:
   group: model-inspection-worker-client-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# The long repository name can exceed Windows process-path limits after build
-# output directories are appended, so every command runs from a short root.
 defaults:
   run:
     shell: pwsh
@@ -36,7 +34,7 @@ defaults:
 
 jobs:
   worker-client-tests:
-    name: Run WorkerClient domain and policy tests
+    name: Run WorkerClient domain, policy and native tests
     runs-on: windows-latest
     timeout-minutes: 12
 
@@ -76,13 +74,13 @@ jobs:
       - name: Display selected SDK
         run: dotnet --info
 
-      # The filter is intentionally explicit so a future unrelated test cannot
-      # satisfy the minimum count for this security boundary.
-      - name: Run WorkerClient domain and policy behaviour tests
+      # The explicit filter and minimum count prevent unrelated future tests
+      # from satisfying this security-boundary workflow.
+      - name: Run WorkerClient native-boundary behaviour tests
         run: >-
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests"
-          --minimum-expected-tests 33
+          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests|FullyQualifiedName~NativeLayoutTests|FullyQualifiedName~WindowsPipeSetTests|FullyQualifiedName~WindowsJobObjectTests|FullyQualifiedName~SafeAttributeListBufferTests|FullyQualifiedName~WindowsProcessWaiterTests"
+          --minimum-expected-tests 48
           -p:Platform=x64
