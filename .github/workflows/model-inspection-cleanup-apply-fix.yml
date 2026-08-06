@@ -1,71 +1,15 @@
 name: Model Inspection cleanup apply exact fix
 
 on:
-  push:
-    branches:
-      - refactor/model-inspection-cleanup
+  workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: model-inspection-cleanup-apply-fix-${{ github.ref }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  apply-fix:
-    name: Apply exact contract workflow fix
+  retired:
+    name: Temporary updater retired
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
     steps:
-      - name: Update the contract test command
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          BRANCH: refactor/model-inspection-cleanup
-        run: |
-          curl --fail --silent --show-error --location \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$REPOSITORY/contents/.github/workflows/build-and-test.yml?ref=$BRANCH" \
-            --output /tmp/current-file.json
-
-          python3 - <<'PY'
-          import base64
-          import json
-          import os
-          from pathlib import Path
-
-          current = json.loads(Path('/tmp/current-file.json').read_text())
-          text = base64.b64decode(current['content']).decode('utf-8')
-          old = '            --filter "TestCategory=Contract" `\n'
-
-          if old not in text:
-              Path('/tmp/no-change').write_text('true')
-          else:
-              if text.count(old) != 1:
-                  raise SystemExit('expected exactly one incompatible contract filter')
-
-              updated = text.replace(old, '', 1)
-              payload = {
-                  'message': 'fix(ci): run complete model inspection contract suite',
-                  'content': base64.b64encode(updated.encode('utf-8')).decode('ascii'),
-                  'sha': current['sha'],
-                  'branch': os.environ['BRANCH'],
-              }
-              Path('/tmp/update-payload.json').write_text(json.dumps(payload))
-          PY
-
-          if [ -f /tmp/no-change ]; then
-            echo 'The incompatible filter is already absent'
-            exit 0
-          fi
-
-          curl --fail --silent --show-error --location \
-            --request PUT \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            --header "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPOSITORY/contents/.github/workflows/build-and-test.yml" \
-            --data-binary @/tmp/update-payload.json
+      - name: Explain retirement
+        run: echo 'The exact workflow fix was applied through the connected GitHub app'
