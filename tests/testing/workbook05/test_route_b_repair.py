@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-# The implementation deliberately does not exist in the first TDD commit.
-# This import makes the initial workflow fail for the right reason: the
-# behaviour has been specified before the repair code is written.
+# The implementation deliberately did not exist in the first TDD commit. The
+# initial workflow therefore failed before this module was introduced, providing
+# the required red evidence for the new behaviour.
 from scripts.testing.workbook05.route_b_repair import (
     RouteBContractError,
     repair_target_per_test_text,
@@ -12,10 +12,16 @@ from scripts.testing.workbook05.route_b_repair import (
 )
 
 
+# Model the complete architecture/common source-list shape at the exact pinned
+# experimental commit. A partial fixture would weaken the fail-closed contract.
 BROKEN_CMAKE = """\
 if(X86_64)
     file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/x64/${TEST_CLASS_FILE_NAME})
     file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/x64/${TEST_CLASS_FILE_NAME})
+elseif(ARM OR AARCH64)
+    file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/arm/${TEST_CLASS_FILE_NAME})
+elseif(RISCV64)
+    file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/riscv64/${TEST_CLASS_FILE_NAME})
 endif()
 file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES ${TEST_DIR}/instances/common/${TEST_CLASS_FILE_NAME})
 file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES ${TEST_DIR}/common/${TEST_CLASS_FILE_NAME})
@@ -24,6 +30,8 @@ file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES ${TEST_DIR}/common/${TEST_CLASS_
 EXPECTED_REPAIRED_FRAGMENTS = (
     "LIST_OF_TEST_ARCH_INSTANCES_INSTANCES_X64",
     "LIST_OF_TEST_ARCH_INSTANCES_X64",
+    "LIST_OF_TEST_ARCH_INSTANCES_INSTANCES_ARM",
+    "LIST_OF_TEST_ARCH_INSTANCES_INSTANCES_RISCV64",
     "list(APPEND LIST_OF_TEST_ARCH_INSTANCES",
     "LIST_OF_TEST_COMMON_INSTANCES_INSTANCES_COMMON",
     "LIST_OF_TEST_COMMON_INSTANCES_COMMON",
@@ -56,7 +64,7 @@ class RouteBRepairTests(unittest.TestCase):
         for expected in EXPECTED_REPAIRED_FRAGMENTS:
             self.assertIn(expected, repaired)
 
-        # The unsafe repeated assignments must no longer remain.
+        # The unsafe repeated base-variable assignments must no longer remain.
         self.assertNotIn(
             "file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/x64/",
             repaired,
@@ -75,6 +83,15 @@ class RouteBRepairTests(unittest.TestCase):
     def test_repair_fails_closed_when_expected_source_shape_is_missing(self) -> None:
         with self.assertRaises(RouteBContractError):
             repair_target_per_test_text("set(UNRELATED true)\n")
+
+    def test_repair_fails_closed_when_one_reviewed_directory_is_missing(self) -> None:
+        incomplete = BROKEN_CMAKE.replace(
+            "    file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/riscv64/${TEST_CLASS_FILE_NAME})\n",
+            "",
+        )
+
+        with self.assertRaisesRegex(RouteBContractError, "reviewed set"):
+            repair_target_per_test_text(incomplete)
 
     def test_exact_benchmark_contract_already_has_f32_and_asymmetric_modes(self) -> None:
         decision = verify_benchmark_contract(BENCHMARK_SOURCE)
