@@ -19,4 +19,11 @@
     <ProjectReference Include="..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\shared\GraniteEdgeAI.ModelInspection.Transport\GraniteEdgeAI.ModelInspection.Transport.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Keep host internals out of the application while allowing focused
+         lifecycle tests to exercise the worker as a component. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>GraniteEdgeAI.ModelInspection.Worker.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>
