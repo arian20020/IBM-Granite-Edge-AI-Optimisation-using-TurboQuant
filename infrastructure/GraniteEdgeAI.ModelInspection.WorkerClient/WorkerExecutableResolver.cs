@@ -85,11 +85,9 @@ internal sealed class WorkerExecutableResolver
             UnauthorizedAccessException or
             NotSupportedException)
         {
-            throw new WorkerClientPolicyException(
-                new WorkerClientFailure(
-                    WorkerClientFailureCodes.WorkerExecutableUntrusted,
-                    UntrustedMessage),
-                error);
+            // Expected filesystem failures can contain absolute paths in their
+            // message. Replace them with the stable privacy-safe policy error.
+            throw Untrusted();
         }
     }
 
@@ -182,11 +180,7 @@ internal sealed class WorkerExecutableResolver
             InvalidDataException or
             ArgumentException)
         {
-            throw new WorkerClientPolicyException(
-                new WorkerClientFailure(
-                    WorkerClientFailureCodes.WorkerExecutableUntrusted,
-                    UntrustedMessage),
-                error);
+            throw Untrusted();
         }
 
         if (machine != Amd64Machine)
