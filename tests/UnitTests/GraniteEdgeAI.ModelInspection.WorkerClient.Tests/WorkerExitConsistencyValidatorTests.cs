@@ -13,13 +13,13 @@ public sealed class WorkerExitConsistencyValidatorTests
     [TestMethod]
     [DataRow(WorkerCompletionStatus.Completed, 0, false, true)]
     [DataRow(WorkerCompletionStatus.Cancelled, 3, false, true)]
-    [DataRow(WorkerCompletionStatus.OperationalFailure, 4, false, true)]
-    [DataRow(WorkerCompletionStatus.Completed, 4, false, false)]
+    [DataRow(WorkerCompletionStatus.OperationalFailure, 1, false, true)]
+    [DataRow(WorkerCompletionStatus.Completed, 1, false, false)]
     [DataRow(WorkerCompletionStatus.Cancelled, 0, false, false)]
     [DataRow(WorkerCompletionStatus.OperationalFailure, 3, false, false)]
     [DataRow(WorkerCompletionStatus.Completed, 0, true, false)]
     [DataRow(WorkerCompletionStatus.Cancelled, 3, true, false)]
-    [DataRow(WorkerCompletionStatus.OperationalFailure, 4, true, false)]
+    [DataRow(WorkerCompletionStatus.OperationalFailure, 1, true, false)]
     public void TerminalStatusMustMatchExactExitAndNoForcedTermination(
         WorkerCompletionStatus status,
         int exitCode,
