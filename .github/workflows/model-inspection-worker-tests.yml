@@ -1,0 +1,82 @@
+name: Model Inspection worker host tests
+
+# Run the production worker lifecycle tests whenever the host, shared protocol,
+# transport, tests, or this workflow changes.
+on:
+  push:
+    paths:
+      - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/**'
+      - '.github/workflows/model-inspection-worker-tests.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
+      - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
+      - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/**'
+      - '.github/workflows/model-inspection-worker-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-inspection-worker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+    working-directory: D:\s
+
+jobs:
+  worker-tests:
+    name: Run protected worker host tests
+    runs-on: windows-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Check out worker host inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            workers/GraniteEdgeAI.ModelInspection.Worker
+            shared/GraniteEdgeAI.ModelInspection.Contracts
+            shared/GraniteEdgeAI.ModelInspection.Transport
+            tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests
+
+      - name: Stage worker host inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $buildRoot = 'D:\s'
+          if (Test-Path -LiteralPath $buildRoot) {
+            Remove-Item -LiteralPath $buildRoot -Recurse -Force
+          }
+
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage worker host inputs at $buildRoot."
+          }
+          $global:LASTEXITCODE = 0
+
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw 'The staged checkout is incomplete: global.json was not found.'
+          }
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: D:/s/global.json
+
+      - name: Run worker lifecycle tests
+        run: >-
+          dotnet test
+          tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj
+          --configuration Release
+          --filter "FullyQualifiedName~WorkerHostTests"
+          --minimum-expected-tests 4
+          -p:Platform=x64
