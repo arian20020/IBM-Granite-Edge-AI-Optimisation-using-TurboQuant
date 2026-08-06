@@ -81,6 +81,6 @@ jobs:
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests|FullyQualifiedName~NativeLayoutTests|FullyQualifiedName~WindowsPipeSetTests|FullyQualifiedName~WindowsJobObjectTests|FullyQualifiedName~SafeAttributeListBufferTests|FullyQualifiedName~WindowsProcessWaiterTests|FullyQualifiedName~WindowsWorkerProcessLauncherFailureTests"
-          --minimum-expected-tests 54
+          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests|FullyQualifiedName~NativeLayoutTests|FullyQualifiedName~WindowsPipeSetTests|FullyQualifiedName~WindowsJobObjectTests|FullyQualifiedName~SafeAttributeListBufferTests|FullyQualifiedName~WindowsProcessWaiterTests|FullyQualifiedName~WindowsWorkerProcessLauncherFailureTests|FullyQualifiedName~WorkerHandshakeValidatorTests|FullyQualifiedName~WorkerExitConsistencyValidatorTests|FullyQualifiedName~WorkerFailureAccumulatorTests|FullyQualifiedName~BoundedStandardErrorCollectorTests|FullyQualifiedName~WorkerConversationTests"
+          --minimum-expected-tests 86
           -p:Platform=x64

@@ -38,12 +38,14 @@ public sealed class WorkerFailureAccumulatorTests
         Assert.AreEqual(
             nameof(InvalidOperationException),
             accumulator.SecondaryDiagnostics[0]);
-        StringAssert.DoesNotContain(
-            accumulator.SecondaryDiagnostics[0],
-            "private-model");
-        StringAssert.DoesNotContain(
-            accumulator.SecondaryDiagnostics[0],
-            "supersecret");
+        Assert.IsFalse(
+            accumulator.SecondaryDiagnostics[0].Contains(
+                "private-model",
+                StringComparison.Ordinal));
+        Assert.IsFalse(
+            accumulator.SecondaryDiagnostics[0].Contains(
+                "supersecret",
+                StringComparison.Ordinal));
     }
 
     [TestMethod]

@@ -65,9 +65,10 @@ public sealed class WorkerConversationTests
         Assert.AreEqual(
             WorkerClientFailureCodes.WorkerProtocolInvalid,
             error.Failure.Code);
-        StringAssert.DoesNotContain(
-            error.ToString(),
-            expectedRequestId.ToString());
+        Assert.IsFalse(
+            error.ToString().Contains(
+                expectedRequestId.ToString(),
+                StringComparison.Ordinal));
     }
 
     [TestMethod]

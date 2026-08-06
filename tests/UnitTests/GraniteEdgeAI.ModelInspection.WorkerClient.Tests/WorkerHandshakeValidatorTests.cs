@@ -1,3 +1,4 @@
+using System.Globalization;
 using GraniteEdgeAI.ModelInspection.Contracts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -25,7 +26,7 @@ public sealed class WorkerHandshakeValidatorTests
             WorkerClientTestData.Hello(processId: 4321),
             expectedProcessId: 1234);
 
-        StringAssert.DoesNotContain(error.ToString(), "4321");
+        AssertDoesNotContain(error.ToString(), "4321");
     }
 
     [TestMethod]
@@ -37,7 +38,7 @@ public sealed class WorkerHandshakeValidatorTests
                 WorkerId = "unexpected-worker"
             });
 
-        StringAssert.DoesNotContain(error.ToString(), "unexpected-worker");
+        AssertDoesNotContain(error.ToString(), "unexpected-worker");
     }
 
     [TestMethod]
@@ -49,7 +50,7 @@ public sealed class WorkerHandshakeValidatorTests
                 RuntimeProfile = "unexpected-profile"
             });
 
-        StringAssert.DoesNotContain(error.ToString(), "unexpected-profile");
+        AssertDoesNotContain(error.ToString(), "unexpected-profile");
     }
 
     [TestMethod]
@@ -61,21 +62,22 @@ public sealed class WorkerHandshakeValidatorTests
                 ProcessArchitecture = "ARM64"
             });
 
-        StringAssert.DoesNotContain(error.ToString(), "ARM64");
+        AssertDoesNotContain(error.ToString(), "ARM64");
     }
 
     [TestMethod]
     public void ProtocolVersionMustMatchExactly()
     {
+        int unexpectedVersion = WorkerProtocol.Version + 1;
         WorkerClientPolicyException error = AssertInvalid(
             WorkerClientTestData.Hello() with
             {
-                ProtocolVersion = WorkerProtocol.Version + 1
+                ProtocolVersion = unexpectedVersion
             });
 
-        StringAssert.DoesNotContain(
+        AssertDoesNotContain(
             error.ToString(),
-            (WorkerProtocol.Version + 1).ToString());
+            unexpectedVersion.ToString(CultureInfo.InvariantCulture));
     }
 
     [TestMethod]
@@ -114,5 +116,14 @@ public sealed class WorkerHandshakeValidatorTests
             "The Model Inspection worker identity could not be verified.",
             error.Failure.Message);
         return error;
+    }
+
+    private static void AssertDoesNotContain(
+        string actual,
+        string unexpected)
+    {
+        Assert.IsFalse(
+            actual.Contains(unexpected, StringComparison.Ordinal),
+            $"The diagnostic unexpectedly contained '{unexpected}'.");
     }
 }

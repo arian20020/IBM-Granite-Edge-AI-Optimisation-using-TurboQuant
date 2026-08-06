@@ -66,11 +66,11 @@ public sealed class BoundedStandardErrorCollectorTests
         Assert.IsFalse(snapshot.IsTruncated);
         Assert.IsFalse(snapshot.InvalidUtf8Detected);
         StringAssert.Contains(snapshot.RetainedText, "[REDACTED]");
-        StringAssert.DoesNotContain(snapshot.RetainedText, "Arian");
-        StringAssert.DoesNotContain(snapshot.RetainedText, "private-model.gguf");
-        StringAssert.DoesNotContain(snapshot.RetainedText, RequestId);
-        StringAssert.DoesNotContain(snapshot.RetainedText, "supersecret");
-        StringAssert.DoesNotContain(snapshot.RetainedText, "hunter2");
+        AssertDoesNotContain(snapshot.RetainedText, "Arian");
+        AssertDoesNotContain(snapshot.RetainedText, "private-model.gguf");
+        AssertDoesNotContain(snapshot.RetainedText, RequestId);
+        AssertDoesNotContain(snapshot.RetainedText, "supersecret");
+        AssertDoesNotContain(snapshot.RetainedText, "hunter2");
     }
 
     [TestMethod]
@@ -78,5 +78,14 @@ public sealed class BoundedStandardErrorCollectorTests
     {
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             new BoundedStandardErrorCollector(maximumRetainedBytes: 0));
+    }
+
+    private static void AssertDoesNotContain(
+        string actual,
+        string unexpected)
+    {
+        Assert.IsFalse(
+            actual.Contains(unexpected, StringComparison.Ordinal),
+            $"The diagnostic unexpectedly contained '{unexpected}'.");
     }
 }
