@@ -53,6 +53,13 @@ _RECORD_TYPES: Final[dict[str, str]] = {
     "build-compatibility-attempt": "compatibility",
     "build-decision": "decision",
 }
+# Runtime and GenAI deliberately emit these high-cardinality record classes as
+# JSON arrays. Naming the containers makes the parser fail closed without
+# guessing that every unrelated JSON list is a build-record collection.
+_RECORD_COLLECTIONS: Final[dict[str, str]] = {
+    "binaries.json": "build-binary",
+    "dependencies.json": "build-dependency",
+}
 _MANIFEST_LINE = re.compile(r"^([0-9a-f]{64})  (.+)$")
 
 
@@ -99,16 +106,25 @@ def _load_json(path: Path, relative: str, issues: list[ValidationIssue]) -> obje
 
 
 def _walk_evidence_paths(value: object, location: str = "$") -> list[tuple[str, str]]:
-    """Collect fields ending in path/paths for defence-in-depth containment checks."""
+    """Collect only fields that semantically point inside the evidence bundle."""
 
     found: list[tuple[str, str]] = []
     if isinstance(value, dict):
         for key, child in value.items():
             child_location = f"{location}.{key}"
             lowered = key.lower()
-            if lowered.endswith("_path") and isinstance(child, str):
+
+            # Tool and dependency metadata legitimately contains absolute machine
+            # paths such as python_path and cmake_path. Only fields whose contract
+            # explicitly means "path inside this artifact" receive containment
+            # checks here; typed record validators provide the second line of defence.
+            is_single_evidence_path = (
+                lowered in {"stdout_path", "stderr_path", "relative_path"}
+                or lowered.endswith("evidence_path")
+            )
+            if is_single_evidence_path and isinstance(child, str):
                 found.append((child_location, child))
-            elif lowered.endswith("_paths") and isinstance(child, list):
+            elif lowered.endswith("evidence_paths") and isinstance(child, list):
                 for index, item in enumerate(child):
                     if isinstance(item, str):
                         found.append((f"{child_location}[{index}]", item))
@@ -117,6 +133,54 @@ def _walk_evidence_paths(value: object, location: str = "$") -> list[tuple[str, 
         for index, child in enumerate(value):
             found.extend(_walk_evidence_paths(child, f"{location}[{index}]"))
     return found
+
+
+def _record_payloads(
+    relative: str,
+    payload: object,
+    issues: list[ValidationIssue],
+) -> list[tuple[str, dict[str, object]]]:
+    """Expose one record object or every record in a known collection file."""
+
+    collection_record_name = _RECORD_COLLECTIONS.get(PurePosixPath(relative).name)
+    if collection_record_name is not None:
+        if not isinstance(payload, list):
+            issues.append(
+                ValidationIssue(
+                    "RECORD_INVALID",
+                    f"{PurePosixPath(relative).name} must contain a JSON array.",
+                    relative,
+                )
+            )
+            return []
+
+        records: list[tuple[str, dict[str, object]]] = []
+        for index, item in enumerate(payload):
+            item_path = f"{relative}[{index}]"
+            if not isinstance(item, dict):
+                issues.append(
+                    ValidationIssue(
+                        "RECORD_INVALID",
+                        "Build-record collection item must be a JSON object.",
+                        item_path,
+                    )
+                )
+                continue
+            if item.get("record_type") != collection_record_name:
+                issues.append(
+                    ValidationIssue(
+                        "RECORD_INVALID",
+                        "Build-record collection item has the wrong or missing record_type.",
+                        item_path,
+                    )
+                )
+                continue
+            records.append((item_path, item))
+        return records
+
+    if isinstance(payload, dict) and "record_type" in payload:
+        return [(relative, payload)]
+    return []
 
 
 def _validate_manifest(root: Path, issues: list[ValidationIssue]) -> tuple[int, int]:
@@ -345,41 +409,64 @@ def validate_build_bundle(
 
     decision_count = 0
     for relative, payload in sorted(json_payloads.items()):
-        if not isinstance(payload, dict) or "record_type" not in payload:
-            continue
-        record_name = payload.get("record_type")
-        record_type = _RECORD_TYPES.get(record_name) if isinstance(record_name, str) else None
-        if record_type is None:
-            issues.append(ValidationIssue("RECORD_INVALID", f"Unknown record_type: {record_name!r}", relative))
-            continue
+        for record_path, record in _record_payloads(relative, payload, issues):
+            record_name = record.get("record_type")
+            record_type = _RECORD_TYPES.get(record_name) if isinstance(record_name, str) else None
+            if record_type is None:
+                issues.append(
+                    ValidationIssue(
+                        "RECORD_INVALID",
+                        f"Unknown record_type: {record_name!r}",
+                        record_path,
+                    )
+                )
+                continue
 
-        errors = validate_build_record(record_type, payload, repository_root)
-        for message in errors:
-            code = "UNSAFE_EVIDENCE_PATH" if "unsafe evidence path" in message else "RECORD_INVALID"
-            issues.append(ValidationIssue(code, message, relative))
+            errors = validate_build_record(record_type, record, repository_root)
+            for message in errors:
+                code = "UNSAFE_EVIDENCE_PATH" if "unsafe evidence path" in message else "RECORD_INVALID"
+                issues.append(ValidationIssue(code, message, record_path))
 
-        if payload.get("route_id") != expected.route_id:
-            issues.append(ValidationIssue("IDENTITY_MISMATCH", "Record route_id does not match the expected artifact route.", relative))
-        record_component = payload.get("component")
-        if record_component in {"runtime", "genai"} and record_component != expected.component:
-            issues.append(ValidationIssue("IDENTITY_MISMATCH", "Record component does not match the expected artifact component.", relative))
+            if record.get("route_id") != expected.route_id:
+                issues.append(
+                    ValidationIssue(
+                        "IDENTITY_MISMATCH",
+                        "Record route_id does not match the expected artifact route.",
+                        record_path,
+                    )
+                )
+            record_component = record.get("component")
+            if record_component in {"runtime", "genai"} and record_component != expected.component:
+                issues.append(
+                    ValidationIssue(
+                        "IDENTITY_MISMATCH",
+                        "Record component does not match the expected artifact component.",
+                        record_path,
+                    )
+                )
 
-        if record_type == "decision":
-            decision_count += 1
-            if payload.get("source_commit") != expected.source_commit:
-                issues.append(ValidationIssue("IDENTITY_MISMATCH", "Decision source_commit does not match the expected artifact source.", relative))
-
-        if record_type == "command":
-            for key in ("stdout_path", "stderr_path"):
-                log_path = payload.get(key)
-                if not _safe_relative_path(log_path) or not (root / PurePosixPath(log_path)).is_file():
+            if record_type == "decision":
+                decision_count += 1
+                if record.get("source_commit") != expected.source_commit:
                     issues.append(
                         ValidationIssue(
-                            "COMMAND_LOG_MISSING",
-                            f"Command record does not resolve to an existing {key} file.",
-                            relative,
+                            "IDENTITY_MISMATCH",
+                            "Decision source_commit does not match the expected artifact source.",
+                            record_path,
                         )
                     )
+
+            if record_type == "command":
+                for key in ("stdout_path", "stderr_path"):
+                    log_path = record.get(key)
+                    if not _safe_relative_path(log_path) or not (root / PurePosixPath(log_path)).is_file():
+                        issues.append(
+                            ValidationIssue(
+                                "COMMAND_LOG_MISSING",
+                                f"Command record does not resolve to an existing {key} file.",
+                                record_path,
+                            )
+                        )
 
     if decision_count != 1:
         issues.append(ValidationIssue("DECISION_COUNT_INVALID", f"Expected exactly one build decision record, found {decision_count}.", "decision.json"))
