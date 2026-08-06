@@ -20,9 +20,10 @@ class RouteAGenAIStagingContractTests(unittest.TestCase):
         self.assertIn("New-Wb05ExternalWorkspace", self.text)
         self.assertIn("-Root $WorkspaceRoot", self.text)
         self.assertIn("-RunIdentity $RunIdentity", self.text)
-        self.assertIn("Join-Path $workspace.work_directory 'genai'", self.text)
-        self.assertIn("Join-Path $workspace.work_directory 'b-genai'", self.text)
-        self.assertIn("Join-Path $workspace.work_directory 'i-genai'", self.text)
+        self.assertIn("$workDirectory = $workspace.work_directory", self.text)
+        self.assertIn("Join-Path $workDirectory 'genai'", self.text)
+        self.assertIn("Join-Path $workDirectory 'b-genai'", self.text)
+        self.assertIn("Join-Path $workDirectory 'i-genai'", self.text)
 
     def test_runtime_install_is_not_coupled_to_the_genai_run_identity(self) -> None:
         self.assertNotIn(
