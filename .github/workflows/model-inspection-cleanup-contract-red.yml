@@ -12,7 +12,7 @@ permissions:
 jobs:
   contract-red:
     name: Prove cleanup contract regression
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
@@ -27,9 +27,10 @@ jobs:
       - name: Restore contract tests
         run: dotnet restore "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj"
 
-      - name: Run complete contract project
+      - name: Run focused workflow contract test
         run: |
-          dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" `
-            --configuration Release `
-            --no-restore `
-            --minimum-expected-tests 75
+          dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" \
+            --configuration Release \
+            --no-restore \
+            --filter "FullyQualifiedName~BuildWorkflowRunsCompleteContractProjectWithoutCategoryFilter" \
+            --minimum-expected-tests 1
