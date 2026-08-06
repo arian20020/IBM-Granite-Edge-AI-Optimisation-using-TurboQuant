@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
@@ -176,7 +175,7 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool CreateProcess(
         string applicationName,
-        StringBuilder commandLine,
+        [In, Out] char[] commandLine,
         IntPtr processAttributes,
         IntPtr threadAttributes,
         [MarshalAs(UnmanagedType.Bool)] bool inheritHandles,
