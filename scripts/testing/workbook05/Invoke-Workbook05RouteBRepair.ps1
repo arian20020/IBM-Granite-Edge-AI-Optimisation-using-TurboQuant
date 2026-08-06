@@ -14,8 +14,8 @@ param(
 Runs the bounded Workbook 05 Route B repair, build and repository-test campaign.
 
 .DESCRIPTION
-The script clones the exact experimental OpenVINO commit into runner temporary
-storage, applies only the approved CMake source-list repair, configures by the
+The script clones the exact experimental OpenVINO commit into a short controlled
+workspace, applies only the approved CMake source-list repair, configures by the
 pinned Windows build document, inspects generated target membership, builds one
 narrow functional-test target and executes six non-empty test filters.
 
@@ -38,6 +38,7 @@ $ExpectedBenchmarkPath = 'src/plugins/intel_cpu/tests/functional/custom/subgraph
 $ExpectedTarget = 'ov_cpu_func_subgraph_concat_sdp_turboq'
 $ExpectedGenerator = 'Visual Studio 17 2022'
 $CMakePath = 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+$ShortWorkspaceRoot = 'C:\w5b'
 
 function Write-Utf8NoBomText {
     param(
@@ -297,30 +298,43 @@ if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $CMakePath -PathType Leaf)) {
     throw "Pinned Visual Studio CMake was not found at: $CMakePath"
 }
-if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-    throw 'RUNNER_TEMP is required for the isolated external workspace.'
-}
 if (Test-Path -LiteralPath $OutputDirectory) {
     throw "Evidence directory already exists and will not be reused: $OutputDirectory"
 }
 New-Item -ItemType Directory -Path $OutputDirectory -Force:$false | Out-Null
 $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 
-# Use a run-attempt-specific workspace and refuse automatic reuse or cleanup of
-# unexpected data. GitHub runner cleanup remains outside this script.
+# OpenVINO's recursive dependencies contain paths that exceed the traditional
+# Windows MAX_PATH boundary when placed below the runner's long temporary path.
+# Use one short fixed root, reject links/reparse points and isolate every run in a
+# unique child directory. No global Git or registry setting is changed.
+if (Test-Path -LiteralPath $ShortWorkspaceRoot) {
+    $shortRootItem = Get-Item -LiteralPath $ShortWorkspaceRoot -Force
+    if (-not $shortRootItem.PSIsContainer) {
+        throw "The short workspace root is not a directory: $ShortWorkspaceRoot"
+    }
+    if (($shortRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "The short workspace root must not be a reparse point: $ShortWorkspaceRoot"
+    }
+}
+else {
+    New-Item -ItemType Directory -Path $ShortWorkspaceRoot -Force:$false | Out-Null
+}
+$ShortWorkspaceRoot = (Resolve-Path -LiteralPath $ShortWorkspaceRoot).Path
+
 $runIdentity = if ($env:GITHUB_RUN_ID) {
     "$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)"
 }
 else {
     [Guid]::NewGuid().ToString('N')
 }
-$WorkRoot = Join-Path $env:RUNNER_TEMP "workbook-05-route-b-$runIdentity"
+$WorkRoot = Join-Path $ShortWorkspaceRoot $runIdentity
 if (Test-Path -LiteralPath $WorkRoot) {
     throw "External work directory already exists and will not be reused: $WorkRoot"
 }
 New-Item -ItemType Directory -Path $WorkRoot -Force:$false | Out-Null
-$SourceRoot = Join-Path $WorkRoot 'openvino'
-$BuildRoot = Join-Path $WorkRoot 'build'
+$SourceRoot = Join-Path $WorkRoot 'o'
+$BuildRoot = Join-Path $WorkRoot 'b'
 
 try {
     # Record the exact machine state used for the experiment.
@@ -346,9 +360,11 @@ try {
         python_path = $PythonPath
         git = $gitVersion
         git_path = $gitPath
+        git_core_longpaths = $true
         cmake = $cmakeVersion
         cmake_path = $CMakePath
         requested_generator = $ExpectedGenerator
+        workspace_root = $WorkRoot
         operating_system = $os.Caption
         operating_system_version = $os.Version
         cpu = $cpu.Name
@@ -362,26 +378,29 @@ try {
     })
 
     # Follow the exact pinned Windows build sequence: clone, initialise recursive
-    # submodules, generate with Visual Studio 17 2022, then use cmake --build.
+    # submodules, generate with Visual Studio, then use cmake --build. Apply
+    # core.longpaths only to this external repository and these Git invocations.
     $sourceCommandDirectory = Join-Path $OutputDirectory 'source-commands'
     New-Item -ItemType Directory -Path $sourceCommandDirectory | Out-Null
-    $init = Invoke-LoggedNativeCommand -Name 'git-init' -FilePath $gitPath -ArgumentList @('init', $SourceRoot) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
+    $init = Invoke-LoggedNativeCommand -Name 'git-init' -FilePath $gitPath -ArgumentList @('-c', 'core.longpaths=true', 'init', $SourceRoot) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
     if ($init.exit_code -ne 0) { throw 'git init failed.' }
-    $remote = Invoke-LoggedNativeCommand -Name 'git-remote-add' -FilePath $gitPath -ArgumentList @('-C', $SourceRoot, 'remote', 'add', 'origin', $SourceRepository) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
+    $longPaths = Invoke-LoggedNativeCommand -Name 'git-config-longpaths' -FilePath $gitPath -ArgumentList @('-C', $SourceRoot, 'config', 'core.longpaths', 'true') -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
+    if ($longPaths.exit_code -ne 0) { throw 'git core.longpaths configuration failed.' }
+    $remote = Invoke-LoggedNativeCommand -Name 'git-remote-add' -FilePath $gitPath -ArgumentList @('-c', 'core.longpaths=true', '-C', $SourceRoot, 'remote', 'add', 'origin', $SourceRepository) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
     if ($remote.exit_code -ne 0) { throw 'git remote add failed.' }
-    $fetch = Invoke-LoggedNativeCommand -Name 'git-fetch' -FilePath $gitPath -ArgumentList @('-C', $SourceRoot, 'fetch', '--depth=1', 'origin', $SourceCommit) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
+    $fetch = Invoke-LoggedNativeCommand -Name 'git-fetch' -FilePath $gitPath -ArgumentList @('-c', 'core.longpaths=true', '-C', $SourceRoot, 'fetch', '--depth=1', 'origin', $SourceCommit) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
     if ($fetch.exit_code -ne 0) { throw 'git fetch failed.' }
-    $checkout = Invoke-LoggedNativeCommand -Name 'git-checkout' -FilePath $gitPath -ArgumentList @('-C', $SourceRoot, 'checkout', '--detach', $SourceCommit) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
+    $checkout = Invoke-LoggedNativeCommand -Name 'git-checkout' -FilePath $gitPath -ArgumentList @('-c', 'core.longpaths=true', '-C', $SourceRoot, 'checkout', '--detach', $SourceCommit) -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
     if ($checkout.exit_code -ne 0) { throw 'git checkout failed.' }
-    $submodules = Invoke-LoggedNativeCommand -Name 'git-submodules' -FilePath $gitPath -ArgumentList @('-C', $SourceRoot, 'submodule', 'update', '--init', '--recursive') -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
+    $submodules = Invoke-LoggedNativeCommand -Name 'git-submodules' -FilePath $gitPath -ArgumentList @('-c', 'core.longpaths=true', '-C', $SourceRoot, 'submodule', 'update', '--init', '--recursive') -WorkingDirectory $WorkRoot -EvidenceDirectory $sourceCommandDirectory
     if ($submodules.exit_code -ne 0) { throw 'Recursive submodule initialisation failed.' }
 
     # Recalculate provenance from the cloned tree rather than trusting requested
     # values. Every required pinned source file must be present as a regular file.
-    $actualRemote = ((& $gitPath -C $SourceRoot remote get-url origin) | Out-String).Trim()
-    $actualHead = ((& $gitPath -C $SourceRoot rev-parse HEAD) | Out-String).Trim()
-    $statusBefore = @(& $gitPath -C $SourceRoot status --porcelain=v1)
-    $submoduleStatus = @(& $gitPath -C $SourceRoot submodule status --recursive)
+    $actualRemote = ((& $gitPath -c core.longpaths=true -C $SourceRoot remote get-url origin) | Out-String).Trim()
+    $actualHead = ((& $gitPath -c core.longpaths=true -C $SourceRoot rev-parse HEAD) | Out-String).Trim()
+    $statusBefore = @(& $gitPath -c core.longpaths=true -C $SourceRoot status --porcelain=v1)
+    $submoduleStatus = @(& $gitPath -c core.longpaths=true -C $SourceRoot submodule status --recursive)
     if ($actualRemote -ne $SourceRepository) {
         throw "Unexpected Route B origin: $actualRemote"
     }
@@ -410,6 +429,8 @@ try {
         clean_before_repair = $true
         recursive_submodule_count = $submoduleStatus.Count
         recursive_submodules_complete = $true
+        git_core_longpaths = $true
+        workspace_root = $WorkRoot
         build_document = $ExpectedBuildDocument
         build_document_sha256 = (Get-FileHash -LiteralPath $buildDocumentPath -Algorithm SHA256).Hash.ToLowerInvariant()
         repair_source_sha256 = (Get-FileHash -LiteralPath $repairSourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -434,11 +455,11 @@ try {
     }
 
     # Reject algorithm drift or any second changed external file.
-    $changedFiles = @(& $gitPath -C $SourceRoot diff --name-only)
+    $changedFiles = @(& $gitPath -c core.longpaths=true -C $SourceRoot diff --name-only)
     if ($changedFiles.Count -ne 1 -or $changedFiles[0].Replace('\', '/') -ne $ExpectedRepairPath) {
         throw "Repair changed an unexpected external file set: $($changedFiles -join ', ')"
     }
-    & $gitPath -C $SourceRoot diff --check
+    & $gitPath -c core.longpaths=true -C $SourceRoot diff --check
     if ($LASTEXITCODE -ne 0) {
         throw "External repair patch failed git diff --check with code $LASTEXITCODE."
     }
@@ -466,7 +487,7 @@ try {
     }
 
     # Record only selected cache values; the complete generated tree stays in
-    # runner temporary storage and is never uploaded.
+    # the short workspace and is never uploaded.
     $cachePath = Join-Path $BuildRoot 'CMakeCache.txt'
     if (-not (Test-Path -LiteralPath $cachePath -PathType Leaf)) {
         throw 'CMake configure returned success without CMakeCache.txt.'
