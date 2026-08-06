@@ -50,7 +50,8 @@ public sealed class WorkerLaunchContainmentTests
 
         // Let the harmless fixture exit normally before session cleanup proves
         // that the private Job Object reaches zero active processes.
-        await session.StandardInput.WriteAsync([(byte)'\n'])
+        byte[] newline = [(byte)'\n'];
+        await session.StandardInput.WriteAsync(newline)
             .ConfigureAwait(false);
         await session.StandardInput.FlushAsync().ConfigureAwait(false);
         await session.WaitForExitAsync(CancellationToken.None)
