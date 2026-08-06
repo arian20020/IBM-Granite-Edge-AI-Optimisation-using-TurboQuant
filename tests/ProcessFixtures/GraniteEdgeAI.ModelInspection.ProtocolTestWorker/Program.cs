@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace GraniteEdgeAI.ModelInspection.ProtocolTestWorker;
 
 /// <summary>
@@ -19,11 +21,34 @@ internal static class Program
             return UsageError;
         }
 
-        // Signal only after standard streams are available, then remain alive
-        // until the parent closes or writes one line to standard input.
-        await Console.Out.WriteLineAsync("fixture-ready").ConfigureAwait(false);
-        await Console.Out.FlushAsync().ConfigureAwait(false);
-        _ = await Console.In.ReadLineAsync().ConfigureAwait(false);
+        // WinExe has no interactive console. Open the three inherited standard
+        // handles directly so the fixture remains a pipe-only child process.
+        await using Stream input = Console.OpenStandardInput();
+        await using Stream output = Console.OpenStandardOutput();
+        using StreamReader reader = new(
+            input,
+            new UTF8Encoding(
+                encoderShouldEmitUTF8Identifier: false,
+                throwOnInvalidBytes: true),
+            detectEncodingFromByteOrderMarks: false,
+            bufferSize: 1024,
+            leaveOpen: true);
+        await using StreamWriter writer = new(
+            output,
+            new UTF8Encoding(
+                encoderShouldEmitUTF8Identifier: false,
+                throwOnInvalidBytes: true),
+            bufferSize: 1024,
+            leaveOpen: true)
+        {
+            AutoFlush = true,
+            NewLine = "\n"
+        };
+
+        // Signal only after inherited streams are open, then remain alive until
+        // the parent closes or writes one line to standard input.
+        await writer.WriteLineAsync("fixture-ready").ConfigureAwait(false);
+        _ = await reader.ReadLineAsync().ConfigureAwait(false);
         return 0;
     }
 }
