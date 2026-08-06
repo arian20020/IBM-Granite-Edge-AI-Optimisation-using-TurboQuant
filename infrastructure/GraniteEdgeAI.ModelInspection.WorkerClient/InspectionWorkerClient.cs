@@ -138,7 +138,9 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             BoundedUtf8LineReader stdoutReader = new(
                 session.StandardOutput,
                 WorkerProtocol.MaximumMessageBytes);
-            Task overallSignal = Task.Delay(_options.OverallTimeout);
+            Task overallSignal = Task.Delay(
+                _options.OverallTimeout,
+                CancellationToken.None);
             Task callerSignal = cancellationToken.CanBeCanceled
                 ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
                 : NeverCompletingTask;
@@ -206,18 +208,18 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         }
         catch (WorkerClientPolicyException error)
         {
-            WorkerClientFailure failure = error.Failure;
-            if (failure.Code == WorkerClientFailureCodes.WorkerProtocolInvalid &&
+            WorkerClientFailure policyFailure = error.Failure;
+            if (policyFailure.Code == WorkerClientFailureCodes.WorkerProtocolInvalid &&
                 session is not null &&
                 processExitTask?.IsCompleted == true &&
                 TryGetActiveProcessCount(session) != 0)
             {
-                failure = new WorkerClientFailure(
+                policyFailure = new WorkerClientFailure(
                     WorkerClientFailureCodes.WorkerProcessTreeIntegrityFailed,
                     ProcessTreeMessage);
             }
 
-            _ = failures.TrySetPrimary(failure);
+            _ = failures.TrySetPrimary(policyFailure);
         }
         catch (ProtocolStreamException error)
         {
@@ -695,7 +697,9 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         Task<byte[]?> helloTask = stdoutReader
             .ReadLineAsync(CancellationToken.None)
             .AsTask();
-        Task startupExpired = Task.Delay(_options.StartupTimeout);
+        Task startupExpired = Task.Delay(
+            _options.StartupTimeout,
+            CancellationToken.None);
         Task winner = await Task.WhenAny(
                 helloTask,
                 startupExpired,
