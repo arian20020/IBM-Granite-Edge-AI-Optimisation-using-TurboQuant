@@ -8,8 +8,8 @@ namespace GraniteEdgeAI.ModelInspection.ProtocolTestWorker;
 /// </summary>
 internal static class TestWorkerScenarioParser
 {
-    private static readonly IReadOnlyDictionary<string, TestWorkerScenario>
-        Scenarios = new Dictionary<string, TestWorkerScenario>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, TestWorkerScenario> Scenarios =
+        new(StringComparer.Ordinal)
         {
             ["launch-probe"] = TestWorkerScenario.LaunchProbe,
             ["healthy-controlled-failure"] = TestWorkerScenario.HealthyControlledFailure,
@@ -49,33 +49,25 @@ internal static class TestWorkerScenarioParser
             ["child-process-wait"] = TestWorkerScenario.ChildProcessWait
         };
 
-    internal static bool TryParse(
-        string[] args,
-        out TestWorkerScenarioRequest? request)
+    internal static bool TryParse(string[] args, out TestWorkerScenarioRequest? request)
     {
         request = null;
         if (args.Length == 0 || !Scenarios.TryGetValue(args[0], out TestWorkerScenario scenario))
-        {
             return false;
-        }
 
         if (scenario == TestWorkerScenario.ProbeUnrelatedHandle)
         {
             if (args.Length != 2 ||
                 !long.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long value) ||
                 value <= 0)
-            {
                 return false;
-            }
 
             request = new TestWorkerScenarioRequest(scenario, value);
             return true;
         }
 
         if (args.Length != 1)
-        {
             return false;
-        }
 
         request = new TestWorkerScenarioRequest(scenario);
         return true;
