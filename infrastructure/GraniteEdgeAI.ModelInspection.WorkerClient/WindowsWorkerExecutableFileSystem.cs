@@ -132,14 +132,16 @@ internal sealed class WindowsWorkerExecutableFileSystem :
         }
     }
 
-    private static partial class NativeMethods
+    private static class NativeMethods
     {
-        [LibraryImport(
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport(
             "kernel32.dll",
             EntryPoint = "CreateFileW",
-            SetLastError = true,
-            StringMarshalling = StringMarshalling.Utf16)]
-        internal static partial SafeFileHandle CreateFile(
+            CharSet = CharSet.Unicode,
+            ExactSpelling = true,
+            SetLastError = true)]
+        internal static extern SafeFileHandle CreateFile(
             string fileName,
             uint desiredAccess,
             uint shareMode,
@@ -148,11 +150,14 @@ internal sealed class WindowsWorkerExecutableFileSystem :
             uint flagsAndAttributes,
             IntPtr templateFile);
 
-        [LibraryImport(
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport(
             "kernel32.dll",
             EntryPoint = "GetFinalPathNameByHandleW",
+            CharSet = CharSet.Unicode,
+            ExactSpelling = true,
             SetLastError = true)]
-        internal static partial uint GetFinalPathNameByHandle(
+        internal static extern uint GetFinalPathNameByHandle(
             SafeFileHandle file,
             [Out] char[] filePath,
             uint filePathLength,
