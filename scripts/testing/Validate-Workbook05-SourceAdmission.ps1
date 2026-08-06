@@ -36,11 +36,14 @@ if ($RepositoryRootExitCode -ne 0 -or -not $RepositoryRoot) {
 Set-Location -LiteralPath $RepositoryRoot
 
 # Resolve either the approved absolute interpreter or the hosted `python`
-# command without searching for or executing a user-selected program.
+# command without searching for or executing a user-selected program. Select
+# only the first application in PowerShell command-precedence order because a
+# hosted PATH may expose both setup-python and WindowsApps shims.
 $PythonCommand = Get-Command `
     -Name $PythonPath `
     -CommandType Application `
-    -ErrorAction Stop
+    -ErrorAction Stop |
+    Select-Object -First 1
 $ResolvedPythonPath = $PythonCommand.Source
 
 # Verify the exact approved interpreter version before running any test code.
