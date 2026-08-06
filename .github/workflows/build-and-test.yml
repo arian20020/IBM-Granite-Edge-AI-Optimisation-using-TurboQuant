@@ -1,6 +1,6 @@
 name: Build and test
 
-# Run the validation after branch pushes, for pull requests into main,
+# Run the complete validation after branch pushes, for pull requests into main,
 # and when manually started from the GitHub Actions interface.
 on:
   push:
@@ -9,189 +9,150 @@ on:
       - main
   workflow_dispatch:
 
-# Give the workflow permission to read repository content only.
 permissions:
   contents: read
 
-# Prevent GitHub from wasting time on obsolete builds. For example, when a
-# newer commit is pushed while an older commit is still building, only the
-# newer branch state remains relevant.
+# A newer push makes an older branch build obsolete. Cancelling the stale run
+# prevents two process-test campaigns from sharing one hosted runner at once.
 concurrency:
   group: build-and-test-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Use PowerShell consistently for command-line build steps.
 defaults:
   run:
     shell: pwsh
-    # Keep the checkout path short. The WinUI XAML compiler still creates
-    # intermediate paths that can exceed legacy Windows path limits.
+    # WinUI's generated XAML paths can exceed older Windows path limits when
+    # the long repository name is used directly.
     working-directory: D:\s
 
-# Keep project paths in one place so commands cannot accidentally point to
-# different projects.
 env:
   APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
   TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
   CONTRACT_TEST_PROJECT: 'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj'
+  TRANSPORT_TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj'
+  WORKER_TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj'
+  WORKER_CLIENT_TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj'
+  WORKER_PROCESS_TEST_PROJECT: 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
+  WORKER_PROJECT: 'workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj'
+  FIXTURE_PROJECT: 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj'
   TEST_RECIPE: 'tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
   TEST_RESULTS_DIRECTORY: 'TestResults/UnitTests'
+  GATE2_RESULTS_DIRECTORY: 'TestResults/Gate2'
+  GRANITE_GATE2_WORKER_ROOT: 'D:/s/artifacts/gate2/worker'
+  GRANITE_GATE2_FIXTURE_ROOT: 'D:/s/artifacts/gate2/fixture'
 
 jobs:
   build-and-test:
-    # Keep this name stable. It will later be selected as a required
-    # status check for the protected main branch.
     name: Build WinUI and run unit tests
-
-    # WinUI and Windows App SDK compilation require a Windows runner.
     runs-on: windows-latest
-
-    # Stop a stalled build rather than allowing it to run indefinitely.
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
-      # Retrieve only the repository directories required by this CI job.
-      #
-      # The repository also contains deeply nested research material that
-      # is not needed to build or test the application. A sparse checkout
-      # prevents those unrelated paths from being written to the Windows
-      # runner and keeps the checkout smaller and more focused.
-      #
-      # Root-level files, including global.json, remain available when
-      # sparse checkout uses its default cone mode.
-      #
       # Pinned immutable commit for actions/checkout v7.0.0.
       - name: Check out required build inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           sparse-checkout: |
-            .github/workflows
+            .github
             IBM Granite with TurboQuant (Intel)
             infrastructure
             shared
             workers
-            tests/ContractTests
-            tests/IntegrationTests
-            tests/ProcessFixtures
-            tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests
-            tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests
-            tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests
-            tests/UnitTests/GraniteEdgeAI.UnitTests
-            tests/TestFixtures
+            tests
 
-      # Recreate every script-owned fixture before staging the build. A clean
-      # diff proves that committed binaries, expected JSON, and the integrity
-      # manifest are reproducible from their checked-in generators.
+      # Every script-owned GGUF fixture must be reproducible before any build
+      # result can be trusted.
       - name: Verify generated fixture reproducibility
         shell: powershell
         working-directory: ${{ github.workspace }}
         run: |
           $ErrorActionPreference = 'Stop'
-
           & '.\tests\TestFixtures\Generate-GgufFixtures.ps1'
 
           git diff --exit-code -- tests/TestFixtures
           $fixtureDiffExitCode = $LASTEXITCODE
           $fixtureStatus = @(
-            git status `
-              --porcelain `
-              --untracked-files=all `
-              -- tests/TestFixtures
+            git status --porcelain --untracked-files=all -- tests/TestFixtures
           )
           if ($LASTEXITCODE -ne 0) {
             throw 'git status failed while checking regenerated fixtures.'
           }
-
           if ($fixtureDiffExitCode -gt 1) {
             throw 'git diff failed while checking regenerated fixtures.'
           }
-
-          if (
-            $fixtureDiffExitCode -eq 1 -or
-            $fixtureStatus.Count -ne 0
-          ) {
+          if ($fixtureDiffExitCode -eq 1 -or $fixtureStatus.Count -ne 0) {
             $fixtureStatus | ForEach-Object { Write-Host $_ }
             throw 'Fixture regeneration left tracked or untracked changes.'
           }
 
-      # actions/checkout only accepts paths beneath GITHUB_WORKSPACE, whose
-      # Windows path repeats the long repository name. Copy the sparse tree to
-      # the runner's short temporary root before invoking the XAML compiler.
+      # Stage the sparse checkout at a short path before invoking WinUI's XAML
+      # compiler or the x64 process tests.
       - name: Stage build inputs at a short path
         working-directory: ${{ github.workspace }}
         run: |
           $buildRoot = 'D:\s'
           robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
-
           if ($LASTEXITCODE -ge 8) {
             throw "Failed to stage build inputs at $buildRoot."
           }
-
-          # Robocopy uses exit codes 1-7 for successful copy outcomes. Reset
-          # the process code so PowerShell does not fail the workflow step.
           $global:LASTEXITCODE = 0
-
           if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
-            throw "The staged checkout is incomplete: global.json was not found."
+            throw 'The staged checkout is incomplete: global.json was not found.'
           }
 
-      # Install the .NET SDK selected by the repository's global.json.
-      #
       # Pinned immutable commit for actions/setup-dotnet v5.0.0.
       - name: Set up .NET SDK from global.json
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
         with:
           global-json-file: D:/s/global.json
 
-      # Locate the x64 MSBuild installation supplied by Visual Studio
-      # on the Windows runner.
-      #
       # Pinned immutable commit for microsoft/setup-msbuild v3.0.0.
       - name: Add x64 MSBuild to PATH
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
         with:
           msbuild-architecture: x64
 
-      # Record the selected tools in the workflow log to make failures
-      # diagnosable and reproducible.
       - name: Display tool versions
         run: |
           dotnet --info
           msbuild -version
 
-      # Restore the pure framework-neutral contract-test project before any
-      # WinUI build. This provides a fast boundary check for the worker
-      # protocol and prevents native/UI dependencies entering the shared model.
+      - name: Prepare Gate 2 evidence directories
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path $env:GATE2_RESULTS_DIRECTORY | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:GRANITE_GATE2_WORKER_ROOT | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:GRANITE_GATE2_FIXTURE_ROOT | Out-Null
+
       - name: Restore Model Inspection contract tests
         run: |
           $ErrorActionPreference = 'Stop'
-
           dotnet restore "$env:CONTRACT_TEST_PROJECT"
           if ($LASTEXITCODE -ne 0) {
             throw "Model Inspection contract restore failed: $LASTEXITCODE"
           }
 
-      # Run the contract category through Microsoft.Testing.Platform.
+      # The contract category includes protocol contracts and executable
+      # architecture fitness functions. The floor prevents accidental test loss.
       - name: Run Model Inspection contract tests
         run: |
           $ErrorActionPreference = 'Stop'
-
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
             --filter "TestCategory=Contract" `
-            --minimum-expected-tests 41
+            --minimum-expected-tests 75 `
+            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Contracts.Tests.trx" `
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts"
           if ($LASTEXITCODE -ne 0) {
             throw "Model Inspection contract tests failed: $LASTEXITCODE"
           }
 
-      # Compile every Gate 2 boundary independently. Keeping this list explicit
-      # makes a missing project, wrong target framework, or invalid dependency
-      # direction visible before later process implementation begins.
+      # Compile each Gate 2 boundary independently so dependency-direction and
+      # warnings-as-errors failures are visible before process execution.
       - name: Restore and build Gate 2 project shells
         run: |
           $ErrorActionPreference = 'Stop'
-
           dotnet sln 'IBM Granite with TurboQuant (Intel).slnx' list
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 solution validation failed with exit code $LASTEXITCODE."
@@ -199,13 +160,13 @@ jobs:
 
           $gate2Projects = @(
             'shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj'
-            'workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj'
+            $env:WORKER_PROJECT
             'infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj'
-            'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj'
-            'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj'
-            'tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj'
-            'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj'
-            'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
+            $env:TRANSPORT_TEST_PROJECT
+            $env:WORKER_TEST_PROJECT
+            $env:WORKER_CLIENT_TEST_PROJECT
+            $env:FIXTURE_PROJECT
+            $env:WORKER_PROCESS_TEST_PROJECT
           )
 
           foreach ($project in $gate2Projects) {
@@ -214,19 +175,106 @@ jobs:
               throw "Gate 2 project restore failed for $project with exit code $LASTEXITCODE."
             }
           }
-
           foreach ($project in $gate2Projects) {
-            dotnet build $project `
-              --configuration Release `
-              --no-restore `
-              -p:Platform=x64
+            dotnet build $project --configuration Release --no-restore -p:Platform=x64
             if ($LASTEXITCODE -ne 0) {
               throw "Gate 2 project build failed for $project with exit code $LASTEXITCODE."
             }
           }
 
-      # Resolve all dependencies required to compile the packaged
-      # WinUI application.
+      # The production worker and abnormal fixture are published to different
+      # roots. The fixture is test input and is never presented as product output.
+      - name: Publish separate Gate 2 process inputs
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish "$env:WORKER_PROJECT" `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --output "$env:GRANITE_GATE2_WORKER_ROOT" `
+            -p:Platform=x64 `
+            -p:UseAppHost=true
+          if ($LASTEXITCODE -ne 0) {
+            throw "Production worker publish failed: $LASTEXITCODE"
+          }
+
+          dotnet publish "$env:FIXTURE_PROJECT" `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --output "$env:GRANITE_GATE2_FIXTURE_ROOT" `
+            -p:Platform=x64 `
+            -p:UseAppHost=true
+          if ($LASTEXITCODE -ne 0) {
+            throw "Protocol fixture publish failed: $LASTEXITCODE"
+          }
+
+          $workerExe = Join-Path $env:GRANITE_GATE2_WORKER_ROOT 'GraniteEdgeAI.ModelInspection.Worker.exe'
+          $fixtureExe = Join-Path $env:GRANITE_GATE2_FIXTURE_ROOT 'GraniteEdgeAI.ModelInspection.ProtocolTestWorker.exe'
+          foreach ($requiredFile in @($workerExe, $fixtureExe)) {
+            if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
+              throw "Expected Gate 2 executable was not published: $requiredFile"
+            }
+          }
+
+          $manifestPath = Join-Path $env:GATE2_RESULTS_DIRECTORY 'gate2-publish-manifest.txt'
+          @(
+            "source_commit=$env:GITHUB_SHA"
+            "worker_file=$([IO.Path]::GetFileName($workerExe))"
+            "worker_sha256=$((Get-FileHash -Algorithm SHA256 $workerExe).Hash)"
+            "fixture_file=$([IO.Path]::GetFileName($fixtureExe))"
+            "fixture_sha256=$((Get-FileHash -Algorithm SHA256 $fixtureExe).Hash)"
+          ) | Set-Content -LiteralPath $manifestPath -Encoding utf8
+
+      - name: Run Gate 2 transport tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test "$env:TRANSPORT_TEST_PROJECT" `
+            --configuration Release `
+            --minimum-expected-tests 20 `
+            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Transport.Tests.trx" `
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Transport"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Gate 2 transport tests failed: $LASTEXITCODE"
+          }
+
+      - name: Run Gate 2 worker host tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test "$env:WORKER_TEST_PROJECT" `
+            --configuration Release `
+            --minimum-expected-tests 4 `
+            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Worker.Tests.trx" `
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Worker"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Gate 2 worker host tests failed: $LASTEXITCODE"
+          }
+
+      - name: Run Gate 2 WorkerClient tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test "$env:WORKER_CLIENT_TEST_PROJECT" `
+            --configuration Release `
+            -p:Platform=x64 `
+            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.WorkerClient.Tests.trx" `
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerClient"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Gate 2 WorkerClient tests failed: $LASTEXITCODE"
+          }
+
+      - name: Run Gate 2 real process tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test "$env:WORKER_PROCESS_TEST_PROJECT" `
+            --configuration Release `
+            --runtime win-x64 `
+            -p:Platform=x64 `
+            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx" `
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerProcess"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Gate 2 real process tests failed: $LASTEXITCODE"
+          }
+
       - name: Restore WinUI application
         run: |
           msbuild "$env:APP_PROJECT" `
@@ -235,19 +283,10 @@ jobs:
             /property:Platform=x64 `
             /property:RuntimeIdentifier=win-x64
 
-      # Resolve all dependencies required by MSTest.
       - name: Restore unit-test project
         run: |
-          dotnet restore "$env:TEST_PROJECT" `
-            --runtime win-x64 `
-            -p:Platform=x64
+          dotnet restore "$env:TEST_PROJECT" --runtime win-x64 -p:Platform=x64
 
-      # Compile the application before running automated tests.
-      #
-      # Package generation and signing are disabled because CI is
-      # validating compilation, not producing a release package. Clear
-      # the local-only publish profile and disable publish optimizations
-      # that require a self-contained deployment.
       - name: Build WinUI application
         run: |
           msbuild "$env:APP_PROJECT" `
@@ -263,7 +302,6 @@ jobs:
             /property:AppxPackageSigningEnabled=false `
             /property:GenerateAppxPackageOnBuild=false
 
-      # Compile the test source without repeating package restoration.
       - name: Build unit-test project
         run: |
           dotnet build "$env:TEST_PROJECT" `
@@ -272,17 +310,10 @@ jobs:
             --runtime win-x64 `
             -p:Platform=x64
 
-      # Run the packaged WinUI test app through Visual Studio's app-container
-      # runner. This creates the XAML UI thread required by [UITestMethod].
       - name: Run unit and WinUI UI-thread tests
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $vstest = & $vswhere `
-            -latest `
-            -products * `
-            -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' |
-            Select-Object -First 1
-
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
           if (-not $vstest) {
             throw 'Visual Studio app-container test runner was not found.'
           }
@@ -292,32 +323,20 @@ jobs:
             /Platform:x64 `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
             /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY"
-
-          $testExitCode = $LASTEXITCODE
-          if ($testExitCode -ne 0) {
-            throw "The packaged unit-test run failed with exit code $testExitCode."
+          if ($LASTEXITCODE -ne 0) {
+            throw "The packaged unit-test run failed with exit code $LASTEXITCODE."
           }
 
-          $trxPath = Join-Path `
-            'D:\s' `
-            "$env:TEST_RESULTS_DIRECTORY\GraniteEdgeAI.UnitTests.trx"
+          $trxPath = Join-Path 'D:\s' "$env:TEST_RESULTS_DIRECTORY\GraniteEdgeAI.UnitTests.trx"
           if (-not (Test-Path -LiteralPath $trxPath -PathType Leaf)) {
             throw "The packaged unit-test run did not create $trxPath."
           }
-
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
-          if (
-            [int]$counters.total -le 0 -or
-            [int]$counters.executed -le 0
-          ) {
+          if ([int]$counters.total -le 0 -or [int]$counters.executed -le 0) {
             throw 'The packaged unit-test run discovered or executed zero tests.'
           }
-
-          if (
-            [int]$counters.total -ne [int]$counters.passed -or
-            [int]$counters.executed -ne [int]$counters.passed
-          ) {
+          if ([int]$counters.total -ne [int]$counters.passed -or [int]$counters.executed -ne [int]$counters.passed) {
             throw 'The packaged unit-test TRX contains a non-passing result.'
           }
 
@@ -329,31 +348,68 @@ jobs:
             'GraniteEdgeAI.UnitTests.ModelQuickScannerTests'
           )
           foreach ($requiredClass in $requiredClasses) {
-            $requiredTestIds = @(
-              $definitions |
-                Where-Object {
-                  $_.TestMethod.className -eq $requiredClass
-                } |
-                ForEach-Object { $_.id }
-            )
-            $passedClassResults = @(
-              $results |
-                Where-Object {
-                  $_.testId -in $requiredTestIds -and
-                  $_.outcome -eq 'Passed'
-                }
-            )
+            $requiredTestIds = @($definitions | Where-Object { $_.TestMethod.className -eq $requiredClass } | ForEach-Object { $_.id })
+            $passedClassResults = @($results | Where-Object { $_.testId -in $requiredTestIds -and $_.outcome -eq 'Passed' })
             if ($passedClassResults.Count -eq 0) {
               throw "The packaged run did not pass a test from $requiredClass."
             }
           }
 
-      # Preserve the available report even when unit tests fail.
-      #
-      # When an earlier build fails, no TRX file will exist. In that
-      # situation, issue a warning while preserving the original failure.
-      #
+      # This check always runs. It records a failure before cleaning the runner,
+      # so process leakage cannot be hidden by successful test assertions.
+      - name: Check for orphaned Gate 2 processes
+        if: ${{ always() }}
+        run: |
+          $names = @(
+            'GraniteEdgeAI.ModelInspection.Worker'
+            'GraniteEdgeAI.ModelInspection.ProtocolTestWorker'
+          )
+          $remaining = @(
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $names -contains $_.ProcessName }
+          )
+          if ($remaining.Count -gt 0) {
+            $remaining | Format-Table Id, ProcessName, StartTime
+            $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
+            throw 'Gate 2 left a process running.'
+          }
+          Write-Host 'No Gate 2 worker or fixture process remains.'
+
+      # Preserve only bounded test reports and a hash manifest. The published
+      # fixture itself is intentionally excluded from product/evidence output.
+      - name: Scan Gate 2 evidence for sensitive content
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path -LiteralPath $env:GATE2_RESULTS_DIRECTORY)) {
+            Write-Warning 'No Gate 2 evidence directory exists to scan.'
+            return
+          }
+          $forbiddenPatterns = @(
+            'C:\\Users\\[^\\\s]+'
+            'Bearer\s+[A-Za-z0-9._-]+'
+            '(?i)(api[_-]?key|password|secret)\s*[:=]\s*[^\s<]+'
+          )
+          foreach ($file in Get-ChildItem $env:GATE2_RESULTS_DIRECTORY -File -Recurse) {
+            $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction Stop
+            foreach ($pattern in $forbiddenPatterns) {
+              if ($text -match $pattern) {
+                throw "Sensitive content pattern was retained in $($file.Name)."
+              }
+            }
+          }
+          Write-Host 'Gate 2 retained evidence passed the bounded privacy scan.'
+
       # Pinned immutable commit for actions/upload-artifact v7.0.0.
+      - name: Upload Gate 2 verification results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: gate2-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: D:/s/TestResults/Gate2/**
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Upload unit-test results
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
