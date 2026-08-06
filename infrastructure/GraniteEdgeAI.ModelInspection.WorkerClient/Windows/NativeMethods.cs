@@ -70,6 +70,19 @@ internal static class NativeMethods
         ExactSpelling = true,
         SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool QueryInformationJobObject(
+        SafeJobHandle job,
+        int informationClass,
+        IntPtr information,
+        uint informationLength,
+        IntPtr returnLength);
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport(
+        "kernel32.dll",
+        ExactSpelling = true,
+        SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool TerminateJobObject(
         SafeJobHandle job,
         uint exitCode);

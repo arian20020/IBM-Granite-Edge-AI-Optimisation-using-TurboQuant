@@ -9,6 +9,8 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 /// </summary>
 internal sealed class WindowsJobObject : IDisposable
 {
+    private const int ProcessIdCapacity = 64;
+    private const int ProcessIdListHeaderBytes = sizeof(uint) * 2;
     private bool _disposed;
 
     private WindowsJobObject(SafeJobHandle handle)
@@ -94,6 +96,67 @@ internal sealed class WindowsJobObject : IDisposable
 
     internal uint GetActiveProcessCount() =>
         QueryBasicAccounting().ActiveProcesses;
+
+    /// <summary>
+    /// Returns the process IDs currently assigned to this Job Object. This is
+    /// used by process-tree verification and diagnostic tests rather than as a
+    /// substitute for the authoritative active-process accounting value.
+    /// </summary>
+    internal IReadOnlyList<int> GetProcessIds()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        int byteCount = checked(
+            ProcessIdListHeaderBytes + (ProcessIdCapacity * IntPtr.Size));
+        IntPtr buffer = Marshal.AllocHGlobal(byteCount);
+        try
+        {
+            for (int index = 0; index < byteCount; index++)
+            {
+                Marshal.WriteByte(buffer, index, 0);
+            }
+
+            if (!NativeMethods.QueryInformationJobObject(
+                    Handle,
+                    NativeConstants.JobObjectBasicProcessIdListClass,
+                    buffer,
+                    checked((uint)byteCount),
+                    IntPtr.Zero))
+            {
+                throw new Win32Exception(
+                    Marshal.GetLastPInvokeError(),
+                    "Windows could not enumerate the worker process tree.");
+            }
+
+            uint processCount = checked((uint)Marshal.ReadInt32(
+                buffer,
+                sizeof(uint)));
+            if (processCount > ProcessIdCapacity)
+            {
+                throw new InvalidOperationException(
+                    "The worker process tree exceeded its diagnostic capacity.");
+            }
+
+            List<int> processIds = new(checked((int)processCount));
+            for (int index = 0; index < processCount; index++)
+            {
+                IntPtr processId = Marshal.ReadIntPtr(
+                    buffer,
+                    checked(ProcessIdListHeaderBytes + (index * IntPtr.Size)));
+                processIds.Add(checked((int)processId.ToInt64()));
+            }
+
+            return processIds.AsReadOnly();
+        }
+        finally
+        {
+            for (int index = 0; index < byteCount; index++)
+            {
+                Marshal.WriteByte(buffer, index, 0);
+            }
+
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
 
     internal void Terminate(uint exitCode)
     {

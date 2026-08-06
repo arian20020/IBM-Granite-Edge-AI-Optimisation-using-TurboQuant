@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Text;
 using GraniteEdgeAI.ModelInspection.WorkerClient;
 using GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
@@ -46,7 +47,10 @@ public sealed class WorkerLaunchContainmentTests
             .ConfigureAwait(false);
 
         Assert.AreEqual("fixture-ready", milestone);
-        Assert.AreEqual(1u, session.Job.GetActiveProcessCount());
+        Assert.AreEqual(
+            1u,
+            session.Job.GetActiveProcessCount(),
+            $"Contained processes: {DescribeJobProcesses(session.Job)}");
 
         // Let the harmless fixture exit normally before session cleanup proves
         // that the private Job Object reaches zero active processes.
@@ -74,5 +78,28 @@ public sealed class WorkerLaunchContainmentTests
         }
 
         return values;
+    }
+
+    private static string DescribeJobProcesses(WindowsJobObject job)
+    {
+        List<string> descriptions = [];
+        foreach (int processId in job.GetProcessIds())
+        {
+            try
+            {
+                using Process process = Process.GetProcessById(processId);
+                descriptions.Add($"{processId}:{process.ProcessName}");
+            }
+            catch (ArgumentException)
+            {
+                descriptions.Add($"{processId}:exited");
+            }
+            catch (InvalidOperationException)
+            {
+                descriptions.Add($"{processId}:unavailable");
+            }
+        }
+
+        return string.Join(", ", descriptions);
     }
 }

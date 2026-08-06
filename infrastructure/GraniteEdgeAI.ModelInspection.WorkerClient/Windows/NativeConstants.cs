@@ -24,6 +24,7 @@ internal static class NativeConstants
     internal const uint JobObjectLimitKillOnJobClose = 0x00002000;
 
     internal const int JobObjectBasicAccountingInformationClass = 1;
+    internal const int JobObjectBasicProcessIdListClass = 3;
     internal const int JobObjectExtendedLimitInformationClass = 9;
 
     internal const uint WaitObject0 = 0x00000000;
