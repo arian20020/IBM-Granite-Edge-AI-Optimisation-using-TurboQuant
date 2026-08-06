@@ -40,7 +40,7 @@ jobs:
   worker-process-tests:
     name: Run protected worker process tests
     runs-on: windows-latest
-    timeout-minutes: 18
+    timeout-minutes: 22
 
     steps:
       - name: Check out process-boundary inputs
@@ -76,11 +76,13 @@ jobs:
         with:
           global-json-file: D:/s/global.json
 
+      # The filter and minimum count guarantee that launcher, fixture isolation,
+      # handshake, conversation, and exit-integrity tests all execute.
       - name: Run process and fixture-boundary tests
         run: >-
           dotnet test
           tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests"
-          --minimum-expected-tests 7
+          --filter "FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests"
+          --minimum-expected-tests 18
           -p:Platform=x64
