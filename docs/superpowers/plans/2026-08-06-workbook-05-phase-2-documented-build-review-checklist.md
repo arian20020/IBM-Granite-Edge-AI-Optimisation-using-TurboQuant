@@ -84,7 +84,7 @@ This checklist is the B1 approval gate for the Phase 2 documented-build specific
 
 ## B1 decision
 
-- [ ] Project owner has reviewed the specification and implementation plan.
-- [ ] Project owner approves inline execution of Task 1 only.
+- [x] Project owner approved continuing the implementation in the conversation on 2026-08-06.
+- [x] Project owner approved inline execution beginning with Task 1.
 
-Until both final items are checked, no Phase 2 build-stage implementation or compilation is authorised by this checklist.
+Checkpoint B1 is accepted for Task 1 only. Later tasks remain subject to their own red-green verification and checkpoint evidence. No OpenVINO compilation or model execution is authorised by this checklist update alone.
