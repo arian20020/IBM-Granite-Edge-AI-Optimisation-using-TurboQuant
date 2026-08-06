@@ -3,29 +3,64 @@ using System.Diagnostics;
 namespace GraniteEdgeAI.ModelInspection.WorkerProcess.Tests;
 
 /// <summary>
-/// Publishes the harmless protocol fixture into a unique short-lived directory
-/// so integration tests exercise the same Windows app-host shape used by the
-/// production launcher rather than a test double.
+/// Resolves the harmless protocol fixture from a controlled CI publish root or,
+/// for local development, publishes it into a unique short-lived directory.
+/// This keeps fixture lifecycle separate from the production worker lifecycle.
 /// </summary>
 internal sealed class PublishedFixture : IAsyncDisposable
 {
+    private const string FixtureRootEnvironmentVariable =
+        "GRANITE_GATE2_FIXTURE_ROOT";
+    private const string FixtureExecutableName =
+        "GraniteEdgeAI.ModelInspection.ProtocolTestWorker.exe";
     private const string FixtureProjectRelativePath =
         "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/" +
         "GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj";
 
-    private PublishedFixture(string outputDirectory)
+    private readonly bool _ownsOutputDirectory;
+
+    private PublishedFixture(
+        string outputDirectory,
+        bool ownsOutputDirectory)
     {
         OutputDirectory = outputDirectory;
+        _ownsOutputDirectory = ownsOutputDirectory;
     }
 
     internal string OutputDirectory { get; }
 
     internal static async Task<PublishedFixture> CreateAsync()
     {
+        // Hosted closure publishes the fixture once, verifies its hash, and
+        // gives every process test the same immutable input directory.
+        string? controlledRoot = Environment.GetEnvironmentVariable(
+            FixtureRootEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(controlledRoot))
+        {
+            string fullRoot = Path.GetFullPath(controlledRoot);
+            string executablePath = Path.Combine(
+                fullRoot,
+                FixtureExecutableName);
+            if (!File.Exists(executablePath))
+            {
+                throw new FileNotFoundException(
+                    "The controlled Gate 2 fixture root does not contain the approved executable.",
+                    FixtureExecutableName);
+            }
+
+            return new PublishedFixture(
+                fullRoot,
+                ownsOutputDirectory: false);
+        }
+
+        // Local runs remain self-contained and do not require developers to
+        // execute a separate publish command before running the process suite.
         string repositoryRoot = FindRepositoryRoot();
         string projectPath = Path.Combine(
             repositoryRoot,
-            FixtureProjectRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            FixtureProjectRelativePath.Replace(
+                '/',
+                Path.DirectorySeparatorChar));
         string outputDirectory = Path.Combine(
             Path.GetTempPath(),
             "GraniteEdgeAI-WorkerFixture",
@@ -61,6 +96,8 @@ internal sealed class PublishedFixture : IAsyncDisposable
                 "The protocol test fixture publish process could not start.");
         }
 
+        // Drain both redirected streams concurrently so a verbose publish can
+        // never deadlock while waiting for the child process to exit.
         Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
         Task<string> standardError = process.StandardError.ReadToEndAsync();
         using CancellationTokenSource timeout =
@@ -86,11 +123,20 @@ internal sealed class PublishedFixture : IAsyncDisposable
                 $"Output: {output} Error: {error}");
         }
 
-        return new PublishedFixture(outputDirectory);
+        return new PublishedFixture(
+            outputDirectory,
+            ownsOutputDirectory: true);
     }
 
     public ValueTask DisposeAsync()
     {
+        // A CI-controlled publish root is owned by the workflow and is shared
+        // across tests. Only a locally-created temporary root may be deleted.
+        if (!_ownsOutputDirectory)
+        {
+            return ValueTask.CompletedTask;
+        }
+
         try
         {
             if (Directory.Exists(OutputDirectory))
