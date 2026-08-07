@@ -132,17 +132,18 @@ jobs:
             throw "Model Inspection contract restore failed: $LASTEXITCODE"
           }
 
-      # The contract category includes protocol contracts and executable
-      # architecture fitness functions. The floor prevents accidental test loss.
+      # the dedicated contract project includes protocol contracts and executable
+      # architecture fitness functions while the floor prevents accidental test loss
       - name: Run Model Inspection contract tests
         run: |
           $ErrorActionPreference = 'Stop'
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --minimum-expected-tests 75 `
-            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Contracts.Tests.trx" `
-            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts"
+            --minimum-expected-tests 78 `
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts" `
+            --report-trx `
+            --report-trx-filename "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Model Inspection contract tests failed: $LASTEXITCODE"
           }
@@ -231,8 +232,9 @@ jobs:
           dotnet test "$env:TRANSPORT_TEST_PROJECT" `
             --configuration Release `
             --minimum-expected-tests 20 `
-            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Transport.Tests.trx" `
-            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Transport"
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Transport" `
+            --report-trx `
+            --report-trx-filename "GraniteEdgeAI.ModelInspection.Transport.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 transport tests failed: $LASTEXITCODE"
           }
@@ -243,8 +245,9 @@ jobs:
           dotnet test "$env:WORKER_TEST_PROJECT" `
             --configuration Release `
             --minimum-expected-tests 4 `
-            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.Worker.Tests.trx" `
-            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Worker"
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/Worker" `
+            --report-trx `
+            --report-trx-filename "GraniteEdgeAI.ModelInspection.Worker.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 worker host tests failed: $LASTEXITCODE"
           }
@@ -255,8 +258,9 @@ jobs:
           dotnet test "$env:WORKER_CLIENT_TEST_PROJECT" `
             --configuration Release `
             -p:Platform=x64 `
-            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.WorkerClient.Tests.trx" `
-            --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerClient"
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerClient" `
+            --report-trx `
+            --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerClient.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 WorkerClient tests failed: $LASTEXITCODE"
           }
@@ -268,8 +272,9 @@ jobs:
             --configuration Release `
             --runtime win-x64 `
             -p:Platform=x64 `
-            --logger "trx;LogFileName=GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx" `
-            --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerProcess"
+            --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerProcess" `
+            --report-trx `
+            --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 real process tests failed: $LASTEXITCODE"
           }
