@@ -169,62 +169,9 @@ jobs:
             throw 'Could not locate the selector-test helper insertion point'
           }
 
-          $tests = @'
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    public void SelectTemplate_WithContentPresenterAsItem_UsesPresenterContent()
-    {
-        DataTemplate progressTemplate = new();
-        DataTemplate findingsTemplate = new();
-        InspectionContentTemplateSelector selector =
-            CreateSelector(progressTemplate, findingsTemplate);
-        ContentPresenter presenter = new()
-        {
-            Content = CreateProgressPresentation()
-        };
-
-        DataTemplate selectedTemplate = selector.SelectTemplate(presenter);
-
-        Assert.AreSame(progressTemplate, selectedTemplate);
-    }
-
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    public void SelectTemplate_WithContentControlContainer_UsesContainerContent()
-    {
-        DataTemplate progressTemplate = new();
-        DataTemplate findingsTemplate = new();
-        InspectionContentTemplateSelector selector =
-            CreateSelector(progressTemplate, findingsTemplate);
-        ContentControl container = new()
-        {
-            Content = CreateProgressPresentation()
-        };
-
-        DataTemplate selectedTemplate = selector.SelectTemplate(new object(), container);
-
-        Assert.AreSame(progressTemplate, selectedTemplate);
-    }
-
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    public void SelectTemplate_WithContentPresenterContainer_UsesContainerContent()
-    {
-        DataTemplate progressTemplate = new();
-        DataTemplate findingsTemplate = new();
-        InspectionContentTemplateSelector selector =
-            CreateSelector(progressTemplate, findingsTemplate);
-        ContentPresenter container = new()
-        {
-            Content = CreateProgressPresentation()
-        };
-
-        DataTemplate selectedTemplate = selector.SelectTemplate(new object(), container);
-
-        Assert.AreSame(progressTemplate, selectedTemplate);
-    }
-
-'@
+          $testsBase64 = 'ICAgIFtVSVRlc3RNZXRob2RdCiAgICBbVGVzdENhdGVnb3J5KCJXaW5VSSIpXQogICAgcHVibGljIHZvaWQgU2VsZWN0VGVtcGxhdGVfV2l0aENvbnRlbnRQcmVzZW50ZXJBc0l0ZW1fVXNlc1ByZXNlbnRlckNvbnRlbnQoKQogICAgewogICAgICAgIERhdGFUZW1wbGF0ZSBwcm9ncmVzc1RlbXBsYXRlID0gbmV3KCk7CiAgICAgICAgRGF0YVRlbXBsYXRlIGZpbmRpbmdzVGVtcGxhdGUgPSBuZXcoKTsKICAgICAgICBJbnNwZWN0aW9uQ29udGVudFRlbXBsYXRlU2VsZWN0b3Igc2VsZWN0b3IgPQogICAgICAgICAgICBDcmVhdGVTZWxlY3Rvcihwcm9ncmVzc1RlbXBsYXRlLCBmaW5kaW5nc1RlbXBsYXRlKTsKICAgICAgICBDb250ZW50UHJlc2VudGVyIHByZXNlbnRlciA9IG5ldygpCiAgICAgICAgewogICAgICAgICAgICBDb250ZW50ID0gQ3JlYXRlUHJvZ3Jlc3NQcmVzZW50YXRpb24oKQogICAgICAgIH07CgogICAgICAgIERhdGFUZW1wbGF0ZSBzZWxlY3RlZFRlbXBsYXRlID0gc2VsZWN0b3IuU2VsZWN0VGVtcGxhdGUocHJlc2VudGVyKTsKCiAgICAgICAgQXNzZXJ0LkFyZVNhbWUocHJvZ3Jlc3NUZW1wbGF0ZSwgc2VsZWN0ZWRUZW1wbGF0ZSk7CiAgICB9CgogICAgW1VJVGVzdE1ldGhvZF0KICAgIFtUZXN0Q2F0ZWdvcnkoIldpblVJIildCiAgICBwdWJsaWMgdm9pZCBTZWxlY3RUZW1wbGF0ZV9XaXRoQ29udGVudENvbnRyb2xDb250YWluZXJfVXNlc0NvbnRhaW5lckNvbnRlbnQoKQogICAgewogICAgICAgIERhdGFUZW1wbGF0ZSBwcm9ncmVzc1RlbXBsYXRlID0gbmV3KCk7CiAgICAgICAgRGF0YVRlbXBsYXRlIGZpbmRpbmdzVGVtcGxhdGUgPSBuZXcoKTsKICAgICAgICBJbnNwZWN0aW9uQ29udGVudFRlbXBsYXRlU2VsZWN0b3Igc2VsZWN0b3IgPQogICAgICAgICAgICBDcmVhdGVTZWxlY3Rvcihwcm9ncmVzc1RlbXBsYXRlLCBmaW5kaW5nc1RlbXBsYXRlKTsKICAgICAgICBDb250ZW50Q29udHJvbCBjb250YWluZXIgPSBuZXcoKQogICAgICAgIHsKICAgICAgICAgICAgQ29udGVudCA9IENyZWF0ZVByb2dyZXNzUHJlc2VudGF0aW9uKCkKICAgICAgICB9OwoKICAgICAgICBEYXRhVGVtcGxhdGUgc2VsZWN0ZWRUZW1wbGF0ZSA9IHNlbGVjdG9yLlNlbGVjdFRlbXBsYXRlKG5ldyBvYmplY3QoKSwgY29udGFpbmVyKTsKCiAgICAgICAgQXNzZXJ0LkFyZVNhbWUocHJvZ3Jlc3NUZW1wbGF0ZSwgc2VsZWN0ZWRUZW1wbGF0ZSk7CiAgICB9CgogICAgW1VJVGVzdE1ldGhvZF0KICAgIFtUZXN0Q2F0ZWdvcnkoIldpblVJIildCiAgICBwdWJsaWMgdm9pZCBTZWxlY3RUZW1wbGF0ZV9XaXRoQ29udGVudFByZXNlbnRlckNvbnRhaW5lcl9Vc2VzQ29udGFpbmVyQ29udGVudCgpCiAgICB7CiAgICAgICAgRGF0YVRlbXBsYXRlIHByb2dyZXNzVGVtcGxhdGUgPSBuZXcoKTsKICAgICAgICBEYXRhVGVtcGxhdGUgZmluZGluZ3NUZW1wbGF0ZSA9IG5ldygpOwogICAgICAgIEluc3BlY3Rpb25Db250ZW50VGVtcGxhdGVTZWxlY3RvciBzZWxlY3RvciA9CiAgICAgICAgICAgIENyZWF0ZVNlbGVjdG9yKHByb2dyZXNzVGVtcGxhdGUsIGZpbmRpbmdzVGVtcGxhdGUpOwogICAgICAgIENvbnRlbnRQcmVzZW50ZXIgY29udGFpbmVyID0gbmV3KCkKICAgICAgICB7CiAgICAgICAgICAgIENvbnRlbnQgPSBDcmVhdGVQcm9ncmVzc1ByZXNlbnRhdGlvbigpCiAgICAgICAgfTsKCiAgICAgICAgRGF0YVRlbXBsYXRlIHNlbGVjdGVkVGVtcGxhdGUgPSBzZWxlY3Rvci5TZWxlY3RUZW1wbGF0ZShuZXcgb2JqZWN0KCksIGNvbnRhaW5lcik7CgogICAgICAgIEFzc2VydC5BcmVTYW1lKHByb2dyZXNzVGVtcGxhdGUsIHNlbGVjdGVkVGVtcGxhdGUpOwogICAgfQoK'
+          $tests = [System.Text.Encoding]::UTF8.GetString(
+            [System.Convert]::FromBase64String($testsBase64))
 
           $updated = $text.Replace(
             $needle,
