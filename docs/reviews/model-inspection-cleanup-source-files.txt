@@ -1,0 +1,367 @@
+.github/workflows/build-and-test.yml
+.github/workflows/llamasharp-feasibility-smoke.yml
+.github/workflows/llamasharp-real-model-integration.yml
+.github/workflows/model-inspection-transport-tests.yml
+.github/workflows/model-inspection-worker-client-tests.yml
+.github/workflows/model-inspection-worker-process-tests.yml
+.github/workflows/model-inspection-worker-tests.yml
+docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md
+docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md
+docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
+docs/architecture/decisions/README.md
+docs/development/Model-Import-Quick-Scan-Current-State.md
+docs/reviews/model-inspection-cleanup-inventory.md
+docs/reviews/model-inspection-cleanup-source-files.txt
+docs/risks/Licence-Register.md
+docs/superpowers/plans/2026-07-30-embedded-model-download-card-responsive-indicator.md
+docs/superpowers/plans/2026-07-30-onboarding-stage-indicator-cleanup-and-tests.md
+docs/superpowers/plans/2026-08-03-feature-architecture-readmes.md
+docs/superpowers/plans/2026-08-04-core-runtime-progress-and-backend-gates.md
+docs/superpowers/plans/2026-08-04-llamasharp-feasibility-spike.md
+docs/superpowers/plans/2026-08-04-llamasharp-tier1-runtime-tests.md
+docs/superpowers/plans/2026-08-04-llamasharp-tier2-real-model-tests.md
+docs/superpowers/plans/2026-08-04-llamasharp-vocab-only-model-probe.md
+docs/superpowers/plans/2026-08-05-model-inspection-worker-gate-1-contracts-protocol.md
+docs/superpowers/plans/2026-08-05-model-inspection-worker-gate-2-host-process-adapter.md
+docs/superpowers/plans/2026-08-06-model-inspection-cleanup-master.md
+docs/superpowers/plans/2026-08-06-model-inspection-cleanup-phase-0-baseline-inventory.md
+docs/superpowers/specs/2026-07-30-embedded-model-download-card-responsive-indicator-design.md
+docs/superpowers/specs/2026-08-03-feature-architecture-readmes-design.md
+docs/superpowers/specs/2026-08-04-core-runtime-progress-and-backend-gates-design.md
+docs/superpowers/specs/2026-08-04-llamasharp-feasibility-spike-design.md
+docs/superpowers/specs/2026-08-04-llamasharp-runtime-test-architecture-design.md
+docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md
+docs/superpowers/specs/2026-08-05-model-inspection-worker-gate-2-host-process-adapter-design.md
+docs/superpowers/specs/2026-08-05-model-inspection-worker-integration-design.md
+docs/superpowers/specs/2026-08-06-model-inspection-cleanup-design.md
+docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md
+docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md
+docs/testing/evidence/2026-08-05-model-inspection-branch-review.md
+docs/testing/evidence/2026-08-05-model-inspection-worker-gate1-verification.md
+docs/testing/evidence/2026-08-05-model-inspection-worker-gate2-verification.md
+docs/testing/evidence/README.md
+docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md
+docs/testing/runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md
+IBM Granite with TurboQuant (Intel).slnx
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/Controls/ImportModelCard.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/FileImport/PickerRoute/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/FileImport/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCard.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelInspectionRequestedEventArgs.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelInspectionRequestFactory.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ExpectedModelFileIdentity.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionChatTemplateEvidence.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionConfigurationEvidence.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionContractValidation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionEnums.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionEvidence.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionExecutionResult.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionFileEvidence.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionFinding.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionObservation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionOperationalFailure.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionProgress.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionRequest.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionResult.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionRuntimeIdentity.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionTokenizerEvidence.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ValidatedQuickScanSnapshot.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionActionCard.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionActionCard.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentCard.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentCard.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentTemplateSelector.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionModelCard.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionModelCard.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionActionCardMode.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionActionCardPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionActionPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionCheckPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionCheckStatus.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionContentCardMode.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionContentCardPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionContentItemPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionContentStatus.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionModelBadgeState.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionModelCardMode.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionModelCardPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomePresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomePresentationKind.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomeTone.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InitialInspectionProgressPresentationFactory.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingStage.cs
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/README.md
+IBM Granite with TurboQuant (Intel)/Features/README.md
+IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
+IBM Granite with TurboQuant (Intel)/MainWindow.xaml
+IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/BoundedStandardErrorCollector.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/IInspectionWorkerClient.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/InspectionWorkerClient.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/IWorkerExecutableFileSystem.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/README.md
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/StandardErrorSnapshot.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/VerifiedWorkerExecutable.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/IWindowsWorkerProcessPlatform.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/NativeConstants.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/NativeMethods.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/NativeStructures.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/SafeAttributeListBuffer.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/SafeJobHandle.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/SafeProcessHandle.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/SafeThreadHandle.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsEnvironmentBlock.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsJobObject.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsPipeSet.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsProcessLaunchRequest.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsProcessWaiter.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsWorkerProcessLauncher.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/Windows/WindowsWorkerProcessPlatform.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WindowsWorkerExecutableFileSystem.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerCancellationCoordinator.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerClientFailure.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerClientFailureCodes.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerClientOptions.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerClientPolicyException.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerClientResult.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerConversation.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerEnvironmentPolicy.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerExecutableResolver.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerExitConsistencyValidator.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerFailureAccumulator.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerHandshakeValidator.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerLifecycleState.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerProcessSession.cs
+infrastructure/README.md
+scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerChatTemplateEvidence.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerInspectionEvidence.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerModelConfigurationEvidence.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerModelFileEvidence.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerObservation.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerRuntimeIdentity.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerTokenizerEvidence.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerCancelInspectionCommand.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerCommandKind.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerCommandSequenceValidator.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerCompletedMessage.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerCompletionStatus.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerExpectedFileIdentity.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerHelloMessage.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerMessageKind.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerMessageSequenceValidator.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerOperationalFailure.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerProgressMessage.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerProtocol.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerProtocolException.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerProtocolJson.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerQuickScanSnapshot.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerStage.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerStageStatus.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerStartedMessage.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/Protocol/WorkerStartInspectionCommand.cs
+shared/GraniteEdgeAI.ModelInspection.Contracts/README.md
+shared/GraniteEdgeAI.ModelInspection.Transport/BoundedUtf8LineReader.cs
+shared/GraniteEdgeAI.ModelInspection.Transport/BoundedUtf8LineWriter.cs
+shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj
+shared/GraniteEdgeAI.ModelInspection.Transport/ProtocolStreamErrorKind.cs
+shared/GraniteEdgeAI.ModelInspection.Transport/ProtocolStreamException.cs
+shared/README.md
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/CleanupInventoryContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ContractGraphTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ArchitectureFitnessTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGraphTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerMessageSequenceValidatorTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolJsonTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/TestJson.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedFixture.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/TestFixtureIsolationTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/TestWorkerScenarioParserTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerCancellationAndTimeoutTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerConcurrencyTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerEnvironmentAndHandleTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerHandshakeTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerLaunchContainmentTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerProcessTestData.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerProcessTreeContainmentTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerProtocolIntegrityTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerStandardErrorTests.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/ChildProcessScenario.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/FixtureMilestoneWriter.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/Program.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/ProtocolScenarioRunner.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/TestWorkerScenario.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/TestWorkerScenarioParser.cs
+tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/TestWorkerScenarioRequest.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineConcurrencyTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/WorkerHostTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/BoundedStandardErrorCollectorTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/NativeLayoutTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/SafeAttributeListBufferTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsEnvironmentBlockTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsJobObjectTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsPipeSetTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsProcessWaiterTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WindowsWorkerProcessLauncherFailureTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerClientDomainTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerClientTestData.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerConversationTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerEnvironmentPolicyTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerExecutableResolverTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerExitConsistencyValidatorTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerFailureAccumulatorTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerHandshakeValidatorTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerPolicyDiagnosticPrivacyTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ImportModelCardTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ModelImportPageStateMachineTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/FileImport/ModelFilePickerTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/ModelDownloadCardTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportNavigationRequestTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportPageCompositionTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelInspectionRequestFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionContractTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionExecutionResultAdditionalTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/OnboardingStageIndicatorTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingEntryPointTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingShellPageTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj
+tests/UnitTests/GraniteEdgeAI.UnitTests/StringAssert.cs
+tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/InvalidNativeBackendProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/MissingNativeBackendProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/ModelInspection.LlamaSharpSpike.NativeIntegrationTests.csproj
+tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/NativeBackendSmokeProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/README.md
+tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/RuntimeEvidenceProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/AssemblyInfo.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Cancellation/NativeLoadCancellationTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Cancellation/WholeOperationCancellationTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ControlledModels/granite-4.1-3b-q4-k-m.json
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/FileAccess/LockedModelProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/FileAccess/LockedOutputProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/FileAccess/MissingAndDirectoryModelProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/FileAccess/UnsafeOutputProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/MalformedModels/MalformedModelProcessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/README.md
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/RealModel/GraniteVocabOnlyRepeatabilityTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/RealModel/GraniteVocabOnlySuccessTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Security/EvidencePrivacyTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Security/NetworkObservationTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Support/ControlledModelConfigurationTests.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Support/RealModelEvidenceDirectory.cs
+tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/Support/RealModelTestContext.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/CommandLine/SpikeOptionsParserTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/DependencyPolicy/RuntimeDependencyPolicyTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Evidence/EvidenceContractTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Evidence/JsonEvidenceWriterTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Failures/ProbeFailureMapperTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Failures/ProbeResultFinalizerTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Failures/SensitiveTextRedactorTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Failures/VocabOnlyModelProbeFailureTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Failures/VocabOnlyProbeCancellationConfigurationTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/ModelFileIntegrityComparisonTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/ModelFileSnapshotServiceTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/ModelProbeSafetyValidatorTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/ChatTemplateEvidenceFactoryTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/VocabOnlyCollectorSourceContractTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/VocabOnlyMetadataProjectionTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj
+tools/ModelInspection.LlamaSharpSpike.Tests/Progress/NativeLoadProgressRecorderTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/README.md
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/ArtifactPrivacyScannerTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/BlockingModelFileHasher.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/ProbeProcessRunnerTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/RepositoryPaths.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/SocketObservationTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/TemporaryDirectory.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Support/TestFileBuilder.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ArtifactPrivacyScanner.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ControlledModelConfiguration.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ControlledModelManifest.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/EvidenceAssertions.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/GgufFixtureManifest.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ModelFileHash.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ModelInspection.LlamaSharpSpike.TestSupport.csproj
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ProbeExecutionResult.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ProbeProcessRequest.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ProbeProcessRunner.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/ProcessTerminationKind.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/PublishedProbeLocation.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/README.md
+tools/ModelInspection.LlamaSharpSpike.TestSupport/RepositoryRootLocator.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/SocketObservation.cs
+tools/ModelInspection.LlamaSharpSpike.TestSupport/TemporaryProbeSandbox.cs
+tools/ModelInspection.LlamaSharpSpike/CpuNativeRuntimeConfiguration.cs
+tools/ModelInspection.LlamaSharpSpike/JsonEvidenceWriter.cs
+tools/ModelInspection.LlamaSharpSpike/ModelInspection.LlamaSharpSpike.csproj
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ChatTemplateEvidenceFactory.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/IModelFileHasher.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ModelFileSnapshot.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ModelFileSnapshotService.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ModelProbeSafetyValidator.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/NativeLoadProgressRecorder.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ProbeFailure.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ProbeFailureMapper.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/ProbeResultFinalizer.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/README.md
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/SensitiveTextRedactor.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/Sha256ModelFileHasher.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyEvidenceCollector.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyMetadataProjection.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyModelProbe.cs
+tools/ModelInspection.LlamaSharpSpike/ModelProbe/VocabOnlyModelProbeResult.cs
+tools/ModelInspection.LlamaSharpSpike/NativeBackendSmokeProbe.cs
+tools/ModelInspection.LlamaSharpSpike/NativeBackendSmokeResult.cs
+tools/ModelInspection.LlamaSharpSpike/PinnedApplicationRuntime.cs
+tools/ModelInspection.LlamaSharpSpike/Program.cs
+tools/ModelInspection.LlamaSharpSpike/README.md
+tools/ModelInspection.LlamaSharpSpike/SpikeOptionsParser.cs
+tools/README.md
+workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj
+workers/GraniteEdgeAI.ModelInspection.Worker/IParentProcessMonitor.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/IWorkerInspectionEngine.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/ParentProcessMonitor.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/Program.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/README.md
+workers/GraniteEdgeAI.ModelInspection.Worker/UnavailableWorkerInspectionEngine.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/WorkerEngineResult.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/WorkerExitCodes.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/WorkerHost.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/WorkerTerminalCoordinator.cs
+workers/README.md
