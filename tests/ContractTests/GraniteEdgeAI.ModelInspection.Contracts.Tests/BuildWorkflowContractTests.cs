@@ -102,6 +102,16 @@ public sealed class BuildWorkflowContractTests
     }
 
     [TestMethod]
+    public void BuildWorkflowChecksOutCleanupInventoryInputs()
+    {
+        string workflow = ReadWorkflow();
+
+        StringAssert.Contains(workflow, "            docs");
+        StringAssert.Contains(workflow, "            scripts");
+        StringAssert.Contains(workflow, "            tools");
+    }
+
+    [TestMethod]
     public void BuildWorkflowExecutesAndPreservesEveryGate2Layer()
     {
         string workflow = ReadWorkflow();
