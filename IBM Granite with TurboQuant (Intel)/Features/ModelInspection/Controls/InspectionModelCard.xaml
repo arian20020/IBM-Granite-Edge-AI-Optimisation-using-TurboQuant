@@ -244,14 +244,14 @@
                             Height="22"
                             VerticalAlignment="Center"
                             AutomationProperties.AccessibilityView="Raw"
-                            Background="{x:Bind local:InspectionModelCard.GetCheckBackground(Status), Mode=OneWay}"
+                            Background="{x:Bind local:InspectionModelCard.GetCheckBackground(Status)}"
                             CornerRadius="11">
 
                             <SymbolIcon
                                 Width="12"
                                 Height="12"
-                                Foreground="{x:Bind local:InspectionModelCard.GetCheckForeground(Status), Mode=OneWay}"
-                                Symbol="{x:Bind local:InspectionModelCard.GetCheckSymbol(Status), Mode=OneWay}" />
+                                Foreground="{x:Bind local:InspectionModelCard.GetCheckForeground(Status)}"
+                                Symbol="{x:Bind local:InspectionModelCard.GetCheckSymbol(Status)}" />
                         </Border>
 
                         <StackPanel
@@ -277,7 +277,7 @@
                             VerticalAlignment="Center"
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="{x:Bind local:InspectionModelCard.GetCheckForeground(Status), Mode=OneWay}"
+                            Foreground="{x:Bind local:InspectionModelCard.GetCheckForeground(Status)}"
                             Text="{x:Bind StatusText}"
                             TextWrapping="NoWrap" />
                     </Grid>
@@ -317,7 +317,7 @@
                     Width="62"
                     Height="62"
                     VerticalAlignment="Center"
-                    AutomationProperties.Name="{x:Bind FormatShortName, Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind FormatShortName}"
                     Background="{ThemeResource InspectionBlueBackgroundBrush}"
                     BorderBrush="{ThemeResource InspectionBlueBorderBrush}"
                     BorderThickness="1"
@@ -329,7 +329,7 @@
                         FontSize="11"
                         FontWeight="Bold"
                         Foreground="{ThemeResource InspectionBlueBrush}"
-                        Text="{x:Bind FormatShortName, Mode=OneWay}"
+                        Text="{x:Bind FormatShortName}"
                         TextAlignment="Center" />
                 </Border>
 
@@ -344,13 +344,13 @@
                         FontWeight="SemiBold"
                         Foreground="{ThemeResource InspectionPrimaryTextBrush}"
                         MaxLines="2"
-                        Text="{x:Bind ModelName, Mode=OneWay}"
+                        Text="{x:Bind ModelName}"
                         TextWrapping="WrapWholeWords" />
                     <TextBlock
                         d:Text="GGUF · Q4_K_M · 2.08 GB"
                         FontSize="13"
                         Foreground="{ThemeResource InspectionSecondaryTextBrush}"
-                        Text="{x:Bind CompactSummary, Mode=OneWay}"
+                        Text="{x:Bind CompactSummary}"
                         TextTrimming="CharacterEllipsis"
                         TextWrapping="NoWrap" />
                 </StackPanel>
@@ -363,9 +363,9 @@
                     Padding="15,0"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
-                    AutomationProperties.Name="{x:Bind GetBadgeAutomationName(BadgeState), Mode=OneWay}"
-                    Background="{x:Bind GetBadgeBackground(BadgeState), Mode=OneWay}"
-                    BorderBrush="{x:Bind GetBadgeBorderBrush(BadgeState), Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind GetBadgeAutomationName(BadgeState)}"
+                    Background="{x:Bind GetBadgeBackground(BadgeState)}"
+                    BorderBrush="{x:Bind GetBadgeBorderBrush(BadgeState)}"
                     BorderThickness="1"
                     CornerRadius="17">
 
@@ -378,14 +378,14 @@
                             Width="9"
                             Height="9"
                             AutomationProperties.AccessibilityView="Raw"
-                            Fill="{x:Bind GetBadgeForeground(BadgeState), Mode=OneWay}" />
+                            Fill="{x:Bind GetBadgeForeground(BadgeState)}" />
                         <TextBlock
                             d:Text="MODEL SELECTED"
                             FontSize="10"
                             FontWeight="Bold"
-                            Foreground="{x:Bind GetBadgeForeground(BadgeState), Mode=OneWay}"
+                            Foreground="{x:Bind GetBadgeForeground(BadgeState)}"
                             MaxLines="1"
-                            Text="{x:Bind GetBadgeText(BadgeState), Mode=OneWay}"
+                            Text="{x:Bind GetBadgeText(BadgeState)}"
                             TextAlignment="Center"
                             TextTrimming="CharacterEllipsis" />
                     </StackPanel>
@@ -444,7 +444,7 @@
                             FontSize="10"
                             FontWeight="Bold"
                             Foreground="{ThemeResource InspectionBlueBrush}"
-                            Text="{x:Bind OverviewFormatBadgeText, Mode=OneWay}" />
+                            Text="{x:Bind OverviewFormatBadgeText}" />
                     </Border>
                 </Grid>
 
@@ -487,7 +487,7 @@
                                 <TextBlock
                                     d:Text="Granite 4.1 3B Instruct"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind ModelName, Mode=OneWay}" />
+                                    Text="{x:Bind ModelName}" />
                             </StackPanel>
                         </Border>
                         <Border
@@ -502,7 +502,7 @@
                                 <TextBlock
                                     d:Text="IBM"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind Publisher, Mode=OneWay}" />
+                                    Text="{x:Bind Publisher}" />
                             </StackPanel>
                         </Border>
                         <Border
@@ -517,7 +517,7 @@
                                 <TextBlock
                                     d:Text="GGUF"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind FormatName, Mode=OneWay}" />
+                                    Text="{x:Bind FormatName}" />
                             </StackPanel>
                         </Border>
                         <Border
@@ -530,7 +530,7 @@
                                 <TextBlock
                                     d:Text="Q4_K_M"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind Quantisation, Mode=OneWay}" />
+                                    Text="{x:Bind Quantisation}" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -566,7 +566,7 @@
                                 <TextBlock
                                     d:Text="3.2B"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind ParameterCount, Mode=OneWay}" />
+                                    Text="{x:Bind ParameterCount}" />
                             </StackPanel>
                         </Border>
                         <Border
@@ -581,7 +581,7 @@
                                 <TextBlock
                                     d:Text="Instruction tuned"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind ModelType, Mode=OneWay}" />
+                                    Text="{x:Bind ModelType}" />
                             </StackPanel>
                         </Border>
                         <Border
@@ -596,7 +596,7 @@
                                 <TextBlock
                                     d:Text="131,072 tokens"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind DeclaredContext, Mode=OneWay}" />
+                                    Text="{x:Bind DeclaredContext}" />
                             </StackPanel>
                         </Border>
                         <Border
@@ -609,7 +609,7 @@
                                 <TextBlock
                                     d:Text="2.08 GB"
                                     Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind FileSize, Mode=OneWay}" />
+                                    Text="{x:Bind FileSize}" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -620,7 +620,7 @@
                     x:Name="InspectionDetailsExpander"
                     Grid.Row="2"
                     HorizontalContentAlignment="Stretch"
-                    AutomationProperties.Name="{x:Bind GetInspectionDetailsAutomationName(IsInspectionDetailsExpanded), Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind GetInspectionDetailsAutomationName(IsInspectionDetailsExpanded)}"
                     Background="Transparent"
                     BorderBrush="{ThemeResource InspectionDividerBrush}"
                     BorderThickness="0,1,0,0"
@@ -659,7 +659,7 @@
                                 FontSize="13"
                                 FontWeight="SemiBold"
                                 Foreground="{ThemeResource InspectionPrimaryTextBrush}"
-                                Text="{x:Bind InspectionChecksSummary, Mode=OneWay}"
+                                Text="{x:Bind InspectionChecksSummary}"
                                 TextWrapping="WrapWholeWords" />
                             <TextBlock
                                 Grid.Column="2"
@@ -669,7 +669,7 @@
                                 FontSize="13"
                                 FontWeight="SemiBold"
                                 Foreground="{ThemeResource InspectionPrimaryTextBrush}"
-                                Text="{x:Bind GetInspectionDetailsActionText(IsInspectionDetailsExpanded), Mode=OneWay}" />
+                                Text="{x:Bind GetInspectionDetailsActionText(IsInspectionDetailsExpanded)}" />
                         </Grid>
                     </Expander.Header>
 
@@ -699,7 +699,7 @@
                                 ZoomMode="Disabled">
                                 <ItemsRepeater
                                     ItemTemplate="{StaticResource InspectionCheckTemplate}"
-                                    ItemsSource="{x:Bind InspectionChecks, Mode=OneWay}">
+                                    ItemsSource="{x:Bind InspectionChecks}">
                                     <ItemsRepeater.Layout>
                                         <StackLayout
                                             Orientation="Vertical"

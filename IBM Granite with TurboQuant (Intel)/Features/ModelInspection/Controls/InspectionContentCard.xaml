@@ -289,14 +289,14 @@
                             Height="22"
                             VerticalAlignment="Center"
                             AutomationProperties.AccessibilityView="Raw"
-                            Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status), Mode=OneWay}"
+                            Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status)}"
                             CornerRadius="11">
 
                             <SymbolIcon
                                 Width="12"
                                 Height="12"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
-                                Symbol="{x:Bind local:InspectionContentCard.GetStatusSymbol(Status), Mode=OneWay}" />
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
+                                Symbol="{x:Bind local:InspectionContentCard.GetStatusSymbol(Status)}" />
 
                         </Border>
 
@@ -326,7 +326,7 @@
                             MaxWidth="148"
                             Padding="11,5"
                             VerticalAlignment="Center"
-                            Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status), Mode=OneWay}"
+                            Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status)}"
                             CornerRadius="14">
 
                             <TextBlock
@@ -334,7 +334,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="10"
                                 FontWeight="SemiBold"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                                 MaxLines="2"
                                 Text="{x:Bind StatusText}"
                                 TextAlignment="Center"
@@ -378,14 +378,14 @@
                             Height="20"
                             VerticalAlignment="Center"
                             AutomationProperties.AccessibilityView="Raw"
-                            Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status), Mode=OneWay}"
+                            Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status)}"
                             CornerRadius="10">
 
                             <SymbolIcon
                                 Width="11"
                                 Height="11"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
-                                Symbol="{x:Bind local:InspectionContentCard.GetStatusSymbol(Status), Mode=OneWay}" />
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
+                                Symbol="{x:Bind local:InspectionContentCard.GetStatusSymbol(Status)}" />
 
                         </Border>
 
@@ -417,7 +417,7 @@
                             VerticalAlignment="Center"
                             FontSize="10"
                             FontWeight="SemiBold"
-                            Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                            Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                             Text="{x:Bind StatusText}"
                             TextWrapping="NoWrap" />
 
@@ -457,7 +457,7 @@
                         VerticalAlignment="Stretch"
                         AutomationProperties.AccessibilityView="Raw"
                         Fill="{ThemeResource InspectionDividerBrush}"
-                        Visibility="{x:Bind local:InspectionContentCard.GetConnectorVisibility(ShowConnector), Mode=OneWay}" />
+                        Visibility="{x:Bind local:InspectionContentCard.GetConnectorVisibility(ShowConnector)}" />
 
                     <!--  Stage marker.  -->
                     <Border
@@ -467,8 +467,8 @@
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         AutomationProperties.AccessibilityView="Raw"
-                        Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status), Mode=OneWay}"
-                        BorderBrush="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                        Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status)}"
+                        BorderBrush="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                         BorderThickness="1"
                         CornerRadius="15">
 
@@ -480,9 +480,9 @@
                                 Height="13"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                                 Symbol="Accept"
-                                Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status), Mode=OneWay}" />
+                                Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status)}" />
 
                             <!--  Currently running stage.  -->
                             <ProgressRing
@@ -490,9 +490,9 @@
                                 Height="17"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                                 IsActive="{x:Bind IsActive}"
-                                Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status), Mode=OneWay}" />
+                                Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status)}" />
 
                             <!--  Waiting stage number.  -->
                             <TextBlock
@@ -500,9 +500,9 @@
                                 VerticalAlignment="Center"
                                 FontSize="11"
                                 FontWeight="Bold"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                                 Text="{x:Bind StageNumber}"
-                                Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status), Mode=OneWay}" />
+                                Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status)}" />
 
                         </Grid>
 
@@ -534,7 +534,7 @@
                         VerticalAlignment="Top"
                         FontSize="11"
                         FontWeight="SemiBold"
-                        Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                        Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                         Text="{x:Bind StatusText}"
                         TextWrapping="NoWrap" />
 
