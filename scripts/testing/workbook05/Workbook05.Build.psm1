@@ -349,6 +349,13 @@ function Start-Wb05ResourceSampler {
                     }
                 )
 
+                # A native process can exit after the first root-process check but
+                # before this second process-tree snapshot resolves. That is a
+                # normal end-of-sampling boundary, not a zero-memory measurement.
+                if ($processes.Count -eq 0) {
+                    break
+                }
+
                 $workingSet = [int64](
                     ($processes | Measure-Object -Property WorkingSet64 -Sum).Sum
                 )
@@ -522,6 +529,9 @@ function Invoke-Wb05LoggedProcess {
         [Parameter(Mandatory)]
         [string]$EvidenceDirectory,
 
+        [Parameter(Mandatory)]
+        [string]$EvidenceRoot,
+
         [hashtable]$EnvironmentAllowlist = @{},
         [switch]$MonitorResources
     )
@@ -616,8 +626,8 @@ function Invoke-Wb05LoggedProcess {
         ended_utc = $endedUtc.ToString('o')
         elapsed_seconds = [Math]::Round(($endedUtc - $startedUtc).TotalSeconds, 3)
         exit_code = $exitCode
-        stdout_path = Get-Wb05RelativePath -Root $EvidenceDirectory -Path $stdoutPath
-        stderr_path = Get-Wb05RelativePath -Root $EvidenceDirectory -Path $stderrPath
+        stdout_path = Get-Wb05RelativePath -Root $EvidenceRoot -Path $stdoutPath
+        stderr_path = Get-Wb05RelativePath -Root $EvidenceRoot -Path $stderrPath
     }
     Write-Wb05Json -Path $recordPath -Value $record
 
