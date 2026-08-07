@@ -29,6 +29,16 @@ jobs:
         with:
           ref: refactor/model-inspection-cleanup
           fetch-depth: 0
+          sparse-checkout: |
+            .github
+            docs
+            IBM Granite with TurboQuant (Intel)
+            infrastructure
+            scripts
+            shared
+            tests
+            tools
+            workers
 
       - name: Set up .NET SDK from global.json
         uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
