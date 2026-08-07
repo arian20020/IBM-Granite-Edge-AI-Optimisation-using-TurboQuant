@@ -32,6 +32,12 @@ class BuildGateDependencyContractTests(unittest.TestCase):
         self.assertIn("$env:PYTHONPATH = $originalPythonPath", self.text)
         self.assertIn("Remove-Item -Path 'Env:PYTHONPATH'", self.text)
 
+    def test_gate_delimits_exit_code_before_colon_in_interpolated_error(self) -> None:
+        # Windows PowerShell parses `$name:` as a drive-qualified variable name.
+        # Delimit LASTEXITCODE before a literal colon so the gate itself parses.
+        self.assertNotIn("$LASTEXITCODE:", self.text)
+        self.assertIn("$($LASTEXITCODE): $($powerShellTest.FullName)", self.text)
+
 
 if __name__ == "__main__":
     unittest.main()
