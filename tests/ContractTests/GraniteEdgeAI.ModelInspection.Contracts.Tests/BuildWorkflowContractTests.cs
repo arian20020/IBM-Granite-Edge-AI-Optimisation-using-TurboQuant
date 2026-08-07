@@ -21,7 +21,7 @@ public sealed class BuildWorkflowContractTests
         StringAssert.Contains(workflow, "tests/ContractTests");
         StringAssert.Contains(workflow, "CONTRACT_TEST_PROJECT");
         StringAssert.Contains(workflow, "Run Model Inspection contract tests");
-        StringAssert.Contains(workflow, "--minimum-expected-tests 78");
+        StringAssert.Contains(workflow, "--minimum-expected-tests 82");
     }
 
     [TestMethod]
@@ -37,7 +37,7 @@ public sealed class BuildWorkflowContractTests
             "The dedicated contract project must run as a complete suite without a redundant category filter.");
         StringAssert.Contains(
             contractStep,
-            "--minimum-expected-tests 78",
+            "--minimum-expected-tests 82",
             "The contract floor must remain aligned with the mandatory contract suite.");
     }
 
