@@ -184,21 +184,18 @@ class RouteAGenAIBuildContractTests(unittest.TestCase):
         self.assertNotIn("exact Route A Runtime install for this run", self.text)
 
     def test_configures_builds_installs_and_restores_environment(self) -> None:
+        # These are semantic tokens whose exact whitespace is not meaningful.
+        # Keep direct checks for fixed flags/records, and use whitespace-tolerant
+        # regular expressions for PowerShell argument-array pairs.
         required = (
             "-Filter 'OpenVINOConfig.cmake'",
             "$openvinoConfigs.Count -ne 1",
             "$openvinoConfigDirectory = $openvinoConfigs[0].DirectoryName",
-            "'-G',$Generator",
-            "'-A','x64'",
             "'-DCMAKE_BUILD_TYPE=Release'",
             '"-DOpenVINO_DIR=$openvinoConfigDirectory"',
             "'-DENABLE_PYTHON=ON'",
             "'-DENABLE_JS=OFF'",
             '"-DPython3_EXECUTABLE=$PythonPath"',
-            "'--build',$buildRoot",
-            "'--parallel','2'",
-            "'--install',$buildRoot",
-            "'--prefix',$installRoot",
             "compatibility-attempt.json",
             "binaries.json",
             "decision.json",
@@ -207,9 +204,30 @@ class RouteAGenAIBuildContractTests(unittest.TestCase):
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
+
+        argument_pairs = (
+            r"'-G'\s*,\s*\$Generator",
+            r"'-A'\s*,\s*'x64'",
+            r"'--build'\s*,\s*\$buildRoot",
+            r"'--parallel'\s*,\s*'2'",
+            r"'--install'\s*,\s*\$buildRoot",
+            r"'--prefix'\s*,\s*\$installRoot",
+        )
+        for pattern in argument_pairs:
+            with self.subTest(pattern=pattern):
+                self.assertRegex(self.text, pattern)
+
         for name in ("PATH", "PYTHONPATH", "OPENVINO_LIB_PATHS", "OpenVINO_DIR"):
             self.assertIn(name, self.text)
-        self.assertRegex(self.text, r"finally\s*\{.*?Restore-Wb05Environment", re.S)
+
+        # Compile with DOTALL explicitly. unittest.assertRegex's third argument is
+        # a failure message, not regex flags, so passing re.S there never enabled
+        # matching across the multi-line finally block.
+        finally_pattern = re.compile(
+            r"finally\s*\{.*?Restore-Wb05Environment",
+            re.S,
+        )
+        self.assertRegex(self.text, finally_pattern)
 
     def test_forbids_models_archives_and_destructive_commands(self) -> None:
         forbidden = (
