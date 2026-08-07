@@ -5,7 +5,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using System;
-using System.IO;
 
 namespace GraniteEdgeAI.Features.ModelInspection
 {
@@ -14,8 +13,7 @@ namespace GraniteEdgeAI.Features.ModelInspection
     /// </summary>
     public sealed partial class ModelInspectionPage : Page
     {
-        // Prevents the initial presentation from being applied more than once
-        // if the page is unloaded and loaded again.
+        // loaded can run again when the same page returns to the visual tree
         private bool _initialPresentationApplied;
 
         /// <summary>
@@ -23,11 +21,9 @@ namespace GraniteEdgeAI.Features.ModelInspection
         /// </summary>
         public ModelInspectionPage()
         {
-            // Build all controls declared in ModelInspectionPage.xaml.
             InitializeComponent();
 
-            // Wait until the page's controls and compiled XAML bindings are loaded
-            // before assigning their initial presentations.
+            // control bindings are ready only after the page enters the visual tree
             Loaded += ModelInspectionPage_Loaded;
         }
 
@@ -37,21 +33,13 @@ namespace GraniteEdgeAI.Features.ModelInspection
         internal ModelInspectionRequest? Request { get; private set; }
 
         /// <summary>
-        /// Gets the authoritative model path from the immutable request.
-        /// </summary>
-        internal string? SelectedModelPath => Request?.ModelPath;
-
-        /// <summary>
         /// Receives the immutable request passed through StageFrame.Navigate.
         /// </summary>
         protected override void OnNavigatedTo(
             NavigationEventArgs eventArguments)
         {
-            // Preserve the standard WinUI navigation lifecycle.
             base.OnNavigatedTo(eventArguments);
 
-            // The inspection page requires the complete validated request rather
-            // than a path that would lose its quick-scan and file-identity facts.
             if (eventArguments.Parameter is not ModelInspectionRequest request)
             {
                 throw new ArgumentException(
@@ -59,11 +47,8 @@ namespace GraniteEdgeAI.Features.ModelInspection
                     nameof(eventArguments));
             }
 
-            // Preserve the exact request object for the future inspection service.
+            // keep the exact validated request so no handoff facts are reconstructed
             Request = request;
-
-            // A new navigation should receive a fresh initial presentation when
-            // the page's visual tree finishes loading.
             _initialPresentationApplied = false;
         }
 
@@ -75,45 +60,32 @@ namespace GraniteEdgeAI.Features.ModelInspection
             object sender,
             RoutedEventArgs eventArguments)
         {
-            // Loaded can occur again if the same page instance temporarily leaves
-            // and re-enters the visual tree. Do not recreate the presentation twice.
             if (_initialPresentationApplied)
             {
                 return;
             }
 
-            // Navigation must have supplied the immutable request before loading.
             ModelInspectionRequest request = Request
                 ?? throw new InvalidOperationException(
                     "ModelInspectionPage loaded without an inspection request.");
 
-            // Mark initialization before updating the controls so a re-entrant
-            // Loaded event cannot apply the state twice.
+            // set the guard first so a re-entrant loaded event cannot apply state twice
             _initialPresentationApplied = true;
-
-            // The controls and their compiled bindings are now ready.
-            ShowInitialInspectionState(request.ModelPath);
+            ShowInitialInspectionState(request);
         }
 
         /// <summary>
         /// Displays the selected model, the five inspection stages, and the
         /// inspection action area.
         /// </summary>
-        private void ShowInitialInspectionState(string modelPath)
+        private void ShowInitialInspectionState(ModelInspectionRequest request)
         {
-            // No outcome exists while inspection is beginning.
             InspectionOutcomeCardControl.Presentation =
                 InspectionOutcomePresentation.Hidden;
-
-            // Display the selected model using the compact card layout.
             InspectionModelCardControl.Presentation =
-                CreateInitialModelPresentation(modelPath);
-
-            // Display the approved five-stage core-inspection tracker.
+                CreateInitialModelPresentation(request);
             InspectionContentCardControl.Presentation =
                 InitialInspectionProgressPresentationFactory.Create();
-
-            // Display the inspection action area.
             InspectionActionCardControl.Presentation =
                 CreateInitialActionPresentation();
         }
@@ -122,40 +94,19 @@ namespace GraniteEdgeAI.Features.ModelInspection
         /// Creates the compact selected-model presentation.
         /// </summary>
         private static InspectionModelCardPresentation
-            CreateInitialModelPresentation(string modelPath)
+            CreateInitialModelPresentation(ModelInspectionRequest request)
         {
-            // Show the real file name rather than the complete directory path.
-            string modelFileName = Path.GetFileName(modelPath);
-
-            // Determine the basic package format from the file extension.
-            bool isGguf = string.Equals(
-                Path.GetExtension(modelPath),
-                ".gguf",
-                StringComparison.OrdinalIgnoreCase);
-
-            string formatName = isGguf
-                ? "GGUF"
-                : "MODEL";
+            string modelFileName = request.FileName;
+            string formatName = request.QuickScan.Format;
 
             return new InspectionModelCardPresentation
             {
-                // Inspection begins with the compact model card.
                 DisplayMode = InspectionModelCardMode.Compact,
-
-                // The full inspection has not finished yet.
                 BadgeState = InspectionModelBadgeState.ModelSelected,
-
-                // Use the actual selected file name.
                 ModelName = modelFileName,
-
-                // Do not invent quantisation, size, or parameter information.
                 CompactSummary =
                     $"{formatName} · Awaiting full inspection",
-
-                // Shown inside the format square.
                 FormatShortName = formatName,
-
-                // Values below are mainly used by the future detailed layout.
                 OverviewFormatBadgeText = $"{formatName} MODEL",
                 FormatName = formatName,
                 InspectionChecksSummary =
@@ -172,30 +123,20 @@ namespace GraniteEdgeAI.Features.ModelInspection
         {
             return new InspectionActionCardPresentation
             {
-                // Select the action card's inspecting layout.
                 Mode = InspectionActionCardMode.Inspecting,
-
-                // Supporting text beneath the Cancel button.
                 Message =
                     "You can safely return to model selection at any time.",
-
                 AutomationName =
                     "Actions available while inspecting the model",
-
                 CancelAction = new InspectionActionPresentation
                 {
                     Text = "Cancel inspection",
-
-                    // Keep the action visible in the initial design.
                     Visibility = Visibility.Visible,
 
-                    // The real cancellation command will be connected when
-                    // the asynchronous inspection service is implemented.
+                    // cancellation stays disabled until the asynchronous service exists
                     IsEnabled = false,
-
                     AutomationName =
                         "Cancel model inspection",
-
                     MinimumWidth = 184d
                 }
             };
