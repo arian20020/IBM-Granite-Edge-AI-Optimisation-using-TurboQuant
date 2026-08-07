@@ -1,0 +1,300 @@
+name: Phase 1 Task 3 hidden state temporary
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+    paths:
+      - .github/workflows/phase1-task3-hidden-state.yml
+
+permissions:
+  contents: write
+
+jobs:
+  red-green-hidden-state:
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    env:
+      APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+      TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
+      TEST_RECIPE: 'tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
+      NEW_TEST_PATH: 'tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs'
+      PRESENTATION_PATH: 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionContentCardPresentation.cs'
+      CONTROL_PATH: 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentCard.xaml.cs'
+      TEST_CLASS: 'GraniteEdgeAI.UnitTests.InspectionContentCardPresentationTests'
+      SELECTOR_CLASS: 'GraniteEdgeAI.UnitTests.InspectionContentTemplateSelectorTests'
+
+    steps:
+      - name: Check out cleanup branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: refactor/model-inspection-cleanup
+          fetch-depth: 0
+          sparse-checkout: |
+            .github
+            docs
+            IBM Granite with TurboQuant (Intel)
+            infrastructure
+            scripts
+            shared
+            tests
+            tools
+            workers
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Add x64 MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+        with:
+          msbuild-architecture: x64
+
+      - name: Add the failing isolation tests and inventory row
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          if (Test-Path -LiteralPath $env:NEW_TEST_PATH) {
+            throw "Task 3 test already exists at $env:NEW_TEST_PATH"
+          }
+
+          $testBase64 = 'dXNpbmcgR3Jhbml0ZUVkZ2VBSS5GZWF0dXJlcy5Nb2RlbEluc3BlY3Rpb24uQ29udHJvbHM7CnVzaW5nIEdyYW5pdGVFZGdlQUkuRmVhdHVyZXMuTW9kZWxJbnNwZWN0aW9uLk1vZGVsczsKdXNpbmcgTWljcm9zb2Z0LlZpc3VhbFN0dWRpby5UZXN0VG9vbHMuVW5pdFRlc3Rpbmc7CnVzaW5nIE1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uVGVzdFRvb2xzLlVuaXRUZXN0aW5nLkFwcENvbnRhaW5lcjsKCm5hbWVzcGFjZSBHcmFuaXRlRWRnZUFJLlVuaXRUZXN0czsKCltUZXN0Q2xhc3NdCnB1YmxpYyBzZWFsZWQgY2xhc3MgSW5zcGVjdGlvbkNvbnRlbnRDYXJkUHJlc2VudGF0aW9uVGVzdHMKewogICAgW1VJVGVzdE1ldGhvZF0KICAgIFtUZXN0Q2F0ZWdvcnkoIldpblVJIildCiAgICBwdWJsaWMgdm9pZCBIaWRkZW5fUmV0dXJuc0luZGVwZW5kZW50RXhwYW5zaW9uU3RhdGUoKQogICAgewogICAgICAgIEluc3BlY3Rpb25Db250ZW50Q2FyZFByZXNlbnRhdGlvbiBmaXJzdCA9CiAgICAgICAgICAgIEluc3BlY3Rpb25Db250ZW50Q2FyZFByZXNlbnRhdGlvbi5IaWRkZW47CiAgICAgICAgSW5zcGVjdGlvbkNvbnRlbnRDYXJkUHJlc2VudGF0aW9uIHNlY29uZCA9CiAgICAgICAgICAgIEluc3BlY3Rpb25Db250ZW50Q2FyZFByZXNlbnRhdGlvbi5IaWRkZW47CgogICAgICAgIGZpcnN0LklzRXhwYW5kZWQgPSB0cnVlOwoKICAgICAgICBBc3NlcnQuQXJlTm90U2FtZShmaXJzdCwgc2Vjb25kKTsKICAgICAgICBBc3NlcnQuSXNGYWxzZShzZWNvbmQuSXNFeHBhbmRlZCk7CiAgICB9CgogICAgW1VJVGVzdE1ldGhvZF0KICAgIFtUZXN0Q2F0ZWdvcnkoIldpblVJIildCiAgICBwdWJsaWMgdm9pZCBDb25zdHJ1Y3Rvcl9Vc2VzSW5kZXBlbmRlbnRIaWRkZW5QcmVzZW50YXRpb24oKQogICAgewogICAgICAgIEluc3BlY3Rpb25Db250ZW50Q2FyZCBmaXJzdCA9IG5ldygpOwogICAgICAgIEluc3BlY3Rpb25Db250ZW50Q2FyZCBzZWNvbmQgPSBuZXcoKTsKCiAgICAgICAgZmlyc3QuUHJlc2VudGF0aW9uLklzRXhwYW5kZWQgPSB0cnVlOwoKICAgICAgICBBc3NlcnQuQXJlTm90U2FtZShmaXJzdC5QcmVzZW50YXRpb24sIHNlY29uZC5QcmVzZW50YXRpb24pOwogICAgICAgIEFzc2VydC5Jc0ZhbHNlKHNlY29uZC5QcmVzZW50YXRpb24uSXNFeHBhbmRlZCk7CiAgICB9Cn0K'
+          $testContent = [System.Text.Encoding]::UTF8.GetString(
+            [System.Convert]::FromBase64String($testBase64))
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $env:NEW_TEST_PATH) | Out-Null
+          [System.IO.File]::WriteAllText(
+            (Join-Path $env:GITHUB_WORKSPACE $env:NEW_TEST_PATH),
+            $testContent,
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sourcePath = 'docs/reviews/model-inspection-cleanup-source-files.txt'
+          $inventoryPath = 'docs/reviews/model-inspection-cleanup-inventory.md'
+          [string[]]$sources = @(Get-Content -LiteralPath $sourcePath)
+          if ($sources -contains $env:NEW_TEST_PATH) {
+            throw 'The Task 3 test path is already in the cleanup source list'
+          }
+          $sources = @($sources + $env:NEW_TEST_PATH)
+          [Array]::Sort($sources, [System.StringComparer]::Ordinal)
+          [System.IO.File]::WriteAllLines(
+            (Resolve-Path -LiteralPath $sourcePath).Path,
+            $sources,
+            [System.Text.UTF8Encoding]::new($false))
+
+          $inventoryLines = @(Get-Content -LiteralPath $inventoryPath)
+          $firstRowIndex = -1
+          for ($index = 0; $index -lt $inventoryLines.Count; $index++) {
+            if ($inventoryLines[$index] -match '^\| `[^`]+` \|') {
+              $firstRowIndex = $index
+              break
+            }
+          }
+          if ($firstRowIndex -lt 0) {
+            throw 'The cleanup inventory contains no rows'
+          }
+
+          $header = @($inventoryLines[0..($firstRowIndex - 1)])
+          $rows = [System.Collections.Generic.Dictionary[string,string]]::new([System.StringComparer]::Ordinal)
+          foreach ($line in $inventoryLines[$firstRowIndex..($inventoryLines.Count - 1)]) {
+            if ([string]::IsNullOrWhiteSpace($line)) {
+              continue
+            }
+            if ($line -notmatch '^\| `(?<path>[^`]+)` \|') {
+              throw "Unexpected inventory content: $line"
+            }
+            $rows.Add($Matches.path.Replace('\', '/'), $line)
+          }
+          if ($rows.ContainsKey($env:NEW_TEST_PATH)) {
+            throw 'The Task 3 test already has an inventory row'
+          }
+          $rows.Add(
+            $env:NEW_TEST_PATH,
+            "| ``$env:NEW_TEST_PATH`` | Model Inspection WinUI tests | prove hidden presentation instances do not share mutable disclosure state | medium | reviewed | shared mutable hidden state requires regression coverage | adds isolation characterization | existing visible behaviour except defect isolation | two WinUI isolation tests | Phase 1 Task 3 | none |")
+
+          $orderedRows = [System.Collections.Generic.List[string]]::new()
+          foreach ($source in $sources) {
+            if (-not $rows.ContainsKey($source)) {
+              throw "Cleanup inventory row missing: $source"
+            }
+            $orderedRows.Add($rows[$source])
+          }
+          [System.IO.File]::WriteAllLines(
+            (Resolve-Path -LiteralPath $inventoryPath).Path,
+            @($header + $orderedRows),
+            [System.Text.UTF8Encoding]::new($false))
+
+      - name: Stage the red test tree at a short path
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path -LiteralPath 'D:\s') {
+            Remove-Item -LiteralPath 'D:\s' -Recurse -Force
+          }
+          robocopy $env:GITHUB_WORKSPACE 'D:\s' /E /XD .git
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage Task 3 inputs with code $LASTEXITCODE"
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Build the red isolation tests
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msbuild "$env:APP_PROJECT" /target:Restore /property:Configuration=Release /property:Platform=x64 /property:RuntimeIdentifier=win-x64
+          if ($LASTEXITCODE -ne 0) { throw "WinUI restore failed with code $LASTEXITCODE" }
+          dotnet restore "$env:TEST_PROJECT" --runtime win-x64 -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Test restore failed with code $LASTEXITCODE" }
+          msbuild "$env:APP_PROJECT" /target:Build /maxCpuCount /verbosity:minimal /property:Configuration=Release /property:Platform=x64 /property:RuntimeIdentifier=win-x64 /property:PublishProfile= /property:PublishTrimmed=false /property:PublishReadyToRun=false /property:AppxPackageSigningEnabled=false /property:GenerateAppxPackageOnBuild=false
+          if ($LASTEXITCODE -ne 0) { throw "WinUI build failed with code $LASTEXITCODE" }
+          dotnet build "$env:TEST_PROJECT" --configuration Release --no-restore --runtime win-x64 -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Test build failed with code $LASTEXITCODE" }
+
+      - name: Prove the current shared state fails the new tests
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+          if (-not $vstest) { throw 'Visual Studio app-container test runner was not found' }
+          $results = 'D:\s\TestResults\Task3Red'
+          New-Item -ItemType Directory -Force -Path $results | Out-Null
+          & $vstest "D:\s\$env:TEST_RECIPE" /Platform:x64 "/TestCaseFilter:FullyQualifiedName~$env:TEST_CLASS" /Logger:"trx;LogFileName=Task3Red.trx" /ResultsDirectory:$results
+          $redExit = $LASTEXITCODE
+          [xml]$trx = Get-Content -LiteralPath (Join-Path $results 'Task3Red.trx') -Raw
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if ($redExit -eq 0) {
+            throw 'Task 3 isolation tests unexpectedly passed before the fix'
+          }
+          if ([int]$counters.total -ne 2 -or [int]$counters.executed -ne 2 -or [int]$counters.failed -lt 1) {
+            throw "Expected two executed tests with at least one failure, got total=$($counters.total) executed=$($counters.executed) failed=$($counters.failed)"
+          }
+          Write-Host "Expected red confirmed: $($counters.failed) of 2 isolation tests failed"
+          $global:LASTEXITCODE = 0
+
+      - name: Apply the minimal hidden-state fix
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          function Replace-Exact([string]$path, [string]$oldText, [string]$newText) {
+            $text = Get-Content -LiteralPath $path -Raw
+            if (-not $text.Contains($oldText, [System.StringComparison]::Ordinal)) {
+              throw "Expected text was not found in $path"
+            }
+            $updated = $text.Replace($oldText, $newText, [System.StringComparison]::Ordinal)
+            [System.IO.File]::WriteAllText((Resolve-Path -LiteralPath $path).Path, $updated, [System.Text.UTF8Encoding]::new($false))
+          }
+
+          foreach ($root in @($env:GITHUB_WORKSPACE, 'D:\s')) {
+            $presentation = Join-Path $root $env:PRESENTATION_PATH
+            Replace-Exact $presentation 'public static InspectionContentCardPresentation Hidden { get; } = new();' 'public static InspectionContentCardPresentation Hidden => new();'
+
+            $control = Join-Path $root $env:CONTROL_PATH
+            $oldConstructor = "            InitializeComponent();`r`n            _isInitialized = true;`r`n            ApplyPresentation(Presentation);"
+            $newConstructor = "            InitializeComponent();`r`n            _isInitialized = true;`r`n            Presentation = InspectionContentCardPresentation.Hidden;"
+            $controlText = Get-Content -LiteralPath $control -Raw
+            if (-not $controlText.Contains($oldConstructor, [System.StringComparison]::Ordinal)) {
+              $oldConstructor = "            InitializeComponent();`n            _isInitialized = true;`n            ApplyPresentation(Presentation);"
+              $newConstructor = "            InitializeComponent();`n            _isInitialized = true;`n            Presentation = InspectionContentCardPresentation.Hidden;"
+            }
+            Replace-Exact $control $oldConstructor $newConstructor
+          }
+
+      - name: Rebuild after the fix
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msbuild "$env:APP_PROJECT" /target:Build /maxCpuCount /verbosity:minimal /property:Configuration=Release /property:Platform=x64 /property:RuntimeIdentifier=win-x64 /property:PublishProfile= /property:PublishTrimmed=false /property:PublishReadyToRun=false /property:AppxPackageSigningEnabled=false /property:GenerateAppxPackageOnBuild=false
+          if ($LASTEXITCODE -ne 0) { throw "Fixed WinUI build failed with code $LASTEXITCODE" }
+          dotnet build "$env:TEST_PROJECT" --configuration Release --no-restore --runtime win-x64 -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) { throw "Fixed test build failed with code $LASTEXITCODE" }
+
+      - name: Run green isolation and selector regression tests
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+          if (-not $vstest) { throw 'Visual Studio app-container test runner was not found' }
+
+          foreach ($case in @(
+            @{ Name='Task3Green'; Filter=$env:TEST_CLASS; Expected=2 },
+            @{ Name='SelectorRegression'; Filter=$env:SELECTOR_CLASS; Expected=8 }
+          )) {
+            $results = "D:\s\TestResults\$($case.Name)"
+            New-Item -ItemType Directory -Force -Path $results | Out-Null
+            & $vstest "D:\s\$env:TEST_RECIPE" /Platform:x64 "/TestCaseFilter:FullyQualifiedName~$($case.Filter)" "/Logger:trx;LogFileName=$($case.Name).trx" /ResultsDirectory:$results
+            if ($LASTEXITCODE -ne 0) { throw "$($case.Name) failed with code $LASTEXITCODE" }
+            [xml]$trx = Get-Content -LiteralPath (Join-Path $results "$($case.Name).trx") -Raw
+            $counters = $trx.TestRun.ResultSummary.Counters
+            if ([int]$counters.total -ne $case.Expected -or [int]$counters.passed -ne $case.Expected -or [int]$counters.failed -ne 0) {
+              throw "$($case.Name) expected $($case.Expected) passing tests, got total=$($counters.total) passed=$($counters.passed) failed=$($counters.failed)"
+            }
+          }
+
+      - name: Run the full packaged WinUI application suite
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+          if (-not $vstest) { throw 'Visual Studio app-container test runner was not found' }
+          $results = 'D:\s\TestResults\Task3Full'
+          New-Item -ItemType Directory -Force -Path $results | Out-Null
+          & $vstest "D:\s\$env:TEST_RECIPE" /Platform:x64 /Logger:"trx;LogFileName=Task3Full.trx" /ResultsDirectory:$results
+          if ($LASTEXITCODE -ne 0) { throw "Full packaged suite failed with code $LASTEXITCODE" }
+          [xml]$trx = Get-Content -LiteralPath (Join-Path $results 'Task3Full.trx') -Raw
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if ([int]$counters.total -ne 212 -or [int]$counters.passed -ne 212 -or [int]$counters.failed -ne 0) {
+            throw "Expected 212 passing packaged tests, got total=$($counters.total) passed=$($counters.passed) failed=$($counters.failed)"
+          }
+
+      - name: Verify inventory and commit Task 3
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\model-inspection\Verify-ModelInspectionCleanupInventory.ps1'
+          if ($LASTEXITCODE -ne 0) { throw "Inventory verification failed with code $LASTEXITCODE" }
+
+          git config user.name 'arian20020'
+          git config user.email 'arian20020@outlook.com'
+          git add -A -- `
+            $env:NEW_TEST_PATH `
+            $env:PRESENTATION_PATH `
+            $env:CONTROL_PATH `
+            'docs/reviews/model-inspection-cleanup-source-files.txt' `
+            'docs/reviews/model-inspection-cleanup-inventory.md'
+          if ($LASTEXITCODE -ne 0) { throw "git add failed with code $LASTEXITCODE" }
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { throw 'Task 3 staged diff failed git diff --check' }
+
+          $expected = @(
+            $env:NEW_TEST_PATH,
+            $env:PRESENTATION_PATH,
+            $env:CONTROL_PATH,
+            'docs/reviews/model-inspection-cleanup-source-files.txt',
+            'docs/reviews/model-inspection-cleanup-inventory.md'
+          )
+          [Array]::Sort($expected, [System.StringComparer]::Ordinal)
+          [string[]]$actual = @(git diff --cached --name-only --no-renames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+          [Array]::Sort($actual, [System.StringComparer]::Ordinal)
+          if ($actual.Count -ne $expected.Count) { throw "Unexpected Task 3 staged files: $($actual -join ', ')" }
+          for ($i = 0; $i -lt $expected.Count; $i++) {
+            if (-not [string]::Equals($actual[$i], $expected[$i], [System.StringComparison]::Ordinal)) {
+              throw "Unexpected Task 3 staged files: $($actual -join ', ')"
+            }
+          }
+
+          git commit -m 'fix(model-inspection): isolate hidden content presentation state'
+          if ($LASTEXITCODE -ne 0) { throw "Task 3 commit failed with code $LASTEXITCODE" }
+          git push origin HEAD:refactor/model-inspection-cleanup
+          if ($LASTEXITCODE -ne 0) { throw "Task 3 push failed with code $LASTEXITCODE" }
