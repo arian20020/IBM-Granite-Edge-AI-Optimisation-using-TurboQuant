@@ -106,7 +106,10 @@ public sealed class CleanupInventoryContractTests
                          "*",
                          SearchOption.AllDirectories))
             {
-                files.Add(ToRelative(file));
+                if (!IsGeneratedBuildOutput(file))
+                {
+                    files.Add(ToRelative(file));
+                }
             }
         }
 
@@ -186,6 +189,11 @@ public sealed class CleanupInventoryContractTests
                      "*",
                      SearchOption.AllDirectories))
         {
+            if (IsGeneratedBuildOutput(file))
+            {
+                continue;
+            }
+
             if (!contentMustContainModelInspection ||
                 File.ReadAllText(file).Contains(
                     "ModelInspection",
@@ -194,6 +202,14 @@ public sealed class CleanupInventoryContractTests
                 files.Add(ToRelative(file));
             }
         }
+    }
+
+    private static bool IsGeneratedBuildOutput(string path)
+    {
+        string[] segments = ToRelative(path).Split('/');
+        return segments.Any(segment =>
+            segment.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("obj", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ToRelative(string path) =>
