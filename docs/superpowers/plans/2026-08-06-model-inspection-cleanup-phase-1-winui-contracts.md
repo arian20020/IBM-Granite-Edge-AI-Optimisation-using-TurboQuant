@@ -870,6 +870,83 @@ private static void RemoveVisualState(
 }
 ```
 
+### Exact visual-state groups used by these tests
+
+```text
+InspectionActionCard: LayoutRoot -> CardModeStates -> ResultState
+InspectionModelCard: LayoutRoot -> DisplayModeStates -> DetailedState
+InspectionOutcomeCard: LayoutRoot -> OutcomeToneStates -> SuccessTone
+```
+
+The WinUI `VisualStateGroup.Name` and `States` APIs are used directly; no reflection or XAML parsing is needed.
+
+### Exact characterization/regression tests
+
+```csharp
+[UITestMethod]
+[TestCategory("WinUI")]
+public void ResultPresentation_MissingResultState_ThrowsClearException()
+{
+    InspectionActionCard control = new();
+    FrameworkElement layoutRoot =
+        (FrameworkElement)control.FindName("LayoutRoot");
+    RemoveVisualState(layoutRoot, "CardModeStates", "ResultState");
+
+    InvalidOperationException exception =
+        Assert.ThrowsException<InvalidOperationException>(() =>
+            control.Presentation = new InspectionActionCardPresentation
+            {
+                Mode = InspectionActionCardMode.Result
+            });
+
+    StringAssert.Contains(exception.Message, "ResultState");
+}
+
+[UITestMethod]
+[TestCategory("WinUI")]
+public void DetailedPresentation_MissingDetailedState_ThrowsClearException()
+{
+    InspectionModelCard control = new();
+    FrameworkElement layoutRoot =
+        (FrameworkElement)control.FindName("LayoutRoot");
+    RemoveVisualState(layoutRoot, "DisplayModeStates", "DetailedState");
+
+    InvalidOperationException exception =
+        Assert.ThrowsException<InvalidOperationException>(() =>
+            control.Presentation = new InspectionModelCardPresentation
+            {
+                DisplayMode = InspectionModelCardMode.Detailed
+            });
+
+    StringAssert.Contains(exception.Message, "DetailedState");
+}
+
+[UITestMethod]
+[TestCategory("WinUI")]
+public void ReadyPresentation_MissingSuccessTone_ThrowsClearException()
+{
+    InspectionOutcomeCard control = new();
+    FrameworkElement layoutRoot =
+        (FrameworkElement)control.FindName("LayoutRoot");
+    RemoveVisualState(layoutRoot, "OutcomeToneStates", "SuccessTone");
+
+    InvalidOperationException exception =
+        Assert.ThrowsException<InvalidOperationException>(() =>
+            control.Presentation = new InspectionOutcomePresentation
+            {
+                Kind = InspectionOutcomePresentationKind.Ready,
+                Tone = InspectionOutcomeTone.Success,
+                Title = "Ready",
+                Message = "Ready",
+                AutomationName = "Ready"
+            });
+
+    StringAssert.Contains(exception.Message, "SuccessTone");
+}
+```
+
+The ActionCard test is expected to pass before production edits because that control already checks the return value from `VisualStateManager.GoToState`. The ModelCard and OutcomeCard tests are expected to fail before their fixes because those controls currently ignore the `false` return value.
+
 - [ ] **Step 2: Characterize the already-correct ActionCard failure behavior**
 
 Create the control, remove `ResultState` from `LayoutRoot` / its action layout group, then assign a `Result` presentation. Assert `InvalidOperationException` and that the message identifies `ResultState`.
