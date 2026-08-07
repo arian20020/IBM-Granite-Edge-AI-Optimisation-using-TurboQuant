@@ -19,13 +19,17 @@ class DocumentedBuildBundleWorkflowContractTests(unittest.TestCase):
         cls.metadata = METADATA_PATH.read_text(encoding="utf-8")
 
     def test_every_collector_binds_bundle_json_to_run_id_and_attempt(self) -> None:
+        # The workflow delegates bundle.json creation to one reviewed helper.
+        # Test that delegation plus the helper's actual write, rather than
+        # requiring an implementation-detail string to be duplicated four times.
         self.assertGreaterEqual(
             self.workflow.count("Write-Workbook05BuildBundleMetadata.ps1"),
             4,
         )
-        self.assertGreaterEqual(self.workflow.count("bundle.json"), 4)
         self.assertIn("github.run_id", self.workflow)
         self.assertIn("github.run_attempt", self.workflow)
+        self.assertIn("Join-Path $BundleDirectory 'bundle.json'", self.metadata)
+        self.assertIn("Write-Wb05Manifest", self.metadata)
 
     def test_route_b_metadata_requires_accepted_digest_bound_br8_candidate(self) -> None:
         for token in (
