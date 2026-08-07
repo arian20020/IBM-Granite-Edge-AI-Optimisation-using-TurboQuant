@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,29 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.gate = GATE_PATH.read_text(encoding="utf-8")
+
+    def _job_block(self, job_id: str) -> str:
+        # Locate the requested top-level job declaration exactly. Workflow job
+        # IDs are indented by two spaces; nested keys use deeper indentation.
+        marker = f"  {job_id}:\n"
+        start = self.workflow.index(marker)
+        content_start = start + len(marker)
+
+        # Match only a later line with exactly two leading spaces and a YAML
+        # mapping key. This avoids mistaking nested keys such as `steps:` or
+        # `run:` for the next job declaration.
+        next_job = re.search(
+            r"(?m)^  [A-Za-z0-9_-]+:\s*$",
+            self.workflow[content_start:],
+        )
+
+        # The final job extends to end-of-file when no later job exists.
+        end = (
+            len(self.workflow)
+            if next_job is None
+            else content_start + next_job.start()
+        )
+        return self.workflow[start:end]
 
     def test_workflow_has_manual_stage_choices_and_no_privileged_trigger(self) -> None:
         self.assertIn("workflow_dispatch:", self.workflow)
@@ -91,6 +115,30 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
         )
         self.assertIn("github.event_name == 'workflow_dispatch'", self.workflow)
         self.assertIn("cancel-in-progress: false", self.workflow)
+
+    def test_self_hosted_collection_jobs_use_process_scoped_powershell_shell(self) -> None:
+        # This is the exact shell already proven by the runner-smoke and
+        # preflight workflows on the Lenovo self-hosted runner.
+        expected_shell = (
+            'shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass '
+            '-Command ". \'{0}\'"'
+        )
+
+        # Every live collection job runs on the same restricted self-hosted
+        # Windows runner and therefore needs the process-scoped shell default.
+        for job_id in (
+            "collect-route-a-runtime",
+            "collect-route-a-genai",
+            "collect-route-b-runtime",
+            "collect-route-b-genai",
+        ):
+            with self.subTest(job_id=job_id):
+                block = self._job_block(job_id)
+                self.assertIn("defaults:\n      run:\n        " + expected_shell, block)
+
+                # A step-level built-in shell would override the job default and
+                # recreate the exact PSSecurityException seen in run 31177582965.
+                self.assertNotIn("\n        shell: powershell\n", block)
 
     def test_each_stage_runs_gate_collects_text_and_has_hosted_validation(self) -> None:
         expected_jobs = (
