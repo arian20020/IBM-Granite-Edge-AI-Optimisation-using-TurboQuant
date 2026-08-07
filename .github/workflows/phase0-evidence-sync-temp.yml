@@ -1,0 +1,225 @@
+name: Phase 0 evidence inventory sync temporary
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+    paths:
+      - .github/workflows/phase0-evidence-sync-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-evidence-inventory:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out cleanup branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: refactor/model-inspection-cleanup
+          fetch-depth: 0
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Sync evidence into the permanent inventory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $sourcePath = 'docs/reviews/model-inspection-cleanup-source-files.txt'
+          $inventoryPath = 'docs/reviews/model-inspection-cleanup-inventory.md'
+          $evidencePath = 'docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md'
+          $evidenceReadmePath = 'docs/testing/evidence/README.md'
+          $expectedCount = 368
+
+          $sourceSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+          foreach ($line in Get-Content -LiteralPath $sourcePath) {
+            if (-not [string]::IsNullOrWhiteSpace($line)) {
+              $normalized = $line.Replace('\', '/')
+              if (-not $sourceSet.Add($normalized)) {
+                throw "Duplicate cleanup source path before sync: $normalized"
+              }
+            }
+          }
+
+          if (-not $sourceSet.Add($evidencePath)) {
+            throw 'The Phase 0 evidence path was already inventoried before the one-time sync'
+          }
+
+          [string[]]$sortedSources = @($sourceSet)
+          [Array]::Sort($sortedSources, [System.StringComparer]::Ordinal)
+          if ($sortedSources.Count -ne $expectedCount) {
+            throw "Expected $expectedCount cleanup source paths after evidence sync, found $($sortedSources.Count)"
+          }
+
+          [System.IO.File]::WriteAllLines(
+            (Resolve-Path $sourcePath).Path,
+            $sortedSources,
+            [System.Text.UTF8Encoding]::new($false))
+
+          [string[]]$inventoryLines = Get-Content -LiteralPath $inventoryPath
+          $firstRowIndex = -1
+          for ($index = 0; $index -lt $inventoryLines.Count; $index++) {
+            if ($inventoryLines[$index] -match '^\| `[^`]+` \|') {
+              $firstRowIndex = $index
+              break
+            }
+          }
+          if ($firstRowIndex -lt 0) {
+            throw 'The cleanup inventory does not contain any file rows'
+          }
+
+          $header = @($inventoryLines[0..($firstRowIndex - 1)])
+          $rows = [System.Collections.Generic.Dictionary[string,string]]::new([System.StringComparer]::Ordinal)
+          foreach ($line in $inventoryLines[$firstRowIndex..($inventoryLines.Count - 1)]) {
+            if ($line -notmatch '^\| `(?<path>[^`]+)` \|') {
+              throw "Unexpected non-row content after the cleanup inventory header: $line"
+            }
+            $path = $Matches.path.Replace('\', '/')
+            if ($rows.ContainsKey($path)) {
+              throw "Duplicate cleanup inventory row before sync: $path"
+            }
+            $rows.Add($path, $line)
+          }
+
+          $newEvidenceRow = '| `docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md` | documentation and evidence | serve the recorded subsystem boundary | low | pending review | not reviewed | none | baseline behaviour | to be mapped during subsystem audit | baseline pending | none |'
+          if ($rows.ContainsKey($evidencePath)) {
+            throw 'The Phase 0 evidence row was already present before the one-time sync'
+          }
+          $rows.Add($evidencePath, $newEvidenceRow)
+
+          if ($rows.Count -ne $expectedCount) {
+            throw "Expected $expectedCount cleanup inventory rows after evidence sync, found $($rows.Count)"
+          }
+
+          $orderedRows = [System.Collections.Generic.List[string]]::new()
+          foreach ($path in $sortedSources) {
+            if (-not $rows.ContainsKey($path)) {
+              throw "Cleanup inventory row is missing after evidence sync: $path"
+            }
+            $orderedRows.Add($rows[$path])
+          }
+
+          [System.IO.File]::WriteAllLines(
+            (Resolve-Path $inventoryPath).Path,
+            @($header + $orderedRows),
+            [System.Text.UTF8Encoding]::new($false))
+
+          $evidenceIndexEntry = '- [Model Inspection cleanup Phase 0 baseline — 2026-08-07](./2026-08-06-model-inspection-cleanup-baseline.md)'
+          [string[]]$evidenceIndexLines = Get-Content -LiteralPath $evidenceReadmePath
+          if ($evidenceIndexLines -contains $evidenceIndexEntry) {
+            throw 'The Phase 0 evidence index entry already existed before the one-time sync'
+          }
+
+          $gate2Entry = '- [Protected worker Gate 2 process boundary — 2026-08-05/06](./2026-08-05-model-inspection-worker-gate2-verification.md)'
+          $gate2Index = [Array]::IndexOf($evidenceIndexLines, $gate2Entry)
+          if ($gate2Index -lt 0) {
+            throw 'Could not locate the Gate 2 evidence index entry'
+          }
+
+          $updatedEvidenceIndex = [System.Collections.Generic.List[string]]::new()
+          for ($index = 0; $index -lt $evidenceIndexLines.Count; $index++) {
+            $updatedEvidenceIndex.Add($evidenceIndexLines[$index])
+            if ($index -eq $gate2Index) {
+              $updatedEvidenceIndex.Add($evidenceIndexEntry)
+            }
+          }
+
+          [System.IO.File]::WriteAllLines(
+            (Resolve-Path $evidenceReadmePath).Path,
+            $updatedEvidenceIndex,
+            [System.Text.UTF8Encoding]::new($false))
+
+          $evidence = Get-Content -LiteralPath $evidencePath -Raw
+          $replacements = [ordered]@{
+            '| Expected Model Inspection source paths | 367 |' = '| Expected Model Inspection source paths | 368 |'
+            '| Recorded source paths | 367 |' = '| Recorded source paths | 368 |'
+            '| Review ledger rows | 367 |' = '| Review ledger rows | 368 |'
+            'exactly the same 367 paths in the same order' = 'exactly the same 368 paths in the same order'
+          }
+          foreach ($replacement in $replacements.GetEnumerator()) {
+            if (-not $evidence.Contains($replacement.Key, [System.StringComparison]::Ordinal)) {
+              throw "Expected baseline evidence text was not found: $($replacement.Key)"
+            }
+            $evidence = $evidence.Replace(
+              $replacement.Key,
+              $replacement.Value,
+              [System.StringComparison]::Ordinal)
+          }
+          if ($evidence -match '\b367\b') {
+            throw 'A stale 367 inventory count remains in the Phase 0 evidence record'
+          }
+
+          [System.IO.File]::WriteAllText(
+            (Resolve-Path $evidencePath).Path,
+            $evidence,
+            [System.Text.UTF8Encoding]::new($false))
+
+          $sourceAfter = @(Get-Content -LiteralPath $sourcePath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+          $rowAfter = @(Get-Content -LiteralPath $inventoryPath | Where-Object { $_ -match '^\| `[^`]+` \|' })
+          if ($sourceAfter.Count -ne $expectedCount -or $rowAfter.Count -ne $expectedCount) {
+            throw "Evidence sync did not finish at $expectedCount source paths and $expectedCount rows"
+          }
+
+          $expectedFiles = @(
+            'docs/reviews/model-inspection-cleanup-source-files.txt'
+            'docs/reviews/model-inspection-cleanup-inventory.md'
+            'docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md'
+            'docs/testing/evidence/README.md'
+          )
+          $changedFiles = @(git diff --name-only)
+          if ($LASTEXITCODE -ne 0) {
+            throw 'git diff failed while validating the Phase 0 evidence sync'
+          }
+          $unexpected = @($changedFiles | Where-Object { $_ -notin $expectedFiles })
+          $missingChanges = @($expectedFiles | Where-Object { $_ -notin $changedFiles })
+          if ($unexpected.Count -ne 0 -or $missingChanges.Count -ne 0) {
+            throw "Unexpected evidence-sync diff. unexpected=$($unexpected -join ',') missing=$($missingChanges -join ',')"
+          }
+
+      - name: Verify synchronized inventory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\model-inspection\Verify-ModelInspectionCleanupInventory.ps1'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Focused inventory verification failed: $LASTEXITCODE"
+          }
+
+          dotnet test 'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj' `
+            --configuration Release `
+            --minimum-expected-tests 82
+          if ($LASTEXITCODE -ne 0) {
+            throw "Complete contract verification failed: $LASTEXITCODE"
+          }
+
+      - name: Commit synchronized evidence inventory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- `
+            'docs/reviews/model-inspection-cleanup-source-files.txt' `
+            'docs/reviews/model-inspection-cleanup-inventory.md' `
+            'docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md' `
+            'docs/testing/evidence/README.md'
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) {
+            throw 'The synchronized evidence diff failed git diff --check'
+          }
+          git commit -m 'docs(model-inspection): sync Phase 0 evidence inventory'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'The synchronized evidence commit failed'
+          }
+          git push origin HEAD:refactor/model-inspection-cleanup
+          if ($LASTEXITCODE -ne 0) {
+            throw 'The synchronized evidence push failed'
+          }
