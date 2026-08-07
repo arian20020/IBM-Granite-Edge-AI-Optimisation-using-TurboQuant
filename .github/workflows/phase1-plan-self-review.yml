@@ -51,85 +51,9 @@ jobs:
             throw 'Could not locate the Task 7 Step 2 insertion point'
           }
 
-          $addition = @'
-### Exact visual-state groups used by these tests
-
-```text
-InspectionActionCard: LayoutRoot -> CardModeStates -> ResultState
-InspectionModelCard: LayoutRoot -> DisplayModeStates -> DetailedState
-InspectionOutcomeCard: LayoutRoot -> OutcomeToneStates -> SuccessTone
-```
-
-The WinUI `VisualStateGroup.Name` and `States` APIs are used directly; no reflection or XAML parsing is needed.
-
-### Exact characterization/regression tests
-
-```csharp
-[UITestMethod]
-[TestCategory("WinUI")]
-public void ResultPresentation_MissingResultState_ThrowsClearException()
-{
-    InspectionActionCard control = new();
-    FrameworkElement layoutRoot =
-        (FrameworkElement)control.FindName("LayoutRoot");
-    RemoveVisualState(layoutRoot, "CardModeStates", "ResultState");
-
-    InvalidOperationException exception =
-        Assert.ThrowsException<InvalidOperationException>(() =>
-            control.Presentation = new InspectionActionCardPresentation
-            {
-                Mode = InspectionActionCardMode.Result
-            });
-
-    StringAssert.Contains(exception.Message, "ResultState");
-}
-
-[UITestMethod]
-[TestCategory("WinUI")]
-public void DetailedPresentation_MissingDetailedState_ThrowsClearException()
-{
-    InspectionModelCard control = new();
-    FrameworkElement layoutRoot =
-        (FrameworkElement)control.FindName("LayoutRoot");
-    RemoveVisualState(layoutRoot, "DisplayModeStates", "DetailedState");
-
-    InvalidOperationException exception =
-        Assert.ThrowsException<InvalidOperationException>(() =>
-            control.Presentation = new InspectionModelCardPresentation
-            {
-                DisplayMode = InspectionModelCardMode.Detailed
-            });
-
-    StringAssert.Contains(exception.Message, "DetailedState");
-}
-
-[UITestMethod]
-[TestCategory("WinUI")]
-public void ReadyPresentation_MissingSuccessTone_ThrowsClearException()
-{
-    InspectionOutcomeCard control = new();
-    FrameworkElement layoutRoot =
-        (FrameworkElement)control.FindName("LayoutRoot");
-    RemoveVisualState(layoutRoot, "OutcomeToneStates", "SuccessTone");
-
-    InvalidOperationException exception =
-        Assert.ThrowsException<InvalidOperationException>(() =>
-            control.Presentation = new InspectionOutcomePresentation
-            {
-                Kind = InspectionOutcomePresentationKind.Ready,
-                Tone = InspectionOutcomeTone.Success,
-                Title = "Ready",
-                Message = "Ready",
-                AutomationName = "Ready"
-            });
-
-    StringAssert.Contains(exception.Message, "SuccessTone");
-}
-```
-
-The ActionCard test is expected to pass before production edits because that control already checks the return value from `VisualStateManager.GoToState`. The ModelCard and OutcomeCard tests are expected to fail before their fixes because those controls currently ignore the `false` return value.
-
-'@
+          $additionBase64 = 'IyMjIEV4YWN0IHZpc3VhbC1zdGF0ZSBncm91cHMgdXNlZCBieSB0aGVzZSB0ZXN0cwoKYGBgdGV4dApJbnNwZWN0aW9uQWN0aW9uQ2FyZDogTGF5b3V0Um9vdCAtPiBDYXJkTW9kZVN0YXRlcyAtPiBSZXN1bHRTdGF0ZQpJbnNwZWN0aW9uTW9kZWxDYXJkOiBMYXlvdXRSb290IC0+IERpc3BsYXlNb2RlU3RhdGVzIC0+IERldGFpbGVkU3RhdGUKSW5zcGVjdGlvbk91dGNvbWVDYXJkOiBMYXlvdXRSb290IC0+IE91dGNvbWVUb25lU3RhdGVzIC0+IFN1Y2Nlc3NUb25lCmBgYAoKVGhlIFdpblVJIGBWaXN1YWxTdGF0ZUdyb3VwLk5hbWVgIGFuZCBgU3RhdGVzYCBBUElzIGFyZSB1c2VkIGRpcmVjdGx5OyBubyByZWZsZWN0aW9uIG9yIFhBTUwgcGFyc2luZyBpcyBuZWVkZWQuCgojIyMgRXhhY3QgY2hhcmFjdGVyaXphdGlvbi9yZWdyZXNzaW9uIHRlc3RzCgpgYGBjc2hhcnAKW1VJVGVzdE1ldGhvZF0KW1Rlc3RDYXRlZ29yeSgiV2luVUkiKV0KcHVibGljIHZvaWQgUmVzdWx0UHJlc2VudGF0aW9uX01pc3NpbmdSZXN1bHRTdGF0ZV9UaHJvd3NDbGVhckV4Y2VwdGlvbigpCnsKICAgIEluc3BlY3Rpb25BY3Rpb25DYXJkIGNvbnRyb2wgPSBuZXcoKTsKICAgIEZyYW1ld29ya0VsZW1lbnQgbGF5b3V0Um9vdCA9CiAgICAgICAgKEZyYW1ld29ya0VsZW1lbnQpY29udHJvbC5GaW5kTmFtZSgiTGF5b3V0Um9vdCIpOwogICAgUmVtb3ZlVmlzdWFsU3RhdGUobGF5b3V0Um9vdCwgIkNhcmRNb2RlU3RhdGVzIiwgIlJlc3VsdFN0YXRlIik7CgogICAgSW52YWxpZE9wZXJhdGlvbkV4Y2VwdGlvbiBleGNlcHRpb24gPQogICAgICAgIEFzc2VydC5UaHJvd3NFeGNlcHRpb248SW52YWxpZE9wZXJhdGlvbkV4Y2VwdGlvbj4oKCkgPT4KICAgICAgICAgICAgY29udHJvbC5QcmVzZW50YXRpb24gPSBuZXcgSW5zcGVjdGlvbkFjdGlvbkNhcmRQcmVzZW50YXRpb24KICAgICAgICAgICAgewogICAgICAgICAgICAgICAgTW9kZSA9IEluc3BlY3Rpb25BY3Rpb25DYXJkTW9kZS5SZXN1bHQKICAgICAgICAgICAgfSk7CgogICAgU3RyaW5nQXNzZXJ0LkNvbnRhaW5zKGV4Y2VwdGlvbi5NZXNzYWdlLCAiUmVzdWx0U3RhdGUiKTsKfQoKW1VJVGVzdE1ldGhvZF0KW1Rlc3RDYXRlZ29yeSgiV2luVUkiKV0KcHVibGljIHZvaWQgRGV0YWlsZWRQcmVzZW50YXRpb25fTWlzc2luZ0RldGFpbGVkU3RhdGVfVGhyb3dzQ2xlYXJFeGNlcHRpb24oKQp7CiAgICBJbnNwZWN0aW9uTW9kZWxDYXJkIGNvbnRyb2wgPSBuZXcoKTsKICAgIEZyYW1ld29ya0VsZW1lbnQgbGF5b3V0Um9vdCA9CiAgICAgICAgKEZyYW1ld29ya0VsZW1lbnQpY29udHJvbC5GaW5kTmFtZSgiTGF5b3V0Um9vdCIpOwogICAgUmVtb3ZlVmlzdWFsU3RhdGUobGF5b3V0Um9vdCwgIkRpc3BsYXlNb2RlU3RhdGVzIiwgIkRldGFpbGVkU3RhdGUiKTsKCiAgICBJbnZhbGlkT3BlcmF0aW9uRXhjZXB0aW9uIGV4Y2VwdGlvbiA9CiAgICAgICAgQXNzZXJ0LlRocm93c0V4Y2VwdGlvbjxJbnZhbGlkT3BlcmF0aW9uRXhjZXB0aW9uPigoKSA9PgogICAgICAgICAgICBjb250cm9sLlByZXNlbnRhdGlvbiA9IG5ldyBJbnNwZWN0aW9uTW9kZWxDYXJkUHJlc2VudGF0aW9uCiAgICAgICAgICAgIHsKICAgICAgICAgICAgICAgIERpc3BsYXlNb2RlID0gSW5zcGVjdGlvbk1vZGVsQ2FyZE1vZGUuRGV0YWlsZWQKICAgICAgICAgICAgfSk7CgogICAgU3RyaW5nQXNzZXJ0LkNvbnRhaW5zKGV4Y2VwdGlvbi5NZXNzYWdlLCAiRGV0YWlsZWRTdGF0ZSIpOwp9CgpbVUlUZXN0TWV0aG9kXQpbVGVzdENhdGVnb3J5KCJXaW5VSSIpXQpwdWJsaWMgdm9pZCBSZWFkeVByZXNlbnRhdGlvbl9NaXNzaW5nU3VjY2Vzc1RvbmVfVGhyb3dzQ2xlYXJFeGNlcHRpb24oKQp7CiAgICBJbnNwZWN0aW9uT3V0Y29tZUNhcmQgY29udHJvbCA9IG5ldygpOwogICAgRnJhbWV3b3JrRWxlbWVudCBsYXlvdXRSb290ID0KICAgICAgICAoRnJhbWV3b3JrRWxlbWVudCljb250cm9sLkZpbmROYW1lKCJMYXlvdXRSb290Iik7CiAgICBSZW1vdmVWaXN1YWxTdGF0ZShsYXlvdXRSb290LCAiT3V0Y29tZVRvbmVTdGF0ZXMiLCAiU3VjY2Vzc1RvbmUiKTsKCiAgICBJbnZhbGlkT3BlcmF0aW9uRXhjZXB0aW9uIGV4Y2VwdGlvbiA9CiAgICAgICAgQXNzZXJ0LlRocm93c0V4Y2VwdGlvbjxJbnZhbGlkT3BlcmF0aW9uRXhjZXB0aW9uPigoKSA9PgogICAgICAgICAgICBjb250cm9sLlByZXNlbnRhdGlvbiA9IG5ldyBJbnNwZWN0aW9uT3V0Y29tZVByZXNlbnRhdGlvbgogICAgICAgICAgICB7CiAgICAgICAgICAgICAgICBLaW5kID0gSW5zcGVjdGlvbk91dGNvbWVQcmVzZW50YXRpb25LaW5kLlJlYWR5LAogICAgICAgICAgICAgICAgVG9uZSA9IEluc3BlY3Rpb25PdXRjb21lVG9uZS5TdWNjZXNzLAogICAgICAgICAgICAgICAgVGl0bGUgPSAiUmVhZHkiLAogICAgICAgICAgICAgICAgTWVzc2FnZSA9ICJSZWFkeSIsCiAgICAgICAgICAgICAgICBBdXRvbWF0aW9uTmFtZSA9ICJSZWFkeSIKICAgICAgICAgICAgfSk7CgogICAgU3RyaW5nQXNzZXJ0LkNvbnRhaW5zKGV4Y2VwdGlvbi5NZXNzYWdlLCAiU3VjY2Vzc1RvbmUiKTsKfQpgYGAKClRoZSBBY3Rpb25DYXJkIHRlc3QgaXMgZXhwZWN0ZWQgdG8gcGFzcyBiZWZvcmUgcHJvZHVjdGlvbiBlZGl0cyBiZWNhdXNlIHRoYXQgY29udHJvbCBhbHJlYWR5IGNoZWNrcyB0aGUgcmV0dXJuIHZhbHVlIGZyb20gYFZpc3VhbFN0YXRlTWFuYWdlci5Hb1RvU3RhdGVgLiBUaGUgTW9kZWxDYXJkIGFuZCBPdXRjb21lQ2FyZCB0ZXN0cyBhcmUgZXhwZWN0ZWQgdG8gZmFpbCBiZWZvcmUgdGhlaXIgZml4ZXMgYmVjYXVzZSB0aG9zZSBjb250cm9scyBjdXJyZW50bHkgaWdub3JlIHRoZSBgZmFsc2VgIHJldHVybiB2YWx1ZS4KCg=='
+          $addition = [System.Text.Encoding]::UTF8.GetString(
+            [System.Convert]::FromBase64String($additionBase64))
 
           $updated = $plan.Replace(
             $needle,
