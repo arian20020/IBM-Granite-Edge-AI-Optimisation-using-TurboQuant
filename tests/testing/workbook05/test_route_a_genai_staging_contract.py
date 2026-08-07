@@ -36,8 +36,11 @@ class RouteAGenAIStagingContractTests(unittest.TestCase):
         self.assertNotIn("exact Route A Runtime install for this run", self.text)
 
     def test_runtime_install_must_be_an_existing_i_ov_beneath_route_a_root(self) -> None:
+        # Assert the behaviour implemented by Assert-RouteARuntimeInstall rather
+        # than the caller's local variable spelling. The helper canonicalises its
+        # argument to $resolved before checking the final i-ov directory name.
         self.assertIn("Assert-Wb05SafePath", self.text)
-        self.assertIn("Split-Path -Leaf $resolvedRuntimeInstall", self.text)
+        self.assertIn("Split-Path -Leaf $resolved", self.text)
         self.assertIn("accepted Route A i-ov directory", self.text)
 
     def test_resource_safety_stops_are_not_reported_as_source_failures(self) -> None:
