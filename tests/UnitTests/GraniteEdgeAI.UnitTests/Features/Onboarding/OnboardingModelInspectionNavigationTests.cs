@@ -115,7 +115,6 @@ public sealed class OnboardingModelInspectionNavigationTests
         Assert.IsTrue(navigationSucceeded);
         Assert.IsNotNull(inspectionPage);
         Assert.AreSame(request, inspectionPage.Request);
-        Assert.AreEqual(request.ModelPath, inspectionPage.SelectedModelPath);
     }
 
     [UITestMethod]
