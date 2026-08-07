@@ -144,7 +144,16 @@ function Read-CommandOutput {
     )
 
     # Read only the captured stdout file associated with the reviewed command.
-    return (Get-Content -LiteralPath $Result.stdout_path -Raw -ErrorAction Stop).Trim()
+    # Windows PowerShell can yield no object for a readable zero-byte file, which
+    # is a legitimate success value for commands such as `git status --porcelain`.
+    $capturedOutput = Get-Content `
+        -LiteralPath $Result.stdout_path `
+        -Raw `
+        -ErrorAction Stop
+    if ($null -eq $capturedOutput) {
+        return ''
+    }
+    return $capturedOutput.Trim()
 }
 
 function Get-CMakeCacheValue {

@@ -80,6 +80,38 @@ class RouteARuntimeScriptIntegrityTests(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, text)
 
+    def test_command_output_reader_handles_empty_stdout_without_masking_missing_files(
+        self,
+    ) -> None:
+        # Run 31182994474 proved that a successful `git status --porcelain=v1`
+        # may leave a readable zero-byte stdout file. The reader must represent
+        # that as the empty string while retaining Get-Content's terminating
+        # error for a genuinely missing or unreadable evidence file.
+        text = RUNTIME_SCRIPT.read_bytes().decode("utf-8", errors="strict")
+
+        # Assert the semantic pieces independently so checkout line-ending policy
+        # cannot make this Windows-focused regression test fail spuriously.
+        required_tokens = (
+            "$capturedOutput = Get-Content",
+            "-LiteralPath $Result.stdout_path",
+            "-Raw",
+            "-ErrorAction Stop",
+            "if ($null -eq $capturedOutput)",
+            "return ''",
+            "return $capturedOutput.Trim()",
+        )
+        for token in required_tokens:
+            with self.subTest(token=token):
+                self.assertIn(token, text)
+
+        # Protect against reintroducing the exact one-expression form that threw
+        # InvokeMethodOnNull at line 286 in the production Runtime attempt.
+        self.assertNotIn(
+            "return (Get-Content -LiteralPath $Result.stdout_path -Raw "
+            "-ErrorAction Stop).Trim()",
+            text,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
