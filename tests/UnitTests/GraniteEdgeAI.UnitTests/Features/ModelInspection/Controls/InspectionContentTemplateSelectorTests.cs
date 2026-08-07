@@ -113,6 +113,60 @@ public sealed class InspectionContentTemplateSelectorTests
         Assert.AreSame(findingsTemplate, selectedTemplate);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectTemplate_WithContentPresenterAsItem_UsesPresenterContent()
+    {
+        DataTemplate progressTemplate = new();
+        DataTemplate findingsTemplate = new();
+        InspectionContentTemplateSelector selector =
+            CreateSelector(progressTemplate, findingsTemplate);
+        ContentPresenter presenter = new()
+        {
+            Content = CreateProgressPresentation()
+        };
+
+        DataTemplate selectedTemplate = selector.SelectTemplate(presenter);
+
+        Assert.AreSame(progressTemplate, selectedTemplate);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectTemplate_WithContentControlContainer_UsesContainerContent()
+    {
+        DataTemplate progressTemplate = new();
+        DataTemplate findingsTemplate = new();
+        InspectionContentTemplateSelector selector =
+            CreateSelector(progressTemplate, findingsTemplate);
+        ContentControl container = new()
+        {
+            Content = CreateProgressPresentation()
+        };
+
+        DataTemplate selectedTemplate = selector.SelectTemplate(new object(), container);
+
+        Assert.AreSame(progressTemplate, selectedTemplate);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectTemplate_WithContentPresenterContainer_UsesContainerContent()
+    {
+        DataTemplate progressTemplate = new();
+        DataTemplate findingsTemplate = new();
+        InspectionContentTemplateSelector selector =
+            CreateSelector(progressTemplate, findingsTemplate);
+        ContentPresenter container = new()
+        {
+            Content = CreateProgressPresentation()
+        };
+
+        DataTemplate selectedTemplate = selector.SelectTemplate(new object(), container);
+
+        Assert.AreSame(progressTemplate, selectedTemplate);
+    }
+
     private static InspectionContentTemplateSelector CreateSelector(
         DataTemplate progressTemplate,
         DataTemplate findingsTemplate)
