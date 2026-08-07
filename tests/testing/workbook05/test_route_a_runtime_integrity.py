@@ -89,21 +89,20 @@ class RouteARuntimeScriptIntegrityTests(unittest.TestCase):
         # error for a genuinely missing or unreadable evidence file.
         text = RUNTIME_SCRIPT.read_bytes().decode("utf-8", errors="strict")
 
-        # Materialising the read result gives the helper a safe place to test the
-        # zero-output condition before any string method is invoked.
-        self.assertIn(
-            "$capturedOutput = Get-Content `\n"
-            "        -LiteralPath $Result.stdout_path `\n"
-            "        -Raw `\n"
-            "        -ErrorAction Stop",
-            text,
+        # Assert the semantic pieces independently so checkout line-ending policy
+        # cannot make this Windows-focused regression test fail spuriously.
+        required_tokens = (
+            "$capturedOutput = Get-Content",
+            "-LiteralPath $Result.stdout_path",
+            "-Raw",
+            "-ErrorAction Stop",
+            "if ($null -eq $capturedOutput)",
+            "return ''",
+            "return $capturedOutput.Trim()",
         )
-
-        # A no-output success is represented explicitly and non-empty output is
-        # trimmed only after the null check has established a string value.
-        self.assertIn("if ($null -eq $capturedOutput)", text)
-        self.assertIn("return ''", text)
-        self.assertIn("return $capturedOutput.Trim()", text)
+        for token in required_tokens:
+            with self.subTest(token=token):
+                self.assertIn(token, text)
 
         # Protect against reintroducing the exact one-expression form that threw
         # InvokeMethodOnNull at line 286 in the production Runtime attempt.
