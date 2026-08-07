@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -96,6 +97,41 @@ public sealed class InitialInspectionProgressPresentationTests
             presentation.Items.Take(4).All(item => item.ShowConnector));
         Assert.IsFalse(
             presentation.Items[4].ShowConnector);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Create_ShowsDetailOnlyForTheActiveStage()
+    {
+        InspectionContentCardPresentation presentation =
+            InitialInspectionProgressPresentationFactory.Create();
+
+        Assert.AreEqual(
+            Visibility.Visible,
+            presentation.Items[0].DetailVisibility);
+
+        foreach (InspectionContentItemPresentation waitingStage in
+                 presentation.Items.Skip(1))
+        {
+            Assert.AreEqual(
+                Visibility.Collapsed,
+                waitingStage.DetailVisibility);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Create_UsesTitleAndStatusForStageAutomationNames()
+    {
+        InspectionContentCardPresentation presentation =
+            InitialInspectionProgressPresentationFactory.Create();
+
+        foreach (InspectionContentItemPresentation item in presentation.Items)
+        {
+            Assert.AreEqual(
+                $"{item.Title}. {item.StatusText}.",
+                item.AutomationName);
+        }
     }
 
     /// <summary>
