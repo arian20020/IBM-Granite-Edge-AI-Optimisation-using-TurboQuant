@@ -16,7 +16,7 @@ concurrency:
 jobs:
   generate:
     name: Generate cleanup inventory files
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Check out repository
