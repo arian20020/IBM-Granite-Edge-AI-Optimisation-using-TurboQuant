@@ -30,60 +30,54 @@
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P02-runtime-commit-reachable",
+      "proof_id": "RA-P02-runtime-source-tree",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P03-genai-commit-reachable",
+      "proof_id": "RA-P03-genai-source-tree",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P04-documented-build",
+      "proof_id": "RA-P04-runtime-submodules",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P05-standard-cache-baseline",
+      "proof_id": "RA-P05-genai-submodules",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P06-property-visibility",
+      "proof_id": "RA-P06-source-capabilities",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P07-turbo-u3-activation",
+      "proof_id": "RA-P07-toolchain",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P08-turbo-u4-activation",
+      "proof_id": "RA-P08-configure-probe",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     },
     {
-      "proof_id": "RA-P09-packed-allocation",
-      "required": true,
-      "status": "Pending",
-      "evidence_path": ""
-    },
-    {
-      "proof_id": "RA-P10-no-silent-fallback",
+      "proof_id": "RA-P09-generated-metadata",
       "required": true,
       "status": "Pending",
       "evidence_path": ""
     }
   ],
   "known_blockers": [],
-  "decision_reason": "Merged Runtime provenance is known, but the Runtime and GenAI pair has not yet been built, activated, and checked for fallback on the target Intel laptop."
+  "decision_reason": "Route A remains a Phase 1 candidate until the pinned Runtime and GenAI source trees, recursive submodules, source capabilities, toolchain, CPU-only configure probe, generated metadata, and controlling documents are captured and independently validated. Full build, runtime activation, packed allocation, and fallback proof belong to later phases."
 }

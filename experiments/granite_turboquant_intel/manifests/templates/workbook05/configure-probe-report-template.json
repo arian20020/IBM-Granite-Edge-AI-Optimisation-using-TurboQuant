@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "phase_id": "phase-1-source-admission",
+  "route_id": "route-a-merged-openvino",
+  "command": [
+    "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+    "-S",
+    "C:\\wb05\\source\\route-a\\openvino",
+    "-B",
+    "C:\\wb05\\build\\route-a-runtime",
+    "-G",
+    "Visual Studio 17 2022",
+    "-A",
+    "x64",
+    "-DENABLE_INTEL_GPU=OFF"
+  ],
+  "working_directory": "C:\\wb05",
+  "started_utc": "2026-08-05T00:00:00Z",
+  "ended_utc": "2026-08-05T00:00:01Z",
+  "exit_code": 0,
+  "stdout_path": "configure/route-a-stdout.txt",
+  "stderr_path": "configure/route-a-stderr.txt",
+  "cmake_cache_path": "configure/CMakeCache.txt",
+  "cmake_cache_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "cache_values": {
+    "CMAKE_HOME_DIRECTORY": "C:/wb05/source/route-a/openvino",
+    "CMAKE_GENERATOR": "Visual Studio 17 2022",
+    "CMAKE_GENERATOR_PLATFORM": "x64",
+    "ENABLE_INTEL_GPU": "OFF"
+  },
+  "build_invoked": false,
+  "install_invoked": false,
+  "package_invoked": false,
+  "status": "Passed",
+  "reasons": []
+}

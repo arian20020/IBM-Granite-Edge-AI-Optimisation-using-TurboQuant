@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "phase_id": "phase-1-source-admission",
+  "route_id": "route-b-experimental-qjl-polar",
+  "blocker_id": "RB-SRC-001",
+  "source_path": "src/plugins/intel_cpu/tests/functional/cmake/target_per_test.cmake",
+  "class_file_name": "concat_sdp_turboq.cpp",
+  "repeated_arch_assignment": true,
+  "repeated_common_assignment": true,
+  "intended_sources": [
+    "instances/x64/concat_sdp_turboq.cpp",
+    "x64/concat_sdp_turboq.cpp",
+    "instances/common/concat_sdp_turboq.cpp",
+    "common/concat_sdp_turboq.cpp"
+  ],
+  "final_sources": [
+    "x64/concat_sdp_turboq.cpp",
+    "common/concat_sdp_turboq.cpp"
+  ],
+  "omitted_sources": [
+    "instances/x64/concat_sdp_turboq.cpp",
+    "instances/common/concat_sdp_turboq.cpp"
+  ],
+  "generated_metadata_path": "cmake/route-b-generated-target.txt",
+  "status": "Confirmed",
+  "reasons": [
+    "The second architecture and common GLOB_RECURSE assignments replace the first lists."
+  ]
+}

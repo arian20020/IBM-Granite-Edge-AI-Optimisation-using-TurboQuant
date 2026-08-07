@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "phase_id": "phase-1-source-admission",
+  "measurement_controls_path": "measurement/measurement-controls.json",
+  "measurement_controls_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "route_decisions": {
+    "route-a-merged-openvino": {
+      "status": "Admitted",
+      "decision_reason": "The exact source trees, capabilities, toolchain, and configure-only probe passed.",
+      "evidence_paths": [
+        "routes/route-a/source-tree-runtime.json",
+        "routes/route-a/source-tree-genai.json",
+        "routes/route-a/source-capabilities.json",
+        "routes/route-a/configure-probe.json"
+      ]
+    },
+    "route-b-experimental-qjl-polar": {
+      "status": "Blocked",
+      "decision_reason": "RB-SRC-001 confirms that intended functional-test sources can be omitted.",
+      "evidence_paths": [
+        "routes/route-b/source-tree-runtime.json",
+        "routes/route-b/source-capabilities.json",
+        "routes/route-b/cmake-test-discovery.json"
+      ]
+    }
+  },
+  "checkpoint_status": "Passed",
+  "checkpoint_path": "checkpoint/checkpoint.json",
+  "hash_manifest_path": "hash-manifest.sha256",
+  "phase_reasons": [
+    "Route A is admitted for documented build.",
+    "Route B is blocked with evidence and does not prevent Route A continuation."
+  ]
+}
