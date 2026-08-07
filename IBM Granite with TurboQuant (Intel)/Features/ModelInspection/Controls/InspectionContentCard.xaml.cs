@@ -66,7 +66,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         {
             InitializeComponent();
             _isInitialized = true;
-            ApplyPresentation(Presentation);
+            Presentation = InspectionContentCardPresentation.Hidden;
         }
 
         /// <summary>

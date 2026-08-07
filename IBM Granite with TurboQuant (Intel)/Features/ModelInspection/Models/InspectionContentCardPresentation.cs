@@ -18,7 +18,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         /// <summary>
         /// Provides a safe presentation while the card is hidden.
         /// </summary>
-        public static InspectionContentCardPresentation Hidden { get; } = new();
+        public static InspectionContentCardPresentation Hidden => new();
 
         /// <summary>
         /// Gets the structural layout displayed by the card.
