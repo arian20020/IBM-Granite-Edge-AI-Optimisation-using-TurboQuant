@@ -56,6 +56,27 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
                 )
         self.assertIn("persist-credentials: false", self.workflow)
 
+    def test_sparse_checkout_contains_every_full_suite_input_family(self) -> None:
+        # The repository gate intentionally runs every Workbook 05 Python test.
+        # Therefore every data/document family those tests read must be present in
+        # the sparse checkout. Keep this list aligned with the already-proven
+        # source-admission workflow rather than silently weakening the full gate.
+        required_paths = (
+            "docs/superpowers",
+            "docs/testing",
+            "experiments/granite_turboquant_intel/configurations/workbook05",
+            "experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1",
+            "experiments/granite_turboquant_intel/manifests/templates/workbook05",
+            "experiments/granite_turboquant_intel/prompts",
+            "experiments/granite_turboquant_intel/rubrics",
+            "experiments/granite_turboquant_intel/schemas/workbook05",
+            "scripts/testing",
+            "tests/testing/workbook05",
+        )
+        for path in required_paths:
+            with self.subTest(path=path):
+                self.assertIn(path, self.workflow)
+
     def test_self_hosted_jobs_use_exact_labels_timeout_and_same_repository_guard(self) -> None:
         self.assertGreaterEqual(
             self.workflow.count(
