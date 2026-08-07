@@ -93,6 +93,7 @@ function Invoke-RouteBCommand {
         -ArgumentList $Arguments `
         -WorkingDirectory $WorkingDirectory `
         -EvidenceDirectory (Join-Path $OutputDirectory 'commands') `
+        -EvidenceRoot $OutputDirectory `
         -EnvironmentAllowlist @{
             RUNNER_NAME = [string]$env:RUNNER_NAME
             RUNNER_OS = [string]$env:RUNNER_OS
@@ -109,7 +110,17 @@ function Assert-ExitZero {
 
 function Read-CommandText {
     param([Parameter(Mandatory = $true)] [object]$Result)
-    return (Get-Content -LiteralPath $Result.stdout_path -Raw -ErrorAction Stop).Trim()
+
+    # Preserve a legitimate readable zero-byte stdout as an empty string while
+    # keeping missing or unreadable evidence fail-closed through ErrorAction Stop.
+    $capturedOutput = Get-Content `
+        -LiteralPath $Result.stdout_path `
+        -Raw `
+        -ErrorAction Stop
+    if ($null -eq $capturedOutput) {
+        return ''
+    }
+    return $capturedOutput.Trim()
 }
 
 function Get-CMakeCacheValue {
