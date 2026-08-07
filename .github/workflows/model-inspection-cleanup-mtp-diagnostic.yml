@@ -1,0 +1,66 @@
+name: Model Inspection cleanup MTP diagnostic
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-inspection-cleanup-mtp-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-without-legacy-logger:
+    name: Run contract tests without legacy logger
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    env:
+      CONTRACT_TEST_PROJECT: tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
+      RESULTS_DIRECTORY: TestResults/DiagnosticContracts
+
+    steps:
+      - name: Check out diagnostic inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            .github
+            shared
+            tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Restore contract tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet restore "$env:CONTRACT_TEST_PROJECT"
+          if ($LASTEXITCODE -ne 0) {
+            throw "contract restore failed: $LASTEXITCODE"
+          }
+
+      - name: Check restored TRX reporter dependency
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $assetsPath = 'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/obj/project.assets.json'
+          $assets = Get-Content -LiteralPath $assetsPath -Raw
+          $hasTrxReporter = $assets.Contains('Microsoft.Testing.Extensions.TrxReport/', [System.StringComparison]::OrdinalIgnoreCase)
+          Write-Host "trx_reporter_present=$hasTrxReporter"
+
+      - name: Run complete contract project without legacy logger
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet test "$env:CONTRACT_TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --minimum-expected-tests 75 `
+            --results-directory "$env:RESULTS_DIRECTORY"
+          if ($LASTEXITCODE -ne 0) {
+            throw "contract diagnostic failed: $LASTEXITCODE"
+          }
