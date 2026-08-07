@@ -33,27 +33,32 @@
 - Consumes: the documented-build workflow as plain text through existing `DocumentedBuildWorkflowContractTests.workflow`.
 - Produces: `test_self_hosted_collection_jobs_use_process_scoped_powershell_shell`, a regression contract that fails unless every self-hosted collection job uses the approved custom shell without a conflicting step-level shell override.
 
-- [ ] **Step 1: Add a helper that isolates one job block**
+- [ ] **Step 1: Import `re` and add a helper that isolates one top-level job block**
 
-Add this helper inside `DocumentedBuildWorkflowContractTests`:
+Add `import re` alongside the existing imports, then add this helper inside `DocumentedBuildWorkflowContractTests`:
 
 ```python
     def _job_block(self, job_id: str) -> str:
-        # Locate the requested top-level job declaration in the workflow text.
+        # Locate the requested top-level job declaration exactly. Workflow job
+        # IDs are indented by two spaces; nested keys use deeper indentation.
         marker = f"  {job_id}:\n"
         start = self.workflow.index(marker)
+        content_start = start + len(marker)
 
-        # Find the next top-level job declaration so assertions stay scoped to
-        # this job instead of accidentally passing because another job matches.
-        next_job = self.workflow.find("\n  ", start + len(marker))
-        while next_job != -1:
-            candidate_line = self.workflow[next_job + 1 :].splitlines()[0]
-            if candidate_line.startswith("  ") and candidate_line.endswith(":"):
-                break
-            next_job = self.workflow.find("\n  ", next_job + 3)
+        # Match only a later line with exactly two leading spaces and a YAML
+        # mapping key. This avoids mistaking nested keys such as `steps:` or
+        # `run:` for the next job declaration.
+        next_job = re.search(
+            r"(?m)^  [A-Za-z0-9_-]+:\s*$",
+            self.workflow[content_start:],
+        )
 
-        # The final job extends to end-of-file when there is no following job.
-        end = len(self.workflow) if next_job == -1 else next_job
+        # The final job extends to end-of-file when no later job exists.
+        end = (
+            len(self.workflow)
+            if next_job is None
+            else content_start + next_job.start()
+        )
         return self.workflow[start:end]
 ```
 
