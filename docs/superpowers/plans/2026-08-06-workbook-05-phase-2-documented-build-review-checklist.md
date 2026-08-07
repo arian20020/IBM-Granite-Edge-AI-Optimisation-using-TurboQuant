@@ -31,7 +31,7 @@ This checklist is the B1/R9 review gate for the Phase 2 documented-build specifi
 - [x] Short external roots `C:\w5a` and `C:\w5b` are required.
 - [x] Existing run directories are rejected rather than silently reused or cleaned.
 - [x] Git long-path handling is repository-scoped only.
-- [x] Workflow checkout is sparse to avoid unrelated Windows path failures.
+- [x] Workflow checkout is sparse to avoid unrelated Windows path failures while still including every data/document family consumed by the full Workbook 05 suite.
 - [x] Each self-hosted job has a 360-minute timeout.
 - [x] Resource sampling interval is two seconds.
 - [x] Low-memory, high-commit and heartbeat stop thresholds are explicit.
@@ -81,20 +81,29 @@ This checklist is the B1/R9 review gate for the Phase 2 documented-build specifi
 - [x] The original corrupted Runtime/module blobs reproduce the intended source-integrity failure condition.
 - [x] The repaired Runtime/module sources are stored by GitHub as ordinary readable UTF-8 text.
 - [x] Focused contracts cover typed resource summaries, JSON record collections, machine-path semantics and GenAI safety-stop classification.
-- [x] Full Workbook 05 regression and WinUI regression are required before R9 closure.
 - [x] Zero-test or skipped-test green outcomes cannot pass Route B.
-- [ ] Exact-head Windows repository gate passes.
-- [ ] Exact-head WinUI build/test passes.
+- [x] Exact implementation head `838df2253e92869ac8ac8413f24b7b5b4fa7f8ca` passed the complete Windows repository gate in workflow run `31141888900`, job `92753405696`: full Workbook 05 discovery ran 212 tests with 212 passing; the explicit workflow/security rerun ran 15 tests with 15 passing; the gate emitted `WORKBOOK05_BUILD_STAGE_GATE_PASS`.
+- [x] The same exact implementation head passed the independent WinUI workflow in run `31141886760`, job `92753362124`: application build succeeded, packaged unit/UI-thread execution ran 134 tests with 134 passing, zero errors, and one non-fatal `NETSDK1198` publish-profile warning.
+- [x] WinUI test-result artifact `unit-test-results-31141886760-1`, artifact ID `8980148692`, was uploaded with SHA-256 `561130c4f0ff1bd1ce8f678452bc8c2ab147d980d76a6e2062a2ba33ef6206b5`.
 - [ ] Route A Runtime live build bundle passes hosted validation.
 - [ ] Route A GenAI live build bundle passes hosted validation or records a truthful reviewed blocker.
 
-## Current GitHub Actions availability boundary
+## Pull-request boundary review
 
-- [x] Earlier run `31125287834`, job `92694559140`, executed zero repository steps and was cancelled because a GitHub-hosted runner did not acquire the job.
-- [x] That cancellation is recorded as an external runner-allocation event rather than a source/test failure.
-- [x] GitHub's 2026-08-06 Actions incident reports runner-assignment recovery and throttled push/pull-request webhook triggers.
-- [x] No exact-head green CI claim is made while the current head has no trustworthy completed Windows run.
-- [ ] Re-run/check the full exact-head Windows gate after GitHub Actions/webhook throughput recovers.
+- [x] PR #50 currently changes 34 repository files, all within workflow, documentation, Workbook 05 schemas/manifests, testing scripts, and tests.
+- [x] PR #50 adds no WinUI application production source file.
+- [x] PR #50 commits no external OpenVINO source tree or source file.
+- [x] PR #50 commits no executable, library, archive, wheel, model, GGUF, safetensors, or other binary/model payload.
+- [x] GitHub reports no inline review threads on PR #50.
+- [x] The stacked draft/merge boundary remains unchanged; this checklist does not authorise merging any dependent PR.
+
+## GitHub Actions recovery evidence
+
+- [x] Earlier GitHub Actions runner-allocation/webhook failures were kept separate from repository failures.
+- [x] After service recovery, exact-head CI reproduced and isolated the PowerShell interpolation defect and incomplete sparse checkout rather than treating them as infrastructure failures.
+- [x] The interpolation defect was repaired with a RED/GREEN regression contract.
+- [x] The sparse-checkout defect was repaired using the already-proven source-admission workflow as the comparison pattern, with a RED/GREEN regression contract covering every full-suite input family.
+- [x] Subsequent exact implementation-head Windows and WinUI runs completed successfully as recorded above.
 
 ## Scientific claim boundary
 
@@ -107,6 +116,8 @@ This checklist is the B1/R9 review gate for the Phase 2 documented-build specifi
 
 ## Current decision
 
-Task 8 implementation review is complete at the document/code-contract level, including the outage-time integrity and evidence-validation hardening. Its exact-head Windows repository/WinUI verification remains open because GitHub Actions is externally degraded. Task 9 live Route A Runtime/GenAI execution remains open and cannot begin until the static gate is green and the workflow is available through the reviewed default-branch dispatch boundary. Task 10 is closed as `Blocked` from the available BR8 evidence.
+Task 8 has passed its implementation-head repository gate, WinUI regression, and PR-boundary review. This checklist-only commit records those results but does not itself alter executable behaviour. Fresh CI for the resulting documentation head is still required before the final Task 8 closure is claimed.
 
-Current reviewed source head before this checklist-only update: `2f5f1c2d489ea4b394ff85e01f23af9f6be2a362`. This checklist update changes documentation only and does not upgrade any build, activation, model, performance or quality claim.
+Task 9 live Route A Runtime/GenAI execution remains open. The reviewed workflow exposes those stages through `workflow_dispatch`; the safe deployment/dispatch boundary must be available before either stage is run. No Granite model, activation, packed-storage, performance, or quality work is authorised by Task 8.
+
+Task 10 remains closed as `Blocked` from the available BR8 evidence.
