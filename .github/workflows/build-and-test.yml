@@ -59,8 +59,9 @@ jobs:
             infrastructure
             scripts
             shared
-            workers
             tests
+            tools
+            workers
 
       # Every script-owned GGUF fixture must be reproducible before any build
       # result can be trusted.
