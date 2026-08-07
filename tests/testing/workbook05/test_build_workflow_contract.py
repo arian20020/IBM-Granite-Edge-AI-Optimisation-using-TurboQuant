@@ -140,6 +140,31 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
                 # recreate the exact PSSecurityException seen in run 31177582965.
                 self.assertNotIn("\n        shell: powershell\n", block)
 
+    def test_hosted_bundle_validators_receive_temporary_python_dependencies(
+        self,
+    ) -> None:
+        # The repository gate installs jsonschema beneath RUNNER_TEMP and then
+        # correctly restores its caller's PYTHONPATH. The later hosted validator
+        # step is a new process, so it must explicitly receive that temporary
+        # dependency directory rather than relying on cross-step process state.
+        expected = (
+            "- name: Validate artifact as untrusted data\n"
+            "        env:\n"
+            "          PYTHONPATH: ${{ runner.temp }}\\workbook05-build-stage-python\n"
+        )
+
+        # Every hosted build-bundle validator imports the same Python validation
+        # module and therefore shares the same dependency hand-off contract.
+        for job_id in (
+            "validate-route-a-runtime",
+            "validate-route-a-genai",
+            "validate-route-b-runtime",
+            "validate-route-b-genai",
+        ):
+            with self.subTest(job_id=job_id):
+                block = self._job_block(job_id)
+                self.assertIn(expected, block)
+
     def test_each_stage_runs_gate_collects_text_and_has_hosted_validation(self) -> None:
         expected_jobs = (
             "verify-build-contract:",
