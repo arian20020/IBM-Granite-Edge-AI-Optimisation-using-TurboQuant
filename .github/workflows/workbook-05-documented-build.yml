@@ -181,6 +181,10 @@ jobs:
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
       - name: Validate artifact as untrusted data
+        # The gate restores PYTHONPATH, so this new process receives only the
+        # same pinned temporary dependency directory needed by the validator.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
         shell: powershell
         run: >-
           python -m scripts.testing.workbook05.build_bundle_validation
@@ -266,6 +270,9 @@ jobs:
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
       - name: Validate artifact as untrusted data
+        # Keep dependency visibility scoped to this validator process only.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
         shell: powershell
         run: >-
           python -m scripts.testing.workbook05.build_bundle_validation
@@ -366,6 +373,9 @@ jobs:
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
       - name: Validate artifact as untrusted data
+        # Keep the pinned dependency hand-off identical for every hosted validator.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
         shell: powershell
         run: >-
           python -m scripts.testing.workbook05.build_bundle_validation
@@ -467,6 +477,9 @@ jobs:
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
       - name: Validate blocked artifact as untrusted data
+        # The blocked Route B GenAI boundary still uses the same trusted validator.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
         shell: powershell
         run: >-
           python -m scripts.testing.workbook05.build_bundle_validation
