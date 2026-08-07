@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "workbook_id": "WB-05",
+  "workbook_revision": "1.4",
+  "phase_id": "phase-2-documented-build",
+  "routes": [
+    {
+      "route_id": "route-a-merged-openvino",
+      "enabled": true,
+      "prerequisite_status": "Accepted",
+      "prerequisite_evidence_path": "phase-1/route-a-source-admission.json"
+    },
+    {
+      "route_id": "route-b-experimental-qjl-polar",
+      "enabled": false,
+      "prerequisite_status": "Blocked",
+      "prerequisite_evidence_path": "docs/testing/workbook05/2026-08-06-route-b-phase-2-closure.md"
+    }
+  ],
+  "granite_model_test_authorised": false,
+  "activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false
+}

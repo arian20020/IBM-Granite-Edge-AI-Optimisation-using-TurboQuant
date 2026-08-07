@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/workbook05/build-compatibility-attempt.schema.json",
+  "title": "Workbook 05 Runtime and GenAI compatibility attempt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "record_type",
+    "route_id",
+    "component",
+    "runtime_route_id",
+    "runtime_source_commit",
+    "genai_source_commit",
+    "openvino_config_directory",
+    "configure_command_id",
+    "build_command_id",
+    "install_command_id",
+    "status",
+    "retained",
+    "reason",
+    "evidence_paths"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "campaign_id": {"const": "GTQ-WB05-MF-v1"},
+    "record_type": {"const": "build-compatibility-attempt"},
+    "route_id": {"enum": ["route-a-merged-openvino", "route-b-experimental-qjl-polar"]},
+    "component": {"const": "genai"},
+    "runtime_route_id": {"enum": ["route-a-merged-openvino", "route-b-experimental-qjl-polar"]},
+    "runtime_source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "genai_source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "openvino_config_directory": {"type": "string", "minLength": 1},
+    "configure_command_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "build_command_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "install_command_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "status": {"enum": ["Passed", "Failed", "Blocked", "Infrastructure interrupted", "Not applicable"]},
+    "retained": {"type": "boolean"},
+    "reason": {"type": "string", "minLength": 1},
+    "evidence_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+  }
+}
