@@ -1,0 +1,380 @@
+name: Phase 1 Task 1 selector characterization temporary
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+    paths:
+      - .github/workflows/phase1-task1-selector-characterization.yml
+
+permissions:
+  contents: write
+
+jobs:
+  characterize-selector:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    env:
+      APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+      TEST_PROJECT: 'tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj'
+      TEST_RECIPE: 'tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
+      OLD_TEST_PATH: 'tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs'
+      NEW_TEST_PATH: 'tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs'
+      TEST_CLASS: 'GraniteEdgeAI.UnitTests.InspectionContentTemplateSelectorTests'
+
+    steps:
+      - name: Check out cleanup branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: refactor/model-inspection-cleanup
+          fetch-depth: 0
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Add x64 MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+        with:
+          msbuild-architecture: x64
+
+      - name: Move selector tests without changing content
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          if (-not (Test-Path -LiteralPath $env:OLD_TEST_PATH -PathType Leaf)) {
+            throw "Expected selector test was not found at $env:OLD_TEST_PATH"
+          }
+          if (Test-Path -LiteralPath $env:NEW_TEST_PATH) {
+            throw "Destination selector test already exists at $env:NEW_TEST_PATH"
+          }
+
+          $oldHash = (Get-FileHash -LiteralPath $env:OLD_TEST_PATH -Algorithm SHA256).Hash
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $env:NEW_TEST_PATH) | Out-Null
+          git mv -- $env:OLD_TEST_PATH $env:NEW_TEST_PATH
+          if ($LASTEXITCODE -ne 0) {
+            throw "git mv failed with code $LASTEXITCODE"
+          }
+
+          $newHash = (Get-FileHash -LiteralPath $env:NEW_TEST_PATH -Algorithm SHA256).Hash
+          if ($oldHash -ne $newHash) {
+            throw 'The initial selector-test move changed file content'
+          }
+
+      - name: Stage the moved tree at a short path
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $buildRoot = 'D:\s'
+          if (Test-Path -LiteralPath $buildRoot) {
+            Remove-Item -LiteralPath $buildRoot -Recurse -Force
+          }
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage build inputs at $buildRoot"
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Build moved selector tests
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          msbuild "$env:APP_PROJECT" `
+            /target:Restore `
+            /property:Configuration=Release `
+            /property:Platform=x64 `
+            /property:RuntimeIdentifier=win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "WinUI restore failed with code $LASTEXITCODE"
+          }
+
+          dotnet restore "$env:TEST_PROJECT" --runtime win-x64 -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Test restore failed with code $LASTEXITCODE"
+          }
+
+          msbuild "$env:APP_PROJECT" `
+            /target:Build `
+            /maxCpuCount `
+            /verbosity:minimal `
+            /property:Configuration=Release `
+            /property:Platform=x64 `
+            /property:RuntimeIdentifier=win-x64 `
+            /property:PublishProfile= `
+            /property:PublishTrimmed=false `
+            /property:PublishReadyToRun=false `
+            /property:AppxPackageSigningEnabled=false `
+            /property:GenerateAppxPackageOnBuild=false
+          if ($LASTEXITCODE -ne 0) {
+            throw "WinUI build failed with code $LASTEXITCODE"
+          }
+
+          dotnet build "$env:TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Test build failed with code $LASTEXITCODE"
+          }
+
+      - name: Run the five moved characterization tests
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+          if (-not $vstest) {
+            throw 'Visual Studio app-container test runner was not found'
+          }
+
+          $resultsDirectory = 'D:\s\TestResults\Phase1Task1Before'
+          New-Item -ItemType Directory -Force -Path $resultsDirectory | Out-Null
+          & $vstest `
+            "D:\s\$env:TEST_RECIPE" `
+            /Platform:x64 `
+            "/TestCaseFilter:FullyQualifiedName~$env:TEST_CLASS" `
+            /Logger:"trx;LogFileName=SelectorBefore.trx" `
+            /ResultsDirectory:$resultsDirectory
+          if ($LASTEXITCODE -ne 0) {
+            throw "The five-test selector characterization run failed with code $LASTEXITCODE"
+          }
+
+          [xml]$trx = Get-Content -LiteralPath (Join-Path $resultsDirectory 'SelectorBefore.trx') -Raw
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if ([int]$counters.total -ne 5 -or
+              [int]$counters.executed -ne 5 -or
+              [int]$counters.passed -ne 5 -or
+              [int]$counters.failed -ne 0) {
+            throw "Expected exactly 5 passing moved selector tests, got total=$($counters.total) executed=$($counters.executed) passed=$($counters.passed) failed=$($counters.failed)"
+          }
+
+      - name: Add the three missing selector routes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $path = $env:NEW_TEST_PATH
+          $text = Get-Content -LiteralPath $path -Raw
+          $needle = '    private static InspectionContentTemplateSelector CreateSelector('
+          if (-not $text.Contains($needle, [System.StringComparison]::Ordinal)) {
+            throw 'Could not locate the selector-test helper insertion point'
+          }
+
+          $tests = @'
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectTemplate_WithContentPresenterAsItem_UsesPresenterContent()
+    {
+        DataTemplate progressTemplate = new();
+        DataTemplate findingsTemplate = new();
+        InspectionContentTemplateSelector selector =
+            CreateSelector(progressTemplate, findingsTemplate);
+        ContentPresenter presenter = new()
+        {
+            Content = CreateProgressPresentation()
+        };
+
+        DataTemplate selectedTemplate = selector.SelectTemplate(presenter);
+
+        Assert.AreSame(progressTemplate, selectedTemplate);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectTemplate_WithContentControlContainer_UsesContainerContent()
+    {
+        DataTemplate progressTemplate = new();
+        DataTemplate findingsTemplate = new();
+        InspectionContentTemplateSelector selector =
+            CreateSelector(progressTemplate, findingsTemplate);
+        ContentControl container = new()
+        {
+            Content = CreateProgressPresentation()
+        };
+
+        DataTemplate selectedTemplate = selector.SelectTemplate(new object(), container);
+
+        Assert.AreSame(progressTemplate, selectedTemplate);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void SelectTemplate_WithContentPresenterContainer_UsesContainerContent()
+    {
+        DataTemplate progressTemplate = new();
+        DataTemplate findingsTemplate = new();
+        InspectionContentTemplateSelector selector =
+            CreateSelector(progressTemplate, findingsTemplate);
+        ContentPresenter container = new()
+        {
+            Content = CreateProgressPresentation()
+        };
+
+        DataTemplate selectedTemplate = selector.SelectTemplate(new object(), container);
+
+        Assert.AreSame(progressTemplate, selectedTemplate);
+    }
+
+'@
+
+          $updated = $text.Replace(
+            $needle,
+            $tests + $needle,
+            [System.StringComparison]::Ordinal)
+          if ($updated -eq $text) {
+            throw 'The selector tests were not updated'
+          }
+
+          [System.IO.File]::WriteAllText(
+            (Resolve-Path -LiteralPath $path).Path,
+            $updated,
+            [System.Text.UTF8Encoding]::new($false))
+
+          Copy-Item `
+            -LiteralPath $path `
+            -Destination (Join-Path 'D:\s' $path) `
+            -Force
+
+      - name: Build the eight-test characterization suite
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet build "$env:TEST_PROJECT" `
+            --configuration Release `
+            --no-restore `
+            --runtime win-x64 `
+            -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Updated test build failed with code $LASTEXITCODE"
+          }
+
+      - name: Run all eight selector characterization tests
+        shell: pwsh
+        working-directory: D:\s
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+          if (-not $vstest) {
+            throw 'Visual Studio app-container test runner was not found'
+          }
+
+          $resultsDirectory = 'D:\s\TestResults\Phase1Task1After'
+          New-Item -ItemType Directory -Force -Path $resultsDirectory | Out-Null
+          & $vstest `
+            "D:\s\$env:TEST_RECIPE" `
+            /Platform:x64 `
+            "/TestCaseFilter:FullyQualifiedName~$env:TEST_CLASS" `
+            /Logger:"trx;LogFileName=SelectorAfter.trx" `
+            /ResultsDirectory:$resultsDirectory
+          if ($LASTEXITCODE -ne 0) {
+            throw "The eight-test selector characterization run failed with code $LASTEXITCODE"
+          }
+
+          [xml]$trx = Get-Content -LiteralPath (Join-Path $resultsDirectory 'SelectorAfter.trx') -Raw
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if ([int]$counters.total -ne 8 -or
+              [int]$counters.executed -ne 8 -or
+              [int]$counters.passed -ne 8 -or
+              [int]$counters.failed -ne 0) {
+            throw "Expected exactly 8 passing selector tests, got total=$($counters.total) executed=$($counters.executed) passed=$($counters.passed) failed=$($counters.failed)"
+          }
+
+      - name: Keep the permanent cleanup inventory valid after the move
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $sourcePath = 'docs/reviews/model-inspection-cleanup-source-files.txt'
+          $inventoryPath = 'docs/reviews/model-inspection-cleanup-inventory.md'
+          $sourceLines = @(Get-Content -LiteralPath $sourcePath)
+
+          if ($sourceLines -notcontains $env:OLD_TEST_PATH) {
+            throw 'The permanent source list did not contain the old selector-test path'
+          }
+          if ($sourceLines -contains $env:NEW_TEST_PATH) {
+            throw 'The permanent source list already contained the new selector-test path'
+          }
+
+          $updatedSources = @(
+            $sourceLines |
+              ForEach-Object {
+                if ($_ -eq $env:OLD_TEST_PATH) { $env:NEW_TEST_PATH } else { $_ }
+              } |
+              Sort-Object -CaseSensitive
+          )
+          [System.IO.File]::WriteAllLines(
+            (Resolve-Path -LiteralPath $sourcePath).Path,
+            $updatedSources,
+            [System.Text.UTF8Encoding]::new($false))
+
+          $inventory = Get-Content -LiteralPath $inventoryPath -Raw
+          $oldToken = "``$env:OLD_TEST_PATH``"
+          $newToken = "``$env:NEW_TEST_PATH``"
+          $occurrences = ([regex]::Matches(
+            $inventory,
+            [regex]::Escape($oldToken))).Count
+          if ($occurrences -ne 1) {
+            throw "Expected exactly one inventory row for the old selector-test path, found $occurrences"
+          }
+          $inventory = $inventory.Replace(
+            $oldToken,
+            $newToken,
+            [System.StringComparison]::Ordinal)
+          [System.IO.File]::WriteAllText(
+            (Resolve-Path -LiteralPath $inventoryPath).Path,
+            $inventory,
+            [System.Text.UTF8Encoding]::new($false))
+
+          & '.\scripts\model-inspection\Verify-ModelInspectionCleanupInventory.ps1'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Cleanup inventory verification exited with code $LASTEXITCODE"
+          }
+
+      - name: Commit Task 1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $changedFiles = @(git status --short)
+          if ($LASTEXITCODE -ne 0) {
+            throw 'git status failed before the Task 1 commit'
+          }
+          $changedFiles | ForEach-Object { Write-Host $_ }
+
+          git config user.name 'arian20020'
+          git config user.email 'arian20020@outlook.com'
+          git add -- `
+            $env:OLD_TEST_PATH `
+            $env:NEW_TEST_PATH `
+            'docs/reviews/model-inspection-cleanup-source-files.txt' `
+            'docs/reviews/model-inspection-cleanup-inventory.md'
+          if ($LASTEXITCODE -ne 0) {
+            throw "git add failed with code $LASTEXITCODE"
+          }
+
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Task 1 staged diff failed git diff --check'
+          }
+
+          git commit -m 'test(model-inspection): complete selector route characterization'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Task 1 commit failed with code $LASTEXITCODE"
+          }
+
+          git push origin HEAD:refactor/model-inspection-cleanup
+          if ($LASTEXITCODE -ne 0) {
+            throw "Task 1 push failed with code $LASTEXITCODE"
+          }
