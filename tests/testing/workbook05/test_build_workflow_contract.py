@@ -145,16 +145,15 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
     ) -> None:
         # The repository gate installs jsonschema beneath RUNNER_TEMP and then
         # correctly restores its caller's PYTHONPATH. The later hosted validator
-        # step is a new process, so it must explicitly receive that temporary
-        # dependency directory rather than relying on cross-step process state.
-        expected = (
-            "- name: Validate artifact as untrusted data\n"
-            "        env:\n"
-            "          PYTHONPATH: ${{ runner.temp }}\\workbook05-build-stage-python\n"
+        # step is a new process, so its job block must explicitly contain the
+        # temporary dependency path rather than rely on cross-step process state.
+        expected_pythonpath = (
+            "PYTHONPATH: ${{ runner.temp }}\\workbook05-build-stage-python"
         )
 
         # Every hosted build-bundle validator imports the same Python validation
-        # module and therefore shares the same dependency hand-off contract.
+        # module. Scope the assertion to each job so an unrelated workflow env
+        # declaration cannot accidentally satisfy this contract.
         for job_id in (
             "validate-route-a-runtime",
             "validate-route-a-genai",
@@ -163,7 +162,12 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
         ):
             with self.subTest(job_id=job_id):
                 block = self._job_block(job_id)
-                self.assertIn(expected, block)
+                self.assertIn(
+                    "scripts.testing.workbook05.build_bundle_validation",
+                    block,
+                )
+                self.assertIn(expected_pythonpath, block)
+                self.assertEqual(1, block.count(expected_pythonpath))
 
     def test_each_stage_runs_gate_collects_text_and_has_hosted_validation(self) -> None:
         expected_jobs = (
