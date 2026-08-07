@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - refactor/model-inspection-cleanup
+    paths:
+      - .github/workflows/cleanup-inventory-sort-temp.yml
 
 permissions:
   contents: write
@@ -23,7 +25,9 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Sort source list and matching ledger rows
+        shell: bash
         run: |
+          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
@@ -68,14 +72,18 @@ jobs:
           PY
 
       - name: Commit ordinal ordering
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- 'docs/reviews/model-inspection-cleanup-source-files.txt' 'docs/reviews/model-inspection-cleanup-inventory.md'
-          git diff --cached --quiet
-          if [ $? -eq 0 ]; then
+          git add -- \
+            'docs/reviews/model-inspection-cleanup-source-files.txt' \
+            'docs/reviews/model-inspection-cleanup-inventory.md'
+          if git diff --cached --quiet; then
             echo 'cleanup inventory is already ordinal sorted'
             exit 0
           fi
+          git diff --cached --check
           git commit -m 'docs(model-inspection): use deterministic inventory ordering'
           git push origin HEAD:refactor/model-inspection-cleanup
