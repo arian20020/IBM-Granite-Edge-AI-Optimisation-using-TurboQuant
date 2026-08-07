@@ -1,0 +1,124 @@
+name: Phase 1 Task 6 xBind warning baseline
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+    paths:
+      - '.github/workflows/phase1-task6-xbind-warning.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+    working-directory: D:\s
+
+env:
+  APP_PROJECT: 'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+
+jobs:
+  capture-warning-baseline:
+    name: Capture WMC1506 baseline
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out required build inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          sparse-checkout: |
+            .github
+            docs
+            IBM Granite with TurboQuant (Intel)
+            infrastructure
+            scripts
+            shared
+            tests
+            tools
+            workers
+
+      - name: Stage build inputs at a short path
+        working-directory: ${{ github.workspace }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $buildRoot = 'D:\s'
+          robocopy $env:GITHUB_WORKSPACE $buildRoot /E /XD .git
+          if ($LASTEXITCODE -ge 8) {
+            throw "Failed to stage build inputs at $buildRoot"
+          }
+          $global:LASTEXITCODE = 0
+          if (-not (Test-Path (Join-Path $buildRoot 'global.json'))) {
+            throw 'The staged checkout is incomplete: global.json was not found'
+          }
+
+      - name: Set up .NET SDK from global.json
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: D:/s/global.json
+
+      - name: Add x64 MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57
+        with:
+          msbuild-architecture: x64
+
+      - name: Restore WinUI application
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msbuild "$env:APP_PROJECT" `
+            /target:Restore `
+            /property:Configuration=Release `
+            /property:Platform=x64 `
+            /property:RuntimeIdentifier=win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "WinUI restore failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Capture expected WMC1506 baseline
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $logPath = Join-Path $env:RUNNER_TEMP 'phase1-winui-build-before.log'
+
+          msbuild "$env:APP_PROJECT" `
+            /target:Build `
+            /maxCpuCount `
+            /verbosity:minimal `
+            /property:Configuration=Release `
+            /property:Platform=x64 `
+            /property:RuntimeIdentifier=win-x64 `
+            /property:PublishProfile= `
+            /property:PublishTrimmed=false `
+            /property:PublishReadyToRun=false `
+            /property:AppxPackageSigningEnabled=false `
+            /property:GenerateAppxPackageOnBuild=false 2>&1 |
+            Tee-Object -FilePath $logPath
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "WinUI build failed with exit code $LASTEXITCODE"
+          }
+
+          $wmcWarnings = @(
+            Select-String -LiteralPath $logPath -Pattern 'WMC1506'
+          )
+
+          if ($wmcWarnings.Count -eq 0) {
+            throw 'Expected the Phase 0 WMC1506 baseline before binding cleanup'
+          }
+
+          $locations = @(
+            foreach ($warning in $wmcWarnings) {
+              if ($warning.Line -match '([^\r\n]+\.xaml)\((\d+),(\d+)\)') {
+                "$($Matches[1])($($Matches[2]),$($Matches[3]))"
+              }
+            }
+          ) | Sort-Object -Unique
+
+          Write-Host "WMC1506 matches: $($wmcWarnings.Count)"
+          Write-Host "WMC1506 distinct locations: $($locations.Count)"
+          $locations | ForEach-Object { Write-Host $_ }
+
+          if ($locations.Count -ne 46) {
+            throw "Expected 46 distinct WMC1506 locations but found $($locations.Count)"
+          }
