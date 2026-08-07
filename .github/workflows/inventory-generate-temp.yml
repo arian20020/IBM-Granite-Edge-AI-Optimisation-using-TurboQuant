@@ -1,0 +1,144 @@
+name: Cleanup inventory generator temporary
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: cleanup-inventory-generator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate cleanup inventory files
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Generate source list and review ledger
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $repository = '${{ github.repository }}'
+          $sourcePath = 'docs/reviews/model-inspection-cleanup-source-files.txt'
+          $inventoryPath = 'docs/reviews/model-inspection-cleanup-inventory.md'
+
+          function Test-ScopePath([string]$Path) {
+            $normalized = $Path.Replace('\', '/')
+            $prefixes = @(
+              'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/'
+              'shared/GraniteEdgeAI.ModelInspection.Contracts/'
+              'shared/GraniteEdgeAI.ModelInspection.Transport/'
+              'infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/'
+              'workers/GraniteEdgeAI.ModelInspection.Worker/'
+              'tools/ModelInspection.LlamaSharpSpike'
+              'tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/'
+              'tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/'
+              'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/'
+              'tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/'
+              'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/'
+              'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/'
+              'scripts/model-inspection/'
+            )
+            if ($prefixes | Where-Object { $normalized.StartsWith($_, [StringComparison]::Ordinal) }) { return $true }
+            if ($normalized.StartsWith('IBM Granite with TurboQuant (Intel)/Features/ModelImport/', [StringComparison]::Ordinal) -or
+                $normalized.StartsWith('IBM Granite with TurboQuant (Intel)/Features/Onboarding/', [StringComparison]::Ordinal) -or
+                $normalized.StartsWith('tests/UnitTests/GraniteEdgeAI.UnitTests/', [StringComparison]::Ordinal)) {
+              return (Test-Path -LiteralPath $normalized -PathType Leaf) -and
+                (Get-Content -LiteralPath $normalized -Raw).Contains('ModelInspection', [StringComparison]::OrdinalIgnoreCase)
+            }
+            if ($normalized -eq '.github/workflows/build-and-test.yml' -or
+                $normalized -match '^\.github/workflows/(llamasharp|model-inspection)-.*\.yml$') { return $true }
+            if ($normalized.StartsWith('docs/', [StringComparison]::Ordinal) -and
+                ($normalized.Contains('model-inspection', [StringComparison]::OrdinalIgnoreCase) -or
+                 $normalized.Contains('llamasharp', [StringComparison]::OrdinalIgnoreCase))) { return $true }
+            return $normalized -in @(
+              'IBM Granite with TurboQuant (Intel).slnx'
+              'IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj'
+              'IBM Granite with TurboQuant (Intel)/MainWindow.xaml'
+              'IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs'
+              'shared/README.md'
+              'infrastructure/README.md'
+              'workers/README.md'
+              'tools/README.md'
+            )
+          }
+
+          $prFiles = foreach ($prNumber in 44,45,47) {
+            gh api --paginate "repos/$repository/pulls/$prNumber/files?per_page=100" --jq '.[].filename'
+            if ($LASTEXITCODE -ne 0) { throw "failed to read PR $prNumber files" }
+          }
+          $currentScope = git ls-files | Where-Object { Test-ScopePath $_ }
+          if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed' }
+          $allFiles = @($prFiles + $currentScope + $sourcePath + $inventoryPath) |
+            ForEach-Object { $_.Replace('\', '/') } |
+            Where-Object { $_ -in @($sourcePath,$inventoryPath) -or (Test-Path -LiteralPath $_ -PathType Leaf) } |
+            Sort-Object -Unique
+
+          New-Item -ItemType Directory -Force -Path 'docs/reviews' | Out-Null
+          [IO.File]::WriteAllLines((Join-Path $PWD $sourcePath), $allFiles, [Text.UTF8Encoding]::new($false))
+
+          function Get-Subsystem([string]$Path) {
+            switch -Regex ($Path) {
+              '^IBM Granite with TurboQuant \(Intel\)/Features/ModelInspection/' { return 'WinUI Model Inspection' }
+              '^IBM Granite with TurboQuant \(Intel\)/Features/ModelImport/' { return 'Model Import handoff' }
+              '^IBM Granite with TurboQuant \(Intel\)/Features/Onboarding/' { return 'Onboarding navigation' }
+              '^shared/GraniteEdgeAI\.ModelInspection\.Contracts/' { return 'worker contracts' }
+              '^shared/GraniteEdgeAI\.ModelInspection\.Transport/' { return 'transport' }
+              '^infrastructure/GraniteEdgeAI\.ModelInspection\.WorkerClient/' { return 'WorkerClient infrastructure' }
+              '^workers/GraniteEdgeAI\.ModelInspection\.Worker/' { return 'production worker' }
+              '^tools/ModelInspection\.LlamaSharpSpike' { return 'LLamaSharp feasibility' }
+              '^tests/ProcessFixtures/' { return 'abnormal process fixture' }
+              '^tests/IntegrationTests/' { return 'process integration tests' }
+              '^tests/ContractTests/' { return 'contract and architecture tests' }
+              '^tests/UnitTests/' { return 'unit tests' }
+              '^\.github/workflows/' { return 'GitHub Actions' }
+              '^scripts/' { return 'verification scripts' }
+              '^docs/' { return 'documentation and evidence' }
+              default { return 'connected project infrastructure' }
+            }
+          }
+          function Get-Risk([string]$Path) {
+            if ($Path -match '/Windows/' -or $Path -match 'Native(Methods|Structures|Handle|Backend)' -or
+                $Path -match 'Worker(Process|Conversation|Cancellation|Executable|Environment|Handshake|Exit|Failure)' -or
+                $Path -match 'Protocol/' -or $Path -match '(Privacy|Redactor|Integrity|Hash)') { return 'critical' }
+            if ($Path -match '^workers/' -or $Path -match '^tools/ModelInspection\.LlamaSharpSpike' -or
+                $Path -match '^\.github/workflows/' -or $Path -match 'IntegrationTests|ProcessFixtures') { return 'high' }
+            if ($Path -match 'Contracts|ModelInspection|ModelImport|Onboarding|UnitTests|ContractTests') { return 'medium' }
+            return 'low'
+          }
+          $header = @(
+            '# Model Inspection Cleanup Review Inventory','',
+            '**Branch:** `refactor/model-inspection-cleanup`  ',
+            '**Base:** `a4138a613dd643abe12858eec5d1c3beb09e95e7`  ',
+            '**Source list:** `docs/reviews/model-inspection-cleanup-source-files.txt`  ','',
+            'This ledger records one review disposition for every file in the complete cleanup scope','',
+            '| File | Subsystem | Primary responsibility | Risk | Review status | Findings | Changes made | Behaviour preserved | Tests | Verification evidence | Deferred work and reason |',
+            '|---|---|---|---|---|---|---|---|---|---|---|'
+          )
+          $rows = foreach ($file in $allFiles) {
+            "| ``$file`` | $(Get-Subsystem $file) | serve the recorded subsystem boundary | $(Get-Risk $file) | pending review | not reviewed | none | baseline behaviour | to be mapped during subsystem audit | baseline pending | none |"
+          }
+          [IO.File]::WriteAllLines((Join-Path $PWD $inventoryPath), @($header + $rows), [Text.UTF8Encoding]::new($false))
+          Write-Host "source_count=$($allFiles.Count)"
+          Write-Host "inventory_count=$($rows.Count)"
+
+      - name: Upload generated inventory
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: cleanup-inventory-generated-${{ github.run_id }}
+          path: |
+            docs/reviews/model-inspection-cleanup-source-files.txt
+            docs/reviews/model-inspection-cleanup-inventory.md
+          if-no-files-found: error
+          retention-days: 7
