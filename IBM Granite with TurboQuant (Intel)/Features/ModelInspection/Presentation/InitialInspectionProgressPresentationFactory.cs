@@ -22,15 +22,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
         {
             return new InspectionContentCardPresentation
             {
-                // Select the running-inspection template.
                 Mode = InspectionContentCardMode.Progress,
-
-                // Keep the card heading stable across every progress update.
                 SectionTitle = "Inspection progress",
-
-                // No stage has completed when the page first appears.
                 ProgressSummary = $"0 of {StageCount} checks complete",
-
                 Items =
                 [
                     CreateStage(
@@ -39,11 +33,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
                         detail:
                             "Checking that the selected file still exists and " +
                             "matches the validated import.",
-                        status: InspectionContentStatus.Active,
-                        statusText: "Checking",
                         isActive: true,
-                        showConnector: true,
-                        showDetail: true),
+                        showConnector: true),
 
                     CreateStage(
                         stageNumber: "2",
@@ -51,11 +42,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
                         detail:
                             "Reading lightweight configuration through the " +
                             "pinned core runtime.",
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
                         isActive: false,
-                        showConnector: true,
-                        showDetail: false),
+                        showConnector: true),
 
                     CreateStage(
                         stageNumber: "3",
@@ -63,11 +51,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
                         detail:
                             "Checking vocabulary, special-token and " +
                             "chat-template evidence.",
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
                         isActive: false,
-                        showConnector: true,
-                        showDetail: false),
+                        showConnector: true),
 
                     CreateStage(
                         stageNumber: "4",
@@ -75,11 +60,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
                         detail:
                             "Checking architecture, context, parameters and " +
                             "model characteristics.",
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
                         isActive: false,
-                        showConnector: true,
-                        showDetail: false),
+                        showConnector: true),
 
                     CreateStage(
                         stageNumber: "5",
@@ -87,11 +69,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
                         detail:
                             "Confirming that the pinned core runtime recognises " +
                             "the model before hardware analysis.",
-                        status: InspectionContentStatus.Waiting,
-                        statusText: "Waiting",
                         isActive: false,
-                        showConnector: false,
-                        showDetail: false)
+                        showConnector: false)
                 ]
             };
         }
@@ -104,20 +83,25 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
             string stageNumber,
             string title,
             string detail,
-            InspectionContentStatus status,
-            string statusText,
             bool isActive,
-            bool showConnector,
-            bool showDetail)
+            bool showConnector)
         {
+            InspectionContentStatus status = isActive
+                ? InspectionContentStatus.Active
+                : InspectionContentStatus.Waiting;
+            string statusText = isActive
+                ? "Checking"
+                : "Waiting";
+            Visibility detailVisibility = isActive
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
             return new InspectionContentItemPresentation
             {
                 StageNumber = stageNumber,
                 Title = title,
                 Detail = detail,
-                DetailVisibility = showDetail
-                    ? Visibility.Visible
-                    : Visibility.Collapsed,
+                DetailVisibility = detailVisibility,
                 Status = status,
                 StatusText = statusText,
                 IsActive = isActive,
