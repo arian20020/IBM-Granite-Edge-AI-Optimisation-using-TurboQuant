@@ -228,6 +228,7 @@ try {
     $status = Invoke-RouteBCommand -CommandId 'route-b-git-status-verify' -FilePath $gitPath -Arguments @('-C', $sourceRoot, 'status', '--porcelain=v1') -WorkingDirectory $workspace.work_directory
     $submodules = Invoke-RouteBCommand -CommandId 'route-b-git-submodules-verify' -FilePath $gitPath -Arguments @('-C', $sourceRoot, 'submodule', 'status', '--recursive') -WorkingDirectory $workspace.work_directory
     foreach ($verification in @($remote, $head, $status, $submodules)) { Assert-ExitZero -Result $verification -Description $verification.record.command_id }
+
     $actualRemote = Read-CommandText $remote
     $actualHead = Read-CommandText $head
     $actualStatus = Read-CommandText $status
