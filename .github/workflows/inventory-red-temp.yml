@@ -1,0 +1,39 @@
+name: Cleanup inventory red proof
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup-inventory-red-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory-red:
+    name: Prove missing cleanup inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Set up repository .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+
+      - name: Restore contract tests
+        run: dotnet restore "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj"
+
+      - name: Run focused inventory contracts
+        run: |
+          dotnet test "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj" \
+            --configuration Release \
+            --no-restore \
+            --filter "FullyQualifiedName~CleanupInventoryContractTests|FullyQualifiedName~BuildWorkflowChecksOutCleanupInventoryInputs" \
+            --minimum-expected-tests 4
