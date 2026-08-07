@@ -54,8 +54,10 @@ jobs:
         with:
           sparse-checkout: |
             .github
+            docs
             IBM Granite with TurboQuant (Intel)
             infrastructure
+            scripts
             shared
             workers
             tests
