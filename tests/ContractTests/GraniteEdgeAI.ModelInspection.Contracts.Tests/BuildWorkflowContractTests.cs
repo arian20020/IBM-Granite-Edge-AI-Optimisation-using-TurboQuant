@@ -34,11 +34,71 @@ public sealed class BuildWorkflowContractTests
 
         Assert.IsFalse(
             contractStep.Contains("--filter", StringComparison.Ordinal),
-            "The complete contract project must run because the category filter discovers zero tests under the selected Microsoft Testing Platform configuration.");
+            "The dedicated contract project must run as a complete suite without a redundant category filter.");
         StringAssert.Contains(
             contractStep,
             "--minimum-expected-tests 75",
-            "The contract floor must remain after the incompatible filter is removed.");
+            "The contract floor must remain after the category filter is removed.");
+    }
+
+    [TestMethod]
+    public void BuildWorkflowUsesNativeMtpTrxReportingForGate2Tests()
+    {
+        string workflow = ReadWorkflow();
+        string[] stepNames =
+        [
+            "Run Model Inspection contract tests",
+            "Run Gate 2 transport tests",
+            "Run Gate 2 worker host tests",
+            "Run Gate 2 WorkerClient tests",
+            "Run Gate 2 real process tests"
+        ];
+
+        foreach (string stepName in stepNames)
+        {
+            string step = ExtractWorkflowStep(workflow, stepName);
+
+            Assert.IsFalse(
+                step.Contains("--logger", StringComparison.Ordinal),
+                $"The MTP test step still uses the legacy VSTest logger option: {stepName}");
+            StringAssert.Contains(
+                step,
+                "--report-trx",
+                $"The MTP test step does not enable native TRX reporting: {stepName}");
+            StringAssert.Contains(
+                step,
+                "--report-trx-filename",
+                $"The MTP test step does not give its TRX a deterministic file name: {stepName}");
+        }
+    }
+
+    [TestMethod]
+    public void Gate2MtpTestProjectsReferenceTrxReporter()
+    {
+        string[] projectPaths =
+        [
+            "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj",
+            "tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj",
+            "tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj",
+            "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj",
+            "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj"
+        ];
+
+        const string ReporterReference =
+            "<PackageReference Include=\"Microsoft.Testing.Extensions.TrxReport\" Version=\"2.3.2\" />";
+
+        foreach (string projectPath in projectPaths)
+        {
+            string absolutePath = Path.Combine(
+                Root,
+                projectPath.Replace('/', Path.DirectorySeparatorChar));
+            string project = File.ReadAllText(absolutePath);
+
+            StringAssert.Contains(
+                project,
+                ReporterReference,
+                $"The Gate 2 MTP test project does not pin the TRX reporter: {projectPath}");
+        }
     }
 
     [TestMethod]
