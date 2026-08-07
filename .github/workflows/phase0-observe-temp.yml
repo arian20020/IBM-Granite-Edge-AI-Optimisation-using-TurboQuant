@@ -1,5 +1,6 @@
 name: Phase 0 observer temporary
 
+# refresh: deterministic inventory repair
 on:
   push:
     branches:
