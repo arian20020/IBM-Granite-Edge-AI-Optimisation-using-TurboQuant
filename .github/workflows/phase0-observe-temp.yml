@@ -1,0 +1,45 @@
+name: Phase 0 observer temporary
+
+on:
+  push:
+    branches:
+      - automation/phase0-observer-temp
+    paths:
+      - .github/workflows/phase0-observe-temp.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out observer branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Capture cleanup-branch workflow runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p .phase0-observer
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/actions/runs?branch=refactor/model-inspection-cleanup&per_page=30" \
+            --jq '{workflow_runs: [.workflow_runs[] | {id,name,head_branch,head_sha,path,event,status,conclusion,run_attempt,created_at,updated_at}]}' \
+            > .phase0-observer/runs.json
+
+      - name: Commit observation snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .phase0-observer/runs.json
+          git commit -m 'chore: capture phase0 workflow snapshot'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
