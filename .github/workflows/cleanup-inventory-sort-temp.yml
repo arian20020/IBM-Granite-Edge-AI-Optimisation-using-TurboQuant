@@ -1,0 +1,81 @@
+name: Cleanup inventory ordinal sort temporary
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-inventory-ordinal-sort-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sort-inventory:
+    name: Sort cleanup inventory with ordinal ordering
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Sort source list and matching ledger rows
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('docs/reviews/model-inspection-cleanup-source-files.txt')
+          inventory_path = Path('docs/reviews/model-inspection-cleanup-inventory.md')
+
+          source_lines = [line for line in source_path.read_text(encoding='utf-8').splitlines() if line]
+          sorted_source = sorted(set(source_lines))
+          if len(sorted_source) != len(source_lines):
+              raise SystemExit('source list contains duplicates')
+
+          inventory_lines = inventory_path.read_text(encoding='utf-8').splitlines()
+          first_row = next((index for index, line in enumerate(inventory_lines) if line.startswith('| `')), None)
+          if first_row is None:
+              raise SystemExit('inventory contains no review rows')
+
+          header = inventory_lines[:first_row]
+          rows = inventory_lines[first_row:]
+          rows_by_path = {}
+          for row in rows:
+              if not row.startswith('| `'):
+                  raise SystemExit('unexpected content after inventory rows started')
+              parts = row.split('`')
+              if len(parts) < 3:
+                  raise SystemExit('inventory row does not contain a file path')
+              path = parts[1]
+              if path in rows_by_path:
+                  raise SystemExit(f'duplicate inventory row: {path}')
+              rows_by_path[path] = row
+
+          if set(rows_by_path) != set(sorted_source):
+              missing_rows = sorted(set(sorted_source) - set(rows_by_path))
+              extra_rows = sorted(set(rows_by_path) - set(sorted_source))
+              raise SystemExit(f'inventory/source mismatch missing={missing_rows} extra={extra_rows}')
+
+          source_path.write_text('\n'.join(sorted_source) + '\n', encoding='utf-8')
+          sorted_rows = [rows_by_path[path] for path in sorted_source]
+          inventory_path.write_text('\n'.join(header + sorted_rows) + '\n', encoding='utf-8')
+
+          print(f'source_count={len(sorted_source)}')
+          print(f'inventory_count={len(sorted_rows)}')
+          PY
+
+      - name: Commit ordinal ordering
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- 'docs/reviews/model-inspection-cleanup-source-files.txt' 'docs/reviews/model-inspection-cleanup-inventory.md'
+          git diff --cached --quiet
+          if [ $? -eq 0 ]; then
+            echo 'cleanup inventory is already ordinal sorted'
+            exit 0
+          fi
+          git commit -m 'docs(model-inspection): use deterministic inventory ordering'
+          git push origin HEAD:refactor/model-inspection-cleanup
