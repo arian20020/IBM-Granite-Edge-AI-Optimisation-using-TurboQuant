@@ -142,7 +142,7 @@ try {
     foreach ($powerShellTest in $powerShellTests) {
         & $powerShellTest.FullName
         if ($LASTEXITCODE -ne 0) {
-            throw "PowerShell test exited with code $LASTEXITCODE: $($powerShellTest.FullName)"
+            throw "PowerShell test exited with code $($LASTEXITCODE): $($powerShellTest.FullName)"
         }
     }
 
