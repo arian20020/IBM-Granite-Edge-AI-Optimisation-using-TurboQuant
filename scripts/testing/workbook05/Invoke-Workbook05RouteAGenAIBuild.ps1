@@ -85,6 +85,7 @@ function Invoke-GenAICommand {
     Invoke-Wb05LoggedProcess -CommandId $Id -RouteId $RouteId -Component $Component `
         -FilePath $FilePath -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory `
         -EvidenceDirectory (Join-Path $OutputDirectory 'commands') `
+        -EvidenceRoot $OutputDirectory `
         -EnvironmentAllowlist @{ RUNNER_NAME = [string]$env:RUNNER_NAME; RUNNER_OS = [string]$env:RUNNER_OS } `
         -MonitorResources:$MonitorResources
 }
@@ -102,8 +103,16 @@ function Assert-Passed {
 function Read-Result {
     param([object]$Result)
 
-    # Read only the captured stdout for one already-recorded native command.
-    (Get-Content -LiteralPath $Result.stdout_path -Raw -ErrorAction Stop).Trim()
+    # Preserve a legitimate readable zero-byte stdout as an empty string while
+    # keeping missing or unreadable evidence fail-closed through ErrorAction Stop.
+    $capturedOutput = Get-Content `
+        -LiteralPath $Result.stdout_path `
+        -Raw `
+        -ErrorAction Stop
+    if ($null -eq $capturedOutput) {
+        return ''
+    }
+    return $capturedOutput.Trim()
 }
 
 function Get-CacheValue {
