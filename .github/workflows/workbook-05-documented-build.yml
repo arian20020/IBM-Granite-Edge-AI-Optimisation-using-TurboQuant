@@ -118,18 +118,19 @@ jobs:
       inputs.stage == 'route-a-runtime'
     runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
     timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
     steps:
       - name: Check out exact control files
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with: *sparse-checkout
       - name: Run the repository gate on the Intel runner
-        shell: powershell
         run: >-
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE
           -PythonPath $env:WB05_PYTHON
       - name: Execute Route A Runtime build
-        shell: powershell
         run: |
           $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-runtime'
           & '.\scripts\testing\workbook05\Invoke-Workbook05RouteARuntimeBuild.ps1' `
@@ -139,7 +140,6 @@ jobs:
               -PythonPath $env:WB05_PYTHON
       - name: Bind bundle metadata to this exact attempt
         if: always()
-        shell: powershell
         run: |
           $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-runtime'
           & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
@@ -200,6 +200,9 @@ jobs:
       inputs.stage == 'route-a-genai'
     runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
     timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
       WB05_RUNTIME_INSTALL: ${{ inputs.runtime_install_directory }}
       WB05_RUNTIME_DECISION: ${{ inputs.runtime_decision_path }}
@@ -208,12 +211,10 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with: *sparse-checkout
       - name: Run the repository gate on the Intel runner
-        shell: powershell
         run: >-
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath $env:WB05_PYTHON
       - name: Execute source-matched Route A GenAI build
-        shell: powershell
         run: |
           $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-genai'
           & '.\scripts\testing\workbook05\Invoke-Workbook05RouteAGenAIBuild.ps1' `
@@ -224,7 +225,6 @@ jobs:
               -PythonPath $env:WB05_PYTHON
       - name: Bind bundle metadata to this exact attempt
         if: always()
-        shell: powershell
         run: |
           $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-genai'
           & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
@@ -285,6 +285,9 @@ jobs:
       inputs.stage == 'route-b-runtime'
     runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
     timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
       WB05_BR8_EXPECTED_DIGEST: ${{ inputs.br8_expected_artifact_digest }}
       WB05_BR8_ACTUAL_DIGEST: ${{ inputs.br8_actual_artifact_digest }}
@@ -294,7 +297,6 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with: *sparse-checkout
       - name: Run the repository gate on the Intel runner
-        shell: powershell
         run: >-
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath $env:WB05_PYTHON
@@ -307,7 +309,6 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.br8_run_id }}
       - name: Execute conditional Route B Runtime build
-        shell: powershell
         run: |
           $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-b-runtime'
           $accepted = [Convert]::ToBoolean($env:WB05_BR8_ACCEPTED)
@@ -320,7 +321,6 @@ jobs:
               -Br8AcceptedByProjectOwner $accepted -PythonPath $env:WB05_PYTHON
       - name: Bind bundle metadata to this exact attempt
         if: always()
-        shell: powershell
         run: |
           $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-b-runtime'
           $accepted = [Convert]::ToBoolean($env:WB05_BR8_ACCEPTED)
@@ -385,6 +385,9 @@ jobs:
       inputs.stage == 'route-b-genai'
     runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
     timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
       WB05_BR8_DIGEST: ${{ inputs.br8_actual_artifact_digest }}
       WB05_BR8_ACCEPTED: ${{ inputs.br8_accepted_by_project_owner }}
@@ -393,7 +396,6 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with: *sparse-checkout
       - name: Run the repository gate on the Intel runner
-        shell: powershell
         run: >-
           & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
           -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath $env:WB05_PYTHON
@@ -406,7 +408,6 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.br8_run_id }}
       - name: Validate BR8 and record unsupported GenAI boundary
-        shell: powershell
         run: |
           $br8 = Join-Path $env:RUNNER_TEMP 'accepted-br8'
           $report = Join-Path $env:RUNNER_TEMP 'route-b-genai-br8-validation.md'
