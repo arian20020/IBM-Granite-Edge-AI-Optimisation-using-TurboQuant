@@ -51,9 +51,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             InspectionContentCardPresentation? presentation =
                 ResolvePresentation(item, container);
 
-            // WinUI can ask for a template before the Content binding has supplied
-            // its value. The surrounding card is still collapsed at that point, so
-            // the progress template is a safe, deterministic bootstrap template.
+            // winui can ask for a template before the content binding supplies a value
+            // progress is safe because the surrounding card is still collapsed
             if (presentation is null)
             {
                 return GetRequiredTemplate(
@@ -95,36 +94,22 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             object? item,
             DependencyObject? container)
         {
-            if (item is InspectionContentCardPresentation directPresentation)
-            {
-                return directPresentation;
-            }
+            return GetPresentationFromSource(item)
+                ?? GetPresentationFromSource(container);
+        }
 
-            if (item is ContentControl itemControl &&
-                itemControl.Content is InspectionContentCardPresentation itemContent)
+        private static InspectionContentCardPresentation?
+            GetPresentationFromSource(object? source)
+        {
+            return source switch
             {
-                return itemContent;
-            }
-
-            if (item is ContentPresenter itemPresenter &&
-                itemPresenter.Content is InspectionContentCardPresentation presenterContent)
-            {
-                return presenterContent;
-            }
-
-            if (container is ContentControl containerControl &&
-                containerControl.Content is InspectionContentCardPresentation containerContent)
-            {
-                return containerContent;
-            }
-
-            if (container is ContentPresenter containerPresenter &&
-                containerPresenter.Content is InspectionContentCardPresentation containerPresenterContent)
-            {
-                return containerPresenterContent;
-            }
-
-            return null;
+                InspectionContentCardPresentation presentation => presentation,
+                ContentControl control =>
+                    control.Content as InspectionContentCardPresentation,
+                ContentPresenter presenter =>
+                    presenter.Content as InspectionContentCardPresentation,
+                _ => null
+            };
         }
 
         /// <summary>
