@@ -30,15 +30,15 @@ The permanent cleanup inventory contains:
 
 | Check | Result |
 |---|---:|
-| Expected Model Inspection source paths | 367 |
-| Recorded source paths | 367 |
-| Review ledger rows | 367 |
+| Expected Model Inspection source paths | 368 |
+| Recorded source paths | 368 |
+| Review ledger rows | 368 |
 | Duplicate source paths | 0 |
 | Missing source files | 0 |
 | Source/ledger ordering mismatches | 0 |
 | Initial rows outside `BeforeRefactoring` | 0 |
 
-The source list is compared with `StringComparer.Ordinal`, is required to be unique, and must contain only existing files. The review ledger must contain exactly the same 367 paths in the same order. Generated `bin` and `obj` build products are excluded from source discovery.
+The source list is compared with `StringComparer.Ordinal`, is required to be unique, and must contain only existing files. The review ledger must contain exactly the same 368 paths in the same order. Generated `bin` and `obj` build products are excluded from source discovery.
 
 The one-time inventory repair preserved the same source set and matching ledger rows while normalising them to deterministic ordinal order. Temporary repair workflows were removed after use and are not part of the permanent workflow set.
 

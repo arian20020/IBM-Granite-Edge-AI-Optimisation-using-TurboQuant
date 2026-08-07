@@ -8,6 +8,7 @@ This folder records evidence-backed runtime verification. Source presence, plann
 - [LLamaSharp Tier 2 trusted real-model verification — 2026-08-05](./2026-08-05-llamasharp-tier2-local-verification.md)
 - [Protected worker Gate 1 contracts/protocol — 2026-08-05](./2026-08-05-model-inspection-worker-gate1-verification.md)
 - [Protected worker Gate 2 process boundary — 2026-08-05/06](./2026-08-05-model-inspection-worker-gate2-verification.md)
+- [Model Inspection cleanup Phase 0 baseline — 2026-08-07](./2026-08-06-model-inspection-cleanup-baseline.md)
 
 ## Interpretation rule
 
