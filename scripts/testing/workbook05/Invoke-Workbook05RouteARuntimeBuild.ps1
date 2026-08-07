@@ -114,6 +114,7 @@ function Invoke-RouteACommand {
         -ArgumentList $Arguments `
         -WorkingDirectory $WorkingDirectory `
         -EvidenceDirectory (Join-Path $OutputDirectory 'commands') `
+        -EvidenceRoot $OutputDirectory `
         -EnvironmentAllowlist @{
             RUNNER_NAME = [string]$env:RUNNER_NAME
             RUNNER_OS = [string]$env:RUNNER_OS
