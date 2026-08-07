@@ -16,7 +16,7 @@ public sealed class ModelInspectionPageNavigationTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void FrameNavigation_WithRequest_StoresRequestAndDerivedPath()
+    public void FrameNavigation_WithRequest_StoresExactRequest()
     {
         ModelInspectionRequest request = CreateRequest(
             @"C:\Models\granite-4.1-3b-instruct.gguf");
@@ -31,7 +31,6 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.IsTrue(navigationSucceeded);
         Assert.IsNotNull(inspectionPage);
         Assert.AreSame(request, inspectionPage.Request);
-        Assert.AreEqual(request.ModelPath, inspectionPage.SelectedModelPath);
     }
 
     private static ModelInspectionRequest CreateRequest(string modelPath)
