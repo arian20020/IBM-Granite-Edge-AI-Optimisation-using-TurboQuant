@@ -25,7 +25,7 @@ public sealed class InspectionVisualStateGuardTests
         RemoveVisualState(layoutRoot, "CardModeStates", "ResultState");
 
         InvalidOperationException exception =
-            Assert.ThrowsException<InvalidOperationException>(() =>
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
                 control.Presentation = new InspectionActionCardPresentation
                 {
                     Mode = InspectionActionCardMode.Result
@@ -44,7 +44,7 @@ public sealed class InspectionVisualStateGuardTests
         RemoveVisualState(layoutRoot, "DisplayModeStates", "DetailedState");
 
         InvalidOperationException exception =
-            Assert.ThrowsException<InvalidOperationException>(() =>
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
                 control.Presentation = new InspectionModelCardPresentation
                 {
                     DisplayMode = InspectionModelCardMode.Detailed
@@ -63,7 +63,7 @@ public sealed class InspectionVisualStateGuardTests
         RemoveVisualState(layoutRoot, "OutcomeToneStates", "SuccessTone");
 
         InvalidOperationException exception =
-            Assert.ThrowsException<InvalidOperationException>(() =>
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
                 control.Presentation = new InspectionOutcomePresentation
                 {
                     Kind = InspectionOutcomePresentationKind.Ready,
