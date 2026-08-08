@@ -74,6 +74,27 @@ jobs:
         shell: pwsh
         run: ./.github/task9-phase1-closure-helper.ps1
 
+      - name: Normalize generated Markdown whitespace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+
+          foreach ($path in @(
+              'docs/reviews/model-inspection-cleanup-inventory.md',
+              'docs/reviews/model-inspection-cleanup-source-files.txt',
+              'docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md',
+              'docs/testing/evidence/README.md'
+          )) {
+              $lines = [System.IO.File]::ReadAllLines($path) |
+                  ForEach-Object { $_.TrimEnd(' ', "`t") }
+              [System.IO.File]::WriteAllText(
+                  $path,
+                  (($lines -join "`n") + "`n"),
+                  $utf8NoBom)
+          }
+
       - name: Verify permanent cleanup inventory contracts
         shell: pwsh
         run: ./scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
@@ -87,7 +108,6 @@ jobs:
           $sourceList = 'docs/reviews/model-inspection-cleanup-source-files.txt'
           $inventory = 'docs/reviews/model-inspection-cleanup-inventory.md'
           $evidence = 'docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md'
-          $evidenceIndex = 'docs/testing/evidence/README.md'
 
           $sourceCount = @(Get-Content $sourceList | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
           $rowCount = @(Get-Content $inventory | Where-Object { $_.StartsWith('| `', [StringComparison]::Ordinal) }).Count
@@ -115,10 +135,9 @@ jobs:
               throw 'Generated build output entered source list'
           }
 
-          git diff --check
-
-          git rm -- '.github/workflows/task9-phase1-closure.yml'
-          git rm -- '.github/task9-phase1-closure-helper.ps1'
+          git rm -f -- '.github/workflows/task9-phase1-closure.yml'
+          git rm -f -- '.github/task9-phase1-closure-helper.ps1'
+          git add --all
 
           $allowed = @(
               '.github/workflows/task9-phase1-closure.yml',
@@ -128,7 +147,7 @@ jobs:
               'docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md',
               'docs/testing/evidence/README.md'
           )
-          $changed = @(git diff --name-only HEAD)
+          $changed = @(git diff --cached --name-only HEAD)
           $unexpected = @($changed | Where-Object { $_ -notin $allowed })
           if ($unexpected.Count -ne 0) {
               throw "Unexpected Task 9 changes: $($unexpected -join ', ')"
@@ -139,8 +158,19 @@ jobs:
               }
           }
 
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) {
+              throw "Task 9 cached diff check failed with exit code $LASTEXITCODE"
+          }
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add --all
           git commit -m 'test(model-inspection): close Phase 1 cleanup evidence'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Task 9 closure commit failed with exit code $LASTEXITCODE"
+          }
+
           git push origin HEAD:refactor/model-inspection-cleanup
+          if ($LASTEXITCODE -ne 0) {
+              throw "Task 9 closure push failed with exit code $LASTEXITCODE"
+          }
