@@ -108,11 +108,20 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             "Join-Path $workspace.work_directory 'i-ov'",
             "'-G', $Generator",
             "'-A', 'x64'",
+            "'-DENABLE_INTEL_CPU=ON'",
+            "'-DENABLE_OV_IR_FRONTEND=ON'",
+            "'-DENABLE_OV_ONNX_FRONTEND=OFF'",
+            "'-DENABLE_OV_PADDLE_FRONTEND=OFF'",
+            "'-DENABLE_OV_TF_FRONTEND=OFF'",
+            "'-DENABLE_OV_TF_LITE_FRONTEND=OFF'",
+            "'-DENABLE_OV_PYTORCH_FRONTEND=OFF'",
+            "'-DENABLE_OV_JAX_FRONTEND=OFF'",
             "'-DENABLE_INTEL_GPU=OFF'",
             "'-DENABLE_INTEL_NPU=OFF'",
             "'-DENABLE_TESTS=OFF'",
             "'-DENABLE_FUNCTIONAL_TESTS=OFF'",
-            "'-DENABLE_SAMPLES=ON'",
+            "'-DENABLE_SAMPLES=OFF'",
+            "'-DENABLE_JS=OFF'",
             "'-DENABLE_PYTHON=ON'",
             "'-DENABLE_WHEEL=OFF'",
             "parallelism = 1",
@@ -122,10 +131,36 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
 
-        # The Runtime memory experiment must not silently keep the previous
-        # two-job concurrency in either its evidence or executed build command.
+        # The narrow Runtime experiment must not accidentally restore the broad
+        # sample build or the previous two-job concurrency.
+        self.assertNotIn("'-DENABLE_SAMPLES=ON'", self.text)
         self.assertNotIn("parallelism = 2", self.text)
         self.assertNotIn("'--parallel', '2'", self.text)
+
+    def test_requires_materialized_narrow_runtime_cache_controls(self) -> None:
+        required_cache_checks = (
+            "$cacheValues.ENABLE_INTEL_CPU -eq 'ON'",
+            "$cacheValues.ENABLE_OV_IR_FRONTEND -eq 'ON'",
+            "$cacheValues.ENABLE_OV_ONNX_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_PADDLE_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_TF_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_TF_LITE_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_PYTORCH_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_JAX_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_INTEL_GPU -eq 'OFF'",
+            "$cacheValues.ENABLE_INTEL_NPU -eq 'OFF'",
+            "$cacheValues.ENABLE_TESTS -eq 'OFF'",
+            "$cacheValues.ENABLE_FUNCTIONAL_TESTS -eq 'OFF'",
+            "$cacheValues.ENABLE_SAMPLES -eq 'OFF'",
+            "$cacheValues.ENABLE_JS -eq 'OFF'",
+            "$cacheValues.ENABLE_PYTHON -eq 'ON'",
+            "$cacheValues.ENABLE_WHEEL -eq 'OFF'",
+            "$null -eq $cacheValues.ENABLE_SYSTEM_PROTOBUF",
+            "$cacheValues.ENABLE_SYSTEM_PROTOBUF -eq 'OFF'",
+        )
+        for token in required_cache_checks:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
 
     def test_records_build_evidence_and_disables_later_claims(self) -> None:
         required = (
