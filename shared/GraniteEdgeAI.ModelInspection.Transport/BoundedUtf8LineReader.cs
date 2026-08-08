@@ -49,6 +49,7 @@ public sealed class BoundedUtf8LineReader
     public async ValueTask<byte[]?> ReadLineAsync(
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         byte[] payloadBuffer = ArrayPool<byte>.Shared.Rent(_maximumLineBytes);
         int payloadLength = 0;
 

@@ -12,6 +12,7 @@ namespace GraniteEdgeAI.ModelInspection.Transport.Tests;
 public sealed class BoundedUtf8LineTests
 {
     private const int OneMiB = 1024 * 1024;
+    private const int ReadAheadBufferSize = 4096;
 
     /// <summary>
     /// A non-positive line limit cannot provide a meaningful memory boundary.
@@ -55,9 +56,28 @@ public sealed class BoundedUtf8LineTests
         byte[]? line = await reader.ReadLineAsync(CancellationToken.None);
 
         Assert.IsNotNull(line);
-        Assert.AreEqual(OneMiB, line.Length);
-        Assert.AreEqual((byte)'a', line[0]);
-        Assert.AreEqual((byte)'a', line[^1]);
+        CollectionAssert.AreEqual(payload, line);
+    }
+
+    /// <summary>
+    /// Fragmentation at every byte boundary must not corrupt a multibyte UTF-8
+    /// scalar whose encoded bytes arrive in separate reads.
+    /// </summary>
+    [TestMethod]
+    public async Task ReadLineAsyncReassemblesOneByteReadsIncludingSplitMultibyteUtf8()
+    {
+        byte[] payload = Encoding.UTF8.GetBytes("granite-€-𐍈");
+        byte[] frame = [.. payload, (byte)'\n'];
+        await using OneByteAtATimeReadStream stream = new(frame);
+        BoundedUtf8LineReader reader = new(
+            stream,
+            maximumLineBytes: payload.Length);
+
+        byte[]? line = await reader.ReadLineAsync(CancellationToken.None);
+
+        Assert.IsNotNull(line);
+        CollectionAssert.AreEqual(payload, line);
+        Assert.AreEqual(frame.Length, stream.BytesServed);
     }
 
     /// <summary>
@@ -79,6 +99,28 @@ public sealed class BoundedUtf8LineTests
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("first"), first);
         CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("second"), second);
         Assert.IsNull(end);
+    }
+
+    /// <summary>
+    /// A token cancelled between frames must win even when the next frame is
+    /// already present in the reader's private read-ahead buffer.
+    /// </summary>
+    [TestMethod]
+    public async Task ReadLineAsyncObservesPreCanceledTokenAtBufferedFrameBoundary()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("first\nsecond\n");
+        await using MemoryStream stream = new(input, writable: false);
+        BoundedUtf8LineReader reader = new(stream, maximumLineBytes: 32);
+        byte[]? first = await reader.ReadLineAsync(CancellationToken.None);
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            reader.ReadLineAsync(cancellation.Token).AsTask());
+        byte[]? second = await reader.ReadLineAsync(CancellationToken.None);
+
+        CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("first"), first);
+        CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("second"), second);
     }
 
     /// <summary>
@@ -195,6 +237,44 @@ public sealed class BoundedUtf8LineTests
     }
 
     /// <summary>
+    /// A payload exactly at the byte limit is still incomplete without LF and
+    /// is classified as truncated rather than over-limit.
+    /// </summary>
+    [TestMethod]
+    public async Task ReadLineAsyncRejectsExactLimitPayloadAtEofAsUnexpectedEndOfStream()
+    {
+        byte[] payload = Enumerable.Repeat((byte)'a', 32).ToArray();
+        await using MemoryStream stream = new(payload, writable: false);
+        BoundedUtf8LineReader reader = new(stream, maximumLineBytes: 32);
+
+        ProtocolStreamException error =
+            await Assert.ThrowsExactlyAsync<ProtocolStreamException>(() =>
+                reader.ReadLineAsync(CancellationToken.None).AsTask());
+
+        Assert.AreEqual(
+            ProtocolStreamErrorKind.UnexpectedEndOfStream,
+            error.ErrorKind);
+    }
+
+    /// <summary>
+    /// Read-ahead requests remain fixed at the implementation's declared bound
+    /// instead of scaling with the configured maximum line length.
+    /// </summary>
+    [TestMethod]
+    public async Task ReadLineAsyncUsesFixedSizeReadAheadBuffer()
+    {
+        byte[] frame = Encoding.UTF8.GetBytes("valid\n");
+        await using OneByteAtATimeReadStream stream = new(frame);
+        BoundedUtf8LineReader reader = new(stream, OneMiB);
+
+        byte[]? line = await reader.ReadLineAsync(CancellationToken.None);
+
+        Assert.IsNotNull(line);
+        CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("valid"), line);
+        Assert.AreEqual(ReadAheadBufferSize, stream.MaximumRequestedReadCount);
+    }
+
+    /// <summary>
     /// A blocked pipe read must observe caller cancellation.
     /// </summary>
     [TestMethod]
@@ -236,7 +316,7 @@ public sealed class BoundedUtf8LineTests
     /// stream open, and prevents later writes through the disposed writer.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsyncRejectsUseAfterDisposeWithoutClosingStream()
+    public async Task DisposeLeavesCallerOwnedStreamUsable()
     {
         await using MemoryStream stream = new();
         BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
@@ -247,7 +327,53 @@ public sealed class BoundedUtf8LineTests
                 .WriteLineAsync(Encoding.UTF8.GetBytes("valid"), CancellationToken.None)
                 .AsTask());
 
-        Assert.IsTrue(stream.CanWrite);
+        byte[] callerBytes = Encoding.UTF8.GetBytes("caller-owned");
+        await stream.WriteAsync(callerBytes, CancellationToken.None);
+        await stream.FlushAsync(CancellationToken.None);
+
+        CollectionAssert.AreEqual(callerBytes, stream.ToArray());
+    }
+
+    /// <summary>
+    /// The configured maximum is inclusive for a valid output payload.
+    /// </summary>
+    [TestMethod]
+    public async Task WriteLineAsyncAcceptsPayloadAtExactLimit()
+    {
+        byte[] payload = Enumerable.Repeat((byte)'a', 32).ToArray();
+        await using RecordingWriteStream stream = new();
+        using BoundedUtf8LineWriter writer = new(
+            stream,
+            maximumLineBytes: payload.Length);
+
+        await writer.WriteLineAsync(payload, CancellationToken.None);
+
+        byte[] expected = [.. payload, (byte)'\n'];
+        CollectionAssert.AreEqual(expected, stream.ToArray());
+        Assert.AreEqual(1, stream.FlushCalls);
+    }
+
+    /// <summary>
+    /// Pre-cancellation is observed before validation, copying, or output.
+    /// </summary>
+    [TestMethod]
+    public async Task WriteLineAsyncObservesPreCancellationWithoutWriting()
+    {
+        await using RecordingWriteStream stream = new();
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            writer
+                .WriteLineAsync(
+                    Encoding.UTF8.GetBytes("valid"),
+                    cancellation.Token)
+                .AsTask());
+
+        Assert.AreEqual(0, stream.WriteCalls);
+        Assert.AreEqual(0, stream.FlushCalls);
+        Assert.AreEqual(0, stream.Length);
     }
 
     /// <summary>
@@ -356,6 +482,8 @@ public sealed class BoundedUtf8LineTests
 
         public int BytesServed { get; private set; }
 
+        public int MaximumRequestedReadCount { get; private set; }
+
         public override bool CanRead => true;
 
         public override bool CanSeek => false;
@@ -390,6 +518,9 @@ public sealed class BoundedUtf8LineTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            MaximumRequestedReadCount = Math.Max(
+                MaximumRequestedReadCount,
+                buffer.Length);
 
             if (_offset >= source.Length || buffer.Length == 0)
             {

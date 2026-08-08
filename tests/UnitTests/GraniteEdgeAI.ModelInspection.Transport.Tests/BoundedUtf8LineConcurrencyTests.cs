@@ -16,30 +16,47 @@ public sealed class BoundedUtf8LineConcurrencyTests
     /// and flush operation must remain inside one serialized write transaction.
     /// </summary>
     [TestMethod]
-    public async Task WriteLineAsyncSerializesConcurrentFrames()
+    public async Task WriteLineAsyncSerializesFlushWithinEachFrameTransaction()
     {
-        await using ConcurrentWriteProbeStream stream = new();
+        await using FirstFlushBlockingStream stream = new();
         using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
 
         Task first = writer
             .WriteLineAsync(Encoding.UTF8.GetBytes("first"), CancellationToken.None)
             .AsTask();
+        await stream.FirstFlushStarted.WaitAsync(TimeSpan.FromSeconds(1));
         Task second = writer
             .WriteLineAsync(Encoding.UTF8.GetBytes("second"), CancellationToken.None)
             .AsTask();
 
+        Assert.IsFalse(
+            second.IsCompleted,
+            "The second frame must remain queued until the first flush ends.");
+        string[] expectedBeforeRelease =
+        [
+            "Write:first",
+            "Write:LF",
+            "Flush:start"
+        ];
+        CollectionAssert.AreEqual(expectedBeforeRelease, stream.Events);
+        stream.ReleaseFirstFlush();
         await Task.WhenAll(first, second);
 
-        Assert.AreEqual(
-            1,
-            stream.MaximumConcurrentWrites,
-            "Only one underlying write may be active at a time.");
-
-        string output = Encoding.UTF8.GetString(stream.ToArray());
-        Assert.IsTrue(
-            string.Equals(output, "first\nsecond\n", StringComparison.Ordinal) ||
-            string.Equals(output, "second\nfirst\n", StringComparison.Ordinal),
-            $"Expected two complete LF-delimited frames but received '{output}'.");
+        string[] expectedEvents =
+        [
+            "Write:first",
+            "Write:LF",
+            "Flush:start",
+            "Flush:end",
+            "Write:second",
+            "Write:LF",
+            "Flush:start",
+            "Flush:end"
+        ];
+        CollectionAssert.AreEqual(
+            expectedEvents,
+            stream.Events);
+        Assert.AreEqual("first\nsecond\n", stream.GetOutput());
     }
 
     /// <summary>
@@ -75,19 +92,69 @@ public sealed class BoundedUtf8LineConcurrencyTests
     }
 
     /// <summary>
-    /// Delays every underlying write while recording concurrent entry. The
-    /// stream is deliberately safe enough to report interleaving rather than
-    /// failing for an unrelated MemoryStream thread-safety reason.
+    /// Cancelling one caller while it waits for the serialization gate must not
+    /// write any part of that frame or prevent the next caller from proceeding.
     /// </summary>
-    private sealed class ConcurrentWriteProbeStream : Stream
+    [TestMethod]
+    public async Task WriteLineAsyncCancellationWhileQueuedDoesNotWriteAndAllowsFollowingFrame()
+    {
+        await using FirstFlushBlockingStream stream = new();
+        using BoundedUtf8LineWriter writer = new(stream, maximumLineBytes: 32);
+        using CancellationTokenSource cancellation = new();
+
+        Task first = writer
+            .WriteLineAsync(Encoding.UTF8.GetBytes("first"), CancellationToken.None)
+            .AsTask();
+        await stream.FirstFlushStarted.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Task cancelled = writer
+            .WriteLineAsync(Encoding.UTF8.GetBytes("cancelled"), cancellation.Token)
+            .AsTask();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => cancelled);
+        Assert.AreEqual(
+            "first\n",
+            stream.GetOutput(),
+            "The cancelled queued frame must contribute zero bytes.");
+
+        stream.ReleaseFirstFlush();
+        await first;
+        await writer.WriteLineAsync(
+            Encoding.UTF8.GetBytes("following"),
+            CancellationToken.None);
+
+        Assert.AreEqual("first\nfollowing\n", stream.GetOutput());
+        CollectionAssert.DoesNotContain(stream.Events, "Write:cancelled");
+    }
+
+    /// <summary>
+    /// Records payload, LF, and flush boundaries while holding the first flush
+    /// so a following writer can be proven to remain behind the same gate.
+    /// </summary>
+    private sealed class FirstFlushBlockingStream : Stream
     {
         private readonly MemoryStream _inner = new();
         private readonly object _sync = new();
-        private int _activeWrites;
-        private int _maximumConcurrentWrites;
+        private readonly List<string> _events = [];
+        private readonly TaskCompletionSource<bool> _firstFlushStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _releaseFirstFlush = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _flushCalls;
 
-        public int MaximumConcurrentWrites =>
-            Volatile.Read(ref _maximumConcurrentWrites);
+        public Task FirstFlushStarted => _firstFlushStarted.Task;
+
+        public string[] Events
+        {
+            get
+            {
+                lock (_sync)
+                {
+                    return [.. _events];
+                }
+            }
+        }
 
         public override bool CanRead => false;
 
@@ -112,43 +179,60 @@ public sealed class BoundedUtf8LineConcurrencyTests
             set => throw new NotSupportedException();
         }
 
-        public byte[] ToArray()
+        public string GetOutput()
         {
             lock (_sync)
             {
-                return _inner.ToArray();
+                return Encoding.UTF8.GetString(_inner.ToArray());
             }
         }
 
-        public override async ValueTask WriteAsync(
+        public void ReleaseFirstFlush()
+        {
+            _releaseFirstFlush.TrySetResult(true);
+        }
+
+        public override ValueTask WriteAsync(
             ReadOnlyMemory<byte> buffer,
             CancellationToken cancellationToken = default)
         {
-            int activeWrites = Interlocked.Increment(ref _activeWrites);
-            RecordMaximum(activeWrites);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            try
+            lock (_sync)
             {
-                await Task.Delay(
-                        TimeSpan.FromMilliseconds(20),
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                _events.Add(
+                    buffer.Span.SequenceEqual([(byte)'\n'])
+                        ? "Write:LF"
+                        : $"Write:{Encoding.UTF8.GetString(buffer.Span)}");
+                _inner.Write(buffer.Span);
+            }
 
-                lock (_sync)
-                {
-                    _inner.Write(buffer.Span);
-                }
-            }
-            finally
-            {
-                Interlocked.Decrement(ref _activeWrites);
-            }
+            return ValueTask.CompletedTask;
         }
 
-        public override Task FlushAsync(CancellationToken cancellationToken)
+        public override async Task FlushAsync(
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.CompletedTask;
+            int flushCall = Interlocked.Increment(ref _flushCalls);
+
+            lock (_sync)
+            {
+                _events.Add("Flush:start");
+            }
+
+            if (flushCall == 1)
+            {
+                _firstFlushStarted.TrySetResult(true);
+                await _releaseFirstFlush.Task
+                    .WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            lock (_sync)
+            {
+                _events.Add("Flush:end");
+            }
         }
 
         public override void Flush()
@@ -171,25 +255,11 @@ public sealed class BoundedUtf8LineConcurrencyTests
         {
             if (disposing)
             {
+                _releaseFirstFlush.TrySetCanceled();
                 _inner.Dispose();
             }
 
             base.Dispose(disposing);
-        }
-
-        private void RecordMaximum(int candidate)
-        {
-            int observed = Volatile.Read(ref _maximumConcurrentWrites);
-
-            while (
-                candidate > observed &&
-                Interlocked.CompareExchange(
-                    ref _maximumConcurrentWrites,
-                    candidate,
-                    observed) != observed)
-            {
-                observed = Volatile.Read(ref _maximumConcurrentWrites);
-            }
         }
     }
 
