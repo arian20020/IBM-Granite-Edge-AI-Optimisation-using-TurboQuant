@@ -115,6 +115,7 @@ docs/testing/evidence/2026-08-05-model-inspection-branch-review.md
 docs/testing/evidence/2026-08-05-model-inspection-worker-gate1-verification.md
 docs/testing/evidence/2026-08-05-model-inspection-worker-gate2-verification.md
 docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md
+docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md
 docs/testing/evidence/README.md
 docs/testing/runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/BoundedStandardErrorCollector.cs
