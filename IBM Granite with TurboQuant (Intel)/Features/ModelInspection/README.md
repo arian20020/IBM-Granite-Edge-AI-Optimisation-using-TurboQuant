@@ -1,8 +1,8 @@
 # Model Inspection architecture
 
-**Status:** Presentation, application contracts, worker protocol contracts, and immutable navigation handoff implemented; production worker execution remains pending  
-**Last reviewed:** 2026-08-05  
-**Current branch:** `feature/model-inspection-runtime-integration`
+**Status:** Presentation, application contracts, protected worker/process boundary, and immutable navigation handoff implemented; the production worker still uses the controlled unavailable inspection engine and application classification/UI execution remain later gates  
+**Last reviewed:** 2026-08-08  
+**Current branch:** `refactor/model-inspection-cleanup`
 
 [← Application feature architecture](../README.md)
 
@@ -22,7 +22,7 @@ Unsupported / Invalid
 Hardware Fit only for Ready or ReadyWithWarnings
 ```
 
-The page remains presentation-only in Gate 1. It does not yet launch the worker or display live results.
+The page remains presentation-only in Phase 1. The protected Gate 2 worker/process boundary exists, but the page does not yet launch it or display live runtime results.
 
 ## Accepted architecture
 
@@ -59,7 +59,7 @@ Chat remains a separate later route through a pinned `llama-cli.exe`; it does no
 | Capability | Status |
 |---|---|
 | Receive immutable `ModelInspectionRequest` | Implemented |
-| Retain request and derive selected path | Implemented |
+| Retain exact request as the page source of truth | Implemented |
 | Preserve request object across onboarding navigation | Implemented |
 | Initial selected-model card | Implemented |
 | Approved five-stage tracker | Implemented |
@@ -68,8 +68,9 @@ Chat remains a separate later route through a pinned `llama-cli.exe`; it does no
 | Shared versioned worker protocol contracts | Implemented and tested |
 | Strict bounded JSON and protocol sequence validation | Implemented and tested |
 | Matched LLamaSharp CPU feasibility | Verified in isolated tools |
-| Production worker executable | Not implemented |
-| Process adapter and bounded stream host | Not implemented |
+| Production worker executable boundary | Implemented and tested; controlled unavailable engine only |
+| Process adapter and bounded stream host | Implemented and tested |
+| Production LLamaSharp inspection engine | Not implemented |
 | Worker-to-application mappers | Not implemented |
 | Classifier and service | Not implemented |
 | `ModelInspectionViewModel` | Not implemented |
@@ -112,8 +113,7 @@ tools/ModelInspection.LlamaSharpSpike*/
 ```text
 OnNavigatedTo
     → require ModelInspectionRequest
-    → retain the exact request object
-    → expose SelectedModelPath as Request?.ModelPath
+    → retain the exact request object as the page source of truth
     → reset initial-presentation guard
 
 Loaded
@@ -140,7 +140,7 @@ Outcome card
 Model card
     → Compact
     → Model selected
-    → filename and basic format only
+    → request filename and validated quick-scan format only
     → no invented compatibility claim
 
 Content card
@@ -231,7 +231,7 @@ Evidence:
 - [Tier 2 trusted verification](../../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 - [Coverage matrix](../../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
 
-Feasibility evidence supports the selected runtime and containment design; it is not proof that the production worker exists.
+Feasibility evidence supports the selected runtime and containment design; it is not proof that the production worker performs real LLamaSharp inspection or is packaged as the final application runtime closure.
 
 ## Operational states versus model outcomes
 
@@ -261,23 +261,13 @@ Worker crash            ≠ Corrupt GGUF
 
 ## Next production gate
 
-Gate 2 should add the worker executable boundary and process adapter without yet mixing in the classifier, ViewModel, or final UI:
+Gate 2 has established the protected worker executable and process adapter, including bounded standard streams, protocol sequencing, trusted executable resolution, process containment, cancellation/timeout handling, and cleanup checks. The production worker deliberately still returns the controlled unavailable-engine result.
 
-```text
-Worker executable shell
-    → bounded stdin/stdout/stderr
-    → hello/runtime handshake
-    → one request and one terminal result
-    → parent/process identity checks
-    → cooperative cancellation and forced-cleanup tests
-    → fixed trusted executable resolution
-```
-
-Only after that boundary is verified should later gates add LLamaSharp evidence extraction, mappers, classifier/service, ViewModel, and dynamic WinUI states.
+The next production gate should place the real LLamaSharp evidence-extraction engine inside that already-protected worker boundary. Later gates then add worker-to-application mapping, classification/service orchestration, ViewModel execution, and dynamic WinUI states without weakening the verified process boundary.
 
 ## Non-claims
 
-- no production worker executable or launch path;
+- the production worker does not yet perform real LLamaSharp model inspection;
 - no LLamaSharp reference in the WinUI application project;
 - no worker evidence extraction from a real model through the application;
 - no classifier, service, ViewModel, live progress, or working Cancel action;

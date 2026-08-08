@@ -1,8 +1,8 @@
 # Model Inspection controls
 
 **Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-03  
-**Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`
+**Last reviewed:** 2026-08-08  
+**Reviewed application baseline:** `e382edf484d95b6833fc86c1f0c50f1a5483b1f0`
 
 [← Model Inspection architecture](../README.md) · [Presentation models](../Models/README.md)
 
@@ -100,7 +100,7 @@ DetailedState
     → model overview and expandable inspection checks
 ```
 
-`InspectionModelCardMode` selects the state. The code-behind calls `Bindings.Update()` and then `VisualStateManager.GoToState(...)`.
+`InspectionModelCardMode` selects the state. The code-behind calls `Bindings.Update()`, applies the named visual state, and fails fast with a clear `InvalidOperationException` if XAML and code-behind state names drift apart.
 
 ## Local responsibilities
 
@@ -113,7 +113,7 @@ DetailedState
 
 ## Current limitation
 
-The initial page supplies only path-derived filename and format data. The detailed layout exists, but no real inspection service currently supplies verified inspection checks.
+The initial page supplies only the validated request filename and quick-scan format. The detailed layout exists, but no real inspection service currently supplies verified inspection checks.
 
 ---
 
@@ -331,7 +331,9 @@ VisualStateManager.GoToState(this, stateName, false)
 
 If the expected state is absent, it throws a clear `InvalidOperationException`. This prevents the control from silently leaving both views collapsed when XAML and C# names drift apart.
 
-After applying the state, the control calls `Bindings.Update()` so action text, visibility, enabled state, commands, and automation names reflect the new presentation.
+`InspectionModelCard` and `InspectionOutcomeCard` use the same local fail-fast rule for their required display-mode and tone states. The controls remain self-contained rather than sharing a generic visual-state helper.
+
+After applying the action-card state, the control calls `Bindings.Update()` so action text, visibility, enabled state, commands, and automation names reflect the new presentation.
 
 ## Current limitation
 
@@ -379,7 +381,8 @@ Future manual acceptance must still verify keyboard navigation, screen-reader an
 
 Template selection and bootstrap routes:
 
-- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs)
+- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs)
+- [`InspectionVisualStateGuardTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs)
 
 Page navigation and initial route:
 
@@ -409,8 +412,8 @@ Dedicated tests still need to prove:
 - five outcome tones;
 - inspecting/result action layouts;
 - Light, Dark, and High Contrast resources;
-- compiled-binding refresh and visual-state selection;
-- focused selector and navigation tests.
+- compiled-binding refresh and fail-fast visual-state selection;
+- focused selector, hidden-state, visual-state, and navigation tests.
 
 ## Not implemented and non-claims
 

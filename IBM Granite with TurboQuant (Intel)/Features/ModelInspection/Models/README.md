@@ -1,8 +1,8 @@
 # Model Inspection presentation models
 
 **Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-04  
-**Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`
+**Last reviewed:** 2026-08-08  
+**Reviewed application baseline:** `e382edf484d95b6833fc86c1f0c50f1a5483b1f0`
 
 [← Model Inspection architecture](../README.md) · [Inspection controls](../Controls/README.md) · [Presentation construction](../Presentation/README.md)
 
@@ -171,7 +171,7 @@ Safe default:
 InspectionContentCardPresentation.Hidden
 ```
 
-This is the only root presentation currently implementing `INotifyPropertyChanged`. `IsExpanded` is mutable so a two-way XAML binding can update the disclosure state and notify bound text.
+`Hidden` returns a fresh safe snapshot rather than a shared mutable singleton. Each `InspectionContentCard` also installs its own hidden presentation instance after XAML initialization. This is the only root presentation currently implementing `INotifyPropertyChanged`; `IsExpanded` is mutable so a two-way XAML binding can update disclosure state and notify bound text.
 
 [Open file](./InspectionContentCardPresentation.cs)
 
@@ -430,14 +430,9 @@ Benefits:
 - optional action slots do not need null checks in XAML;
 - hidden state is explicit.
 
-### Shared-instance caution
+### Mutable hidden-state isolation
 
-These defaults are static shared instances. Most properties are init-only, but `InspectionContentCardPresentation.IsExpanded` is mutable.
-
-Do not mutate `InspectionContentCardPresentation.Hidden.IsExpanded`. A future cleanup should consider either:
-
-- making hidden/default factories return new instances; or
-- separating mutable view state from otherwise immutable presentation data.
+The immutable defaults may remain shared, but `InspectionContentCardPresentation.Hidden` is a factory-style property that returns a new instance because `IsExpanded` is mutable. Each content-card control therefore owns independent disclosure state while preserving non-null binding paths during construction.
 
 ## WinUI dependencies
 
@@ -495,7 +490,8 @@ Mixing both patterns without a clear rule would make binding updates difficult t
 Presentation objects are exercised through:
 
 - [`InitialInspectionProgressPresentationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs)
-- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs)
+- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs)
+- [`InspectionContentCardPresentationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs)
 - [`ModelInspectionPageNavigationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs)
 - [`OnboardingModelInspectionNavigationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs)
 
@@ -509,7 +505,6 @@ The new initial-progress test protects:
 
 Dedicated presentation-contract tests are still needed for:
 
-- default/hidden invariants;
 - every enum-to-layout mapping;
 - every outcome kind/tone combination;
 - action-slot visibility and command data;
@@ -541,7 +536,7 @@ Dedicated presentation-contract tests are still needed for:
 
 - the folder name `Models` is ambiguous in an AI application;
 - presentation types are coupled to WinUI and should not cross into runtime adapters;
-- shared mutable hidden state is a risk around `IsExpanded`;
+
 - adding an enum value requires selector, visual-state, presentation-factory, test, and documentation review;
 - fixed action slots are simple now but may need a different layout strategy if result actions become highly variable;
 - required versus optional fields are currently enforced mainly by page/control/factory construction rather than domain-level contracts.

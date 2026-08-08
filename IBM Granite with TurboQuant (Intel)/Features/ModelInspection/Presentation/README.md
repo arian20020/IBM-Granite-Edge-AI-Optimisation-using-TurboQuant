@@ -1,8 +1,8 @@
 # Model Inspection presentation construction
 
 **Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-04  
-**Current branch:** `feature/model-inspection`
+**Last reviewed:** 2026-08-08  
+**Current branch:** `refactor/model-inspection-cleanup`
 
 [← Model Inspection architecture](../README.md)
 
@@ -99,6 +99,8 @@ The tests verify:
 - exact row count, wording and order;
 - initial active/waiting states;
 - connector geometry;
+- detail visibility only on the active initial stage;
+- stable row automation names built from title and status;
 - completed-stage summary;
 - absence of Vulkan, TurboQuant, GPU and Hardware Fit wording from row titles.
 

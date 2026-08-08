@@ -1,7 +1,7 @@
 # Model Inspection application contracts
 
-**Status:** Immutable application-owned contracts and navigation handoff implemented and tested; worker mapping and runtime orchestration remain later gates  
-**Last reviewed:** 2026-08-05
+**Status:** Immutable application-owned contracts and navigation handoff implemented and tested; the protected worker boundary exists while application mapping and runtime orchestration remain later gates  
+**Last reviewed:** 2026-08-08
 
 ## Purpose
 
@@ -54,7 +54,7 @@ The request requires:
 - successful GGUF quick-scan snapshot;
 - agreement between expected length and quick-scan size.
 
-The same request instance is then forwarded by `OnboardingShellPage` and retained by `ModelInspectionPage`. The destination derives `SelectedModelPath` from `Request?.ModelPath`; it does not recreate or weaken the contract.
+The same request instance is then forwarded by `OnboardingShellPage` and retained by `ModelInspectionPage`. `Request` is the page's only authoritative navigation state; the page uses the validated `FileName` and quick-scan facts for presentation rather than re-parsing them from the path.
 
 ## Evidence design
 
@@ -151,7 +151,7 @@ Relevant tests:
 
 This implementation does not prove that:
 
-- the production worker executable exists or is packaged;
+- the production worker contains the real LLamaSharp inspection engine or is packaged as the final application runtime closure;
 - LLamaSharp is invoked by the application;
 - worker evidence is mapped or classified;
 - progress, cancellation, results, or failures are live in the UI;
