@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |---|---|
-| Status | Approved conversational design; written specification awaiting user review |
+| Status | Approved completion roadmap; implementation not started |
 | Date | 2026-08-08 |
 | Branch | `test/model-inspection-completeness-gate` |
 | Stacked base | `refactor/model-inspection-cleanup` |
@@ -95,6 +95,25 @@ tasks:
 This separation prevents the roadmap from silently becoming the entire product
 programme.
 
+### 3.1 Deferred campaign routing
+
+Deferral is not omission. The following campaign owners are accountable roles,
+not an assertion that the campaign is already funded or implemented. Each row
+has one destination, rationale and evidence needed before its matrix item can
+move:
+
+| Matrix row | Deferred campaign | Accountable owner | Ordered destination | Rationale and required evidence |
+|---|---|---|---|---|
+| `MI-TC-051` | symlink, junction and hardlink model aliases | Model Inspection runtime-safety owner | cleanup Phase 5 | privileged/reparse fixtures are environment-sensitive; run a contained alias matrix proving canonical identity, unchanged model bytes and path-safe evidence |
+| `MI-TC-051` | physically disconnected/offline operation | Model Inspection release-verification owner | Model Inspection release closure (Order 13) | a dedicated Windows x64 host is required after the packaged production runtime exists; retain disabled-network configuration, successful inspection, no listener and privacy evidence |
+| `MI-TC-051` | x86 fixture/runtime | platform architecture owner | separate non-x64 support programme | the approved feature boundary is Windows x64; require a distinct native/package dependency closure before architecture support can be claimed |
+| `MI-TC-051` | disk-full and power-loss interruption | reliability/release owner | isolated release-hardening campaign before Order 13 sign-off | destructive storage interruption is unsafe in ordinary CI; prove atomic evidence writes, bounded failure, cleanup and recovery in a disposable VM |
+| `MI-TC-051` | hard process-memory limit | protected-runtime resource-policy owner | production Gate 3 policy/design, then Order 13 verification | an approved memory ceiling and failure precedence must exist first; verify the final worker under an OS-enforced limit with bounded cleanup and privacy-safe failure |
+| `MI-TC-063` | full CPU generation, quality and performance | model/runtime evaluation owner | downstream CPU-inference evaluation after production Gate 3 | full inference is not lightweight inspection; retain model identity, generation quality, latency and memory evidence in the evaluation programme |
+| `MI-TC-063` | Vulkan/GPU execution | acceleration owner | downstream GPU/Vulkan programme | acceleration is outside the CPU-only x64 closure; require its own native/package/device and correctness matrix |
+| `MI-TC-063` | TurboQuant performance | TurboQuant programme owner | downstream TurboQuant programme | Model Inspection supplies factual handoff evidence only; activation, correctness and benchmark acceptance belong to TurboQuant |
+| `MI-TC-063` | destructive device, power and disconnection stress | reliability/release owner | downstream destructive-reliability campaign after production Gate 6 | run only against disposable hardware/VMs after the live workflow exists; retain recovery, data-integrity, privacy and no-orphan evidence |
+
 ---
 
 ## 4. Controlling sources and precedence
@@ -104,7 +123,7 @@ The roadmap applies these sources in precedence order:
 1. controlled Project OneDrive workflows and Workflow Register;
 2. the Project Testing Standard;
 3. current repository code and executable tests at the verified base;
-4. later protected-worker ADRs and Gate 1/Gate 2 implementation evidence;
+4. later protected-worker ADRs and protected-worker Gates 1 and 2 implementation evidence;
 5. the current worker integration design;
 6. retained LLamaSharp feasibility evidence and its dedicated coverage matrix;
 7. older Model Inspection UX/design material where it has not been superseded.
@@ -133,7 +152,7 @@ Document validation of a workflow is not software execution evidence.
 
 ## 5. Current verified baseline
 
-The roadmap begins from Phase 1 closure commit
+The roadmap begins from cleanup Phase 1 closure commit
 `8f00a64a40e916872abfd6b72721ef86f223bab9`.
 
 The current production boundary includes:
@@ -272,7 +291,7 @@ unambiguous end-to-end execution sequence.
 
 | Order | Gate | Current status | Exit result |
 |---:|---|---|---|
-| 0 | Phase 0 baseline and Phase 1 WinUI cleanup | verified at `8f00a64` | trustworthy protected starting point |
+| 0 | cleanup Phase 0 baseline and cleanup Phase 1 WinUI cleanup | verified at `8f00a64` | trustworthy protected starting point |
 | 1 | test-completeness gate | audit complete; repository closure not started | current implementation has defensible verification coverage |
 | 2 | cleanup Phase 2 - contracts, protocol and transport | not started | compatible, reviewed shared boundary |
 | 3 | cleanup Phase 3 - WorkerClient and Windows infrastructure | not started | reviewed process/security ownership |
@@ -289,7 +308,7 @@ unambiguous end-to-end execution sequence.
 
 ---
 
-## 9. Gate 1 - test-completeness gate
+## 9. Test-completeness gate
 
 ### Objective
 
@@ -350,21 +369,21 @@ approved protocol decision:
 
 ---
 
-## 10. Gates 2 through 8 - remaining cleanup programme
+## 10. Cleanup Phases 2 through 8 - remaining cleanup programme
 
 The existing cleanup master plan remains authoritative for these phases. The
 test-completeness gate is an inserted prerequisite and does not erase or
 silently declare the remaining cleanup complete.
 
-### Gate 2 - shared contracts, protocol and transport
+### Cleanup Phase 2 - shared contracts, protocol and transport
 
 1. Review every serialized member, enum, validator state and transport owner.
 2. Separate compatibility characterization from approved behavior changes.
 3. Simplify only behind passing tests.
 4. Run contracts, transport, worker, WorkerClient and process regressions.
-5. Record protocol compatibility evidence and close every Phase 2 ledger row.
+5. Record protocol compatibility evidence and close every cleanup Phase 2 ledger row.
 
-### Gate 3 - WorkerClient and Windows infrastructure
+### Cleanup Phase 3 - WorkerClient and Windows infrastructure
 
 1. Build a complete ownership map for handles, allocations, streams, jobs and
    drain tasks.
@@ -374,9 +393,9 @@ silently declare the remaining cleanup complete.
    inherited-handle allowlist and creation-time containment rules.
 4. Run repeated timing-sensitive process campaigns and a separate
    security/privacy review.
-5. Close Phase 3 only with zero orphan processes.
+5. Close cleanup Phase 3 only with zero orphan processes.
 
-### Gate 4 - worker host and abnormal fixture
+### Cleanup Phase 4 - worker host and abnormal fixture
 
 1. Review host states, terminal ownership, engine lifetime, parent monitoring,
    stdin EOF and exit-code rules.
@@ -385,7 +404,7 @@ silently declare the remaining cleanup complete.
 4. Run host, fixture-isolation and real-process suites.
 5. Record source-separation evidence.
 
-### Gate 5 - LLamaSharp feasibility
+### Cleanup Phase 5 - LLamaSharp feasibility
 
 1. Classify every feasibility file as extract, retain, replace after extraction
    or remove after migration.
@@ -395,7 +414,7 @@ silently declare the remaining cleanup complete.
 4. Run deterministic, contained native and controlled real-model verification.
 5. Reconfirm original model SHA, privacy and absence of a network listener.
 
-### Gate 6 - test architecture
+### Cleanup Phase 6 - test architecture
 
 1. Review every test name, assertion, helper, cleanup path and timing
    assumption.
@@ -405,7 +424,7 @@ silently declare the remaining cleanup complete.
 4. Preserve zero-test safeguards and deterministic fixture ownership.
 5. Re-run all affected suites and repeated process stability.
 
-### Gate 7 - workflows and documentation
+### Cleanup Phase 7 - workflows and documentation
 
 1. Reconcile workflow commands, triggers, floors, permissions, artifacts,
    privacy and orphan handling.
@@ -415,7 +434,7 @@ silently declare the remaining cleanup complete.
 4. Validate all current documentation links and status vocabulary.
 5. Close only after hosted workflows pass.
 
-### Gate 8 - independent cleanup closure
+### Cleanup Phase 8 - independent cleanup closure
 
 1. Review the complete branch diff without relying on earlier conclusions.
 2. Recheck every critical/high-risk ownership, security, privacy and failure
@@ -451,12 +470,12 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/
     SensitiveTextRedactor.cs
 ```
 
-The final file split may change during the Gate 3 design, but responsibilities
+The final file split may change during the production Gate 3 design, but responsibilities
 must remain cohesive and the worker stays free of application/XAML concerns.
 
 ### Ordered work
 
-1. Approve the Gate 3 extraction design and exact package/runtime identity.
+1. Approve the production Gate 3 extraction design and exact package/runtime identity.
 2. Create the runtime project with dependency and architecture fitness tests.
 3. Extract file snapshot, hashing, metadata, tokenizer, chat-template, progress,
    failure and redaction behavior from the feasibility boundary.
@@ -512,7 +531,7 @@ complete and CPU-only worker runtime closure.
 9. Prove absence of GGUF files, test fixtures, evidence, CUDA/Vulkan binaries
    and LLamaSharp packages in the WinUI process.
 10. Reject non-x64 architecture with a stable operational result before launch.
-11. Revisit compatible process mitigations and resource limits using Gate 3
+11. Revisit compatible process mitigations and resource limits using production Gate 3
     measurements.
 12. Run unpackaged controlled-build, application publish and packaged MSIX
     campaigns.
@@ -822,7 +841,7 @@ Every closure record distinguishes:
 - Future requirements are not described as implemented.
 - Superseded architecture is retained with a pointer to the later decision.
 - No requirement ID is invented.
-- No `TBD`, vague “add more tests” or unowned deferral is permitted.
+- No unresolved placeholder token, vague “add more tests” or unowned deferral is permitted.
 - Current source/evidence commit identities remain distinct.
 - Every “verified” status includes exact commit and execution evidence.
 - Every document uses repository-relative links where practical.
@@ -833,7 +852,7 @@ Every closure record distinguishes:
 
 | Risk | Control |
 |---|---|
-| completeness work expands into Gate 3 | classify every row and preserve the current/future boundary |
+| completeness work expands into production Gate 3 | classify every row and preserve the current/future boundary |
 | cleanup changes protected behavior | characterize first and preserve protocol/security invariants |
 | duplicated LLamaSharp implementation | extract once and make the spike and worker share it |
 | packaging launches the wrong binary | fixed contained root, identity verification and no fallback |
@@ -875,11 +894,11 @@ This roadmap specification is acceptable when:
 Repository sources used:
 
 - [Model Inspection worker integration design](./2026-08-05-model-inspection-worker-integration-design.md)
-- [Gate 2 worker/process design](./2026-08-05-model-inspection-worker-gate-2-host-process-adapter-design.md)
+- [Protected-worker Gate 2 worker/process design](./2026-08-05-model-inspection-worker-gate-2-host-process-adapter-design.md)
 - [cleanup design](./2026-08-06-model-inspection-cleanup-design.md)
 - [cleanup master plan](../plans/2026-08-06-model-inspection-cleanup-master.md)
 - [LLamaSharp runtime coverage matrix](../../testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
-- Gate 1, Gate 2, Phase 0 and Phase 1 evidence under
+- protected-worker Gate 1, protected-worker Gate 2, cleanup Phase 0 and cleanup Phase 1 evidence under
   `docs/testing/evidence/`
 - current production, test, fixture, workflow and documentation source at
   commit `8f00a64a40e916872abfd6b72721ef86f223bab9`
