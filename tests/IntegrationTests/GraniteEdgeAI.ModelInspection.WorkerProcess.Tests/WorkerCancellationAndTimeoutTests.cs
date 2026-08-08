@@ -142,4 +142,42 @@ public sealed class WorkerCancellationAndTimeoutTests
         await WorkerProcessTestData.AssertNoFixtureProcessRemainsAsync()
             .ConfigureAwait(false);
     }
+
+    [TestMethod]
+    public async Task OverallTimeoutStartsAfterStartNotDuringDelayedHandshake()
+    {
+        await using PublishedFixture fixture =
+            await PublishedFixture.CreateAsync().ConfigureAwait(false);
+        InspectionWorkerClient client =
+            WorkerProcessTestData.CreateDelayedHelloClient(
+                fixture,
+                helloDelayMilliseconds: 700,
+                overallTimeout: TimeSpan.FromMilliseconds(250),
+                cancellationGrace: TimeSpan.FromSeconds(2));
+
+        WorkerClientResult result = await client.ExecuteAsync(
+                WorkerProcessTestData.StartCommand(),
+                progress: null,
+                CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(10))
+            .ConfigureAwait(false);
+
+        result.Validate();
+        Assert.IsNull(result.TerminalMessage);
+        Assert.IsNotNull(result.Failure);
+        Assert.AreEqual(
+            WorkerClientFailureCodes.WorkerOverallTimeout,
+            result.Failure.Code);
+        Assert.AreEqual(3, result.ExitCode);
+        Assert.IsFalse(result.ForcedTermination);
+        StringAssert.Contains(
+            result.RetainedStandardError,
+            "FIXTURE:CANCEL_RECEIVED");
+        Assert.IsFalse(
+            result.RetainedStandardError.Contains(
+                "FIXTURE:CANCEL_BEFORE_ACTIVE_BUDGET",
+                StringComparison.Ordinal));
+        await WorkerProcessTestData.AssertNoFixtureProcessRemainsAsync()
+            .ConfigureAwait(false);
+    }
 }

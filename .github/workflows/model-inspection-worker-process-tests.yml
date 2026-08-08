@@ -36,6 +36,11 @@ defaults:
     shell: pwsh
     working-directory: D:\s
 
+env:
+  GRANITE_GATE2_WORKER_ROOT: 'D:/s/artifacts/gate2/worker'
+  GRANITE_GATE2_FIXTURE_ROOT: 'D:/s/artifacts/gate2/fixture'
+  GATE2_PROCESS_RESULTS: 'D:/s/TestResults/Gate2WorkerProcess'
+
 jobs:
   worker-process-tests:
     name: Run protected worker process tests
@@ -76,17 +81,89 @@ jobs:
         with:
           global-json-file: D:/s/global.json
 
+      - name: Publish and fingerprint immutable process inputs
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workerProject = 'workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj'
+          $fixtureProject = 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj'
+          New-Item -ItemType Directory -Force -Path $env:GATE2_PROCESS_RESULTS | Out-Null
+
+          dotnet publish $workerProject `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --output $env:GRANITE_GATE2_WORKER_ROOT `
+            -p:Platform=x64 `
+            -p:UseAppHost=true
+          if ($LASTEXITCODE -ne 0) {
+            throw "Production worker publish failed: $LASTEXITCODE"
+          }
+
+          dotnet publish $fixtureProject `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --output $env:GRANITE_GATE2_FIXTURE_ROOT `
+            -p:Platform=x64 `
+            -p:UseAppHost=true
+          if ($LASTEXITCODE -ne 0) {
+            throw "Protocol fixture publish failed: $LASTEXITCODE"
+          }
+
+          function Write-TreeManifest([string] $root, [string] $destination) {
+            $fullRoot = [IO.Path]::GetFullPath($root).TrimEnd('\', '/')
+            $lines = Get-ChildItem -LiteralPath $fullRoot -File -Recurse -Force |
+              Sort-Object FullName |
+              ForEach-Object {
+                $relative = $_.FullName.Substring($fullRoot.Length + 1).Replace('\', '/')
+                "$relative|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+              }
+            if (@($lines).Count -eq 0) {
+              throw "The published process root is empty: $fullRoot"
+            }
+            $lines | Set-Content -LiteralPath $destination -Encoding utf8
+          }
+
+          Write-TreeManifest `
+            $env:GRANITE_GATE2_WORKER_ROOT `
+            (Join-Path $env:GATE2_PROCESS_RESULTS 'worker-before.sha256')
+          Write-TreeManifest `
+            $env:GRANITE_GATE2_FIXTURE_ROOT `
+            (Join-Path $env:GATE2_PROCESS_RESULTS 'fixture-before.sha256')
+
       # The filter and minimum count guarantee that launcher, fixture isolation,
       # handshake, conversation, cancellation, timeout, process-tree, stderr,
       # environment, and concurrency tests all execute.
       - name: Run process and fixture-boundary tests
-        run: >-
-          dotnet test
-          tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
-          --configuration Release
-          --filter "FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests"
-          --minimum-expected-tests 27
-          -p:Platform=x64
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $project = 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
+          $filter = 'FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~ProductionWorkerProcessTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
+          dotnet test $project `
+            --configuration Release `
+            --filter $filter `
+            --minimum-expected-tests 30 `
+            --results-directory $env:GATE2_PROCESS_RESULTS `
+            --report-trx `
+            --report-trx-filename 'focused-worker-process.trx' `
+            -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "The focused process suite failed: $LASTEXITCODE"
+          }
+
+          $trxPath = Join-Path $env:GATE2_PROCESS_RESULTS 'focused-worker-process.trx'
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
+          $requiredIds = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass } |
+            ForEach-Object { $_.id })
+          $passed = @($results |
+            Where-Object { $_.testId -in $requiredIds -and $_.outcome -eq 'Passed' })
+          if ($passed.Count -ne 1) {
+            throw 'The focused suite did not pass the production-worker process test exactly once.'
+          }
 
       # Repeat the timing-sensitive Task 10 cases to expose cancellation races,
       # process-tree leaks, stream deadlocks, and cross-session interference.
@@ -104,7 +181,7 @@ jobs:
               --configuration Release `
               --no-build `
               --filter $filter `
-              --minimum-expected-tests 9 `
+              --minimum-expected-tests 10 `
               -p:Platform=x64
 
             if ($LASTEXITCODE -ne 0) {
@@ -119,4 +196,48 @@ jobs:
               $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
               throw "Task 10 stability iteration $iteration left fixture process IDs: $processIds."
             }
+          }
+
+      - name: Verify published process inputs stayed immutable
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Get-TreeManifest([string] $root) {
+            $fullRoot = [IO.Path]::GetFullPath($root).TrimEnd('\', '/')
+            @(Get-ChildItem -LiteralPath $fullRoot -File -Recurse -Force |
+              Sort-Object FullName |
+              ForEach-Object {
+                $relative = $_.FullName.Substring($fullRoot.Length + 1).Replace('\', '/')
+                "$relative|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+              })
+          }
+
+          foreach ($input in @(
+            @{ Name = 'worker'; Root = $env:GRANITE_GATE2_WORKER_ROOT },
+            @{ Name = 'fixture'; Root = $env:GRANITE_GATE2_FIXTURE_ROOT }
+          )) {
+            $beforePath = Join-Path $env:GATE2_PROCESS_RESULTS "$($input.Name)-before.sha256"
+            if (-not (Test-Path -LiteralPath $beforePath -PathType Leaf)) {
+              throw "The $($input.Name) pre-test manifest is missing."
+            }
+            $before = @(Get-Content -LiteralPath $beforePath)
+            $after = @(Get-TreeManifest $input.Root)
+            if ($null -ne (Compare-Object -ReferenceObject $before -DifferenceObject $after)) {
+              throw "The published $($input.Name) tree changed during process tests."
+            }
+          }
+
+      - name: Check for orphaned production worker and fixture processes
+        if: ${{ always() }}
+        run: |
+          $names = @(
+            'GraniteEdgeAI.ModelInspection.Worker'
+            'GraniteEdgeAI.ModelInspection.ProtocolTestWorker'
+          )
+          $remaining = @(Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $names -contains $_.ProcessName })
+          if ($remaining.Count -gt 0) {
+            $remaining | Format-Table Id, ProcessName, StartTime
+            $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
+            throw 'The focused process suite left a worker or fixture process running.'
           }

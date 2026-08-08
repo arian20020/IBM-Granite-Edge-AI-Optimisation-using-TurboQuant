@@ -138,9 +138,6 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             BoundedUtf8LineReader stdoutReader = new(
                 session.StandardOutput,
                 WorkerProtocol.MaximumMessageBytes);
-            Task overallSignal = Task.Delay(
-                _options.OverallTimeout,
-                CancellationToken.None);
             Task callerSignal = cancellationToken.CanBeCanceled
                 ? Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
                 : NeverCompletingTask;
@@ -150,7 +147,6 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                     session,
                     processExitTask,
                     callerSignal,
-                    overallSignal,
                     cancellationToken)
                 .ConfigureAwait(false);
             handshakeCompleted = true;
@@ -158,12 +154,6 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             // Cancellation before StartSent cannot produce a trusted worker
             // Cancelled terminal because no request has become active.
             cancellationToken.ThrowIfCancellationRequested();
-            if (overallSignal.IsCompleted)
-            {
-                throw PolicyFailure(
-                    WorkerClientFailureCodes.WorkerOverallTimeout,
-                    OverallTimeoutMessage);
-            }
 
             using BoundedUtf8LineWriter stdinWriter = new(
                 session.StandardInput,
@@ -173,6 +163,9 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                     CancellationToken.None)
                 .ConfigureAwait(false);
             startSent = true;
+            Task overallSignal = Task.Delay(
+                _options.OverallTimeout,
+                CancellationToken.None);
 
             WorkerConversation conversation = new(
                 hello,
@@ -691,7 +684,6 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         WorkerProcessSession session,
         Task processExitTask,
         Task callerSignal,
-        Task overallSignal,
         CancellationToken callerToken)
     {
         Task<byte[]?> helloTask = stdoutReader
@@ -704,20 +696,12 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 helloTask,
                 startupExpired,
                 callerSignal,
-                overallSignal,
                 processExitTask)
             .ConfigureAwait(false);
 
         if (winner == callerSignal)
         {
             throw new OperationCanceledException(callerToken);
-        }
-
-        if (winner == overallSignal)
-        {
-            throw PolicyFailure(
-                WorkerClientFailureCodes.WorkerOverallTimeout,
-                OverallTimeoutMessage);
         }
 
         if (winner == startupExpired)

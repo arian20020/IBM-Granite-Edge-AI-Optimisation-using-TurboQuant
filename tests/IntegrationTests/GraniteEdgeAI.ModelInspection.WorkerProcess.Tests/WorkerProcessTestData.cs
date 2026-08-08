@@ -14,6 +14,10 @@ internal static class WorkerProcessTestData
         "GraniteEdgeAI.ModelInspection.ProtocolTestWorker.exe";
     private const string FixtureProcessName =
         "GraniteEdgeAI.ModelInspection.ProtocolTestWorker";
+    private const string ProductionWorkerExecutableName =
+        "GraniteEdgeAI.ModelInspection.Worker.exe";
+    private const string ProductionWorkerProcessName =
+        "GraniteEdgeAI.ModelInspection.Worker";
 
     internal static InspectionWorkerClient CreateClient(
         PublishedFixture fixture,
@@ -36,6 +40,52 @@ internal static class WorkerProcessTestData
             options,
             FixtureExecutableName,
             [scenario]);
+    }
+
+    internal static InspectionWorkerClient CreateProductionClient(
+        PublishedWorker worker)
+    {
+        WorkerClientOptions options = new(
+            worker.OutputDirectory,
+            StartupTimeout: TimeSpan.FromSeconds(3),
+            OverallTimeout: TimeSpan.FromSeconds(10),
+            CancellationGracePeriod: TimeSpan.FromSeconds(1),
+            MaximumRetainedStandardErrorBytes: 4 * 1024,
+            ProcessTreeCleanupTimeout: TimeSpan.FromSeconds(3));
+        options.Validate();
+
+        return new InspectionWorkerClient(
+            options,
+            ProductionWorkerExecutableName,
+            []);
+    }
+
+    internal static InspectionWorkerClient CreateDelayedHelloClient(
+        PublishedFixture fixture,
+        int helloDelayMilliseconds,
+        TimeSpan overallTimeout,
+        TimeSpan cancellationGrace)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(
+            helloDelayMilliseconds);
+
+        WorkerClientOptions options = new(
+            fixture.OutputDirectory,
+            StartupTimeout: TimeSpan.FromSeconds(3),
+            overallTimeout,
+            cancellationGrace,
+            MaximumRetainedStandardErrorBytes: 4 * 1024,
+            ProcessTreeCleanupTimeout: TimeSpan.FromSeconds(3));
+        options.Validate();
+
+        return new InspectionWorkerClient(
+            options,
+            FixtureExecutableName,
+            [
+                "cooperative-cancellation",
+                helloDelayMilliseconds.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture)
+            ]);
     }
 
     internal static WorkerStartInspectionCommand StartCommand()
@@ -78,12 +128,18 @@ internal static class WorkerProcessTestData
     /// Polls only the dedicated fixture process name. The bounded wait avoids
     /// arbitrary sleeps while proving that Job Object cleanup has completed.
     /// </summary>
-    internal static async Task AssertNoFixtureProcessRemainsAsync()
+    internal static Task AssertNoFixtureProcessRemainsAsync() =>
+        AssertNoProcessRemainsAsync(FixtureProcessName);
+
+    internal static Task AssertNoProductionWorkerProcessRemainsAsync() =>
+        AssertNoProcessRemainsAsync(ProductionWorkerProcessName);
+
+    internal static async Task AssertNoProcessRemainsAsync(string processName)
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(4);
         while (DateTimeOffset.UtcNow < deadline)
         {
-            Process[] processes = Process.GetProcessesByName(FixtureProcessName);
+            Process[] processes = Process.GetProcessesByName(processName);
             try
             {
                 if (processes.Length == 0)
@@ -103,14 +159,14 @@ internal static class WorkerProcessTestData
                 .ConfigureAwait(false);
         }
 
-        Process[] remaining = Process.GetProcessesByName(FixtureProcessName);
+        Process[] remaining = Process.GetProcessesByName(processName);
         try
         {
             string processIds = string.Join(
                 ",",
                 remaining.Select(static process => process.Id));
             throw new InvalidOperationException(
-                $"Fixture processes remained after cleanup: {processIds}.");
+                $"{processName} processes remained after cleanup: {processIds}.");
         }
         finally
         {

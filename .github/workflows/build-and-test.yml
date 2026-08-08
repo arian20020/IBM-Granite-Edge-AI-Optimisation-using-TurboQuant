@@ -229,6 +229,27 @@ jobs:
             "fixture_sha256=$((Get-FileHash -Algorithm SHA256 $fixtureExe).Hash)"
           ) | Set-Content -LiteralPath $manifestPath -Encoding utf8
 
+          function Write-TreeManifest([string] $root, [string] $destination) {
+            $fullRoot = [IO.Path]::GetFullPath($root).TrimEnd('\', '/')
+            $lines = Get-ChildItem -LiteralPath $fullRoot -File -Recurse -Force |
+              Sort-Object FullName |
+              ForEach-Object {
+                $relative = $_.FullName.Substring($fullRoot.Length + 1).Replace('\', '/')
+                "$relative|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+              }
+            if (@($lines).Count -eq 0) {
+              throw "The published process root is empty: $fullRoot"
+            }
+            $lines | Set-Content -LiteralPath $destination -Encoding utf8
+          }
+
+          Write-TreeManifest `
+            $env:GRANITE_GATE2_WORKER_ROOT `
+            (Join-Path $env:GATE2_RESULTS_DIRECTORY 'worker-before.sha256')
+          Write-TreeManifest `
+            $env:GRANITE_GATE2_FIXTURE_ROOT `
+            (Join-Path $env:GATE2_RESULTS_DIRECTORY 'fixture-before.sha256')
+
       - name: Run Gate 2 transport tests
         run: |
           $ErrorActionPreference = 'Stop'
@@ -261,6 +282,7 @@ jobs:
           dotnet test "$env:WORKER_CLIENT_TEST_PROJECT" `
             --configuration Release `
             -p:Platform=x64 `
+            --minimum-expected-tests 86 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerClient" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerClient.Tests.trx"
@@ -275,11 +297,56 @@ jobs:
             --configuration Release `
             --runtime win-x64 `
             -p:Platform=x64 `
+            --minimum-expected-tests 30 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerProcess" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 real process tests failed: $LASTEXITCODE"
+          }
+
+          $trxPath = Join-Path $env:GATE2_RESULTS_DIRECTORY `
+            'WorkerProcess/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx'
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
+          $requiredIds = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass } |
+            ForEach-Object { $_.id })
+          $passed = @($results |
+            Where-Object { $_.testId -in $requiredIds -and $_.outcome -eq 'Passed' })
+          if ($passed.Count -ne 1) {
+            throw 'The full process suite did not pass the production-worker process test exactly once.'
+          }
+
+      - name: Verify Gate 2 process inputs stayed immutable
+        if: ${{ always() }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Get-TreeManifest([string] $root) {
+            $fullRoot = [IO.Path]::GetFullPath($root).TrimEnd('\', '/')
+            @(Get-ChildItem -LiteralPath $fullRoot -File -Recurse -Force |
+              Sort-Object FullName |
+              ForEach-Object {
+                $relative = $_.FullName.Substring($fullRoot.Length + 1).Replace('\', '/')
+                "$relative|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+              })
+          }
+
+          foreach ($input in @(
+            @{ Name = 'worker'; Root = $env:GRANITE_GATE2_WORKER_ROOT },
+            @{ Name = 'fixture'; Root = $env:GRANITE_GATE2_FIXTURE_ROOT }
+          )) {
+            $beforePath = Join-Path $env:GATE2_RESULTS_DIRECTORY "$($input.Name)-before.sha256"
+            if (-not (Test-Path -LiteralPath $beforePath -PathType Leaf)) {
+              throw "The $($input.Name) pre-test manifest is missing."
+            }
+            $before = @(Get-Content -LiteralPath $beforePath)
+            $after = @(Get-TreeManifest $input.Root)
+            if ($null -ne (Compare-Object -ReferenceObject $before -DifferenceObject $after)) {
+              throw "The published $($input.Name) tree changed during process tests."
+            }
           }
 
       - name: Restore WinUI application

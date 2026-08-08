@@ -208,7 +208,9 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/Worke
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/TestJson.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerProcessTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedFixture.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedWorker.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/TestFixtureIsolationTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/TestWorkerScenarioParserTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerCancellationAndTimeoutTests.cs

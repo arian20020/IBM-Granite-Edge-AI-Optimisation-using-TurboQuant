@@ -66,6 +66,26 @@ internal static class TestWorkerScenarioParser
             return true;
         }
 
+        if (scenario == TestWorkerScenario.CooperativeCancellation &&
+            args.Length == 2)
+        {
+            if (!long.TryParse(
+                    args[1],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out long delayMilliseconds) ||
+                delayMilliseconds <= 0 ||
+                delayMilliseconds > 5_000)
+            {
+                return false;
+            }
+
+            request = new TestWorkerScenarioRequest(
+                scenario,
+                delayMilliseconds);
+            return true;
+        }
+
         if (args.Length != 1)
             return false;
 

@@ -55,8 +55,9 @@ public sealed class TestWorkerScenarioParserTests
     {
         foreach ((TestWorkerScenario scenario, string name) in ExpectedNames)
         {
-            // The handle probe intentionally requires one additional safe numeric
-            // value; every other public scenario accepts only its canonical name.
+            // The handle probe requires a numeric value here. Cooperative
+            // cancellation also accepts an optional bounded delay, while its
+            // canonical one-argument form remains valid in this inventory.
             string[] arguments = scenario == TestWorkerScenario.ProbeUnrelatedHandle
                 ? [name, "1234"]
                 : [name];
@@ -101,6 +102,30 @@ public sealed class TestWorkerScenarioParserTests
         Assert.IsFalse(
             TestWorkerScenarioParser.TryParse(
                 ["probe-unrelated-handle", "not-a-handle"],
+                out _));
+    }
+
+    [TestMethod]
+    public void CooperativeCancellationAcceptsOnlyOneBoundedHelloDelay()
+    {
+        Assert.IsTrue(
+            TestWorkerScenarioParser.TryParse(
+                ["cooperative-cancellation", "700"],
+                out TestWorkerScenarioRequest? request));
+        Assert.AreEqual(700L, request?.NumericValue);
+
+        foreach (string invalid in new[] { "0", "5001", "not-a-delay" })
+        {
+            Assert.IsFalse(
+                TestWorkerScenarioParser.TryParse(
+                    ["cooperative-cancellation", invalid],
+                    out _),
+                invalid);
+        }
+
+        Assert.IsFalse(
+            TestWorkerScenarioParser.TryParse(
+                ["cooperative-cancellation", "700", "unexpected"],
                 out _));
     }
 }

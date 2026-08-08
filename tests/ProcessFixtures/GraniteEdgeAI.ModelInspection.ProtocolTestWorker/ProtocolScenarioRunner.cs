@@ -12,6 +12,8 @@ namespace GraniteEdgeAI.ModelInspection.ProtocolTestWorker;
 /// </summary>
 internal sealed class ProtocolScenarioRunner
 {
+    private static readonly TimeSpan DelayedHelloMinimumActiveBudget =
+        TimeSpan.FromMilliseconds(100);
     private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
     private readonly Stream _input;
     private readonly Stream _output;
@@ -83,12 +85,24 @@ internal sealed class ProtocolScenarioRunner
                 await WriteRawHelloAsync(architecture: "ARM64").ConfigureAwait(false);
                 return 0;
             default:
-                return await RunConversationAsync(request.Scenario).ConfigureAwait(false);
+                if (request.Scenario ==
+                        TestWorkerScenario.CooperativeCancellation &&
+                    request.NumericValue is long helloDelayMilliseconds)
+                {
+                    await Task.Delay(
+                            checked((int)helloDelayMilliseconds))
+                        .ConfigureAwait(false);
+                }
+
+                return await RunConversationAsync(request)
+                    .ConfigureAwait(false);
         }
     }
 
-    private async Task<int> RunConversationAsync(TestWorkerScenario scenario)
+    private async Task<int> RunConversationAsync(
+        TestWorkerScenarioRequest request)
     {
+        TestWorkerScenario scenario = request.Scenario;
         await WriteHelloAsync().ConfigureAwait(false);
         await _milestones.WriteAsync("FIXTURE:HELLO_WRITTEN").ConfigureAwait(false);
         if (scenario == TestWorkerScenario.CrashAfterHello)
@@ -179,9 +193,25 @@ internal sealed class ProtocolScenarioRunner
                     WorkerStage.CheckModelPackage,
                     0)
                 .ConfigureAwait(false);
-            WorkerCancelInspectionCommand cancel =
-                await ReadCommandAsync<WorkerCancelInspectionCommand>()
-                    .ConfigureAwait(false);
+            Task<WorkerCancelInspectionCommand> cancelTask =
+                ReadCommandAsync<WorkerCancelInspectionCommand>();
+            if (scenario == TestWorkerScenario.CooperativeCancellation &&
+                request.NumericValue.HasValue)
+            {
+                Task activeBudgetGate = Task.Delay(
+                    DelayedHelloMinimumActiveBudget);
+                if (await Task.WhenAny(cancelTask, activeBudgetGate)
+                        .ConfigureAwait(false) == cancelTask)
+                {
+                    await _milestones.WriteAsync(
+                            "FIXTURE:CANCEL_BEFORE_ACTIVE_BUDGET")
+                        .ConfigureAwait(false);
+                    return 2;
+                }
+            }
+
+            WorkerCancelInspectionCommand cancel = await cancelTask
+                .ConfigureAwait(false);
             if (cancel.RequestId != start.RequestId)
             {
                 return 2;
