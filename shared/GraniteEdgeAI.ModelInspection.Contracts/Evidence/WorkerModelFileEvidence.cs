@@ -59,5 +59,24 @@ public sealed record WorkerModelFileEvidence
             !string.IsNullOrWhiteSpace(Sha256After),
             nameof(Sha256After),
             "must not be empty");
+
+        if (IntegrityPreserved)
+        {
+            WorkerProtocolValidation.Require(
+                LengthBefore == LengthAfter,
+                nameof(IntegrityPreserved),
+                "requires equal before/after lengths when true");
+            WorkerProtocolValidation.Require(
+                LastWriteTimeBeforeUtc == LastWriteTimeAfterUtc,
+                nameof(IntegrityPreserved),
+                "requires equal before/after timestamps when true");
+            WorkerProtocolValidation.Require(
+                string.Equals(
+                    Sha256Before,
+                    Sha256After,
+                    StringComparison.OrdinalIgnoreCase),
+                nameof(IntegrityPreserved),
+                "requires equal before/after SHA-256 values when true");
+        }
     }
 }

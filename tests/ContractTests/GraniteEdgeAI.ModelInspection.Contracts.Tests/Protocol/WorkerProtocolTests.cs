@@ -170,7 +170,7 @@ public sealed class WorkerProtocolTests
     }
 
     [TestMethod]
-    public void CompletedStatus_RequiresEvidenceAndNoOperationalFailure()
+    public void CompletedStatus_RequiresEvidence()
     {
         WorkerCompletedMessage message = new()
         {
@@ -186,7 +186,23 @@ public sealed class WorkerProtocolTests
     }
 
     [TestMethod]
-    public void CancelledStatus_RequiresNoEvidenceOrOperationalFailure()
+    public void CompletedStatus_ForbidsOperationalFailure()
+    {
+        WorkerCompletedMessage message = new()
+        {
+            ProtocolVersion = WorkerProtocol.Version,
+            MessageType = WorkerMessageKind.Completed,
+            RequestId = Guid.NewGuid(),
+            CompletionStatus = WorkerCompletionStatus.Completed,
+            Evidence = TestJson.CreateValidEvidence(),
+            OperationalFailure = CreateValidOperationalFailure()
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(message.Validate);
+    }
+
+    [TestMethod]
+    public void CancelledStatus_ForbidsEvidence()
     {
         WorkerCompletedMessage message = new()
         {
@@ -194,7 +210,7 @@ public sealed class WorkerProtocolTests
             MessageType = WorkerMessageKind.Completed,
             RequestId = Guid.NewGuid(),
             CompletionStatus = WorkerCompletionStatus.Cancelled,
-            Evidence = new WorkerInspectionEvidence(),
+            Evidence = TestJson.CreateValidEvidence(),
             OperationalFailure = null
         };
 
@@ -202,7 +218,23 @@ public sealed class WorkerProtocolTests
     }
 
     [TestMethod]
-    public void OperationalFailureStatus_RequiresFailureAndNoEvidence()
+    public void CancelledStatus_ForbidsOperationalFailure()
+    {
+        WorkerCompletedMessage message = new()
+        {
+            ProtocolVersion = WorkerProtocol.Version,
+            MessageType = WorkerMessageKind.Completed,
+            RequestId = Guid.NewGuid(),
+            CompletionStatus = WorkerCompletionStatus.Cancelled,
+            Evidence = null,
+            OperationalFailure = CreateValidOperationalFailure()
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(message.Validate);
+    }
+
+    [TestMethod]
+    public void OperationalFailureStatus_RequiresFailure()
     {
         WorkerCompletedMessage message = new()
         {
@@ -210,11 +242,75 @@ public sealed class WorkerProtocolTests
             MessageType = WorkerMessageKind.Completed,
             RequestId = Guid.NewGuid(),
             CompletionStatus = WorkerCompletionStatus.OperationalFailure,
-            Evidence = new WorkerInspectionEvidence(),
+            Evidence = null,
             OperationalFailure = null
         };
 
         Assert.ThrowsExactly<WorkerProtocolException>(message.Validate);
+    }
+
+    [TestMethod]
+    public void OperationalFailureStatus_ForbidsEvidence()
+    {
+        WorkerCompletedMessage message = new()
+        {
+            ProtocolVersion = WorkerProtocol.Version,
+            MessageType = WorkerMessageKind.Completed,
+            RequestId = Guid.NewGuid(),
+            CompletionStatus = WorkerCompletionStatus.OperationalFailure,
+            Evidence = TestJson.CreateValidEvidence(),
+            OperationalFailure = CreateValidOperationalFailure()
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(message.Validate);
+    }
+
+    [TestMethod]
+    public void CompletedStatus_WithEvidenceOnly_PassesValidation()
+    {
+        WorkerCompletedMessage message = new()
+        {
+            ProtocolVersion = WorkerProtocol.Version,
+            MessageType = WorkerMessageKind.Completed,
+            RequestId = Guid.NewGuid(),
+            CompletionStatus = WorkerCompletionStatus.Completed,
+            Evidence = TestJson.CreateValidEvidence(),
+            OperationalFailure = null
+        };
+
+        message.Validate();
+    }
+
+    [TestMethod]
+    public void CancelledStatus_WithoutTerminalData_PassesValidation()
+    {
+        WorkerCompletedMessage message = new()
+        {
+            ProtocolVersion = WorkerProtocol.Version,
+            MessageType = WorkerMessageKind.Completed,
+            RequestId = Guid.NewGuid(),
+            CompletionStatus = WorkerCompletionStatus.Cancelled,
+            Evidence = null,
+            OperationalFailure = null
+        };
+
+        message.Validate();
+    }
+
+    [TestMethod]
+    public void OperationalFailureStatus_WithFailureOnly_PassesValidation()
+    {
+        WorkerCompletedMessage message = new()
+        {
+            ProtocolVersion = WorkerProtocol.Version,
+            MessageType = WorkerMessageKind.Completed,
+            RequestId = Guid.NewGuid(),
+            CompletionStatus = WorkerCompletionStatus.OperationalFailure,
+            Evidence = null,
+            OperationalFailure = CreateValidOperationalFailure()
+        };
+
+        message.Validate();
     }
 
     [TestMethod]
@@ -325,6 +421,15 @@ public sealed class WorkerProtocolTests
             CompletedStageCount = 1,
             TotalStageCount = 5,
             StageFraction = null
+        };
+    }
+
+    private static WorkerOperationalFailure CreateValidOperationalFailure()
+    {
+        return new WorkerOperationalFailure
+        {
+            Code = "MI-OP-TEST",
+            Message = "The controlled inspection failed."
         };
     }
 }

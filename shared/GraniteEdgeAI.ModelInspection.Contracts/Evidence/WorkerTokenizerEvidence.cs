@@ -15,4 +15,14 @@ public sealed record WorkerTokenizerEvidence
 
     public IReadOnlyDictionary<string, int> KnownSpecialTokenIds { get; init; } =
         new Dictionary<string, int>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Verifies that the public tokenizer collection contract is preserved.
+    /// </summary>
+    public void Validate()
+    {
+        WorkerProtocolValidation.RequireNotNull(
+            KnownSpecialTokenIds,
+            nameof(KnownSpecialTokenIds));
+    }
 }

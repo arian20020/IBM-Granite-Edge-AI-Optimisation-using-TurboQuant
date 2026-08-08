@@ -202,6 +202,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2Architect
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGraphTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerEvidenceValidationTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerMessageSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolJsonTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolTests.cs

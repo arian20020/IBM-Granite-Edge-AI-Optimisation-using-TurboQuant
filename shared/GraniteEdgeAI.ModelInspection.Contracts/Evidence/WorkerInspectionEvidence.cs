@@ -31,9 +31,10 @@ public sealed record WorkerInspectionEvidence
         _ = WorkerProtocolValidation.RequireNotNull(
             Configuration,
             nameof(Configuration));
-        _ = WorkerProtocolValidation.RequireNotNull(
-            Tokenizer,
-            nameof(Tokenizer));
+        WorkerTokenizerEvidence tokenizer =
+            WorkerProtocolValidation.RequireNotNull(
+                Tokenizer,
+                nameof(Tokenizer));
         _ = WorkerProtocolValidation.RequireNotNull(
             ChatTemplate,
             nameof(ChatTemplate));
@@ -44,6 +45,7 @@ public sealed record WorkerInspectionEvidence
 
         runtime.Validate();
         modelFile.Validate();
+        tokenizer.Validate();
 
         foreach (WorkerObservation? candidate in observations)
         {
