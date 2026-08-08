@@ -1,0 +1,225 @@
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+$nl = [Environment]::NewLine
+
+function Lines {
+    param([string[]] $Value)
+    return $Value -join $nl
+}
+
+function Replace-RequiredText {
+    param(
+        [string] $Path,
+        [string] $Old,
+        [string] $New
+    )
+
+    $text = [System.IO.File]::ReadAllText($Path)
+    if (-not $text.Contains($Old)) {
+        throw "Required documentation anchor was not found in $Path`n--- anchor ---`n$Old"
+    }
+
+    [System.IO.File]::WriteAllText(
+        $Path,
+        $text.Replace($Old, $New),
+        $utf8NoBom)
+}
+
+$root = 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md'
+$contracts = 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/README.md'
+$controls = 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/README.md'
+$models = 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md'
+$presentation = 'IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/README.md'
+
+Replace-RequiredText $root (Lines @(
+    '**Status:** Presentation, application contracts, worker protocol contracts, and immutable navigation handoff implemented; production worker execution remains pending  ',
+    '**Last reviewed:** 2026-08-05  ',
+    '**Current branch:** `feature/model-inspection-runtime-integration`'
+)) (Lines @(
+    '**Status:** Presentation, application contracts, protected worker/process boundary, and immutable navigation handoff implemented; the production worker still uses the controlled unavailable inspection engine and application classification/UI execution remain later gates  ',
+    '**Last reviewed:** 2026-08-08  ',
+    '**Current branch:** `refactor/model-inspection-cleanup`'
+))
+
+Replace-RequiredText $root 'The page remains presentation-only in Gate 1. It does not yet launch the worker or display live results.' 'The page remains presentation-only in Phase 1. The protected Gate 2 worker/process boundary exists, but the page does not yet launch it or display live runtime results.'
+Replace-RequiredText $root '| Retain request and derive selected path | Implemented |' '| Retain exact request as the page source of truth | Implemented |'
+Replace-RequiredText $root (Lines @(
+    '| Production worker executable | Not implemented |',
+    '| Process adapter and bounded stream host | Not implemented |'
+)) (Lines @(
+    '| Production worker executable boundary | Implemented and tested; controlled unavailable engine only |',
+    '| Process adapter and bounded stream host | Implemented and tested |',
+    '| Production LLamaSharp inspection engine | Not implemented |'
+))
+
+Replace-RequiredText $root (Lines @(
+    'OnNavigatedTo',
+    '    → require ModelInspectionRequest',
+    '    → retain the exact request object',
+    '    → expose SelectedModelPath as Request?.ModelPath',
+    '    → reset initial-presentation guard'
+)) (Lines @(
+    'OnNavigatedTo',
+    '    → require ModelInspectionRequest',
+    '    → retain the exact request object as the page source of truth',
+    '    → reset initial-presentation guard'
+))
+
+Replace-RequiredText $root (Lines @(
+    'Model card',
+    '    → Compact',
+    '    → Model selected',
+    '    → filename and basic format only',
+    '    → no invented compatibility claim'
+)) (Lines @(
+    'Model card',
+    '    → Compact',
+    '    → Model selected',
+    '    → request filename and validated quick-scan format only',
+    '    → no invented compatibility claim'
+))
+
+Replace-RequiredText $root 'Feasibility evidence supports the selected runtime and containment design; it is not proof that the production worker exists.' 'Feasibility evidence supports the selected runtime and containment design; it is not proof that the production worker performs real LLamaSharp inspection or is packaged as the final application runtime closure.'
+
+Replace-RequiredText $root (Lines @(
+    '## Next production gate',
+    '',
+    'Gate 2 should add the worker executable boundary and process adapter without yet mixing in the classifier, ViewModel, or final UI:',
+    '',
+    '```text',
+    'Worker executable shell',
+    '    → bounded stdin/stdout/stderr',
+    '    → hello/runtime handshake',
+    '    → one request and one terminal result',
+    '    → parent/process identity checks',
+    '    → cooperative cancellation and forced-cleanup tests',
+    '    → fixed trusted executable resolution',
+    '```',
+    '',
+    'Only after that boundary is verified should later gates add LLamaSharp evidence extraction, mappers, classifier/service, ViewModel, and dynamic WinUI states.'
+)) (Lines @(
+    '## Next production gate',
+    '',
+    'Gate 2 has established the protected worker executable and process adapter, including bounded standard streams, protocol sequencing, trusted executable resolution, process containment, cancellation/timeout handling, and cleanup checks. The production worker deliberately still returns the controlled unavailable-engine result.',
+    '',
+    'The next production gate should place the real LLamaSharp evidence-extraction engine inside that already-protected worker boundary. Later gates then add worker-to-application mapping, classification/service orchestration, ViewModel execution, and dynamic WinUI states without weakening the verified process boundary.'
+))
+
+Replace-RequiredText $root '- no production worker executable or launch path;' '- the production worker does not yet perform real LLamaSharp model inspection;'
+
+Replace-RequiredText $contracts (Lines @(
+    '**Status:** Immutable application-owned contracts and navigation handoff implemented and tested; worker mapping and runtime orchestration remain later gates  ',
+    '**Last reviewed:** 2026-08-05'
+)) (Lines @(
+    '**Status:** Immutable application-owned contracts and navigation handoff implemented and tested; the protected worker boundary exists while application mapping and runtime orchestration remain later gates  ',
+    '**Last reviewed:** 2026-08-08'
+))
+Replace-RequiredText $contracts 'The same request instance is then forwarded by `OnboardingShellPage` and retained by `ModelInspectionPage`. The destination derives `SelectedModelPath` from `Request?.ModelPath`; it does not recreate or weaken the contract.' 'The same request instance is then forwarded by `OnboardingShellPage` and retained by `ModelInspectionPage`. `Request` is the page''s only authoritative navigation state; the page uses the validated `FileName` and quick-scan facts for presentation rather than re-parsing them from the path.'
+Replace-RequiredText $contracts '- the production worker executable exists or is packaged;' '- the production worker contains the real LLamaSharp inspection engine or is packaged as the final application runtime closure;'
+
+Replace-RequiredText $controls (Lines @(
+    '**Last reviewed:** 2026-08-03  ',
+    '**Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`'
+)) (Lines @(
+    '**Last reviewed:** 2026-08-08  ',
+    '**Reviewed application baseline:** `e382edf484d95b6833fc86c1f0c50f1a5483b1f0`'
+))
+Replace-RequiredText $controls '`InspectionModelCardMode` selects the state. The code-behind calls `Bindings.Update()` and then `VisualStateManager.GoToState(...)`.' '`InspectionModelCardMode` selects the state. The code-behind calls `Bindings.Update()`, applies the named visual state, and fails fast with a clear `InvalidOperationException` if XAML and code-behind state names drift apart.'
+Replace-RequiredText $controls 'The initial page supplies only path-derived filename and format data. The detailed layout exists, but no real inspection service currently supplies verified inspection checks.' 'The initial page supplies only the validated request filename and quick-scan format. The detailed layout exists, but no real inspection service currently supplies verified inspection checks.'
+Replace-RequiredText $controls (Lines @(
+    'If the expected state is absent, it throws a clear `InvalidOperationException`. This prevents the control from silently leaving both views collapsed when XAML and C# names drift apart.',
+    '',
+    'After applying the state, the control calls `Bindings.Update()` so action text, visibility, enabled state, commands, and automation names reflect the new presentation.'
+)) (Lines @(
+    'If the expected state is absent, it throws a clear `InvalidOperationException`. This prevents the control from silently leaving both views collapsed when XAML and C# names drift apart.',
+    '',
+    '`InspectionModelCard` and `InspectionOutcomeCard` use the same local fail-fast rule for their required display-mode and tone states. The controls remain self-contained rather than sharing a generic visual-state helper.',
+    '',
+    'After applying the action-card state, the control calls `Bindings.Update()` so action text, visibility, enabled state, commands, and automation names reflect the new presentation.'
+))
+Replace-RequiredText $controls '- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs)' (Lines @(
+    '- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs)',
+    '- [`InspectionVisualStateGuardTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs)'
+))
+Replace-RequiredText $controls (Lines @(
+    '- compiled-binding refresh and visual-state selection;',
+    '- focused selector and navigation tests.'
+)) (Lines @(
+    '- compiled-binding refresh and fail-fast visual-state selection;',
+    '- focused selector, hidden-state, visual-state, and navigation tests.'
+))
+
+Replace-RequiredText $models (Lines @(
+    '**Last reviewed:** 2026-08-04  ',
+    '**Reviewed application baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`'
+)) (Lines @(
+    '**Last reviewed:** 2026-08-08  ',
+    '**Reviewed application baseline:** `e382edf484d95b6833fc86c1f0c50f1a5483b1f0`'
+))
+Replace-RequiredText $models (Lines @(
+    'Safe default:',
+    '',
+    '```csharp',
+    'InspectionContentCardPresentation.Hidden',
+    '```',
+    '',
+    'This is the only root presentation currently implementing `INotifyPropertyChanged`. `IsExpanded` is mutable so a two-way XAML binding can update the disclosure state and notify bound text.'
+)) (Lines @(
+    'Safe default:',
+    '',
+    '```csharp',
+    'InspectionContentCardPresentation.Hidden',
+    '```',
+    '',
+    '`Hidden` returns a fresh safe snapshot rather than a shared mutable singleton. Each `InspectionContentCard` also installs its own hidden presentation instance after XAML initialization. This is the only root presentation currently implementing `INotifyPropertyChanged`; `IsExpanded` is mutable so a two-way XAML binding can update disclosure state and notify bound text.'
+))
+Replace-RequiredText $models (Lines @(
+    '### Shared-instance caution',
+    '',
+    'These defaults are static shared instances. Most properties are init-only, but `InspectionContentCardPresentation.IsExpanded` is mutable.',
+    '',
+    'Do not mutate `InspectionContentCardPresentation.Hidden.IsExpanded`. A future cleanup should consider either:',
+    '',
+    '- making hidden/default factories return new instances; or',
+    '- separating mutable view state from otherwise immutable presentation data.'
+)) (Lines @(
+    '### Mutable hidden-state isolation',
+    '',
+    'The immutable defaults may remain shared, but `InspectionContentCardPresentation.Hidden` is a factory-style property that returns a new instance because `IsExpanded` is mutable. Each content-card control therefore owns independent disclosure state while preserving non-null binding paths during construction.'
+))
+Replace-RequiredText $models '- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs)' (Lines @(
+    '- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs)',
+    '- [`InspectionContentCardPresentationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs)'
+))
+Replace-RequiredText $models (Lines @(
+    'Dedicated presentation-contract tests are still needed for:',
+    '',
+    '- default/hidden invariants;',
+    '- every enum-to-layout mapping;'
+)) (Lines @(
+    'Dedicated presentation-contract tests are still needed for:',
+    '',
+    '- every enum-to-layout mapping;'
+))
+Replace-RequiredText $models '- shared mutable hidden state is a risk around `IsExpanded`;' ''
+
+Replace-RequiredText $presentation (Lines @(
+    '**Last reviewed:** 2026-08-04  ',
+    '**Current branch:** `feature/model-inspection`'
+)) (Lines @(
+    '**Last reviewed:** 2026-08-08  ',
+    '**Current branch:** `refactor/model-inspection-cleanup`'
+))
+Replace-RequiredText $presentation (Lines @(
+    '- connector geometry;',
+    '- completed-stage summary;',
+    '- absence of Vulkan, TurboQuant, GPU and Hardware Fit wording from row titles.'
+)) (Lines @(
+    '- connector geometry;',
+    '- detail visibility only on the active initial stage;',
+    '- stable row automation names built from title and status;',
+    '- completed-stage summary;',
+    '- absence of Vulkan, TurboQuant, GPU and Hardware Fit wording from row titles.'
+))
