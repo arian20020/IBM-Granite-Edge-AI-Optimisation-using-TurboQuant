@@ -235,7 +235,8 @@ try {
         generator = $Generator
         platform = 'x64'
         configuration = 'Release'
-        parallelism = 2
+        # Record the exact single-job control used by the follow-up memory experiment.
+        parallelism = 1
         work_directory = $workspace.work_directory
         source_directory = $sourceRoot
         build_directory = $buildRoot
@@ -411,8 +412,9 @@ try {
     )
     Write-Wb05Json -Path (Join-Path $OutputDirectory 'dependencies.json') -Value $dependencies
 
-    # Build the full Runtime Release configuration with conservative parallelism.
-    $build = Invoke-RouteACommand -CommandId 'route-a-runtime-build' -FilePath $CMakePath -Arguments @('--build', $buildRoot, '--config', 'Release', '--parallel', '2', '--verbose') -WorkingDirectory $workspace.work_directory -MonitorResources
+    # Limit Runtime compilation to one concurrent build job for this experiment.
+    # The existing resource-safety boundary remains fixed and monitored.
+    $build = Invoke-RouteACommand -CommandId 'route-a-runtime-build' -FilePath $CMakePath -Arguments @('--build', $buildRoot, '--config', 'Release', '--parallel', '1', '--verbose') -WorkingDirectory $workspace.work_directory -MonitorResources
     if (Test-Wb05SafetyStop -Result $build) {
         Complete-RouteARuntimeEvidence -Status 'Infrastructure interrupted' -Reasons @('Route A Runtime build was terminated by the reviewed resource-safety boundary.')
         return
