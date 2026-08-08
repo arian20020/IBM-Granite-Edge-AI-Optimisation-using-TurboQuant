@@ -16,7 +16,16 @@ jobs:
       - name: Check out exact branch head
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          fetch-depth: 0
+          sparse-checkout: |
+            .github
+            docs
+            IBM Granite with TurboQuant (Intel)
+            infrastructure
+            scripts
+            shared
+            tests
+            tools
+            workers
 
       - name: Register the Task 7 test in the permanent cleanup inventory
         shell: pwsh
