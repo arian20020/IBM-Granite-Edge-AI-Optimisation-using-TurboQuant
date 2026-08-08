@@ -13,7 +13,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     /// </summary>
     public sealed partial class InspectionModelCard : UserControl
     {
-        // Cached status brushes are shared by repeated inspection-check rows.
+        // cached status brushes are shared by repeated inspection-check rows
         private static readonly Brush CheckInformationBackground =
             CreateBrush(0xEE, 0xF5, 0xFF);
         private static readonly Brush CheckInformationForeground =
@@ -31,10 +31,10 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         private static readonly Brush CheckErrorForeground =
             CreateBrush(0xB4, 0x23, 0x18);
 
-        // Stores the expander state because the XAML uses a two-way binding.
+        // stores the expander state because the xaml uses a two-way binding
         private bool _isInspectionDetailsExpanded;
 
-        // Prevents state changes before the named XAML elements exist.
+        // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
 
         /// <summary>
@@ -70,8 +70,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 value ?? InspectionModelCardPresentation.Empty);
         }
 
-        // The following read-only forwarding properties preserve the concise
-        // x:Bind expressions already present in InspectionModelCard.xaml.
+        // read-only forwarding properties keep existing x:Bind expressions concise
 
         public InspectionModelCardMode DisplayMode => Presentation.DisplayMode;
 
@@ -123,7 +122,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
                 if (_isInitialized)
                 {
-                    // Refreshes the action text and accessible name functions.
+                    // refresh action text and accessibility names after expansion changes
                     Bindings.Update();
                 }
             }
@@ -282,8 +281,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             DependencyObject dependencyObject,
             DependencyPropertyChangedEventArgs eventArguments)
         {
-            var control = (InspectionModelCard)dependencyObject;
-            var presentation =
+            InspectionModelCard control =
+                (InspectionModelCard)dependencyObject;
+            InspectionModelCardPresentation presentation =
                 eventArguments.NewValue as InspectionModelCardPresentation
                 ?? InspectionModelCardPresentation.Empty;
 
@@ -301,13 +301,13 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 return;
             }
 
-            // A new result starts with its details collapsed.
+            // a new presentation starts with its inspection details collapsed
             _isInspectionDetailsExpanded = false;
 
-            // Refreshes every forwarding property used by x:Bind.
+            // refresh forwarding x:Bind properties before applying the layout state
             Bindings.Update();
 
-            var stateName = presentation.DisplayMode switch
+            string stateName = presentation.DisplayMode switch
             {
                 InspectionModelCardMode.Compact => "CompactState",
                 InspectionModelCardMode.Detailed => "DetailedState",
@@ -317,7 +317,17 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                     "Unknown inspection model-card mode.")
             };
 
-            VisualStateManager.GoToState(this, stateName, false);
+            bool stateApplied = VisualStateManager.GoToState(
+                this,
+                stateName,
+                false);
+
+            // fail fast if xaml and code-behind state contracts drift apart
+            if (!stateApplied)
+            {
+                throw new InvalidOperationException(
+                    $"The model-card visual state '{stateName}' was not found.");
+            }
         }
 
         /// <summary>

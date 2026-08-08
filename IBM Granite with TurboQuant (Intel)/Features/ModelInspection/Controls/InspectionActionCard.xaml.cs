@@ -10,8 +10,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     /// </summary>
     public sealed partial class InspectionActionCard : UserControl
     {
-        // Prevents visual-state changes before InitializeComponent has
-        // created the named XAML elements.
+        // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
 
         /// <summary>
@@ -41,13 +40,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         /// </summary>
         public InspectionActionCard()
         {
-            // Builds the named elements declared in InspectionActionCard.xaml.
             InitializeComponent();
-
-            // Records that it is now safe to change XAML visual states.
             _isInitialized = true;
-
-            // Applies the safe default or any value assigned during construction.
             ApplyPresentation(Presentation);
         }
 
@@ -56,10 +50,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         /// </summary>
         public InspectionActionCardPresentation Presentation
         {
-            // Reads the value from WinUI's dependency-property store.
             get => (InspectionActionCardPresentation)GetValue(PresentationProperty);
-
-            // Stores a safe non-null value in WinUI's dependency-property store.
             set => SetValue(
                 PresentationProperty,
                 value ?? InspectionActionCardPresentation.Hidden);
@@ -70,10 +61,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         /// </summary>
         public Visibility CardVisibility
         {
-            // Reads the current calculated visibility.
             get => (Visibility)GetValue(CardVisibilityProperty);
-
-            // Only this control is allowed to calculate its own visibility.
             private set => SetValue(CardVisibilityProperty, value);
         }
 
@@ -84,15 +72,12 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             DependencyObject dependencyObject,
             DependencyPropertyChangedEventArgs eventArguments)
         {
-            // Recover the specific control instance whose property changed.
-            var control = (InspectionActionCard)dependencyObject;
-
-            // Protect every nested x:Bind path from a null presentation.
-            var presentation =
+            InspectionActionCard control =
+                (InspectionActionCard)dependencyObject;
+            InspectionActionCardPresentation presentation =
                 eventArguments.NewValue as InspectionActionCardPresentation
                 ?? InspectionActionCardPresentation.Hidden;
 
-            // Apply visibility and the correct structural layout.
             control.ApplyPresentation(presentation);
         }
 
@@ -102,20 +87,18 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         private void ApplyPresentation(
             InspectionActionCardPresentation presentation)
         {
-            // Hidden removes the complete control from the parent page layout.
             CardVisibility =
                 presentation.Mode == InspectionActionCardMode.Hidden
                     ? Visibility.Collapsed
                     : Visibility.Visible;
 
-            // Named XAML elements do not exist before InitializeComponent completes.
+            // xaml visual states are unavailable during dependency-property initialization
             if (!_isInitialized || CardVisibility == Visibility.Collapsed)
             {
                 return;
             }
 
-            // Select only between the two genuinely different card structures.
-            var stateName = presentation.Mode switch
+            string stateName = presentation.Mode switch
             {
                 InspectionActionCardMode.Inspecting => "InspectingState",
                 InspectionActionCardMode.Result => "ResultState",
@@ -125,22 +108,19 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                     "Unknown inspection action-card mode.")
             };
 
-            // Apply the structural state after the UserControl is fully loaded.
             bool stateApplied = VisualStateManager.GoToState(
                 this,
                 stateName,
                 false);
 
-            // A missing visual state indicates that the XAML and code-behind
-            // contracts have drifted apart.
+            // fail fast if xaml and code-behind state contracts drift apart
             if (!stateApplied)
             {
                 throw new InvalidOperationException(
                     $"The action-card visual state '{stateName}' was not found.");
             }
 
-            // Re-evaluate the compiled bindings so button text, visibility,
-            // accessibility labels, and enabled states use the new presentation.
+            // refresh compiled bindings after the presentation instance changes
             Bindings.Update();
         }
     }

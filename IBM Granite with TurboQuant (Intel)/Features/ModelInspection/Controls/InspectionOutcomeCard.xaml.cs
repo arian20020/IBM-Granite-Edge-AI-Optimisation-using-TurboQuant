@@ -10,7 +10,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     /// </summary>
     public sealed partial class InspectionOutcomeCard : UserControl
     {
-        // Prevents visual-state changes before the XAML visual tree exists.
+        // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
 
         /// <summary>
@@ -40,13 +40,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         /// </summary>
         public InspectionOutcomeCard()
         {
-            // Builds the named elements declared in InspectionOutcomeCard.xaml.
             InitializeComponent();
-
-            // Records that it is now safe to change XAML visual states.
             _isInitialized = true;
-
-            // Applies the safe default or any value assigned during construction.
             ApplyPresentation(Presentation);
         }
 
@@ -55,10 +50,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         /// </summary>
         public InspectionOutcomePresentation Presentation
         {
-            // Reads the value from WinUI's dependency-property store.
             get => (InspectionOutcomePresentation)GetValue(PresentationProperty);
-
-            // Stores a safe non-null value in WinUI's dependency-property store.
             set => SetValue(
                 PresentationProperty,
                 value ?? InspectionOutcomePresentation.Hidden);
@@ -69,10 +61,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         /// </summary>
         public Visibility CardVisibility
         {
-            // Reads the current calculated visibility.
             get => (Visibility)GetValue(CardVisibilityProperty);
-
-            // Only this control is allowed to calculate its own visibility.
             private set => SetValue(CardVisibilityProperty, value);
         }
 
@@ -83,15 +72,12 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             DependencyObject dependencyObject,
             DependencyPropertyChangedEventArgs eventArguments)
         {
-            // Recover the specific control instance whose property changed.
-            var control = (InspectionOutcomeCard)dependencyObject;
-
-            // Protect every x:Bind path from a null presentation.
-            var presentation =
+            InspectionOutcomeCard control =
+                (InspectionOutcomeCard)dependencyObject;
+            InspectionOutcomePresentation presentation =
                 eventArguments.NewValue as InspectionOutcomePresentation
                 ?? InspectionOutcomePresentation.Hidden;
 
-            // Apply visibility and the correct visual tone.
             control.ApplyPresentation(presentation);
         }
 
@@ -101,20 +87,18 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         private void ApplyPresentation(
             InspectionOutcomePresentation presentation)
         {
-            // The hidden kind removes the complete banner from page layout.
             CardVisibility =
                 presentation.Kind == InspectionOutcomePresentationKind.Hidden
                     ? Visibility.Collapsed
                     : Visibility.Visible;
 
-            // Named XAML elements do not exist before InitializeComponent completes.
+            // xaml visual states are unavailable during dependency-property initialization
             if (!_isInitialized || CardVisibility == Visibility.Collapsed)
             {
                 return;
             }
 
-            // Convert the presentation tone into the matching XAML state name.
-            var stateName = presentation.Tone switch
+            string stateName = presentation.Tone switch
             {
                 InspectionOutcomeTone.Success => "SuccessTone",
                 InspectionOutcomeTone.Warning => "WarningTone",
@@ -127,8 +111,17 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                     "Unknown inspection outcome tone.")
             };
 
-            // Apply the selected outcome colours without animation.
-            VisualStateManager.GoToState(this, stateName, false);
+            bool stateApplied = VisualStateManager.GoToState(
+                this,
+                stateName,
+                false);
+
+            // fail fast if xaml and code-behind state contracts drift apart
+            if (!stateApplied)
+            {
+                throw new InvalidOperationException(
+                    $"The outcome-card visual state '{stateName}' was not found.");
+            }
         }
     }
 }
