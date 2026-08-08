@@ -31,6 +31,7 @@ class BuildPowerShellContractTests(unittest.TestCase):
             "Write-Wb05Json",
             "Write-Wb05Manifest",
             "Assert-Wb05SafePath",
+            "Get-Wb05CMakeCacheValue",
             "Get-Wb05BinaryRecords",
             "Restore-Wb05Environment",
         }
