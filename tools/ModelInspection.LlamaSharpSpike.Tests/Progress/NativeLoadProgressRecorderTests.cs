@@ -111,6 +111,25 @@ public sealed class NativeLoadProgressRecorderTests
     }
 
     [TestMethod]
+    public void Report_ForwardsOnlyStoredGenuineFractionsSynchronously()
+    {
+        var progress = new CapturingProgress();
+        var recorder = new NativeLoadProgressRecorder(progress);
+
+        recorder.Report(0.25f);
+        Assert.HasCount(1, progress.Values);
+        recorder.Report(0.25f);
+        recorder.Report(float.NaN);
+        recorder.Report(0.50f);
+
+        Assert.HasCount(2, progress.Values);
+        Assert.IsFalse(progress.Values[0].PackageValidated);
+        Assert.AreEqual(0.25f, progress.Values[0].NativeFraction);
+        Assert.IsFalse(progress.Values[1].PackageValidated);
+        Assert.AreEqual(0.50f, progress.Values[1].NativeFraction);
+    }
+
+    [TestMethod]
     public void GetSnapshot_ReturnsIndependentReadOnlyCopy()
     {
         var recorder = new NativeLoadProgressRecorder();
@@ -152,5 +171,12 @@ public sealed class NativeLoadProgressRecorderTests
                 samples[index].ElapsedMilliseconds >=
                 samples[index - 1].ElapsedMilliseconds);
         }
+    }
+
+    private sealed class CapturingProgress : IProgress<VocabOnlyProbeProgress>
+    {
+        internal List<VocabOnlyProbeProgress> Values { get; } = [];
+
+        public void Report(VocabOnlyProbeProgress value) => Values.Add(value);
     }
 }

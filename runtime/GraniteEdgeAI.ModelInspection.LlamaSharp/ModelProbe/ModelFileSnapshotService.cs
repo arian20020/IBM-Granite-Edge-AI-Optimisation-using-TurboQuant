@@ -29,6 +29,30 @@ public sealed class ModelFileSnapshotService
         string modelPath,
         CancellationToken cancellationToken)
     {
+        return await CaptureCoreAsync(
+                modelPath,
+                expectedIdentity: null,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal async Task<ModelFileSnapshot> CaptureAsync(
+        VocabOnlyProbeRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return await CaptureCoreAsync(
+                request.ModelPath,
+                request,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<ModelFileSnapshot> CaptureCoreAsync(
+        string modelPath,
+        VocabOnlyProbeRequest? expectedIdentity,
+        CancellationToken cancellationToken)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -45,6 +69,14 @@ public sealed class ModelFileSnapshotService
 
         long lengthBeforeHash = fileInfo.Length;
         DateTime lastWriteBeforeHash = fileInfo.LastWriteTimeUtc;
+
+        if (expectedIdentity is not null &&
+            (lengthBeforeHash != expectedIdentity.ExpectedLengthBytes ||
+             new DateTimeOffset(lastWriteBeforeHash, TimeSpan.Zero) !=
+             expectedIdentity.ExpectedLastWriteTimeUtc))
+        {
+            throw new ModelFileContinuityException();
+        }
 
         byte[] hash;
 
@@ -100,5 +132,13 @@ public sealed class ModelFileSnapshotService
         return Convert
             .ToHexString(hash)
             .ToLowerInvariant();
+    }
+}
+
+internal sealed class ModelFileContinuityException : IOException
+{
+    internal ModelFileContinuityException()
+        : base("The selected model changed after it was prepared for inspection.")
+    {
     }
 }

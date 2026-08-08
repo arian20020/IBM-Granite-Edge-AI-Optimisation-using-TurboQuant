@@ -269,7 +269,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           dotnet test "$env:WORKER_TEST_PROJECT" `
             --configuration Release `
-            --minimum-expected-tests 4 `
+            --minimum-expected-tests 40 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Worker" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Worker.Tests.trx"

@@ -13,7 +13,7 @@ namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 /// Probes one local GGUF through the matched CPU runtime using LLamaSharp's
 /// supported VocabOnly path.
 /// </summary>
-public sealed class VocabOnlyModelProbe
+public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
 {
     private readonly ModelFileSnapshotService _snapshotService;
 
@@ -63,8 +63,40 @@ public sealed class VocabOnlyModelProbe
     /// initial model snapshot exists; the native timer begins immediately before
     /// LLamaSharp model loading. Caller cancellation remains active throughout.
     /// </summary>
-    public async Task<VocabOnlyModelProbeResult> RunAsync(
+    public Task<VocabOnlyModelProbeResult> RunAsync(
         string modelPath,
+        int? cancelAfterPreflightMilliseconds,
+        int? cancelNativeAfterMilliseconds,
+        CancellationToken cancellationToken)
+    {
+        return RunCoreAsync(
+            modelPath,
+            expectedIdentity: null,
+            progress: null,
+            cancelAfterPreflightMilliseconds,
+            cancelNativeAfterMilliseconds,
+            cancellationToken);
+    }
+
+    public Task<VocabOnlyModelProbeResult> RunAsync(
+        VocabOnlyProbeRequest request,
+        IProgress<VocabOnlyProbeProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return RunCoreAsync(
+            request.ModelPath,
+            request,
+            progress,
+            cancelAfterPreflightMilliseconds: null,
+            cancelNativeAfterMilliseconds: null,
+            cancellationToken);
+    }
+
+    private async Task<VocabOnlyModelProbeResult> RunCoreAsync(
+        string modelPath,
+        VocabOnlyProbeRequest? expectedIdentity,
+        IProgress<VocabOnlyProbeProgress>? progress,
         int? cancelAfterPreflightMilliseconds,
         int? cancelNativeAfterMilliseconds,
         CancellationToken cancellationToken)
@@ -86,7 +118,7 @@ public sealed class VocabOnlyModelProbe
         DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow;
         var totalStopwatch = Stopwatch.StartNew();
         var logs = new ConcurrentQueue<NativeBackendLogEntry>();
-        var progressRecorder = new NativeLoadProgressRecorder();
+        var progressRecorder = new NativeLoadProgressRecorder(progress);
         using Process process = Process.GetCurrentProcess();
 
         process.Refresh();
@@ -116,9 +148,20 @@ public sealed class VocabOnlyModelProbe
             // Caller cancellation is honored during hashing. Timed diagnostic
             // cancellation starts only after this baseline exists so the final
             // result can still prove model preservation.
-            beforeSnapshot = await _snapshotService.CaptureAsync(
-                fullModelPath,
-                cancellationToken);
+            beforeSnapshot = expectedIdentity is null
+                ? await _snapshotService.CaptureAsync(
+                        fullModelPath,
+                        cancellationToken)
+                    .ConfigureAwait(false)
+                : await _snapshotService.CaptureAsync(
+                        expectedIdentity with { ModelPath = fullModelPath },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+            progress?.Report(
+                new VocabOnlyProbeProgress(
+                    PackageValidated: true,
+                    NativeFraction: null));
 
             using var operationCancellation =
                 CancellationTokenSource.CreateLinkedTokenSource(
@@ -223,7 +266,8 @@ public sealed class VocabOnlyModelProbe
         }
         finally
         {
-            if (!string.IsNullOrWhiteSpace(fullModelPath) &&
+            if (beforeSnapshot is not null &&
+                !string.IsNullOrWhiteSpace(fullModelPath) &&
                 File.Exists(fullModelPath))
             {
                 try

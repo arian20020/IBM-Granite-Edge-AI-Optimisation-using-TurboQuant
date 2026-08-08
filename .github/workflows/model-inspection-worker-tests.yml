@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
       - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
       - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
       - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/**'
@@ -15,6 +16,7 @@ on:
       - main
     paths:
       - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
       - 'shared/GraniteEdgeAI.ModelInspection.Contracts/**'
       - 'shared/GraniteEdgeAI.ModelInspection.Transport/**'
       - 'tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/**'
@@ -45,6 +47,7 @@ jobs:
         with:
           sparse-checkout: |
             workers/GraniteEdgeAI.ModelInspection.Worker
+            runtime/GraniteEdgeAI.ModelInspection.LlamaSharp
             shared/GraniteEdgeAI.ModelInspection.Contracts
             shared/GraniteEdgeAI.ModelInspection.Transport
             tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests
@@ -77,6 +80,6 @@ jobs:
           dotnet test
           tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj
           --configuration Release
-          --filter "FullyQualifiedName~WorkerHostTests"
-          --minimum-expected-tests 4
+          --filter "FullyQualifiedName~WorkerHostTests|FullyQualifiedName~LlamaSharpInspectionEngineTests"
+          --minimum-expected-tests 40
           -p:Platform=x64

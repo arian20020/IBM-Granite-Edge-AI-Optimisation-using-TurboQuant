@@ -106,8 +106,12 @@ public sealed class Gate2ProjectGraphTests
         ProjectGraphAssert.HasExactly(
             Root,
             "workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj",
+            "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj",
             "shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj",
             "shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj");
+        ProjectGraphAssert.HasExactly(
+            Root,
+            "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj");
         ProjectGraphAssert.HasExactly(
             Root,
             "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj",

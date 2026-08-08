@@ -20,6 +20,17 @@ public sealed class NativeLoadProgressRecorder : IProgress<float>
     private readonly object _sync = new();
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly List<NativeLoadProgressSample> _samples = new();
+    private readonly IProgress<VocabOnlyProbeProgress>? _probeProgress;
+
+    public NativeLoadProgressRecorder()
+    {
+    }
+
+    internal NativeLoadProgressRecorder(
+        IProgress<VocabOnlyProbeProgress>? probeProgress)
+    {
+        _probeProgress = probeProgress;
+    }
 
     /// <summary>
     /// Ignores NaN, normalizes infinities, clamps finite values and omits only
@@ -52,6 +63,12 @@ public sealed class NativeLoadProgressRecorder : IProgress<float>
                     _stopwatch.ElapsedMilliseconds,
                     fraction));
         }
+
+        _probeProgress?.Report(
+            new VocabOnlyProbeProgress(
+                PackageValidated: false,
+                NativeFraction: fraction));
+
     }
 
     /// <summary>

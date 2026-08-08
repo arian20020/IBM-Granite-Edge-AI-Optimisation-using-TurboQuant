@@ -26,6 +26,10 @@ public sealed class TestFixtureIsolationTests
         [
             Path.Combine(root, "shared"),
             Path.Combine(root, "workers"),
+            Path.Combine(
+                root,
+                "runtime",
+                "GraniteEdgeAI.ModelInspection.LlamaSharp"),
             Path.Combine(root, "infrastructure"),
             Path.Combine(root, "IBM Granite with TurboQuant (Intel)")
         ];

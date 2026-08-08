@@ -48,6 +48,7 @@ env:
   NATIVE_INTEGRATION_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/ModelInspection.LlamaSharpSpike.NativeIntegrationTests.csproj'
   REAL_MODEL_TEST_PROJECT: 'tools/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests/ModelInspection.LlamaSharpSpike.RealModelIntegrationTests.csproj'
   EVIDENCE_PATH: 'artifacts/model-inspection/llamasharp/runtime-smoke.json'
+  DETERMINISTIC_RESULTS: 'TestResults/LLamaSharpDeterministic'
 
 jobs:
   tier1-runtime-coverage:
@@ -108,10 +109,34 @@ jobs:
             --no-restore `
             --runtime win-x64 `
             --filter "TestCategory=Deterministic" `
-            --minimum-expected-tests 1
+            --minimum-expected-tests 181 `
+            --results-directory "$env:DETERMINISTIC_RESULTS" `
+            --report-trx `
+            --report-trx-filename 'deterministic-llamasharp.trx'
 
           if ($LASTEXITCODE -ne 0) {
             throw "Deterministic LLamaSharp tests failed: $LASTEXITCODE"
+          }
+
+          $trxPath = Join-Path `
+            $env:DETERMINISTIC_RESULTS `
+            'deterministic-llamasharp.trx'
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.ProductionRuntimeArchitectureTests'
+          $requiredIds = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass } |
+            ForEach-Object { $_.id })
+          $passed = @($results |
+            Where-Object {
+              $_.testId -in $requiredIds -and $_.outcome -eq 'Passed'
+            })
+          if (
+            $requiredIds.Count -eq 0 -or
+            $passed.Count -ne $requiredIds.Count
+          ) {
+            throw 'Deterministic evidence did not pass every production-runtime architecture test.'
           }
 
       - name: Compile trusted real-model tests without executing them

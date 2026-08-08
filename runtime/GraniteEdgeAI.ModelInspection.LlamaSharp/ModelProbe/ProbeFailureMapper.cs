@@ -18,6 +18,12 @@ public static class ProbeFailureMapper
 
         return exception switch
         {
+            ModelFileContinuityException =>
+                new ProbeFailure(
+                    "MI-OP-MODEL-CONTINUITY-MISMATCH",
+                    type,
+                    "The selected model changed after it was prepared for inspection."),
+
             FileNotFoundException =>
                 new ProbeFailure(
                     "MI-OP-MODEL-FILE-NOT-FOUND",

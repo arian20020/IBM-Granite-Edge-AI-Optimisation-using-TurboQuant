@@ -16,6 +16,7 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\runtime\GraniteEdgeAI.ModelInspection.LlamaSharp\GraniteEdgeAI.ModelInspection.LlamaSharp.csproj" />
     <ProjectReference Include="..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\shared\GraniteEdgeAI.ModelInspection.Transport\GraniteEdgeAI.ModelInspection.Transport.csproj" />
   </ItemGroup>

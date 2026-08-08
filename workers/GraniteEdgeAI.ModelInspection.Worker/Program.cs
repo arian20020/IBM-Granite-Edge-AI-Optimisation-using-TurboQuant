@@ -1,10 +1,11 @@
 using System.Reflection;
+using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 namespace GraniteEdgeAI.ModelInspection.Worker;
 
 /// <summary>
 /// Composes the production worker from inherited standard streams and the
-/// truthful Gate 2 engine. No command-line argument carries a model path.
+/// production VocabOnly engine. No command-line argument carries a model path.
 /// </summary>
 internal static class Program
 {
@@ -23,11 +24,17 @@ internal static class Program
             input,
             output,
             error,
-            new UnavailableWorkerInspectionEngine(),
+            CreateInspectionEngine(version),
             new ParentProcessMonitor(),
             Environment.ProcessId,
             version);
         return await host.RunAsync(CancellationToken.None)
             .ConfigureAwait(false);
     }
+
+    internal static IWorkerInspectionEngine CreateInspectionEngine(
+        string workerVersion) =>
+        new LlamaSharpInspectionEngine(
+            new VocabOnlyModelProbe(),
+            workerVersion);
 }

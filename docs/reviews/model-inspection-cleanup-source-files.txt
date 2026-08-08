@@ -164,6 +164,7 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/CpuNativeRuntimeConfiguration.c
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/ChatTemplateEvidenceFactory.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/IModelFileHasher.cs
+runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/IVocabOnlyModelProbe.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/ModelFileSnapshot.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/ModelFileSnapshotService.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/ModelProbeSafetyValidator.cs
@@ -178,9 +179,13 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyEvidenceCol
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyMetadataProjection.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyModelProbe.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyModelProbeResult.cs
+runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyProbeProgress.cs
+runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyProbeRequest.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/NativeBackendSmokeProbe.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/NativeBackendSmokeResult.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs
+runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/README.md
+runtime/README.md
 scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerChatTemplateEvidence.cs
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerInspectionEvidence.cs
@@ -255,6 +260,7 @@ tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineCon
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/LlamaSharpInspectionEngineTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/WorkerHostTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/BoundedStandardErrorCollectorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
@@ -347,6 +353,7 @@ tools/ModelInspection.LlamaSharpSpike.Tests/Failures/VocabOnlyProbeCancellationC
 tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/ModelFileIntegrityComparisonTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/ModelFileSnapshotServiceTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/ModelProbeSafetyValidatorTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/FileSafety/VocabOnlyModelProbeContinuityTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/ChatTemplateEvidenceFactoryTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/VocabOnlyCollectorSourceContractTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/VocabOnlyMetadataProjectionTests.cs
@@ -369,6 +376,8 @@ tools/README.md
 workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj
 workers/GraniteEdgeAI.ModelInspection.Worker/IParentProcessMonitor.cs
 workers/GraniteEdgeAI.ModelInspection.Worker/IWorkerInspectionEngine.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/LlamaSharpInspectionEngine.cs
+workers/GraniteEdgeAI.ModelInspection.Worker/LlamaSharpInspectionEvidenceMapper.cs
 workers/GraniteEdgeAI.ModelInspection.Worker/ParentProcessMonitor.cs
 workers/GraniteEdgeAI.ModelInspection.Worker/Program.cs
 workers/GraniteEdgeAI.ModelInspection.Worker/README.md

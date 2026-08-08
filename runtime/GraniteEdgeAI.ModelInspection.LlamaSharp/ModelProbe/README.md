@@ -1,16 +1,17 @@
 # LLamaSharp VocabOnly model probe
 
 **Status:** Corrected Granite probe, cancellation, hostile-input and privacy gates verified  
-**Last reviewed:** 2026-08-05  
+**Last reviewed:** 2026-08-08
 **CLI:** [LLamaSharp feasibility tool](../../../tools/ModelInspection.LlamaSharpSpike/README.md)
 **Design:** [VocabOnly model-probe design](../../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)  
 **Tier 2 evidence:** [Local trusted verification](../../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 
 ## Purpose
 
-This folder contains the model-specific production CPU/VocabOnly runtime used
-by the isolated LLamaSharp feasibility CLI. It is not connected to the worker
-or WinUI application yet.
+This folder contains the model-specific production CPU/VocabOnly runtime shared
+by the isolated LLamaSharp feasibility CLI and the protected Model Inspection
+worker. The worker owns protocol mapping; this runtime remains independent of
+Worker and Contracts types.
 
 It answers one narrow question:
 
@@ -23,7 +24,9 @@ success path, repeatability, two cancellation scopes, malformed inputs,
 file-access failures, evidence privacy and model preservation have all passed
 the trusted local suite.
 
-This source is not referenced by the worker or WinUI application.
+The worker references this runtime through `IVocabOnlyModelProbe`. The WinUI
+application continues to communicate only through the protected worker/client
+boundary.
 
 ## Selected runtime
 
