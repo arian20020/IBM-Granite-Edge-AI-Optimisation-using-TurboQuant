@@ -123,13 +123,6 @@ function Read-CommandText {
     return $capturedOutput.Trim()
 }
 
-function Get-CMakeCacheValue {
-    param([Parameter(Mandatory = $true)] [string[]]$Lines, [Parameter(Mandatory = $true)] [string]$Name)
-    $line = $Lines | Where-Object { $_ -match "^$([Regex]::Escape($Name)):[^=]+=" } | Select-Object -First 1
-    if (-not $line) { return $null }
-    return ($line -split '=', 2)[1]
-}
-
 $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $modulePath = Join-Path $RepositoryRoot 'scripts/testing/workbook05/Workbook05.Build.psm1'
 if (-not (Test-Path -LiteralPath $modulePath -PathType Leaf)) { throw "Workbook 05 build module is missing: $modulePath" }
@@ -278,7 +271,9 @@ try {
     $cacheLines = Get-Content -LiteralPath $cachePath
     $cacheValues = [ordered]@{}
     foreach ($name in @('CMAKE_GENERATOR', 'CMAKE_GENERATOR_PLATFORM', 'ENABLE_TESTS', 'ENABLE_FUNCTIONAL_TESTS', 'ENABLE_CPU_SPECIFIC_TARGET_PER_TEST', 'ENABLE_INTEL_GPU', 'ENABLE_INTEL_NPU')) {
-        $cacheValues[$name] = Get-CMakeCacheValue -Lines $cacheLines -Name $name
+        # Use the same reviewed parser as Route A so legitimate blank cache lines
+        # and missing-key semantics cannot drift between the two Runtime routes.
+        $cacheValues[$name] = Get-Wb05CMakeCacheValue -Lines $cacheLines -Name $name
     }
     Write-Wb05Json -Path (Join-Path $OutputDirectory 'cmake-cache-summary.json') -Value ([ordered]@{
         schema_version = '1.0'; sha256 = (Get-FileHash -LiteralPath $cachePath -Algorithm SHA256).Hash.ToLowerInvariant(); values = $cacheValues
