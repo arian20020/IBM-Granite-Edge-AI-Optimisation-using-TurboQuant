@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-$nl = [Environment]::NewLine
+$nl = "`n"
 
 function Lines {
     param([string[]] $Value)
