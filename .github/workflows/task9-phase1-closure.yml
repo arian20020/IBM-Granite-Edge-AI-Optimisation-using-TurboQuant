@@ -28,6 +28,48 @@ jobs:
             tools
             workers
 
+      - name: Escape Markdown backticks inside generated here-strings
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $path = '.github/task9-phase1-closure-helper.ps1'
+          $text = [System.IO.File]::ReadAllText($path)
+
+          function Escape-TemplateBody {
+              param(
+                  [string] $InputText,
+                  [string] $Pattern,
+                  [string] $Name
+              )
+
+              $match = [regex]::Match($InputText, $Pattern)
+              if (-not $match.Success) {
+                  throw "Could not locate $Name here-string body"
+              }
+
+              $body = $match.Groups['body']
+              $escapedBody = $body.Value.Replace('`', '``')
+              return $InputText.Substring(0, $body.Index) +
+                  $escapedBody +
+                  $InputText.Substring($body.Index + $body.Length)
+          }
+
+          $text = Escape-TemplateBody `
+              $text `
+              '(?s)\$evidence = @"(?<body>.*?)"@\r?\nWrite-LfFile \$evidencePath' `
+              'evidence'
+          $text = Escape-TemplateBody `
+              $text `
+              '(?s)\$inventoryHeader = @"(?<body>.*?)"@\r?\n\r?\n\$rows' `
+              'inventory header'
+
+          [System.IO.File]::WriteAllText(
+              $path,
+              $text,
+              [System.Text.UTF8Encoding]::new($false))
+
       - name: Prepare closed ledger and Phase 1 evidence
         shell: pwsh
         run: ./.github/task9-phase1-closure-helper.ps1
