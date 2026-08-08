@@ -308,18 +308,29 @@ try {
         source_root = $sourceRoot
     })
 
-    # Configure with the exact pre-approved CPU-only/resource-control values.
+    # Configure only the reviewed CPU + OpenVINO IR Runtime surface. Optional
+    # framework frontends that are not used by this Route A hand-off stay off so
+    # the build does not create unnecessary executable/dependency surface.
     $configureArguments = @(
         '-S', $sourceRoot,
         '-B', $buildRoot,
         '-G', $Generator,
         '-A', 'x64',
         '-DCMAKE_BUILD_TYPE=Release',
+        '-DENABLE_INTEL_CPU=ON',
+        '-DENABLE_OV_IR_FRONTEND=ON',
+        '-DENABLE_OV_ONNX_FRONTEND=OFF',
+        '-DENABLE_OV_PADDLE_FRONTEND=OFF',
+        '-DENABLE_OV_TF_FRONTEND=OFF',
+        '-DENABLE_OV_TF_LITE_FRONTEND=OFF',
+        '-DENABLE_OV_PYTORCH_FRONTEND=OFF',
+        '-DENABLE_OV_JAX_FRONTEND=OFF',
         '-DENABLE_INTEL_GPU=OFF',
         '-DENABLE_INTEL_NPU=OFF',
         '-DENABLE_TESTS=OFF',
         '-DENABLE_FUNCTIONAL_TESTS=OFF',
-        '-DENABLE_SAMPLES=ON',
+        '-DENABLE_SAMPLES=OFF',
+        '-DENABLE_JS=OFF',
         '-DENABLE_PYTHON=ON',
         '-DENABLE_WHEEL=OFF',
         "-DPython3_EXECUTABLE=$PythonPath"
@@ -345,6 +356,7 @@ try {
     foreach ($name in @(
         'CMAKE_GENERATOR',
         'CMAKE_GENERATOR_PLATFORM',
+        'ENABLE_INTEL_CPU',
         'ENABLE_INTEL_GPU',
         'ENABLE_INTEL_NPU',
         'ENABLE_TESTS',
@@ -352,10 +364,20 @@ try {
         'ENABLE_SAMPLES',
         'ENABLE_PYTHON',
         'ENABLE_WHEEL',
+        'ENABLE_JS',
+        'ENABLE_OV_IR_FRONTEND',
+        'ENABLE_OV_ONNX_FRONTEND',
+        'ENABLE_OV_PADDLE_FRONTEND',
+        'ENABLE_OV_TF_FRONTEND',
+        'ENABLE_OV_TF_LITE_FRONTEND',
+        'ENABLE_OV_PYTORCH_FRONTEND',
+        'ENABLE_OV_JAX_FRONTEND',
+        'ENABLE_SYSTEM_PROTOBUF',
         'Python3_EXECUTABLE'
     )) {
-        # Read each reviewed generated control through the one shared parser so
-        # blank structural cache lines are handled identically across routes.
+        # Read each reviewed generated control through the shared parser. A
+        # missing optional Protobuf key remains null; required controls are
+        # rejected below if CMake did not materialize the reviewed value.
         $cacheValues[$name] = Get-Wb05CMakeCacheValue -Lines $cacheLines -Name $name
     }
     Write-Wb05Json -Path (Join-Path $OutputDirectory 'cmake-cache-summary.json') -Value ([ordered]@{
@@ -367,13 +389,26 @@ try {
     $cacheMatches = (
         $cacheValues.CMAKE_GENERATOR -eq $Generator -and
         $cacheValues.CMAKE_GENERATOR_PLATFORM -eq 'x64' -and
+        $cacheValues.ENABLE_INTEL_CPU -eq 'ON' -and
         $cacheValues.ENABLE_INTEL_GPU -eq 'OFF' -and
         $cacheValues.ENABLE_INTEL_NPU -eq 'OFF' -and
         $cacheValues.ENABLE_TESTS -eq 'OFF' -and
         $cacheValues.ENABLE_FUNCTIONAL_TESTS -eq 'OFF' -and
-        $cacheValues.ENABLE_SAMPLES -eq 'ON' -and
+        $cacheValues.ENABLE_SAMPLES -eq 'OFF' -and
         $cacheValues.ENABLE_PYTHON -eq 'ON' -and
-        $cacheValues.ENABLE_WHEEL -eq 'OFF'
+        $cacheValues.ENABLE_WHEEL -eq 'OFF' -and
+        $cacheValues.ENABLE_JS -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_IR_FRONTEND -eq 'ON' -and
+        $cacheValues.ENABLE_OV_ONNX_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_PADDLE_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_TF_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_TF_LITE_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_PYTORCH_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_JAX_FRONTEND -eq 'OFF' -and
+        (
+            $null -eq $cacheValues.ENABLE_SYSTEM_PROTOBUF -or
+            $cacheValues.ENABLE_SYSTEM_PROTOBUF -eq 'OFF'
+        )
     )
     if (-not $cacheMatches) {
         Complete-RouteARuntimeEvidence -Status 'Blocked' -Reasons @('Generated Route A Runtime CMake cache does not match the reviewed CPU-only build controls.')
