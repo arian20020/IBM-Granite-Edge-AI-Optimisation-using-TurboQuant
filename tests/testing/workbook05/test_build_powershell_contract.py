@@ -115,11 +115,17 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             "'-DENABLE_SAMPLES=ON'",
             "'-DENABLE_PYTHON=ON'",
             "'-DENABLE_WHEEL=OFF'",
-            "'--parallel', '2'",
+            "parallelism = 1",
+            "'--parallel', '1'",
         )
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
+
+        # The Runtime memory experiment must not silently keep the previous
+        # two-job concurrency in either its evidence or executed build command.
+        self.assertNotIn("parallelism = 2", self.text)
+        self.assertNotIn("'--parallel', '2'", self.text)
 
     def test_records_build_evidence_and_disables_later_claims(self) -> None:
         required = (
