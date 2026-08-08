@@ -1,0 +1,104 @@
+name: Task 9 Phase 1 closure
+
+on:
+  push:
+    branches:
+      - refactor/model-inspection-cleanup
+
+permissions:
+  contents: write
+
+jobs:
+  close-phase1:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out complete cleanup boundary
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          fetch-depth: 0
+          sparse-checkout: |
+            .github
+            docs
+            IBM Granite with TurboQuant (Intel)
+            infrastructure
+            scripts
+            shared
+            tests
+            tools
+            workers
+
+      - name: Prepare closed ledger and Phase 1 evidence
+        shell: pwsh
+        run: ./.github/task9-phase1-closure-helper.ps1
+
+      - name: Verify permanent cleanup inventory contracts
+        shell: pwsh
+        run: ./scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
+
+      - name: Verify closure content and commit only governance evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $sourceList = 'docs/reviews/model-inspection-cleanup-source-files.txt'
+          $inventory = 'docs/reviews/model-inspection-cleanup-inventory.md'
+          $evidence = 'docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md'
+          $evidenceIndex = 'docs/testing/evidence/README.md'
+
+          $sourceCount = @(Get-Content $sourceList | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+          $rowCount = @(Get-Content $inventory | Where-Object { $_.StartsWith('| `', [StringComparison]::Ordinal) }).Count
+          if ($sourceCount -ne 372 -or $rowCount -ne 372) {
+              throw "Closure count mismatch: source=$sourceCount inventory=$rowCount"
+          }
+
+          $inventoryText = Get-Content -Raw $inventory
+          foreach ($forbidden in @('pending review', 'not reviewed', 'baseline pending', 'serve the recorded subsystem boundary', 'to be mapped during subsystem audit')) {
+              if ($inventoryText.Contains($forbidden, [StringComparison]::OrdinalIgnoreCase)) {
+                  throw "Open/generic inventory marker remains: $forbidden"
+              }
+          }
+
+          if (-not (Test-Path $evidence)) {
+              throw 'Phase 1 evidence file was not created'
+          }
+          if (-not (Select-String -Path $sourceList -SimpleMatch $evidence -Quiet)) {
+              throw 'Phase 1 evidence file is absent from source list'
+          }
+          if (Select-String -Path $sourceList -SimpleMatch 'tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/InspectionContentTemplateSelectorTests.cs' -Quiet) {
+              throw 'Old selector-test path remains in source list'
+          }
+          if (Select-String -Path $sourceList -Pattern '(^|/)(bin|obj)(/|$)' -Quiet) {
+              throw 'Generated build output entered source list'
+          }
+
+          git diff --check
+
+          git rm -- '.github/workflows/task9-phase1-closure.yml'
+          git rm -- '.github/task9-phase1-closure-helper.ps1'
+
+          $allowed = @(
+              '.github/workflows/task9-phase1-closure.yml',
+              '.github/task9-phase1-closure-helper.ps1',
+              'docs/reviews/model-inspection-cleanup-inventory.md',
+              'docs/reviews/model-inspection-cleanup-source-files.txt',
+              'docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md',
+              'docs/testing/evidence/README.md'
+          )
+          $changed = @(git diff --name-only HEAD)
+          $unexpected = @($changed | Where-Object { $_ -notin $allowed })
+          if ($unexpected.Count -ne 0) {
+              throw "Unexpected Task 9 changes: $($unexpected -join ', ')"
+          }
+          foreach ($required in $allowed[2..5]) {
+              if ($required -notin $changed) {
+                  throw "Required Task 9 closure change is missing: $required"
+              }
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'test(model-inspection): close Phase 1 cleanup evidence'
+          git push origin HEAD:refactor/model-inspection-cleanup
