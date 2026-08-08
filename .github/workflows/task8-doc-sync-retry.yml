@@ -20,9 +20,12 @@ jobs:
             .github
             docs
             IBM Granite with TurboQuant (Intel)
+            infrastructure
             scripts
             shared
             tests
+            tools
+            workers
 
       - name: Apply only stale Phase 1 documentation corrections
         shell: pwsh
