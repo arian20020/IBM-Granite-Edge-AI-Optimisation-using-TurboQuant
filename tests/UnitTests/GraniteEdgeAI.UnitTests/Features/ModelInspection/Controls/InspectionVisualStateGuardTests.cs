@@ -1,0 +1,92 @@
+using GraniteEdgeAI.Features.ModelInspection.Controls;
+using GraniteEdgeAI.Features.ModelInspection.Models;
+using Microsoft.UI.Xaml;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System;
+using System.Linq;
+
+namespace GraniteEdgeAI.UnitTests;
+
+/// <summary>
+/// Verifies that required Model Inspection visual states fail clearly when XAML and
+/// code-behind drift apart.
+/// </summary>
+[TestClass]
+public sealed class InspectionVisualStateGuardTests
+{
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ResultPresentation_MissingResultState_ThrowsClearException()
+    {
+        InspectionActionCard control = new();
+        FrameworkElement layoutRoot =
+            (FrameworkElement)control.FindName("LayoutRoot");
+        RemoveVisualState(layoutRoot, "CardModeStates", "ResultState");
+
+        InvalidOperationException exception =
+            Assert.ThrowsException<InvalidOperationException>(() =>
+                control.Presentation = new InspectionActionCardPresentation
+                {
+                    Mode = InspectionActionCardMode.Result
+                });
+
+        StringAssert.Contains(exception.Message, "ResultState");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void DetailedPresentation_MissingDetailedState_ThrowsClearException()
+    {
+        InspectionModelCard control = new();
+        FrameworkElement layoutRoot =
+            (FrameworkElement)control.FindName("LayoutRoot");
+        RemoveVisualState(layoutRoot, "DisplayModeStates", "DetailedState");
+
+        InvalidOperationException exception =
+            Assert.ThrowsException<InvalidOperationException>(() =>
+                control.Presentation = new InspectionModelCardPresentation
+                {
+                    DisplayMode = InspectionModelCardMode.Detailed
+                });
+
+        StringAssert.Contains(exception.Message, "DetailedState");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ReadyPresentation_MissingSuccessTone_ThrowsClearException()
+    {
+        InspectionOutcomeCard control = new();
+        FrameworkElement layoutRoot =
+            (FrameworkElement)control.FindName("LayoutRoot");
+        RemoveVisualState(layoutRoot, "OutcomeToneStates", "SuccessTone");
+
+        InvalidOperationException exception =
+            Assert.ThrowsException<InvalidOperationException>(() =>
+                control.Presentation = new InspectionOutcomePresentation
+                {
+                    Kind = InspectionOutcomePresentationKind.Ready,
+                    Tone = InspectionOutcomeTone.Success,
+                    Title = "Ready",
+                    Message = "Ready",
+                    AutomationName = "Ready"
+                });
+
+        StringAssert.Contains(exception.Message, "SuccessTone");
+    }
+
+    private static void RemoveVisualState(
+        FrameworkElement layoutRoot,
+        string groupName,
+        string stateName)
+    {
+        VisualStateGroup group = VisualStateManager
+            .GetVisualStateGroups(layoutRoot)
+            .Single(candidate => candidate.Name == groupName);
+        VisualState state = group.States
+            .Single(candidate => candidate.Name == stateName);
+
+        group.States.Remove(state);
+    }
+}
