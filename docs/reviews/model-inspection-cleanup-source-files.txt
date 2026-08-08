@@ -234,6 +234,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/Worke
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/TestJson.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerNativeCompletionTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerProcessTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedFixture.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedWorker.cs
@@ -256,6 +257,11 @@ tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/ProtocolS
 tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/TestWorkerScenario.cs
 tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/TestWorkerScenarioParser.cs
 tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/TestWorkerScenarioRequest.cs
+tests/README.md
+tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf
+tests/TestFixtures/GGUF/README.md
+tests/TestFixtures/Generate-GgufMetadataFixtures.ps1
+tests/TestFixtures/fixture-manifest.json
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineConcurrencyTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj

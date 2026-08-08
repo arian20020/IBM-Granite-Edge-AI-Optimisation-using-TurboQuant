@@ -28,4 +28,12 @@
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Transport\GraniteEdgeAI.ModelInspection.Transport.csproj" />
     <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.ModelInspection.ProtocolTestWorker\GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The tiny zero-tensor native fixture belongs only to the test output;
+         it must never enter the production worker publish directory. -->
+    <Content Include="..\..\..\tests\TestFixtures\GGUF\N-001-vocab-only-spm.gguf">
+      <Link>TestFixtures\GGUF\N-001-vocab-only-spm.gguf</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

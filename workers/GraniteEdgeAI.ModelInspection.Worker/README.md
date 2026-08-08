@@ -38,7 +38,13 @@ request forwarding, progress translation, evidence mapping, integrity
 precedence, disposal/runtime identity enforcement, concurrency and diagnostic
 privacy.
 
-Process-level launch, crash, hang, cancellation and cleanup tests live separately under `tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests`.
+Process-level launch, crash, hang, cancellation and cleanup tests live
+separately under
+`tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests`.
+That boundary also publishes this exact worker and proves all five stages plus
+Completed evidence through the 800-byte, zero-tensor N-001 SentencePiece GGUF.
+The fixture proves native VocabOnly loading and tokenization only; it makes no
+inference, tensor, performance, or quality claim.
 
 ## Approval-required contract gap
 

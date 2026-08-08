@@ -97,8 +97,12 @@ public sealed class LlamaSharpInspectionEngineTests
             progress: null,
             CancellationToken.None);
 
+        Assert.AreEqual(WorkerCompletionStatus.Completed, result.CompletionStatus);
+        Assert.IsNull(result.OperationalFailure);
         Assert.IsNotNull(result.Evidence);
         WorkerInspectionEvidence evidence = result.Evidence;
+        evidence.Validate();
+
         Assert.AreEqual(WorkerVersion, evidence.Runtime.WorkerVersion);
         Assert.AreEqual(WorkerProtocol.Version, evidence.Runtime.ProtocolVersion);
         Assert.AreEqual(WorkerProtocol.RuntimeProfile, evidence.Runtime.RuntimeProfile);
@@ -114,17 +118,48 @@ public sealed class LlamaSharpInspectionEngineTests
         Assert.IsFalse(evidence.Runtime.UsesVulkan);
         Assert.AreEqual(0, evidence.Runtime.GpuLayerCount);
 
+        Assert.AreEqual("granite.gguf", evidence.ModelFile.FileName);
+        Assert.AreEqual(new string('C', 64), evidence.ModelFile.CanonicalPathSha256);
+        Assert.AreEqual(100, evidence.ModelFile.LengthBefore);
+        Assert.AreEqual(100, evidence.ModelFile.LengthAfter);
+        Assert.AreEqual(
+            command.ExpectedFileIdentity.LastWriteTimeUtc,
+            evidence.ModelFile.LastWriteTimeBeforeUtc);
+        Assert.AreEqual(
+            command.ExpectedFileIdentity.LastWriteTimeUtc,
+            evidence.ModelFile.LastWriteTimeAfterUtc);
+        Assert.AreEqual(new string('A', 64), evidence.ModelFile.Sha256Before);
+        Assert.AreEqual(new string('A', 64), evidence.ModelFile.Sha256After);
+        Assert.IsTrue(evidence.ModelFile.IntegrityPreserved);
+
+        Assert.AreEqual("granite", evidence.Configuration.Architecture);
+        Assert.AreEqual("Granite 4.1 3B", evidence.Configuration.ModelName);
         Assert.AreEqual(15, evidence.Configuration.FileType);
         Assert.AreEqual(2, evidence.Configuration.QuantisationVersion);
+        Assert.AreEqual("gpt2", evidence.Configuration.TokenizerModel);
         Assert.AreEqual((ulong)131_072, evidence.Configuration.DeclaredContextLength);
         Assert.AreEqual((ulong)4_096, evidence.Configuration.EmbeddingSize);
+        Assert.AreEqual(32, evidence.Configuration.LayerCount);
+        Assert.AreEqual(32, evidence.Configuration.AttentionHeadCount);
+        Assert.AreEqual(8, evidence.Configuration.KvHeadCount);
         Assert.AreEqual((ulong)3_000_000_000, evidence.Configuration.ParameterCount);
+
+        Assert.AreEqual(32_000, evidence.Tokenizer.VocabularyCount);
+        Assert.AreEqual("BPE", evidence.Tokenizer.VocabularyType);
+        Assert.IsTrue(evidence.Tokenizer.TokenizerSmokePassed);
+        Assert.AreEqual(4, evidence.Tokenizer.TokenizerSmokeTokenCount);
+        Assert.HasCount(6, evidence.Tokenizer.KnownSpecialTokenIds);
         Assert.AreEqual(1, evidence.Tokenizer.KnownSpecialTokenIds["bos"]);
         Assert.AreEqual(2, evidence.Tokenizer.KnownSpecialTokenIds["eos"]);
         Assert.AreEqual(3, evidence.Tokenizer.KnownSpecialTokenIds["newline"]);
         Assert.AreEqual(4, evidence.Tokenizer.KnownSpecialTokenIds["pad"]);
         Assert.AreEqual(5, evidence.Tokenizer.KnownSpecialTokenIds["mask"]);
         Assert.AreEqual(6, evidence.Tokenizer.KnownSpecialTokenIds["separator"]);
+
+        Assert.IsTrue(evidence.ChatTemplate.Present);
+        Assert.AreEqual(128, evidence.ChatTemplate.LengthCharacters);
+        Assert.AreEqual(new string('D', 64), evidence.ChatTemplate.Sha256);
+
         Assert.HasCount(0, evidence.Observations);
         Assert.IsFalse(
             JsonSerializer.Serialize(result).Contains(
@@ -324,21 +359,14 @@ public sealed class LlamaSharpInspectionEngineTests
     {
         WorkerStartInspectionCommand command = CreateStart();
         VocabOnlyModelProbeResult runtimeResult = CreateValidRuntimeResult(command);
+        using var progress = new EventCoordinatedProgress();
         var probe = new FakeProbe(
-            async (runtimeProgress, _) =>
+            (runtimeProgress, _) =>
             {
                 runtimeProgress?.Report(new VocabOnlyProbeProgress(true, null));
-                await Task.WhenAll(
-                    Enumerable.Range(0, 100)
-                        .Select(
-                            index => Task.Run(
-                                () => runtimeProgress?.Report(
-                                    new VocabOnlyProbeProgress(
-                                        false,
-                                        index / 99f)))));
-                return runtimeResult;
+                progress.StartCompetingCallbacks(runtimeProgress!);
+                return Task.FromResult(runtimeResult);
             });
-        var progress = new ConcurrencyDetectingProgress();
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
 
         WorkerEngineResult result = await engine.InspectAsync(
@@ -347,14 +375,8 @@ public sealed class LlamaSharpInspectionEngineTests
             CancellationToken.None);
 
         Assert.AreEqual(WorkerCompletionStatus.Completed, result.CompletionStatus);
-        Assert.IsFalse(progress.OverlapObserved);
-        Assert.AreEqual(
-            100,
-            progress.Values.Count(
-                message =>
-                    message.Stage == WorkerStage.ReadModelConfiguration &&
-                    message.StageStatus == WorkerStageStatus.Active &&
-                    message.StageFraction is not null));
+        Assert.IsTrue(progress.SecondCallbackWasBlockedUntilFirstReleased);
+        Assert.AreEqual(2, progress.FractionalProgressReportCount);
         Assert.IsTrue(progress.Values.All(message =>
         {
             message.Validate();
@@ -404,9 +426,46 @@ public sealed class LlamaSharpInspectionEngineTests
 
     [TestMethod]
     [DataRow("missing-model-evidence")]
+    [DataRow("missing-vocabulary")]
+    [DataRow("missing-tokenizer-smoke")]
+    [DataRow("missing-chat-template")]
+    [DataRow("wrong-schema-version")]
+    [DataRow("wrong-probe-mode")]
+    [DataRow("vocab-only-not-requested")]
+    [DataRow("nonzero-gpu-layer-count")]
+    [DataRow("memory-map-disabled")]
+    [DataRow("memory-lock-enabled")]
+    [DataRow("wrong-managed-package-name")]
     [DataRow("wrong-managed-pin")]
+    [DataRow("wrong-backend-package-name")]
+    [DataRow("wrong-backend-package-version")]
+    [DataRow("wrong-source-tag")]
+    [DataRow("wrong-source-commit")]
+    [DataRow("wrong-llama-commit")]
+    [DataRow("wrong-runtime-identifier")]
+    [DataRow("wrong-process-architecture")]
+    [DataRow("missing-selected-backend")]
+    [DataRow("wrong-native-library")]
+    [DataRow("missing-cuda-identity")]
     [DataRow("wrong-backend")]
+    [DataRow("missing-vulkan-identity")]
+    [DataRow("vulkan-backend")]
     [DataRow("native-handle-open")]
+    [DataRow("missing-native-handle-state")]
+    [DataRow("unexpected-failure-code")]
+    [DataRow("unexpected-failure-type")]
+    [DataRow("unexpected-failure-message")]
+    [DataRow("empty-before-file-name")]
+    [DataRow("request-file-name-mismatch")]
+    [DataRow("snapshot-file-name-mismatch")]
+    [DataRow("empty-before-path-hash")]
+    [DataRow("snapshot-path-hash-mismatch")]
+    [DataRow("request-length-mismatch")]
+    [DataRow("snapshot-length-mismatch")]
+    [DataRow("request-timestamp-mismatch")]
+    [DataRow("snapshot-timestamp-mismatch")]
+    [DataRow("empty-before-sha256")]
+    [DataRow("snapshot-sha256-mismatch")]
     public async Task InspectAsyncRejectsIncompleteOrUnsafeSuccessfulResult(
         string mutation)
     {
@@ -682,12 +741,156 @@ public sealed class LlamaSharpInspectionEngineTests
         string mutation) => mutation switch
     {
         "missing-model-evidence" => result with { ModelEvidence = null },
+        "missing-vocabulary" => result with
+        {
+            ModelEvidence = result.ModelEvidence! with { Vocabulary = null! }
+        },
+        "missing-tokenizer-smoke" => result with
+        {
+            ModelEvidence = result.ModelEvidence! with { TokenizerSmoke = null! }
+        },
+        "missing-chat-template" => result with
+        {
+            ModelEvidence = result.ModelEvidence! with { ChatTemplate = null! }
+        },
+        "wrong-schema-version" => result with { SchemaVersion = "1.0" },
+        "wrong-probe-mode" => result with { ProbeMode = "Full" },
+        "vocab-only-not-requested" => result with { VocabOnlyRequested = false },
+        "nonzero-gpu-layer-count" => result with { GpuLayerCount = 1 },
+        "memory-map-disabled" => result with { UseMemoryMap = false },
+        "memory-lock-enabled" => result with { UseMemoryLock = true },
+        "wrong-managed-package-name" => result with
+        {
+            ManagedPackageName = "Wrong.Managed.Package"
+        },
         "wrong-managed-pin" => result with { ManagedPackageVersion = "0.28.0" },
+        "wrong-backend-package-name" => result with
+        {
+            BackendPackageName = "Wrong.Backend.Package"
+        },
+        "wrong-backend-package-version" => result with
+        {
+            BackendPackageVersion = "0.28.0"
+        },
+        "wrong-source-tag" => result with { LlamaSharpSourceTag = "v0.28.0" },
+        "wrong-source-commit" => result with
+        {
+            LlamaSharpReleaseCommit = new string('1', 40)
+        },
+        "wrong-llama-commit" => result with
+        {
+            ExpectedLlamaCppCommit = new string('2', 40)
+        },
+        "wrong-runtime-identifier" => result with
+        {
+            IntendedProductionRuntimeIdentifier = "linux-x64"
+        },
+        "wrong-process-architecture" => result with
+        {
+            ProcessArchitecture = "Arm64"
+        },
+        "missing-selected-backend" => result with { SelectedBackend = null },
+        "wrong-native-library" => result with
+        {
+            SelectedBackend = result.SelectedBackend! with
+            {
+                NativeLibraryName = "Other"
+            }
+        },
+        "missing-cuda-identity" => result with
+        {
+            SelectedBackend = result.SelectedBackend! with { UsesCuda = null }
+        },
         "wrong-backend" => result with
         {
             SelectedBackend = result.SelectedBackend! with { UsesCuda = true }
         },
+        "missing-vulkan-identity" => result with
+        {
+            SelectedBackend = result.SelectedBackend! with { UsesVulkan = null }
+        },
+        "vulkan-backend" => result with
+        {
+            SelectedBackend = result.SelectedBackend! with { UsesVulkan = true }
+        },
         "native-handle-open" => result with { NativeHandleClosedAfterDispose = false },
+        "missing-native-handle-state" => result with
+        {
+            NativeHandleClosedAfterDispose = null
+        },
+        "unexpected-failure-code" => result with { FailureCode = Secret },
+        "unexpected-failure-type" => result with { FailureType = Secret },
+        "unexpected-failure-message" => result with { FailureMessage = Secret },
+        "empty-before-file-name" => result with
+        {
+            BeforeSnapshot = result.BeforeSnapshot! with { FileName = "" }
+        },
+        "request-file-name-mismatch" => result with
+        {
+            BeforeSnapshot = result.BeforeSnapshot! with { FileName = "other.gguf" },
+            AfterSnapshot = result.AfterSnapshot! with { FileName = "other.gguf" }
+        },
+        "snapshot-file-name-mismatch" => result with
+        {
+            AfterSnapshot = result.AfterSnapshot! with { FileName = "other.gguf" }
+        },
+        "empty-before-path-hash" => result with
+        {
+            BeforeSnapshot = result.BeforeSnapshot! with
+            {
+                CanonicalPathSha256 = ""
+            },
+            AfterSnapshot = result.AfterSnapshot! with
+            {
+                CanonicalPathSha256 = ""
+            }
+        },
+        "snapshot-path-hash-mismatch" => result with
+        {
+            AfterSnapshot = result.AfterSnapshot! with
+            {
+                CanonicalPathSha256 = new string('E', 64)
+            }
+        },
+        "request-length-mismatch" => result with
+        {
+            BeforeSnapshot = result.BeforeSnapshot! with { LengthBytes = 101 },
+            AfterSnapshot = result.AfterSnapshot! with { LengthBytes = 101 }
+        },
+        "snapshot-length-mismatch" => result with
+        {
+            AfterSnapshot = result.AfterSnapshot! with { LengthBytes = 101 }
+        },
+        "request-timestamp-mismatch" => result with
+        {
+            BeforeSnapshot = result.BeforeSnapshot! with
+            {
+                LastWriteTimeUtc = result.BeforeSnapshot.LastWriteTimeUtc.AddSeconds(1)
+            },
+            AfterSnapshot = result.AfterSnapshot! with
+            {
+                LastWriteTimeUtc = result.AfterSnapshot.LastWriteTimeUtc.AddSeconds(1)
+            }
+        },
+        "snapshot-timestamp-mismatch" => result with
+        {
+            AfterSnapshot = result.AfterSnapshot! with
+            {
+                LastWriteTimeUtc = result.AfterSnapshot.LastWriteTimeUtc.AddSeconds(1)
+            }
+        },
+        "empty-before-sha256" => result with
+        {
+            BeforeSnapshot = result.BeforeSnapshot! with { Sha256 = "" },
+            AfterSnapshot = result.AfterSnapshot! with { Sha256 = "" }
+        },
+        "snapshot-sha256-mismatch" => result with
+        {
+            AfterSnapshot = result.AfterSnapshot! with
+            {
+                Sha256 = new string('E', 64)
+            }
+        },
         _ => throw new AssertFailedException($"Unknown mutation: {mutation}")
     };
 
@@ -751,36 +954,133 @@ public sealed class LlamaSharpInspectionEngineTests
         public void Report(WorkerProgressMessage value) => Values.Add(value);
     }
 
-    private sealed class ConcurrencyDetectingProgress :
-        IProgress<WorkerProgressMessage>
+    private sealed class EventCoordinatedProgress :
+        IProgress<WorkerProgressMessage>, IDisposable
     {
+        private static readonly TimeSpan EventTimeout = TimeSpan.FromSeconds(5);
+
         private readonly object _sync = new();
-        private int _activeReports;
-        private int _overlapObserved;
+        private readonly ManualResetEvent _firstFractionEntered = new(false);
+        private readonly ManualResetEvent _releaseFirstFraction = new(false);
+        private readonly ManualResetEvent _secondCallbackAboutToReport = new(false);
+        private readonly ManualResetEvent _secondFractionEntered = new(false);
+        private readonly ManualResetEvent _secondCallbackReturned = new(false);
+        private int _fractionalProgressReportCount;
 
         internal List<WorkerProgressMessage> Values { get; } = [];
 
-        internal bool OverlapObserved =>
-            Volatile.Read(ref _overlapObserved) != 0;
+        internal bool SecondCallbackWasBlockedUntilFirstReleased { get; private set; }
+
+        internal int FractionalProgressReportCount =>
+            Volatile.Read(ref _fractionalProgressReportCount);
+
+        internal void StartCompetingCallbacks(
+            IProgress<VocabOnlyProbeProgress> runtimeProgress)
+        {
+            Exception? firstException = null;
+            Exception? secondException = null;
+            var firstThread = new Thread(
+                () => CaptureException(
+                    () => runtimeProgress.Report(
+                        new VocabOnlyProbeProgress(false, 0.25f)),
+                    exception => firstException = exception))
+            {
+                IsBackground = true,
+                Name = "model-inspection-first-progress-callback"
+            };
+            var secondThread = new Thread(
+                () =>
+                {
+                    _secondCallbackAboutToReport.Set();
+                    CaptureException(
+                        () => runtimeProgress.Report(
+                            new VocabOnlyProbeProgress(false, 0.75f)),
+                        exception => secondException = exception);
+                    _secondCallbackReturned.Set();
+                })
+            {
+                IsBackground = true,
+                Name = "model-inspection-second-progress-callback"
+            };
+
+            firstThread.Start();
+            Assert.IsTrue(
+                _firstFractionEntered.WaitOne(EventTimeout),
+                "The first progress callback did not enter the consumer.");
+
+            secondThread.Start();
+            Assert.IsTrue(
+                _secondCallbackAboutToReport.WaitOne(EventTimeout),
+                "The second dedicated callback thread did not start.");
+
+            bool enteredBeforeRelease =
+                _secondFractionEntered.WaitOne(TimeSpan.FromMilliseconds(250));
+            bool returnedBeforeRelease = _secondCallbackReturned.WaitOne(0);
+            SecondCallbackWasBlockedUntilFirstReleased =
+                !enteredBeforeRelease && !returnedBeforeRelease;
+
+            _releaseFirstFraction.Set();
+            Assert.IsTrue(
+                firstThread.Join(EventTimeout),
+                "The first progress callback did not finish after release.");
+            Assert.IsTrue(
+                secondThread.Join(EventTimeout),
+                "The second progress callback did not finish after release.");
+            Assert.IsNull(firstException);
+            Assert.IsNull(secondException);
+            Assert.IsTrue(
+                _secondFractionEntered.WaitOne(0),
+                "The second progress callback never reached the consumer.");
+        }
 
         public void Report(WorkerProgressMessage value)
         {
-            if (Interlocked.Increment(ref _activeReports) != 1)
+            if (value.Stage == WorkerStage.ReadModelConfiguration &&
+                value.StageStatus == WorkerStageStatus.Active &&
+                value.StageFraction is not null)
             {
-                Interlocked.Exchange(ref _overlapObserved, 1);
-            }
+                int callbackNumber =
+                    Interlocked.Increment(ref _fractionalProgressReportCount);
 
-            try
-            {
-                Thread.SpinWait(50_000);
-                lock (_sync)
+                if (callbackNumber == 1)
                 {
-                    Values.Add(value);
+                    _firstFractionEntered.Set();
+                    Assert.IsTrue(
+                        _releaseFirstFraction.WaitOne(EventTimeout),
+                        "The first progress callback was not released.");
+                }
+                else if (callbackNumber == 2)
+                {
+                    _secondFractionEntered.Set();
                 }
             }
-            finally
+
+            lock (_sync)
             {
-                Interlocked.Decrement(ref _activeReports);
+                Values.Add(value);
+            }
+        }
+
+        public void Dispose()
+        {
+            _firstFractionEntered.Dispose();
+            _releaseFirstFraction.Dispose();
+            _secondCallbackAboutToReport.Dispose();
+            _secondFractionEntered.Dispose();
+            _secondCallbackReturned.Dispose();
+        }
+
+        private static void CaptureException(
+            Action action,
+            Action<Exception> capture)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception exception)
+            {
+                capture(exception);
             }
         }
     }

@@ -41,9 +41,10 @@ cases into pure in-memory unit tests.
 
 ## GGUF fixtures
 
-The controlled fixture set contains 52 tiny `.gguf` binaries:
+The controlled fixture set contains 53 tiny `.gguf` binaries:
 
-- 13 GGUF/header inputs under [GGUF](TestFixtures/GGUF/README.md).
+- 14 GGUF/header/native-probe inputs under
+  [GGUF](TestFixtures/GGUF/README.md).
 - 39 deliberately malformed inputs under
   [Malformed](TestFixtures/Malformed/README.md).
 - 12 independent expected-result JSON files under

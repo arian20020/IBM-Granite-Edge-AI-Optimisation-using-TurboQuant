@@ -43,6 +43,18 @@ public sealed class ProductionRuntimeArchitectureTests
         "ModelProbe/VocabOnlyProbeRequest.cs"
     ];
 
+    private static readonly (string Name, string ExpectedValue)[]
+        RequiredRuntimeProperties =
+        [
+            ("TargetFramework", "net8.0"),
+            ("Nullable", "enable"),
+            ("TreatWarningsAsErrors", "true"),
+            ("EnableNETAnalyzers", "true"),
+            ("Deterministic", "true"),
+            ("PlatformTarget", "x64"),
+            ("RuntimeIdentifier", "win-x64")
+        ];
+
     [TestMethod]
     public void ProductionRuntimeProjectOwnsExactCpuPackages()
     {
@@ -66,23 +78,79 @@ public sealed class ProductionRuntimeArchitectureTests
     {
         XDocument project = XDocument.Load(
             RepositoryPath(RuntimeProjectRelativePath));
-        IReadOnlyDictionary<string, string> properties = project
-            .Descendants("PropertyGroup")
-            .Elements()
-            .Where(element => !string.IsNullOrWhiteSpace(element.Value))
-            .GroupBy(element => element.Name.LocalName, StringComparer.Ordinal)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Last().Value.Trim(),
-                StringComparer.Ordinal);
+        IReadOnlyList<string> propertyViolations =
+            GetRequiredRuntimePropertyViolations(project);
+        Assert.AreEqual(
+            0,
+            propertyViolations.Count,
+            string.Join(Environment.NewLine, propertyViolations));
 
-        Assert.AreEqual("net8.0", properties["TargetFramework"]);
-        Assert.AreEqual("enable", properties["Nullable"]);
-        Assert.AreEqual("true", properties["TreatWarningsAsErrors"]);
-        Assert.AreEqual("true", properties["EnableNETAnalyzers"]);
-        Assert.AreEqual("true", properties["Deterministic"]);
-        Assert.AreEqual("x64", properties["PlatformTarget"]);
-        Assert.AreEqual("win-x64", properties["RuntimeIdentifier"]);
+        XDocument conditionBlindLastValueMutation = new(project);
+        conditionBlindLastValueMutation.Root!.Add(
+            new XElement(
+                "PropertyGroup",
+                new XAttribute(
+                    "Condition",
+                    "'$(Configuration)' == 'Release'"),
+                new XElement("Nullable", "disable"),
+                new XElement("PlatformTarget", "AnyCPU"),
+                new XElement("RuntimeIdentifier", "win-arm64")),
+            new XElement(
+                "PropertyGroup",
+                new XAttribute(
+                    "Condition",
+                    "'$(Configuration)' == 'Debug'"),
+                new XElement("Nullable", "enable"),
+                new XElement("PlatformTarget", "x64"),
+                new XElement("RuntimeIdentifier", "win-x64")));
+        IReadOnlyList<string> mutationViolations =
+            GetRequiredRuntimePropertyViolations(
+                conditionBlindLastValueMutation);
+        foreach (string shadowedProperty in new[]
+                 {
+                     "Nullable",
+                     "PlatformTarget",
+                     "RuntimeIdentifier"
+                 })
+        {
+            Assert.IsTrue(
+                mutationViolations.Any(
+                    violation => violation.StartsWith(
+                        $"{shadowedProperty}:",
+                        StringComparison.Ordinal)),
+                $"A condition-blind last-value check accepted {shadowedProperty}.");
+        }
+
+        XDocument conditionalOnlyMutation = new(project);
+        conditionalOnlyMutation
+            .Descendants("RuntimeIdentifier")
+            .Single()
+            .SetAttributeValue(
+                "Condition",
+                "'$(Configuration)' == 'Release'");
+        IReadOnlyList<string> conditionalOnlyViolations =
+            GetRequiredRuntimePropertyViolations(conditionalOnlyMutation);
+        Assert.IsTrue(
+            conditionalOnlyViolations.Contains(
+                "RuntimeIdentifier: declaration must be unconditional " +
+                "and in a top-level PropertyGroup.",
+                StringComparer.Ordinal),
+            "A conditional-only RuntimeIdentifier declaration was accepted.");
+
+        XDocument differentlyCasedDuplicateMutation = new(project);
+        differentlyCasedDuplicateMutation.Root!.Add(
+            new XElement(
+                "PropertyGroup",
+                new XElement("runtimeidentifier", "win-arm64")));
+        IReadOnlyList<string> differentlyCasedViolations =
+            GetRequiredRuntimePropertyViolations(
+                differentlyCasedDuplicateMutation);
+        Assert.IsTrue(
+            differentlyCasedViolations.Contains(
+                "RuntimeIdentifier: expected exactly one declaration, " +
+                "but found 2.",
+                StringComparer.Ordinal),
+            "A differently cased MSBuild property override was accepted.");
 
         string[] projectReferences = project
             .Descendants("ProjectReference")
@@ -176,6 +244,66 @@ public sealed class ProductionRuntimeArchitectureTests
         Path.Combine(
             RepositoryPaths.FindRoot(),
             relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    private static IReadOnlyList<string>
+        GetRequiredRuntimePropertyViolations(XDocument project)
+    {
+        List<string> violations = [];
+
+        foreach ((string propertyName, string expectedValue) in
+                 RequiredRuntimeProperties)
+        {
+            XElement[] definitions = project
+                .Descendants()
+                .Where(
+                    element => string.Equals(
+                        element.Name.LocalName,
+                        propertyName,
+                        StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (definitions.Length != 1)
+            {
+                violations.Add(
+                    $"{propertyName}: expected exactly one declaration, " +
+                    $"but found {definitions.Length}.");
+                continue;
+            }
+
+            XElement definition = definitions[0];
+            XElement? propertyGroup = definition.Parent;
+            bool isUnconditionalTopLevelProperty =
+                propertyGroup is not null &&
+                string.Equals(
+                    propertyGroup.Name.LocalName,
+                    "PropertyGroup",
+                    StringComparison.Ordinal) &&
+                ReferenceEquals(propertyGroup.Parent, project.Root) &&
+                string.IsNullOrWhiteSpace(
+                    propertyGroup.Attribute("Condition")?.Value) &&
+                string.IsNullOrWhiteSpace(
+                    definition.Attribute("Condition")?.Value);
+            if (!isUnconditionalTopLevelProperty)
+            {
+                violations.Add(
+                    $"{propertyName}: declaration must be unconditional " +
+                    "and in a top-level PropertyGroup.");
+            }
+
+            string actualValue = definition.Value.Trim();
+            if (!string.Equals(
+                    expectedValue,
+                    actualValue,
+                    StringComparison.Ordinal))
+            {
+                violations.Add(
+                    $"{propertyName}: expected '{expectedValue}', " +
+                    $"but found '{actualValue}'.");
+            }
+        }
+
+        return violations;
+    }
 
     private static IReadOnlyDictionary<string, string> ReadPackageReferences(
         XDocument project) => project

@@ -125,18 +125,65 @@ jobs:
           $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
           $results = @($trx.TestRun.Results.UnitTestResult)
           $requiredClass = 'GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.ProductionRuntimeArchitectureTests'
-          $requiredIds = @($definitions |
-            Where-Object { $_.TestMethod.className -eq $requiredClass } |
-            ForEach-Object { $_.id })
-          $passed = @($results |
-            Where-Object {
-              $_.testId -in $requiredIds -and $_.outcome -eq 'Passed'
+          $expectedArchitectureTests = @(
+            "$requiredClass.ProductionRuntimeProjectOwnsExactCpuPackages"
+            "$requiredClass.ProductionRuntimeProjectHasExactBuildAndDependencyBoundary"
+            "$requiredClass.ProductionRuntimeBoundaryDocumentationExists"
+            "$requiredClass.SpikeProjectOwnsNoLlamaPackagesAndReferencesRuntime"
+            "$requiredClass.VocabOnlyProbeBelongsToProductionRuntimeAssembly"
+            "$requiredClass.ProductionRuntimePhysicallyOwnsProbeConfigurationAndEvidenceSources"
+          )
+          $architectureDefinitions = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass })
+          $actualArchitectureTests = @($architectureDefinitions |
+            ForEach-Object {
+              "$($_.TestMethod.className).$($_.TestMethod.name)"
             })
+          $missingArchitectureTests = @($expectedArchitectureTests |
+            Where-Object { $_ -notin $actualArchitectureTests })
+          $unexpectedArchitectureTests = @($actualArchitectureTests |
+            Where-Object { $_ -notin $expectedArchitectureTests })
+          $duplicateArchitectureTests = @($actualArchitectureTests |
+            Group-Object |
+            Where-Object { $_.Count -ne 1 })
           if (
-            $requiredIds.Count -eq 0 -or
-            $passed.Count -ne $requiredIds.Count
+            $actualArchitectureTests.Count -ne 6 -or
+            $missingArchitectureTests.Count -ne 0 -or
+            $unexpectedArchitectureTests.Count -ne 0 -or
+            $duplicateArchitectureTests.Count -ne 0
           ) {
-            throw 'Deterministic evidence did not pass every production-runtime architecture test.'
+            throw (
+              'Deterministic evidence did not contain the exact six ' +
+              'production-runtime architecture definitions.'
+            )
+          }
+
+          foreach ($expectedTest in $expectedArchitectureTests) {
+            $definition = @($architectureDefinitions |
+              Where-Object {
+                "$($_.TestMethod.className).$($_.TestMethod.name)" -eq
+                  $expectedTest
+              })
+            if ($definition.Count -ne 1) {
+              throw "Architecture definition count was not one: $expectedTest"
+            }
+
+            $testResults = @($results |
+              Where-Object { $_.testId -eq $definition[0].id })
+            if (
+              $testResults.Count -ne 1 -or
+              $testResults[0].outcome -ne 'Passed'
+            ) {
+              throw "Architecture test did not pass exactly once: $expectedTest"
+            }
+          }
+
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if (
+            $null -eq $counters -or
+            [int]$counters.notExecuted -ne 0
+          ) {
+            throw 'Deterministic evidence contains skipped tests.'
           }
 
       - name: Compile trusted real-model tests without executing them

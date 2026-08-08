@@ -1313,6 +1313,123 @@ Write-ExpectedMetadata `
     -ContextLength ([uint64] 131072) `
     -Notes "Scanner-relevant duplicate keys retain their first occurrence."
 
+# N-001: a zero-tensor SentencePiece vocabulary accepted by the production
+# CPU/VocabOnly runtime. The N-series is native-probe evidence, not another
+# quick-scanner expectation row.
+$n001Path =
+Join-Path `
+    -Path $ggufDirectory `
+    -ChildPath "N-001-vocab-only-spm.gguf"
+
+$n001Tokens =
+New-GgufArrayValue `
+    -ElementType $GgufTypeString `
+    -Values @(
+    "<unk>",
+    "<s>",
+    "</s>",
+    "<0x0A>",
+    "He",
+    "Hel",
+    "Hell",
+    "Hello"
+)
+
+$n001Scores =
+New-GgufArrayValue `
+    -ElementType $GgufTypeFloat32 `
+    -Values @(
+    [single] 0,
+    [single] 0,
+    [single] 0,
+    [single] 0,
+    [single] 0,
+    [single] 0,
+    [single] 0,
+    [single] 0
+)
+
+$n001TokenTypes =
+New-GgufArrayValue `
+    -ElementType $GgufTypeInt32 `
+    -Values @(
+    [int32] 2,
+    [int32] 3,
+    [int32] 3,
+    [int32] 6,
+    [int32] 1,
+    [int32] 1,
+    [int32] 1,
+    [int32] 1
+)
+
+$n001Entries =
+@(
+    New-GgufEntry `
+        -Key "general.architecture" `
+        -Type $GgufTypeString `
+        -Value "granite"
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.model" `
+        -Type $GgufTypeString `
+        -Value "llama"
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.tokens" `
+        -Type $GgufTypeArray `
+        -Value $n001Tokens
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.scores" `
+        -Type $GgufTypeArray `
+        -Value $n001Scores
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.token_type" `
+        -Type $GgufTypeArray `
+        -Value $n001TokenTypes
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.bos_token_id" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 1)
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.eos_token_id" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 2)
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.unknown_token_id" `
+        -Type $GgufTypeUInt32 `
+        -Value ([uint32] 0)
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.add_bos_token" `
+        -Type $GgufTypeBoolean `
+        -Value $false
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.add_eos_token" `
+        -Type $GgufTypeBoolean `
+        -Value $false
+
+    New-GgufEntry `
+        -Key "tokenizer.ggml.add_space_prefix" `
+        -Type $GgufTypeBoolean `
+        -Value $false
+
+    New-GgufEntry `
+        -Key "tokenizer.chat_template" `
+        -Type $GgufTypeString `
+        -Value "{% for message in messages %}{{ message['content'] }}{% endfor %}"
+)
+
+Write-GgufMetadataFile `
+    -Path $n001Path `
+    -Entries $n001Entries
+
 # ---------------------------------------------------------------------
 # Malformed metadata fixtures
 # ---------------------------------------------------------------------

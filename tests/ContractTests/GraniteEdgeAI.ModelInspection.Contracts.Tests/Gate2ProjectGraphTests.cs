@@ -94,8 +94,9 @@ public sealed class Gate2ProjectGraphTests
 
     /// <summary>
     /// Enforces the dependency direction agreed in the design. The transport
-    /// project remains framework-neutral, while the worker and application-side
-    /// client may depend only on Contracts and Transport.
+    /// project remains framework-neutral; the worker may additionally depend on
+    /// the approved LLamaSharp runtime, while the application-side client remains
+    /// limited to Contracts and Transport.
     /// </summary>
     [TestMethod]
     public void ProductionProjectReferencesFollowApprovedDirection()

@@ -11,6 +11,7 @@ on:
       - 'IBM Granite with TurboQuant (Intel)/**'
       - 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/**'
       - 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/**'
+      - 'tests/TestFixtures/**'
       - '.github/workflows/model-inspection-worker-process-tests.yml'
   pull_request:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - 'IBM Granite with TurboQuant (Intel)/**'
       - 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/**'
       - 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/**'
+      - 'tests/TestFixtures/**'
       - '.github/workflows/model-inspection-worker-process-tests.yml'
   workflow_dispatch:
 
@@ -62,6 +64,7 @@ jobs:
             IBM Granite with TurboQuant (Intel)
             tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests
             tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker
+            tests/TestFixtures
 
       - name: Stage process-boundary inputs at a short path
         working-directory: ${{ github.workspace }}
@@ -141,11 +144,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $project = 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
-          $filter = 'FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~ProductionWorkerProcessTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
+          $filter = 'FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~ProductionWorkerProcessTests|FullyQualifiedName~ProductionWorkerNativeCompletionTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
           dotnet test $project `
             --configuration Release `
             --filter $filter `
-            --minimum-expected-tests 30 `
+            --minimum-expected-tests 31 `
             --results-directory $env:GATE2_PROCESS_RESULTS `
             --report-trx `
             --report-trx-filename 'focused-worker-process.trx' `
@@ -158,14 +161,19 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
           $results = @($trx.TestRun.Results.UnitTestResult)
-          $requiredClass = 'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
-          $requiredIds = @($definitions |
-            Where-Object { $_.TestMethod.className -eq $requiredClass } |
-            ForEach-Object { $_.id })
-          $passed = @($results |
-            Where-Object { $_.testId -in $requiredIds -and $_.outcome -eq 'Passed' })
-          if ($passed.Count -ne 1) {
-            throw 'The focused suite did not pass the production-worker process test exactly once.'
+          $requiredClasses = @(
+            'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
+            'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerNativeCompletionTests'
+          )
+          foreach ($requiredClass in $requiredClasses) {
+            $requiredIds = @($definitions |
+              Where-Object { $_.TestMethod.className -eq $requiredClass } |
+              ForEach-Object { $_.id })
+            $passed = @($results |
+              Where-Object { $_.testId -in $requiredIds -and $_.outcome -eq 'Passed' })
+            if ($requiredIds.Count -ne 1 -or $passed.Count -ne 1) {
+              throw "The focused suite did not pass $requiredClass exactly once."
+            }
           }
 
       # Repeat the timing-sensitive Task 10 cases to expose cancellation races,

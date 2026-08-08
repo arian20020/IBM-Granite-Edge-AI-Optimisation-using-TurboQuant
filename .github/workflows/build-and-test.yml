@@ -144,7 +144,7 @@ jobs:
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --minimum-expected-tests 82 `
+            --minimum-expected-tests 129 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
@@ -269,12 +269,83 @@ jobs:
           $ErrorActionPreference = 'Stop'
           dotnet test "$env:WORKER_TEST_PROJECT" `
             --configuration Release `
-            --minimum-expected-tests 40 `
+            --minimum-expected-tests 77 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Worker" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Worker.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 worker host tests failed: $LASTEXITCODE"
+          }
+
+      - name: Verify exact worker engine test identities
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $trxPath = Join-Path "$env:GATE2_RESULTS_DIRECTORY/Worker" 'GraniteEdgeAI.ModelInspection.Worker.Tests.trx'
+          if (-not (Test-Path -LiteralPath $trxPath -PathType Leaf)) {
+            throw "Worker TRX was not produced: $trxPath"
+          }
+
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.ModelInspection.Worker.Tests.LlamaSharpInspectionEngineTests'
+          $expectedMethodCounts = [ordered]@{
+            'ProgramCreatesProductionLlamaSharpInspectionEngine' = 1
+            'InspectAsyncForwardsExactRequestAndReportsOrderedSuccessfulProgress' = 1
+            'InspectAsyncMapsCompleteEvidenceAndNumericSpecialTokenValues' = 1
+            'InspectAsyncMapsAllowlistedFailureToFixedMessageWithoutDetailLeak' = 10
+            'InspectAsyncMapsUnknownFailureAndEscapedExceptionToFixedGenericFailure' = 1
+            'InspectAsyncReturnsCancelledAndFinalizesCurrentStage' = 1
+            'InspectAsyncIntegrityFailureTakesPrecedenceOverCancellation' = 1
+            'InspectAsyncMissingIntegrityEvidenceTakesVerificationFailurePrecedence' = 6
+            'InspectAsyncSerializesConcurrentNativeProgressCallbacks' = 1
+            'InspectAsyncRejectsImpossibleRuntimeProgressFacts' = 1
+            'InspectAsyncRejectsIncompleteOrUnsafeSuccessfulResult' = 41
+            'InspectAsyncCompletesWithNullableFindingsAndOmitsUnsafeDetail' = 1
+            'InspectAsyncDoesNotFillUnavailableRuntimeEvidenceFromQuickScan' = 1
+          }
+          $classDefinitions = @($definitions |
+            Where-Object { $_.TestMethod.className -eq $requiredClass })
+          if ($classDefinitions.Count -ne 67) {
+            throw "Expected exactly 67 worker engine cases, found $($classDefinitions.Count)."
+          }
+
+          $actualMethods = @($classDefinitions |
+            Group-Object { $_.TestMethod.name })
+          $unexpectedMethods = @($actualMethods |
+            Where-Object { -not $expectedMethodCounts.Contains($_.Name) })
+          if (
+            $actualMethods.Count -ne $expectedMethodCounts.Count -or
+            $unexpectedMethods.Count -ne 0
+          ) {
+            throw 'Worker engine TRX contains a missing or unexpected method.'
+          }
+
+          foreach ($entry in $expectedMethodCounts.GetEnumerator()) {
+            $methodDefinitions = @($classDefinitions |
+              Where-Object { $_.TestMethod.name -eq $entry.Key })
+            if ($methodDefinitions.Count -ne $entry.Value) {
+              throw (
+                "Worker engine case count drifted for $($entry.Key): " +
+                "expected $($entry.Value), found $($methodDefinitions.Count)."
+              )
+            }
+
+            foreach ($definition in $methodDefinitions) {
+              $testResults = @($results |
+                Where-Object { $_.testId -eq $definition.id })
+              if (
+                $testResults.Count -ne 1 -or
+                $testResults[0].outcome -ne 'Passed'
+              ) {
+                throw "Worker engine case did not pass exactly once: $($definition.name)"
+              }
+            }
+          }
+
+          $counters = $trx.TestRun.ResultSummary.Counters
+          if ($null -eq $counters -or [int]$counters.notExecuted -ne 0) {
+            throw 'Worker host evidence contains skipped tests.'
           }
 
       - name: Run Gate 2 WorkerClient tests
@@ -298,7 +369,7 @@ jobs:
             --configuration Release `
             --runtime win-x64 `
             -p:Platform=x64 `
-            --minimum-expected-tests 30 `
+            --minimum-expected-tests 31 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerProcess" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx"
@@ -311,14 +382,19 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
           $results = @($trx.TestRun.Results.UnitTestResult)
-          $requiredClass = 'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
-          $requiredIds = @($definitions |
-            Where-Object { $_.TestMethod.className -eq $requiredClass } |
-            ForEach-Object { $_.id })
-          $passed = @($results |
-            Where-Object { $_.testId -in $requiredIds -and $_.outcome -eq 'Passed' })
-          if ($passed.Count -ne 1) {
-            throw 'The full process suite did not pass the production-worker process test exactly once.'
+          $requiredClasses = @(
+            'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
+            'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerNativeCompletionTests'
+          )
+          foreach ($requiredClass in $requiredClasses) {
+            $requiredIds = @($definitions |
+              Where-Object { $_.TestMethod.className -eq $requiredClass } |
+              ForEach-Object { $_.id })
+            $passed = @($results |
+              Where-Object { $_.testId -in $requiredIds -and $_.outcome -eq 'Passed' })
+            if ($requiredIds.Count -ne 1 -or $passed.Count -ne 1) {
+              throw "The full process suite did not pass $requiredClass exactly once."
+            }
           }
 
       - name: Verify Gate 2 process inputs stayed immutable

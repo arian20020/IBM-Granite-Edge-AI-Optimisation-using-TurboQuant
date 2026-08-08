@@ -13,6 +13,12 @@
                                       "sha256":  "a4e5e156ddec27e286f75328784d7106b60a4eb1d246e950a001a3f944fbda99"
                                   },
                                   {
+                                      "fixtureId":  "N-001",
+                                      "fixtureFile":  "GGUF/N-001-vocab-only-spm.gguf",
+                                      "byteLength":  800,
+                                      "sha256":  "f8bf7ec29124287e0199e24fa2993998a6e110b14cdae2fc7a146d5041b70e0a"
+                                  },
+                                  {
                                       "fixtureId":  "V-001",
                                       "fixtureFile":  "GGUF/V-001-complete-metadata-v3.gguf",
                                       "byteLength":  320,

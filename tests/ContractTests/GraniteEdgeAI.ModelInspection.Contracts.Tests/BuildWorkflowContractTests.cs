@@ -21,7 +21,7 @@ public sealed class BuildWorkflowContractTests
         StringAssert.Contains(workflow, "tests/ContractTests");
         StringAssert.Contains(workflow, "CONTRACT_TEST_PROJECT");
         StringAssert.Contains(workflow, "Run Model Inspection contract tests");
-        StringAssert.Contains(workflow, "--minimum-expected-tests 82");
+        StringAssert.Contains(workflow, "--minimum-expected-tests 129");
     }
 
     [TestMethod]
@@ -37,7 +37,7 @@ public sealed class BuildWorkflowContractTests
             "The dedicated contract project must run as a complete suite without a redundant category filter.");
         StringAssert.Contains(
             contractStep,
-            "--minimum-expected-tests 82",
+            "--minimum-expected-tests 129",
             "The contract floor must remain aligned with the mandatory contract suite.");
     }
 
@@ -153,6 +153,32 @@ public sealed class BuildWorkflowContractTests
         Assert.IsTrue(
             CountOccurrences(orphanAndArtifactSection, "if: ${{ always() }}") >= 2,
             "Orphan detection and Gate 2 evidence upload must both run under always().");
+
+        string focusedWorkerWorkflow = File.ReadAllText(Path.Combine(
+            Root,
+            ".github",
+            "workflows",
+            "model-inspection-worker-tests.yml"));
+        string[] workerEngineIdentityFragments =
+        [
+            "Verify exact worker engine test identities",
+            "Expected exactly 67 worker engine cases",
+            "InspectAsyncMapsAllowlistedFailureToFixedMessageWithoutDetailLeak' = 10",
+            "InspectAsyncMissingIntegrityEvidenceTakesVerificationFailurePrecedence' = 6",
+            "InspectAsyncRejectsIncompleteOrUnsafeSuccessfulResult' = 41"
+        ];
+
+        foreach (string fragment in workerEngineIdentityFragments)
+        {
+            StringAssert.Contains(
+                workflow,
+                fragment,
+                $"The permanent workflow is missing the exact Worker engine guard: {fragment}");
+            StringAssert.Contains(
+                focusedWorkerWorkflow,
+                fragment,
+                $"The focused workflow is missing the exact Worker engine guard: {fragment}");
+        }
     }
 
     private static string ReadWorkflow() =>
