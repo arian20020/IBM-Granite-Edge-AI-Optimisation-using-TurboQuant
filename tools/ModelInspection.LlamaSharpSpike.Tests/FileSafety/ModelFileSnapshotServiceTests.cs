@@ -1,5 +1,5 @@
 using System.Text;
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

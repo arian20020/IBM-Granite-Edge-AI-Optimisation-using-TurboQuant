@@ -21,6 +21,12 @@
     </Project>
   </Folder>
 
+  <Folder Name="/runtime/">
+    <Project Path="runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+
   <Folder Name="/tests/">
     <File Path="tests/README.md" />
   </Folder>

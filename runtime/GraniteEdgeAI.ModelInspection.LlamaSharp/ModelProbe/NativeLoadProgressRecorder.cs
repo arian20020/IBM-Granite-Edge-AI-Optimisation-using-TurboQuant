@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Records one genuine progress fraction reported by LLamaSharp.

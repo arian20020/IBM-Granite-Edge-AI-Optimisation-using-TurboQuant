@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GraniteEdgeAI.ModelInspection.LlamaSharp;
 using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

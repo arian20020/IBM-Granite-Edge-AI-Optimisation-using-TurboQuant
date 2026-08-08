@@ -11,7 +11,10 @@
 ## Purpose
 
 This isolated console project proves and diagnoses the selected managed/native
-application runtime before LLamaSharp enters the WinUI application.
+application runtime before it is connected to the worker or WinUI application.
+The console owns only its CLI and JSON output. The production
+`GraniteEdgeAI.ModelInspection.LlamaSharp` library owns the CPU runtime,
+VocabOnly probe, configuration and evidence implementation.
 
 ```text
 LLamaSharp 0.27.0
@@ -69,33 +72,22 @@ ILlamaModelProbe
 ## Source structure
 
 ```text
-ModelInspection.LlamaSharpSpike/
+tools/ModelInspection.LlamaSharpSpike/
 ├── README.md
 ├── ModelInspection.LlamaSharpSpike.csproj
 ├── Program.cs
-├── PinnedApplicationRuntime.cs
 ├── SpikeOptionsParser.cs
+└── JsonEvidenceWriter.cs
+
+runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/
+├── GraniteEdgeAI.ModelInspection.LlamaSharp.csproj
+├── PinnedApplicationRuntime.cs
 ├── CpuNativeRuntimeConfiguration.cs
 ├── NativeBackendSmokeProbe.cs
 ├── NativeBackendSmokeResult.cs
-├── JsonEvidenceWriter.cs
 └── ModelProbe/
     ├── README.md
-    ├── IModelFileHasher.cs
-    ├── Sha256ModelFileHasher.cs
-    ├── ModelFileSnapshot.cs
-    ├── ModelFileSnapshotService.cs
-    ├── ModelProbeSafetyValidator.cs
-    ├── NativeLoadProgressRecorder.cs
-    ├── ProbeFailure.cs
-    ├── ProbeFailureMapper.cs
-    ├── SensitiveTextRedactor.cs
-    ├── ProbeResultFinalizer.cs
-    ├── ChatTemplateEvidenceFactory.cs
-    ├── VocabOnlyMetadataProjection.cs
-    ├── VocabOnlyModelProbeResult.cs
-    ├── VocabOnlyEvidenceCollector.cs
-    └── VocabOnlyModelProbe.cs
+    └── probe, configuration and evidence sources
 ```
 
 ## Exact runtime identity
@@ -310,7 +302,7 @@ dotnet test $SpikeTests `
     --no-restore `
     --runtime win-x64 `
     --filter "TestCategory=Deterministic" `
-    --minimum-expected-tests 170
+    --minimum-expected-tests 174
 
 dotnet build $SpikeProject `
     --configuration Release `

@@ -14,9 +14,9 @@ namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 public sealed partial class RuntimeDependencyPolicyTests
 {
     [TestMethod]
-    public void SpikeProject_PinsApprovedManagedAndCpuBackendPackages()
+    public void ProductionRuntimeProject_PinsApprovedManagedAndCpuBackendPackages()
     {
-        XDocument project = LoadProject(SpikeProjectPath());
+        XDocument project = LoadProject(RuntimeProjectPath());
         IReadOnlyDictionary<string, string> packages =
             ReadPackageReferences(project);
 
@@ -25,10 +25,10 @@ public sealed partial class RuntimeDependencyPolicyTests
     }
 
     [TestMethod]
-    public void SpikeProject_UsesOnlyExactNonFloatingPackageVersions()
+    public void ProductionRuntimeProject_UsesOnlyExactNonFloatingPackageVersions()
     {
         IReadOnlyDictionary<string, string> packages =
-            ReadPackageReferences(LoadProject(SpikeProjectPath()));
+            ReadPackageReferences(LoadProject(RuntimeProjectPath()));
 
         foreach ((string packageName, string version) in packages)
         {
@@ -50,9 +50,9 @@ public sealed partial class RuntimeDependencyPolicyTests
     }
 
     [TestMethod]
-    public void SpikeProject_DoesNotReferenceGpuOrTurboQuantDependencies()
+    public void ProductionRuntimeProject_DoesNotReferenceGpuOrTurboQuantDependencies()
     {
-        XDocument project = LoadProject(SpikeProjectPath());
+        XDocument project = LoadProject(RuntimeProjectPath());
         string[] includes = ReadAllIncludes(project);
         string[] forbiddenFragments =
         {
@@ -67,7 +67,7 @@ public sealed partial class RuntimeDependencyPolicyTests
                 includes.Any(include => include.Contains(
                     fragment,
                     StringComparison.OrdinalIgnoreCase)),
-                $"CPU feasibility project unexpectedly references {fragment}.");
+                $"CPU production runtime unexpectedly references {fragment}.");
         }
     }
 
@@ -115,8 +115,8 @@ public sealed partial class RuntimeDependencyPolicyTests
     {
         string sourcePath = Path.Combine(
             RepositoryPaths.FindRoot(),
-            "tools",
-            "ModelInspection.LlamaSharpSpike",
+            "runtime",
+            "GraniteEdgeAI.ModelInspection.LlamaSharp",
             "PinnedApplicationRuntime.cs");
         IReadOnlyDictionary<string, string> values =
             ReadConstStringValues(sourcePath);
@@ -139,13 +139,13 @@ public sealed partial class RuntimeDependencyPolicyTests
             values["ResearchRuntimeCommit"]);
     }
 
-    private static string SpikeProjectPath()
+    private static string RuntimeProjectPath()
     {
         return Path.Combine(
             RepositoryPaths.FindRoot(),
-            "tools",
-            "ModelInspection.LlamaSharpSpike",
-            "ModelInspection.LlamaSharpSpike.csproj");
+            "runtime",
+            "GraniteEdgeAI.ModelInspection.LlamaSharp",
+            "GraniteEdgeAI.ModelInspection.LlamaSharp.csproj");
     }
 
     private static string DeterministicTestProjectPath()

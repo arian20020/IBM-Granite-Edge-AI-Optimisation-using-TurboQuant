@@ -1,4 +1,4 @@
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp;
 
 /// <summary>
 /// Records the exact managed/native application runtime selected by ADR-001.

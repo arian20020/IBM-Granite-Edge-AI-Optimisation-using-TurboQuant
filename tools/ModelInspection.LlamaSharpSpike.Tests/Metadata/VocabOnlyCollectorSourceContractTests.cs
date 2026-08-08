@@ -17,8 +17,8 @@ public sealed class VocabOnlyCollectorSourceContractTests
         string repositoryRoot = RepositoryPaths.FindRoot();
         string sourcePath = Path.Combine(
             repositoryRoot,
-            "tools",
-            "ModelInspection.LlamaSharpSpike",
+            "runtime",
+            "GraniteEdgeAI.ModelInspection.LlamaSharp",
             "ModelProbe",
             "VocabOnlyEvidenceCollector.cs");
 
@@ -57,8 +57,8 @@ public sealed class VocabOnlyCollectorSourceContractTests
         string repositoryRoot = RepositoryPaths.FindRoot();
         string sourcePath = Path.Combine(
             repositoryRoot,
-            "tools",
-            "ModelInspection.LlamaSharpSpike",
+            "runtime",
+            "GraniteEdgeAI.ModelInspection.LlamaSharp",
             "ModelProbe",
             "VocabOnlyEvidenceCollector.cs");
 

@@ -1,4 +1,4 @@
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Contains the result of validating model-probe output safety.

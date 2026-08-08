@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Creates privacy-safe evidence for the embedded GGUF chat template without

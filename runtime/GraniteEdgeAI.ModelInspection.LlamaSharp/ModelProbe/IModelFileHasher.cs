@@ -1,4 +1,4 @@
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Calculates a model-file hash from an already opened read-only stream.

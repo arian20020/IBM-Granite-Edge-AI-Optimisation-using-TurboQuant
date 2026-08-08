@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;

@@ -16,8 +16,7 @@ experimental dependencies to enter the shipped WinUI application prematurely.
 tools/
 ├── README.md
 ├── ModelInspection.LlamaSharpSpike/
-│   ├── README.md
-│   └── ModelProbe/README.md
+│   └── README.md
 ├── ModelInspection.LlamaSharpSpike.Tests/
 │   └── README.md
 ├── ModelInspection.LlamaSharpSpike.TestSupport/
@@ -31,7 +30,7 @@ tools/
 ## LLamaSharp tool chain
 
 - [Model Inspection LLamaSharp feasibility tool](./ModelInspection.LlamaSharpSpike/README.md)
-  - [CPU VocabOnly model probe](./ModelInspection.LlamaSharpSpike/ModelProbe/README.md)
+  - [Production CPU VocabOnly runtime](../runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/README.md)
 - [Deterministic feasibility tests](./ModelInspection.LlamaSharpSpike.Tests/README.md)
 - [Shared child-process test support](./ModelInspection.LlamaSharpSpike.TestSupport/README.md)
 - [Hosted native integration tests](./ModelInspection.LlamaSharpSpike.NativeIntegrationTests/README.md)
@@ -97,8 +96,9 @@ branch. It does not replace the verified local target-machine result.
 
 - A tool project is not an application feature merely because it is in the same
   repository.
-- Native or experimental dependencies remain here until safety,
-  compatibility and packaging gates pass.
+- The feasibility CLI owns only command-line parsing and JSON output; the
+  production CPU/VocabOnly implementation and exact LLamaSharp packages live
+  in `runtime/GraniteEdgeAI.ModelInspection.LlamaSharp`.
 - Native/model integration tests execute the feasibility tool as a child
   process; llama.cpp never loads into the MSTest host.
 - Destructive DLL tests use disposable copies of published output.

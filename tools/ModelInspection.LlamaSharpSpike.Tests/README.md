@@ -13,8 +13,9 @@ This MSTest project verifies deterministic behaviour around the isolated
 LLamaSharp feasibility tool without treating a real native model load as a unit
 test.
 
-The project references the feasibility console project directly. It does not
-reference the WinUI application, and no test in this project requires the 2 GB
+The project references both the production CPU/VocabOnly runtime and the
+feasibility console project directly. It does not reference the WinUI
+application, and no test in this project requires the 2 GB
 Granite model.
 
 ## Verified result
@@ -176,8 +177,9 @@ dotnet test `
     --configuration Release `
     --runtime win-x64 `
     --filter "TestCategory=Deterministic" `
-    --minimum-expected-tests 170
+    --minimum-expected-tests 174
 ```
 
-A lower minimum may be useful during focused local development, but the formal
-Tier 1 result recorded here executed all 170 deterministic tests.
+A lower minimum may be useful during focused local development. The current
+suite contains 174 deterministic tests; the retained formal Tier 1 result
+recorded here executed the then-current 170 tests.

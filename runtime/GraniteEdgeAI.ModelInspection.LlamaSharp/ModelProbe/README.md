@@ -2,14 +2,15 @@
 
 **Status:** Corrected Granite probe, cancellation, hostile-input and privacy gates verified  
 **Last reviewed:** 2026-08-05  
-**Parent:** [LLamaSharp feasibility tool](../README.md)  
+**CLI:** [LLamaSharp feasibility tool](../../../tools/ModelInspection.LlamaSharpSpike/README.md)
 **Design:** [VocabOnly model-probe design](../../../docs/superpowers/specs/2026-08-04-llamasharp-vocab-only-model-probe-design.md)  
 **Tier 2 evidence:** [Local trusted verification](../../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 
 ## Purpose
 
-This folder contains the model-specific part of the isolated LLamaSharp
-feasibility tool.
+This folder contains the model-specific production CPU/VocabOnly runtime used
+by the isolated LLamaSharp feasibility CLI. It is not connected to the worker
+or WinUI application yet.
 
 It answers one narrow question:
 
@@ -22,7 +23,7 @@ success path, repeatability, two cancellation scopes, malformed inputs,
 file-access failures, evidence privacy and model preservation have all passed
 the trusted local suite.
 
-This source is not referenced by the WinUI application.
+This source is not referenced by the worker or WinUI application.
 
 ## Selected runtime
 

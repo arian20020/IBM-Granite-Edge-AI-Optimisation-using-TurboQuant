@@ -1,4 +1,4 @@
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Removes the canonical local model path from technical messages before they

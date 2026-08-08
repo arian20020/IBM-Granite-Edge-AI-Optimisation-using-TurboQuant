@@ -1,4 +1,4 @@
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp;
 
 /// <summary>
 /// Contains one native-library loader log entry without retaining native

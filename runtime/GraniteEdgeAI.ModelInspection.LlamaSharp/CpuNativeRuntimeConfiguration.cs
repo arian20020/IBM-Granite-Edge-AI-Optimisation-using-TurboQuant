@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using LLama.Abstractions;
 using LLama.Native;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp;
 
 /// <summary>
 /// Configures and describes the exact CPU-only LLamaSharp native-library

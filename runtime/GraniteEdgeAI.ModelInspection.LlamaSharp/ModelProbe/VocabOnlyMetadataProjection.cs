@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Projects structural model facts from GGUF metadata that remains available

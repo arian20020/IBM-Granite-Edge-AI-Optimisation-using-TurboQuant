@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
       - '.github/workflows/llamasharp-real-model-integration.yml'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
@@ -19,6 +20,7 @@ on:
     paths:
       - '.github/workflows/llamasharp-feasibility-smoke.yml'
       - '.github/workflows/llamasharp-real-model-integration.yml'
+      - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
       - 'tools/ModelInspection.LlamaSharpSpike/**'
       - 'tools/ModelInspection.LlamaSharpSpike.Tests/**'
       - 'tools/ModelInspection.LlamaSharpSpike.TestSupport/**'
@@ -59,6 +61,7 @@ jobs:
         with:
           sparse-checkout: |
             IBM Granite with TurboQuant (Intel)
+            runtime/GraniteEdgeAI.ModelInspection.LlamaSharp
             tools/ModelInspection.LlamaSharpSpike
             tools/ModelInspection.LlamaSharpSpike.Tests
             tools/ModelInspection.LlamaSharpSpike.TestSupport

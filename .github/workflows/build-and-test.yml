@@ -57,6 +57,7 @@ jobs:
             docs
             IBM Granite with TurboQuant (Intel)
             infrastructure
+            runtime
             scripts
             shared
             tests

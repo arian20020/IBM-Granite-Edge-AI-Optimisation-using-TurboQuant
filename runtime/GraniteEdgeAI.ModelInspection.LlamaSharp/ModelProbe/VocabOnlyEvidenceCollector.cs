@@ -2,7 +2,7 @@ using System.Text;
 using LLama;
 using LLama.Native;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Converts an active LLamaSharp VocabOnly handle into project-owned

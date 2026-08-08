@@ -1,13 +1,13 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+using GraniteEdgeAI.ModelInspection.LlamaSharp;
 using LLama;
 using LLama.Abstractions;
 using LLama.Common;
 using LLama.Native;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Probes one local GGUF through the matched CPU runtime using LLamaSharp's

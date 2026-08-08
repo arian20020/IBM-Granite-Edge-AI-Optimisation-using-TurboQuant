@@ -1,4 +1,4 @@
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 using LLama.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

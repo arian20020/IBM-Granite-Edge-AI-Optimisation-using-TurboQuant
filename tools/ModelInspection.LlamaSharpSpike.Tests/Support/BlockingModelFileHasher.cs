@@ -1,4 +1,4 @@
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 

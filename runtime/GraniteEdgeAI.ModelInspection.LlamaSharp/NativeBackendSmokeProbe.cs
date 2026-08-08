@@ -3,19 +3,19 @@ using System.Runtime.InteropServices;
 using LLama.Abstractions;
 using LLama.Native;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp;
 
 /// <summary>
 /// Performs one CPU-only LLamaSharp native-library dry run without loading a
 /// model or changing the WinUI application.
 /// </summary>
-public sealed class NativeBackendSmokeProbe
+public static class NativeBackendSmokeProbe
 {
     /// <summary>
     /// Runs the published CPU backend selection once and returns project-owned
     /// evidence rather than exposing LLamaSharp native objects.
     /// </summary>
-    public NativeBackendSmokeResult Run()
+    public static NativeBackendSmokeResult Run()
     {
         DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow;
         var logs = new ConcurrentQueue<NativeBackendLogEntry>();

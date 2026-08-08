@@ -1,6 +1,6 @@
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
+using GraniteEdgeAI.ModelInspection.LlamaSharp;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Identifies how one feasibility probe ended without implying a final model

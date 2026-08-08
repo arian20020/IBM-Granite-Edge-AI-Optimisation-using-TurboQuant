@@ -1,6 +1,6 @@
 using LLama.Exceptions;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Converts managed runtime and file exceptions into stable feasibility

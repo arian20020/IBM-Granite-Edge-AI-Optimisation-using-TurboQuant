@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+namespace GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 /// <summary>
 /// Calculates SHA-256 for a read-only model stream.

@@ -15,6 +15,7 @@ public sealed class CleanupInventoryContractTests
         "shared/GraniteEdgeAI.ModelInspection.Contracts",
         "shared/GraniteEdgeAI.ModelInspection.Transport",
         "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient",
+        "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp",
         "workers/GraniteEdgeAI.ModelInspection.Worker",
         "tools/ModelInspection.LlamaSharpSpike",
         "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests",

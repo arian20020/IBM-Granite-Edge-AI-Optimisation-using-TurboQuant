@@ -1,4 +1,5 @@
-using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.ModelProbe;
+using GraniteEdgeAI.ModelInspection.LlamaSharp;
+using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike;
 
@@ -47,7 +48,7 @@ public static class Program
         SpikeOptions options)
     {
         NativeBackendSmokeResult result =
-            new NativeBackendSmokeProbe().Run();
+            NativeBackendSmokeProbe.Run();
 
         try
         {
