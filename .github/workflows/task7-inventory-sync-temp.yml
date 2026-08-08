@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   sync-inventory:
-    if: github.event.head_commit.message == 'chore(model-inspection): add temporary Task 7 inventory sync'
     runs-on: windows-latest
 
     steps:
