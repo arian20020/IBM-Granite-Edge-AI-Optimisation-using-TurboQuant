@@ -89,6 +89,39 @@ function Get-Wb05RelativePath {
     return $fullPath.Substring($prefixLength).Replace('\', '/')
 }
 
+function Get-Wb05CMakeCacheValue {
+    [CmdletBinding()]
+    param(
+        # Real CMake caches may contain blank structural lines. Allow those empty
+        # string elements while still requiring the caller to supply the array.
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string[]]$Lines,
+
+        # A cache lookup without a key is a programming error, so reject it at
+        # the public function boundary instead of silently matching anything.
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name
+    )
+
+    # CMake cache entries use NAME:TYPE=value. Blank, comment, and unrelated
+    # lines are legitimate cache structure and simply do not match this key.
+    $escapedName = [Regex]::Escape($Name)
+    $line = $Lines |
+        Where-Object { $_ -match "^${escapedName}:[^=]+=" } |
+        Select-Object -First 1
+
+    # A missing value remains null so each caller keeps its own reviewed
+    # fail-closed policy for required CMake controls.
+    if ($null -eq $line) {
+        return $null
+    }
+
+    # Split only once so an equals sign inside the cache value is preserved.
+    return ($line -split '=', 2)[1]
+}
+
 function Write-Wb05Manifest {
     [CmdletBinding()]
     param(
@@ -709,7 +742,7 @@ function Restore-Wb05Environment {
     }
 }
 
-# Export only the nine reviewed public primitives. All quoting and relative-path
+# Export only the ten reviewed public primitives. All quoting and relative-path
 # helpers remain private implementation details of the module.
 Export-ModuleMember -Function @(
     'New-Wb05ExternalWorkspace',
@@ -719,6 +752,7 @@ Export-ModuleMember -Function @(
     'Write-Wb05Json',
     'Write-Wb05Manifest',
     'Assert-Wb05SafePath',
+    'Get-Wb05CMakeCacheValue',
     'Get-Wb05BinaryRecords',
     'Restore-Wb05Environment'
 )

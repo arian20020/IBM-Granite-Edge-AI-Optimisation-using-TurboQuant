@@ -157,26 +157,6 @@ function Read-CommandOutput {
     return $capturedOutput.Trim()
 }
 
-function Get-CMakeCacheValue {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string[]]$Lines,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Name
-    )
-
-    # CMake cache lines have NAME:TYPE=value form. Return null when the reviewed
-    # control was not materialised so the caller can fail closed.
-    $line = $Lines |
-        Where-Object { $_ -match "^$([Regex]::Escape($Name)):[^=]+=" } |
-        Select-Object -First 1
-    if (-not $line) {
-        return $null
-    }
-    return ($line -split '=', 2)[1]
-}
-
 function Test-Wb05SafetyStop {
     param(
         [Parameter(Mandatory = $true)]
@@ -373,7 +353,9 @@ try {
         'ENABLE_WHEEL',
         'Python3_EXECUTABLE'
     )) {
-        $cacheValues[$name] = Get-CMakeCacheValue -Lines $cacheLines -Name $name
+        # Read each reviewed generated control through the one shared parser so
+        # blank structural cache lines are handled identically across routes.
+        $cacheValues[$name] = Get-Wb05CMakeCacheValue -Lines $cacheLines -Name $name
     }
     Write-Wb05Json -Path (Join-Path $OutputDirectory 'cmake-cache-summary.json') -Value ([ordered]@{
         schema_version = '1.0'
