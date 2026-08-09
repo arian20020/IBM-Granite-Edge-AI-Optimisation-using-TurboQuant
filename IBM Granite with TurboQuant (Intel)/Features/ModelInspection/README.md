@@ -1,8 +1,7 @@
 # Model Inspection architecture
 
-**Status:** Presentation, application contracts, protected worker/process boundary, and immutable navigation handoff implemented; the production worker still uses the controlled unavailable inspection engine and application classification/UI execution remain later gates  
-**Last reviewed:** 2026-08-08  
-**Current branch:** `refactor/model-inspection-cleanup`
+**Status:** Presentation, application contracts, protected worker/process boundary, production CPU/VocabOnly engine, and fixed x64 application worker closure implemented; application mapping, classification, and live UI execution remain later gates
+**Last reviewed:** 2026-08-09
 
 [← Application feature architecture](../README.md)
 
@@ -22,7 +21,7 @@ Unsupported / Invalid
 Hardware Fit only for Ready or ReadyWithWarnings
 ```
 
-The page remains presentation-only in Phase 1. The protected Gate 2 worker/process boundary exists, but the page does not yet launch it or display live runtime results.
+The page remains presentation-only. The protected production worker now completes the five lightweight GGUF stages and is carried in the x64 application/test package at one fixed path, but the page does not yet launch it or display live runtime results.
 
 ## Accepted architecture
 
@@ -68,9 +67,11 @@ Chat remains a separate later route through a pinned `llama-cli.exe`; it does no
 | Shared versioned worker protocol contracts | Implemented and tested |
 | Strict bounded JSON and protocol sequence validation | Implemented and tested |
 | Matched LLamaSharp CPU feasibility | Verified in isolated tools |
-| Production worker executable boundary | Implemented and tested; controlled unavailable engine only |
+| Production worker executable boundary | Implemented and tested through real CPU/VocabOnly completion |
 | Process adapter and bounded stream host | Implemented and tested |
-| Production LLamaSharp inspection engine | Not implemented |
+| Production LLamaSharp inspection engine | Implemented and tested for lightweight GGUF CPU/VocabOnly inspection |
+| Fixed x64 worker/native application closure | Implemented for build output and packaged test layout; release MSIX attestation remains pending |
+| Installed/unpackaged approved-root composition | Implemented; fixed path only, no current-directory or `PATH` fallback |
 | Worker-to-application mappers | Not implemented |
 | Classifier and service | Not implemented |
 | `ModelInspectionViewModel` | Not implemented |
@@ -88,6 +89,9 @@ Features/ModelInspection/
 │   ├── README.md
 │   └── application request/progress/evidence/result contracts
 ├── Controls/
+├── Infrastructure/
+│   ├── README.md
+│   └── approved-root and fixed WorkerClient composition
 ├── Models/
 └── Presentation/
 ```
@@ -100,7 +104,9 @@ shared/GraniteEdgeAI.ModelInspection.Contracts/
 └── Protocol/
 ```
 
-The verified feasibility implementation remains outside the WinUI application:
+The historical feasibility CLI and its specialist test campaigns remain
+outside the WinUI application; production inspection is owned by the protected
+worker and extracted runtime:
 
 ```text
 tools/ModelInspection.LlamaSharpSpike*/
@@ -201,7 +207,7 @@ The protocol has bounded commands, messages, evidence records, strict JSON parsi
 ## Runtime identities
 
 ```text
-Application feasibility runtime
+Protected application worker runtime
     LLamaSharp 0.27.0
     LLamaSharp.Backend.Cpu 0.27.0
     llama.cpp 3f7c29d318e317b63f54c558bc69803963d7d88c
@@ -231,7 +237,7 @@ Evidence:
 - [Tier 2 trusted verification](../../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
 - [Coverage matrix](../../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
 
-Feasibility evidence supports the selected runtime and containment design; it is not proof that the production worker performs real LLamaSharp inspection or is packaged as the final application runtime closure.
+Production evidence now also proves the published worker reaches `Completed` through all five stages against the controlled zero-tensor N-001 tokenizer fixture, and that the x64 application/test layout contains the exact 44-file CPU closure plus a detached SHA-256 manifest. The same manifest is embedded in the application, and every execution verifies the detached bytes and all staged path/length/hash entries before the process client can launch. The installed-package route anchors that snapshot with Windows package immutability; the unpackaged AppContext route is development/test-only and does not claim protection from a concurrent writer. This does not claim trusted-Granite inference, quality, performance, or final release approval.
 
 ## Operational states versus model outcomes
 
@@ -261,14 +267,13 @@ Worker crash            ≠ Corrupt GGUF
 
 ## Next production gate
 
-Gate 2 has established the protected worker executable and process adapter, including bounded standard streams, protocol sequencing, trusted executable resolution, process containment, cancellation/timeout handling, and cleanup checks. The production worker deliberately still returns the controlled unavailable-engine result.
+The protected worker, real lightweight LLamaSharp engine, fixed x64 child path, prelaunch-verified deterministic CPU dependency manifest, and application-root selection are implemented. The remaining release-packaging work is an extracted unsigned MSIX closure/notice attestation; it does not block beginning the application adapter because the packaged test layout already proves the fixed files are present, isolated, and checked before execution.
 
-The next production gate should place the real LLamaSharp evidence-extraction engine inside that already-protected worker boundary. Later gates then add worker-to-application mapping, classification/service orchestration, ViewModel execution, and dynamic WinUI states without weakening the verified process boundary.
+The next user-journey gate is worker-to-application mapping, deterministic classification, and service orchestration. The following gate then connects that service to the page/ViewModel for automatic start, live progress, Cancel, retry, and outcome actions without loading LLamaSharp in the WinUI process.
 
 ## Non-claims
 
-- the production worker does not yet perform real LLamaSharp model inspection;
-- no LLamaSharp reference in the WinUI application project;
+- no LLamaSharp, worker-host, or native-library reference in the WinUI process; the app references only WorkerClient on x64;
 - no worker evidence extraction from a real model through the application;
 - no classifier, service, ViewModel, live progress, or working Cancel action;
 - no full tensor load, context, KV cache, or generation;
@@ -283,6 +288,7 @@ The next production gate should place the real LLamaSharp evidence-extraction en
 - [Onboarding architecture](../Onboarding/README.md)
 - [Application contracts](./Contracts/README.md)
 - [Inspection controls](./Controls/README.md)
+- [Infrastructure composition](./Infrastructure/README.md)
 - [Presentation models](./Models/README.md)
 - [Presentation construction](./Presentation/README.md)
 - [Shared worker contracts](../../../shared/GraniteEdgeAI.ModelInspection.Contracts/README.md)

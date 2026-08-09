@@ -9,6 +9,7 @@ on:
       - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
       - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
       - 'IBM Granite with TurboQuant (Intel)/**'
+      - 'scripts/model-inspection/**'
       - 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/**'
       - 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/**'
       - 'tests/TestFixtures/**'
@@ -22,6 +23,7 @@ on:
       - 'workers/GraniteEdgeAI.ModelInspection.Worker/**'
       - 'runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/**'
       - 'IBM Granite with TurboQuant (Intel)/**'
+      - 'scripts/model-inspection/**'
       - 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/**'
       - 'tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/**'
       - 'tests/TestFixtures/**'
@@ -62,6 +64,7 @@ jobs:
             workers/GraniteEdgeAI.ModelInspection.Worker
             runtime/GraniteEdgeAI.ModelInspection.LlamaSharp
             IBM Granite with TurboQuant (Intel)
+            scripts/model-inspection
             tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests
             tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker
             tests/TestFixtures
@@ -144,11 +147,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $project = 'tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj'
-          $filter = 'FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~ProductionWorkerProcessTests|FullyQualifiedName~ProductionWorkerNativeCompletionTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
+          $filter = 'FullyQualifiedName~WorkerLaunchContainmentTests|FullyQualifiedName~TestWorkerScenarioParserTests|FullyQualifiedName~TestFixtureIsolationTests|FullyQualifiedName~ProductionWorkerProcessTests|FullyQualifiedName~ProductionWorkerNativeCompletionTests|FullyQualifiedName~ProductionWorkerPackagingTests|FullyQualifiedName~WorkerHandshakeTests|FullyQualifiedName~WorkerProtocolIntegrityTests|FullyQualifiedName~WorkerCancellationAndTimeoutTests|FullyQualifiedName~WorkerProcessTreeContainmentTests|FullyQualifiedName~WorkerEnvironmentAndHandleTests|FullyQualifiedName~WorkerStandardErrorTests|FullyQualifiedName~WorkerConcurrencyTests'
           dotnet test $project `
             --configuration Release `
             --filter $filter `
-            --minimum-expected-tests 31 `
+            --minimum-expected-tests 32 `
             --results-directory $env:GATE2_PROCESS_RESULTS `
             --report-trx `
             --report-trx-filename 'focused-worker-process.trx' `
@@ -164,6 +167,7 @@ jobs:
           $requiredClasses = @(
             'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
             'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerNativeCompletionTests'
+            'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerPackagingTests'
           )
           foreach ($requiredClass in $requiredClasses) {
             $requiredIds = @($definitions |

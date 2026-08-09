@@ -1,7 +1,7 @@
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 
 /// <summary>
-/// Carries the already-verified executable, controlled working directory,
+/// Carries the already-verified executable, its derived working directory, the
 /// allowlisted environment, and fixture-only arguments into the one reviewed
 /// Windows process-creation path.
 /// </summary>
@@ -9,26 +9,45 @@ internal sealed record WindowsProcessLaunchRequest
 {
     internal WindowsProcessLaunchRequest(
         VerifiedWorkerExecutable executable,
-        string workingDirectory,
         IReadOnlyDictionary<string, string> environment,
         IReadOnlyList<string> testOnlyArguments)
     {
         ArgumentNullException.ThrowIfNull(executable);
-        ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(testOnlyArguments);
 
-        string canonicalWorkingDirectory = Path.GetFullPath(workingDirectory);
-        if (!Path.IsPathFullyQualified(canonicalWorkingDirectory) ||
-            !Directory.Exists(canonicalWorkingDirectory) ||
-            !string.Equals(
-                Path.TrimEndingDirectorySeparator(canonicalWorkingDirectory),
-                Path.TrimEndingDirectorySeparator(executable.ApprovedRootFinalPath),
-                StringComparison.OrdinalIgnoreCase))
+        string canonicalWorkingDirectory;
+        try
         {
-            throw WorkerClientPolicyException.For(
-                WorkerClientFailureCodes.WorkerContainmentFailed,
-                "The Model Inspection worker working directory is not trusted.");
+            string? executableDirectory = Path.GetDirectoryName(
+                executable.ExecutableFinalPath);
+            if (string.IsNullOrWhiteSpace(executableDirectory) ||
+                !Path.IsPathFullyQualified(executable.ApprovedRootFinalPath) ||
+                !Path.IsPathFullyQualified(executable.ExecutableFinalPath))
+            {
+                throw UntrustedWorkingDirectory();
+            }
+
+            string canonicalRoot = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(executable.ApprovedRootFinalPath));
+            canonicalWorkingDirectory = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(executableDirectory));
+            if (!Directory.Exists(canonicalWorkingDirectory) ||
+                !IsSameOrDescendant(canonicalRoot, canonicalWorkingDirectory))
+            {
+                throw UntrustedWorkingDirectory();
+            }
+        }
+        catch (WorkerClientPolicyException)
+        {
+            throw;
+        }
+        catch (Exception error) when (
+            error is ArgumentException or
+            IOException or
+            NotSupportedException)
+        {
+            throw UntrustedWorkingDirectory();
         }
 
         foreach (string argument in testOnlyArguments)
@@ -58,4 +77,24 @@ internal sealed record WindowsProcessLaunchRequest
     /// abnormal behaviour. Production composition always supplies an empty list.
     /// </summary>
     internal IReadOnlyList<string> TestOnlyArguments { get; }
+
+    private static bool IsSameOrDescendant(string root, string candidate)
+    {
+        if (string.Equals(
+                root,
+                candidate,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return candidate.StartsWith(
+            root + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static WorkerClientPolicyException UntrustedWorkingDirectory() =>
+        WorkerClientPolicyException.For(
+            WorkerClientFailureCodes.WorkerContainmentFailed,
+            "The Model Inspection worker working directory is not trusted.");
 }

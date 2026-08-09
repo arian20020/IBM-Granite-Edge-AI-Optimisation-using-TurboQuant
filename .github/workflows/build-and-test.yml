@@ -144,7 +144,7 @@ jobs:
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --minimum-expected-tests 129 `
+            --minimum-expected-tests 133 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
@@ -354,12 +354,32 @@ jobs:
           dotnet test "$env:WORKER_CLIENT_TEST_PROJECT" `
             --configuration Release `
             -p:Platform=x64 `
-            --minimum-expected-tests 86 `
+            --minimum-expected-tests 91 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerClient" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerClient.Tests.trx"
           if ($LASTEXITCODE -ne 0) {
             throw "Gate 2 WorkerClient tests failed: $LASTEXITCODE"
+          }
+
+      - name: Verify fixed worker installation tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $trxPath = Join-Path $env:GATE2_RESULTS_DIRECTORY `
+            'WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.trx'
+          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.ModelInspection.WorkerClient.Tests.WorkerInstallationLayoutTests'
+          $required = @($definitions | Where-Object { $_.TestMethod.className -eq $requiredClass })
+          if ($required.Count -ne 5) {
+            throw "Expected exactly five fixed-layout tests, found $($required.Count)."
+          }
+          foreach ($definition in $required) {
+            $matching = @($results | Where-Object { $_.testId -eq $definition.id -and $_.outcome -eq 'Passed' })
+            if ($matching.Count -ne 1) {
+              throw "A fixed-layout test did not pass exactly once: $($definition.name)"
+            }
           }
 
       - name: Run Gate 2 real process tests
@@ -369,7 +389,7 @@ jobs:
             --configuration Release `
             --runtime win-x64 `
             -p:Platform=x64 `
-            --minimum-expected-tests 31 `
+            --minimum-expected-tests 32 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/WorkerProcess" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.trx"
@@ -385,6 +405,7 @@ jobs:
           $requiredClasses = @(
             'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerProcessTests'
             'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerNativeCompletionTests'
+            'GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.ProductionWorkerPackagingTests'
           )
           foreach ($requiredClass in $requiredClasses) {
             $requiredIds = @($definitions |
@@ -484,8 +505,9 @@ jobs:
           }
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
-          if ([int]$counters.total -le 0 -or [int]$counters.executed -le 0) {
-            throw 'The packaged unit-test run discovered or executed zero tests.'
+          $minimumExpectedTests = 229
+          if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
+            throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }
           if ([int]$counters.total -ne [int]$counters.passed -or [int]$counters.executed -ne [int]$counters.passed) {
             throw 'The packaged unit-test TRX contains a non-passing result.'
@@ -497,6 +519,7 @@ jobs:
             'GraniteEdgeAI.UnitTests.GgufQuickScannerTests'
             'GraniteEdgeAI.UnitTests.GgufFixtureIntegrityTests'
             'GraniteEdgeAI.UnitTests.ModelQuickScannerTests'
+            'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests'
           )
           foreach ($requiredClass in $requiredClasses) {
             $requiredTestIds = @($definitions | Where-Object { $_.TestMethod.className -eq $requiredClass } | ForEach-Object { $_.id })
@@ -504,6 +527,13 @@ jobs:
             if ($passedClassResults.Count -eq 0) {
               throw "The packaged run did not pass a test from $requiredClass."
             }
+          }
+
+          $compositionClass = 'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests'
+          $compositionIds = @($definitions | Where-Object { $_.TestMethod.className -eq $compositionClass } | ForEach-Object { $_.id })
+          $compositionResults = @($results | Where-Object { $_.testId -in $compositionIds -and $_.outcome -eq 'Passed' })
+          if ($compositionIds.Count -ne 12 -or $compositionResults.Count -ne 12) {
+            throw 'Expected exactly 12 passing application worker-composition tests.'
           }
 
       # This check always runs. It records a failure before cleaning the runner,

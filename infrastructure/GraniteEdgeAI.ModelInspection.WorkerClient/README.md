@@ -2,11 +2,14 @@
 
 ## Purpose
 
-This `win-x64` infrastructure library owns the protected worker process lifecycle. It converts one validated protocol command into either one trusted terminal message or one controlled infrastructure failure. It does not classify a model and is not connected to WinUI in Gate 2.
+This `win-x64` infrastructure library owns the protected worker process lifecycle. It converts one validated protocol command into either one trusted terminal message or one controlled infrastructure failure. The WinUI application references only this library on x64; classification remains application-owned.
 
 ## Launch invariants
 
-- Resolve an AMD64 worker beneath a fixed approved root.
+- The public production constructor accepts only `WorkerClientOptions` and resolves exactly `ModelInspection\Worker\GraniteEdgeAI.ModelInspection.Worker.exe` beneath the approved application root.
+- Arbitrary worker paths and fixture arguments remain internal test-only constructors.
+- Derive the child working directory from the verified executable directory, require it to remain within the approved final root, and never use the package root, current directory, or `PATH` as a caller-selected CWD.
+- Resolve an AMD64 worker beneath the fixed approved root.
 - Reject reparse-point/path escapes and avoid `PATH` search.
 - Build a minimal allowlisted child environment with .NET diagnostics disabled.
 - Create three redirected pipe pairs and allow the child to inherit only stdin, stdout and stderr endpoints.
@@ -28,7 +31,7 @@ After a request is active, caller cancellation sends at most one cancel command.
 
 ## Test boundaries
 
-- `GraniteEdgeAI.ModelInspection.WorkerClient.Tests`: policy, path, environment, Win32 layout, handle ownership and client state tests.
+- `GraniteEdgeAI.ModelInspection.WorkerClient.Tests`: 91 policy, fixed-layout, path, environment, Win32 layout, handle-ownership and client-state cases; the five fixed-layout cases are required explicitly in CI.
 - `GraniteEdgeAI.ModelInspection.WorkerProcess.Tests`: real worker/fixture processes, crash/hang/flood/cancellation/timeout/tree/concurrency scenarios.
 - `Gate2ArchitectureFitnessTests`: dependency direction, no listener, atomic Job/handle attributes and fixture isolation.
 

@@ -46,6 +46,9 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/Inspection
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionActionCardMode.cs
@@ -78,6 +81,7 @@ IBM Granite with TurboQuant (Intel)/Features/README.md
 IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
 IBM Granite with TurboQuant (Intel)/MainWindow.xaml
 IBM Granite with TurboQuant (Intel)/MainWindow.xaml.cs
+IBM Granite with TurboQuant (Intel)/ModelInspection.WorkerPackaging.targets
 docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md
 docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md
 docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
@@ -157,6 +161,7 @@ infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerExecutableResolv
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerExitConsistencyValidator.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerFailureAccumulator.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerHandshakeValidator.cs
+infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerInstallationLayout.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerLifecycleState.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/WorkerProcessSession.cs
 infrastructure/README.md
@@ -186,6 +191,8 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/NativeBackendSmokeResult.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/README.md
 runtime/README.md
+scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
+scripts/model-inspection/Test-ModelInspectionWorkerManifest.ps1
 scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerChatTemplateEvidence.cs
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerInspectionEvidence.cs
@@ -226,6 +233,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/CleanupInvento
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ContractGraphTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ArchitectureFitnessTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGraphTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4PackagingContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerEvidenceValidationTests.cs
@@ -235,6 +243,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/Worke
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/TestJson.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerNativeCompletionTests.cs
+tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerPackagingTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerProcessTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedFixture.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/PublishedWorker.cs
@@ -285,6 +294,7 @@ tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerExecutabl
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerExitConsistencyValidatorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerFailureAccumulatorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerHandshakeValidatorTests.cs
+tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerInstallationLayoutTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerPolicyDiagnosticPrivacyTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ImportModelCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ModelImportPageStateMachineTests.cs
@@ -295,6 +305,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportPageComp
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelInspectionRequestFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Infrastructure/ModelInspectionWorkerCompositionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionContractTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionExecutionResultAdditionalTests.cs

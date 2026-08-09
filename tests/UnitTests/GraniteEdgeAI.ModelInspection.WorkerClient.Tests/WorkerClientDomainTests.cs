@@ -88,6 +88,7 @@ public sealed class WorkerClientDomainTests
         string[] expected =
         [
             WorkerClientFailureCodes.WorkerExecutableUntrusted,
+            WorkerClientFailureCodes.WorkerPackageIntegrityFailed,
             WorkerClientFailureCodes.WorkerArchitectureUnsupported,
             WorkerClientFailureCodes.WorkerLaunchFailed,
             WorkerClientFailureCodes.WorkerContainmentFailed,

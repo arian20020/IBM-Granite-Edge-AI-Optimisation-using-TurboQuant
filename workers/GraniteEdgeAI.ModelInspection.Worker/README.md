@@ -46,6 +46,18 @@ Completed evidence through the 800-byte, zero-tensor N-001 SentencePiece GGUF.
 The fixture proves native VocabOnly loading and tokenization only; it makes no
 inference, tensor, performance, or quality claim.
 
+## x64 package closure
+
+Release `win-x64` publish is framework-dependent, uses the AMD64 apphost, and
+disables trimming, ReadyToRun, single-file output, and debug-symbol copying.
+The application build places exactly 44 files beneath
+`ModelInspection\Worker`: 24 managed/apphost/configuration files plus 20 CPU
+native DLLs across `avx`, `avx2`, `avx512`, and `noavx`. A detached sorted
+length/SHA-256 manifest is generated at
+`ModelInspection\worker-manifest.json` and verified before the files are added
+to application output. Models, fixtures, evidence, PDBs, CUDA, Vulkan,
+OpenVINO, and TurboQuant are excluded.
+
 ## Approval-required contract gap
 
 The approved integration design lists `WorkerId` in terminal runtime identity,

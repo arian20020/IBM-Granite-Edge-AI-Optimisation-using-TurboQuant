@@ -10,6 +10,8 @@ public static class WorkerClientFailureCodes
 {
     public const string WorkerExecutableUntrusted =
         "worker_executable_untrusted";
+    public const string WorkerPackageIntegrityFailed =
+        "worker_package_integrity_failed";
     public const string WorkerArchitectureUnsupported =
         "worker_architecture_unsupported";
     public const string WorkerLaunchFailed = "worker_launch_failed";
@@ -34,6 +36,7 @@ public static class WorkerClientFailureCodes
         Array.AsReadOnly<string>(
         [
             WorkerExecutableUntrusted,
+            WorkerPackageIntegrityFailed,
             WorkerArchitectureUnsupported,
             WorkerLaunchFailed,
             WorkerContainmentFailed,

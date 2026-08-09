@@ -49,7 +49,7 @@ public sealed class Gate2ArchitectureFitnessTests
     ];
 
     [TestMethod]
-    public void WinUiApplicationRemainsDisconnectedFromGate2WorkerClient()
+    public void WinUiApplicationUsesOnlyProtectedClientBoundary()
     {
         string projectPath = Path.Combine(Root, AppProjectPath);
         XDocument project = XDocument.Load(projectPath);
@@ -60,20 +60,44 @@ public sealed class Gate2ArchitectureFitnessTests
             .Select(value => value!)
             .ToArray();
 
+        Assert.HasCount(
+            1,
+            projectReferences.Where(reference => reference.Contains(
+                "ModelInspection.WorkerClient",
+                StringComparison.OrdinalIgnoreCase)).ToArray());
         Assert.IsFalse(
             projectReferences.Any(reference => reference.Contains(
-                "ModelInspection.WorkerClient",
+                "ModelInspection.Worker\\",
                 StringComparison.OrdinalIgnoreCase)),
-            "Gate 2 must not connect WorkerClient to the WinUI application.");
+            "The WinUI application must not reference the worker host.");
+        Assert.IsFalse(
+            projectReferences.Any(reference => reference.Contains(
+                "ModelInspection.LlamaSharp",
+                StringComparison.OrdinalIgnoreCase)),
+            "The WinUI application must not reference the LLamaSharp runtime.");
 
         foreach (string path in EnumerateSourceFiles(AppSourceRoot))
         {
             string source = File.ReadAllText(path);
+            if (source.Contains(
+                    "GraniteEdgeAI.ModelInspection.WorkerClient",
+                    StringComparison.Ordinal))
+            {
+                string[] approvedCompositionSources =
+                [
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs",
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs"
+                ];
+                CollectionAssert.Contains(
+                    approvedCompositionSources,
+                    Relative(path),
+                    "Only the Model Inspection infrastructure composition may depend on WorkerClient.");
+            }
             Assert.IsFalse(
                 source.Contains(
-                    "GraniteEdgeAI.ModelInspection.WorkerClient",
+                    "GraniteEdgeAI.ModelInspection.LlamaSharp",
                     StringComparison.Ordinal),
-                $"Gate 2 WorkerClient leaked into WinUI source: {Relative(path)}");
+                $"The LLamaSharp runtime leaked into WinUI source: {Relative(path)}");
             Assert.IsFalse(
                 source.Contains(
                     "ProtocolTestWorker",

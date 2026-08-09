@@ -21,7 +21,7 @@ public sealed class BuildWorkflowContractTests
         StringAssert.Contains(workflow, "tests/ContractTests");
         StringAssert.Contains(workflow, "CONTRACT_TEST_PROJECT");
         StringAssert.Contains(workflow, "Run Model Inspection contract tests");
-        StringAssert.Contains(workflow, "--minimum-expected-tests 129");
+        StringAssert.Contains(workflow, "--minimum-expected-tests 133");
     }
 
     [TestMethod]
@@ -37,7 +37,7 @@ public sealed class BuildWorkflowContractTests
             "The dedicated contract project must run as a complete suite without a redundant category filter.");
         StringAssert.Contains(
             contractStep,
-            "--minimum-expected-tests 129",
+            "--minimum-expected-tests 133",
             "The contract floor must remain aligned with the mandatory contract suite.");
     }
 
@@ -179,6 +179,67 @@ public sealed class BuildWorkflowContractTests
                 fragment,
                 $"The focused workflow is missing the exact Worker engine guard: {fragment}");
         }
+
+        string focusedWorkerClientWorkflow = File.ReadAllText(Path.Combine(
+            Root,
+            ".github",
+            "workflows",
+            "model-inspection-worker-client-tests.yml"));
+        string[] workerInstallationFragments =
+        [
+            "--minimum-expected-tests 91",
+            "WorkerInstallationLayoutTests",
+            "Expected exactly five fixed-layout tests"
+        ];
+        foreach (string fragment in workerInstallationFragments)
+        {
+            StringAssert.Contains(
+                workflow,
+                fragment,
+                $"The permanent workflow is missing the fixed worker-layout guard: {fragment}");
+            StringAssert.Contains(
+                focusedWorkerClientWorkflow,
+                fragment,
+                $"The focused workflow is missing the fixed worker-layout guard: {fragment}");
+        }
+
+        string focusedProcessWorkflow = File.ReadAllText(Path.Combine(
+            Root,
+            ".github",
+            "workflows",
+            "model-inspection-worker-process-tests.yml"));
+        string[] packagingFragments =
+        [
+            "--minimum-expected-tests 32",
+            "ProductionWorkerPackagingTests"
+        ];
+        foreach (string fragment in packagingFragments)
+        {
+            StringAssert.Contains(
+                workflow,
+                fragment,
+                $"The permanent workflow is missing the packaging guard: {fragment}");
+            StringAssert.Contains(
+                focusedProcessWorkflow,
+                fragment,
+                $"The focused process workflow is missing the packaging guard: {fragment}");
+        }
+        StringAssert.Contains(
+            workflow,
+            "$minimumExpectedTests = 229",
+            "The permanent workflow must protect the current packaged application floor.");
+        StringAssert.Contains(
+            workflow,
+            "GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests",
+            "The permanent workflow must require the application worker-composition class.");
+        StringAssert.Contains(
+            workflow,
+            "Expected exactly 12 passing application worker-composition tests",
+            "The permanent workflow must protect every application worker-composition execution.");
+        StringAssert.Contains(
+            focusedProcessWorkflow,
+            "scripts/model-inspection",
+            "The focused process workflow must stage the manifest scripts used by the packaging test.");
     }
 
     private static string ReadWorkflow() =>

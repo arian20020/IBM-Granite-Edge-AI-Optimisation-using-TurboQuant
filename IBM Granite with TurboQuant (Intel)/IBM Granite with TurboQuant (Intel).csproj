@@ -63,6 +63,16 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The WinUI process owns only the protected client. LLamaSharp, the
+         worker host and native CPU libraries remain in the child process. -->
+    <ProjectReference
+      Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
+      Condition="'$(Platform)' == 'x64'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Platform)' != 'x64'">
+    <Compile Remove="Features\ModelInspection\Infrastructure\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Page Update="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -111,6 +121,10 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!-- WorkerClient protocol serialization is reflection-based. Keep the
+         supported x64 inspection path untrimmed until a source-generated
+         protocol context is introduced and verified. -->
+    <PublishTrimmed Condition="'$(Platform)' == 'x64'">False</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>
     <PRIResource Remove="Features\NewFolder\**" />
@@ -140,4 +154,7 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
+  <Import
+    Project="ModelInspection.WorkerPackaging.targets"
+    Condition="'$(Platform)' == 'x64'" />
 </Project>

@@ -27,7 +27,6 @@ public sealed class WorkerLaunchContainmentTests
             ResolveFixtureExecutable(fixture);
         WindowsProcessLaunchRequest request = CreateRequest(
             executable,
-            fixture.OutputDirectory,
             ["launch-probe"]);
 
         await using WorkerProcessSession session =
@@ -67,7 +66,6 @@ public sealed class WorkerLaunchContainmentTests
             .ToString(CultureInfo.InvariantCulture);
         WindowsProcessLaunchRequest request = CreateRequest(
             executable,
-            fixture.OutputDirectory,
             ["probe-unrelated-handle", handleValue]);
 
         await using WorkerProcessSession session =
@@ -93,10 +91,8 @@ public sealed class WorkerLaunchContainmentTests
 
     private static WindowsProcessLaunchRequest CreateRequest(
         VerifiedWorkerExecutable executable,
-        string workingDirectory,
         IReadOnlyList<string> arguments) => new(
             executable,
-            workingDirectory,
             WorkerEnvironmentPolicy.Create(CaptureParentEnvironment()),
             arguments);
 

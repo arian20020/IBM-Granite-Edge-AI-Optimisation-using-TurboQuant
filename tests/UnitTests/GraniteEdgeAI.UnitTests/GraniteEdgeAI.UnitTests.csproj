@@ -39,6 +39,8 @@
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
     <ProjectReference Include="..\..\..\IBM Granite with TurboQuant (Intel)\IBM Granite with TurboQuant (Intel).csproj" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

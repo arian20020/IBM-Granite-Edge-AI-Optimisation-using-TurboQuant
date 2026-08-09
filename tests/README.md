@@ -16,23 +16,22 @@ tests/
 Creating a folder is preparation, not test evidence. A test layer counts as
 implemented only when it has executable tests and preserved results.
 
-## Current executable test project
+## Packaged application test project
 
 [GraniteEdgeAI.UnitTests](UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj)
 is a packaged WinUI 3 MSTest application. Its project reference compiles the
 application, and its app-container runner supplies the XAML UI thread required
 by `[UITestMethod]`.
 
-The current 108-execution suite contains:
-
-| Area | Test methods | Executions | Purpose |
-|---|---:|---:|---|
-| `GgufQuickScannerTests` | 55 | 58 | Real-file GGUF header, metadata, limit, cancellation, and failure behavior |
-| `GgufFixtureIntegrityTests` | 1 | 1 | Packaged fixture set, byte-length, and SHA-256 enforcement |
-| `ModelQuickScannerTests` | 11 | 12 | Format routing, path validation, and requested-cancellation behavior |
-| `ModelQuickScanResultTests` | 17 | 27 | Immutable success/failure invariants |
-| Picker and foundation tests | 10 | 10 | Nine picker seam executions and one runner smoke execution |
-| **Full project** | **94** | **108** | Current packaged test total |
+The current Release/x64 floor is 229 tests. It includes scanner/import coverage,
+Model Inspection contracts and presentation behavior, onboarding/navigation,
+and twelve application-root/worker-package composition cases. The composition
+suite includes a real package-identity-root launch through the production
+client and controlled five-stage CPU/VocabOnly completion. The package test
+requires the detached manifest-verified 44-file CPU worker closure under
+`ModelInspection/Worker` and rejects LLamaSharp/native files at the application
+root. Treat the generated TRX, rather than a hand-maintained method table, as
+the authoritative execution count.
 
 The scanner tests are categorized as `Unit`, but the fixture-backed cases open
 real files copied into the package output. They therefore also exercise the
@@ -149,17 +148,17 @@ regenerates fixtures with Windows PowerShell 5.1 and requires a clean fixture
 tree, restores and builds the WinUI application, builds the packaged test
 project, runs the `.build.appxrecipe` through VSTest on a Windows runner, and
 requires an all-passing nonempty TRX with executed scanner, fixture-integrity,
-and router tests. It uploads available test results for 30 days.
+router, and worker-package composition tests. It uploads available test results
+for 30 days.
 
 The workflow currently executes the full packaged project. The focused filters
 above are for local diagnosis and evidence snapshots.
 
 ## Reserved test layers
 
-`ContractTests`, `IntegrationTests`, and `E2ETests` currently contain
-documentation/placeholders rather than executable projects. Do not count them
-as implemented coverage. Future tests should move into those layers only when
-their scope matches the definitions below:
+The repository now has executable Contract and Integration projects in
+addition to the packaged application tests. `E2ETests` remains reserved for
+the complete user journey. Place future tests according to these boundaries:
 
 - Unit tests verify deterministic logic and narrow component behavior.
 - Contract tests verify adapters against pinned external-tool behavior.

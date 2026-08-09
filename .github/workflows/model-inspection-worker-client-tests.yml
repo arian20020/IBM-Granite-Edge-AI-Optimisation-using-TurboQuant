@@ -77,10 +77,36 @@ jobs:
       # The explicit filter and minimum count prevent unrelated future tests
       # from satisfying this security-boundary workflow.
       - name: Run WorkerClient native-boundary behaviour tests
-        run: >-
-          dotnet test
-          tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj
-          --configuration Release
-          --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests|FullyQualifiedName~NativeLayoutTests|FullyQualifiedName~WindowsPipeSetTests|FullyQualifiedName~WindowsJobObjectTests|FullyQualifiedName~SafeAttributeListBufferTests|FullyQualifiedName~WindowsProcessWaiterTests|FullyQualifiedName~WindowsWorkerProcessLauncherFailureTests|FullyQualifiedName~WorkerHandshakeValidatorTests|FullyQualifiedName~WorkerExitConsistencyValidatorTests|FullyQualifiedName~WorkerFailureAccumulatorTests|FullyQualifiedName~BoundedStandardErrorCollectorTests|FullyQualifiedName~WorkerConversationTests"
-          --minimum-expected-tests 86
-          -p:Platform=x64
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $resultsDirectory = 'TestResults/WorkerClient'
+          New-Item -ItemType Directory -Force -Path $resultsDirectory | Out-Null
+          dotnet test tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj `
+            --configuration Release `
+            --filter "FullyQualifiedName~WorkerClientDomainTests|FullyQualifiedName~WorkerExecutableResolverTests|FullyQualifiedName~WorkerInstallationLayoutTests|FullyQualifiedName~WorkerEnvironmentPolicyTests|FullyQualifiedName~WindowsEnvironmentBlockTests|FullyQualifiedName~WorkerPolicyDiagnosticPrivacyTests|FullyQualifiedName~NativeLayoutTests|FullyQualifiedName~WindowsPipeSetTests|FullyQualifiedName~WindowsJobObjectTests|FullyQualifiedName~SafeAttributeListBufferTests|FullyQualifiedName~WindowsProcessWaiterTests|FullyQualifiedName~WindowsWorkerProcessLauncherFailureTests|FullyQualifiedName~WorkerHandshakeValidatorTests|FullyQualifiedName~WorkerExitConsistencyValidatorTests|FullyQualifiedName~WorkerFailureAccumulatorTests|FullyQualifiedName~BoundedStandardErrorCollectorTests|FullyQualifiedName~WorkerConversationTests" `
+            --minimum-expected-tests 91 `
+            --results-directory $resultsDirectory `
+            --report-trx `
+            --report-trx-filename 'worker-client.trx' `
+            -p:Platform=x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "WorkerClient tests failed: $LASTEXITCODE"
+          }
+
+      - name: Verify fixed worker installation tests
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$trx = Get-Content -LiteralPath 'TestResults/WorkerClient/worker-client.trx' -Raw
+          $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+          $results = @($trx.TestRun.Results.UnitTestResult)
+          $requiredClass = 'GraniteEdgeAI.ModelInspection.WorkerClient.Tests.WorkerInstallationLayoutTests'
+          $required = @($definitions | Where-Object { $_.TestMethod.className -eq $requiredClass })
+          if ($required.Count -ne 5) {
+            throw "Expected exactly five fixed-layout tests, found $($required.Count)."
+          }
+          foreach ($definition in $required) {
+            $matching = @($results | Where-Object { $_.testId -eq $definition.id -and $_.outcome -eq 'Passed' })
+            if ($matching.Count -ne 1) {
+              throw "A fixed-layout test did not pass exactly once: $($definition.name)"
+            }
+          }

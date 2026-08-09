@@ -59,7 +59,6 @@ public sealed class WindowsWorkerProcessLauncherFailureTests
                 .Resolve(fixture.RootDirectory);
         WindowsProcessLaunchRequest request = new(
             executable,
-            fixture.RootDirectory,
             CreateEnvironment(),
             []);
         FailingWindowsWorkerProcessPlatform platform = new(stage);

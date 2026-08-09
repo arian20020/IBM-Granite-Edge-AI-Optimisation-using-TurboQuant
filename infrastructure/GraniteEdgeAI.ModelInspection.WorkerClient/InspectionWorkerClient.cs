@@ -40,15 +40,14 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         _parentEnvironmentProvider;
 
     /// <summary>
-    /// Creates the production adapter. Production composition supplies the
-    /// fixed worker-relative executable path and cannot select fixture modes.
+    /// Creates the production adapter for the one fixed package-relative
+    /// worker executable. Production composition cannot select another path or
+    /// a fixture mode.
     /// </summary>
-    public InspectionWorkerClient(
-        WorkerClientOptions options,
-        string fixedWorkerRelativePath)
+    public InspectionWorkerClient(WorkerClientOptions options)
         : this(
             options,
-            fixedWorkerRelativePath,
+            WorkerInstallationLayout.WorkerExecutableRelativePath,
             Array.Empty<string>(),
             CaptureParentEnvironment)
     {
@@ -121,7 +120,6 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 WorkerEnvironmentPolicy.Create(_parentEnvironmentProvider());
             WindowsProcessLaunchRequest launchRequest = new(
                 executable,
-                _options.ApprovedWorkerRoot,
                 environment,
                 _testOnlyArguments);
 
