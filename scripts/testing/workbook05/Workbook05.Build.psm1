@@ -37,7 +37,7 @@ function Write-Wb05Json {
 
     # A fixed deep JSON depth prevents nested command/evidence data from being
     # silently shortened by ConvertTo-Json's small default depth.
-    $json = $Value | ConvertTo-Json -Depth 32
+    $json = ConvertTo-Json -InputObject $Value -Depth 32
     Write-Wb05Utf8NoBomText -Path $Path -Text ($json + "`n")
 }
 
