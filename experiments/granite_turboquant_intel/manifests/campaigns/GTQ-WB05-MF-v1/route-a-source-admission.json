@@ -16,7 +16,7 @@
     "repository_full_name": "openvinotoolkit/openvino.genai",
     "repository_url": "https://github.com/openvinotoolkit/openvino.genai.git",
     "source_role": "genai-compatibility-candidate",
-    "commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+    "commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
     "base_commit": null,
     "pull_request_url": null,
     "pull_request_state": "not-applicable"
