@@ -107,6 +107,7 @@ try {
         'Write-Wb05Json',
         'Write-Wb05Manifest',
         'Assert-Wb05SafePath',
+        'Test-Wb05SameWindowsPath',
         'Get-Wb05CMakeCacheValue',
         'Get-Wb05BinaryRecords',
         'Restore-Wb05Environment'
