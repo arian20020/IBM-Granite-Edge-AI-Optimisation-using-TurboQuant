@@ -476,23 +476,17 @@
                     </Border>
                 </Grid>
 
-                <Expander
-                    x:Name="InspectionDetailsExpansionTarget"
+                <local:InspectionDisclosure
+                    x:Name="InspectionDetailsDisclosure"
                     Grid.Row="2"
                     HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Stretch"
-                    AutomationProperties.Name="{x:Bind GetInspectionDetailsAutomationName(IsInspectionDetailsExpanded)}"
-                    Background="Transparent"
-                    BorderBrush="{ThemeResource InspectionBorderLightBrush}"
-                    BorderThickness="0,1,0,0"
-                    Padding="0"
-                    Expanding="InspectionDetailsExpansionTarget_Expanding"
-                    Collapsed="InspectionDetailsExpansionTarget_Collapsed"
+                    AutomationProperties.Name="{x:Bind GetInspectionDetailsAutomationName(Presentation.IsInspectionDetailsExpanded), Mode=OneWay}"
+                    HeaderMinHeight="58"
                     Visibility="{x:Bind InspectionDetailsVisibility}">
-                    <Expander.Header>
+                    <local:InspectionDisclosure.HeaderContent>
                         <Grid
                             x:Name="InspectionDetailsHeader"
-                            MinHeight="52"
+                            MinHeight="58"
                             Padding="24,0"
                             ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
@@ -531,85 +525,75 @@
                                 FontSize="{StaticResource InspectionBodyFontSize}"
                                 FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                                 Foreground="{ThemeResource InspectionTextPrimaryBrush}"
-                                Text="{x:Bind GetInspectionDetailsActionText(IsInspectionDetailsExpanded)}"
+                                Text="{x:Bind GetInspectionDetailsActionText(Presentation.IsInspectionDetailsExpanded), Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
                         </Grid>
-                    </Expander.Header>
+                    </local:InspectionDisclosure.HeaderContent>
 
-                    <Border
-                        x:Name="InspectionDetailsViewport"
-                        Height="172"
-                        Margin="22,0,22,22"
-                        Padding="18,8,10,12"
-                        Background="{ThemeResource InspectionSurfaceSubtleBrush}"
-                        BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
-                        BorderThickness="1"
-                        CornerRadius="{StaticResource InspectionCardCornerRadius}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <ScrollViewer
-                                x:Name="InspectionChecksScrollViewer"
-                                Grid.Row="0"
-                                MaxHeight="172"
-                                AutomationProperties.HelpText="Use the arrow and Page Up or Page Down keys to review all five inspection checks."
-                                AutomationProperties.Name="{x:Bind InspectionChecksSummary}"
-                                HorizontalScrollBarVisibility="Disabled"
-                                HorizontalScrollMode="Disabled"
-                                IsTabStop="True"
-                                UseSystemFocusVisuals="True"
-                                VerticalScrollBarVisibility="Auto"
-                                VerticalScrollMode="Enabled"
-                                ZoomMode="Disabled">
-                                <ItemsControl
-                                    x:Name="InspectionChecksItemsControl"
-                                    ItemTemplate="{StaticResource InspectionCheckTemplate}"
-                                    ItemsSource="{x:Bind InspectionChecks}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Vertical" Spacing="0" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                </ItemsControl>
-                            </ScrollViewer>
-                            <Grid
-                                x:Name="InspectionChecksBottomFade"
-                                Grid.Row="0"
-                                Height="24"
-                                VerticalAlignment="Bottom"
-                                AutomationProperties.AccessibilityView="Raw"
-                                IsHitTestVisible="False">
-                                <Border
-                                    Height="8"
-                                    VerticalAlignment="Top"
-                                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
-                                    Opacity="0.25" />
-                                <Border
-                                    Height="8"
-                                    VerticalAlignment="Center"
-                                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
-                                    Opacity="0.55" />
-                                <Border
-                                    Height="8"
+                    <local:InspectionDisclosure.ViewportContent>
+                        <Border
+                            x:Name="InspectionDetailsViewport"
+                            Height="172"
+                            Margin="23,-5,23,19"
+                            Padding="18,8,10,12"
+                            Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource InspectionCardCornerRadius}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <ScrollViewer
+                                    x:Name="InspectionChecksScrollViewer"
+                                    Grid.Row="0"
+                                    MaxHeight="172"
+                                    AutomationProperties.HelpText="Use the arrow and Page Up or Page Down keys to review all five inspection checks."
+                                    AutomationProperties.Name="{x:Bind InspectionChecksSummary}"
+                                    HorizontalScrollBarVisibility="Disabled"
+                                    HorizontalScrollMode="Disabled"
+                                    IsTabStop="True"
+                                    UseSystemFocusVisuals="True"
+                                    VerticalScrollBarVisibility="Auto"
+                                    VerticalScrollMode="Enabled"
+                                    ZoomMode="Disabled">
+                                    <ItemsControl
+                                        x:Name="InspectionChecksItemsControl"
+                                        ItemTemplate="{StaticResource InspectionCheckTemplate}"
+                                        ItemsSource="{x:Bind InspectionChecks}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Vertical" Spacing="0" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <Grid
+                                    x:Name="InspectionChecksBottomFade"
+                                    Grid.Row="0"
+                                    Height="24"
                                     VerticalAlignment="Bottom"
-                                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
-                                    Opacity="0.85" />
+                                    AutomationProperties.AccessibilityView="Raw"
+                                    IsHitTestVisible="False">
+                                    <Border Height="8" VerticalAlignment="Top" Background="{ThemeResource InspectionSurfaceSubtleBrush}" Opacity="0.25" />
+                                    <Border Height="8" VerticalAlignment="Center" Background="{ThemeResource InspectionSurfaceSubtleBrush}" Opacity="0.55" />
+                                    <Border Height="8" VerticalAlignment="Bottom" Background="{ThemeResource InspectionSurfaceSubtleBrush}" Opacity="0.85" />
+                                </Grid>
+                                <TextBlock
+                                    Grid.Row="1"
+                                    Margin="0,7,8,0"
+                                    HorizontalAlignment="Right"
+                                    FontFamily="{StaticResource InspectionLabelFontFamily}"
+                                    FontSize="{StaticResource InspectionLabelFontSize}"
+                                    FontWeight="{StaticResource InspectionLabelFontWeight}"
+                                    Foreground="{ThemeResource InspectionTextMutedBrush}"
+                                    AutomationProperties.AccessibilityView="Raw"
+                                    Text="Scroll for more" />
                             </Grid>
-                            <TextBlock
-                                Grid.Row="1"
-                                Margin="0,7,8,0"
-                                HorizontalAlignment="Right"
-                                FontFamily="{StaticResource InspectionLabelFontFamily}"
-                                FontSize="{StaticResource InspectionLabelFontSize}"
-                                FontWeight="{StaticResource InspectionLabelFontWeight}"
-                                Foreground="{ThemeResource InspectionTextMutedBrush}"
-                                AutomationProperties.AccessibilityView="Raw"
-                                Text="Scroll for more" />
-                        </Grid>
-                    </Border>
-                </Expander>
+                        </Border>
+                    </local:InspectionDisclosure.ViewportContent>
+                </local:InspectionDisclosure>
             </Grid>
         </Border>
 
@@ -675,12 +659,13 @@
             <VisualStateGroup x:Name="InspectionDetailsStates">
                 <VisualState x:Name="CollapsedDetailsState">
                     <VisualState.Setters>
-                        <Setter Target="InspectionDetailsExpansionTarget.MinHeight" Value="83" />
+                        <Setter Target="InspectionDetailsDisclosure.MinHeight" Value="83" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="ExpandedDetailsState">
                     <VisualState.Setters>
-                        <Setter Target="InspectionDetailsExpansionTarget.MinHeight" Value="0" />
+                        <Setter Target="DetailedView.MinHeight" Value="470" />
+                        <Setter Target="InspectionDetailsDisclosure.MinHeight" Value="0" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -694,7 +679,7 @@
                         <Setter Target="MetadataColumnFour.Width" Value="*" />
                         <Setter Target="DetailedHeader.Margin" Value="31,0" />
                         <Setter Target="MetadataGrid.Margin" Value="31,0" />
-                        <Setter Target="InspectionDetailsViewport.Margin" Value="22,0,22,22" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="23,-5,23,19" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="0" />
@@ -721,7 +706,7 @@
                         <Setter Target="MetadataColumnFour.Width" Value="0" />
                         <Setter Target="DetailedHeader.Margin" Value="23,0" />
                         <Setter Target="MetadataGrid.Margin" Value="23,0" />
-                        <Setter Target="InspectionDetailsViewport.Margin" Value="22,0,22,22" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="23,-5,23,19" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="0" />
@@ -770,7 +755,7 @@
                         <Setter Target="OverviewFormatChip.HorizontalAlignment" Value="Left" />
                         <Setter Target="MetadataGrid.Margin" Value="15,0" />
                         <Setter Target="InspectionDetailsHeader.Padding" Value="15,0" />
-                        <Setter Target="InspectionDetailsViewport.Margin" Value="14,0,14,22" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="15,-5,15,19" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="ModelNameField.Padding" Value="0,10" />

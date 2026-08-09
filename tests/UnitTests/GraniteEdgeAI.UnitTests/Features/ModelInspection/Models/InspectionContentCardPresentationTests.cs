@@ -2,6 +2,7 @@ using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -10,17 +11,22 @@ public sealed class InspectionContentCardPresentationTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Hidden_ReturnsIndependentExpansionState()
+    public void ExpansionState_IsAnImmutablePresentationSnapshot()
     {
-        InspectionContentCardPresentation first =
-            InspectionContentCardPresentation.Hidden;
-        InspectionContentCardPresentation second =
-            InspectionContentCardPresentation.Hidden;
+        PropertyInfo property = typeof(InspectionContentCardPresentation)
+            .GetProperty(nameof(InspectionContentCardPresentation.IsExpanded))!;
+        var collapsed = new InspectionContentCardPresentation();
+        var expanded = new InspectionContentCardPresentation
+        {
+            IsExpanded = true
+        };
 
-        first.IsExpanded = true;
-
-        Assert.AreNotSame(first, second);
-        Assert.IsFalse(second.IsExpanded);
+        Assert.IsNotNull(property.SetMethod);
+        CollectionAssert.Contains(
+            property.SetMethod.ReturnParameter.GetRequiredCustomModifiers(),
+            typeof(System.Runtime.CompilerServices.IsExternalInit));
+        Assert.IsFalse(collapsed.IsExpanded);
+        Assert.IsTrue(expanded.IsExpanded);
     }
 
     [UITestMethod]
@@ -30,9 +36,8 @@ public sealed class InspectionContentCardPresentationTests
         InspectionContentCard first = new();
         InspectionContentCard second = new();
 
-        first.Presentation.IsExpanded = true;
-
         Assert.AreNotSame(first.Presentation, second.Presentation);
+        Assert.IsFalse(first.Presentation.IsExpanded);
         Assert.IsFalse(second.Presentation.IsExpanded);
     }
 }

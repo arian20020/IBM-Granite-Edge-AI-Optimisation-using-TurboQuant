@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -244,6 +245,49 @@ public sealed class ModelInspectionVisualSourceContractTests
                 1,
                 linkedTestItems.Length,
                 $"The test package must contain exactly one linked Include for {asset}.");
+        }
+    }
+
+    [TestMethod]
+    public void ModelInspectionControls_UseSharedSemanticColorsOnly()
+    {
+        string[] controls =
+        [
+            "InspectionOutcomeCard.xaml",
+            "InspectionModelCard.xaml",
+            "InspectionContentCard.xaml",
+            "InspectionActionCard.xaml",
+            "InspectionDisclosure.xaml"
+        ];
+
+        foreach (string control in controls)
+        {
+            string source = Read(
+                $"IBM Granite with TurboQuant (Intel)/Features/" +
+                $"ModelInspection/Controls/{control}");
+            MatchCollection literals = Regex.Matches(
+                source,
+                "#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?",
+                RegexOptions.CultureInvariant);
+
+            Assert.AreEqual(
+                0,
+                literals.Count,
+                $"{control} must consume shared semantic theme resources; " +
+                $"found: {string.Join(", ", literals.Select(match => match.Value).Distinct())}");
+        }
+
+        foreach (string control in controls)
+        {
+            string source = Read(
+                $"IBM Granite with TurboQuant (Intel)/Features/" +
+                $"ModelInspection/Controls/{control}.cs");
+            Assert.IsFalse(
+                Regex.IsMatch(
+                    source,
+                    "(?:Color\\.FromArgb|new\\s+SolidColorBrush|CreateBrush\\s*\\()",
+                    RegexOptions.CultureInvariant),
+                $"{control}.cs must not cache a theme-specific color palette.");
         }
     }
 

@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
 using GraniteEdgeAI.Features.Onboarding;
+using GraniteEdgeAI.Features.ModelInspection.Models;
 
 
 namespace GraniteEdgeAI.Features.Onboarding.Controls
@@ -16,6 +17,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
     public sealed partial class OnboardingStageIndicator : UserControl
     {
         private bool _isRestoringCurrentStage;
+        private bool _isRestoringInspectionStatus;
 
         // Resource keys used when applying the visual state of each step.
         private const string ActiveBrushKey =
@@ -39,6 +41,9 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         private const string MutedTextBrushKey =
             "OnboardingIndicatorMutedTextBrush";
 
+        private const string ErrorBrushKey =
+            "OnboardingIndicatorErrorBrush";
+
         /// <summary>
         /// Identifies the dependency property used by the CurrentStage property.
         /// </summary>
@@ -50,6 +55,15 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                 new PropertyMetadata(
                     OnboardingStage.ImportModel,
                     OnCurrentStageChanged));
+
+        public static readonly DependencyProperty InspectionStatusProperty =
+            DependencyProperty.Register(
+                nameof(InspectionStatus),
+                typeof(InspectionFooterStatus),
+                typeof(OnboardingStageIndicator),
+                new PropertyMetadata(
+                    InspectionFooterStatus.InProgress,
+                    OnInspectionStatusChanged));
 
         /// <summary>
         /// Creates the stage indicator in its initial Import Model state.
@@ -68,6 +82,14 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             get => (OnboardingStage)GetValue(CurrentStageProperty);
             set => SetValue(CurrentStageProperty, value);
         }
+
+        public InspectionFooterStatus InspectionStatus
+        {
+            get => (InspectionFooterStatus)GetValue(InspectionStatusProperty);
+            set => SetValue(InspectionStatusProperty, value);
+        }
+
+        internal int LiveRegionChangeNotificationCount { get; private set; }
 
         /// <summary>
         /// Responds whenever CurrentStage receives a different value.
@@ -150,6 +172,58 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                 FrameworkElementAutomationPeer.CreatePeerForElement(this);
 
             peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+            LiveRegionChangeNotificationCount++;
+        }
+
+        private static void OnInspectionStatusChanged(
+            DependencyObject dependencyObject,
+            DependencyPropertyChangedEventArgs eventArguments)
+        {
+            var indicator = (OnboardingStageIndicator)dependencyObject;
+            if (indicator._isRestoringInspectionStatus)
+            {
+                return;
+            }
+
+            if (eventArguments.NewValue is not InspectionFooterStatus)
+            {
+                throw new InvalidOperationException(
+                    "The inspection footer received a non-status value.");
+            }
+
+            InspectionFooterStatus status =
+                (InspectionFooterStatus)eventArguments.NewValue;
+            if (!Enum.IsDefined(status))
+            {
+                if (eventArguments.OldValue is InspectionFooterStatus previous &&
+                    Enum.IsDefined(previous))
+                {
+                    indicator.RestoreInspectionStatus(previous);
+                }
+
+                throw new ArgumentOutOfRangeException(
+                    nameof(status),
+                    status,
+                    "The inspection footer status is not recognised.");
+            }
+
+            if (indicator.CurrentStage == OnboardingStage.InspectModel)
+            {
+                indicator.ApplyInspectionStatus(status);
+            }
+        }
+
+        private void RestoreInspectionStatus(InspectionFooterStatus previous)
+        {
+            _isRestoringInspectionStatus = true;
+            try
+            {
+                SetValue(InspectionStatusProperty, previous);
+            }
+            finally
+            {
+                _isRestoringInspectionStatus = false;
+            }
         }
 
         /// <summary>
@@ -225,6 +299,76 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                 this,
                 $"Model setup progress. Step {currentStepNumber} of 5: " +
                 $"{GetStageDisplayName(stage)}.");
+
+            if (stage == OnboardingStage.InspectModel)
+            {
+                ApplyInspectionStatus(InspectionStatus);
+            }
+        }
+
+        private void ApplyInspectionStatus(InspectionFooterStatus status)
+        {
+            string eyebrowStatus;
+            string automationStatus;
+
+            switch (status)
+            {
+                case InspectionFooterStatus.InProgress:
+                    ApplyActiveState(
+                        InspectModelStepBox,
+                        InspectModelStepValue,
+                        InspectModelStepLabel,
+                        stepNumber: 2);
+                    eyebrowStatus = "IN PROGRESS";
+                    automationStatus = "Inspection in progress";
+                    break;
+
+                case InspectionFooterStatus.Complete:
+                    ApplyCompletedState(
+                        InspectModelStepBox,
+                        InspectModelStepValue,
+                        InspectModelStepLabel);
+                    eyebrowStatus = "COMPLETE";
+                    automationStatus = "Inspection complete";
+                    break;
+
+                case InspectionFooterStatus.NotComplete:
+                    ApplyFutureState(
+                        InspectModelStepBox,
+                        InspectModelStepValue,
+                        InspectModelStepLabel,
+                        stepNumber: 2);
+                    InspectModelStepValue.Text = "\u2016";
+                    InspectModelStepLabel.FontWeight = FontWeights.SemiBold;
+                    eyebrowStatus = "NOT COMPLETE";
+                    automationStatus = "Inspection not complete";
+                    break;
+
+                case InspectionFooterStatus.Interrupted:
+                    SolidColorBrush error = GetBrush(ErrorBrushKey);
+                    InspectModelStepBox.Background = GetBrush(SurfaceBrushKey);
+                    InspectModelStepBox.BorderBrush = error;
+                    InspectModelStepValue.Text = "\u2715";
+                    InspectModelStepValue.Foreground = error;
+                    InspectModelStepLabel.Foreground = error;
+                    InspectModelStepLabel.FontWeight = FontWeights.SemiBold;
+                    eyebrowStatus = "INTERRUPTED";
+                    automationStatus = "Inspection interrupted";
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(status),
+                        status,
+                        "The inspection footer status is not recognised.");
+            }
+
+            StageEyebrowText.Text =
+                $"MODEL SETUP · STEP 2 OF 5 {eyebrowStatus}";
+            AutomationProperties.SetName(
+                this,
+                $"Model setup progress. Step 2 of 5: Inspect model. " +
+                $"{automationStatus}.");
         }
 
         /// <summary>

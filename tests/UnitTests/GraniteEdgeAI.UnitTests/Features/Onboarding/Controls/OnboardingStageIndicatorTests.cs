@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.Features.Onboarding.Controls;
+using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -83,7 +84,7 @@ public sealed class OnboardingStageIndicatorTests
 
         Assert.IsTrue(double.IsNaN(indicator.Height));
         Assert.AreEqual(128d, indicator.MinHeight);
-        Assert.AreEqual(1200d, layoutGrid.MaxWidth);
+        Assert.AreEqual(900d, layoutGrid.MaxWidth);
 
         foreach (StepElementNames step in Steps)
         {
@@ -96,7 +97,7 @@ public sealed class OnboardingStageIndicatorTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Measure_NarrowWidthRequestsMoreHeightWithoutLosingStages()
+    public void Measure_NarrowWidthPreservesNaturalHeightAndAllStages()
     {
         var wideIndicator = new OnboardingStageIndicator();
         var narrowIndicator = new OnboardingStageIndicator();
@@ -105,12 +106,13 @@ public sealed class OnboardingStageIndicatorTests
         narrowIndicator.Measure(new Windows.Foundation.Size(500, double.PositiveInfinity));
 
         Assert.AreEqual(128d, wideIndicator.DesiredSize.Height);
-        Assert.IsGreaterThan(
-            wideIndicator.DesiredSize.Height,
-            narrowIndicator.DesiredSize.Height);
+        Assert.IsGreaterThanOrEqualTo(128d, narrowIndicator.DesiredSize.Height);
 
         foreach (StepElementNames step in Steps)
         {
+            Border stepBox = GetBorder(narrowIndicator, step.BoxName);
+            Assert.AreEqual(36d, stepBox.Width);
+            Assert.AreEqual(36d, stepBox.Height);
             Assert.AreEqual(
                 step.Label,
                 GetTextBlock(narrowIndicator, step.LabelName).Text);
@@ -211,7 +213,67 @@ public sealed class OnboardingStageIndicatorTests
         indicator.CurrentStage = OnboardingStage.InspectModel;
 
         Assert.AreEqual(
-            "Model setup progress. Step 2 of 5: Inspect model.",
+            "Model setup progress. Step 2 of 5: Inspect model. " +
+            "Inspection in progress.",
+            AutomationProperties.GetName(indicator));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    [DataRow((int)InspectionFooterStatus.InProgress, "2", "IN PROGRESS", "Inspection in progress")]
+    [DataRow((int)InspectionFooterStatus.Complete, "\u2713", "COMPLETE", "Inspection complete")]
+    [DataRow((int)InspectionFooterStatus.NotComplete, "\u2016", "NOT COMPLETE", "Inspection not complete")]
+    [DataRow((int)InspectionFooterStatus.Interrupted, "\u2715", "INTERRUPTED", "Inspection interrupted")]
+    public void InspectionStatus_MapsAllFourNonNavigatingStates(
+        int statusValue,
+        string expectedGlyph,
+        string expectedEyebrowStatus,
+        string expectedAutomationStatus)
+    {
+        var indicator = new OnboardingStageIndicator
+        {
+            CurrentStage = OnboardingStage.InspectModel
+        };
+        int liveNotifications = indicator.LiveRegionChangeNotificationCount;
+
+        indicator.InspectionStatus = (InspectionFooterStatus)statusValue;
+
+        Assert.AreEqual(OnboardingStage.InspectModel, indicator.CurrentStage);
+        Assert.AreEqual(
+            expectedGlyph,
+            GetTextBlock(indicator, "InspectModelStepValue").Text);
+        Assert.IsTrue(
+            GetTextBlock(indicator, "StageEyebrowText").Text.EndsWith(
+                expectedEyebrowStatus,
+                StringComparison.Ordinal));
+        StringAssert.Contains(
+            AutomationProperties.GetName(indicator),
+            expectedAutomationStatus);
+        Assert.AreEqual(
+            liveNotifications,
+            indicator.LiveRegionChangeNotificationCount,
+            "Inspection-status changes must not duplicate content-card announcements.");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void InspectionStatus_OverridesOnlyInspectAndRestoresNavigationState()
+    {
+        var indicator = new OnboardingStageIndicator
+        {
+            InspectionStatus = InspectionFooterStatus.Interrupted
+        };
+
+        Assert.AreEqual("1", GetTextBlock(indicator, "ChooseModelStepValue").Text);
+        Assert.AreEqual("2", GetTextBlock(indicator, "InspectModelStepValue").Text);
+
+        indicator.CurrentStage = OnboardingStage.InspectModel;
+        Assert.AreEqual("\u2715", GetTextBlock(indicator, "InspectModelStepValue").Text);
+
+        indicator.CurrentStage = OnboardingStage.CheckHardwareFit;
+        Assert.AreEqual("\u2713", GetTextBlock(indicator, "InspectModelStepValue").Text);
+        Assert.AreEqual(
+            "Model setup progress. Step 3 of 5: Check hardware fit.",
             AutomationProperties.GetName(indicator));
     }
 
@@ -283,13 +345,18 @@ public sealed class OnboardingStageIndicatorTests
                 GetScaleTransform(indicator, ConnectorScaleNames[index]).ScaleX);
         }
 
+        string expectedEyebrow = expectedStage == OnboardingStage.InspectModel
+            ? "MODEL SETUP · STEP 2 OF 5 IN PROGRESS"
+            : $"MODEL SETUP · STEP {currentStepNumber} OF 5";
+        string expectedAutomation = expectedStage == OnboardingStage.InspectModel
+            ? "Model setup progress. Step 2 of 5: Inspect model. " +
+              "Inspection in progress."
+            : $"Model setup progress. Step {currentStepNumber} of 5: " +
+              $"{expectedDisplayName}.";
         Assert.AreEqual(
-            $"MODEL SETUP · STEP {currentStepNumber} OF 5",
+            expectedEyebrow,
             GetTextBlock(indicator, "StageEyebrowText").Text);
-        Assert.AreEqual(
-            $"Model setup progress. Step {currentStepNumber} of 5: " +
-            $"{expectedDisplayName}.",
-            AutomationProperties.GetName(indicator));
+        Assert.AreEqual(expectedAutomation, AutomationProperties.GetName(indicator));
     }
 
     private static Border GetBorder(

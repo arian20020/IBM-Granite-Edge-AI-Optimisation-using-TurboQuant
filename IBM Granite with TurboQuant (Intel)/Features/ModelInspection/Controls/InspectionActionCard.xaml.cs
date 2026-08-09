@@ -12,6 +12,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     {
         // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
+        private XamlRoot? _observedXamlRoot;
+        private string? _responsiveStateName;
 
         /// <summary>
         /// Identifies the bindable Presentation dependency property.
@@ -42,6 +44,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         {
             InitializeComponent();
             _isInitialized = true;
+            Loaded += Root_Loaded;
+            Unloaded += Root_Unloaded;
+            ApplyResponsiveState("WideActionState");
             ApplyPresentation(Presentation);
         }
 
@@ -63,6 +68,26 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         {
             get => (Visibility)GetValue(CardVisibilityProperty);
             private set => SetValue(CardVisibilityProperty, value);
+        }
+
+        public static Visibility GetFutureHelpVisibility(
+            InspectionActionPresentation action)
+        {
+            ArgumentNullException.ThrowIfNull(action);
+            return action.Visibility == Visibility.Visible &&
+                !action.IsEnabled &&
+                !string.IsNullOrWhiteSpace(action.AutomationHelpText)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+        }
+
+        public static string GetFutureHelpAutomationName(
+            InspectionActionPresentation action)
+        {
+            ArgumentNullException.ThrowIfNull(action);
+            return string.IsNullOrWhiteSpace(action.AutomationHelpText)
+                ? string.Empty
+                : $"{action.AutomationName}. {action.AutomationHelpText}";
         }
 
         /// <summary>
@@ -122,6 +147,79 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
             // refresh compiled bindings after the presentation instance changes
             Bindings.Update();
+        }
+
+        private void LayoutRoot_SizeChanged(
+            object sender,
+            SizeChangedEventArgs eventArguments)
+        {
+            ApplyResponsiveLayout(
+                XamlRoot?.Size.Width ?? eventArguments.NewSize.Width);
+        }
+
+        private void Root_Loaded(object sender, RoutedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(_observedXamlRoot, XamlRoot))
+            {
+                DetachXamlRoot();
+                _observedXamlRoot = XamlRoot;
+                if (_observedXamlRoot is not null)
+                {
+                    _observedXamlRoot.Changed += XamlRoot_Changed;
+                }
+            }
+
+            ApplyResponsiveLayout(
+                _observedXamlRoot?.Size.Width ?? ActualWidth);
+        }
+
+        private void Root_Unloaded(object sender, RoutedEventArgs eventArguments)
+        {
+            DetachXamlRoot();
+        }
+
+        private void XamlRoot_Changed(
+            XamlRoot sender,
+            XamlRootChangedEventArgs eventArguments)
+        {
+            ApplyResponsiveLayout(sender.Size.Width);
+        }
+
+        private void DetachXamlRoot()
+        {
+            if (_observedXamlRoot is null)
+            {
+                return;
+            }
+
+            _observedXamlRoot.Changed -= XamlRoot_Changed;
+            _observedXamlRoot = null;
+        }
+
+        private void ApplyResponsiveLayout(double width)
+        {
+            ApplyResponsiveState(width >= 888d
+                ? "WideActionState"
+                : width >= 600d
+                    ? "MediumActionState"
+                    : "NarrowActionState");
+        }
+
+        private void ApplyResponsiveState(string stateName)
+        {
+            if (!_isInitialized ||
+                string.Equals(_responsiveStateName, stateName, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (!VisualStateManager.GoToState(this, stateName, false))
+            {
+                throw new InvalidOperationException(
+                    $"The action-card visual state '{stateName}' was not found.");
+            }
+
+            _responsiveStateName = stateName;
         }
     }
 }

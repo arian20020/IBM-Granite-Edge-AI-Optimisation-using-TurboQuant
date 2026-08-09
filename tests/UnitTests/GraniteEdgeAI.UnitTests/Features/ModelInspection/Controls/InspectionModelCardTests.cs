@@ -119,9 +119,8 @@ public sealed class InspectionModelCardTests
             Point viewportOrigin = viewport
                 .TransformToVisual(detailed)
                 .TransformPoint(new Point());
-            Expander disclosure = Find<Expander>(
-                control,
-                "InspectionDetailsExpansionTarget");
+            InspectionDisclosure disclosure = control.ActiveDisclosure!;
+            Assert.IsNotNull(disclosure);
             FrameworkElement header = Find<FrameworkElement>(
                 control,
                 "DetailedHeader");
@@ -132,7 +131,8 @@ public sealed class InspectionModelCardTests
                 control,
                 "InspectionDetailsHeader");
 
-            Assert.IsTrue(control.IsInspectionDetailsExpanded);
+            Assert.IsTrue(control.Presentation.IsInspectionDetailsExpanded);
+            Assert.IsTrue(disclosure.IsExpanded);
             Assert.AreEqual(
                 470d,
                 detailed.ActualHeight,
@@ -409,25 +409,23 @@ public sealed class InspectionModelCardTests
         try
         {
             int userEventCount = 0;
-            control.InspectionDetailsExpansionChanged +=
+            control.DisclosureToggleRequested +=
                 (_, _) => userEventCount++;
             control.Presentation = CreatePresentation(isExpanded: true);
             control.UpdateLayout();
             await Task.Yield();
 
-            Assert.IsTrue(control.IsInspectionDetailsExpanded);
-            Assert.IsTrue(Find<Expander>(
-                control,
-                "InspectionDetailsExpansionTarget").IsExpanded);
+            InspectionDisclosure disclosure = control.ActiveDisclosure!;
+            Assert.IsNotNull(disclosure);
+            Assert.IsTrue(control.Presentation.IsInspectionDetailsExpanded);
+            Assert.IsTrue(disclosure.IsExpanded);
 
             control.Presentation = CreatePresentation(isExpanded: false);
             control.UpdateLayout();
             await Task.Yield();
 
-            Assert.IsFalse(control.IsInspectionDetailsExpanded);
-            Assert.IsFalse(Find<Expander>(
-                control,
-                "InspectionDetailsExpansionTarget").IsExpanded);
+            Assert.IsFalse(control.Presentation.IsInspectionDetailsExpanded);
+            Assert.IsFalse(disclosure.IsExpanded);
             Assert.AreEqual(
                 0,
                 userEventCount,
@@ -449,7 +447,7 @@ public sealed class InspectionModelCardTests
             Presentation = CreatePresentation(isExpanded: false)
         };
         EventInfo? changeEvent = typeof(InspectionModelCard).GetEvent(
-            "InspectionDetailsExpansionChanged",
+            "DisclosureToggleRequested",
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
         Assert.IsNotNull(changeEvent, "the page needs a typed disclosure event seam");
@@ -471,14 +469,17 @@ public sealed class InspectionModelCardTests
             typeof(ExpansionEventCapture).GetMethod(
                 nameof(ExpansionEventCapture.Capture))!);
         changeEvent.GetAddMethod(nonPublic: true)!.Invoke(control, [handler]);
-        Expander disclosure = Find<Expander>(
-            control,
-            "InspectionDetailsExpansionTarget");
+        InspectionDisclosure disclosure = control.ActiveDisclosure!;
+        Assert.IsNotNull(disclosure);
 
         Assert.IsNull(capture.IsExpanded);
-        Assert.AreSame(disclosure, control.ActiveInspectionDetailsExpansionTarget);
-        Assert.IsInstanceOfType<FrameworkElement>(
-            control.FindName("InspectionDetailsViewport"));
+        Assert.AreSame(disclosure, control.ActiveDisclosure);
+        Assert.AreSame(
+            disclosure.FindName("DisclosureChevron"),
+            disclosure.ChevronTarget);
+        Assert.AreSame(
+            disclosure.FindName("DisclosureViewport"),
+            disclosure.ViewportTarget);
     }
 
     [UITestMethod]
@@ -488,9 +489,8 @@ public sealed class InspectionModelCardTests
         InspectionModelCard control = CreateDetailedControl(
             width: 840,
             isExpanded: false);
-        Expander disclosure = Find<Expander>(
-            control,
-            "InspectionDetailsExpansionTarget");
+        InspectionDisclosure disclosure = control.ActiveDisclosure!;
+        Assert.IsNotNull(disclosure);
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         control.Loaded += (_, _) => loaded.TrySetResult(true);
@@ -503,27 +503,29 @@ public sealed class InspectionModelCardTests
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            ToggleButton headerAction = Descendants(disclosure)
-                .OfType<ToggleButton>()
-                .Single();
-            Assert.IsTrue(headerAction.Focus(FocusState.Keyboard));
+            Assert.IsTrue(disclosure.Focus(FocusState.Keyboard));
             DependencyObject? focusedBefore =
                 FocusManager.GetFocusedElement(control.XamlRoot) as DependencyObject;
-            var peer = new ToggleButtonAutomationPeer(headerAction);
-            IToggleProvider toggleProvider = Assert.IsInstanceOfType<IToggleProvider>(
-                peer.GetPattern(PatternInterface.Toggle));
+            AutomationPeer peer = FrameworkElementAutomationPeer
+                .CreatePeerForElement(disclosure);
+            Assert.IsNotNull(peer);
+            IExpandCollapseProvider expandProvider =
+                Assert.IsInstanceOfType<IExpandCollapseProvider>(
+                    peer.GetPattern(PatternInterface.ExpandCollapse));
             int eventCount = 0;
             bool? requestedTarget = null;
-            control.InspectionDetailsExpansionChanged += (_, eventArguments) =>
+            control.DisclosureToggleRequested += (_, eventArguments) =>
             {
                 eventCount++;
                 requestedTarget = eventArguments.IsExpanded;
             };
 
-            toggleProvider.Toggle();
+            expandProvider.Expand();
             control.UpdateLayout();
 
-            Assert.IsTrue(disclosure.IsExpanded);
+            Assert.IsFalse(
+                disclosure.IsExpanded,
+                "The request must not mutate page-owned presentation state.");
             Assert.AreEqual(1, eventCount);
             Assert.AreEqual(true, requestedTarget);
             Assert.IsNotNull(focusedBefore);

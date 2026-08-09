@@ -722,6 +722,7 @@ internal static class ModelInspectionPresentationFactory
             DisclosureVisibility = definition.HasContentDisclosure
                 ? Visibility.Visible
                 : Visibility.Collapsed,
+            IsExpanded = definition.HasContentDisclosure && expanded,
             ExpandedItems = definition.HasContentDisclosure
                 ? items
                 : Array.Empty<InspectionContentItemPresentation>(),
@@ -736,7 +737,6 @@ internal static class ModelInspectionPresentationFactory
                     ? ComingLater
                     : string.Empty
         };
-        content.IsExpanded = definition.HasContentDisclosure && expanded;
         return content;
     }
 

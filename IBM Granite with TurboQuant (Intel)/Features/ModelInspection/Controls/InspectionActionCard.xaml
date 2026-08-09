@@ -4,228 +4,55 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:GraniteEdgeAI.Features.ModelInspection.Controls"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     x:Name="Root"
     d:DesignHeight="160"
     d:DesignWidth="840"
     mc:Ignorable="d">
 
-    <!--
-        Displays the actions available for the current inspection state.
-        
-        This control owns:
-        - The inspecting-state cancellation action.
-        - The completed-state heading and explanation.
-        - Up to two secondary actions.
-        - One primary action.
-        - Responsive button arrangement.
-        
-        This control does not own:
-        - Inspection outcome classification.
-        - Navigation decisions.
-        - Model-inspection execution.
-        - Model information, warnings, or technical evidence.
-    -->
-
     <UserControl.Resources>
-        <ResourceDictionary>
-
-            <!--  ======================================================  -->
-            <!--  THEME-AWARE ACTION-CARD COLOURS  -->
-            <!--  ======================================================  -->
-
-            <ResourceDictionary.ThemeDictionaries>
-
-                <!--  Dark theme.  -->
-                <ResourceDictionary
-                    x:Key="Dark">
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionCardBackgroundBrush"
-                        Color="#25282D" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionCardBorderBrush"
-                        Color="#424852" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryTextBrush"
-                        Color="#F7F8FA" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryTextBrush"
-                        Color="#AAB2BF" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonBackgroundBrush"
-                        Color="#1F2227" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonBorderBrush"
-                        Color="#59616C" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonForegroundBrush"
-                        Color="#F2F4F7" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonBackgroundBrush"
-                        Color="#4589FF" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonBorderBrush"
-                        Color="#4589FF" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonForegroundBrush"
-                        Color="#FFFFFF" />
-
-                </ResourceDictionary>
-
-                <!--  Light theme matching the approved prototypes.  -->
-                <ResourceDictionary
-                    x:Key="Light">
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionCardBackgroundBrush"
-                        Color="#F8FAFC" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionCardBorderBrush"
-                        Color="#E8EDF3" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryTextBrush"
-                        Color="#101828" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryTextBrush"
-                        Color="#667085" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonBackgroundBrush"
-                        Color="#FFFFFF" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonBorderBrush"
-                        Color="#BFC9D6" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonForegroundBrush"
-                        Color="#344054" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonBackgroundBrush"
-                        Color="#0F62FE" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonBorderBrush"
-                        Color="#0F62FE" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonForegroundBrush"
-                        Color="#FFFFFF" />
-
-                </ResourceDictionary>
-
-                <!--  System-managed high-contrast theme.  -->
-                <ResourceDictionary
-                    x:Key="HighContrast">
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionCardBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionCardBorderBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryTextBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryTextBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonBackgroundBrush"
-                        Color="{ThemeResource SystemColorButtonFaceColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonBorderBrush"
-                        Color="{ThemeResource SystemColorButtonTextColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionSecondaryButtonForegroundBrush"
-                        Color="{ThemeResource SystemColorButtonTextColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonBackgroundBrush"
-                        Color="{ThemeResource SystemColorHighlightColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonBorderBrush"
-                        Color="{ThemeResource SystemColorHighlightColor}" />
-
-                    <SolidColorBrush
-                        x:Key="InspectionActionPrimaryButtonForegroundBrush"
-                        Color="{ThemeResource SystemColorHighlightTextColor}" />
-
-                </ResourceDictionary>
-
-            </ResourceDictionary.ThemeDictionaries>
-
-            <!--  ======================================================  -->
-            <!--  SHARED TEXT STYLES  -->
-            <!--  ======================================================  -->
-
-            <Style
-                x:Key="InspectionActionHeadingStyle"
-                TargetType="TextBlock">
-
-                <Setter Property="FontSize" Value="14" />
-
-                <Setter Property="FontWeight" Value="SemiBold" />
-
-                <Setter Property="Foreground" Value="{ThemeResource InspectionActionPrimaryTextBrush}" />
-
-                <Setter Property="TextAlignment" Value="Center" />
-
-                <Setter Property="TextWrapping" Value="WrapWholeWords" />
-
-            </Style>
-
-            <Style
-                x:Key="InspectionActionMessageStyle"
-                TargetType="TextBlock">
-
-                <Setter Property="FontSize" Value="12" />
-
-                <Setter Property="Foreground" Value="{ThemeResource InspectionActionSecondaryTextBrush}" />
-
-                <Setter Property="TextAlignment" Value="Center" />
-
-                <Setter Property="TextWrapping" Value="WrapWholeWords" />
-
-            </Style>
-
-        </ResourceDictionary>
+        <Style x:Key="InspectionActionHeadingStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionBodyFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+        </Style>
+        <Style x:Key="InspectionActionMessageStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+        </Style>
+        <Style x:Key="InspectionActionButtonTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+            <Setter Property="MaxLines" Value="0" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="InspectionFutureHelpStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionLabelFontSize}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+        </Style>
     </UserControl.Resources>
 
-    <!--
-        The parent page owns the spacing around this component.
-        No external Margin is defined here.
-    -->
     <Grid
         x:Name="LayoutRoot"
-        MaxWidth="840"
+        MaxWidth="{StaticResource InspectionContentColumnWidth}"
         HorizontalAlignment="Stretch"
         AutomationProperties.Name="{x:Bind Presentation.AutomationName, Mode=OneWay}"
+        SizeChanged="LayoutRoot_SizeChanged"
         Visibility="{x:Bind CardVisibility, Mode=OneWay}">
-        <!--  =========================================================  -->
-        <!--  MODE 1: INSPECTION IS CURRENTLY RUNNING  -->
-        <!--  =========================================================  -->
 
         <StackPanel
             x:Name="InspectingView"
@@ -233,250 +60,240 @@
             VerticalAlignment="Center"
             Spacing="14"
             Visibility="Collapsed">
-
             <Button
+                x:Name="CancelActionButton"
                 MinWidth="{x:Bind Presentation.CancelAction.MinimumWidth, Mode=OneWay}"
-                MinHeight="46"
+                MinHeight="{StaticResource InspectionStandardButtonHeight}"
                 Padding="20,10"
                 HorizontalAlignment="Center"
                 HorizontalContentAlignment="Center"
                 VerticalContentAlignment="Center"
                 AutomationProperties.Name="{x:Bind Presentation.CancelAction.AutomationName, Mode=OneWay}"
-                Background="{ThemeResource InspectionActionSecondaryButtonBackgroundBrush}"
-                BorderBrush="{ThemeResource InspectionActionSecondaryButtonBorderBrush}"
+                Background="{ThemeResource InspectionSurfaceBrush}"
+                BorderBrush="{ThemeResource InspectionBorderControlBrush}"
                 BorderThickness="1"
                 Command="{x:Bind Presentation.CancelAction.Command, Mode=OneWay}"
                 CommandParameter="{x:Bind Presentation.CancelAction.CommandParameter, Mode=OneWay}"
                 CornerRadius="12"
-                Foreground="{ThemeResource InspectionActionSecondaryButtonForegroundBrush}"
+                Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                 IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
                 TabIndex="0"
                 Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
-
                 <TextBlock
-                    FontSize="13"
-                    FontWeight="SemiBold"
-                    MaxLines="2"
-                    Text="{x:Bind Presentation.CancelAction.Text, Mode=OneWay}"
-                    TextAlignment="Center"
-                    TextWrapping="WrapWholeWords" />
-
+                    Style="{StaticResource InspectionActionButtonTextStyle}"
+                    Text="{x:Bind Presentation.CancelAction.Text, Mode=OneWay}" />
             </Button>
-
             <TextBlock
                 MaxWidth="520"
                 Style="{StaticResource InspectionActionMessageStyle}"
                 Text="{x:Bind Presentation.Message, Mode=OneWay}" />
-
         </StackPanel>
-
-        <!--  =========================================================  -->
-        <!--  MODE 2: INSPECTION HAS REACHED AN END STATE  -->
-        <!--  =========================================================  -->
 
         <Border
             x:Name="ResultView"
             MinHeight="140"
-            Padding="24,18"
+            Padding="24,8"
             HorizontalAlignment="Stretch"
-            Background="{ThemeResource InspectionActionCardBackgroundBrush}"
-            BorderBrush="{ThemeResource InspectionActionCardBorderBrush}"
+            Background="{ThemeResource InspectionSurfaceMutedBrush}"
+            BorderBrush="{ThemeResource InspectionBorderLightBrush}"
             BorderThickness="1"
-            CornerRadius="20"
+            CornerRadius="12"
             Visibility="Collapsed">
-
-            <StackPanel
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Center">
-
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <TextBlock
                     Style="{StaticResource InspectionActionHeadingStyle}"
                     Text="{x:Bind Presentation.Title, Mode=OneWay}" />
-
                 <TextBlock
                     Margin="0,6,0,0"
                     Style="{StaticResource InspectionActionMessageStyle}"
                     Text="{x:Bind Presentation.Message, Mode=OneWay}" />
 
-                <!--
-                    The base layout stacks buttons vertically.
-                    WideActionLayout changes this panel to horizontal.
-                -->
-                <StackPanel
+                <Grid
                     x:Name="ResultButtonPanel"
-                    MaxWidth="360"
-                    Margin="0,16,0,0"
-                    HorizontalAlignment="Stretch"
-                    Orientation="Vertical"
-                    Spacing="12">
+                    MaxWidth="760"
+                    Margin="0,5,0,0"
+                    HorizontalAlignment="Center"
+                    ColumnSpacing="12"
+                    RowSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="ActionColumnOne" Width="*" />
+                        <ColumnDefinition x:Name="ActionColumnTwo" Width="*" />
+                        <ColumnDefinition x:Name="ActionColumnThree" Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <!--  Optional first secondary action.  -->
-                    <Button
-                        x:Name="SecondaryActionOneButton"
-                        MinWidth="{x:Bind Presentation.SecondaryActionOne.MinimumWidth, Mode=OneWay}"
-                        MinHeight="46"
-                        Padding="20,10"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        AutomationProperties.Name="{x:Bind Presentation.SecondaryActionOne.AutomationName, Mode=OneWay}"
-                        Background="{ThemeResource InspectionActionSecondaryButtonBackgroundBrush}"
-                        BorderBrush="{ThemeResource InspectionActionSecondaryButtonBorderBrush}"
-                        BorderThickness="1"
-                        Command="{x:Bind Presentation.SecondaryActionOne.Command, Mode=OneWay}"
-                        CommandParameter="{x:Bind Presentation.SecondaryActionOne.CommandParameter, Mode=OneWay}"
-                        CornerRadius="12"
-                        Foreground="{ThemeResource InspectionActionSecondaryButtonForegroundBrush}"
-                        IsEnabled="{x:Bind Presentation.SecondaryActionOne.IsEnabled, Mode=OneWay}"
-                        TabIndex="0"
-                        Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
-
+                    <StackPanel x:Name="SecondaryActionOneHost" Grid.Row="0" Grid.ColumnSpan="3">
+                        <Button
+                            x:Name="SecondaryActionOneButton"
+                            MinWidth="{x:Bind Presentation.SecondaryActionOne.MinimumWidth, Mode=OneWay}"
+                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
+                            Padding="20,10"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind Presentation.SecondaryActionOne.AutomationName, Mode=OneWay}"
+                            Background="{ThemeResource InspectionSurfaceBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderControlBrush}"
+                            BorderThickness="1"
+                            Command="{x:Bind Presentation.SecondaryActionOne.Command, Mode=OneWay}"
+                            CommandParameter="{x:Bind Presentation.SecondaryActionOne.CommandParameter, Mode=OneWay}"
+                            CornerRadius="12"
+                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                            IsEnabled="{x:Bind Presentation.SecondaryActionOne.IsEnabled, Mode=OneWay}"
+                            TabIndex="0"
+                            ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
+                            <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionOne.Text, Mode=OneWay}" />
+                        </Button>
                         <TextBlock
-                            FontSize="13"
-                            FontWeight="SemiBold"
-                            MaxLines="2"
-                            Text="{x:Bind Presentation.SecondaryActionOne.Text, Mode=OneWay}"
-                            TextAlignment="Center"
-                            TextWrapping="WrapWholeWords" />
+                            x:Name="SecondaryActionOneFutureHelpText"
+                            AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind local:InspectionActionCard.GetFutureHelpAutomationName(Presentation.SecondaryActionOne), Mode=OneWay}"
+                            Style="{StaticResource InspectionFutureHelpStyle}"
+                            Text="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind local:InspectionActionCard.GetFutureHelpVisibility(Presentation.SecondaryActionOne), Mode=OneWay}" />
+                    </StackPanel>
 
-                    </Button>
-
-                    <!--  Optional second secondary action.  -->
-                    <Button
-                        x:Name="SecondaryActionTwoButton"
-                        MinWidth="{x:Bind Presentation.SecondaryActionTwo.MinimumWidth, Mode=OneWay}"
-                        MinHeight="46"
-                        Padding="20,10"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        AutomationProperties.Name="{x:Bind Presentation.SecondaryActionTwo.AutomationName, Mode=OneWay}"
-                        Background="{ThemeResource InspectionActionSecondaryButtonBackgroundBrush}"
-                        BorderBrush="{ThemeResource InspectionActionSecondaryButtonBorderBrush}"
-                        BorderThickness="1"
-                        Command="{x:Bind Presentation.SecondaryActionTwo.Command, Mode=OneWay}"
-                        CommandParameter="{x:Bind Presentation.SecondaryActionTwo.CommandParameter, Mode=OneWay}"
-                        CornerRadius="12"
-                        Foreground="{ThemeResource InspectionActionSecondaryButtonForegroundBrush}"
-                        IsEnabled="{x:Bind Presentation.SecondaryActionTwo.IsEnabled, Mode=OneWay}"
-                        TabIndex="1"
-                        Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
-
+                    <StackPanel x:Name="SecondaryActionTwoHost" Grid.Row="1" Grid.ColumnSpan="3">
+                        <Button
+                            x:Name="SecondaryActionTwoButton"
+                            MinWidth="{x:Bind Presentation.SecondaryActionTwo.MinimumWidth, Mode=OneWay}"
+                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
+                            Padding="20,10"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind Presentation.SecondaryActionTwo.AutomationName, Mode=OneWay}"
+                            Background="{ThemeResource InspectionSurfaceBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderControlBrush}"
+                            BorderThickness="1"
+                            Command="{x:Bind Presentation.SecondaryActionTwo.Command, Mode=OneWay}"
+                            CommandParameter="{x:Bind Presentation.SecondaryActionTwo.CommandParameter, Mode=OneWay}"
+                            CornerRadius="12"
+                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                            IsEnabled="{x:Bind Presentation.SecondaryActionTwo.IsEnabled, Mode=OneWay}"
+                            TabIndex="1"
+                            ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
+                            <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionTwo.Text, Mode=OneWay}" />
+                        </Button>
                         <TextBlock
-                            FontSize="13"
-                            FontWeight="SemiBold"
-                            MaxLines="2"
-                            Text="{x:Bind Presentation.SecondaryActionTwo.Text, Mode=OneWay}"
-                            TextAlignment="Center"
-                            TextWrapping="WrapWholeWords" />
+                            x:Name="SecondaryActionTwoFutureHelpText"
+                            AutomationProperties.HelpText="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind local:InspectionActionCard.GetFutureHelpAutomationName(Presentation.SecondaryActionTwo), Mode=OneWay}"
+                            Style="{StaticResource InspectionFutureHelpStyle}"
+                            Text="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind local:InspectionActionCard.GetFutureHelpVisibility(Presentation.SecondaryActionTwo), Mode=OneWay}" />
+                    </StackPanel>
 
-                    </Button>
-
-                    <!--  The primary action is always last.  -->
-                    <Button
-                        x:Name="PrimaryActionButton"
-                        MinWidth="{x:Bind Presentation.PrimaryAction.MinimumWidth, Mode=OneWay}"
-                        MinHeight="46"
-                        Padding="20,10"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        AutomationProperties.Name="{x:Bind Presentation.PrimaryAction.AutomationName, Mode=OneWay}"
-                        Background="{ThemeResource InspectionActionPrimaryButtonBackgroundBrush}"
-                        BorderBrush="{ThemeResource InspectionActionPrimaryButtonBorderBrush}"
-                        BorderThickness="1"
-                        Command="{x:Bind Presentation.PrimaryAction.Command, Mode=OneWay}"
-                        CommandParameter="{x:Bind Presentation.PrimaryAction.CommandParameter, Mode=OneWay}"
-                        CornerRadius="12"
-                        Foreground="{ThemeResource InspectionActionPrimaryButtonForegroundBrush}"
-                        IsEnabled="{x:Bind Presentation.PrimaryAction.IsEnabled, Mode=OneWay}"
-                        Style="{StaticResource AccentButtonStyle}"
-                        TabIndex="2"
-                        Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
-
+                    <StackPanel x:Name="PrimaryActionHost" Grid.Row="2" Grid.ColumnSpan="3">
+                        <Button
+                            x:Name="PrimaryActionButton"
+                            MinWidth="{x:Bind Presentation.PrimaryAction.MinimumWidth, Mode=OneWay}"
+                            MinHeight="{StaticResource InspectionStandardButtonHeight}"
+                            Padding="20,10"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            AutomationProperties.HelpText="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind Presentation.PrimaryAction.AutomationName, Mode=OneWay}"
+                            Background="{ThemeResource InspectionPrimaryBlueBrush}"
+                            BorderBrush="{ThemeResource InspectionPrimaryBlueBrush}"
+                            BorderThickness="1"
+                            Command="{x:Bind Presentation.PrimaryAction.Command, Mode=OneWay}"
+                            CommandParameter="{x:Bind Presentation.PrimaryAction.CommandParameter, Mode=OneWay}"
+                            CornerRadius="12"
+                            Foreground="{ThemeResource InspectionSurfaceBrush}"
+                            IsEnabled="{x:Bind Presentation.PrimaryAction.IsEnabled, Mode=OneWay}"
+                            TabIndex="2"
+                            ToolTipService.ToolTip="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
+                            <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.PrimaryAction.Text, Mode=OneWay}" />
+                        </Button>
                         <TextBlock
-                            FontSize="13"
-                            FontWeight="SemiBold"
-                            MaxLines="2"
-                            Text="{x:Bind Presentation.PrimaryAction.Text, Mode=OneWay}"
-                            TextAlignment="Center"
-                            TextWrapping="WrapWholeWords" />
-
-                    </Button>
-
-                </StackPanel>
-
+                            x:Name="PrimaryActionFutureHelpText"
+                            AutomationProperties.HelpText="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind local:InspectionActionCard.GetFutureHelpAutomationName(Presentation.PrimaryAction), Mode=OneWay}"
+                            Style="{StaticResource InspectionFutureHelpStyle}"
+                            Text="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind local:InspectionActionCard.GetFutureHelpVisibility(Presentation.PrimaryAction), Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
             </StackPanel>
-
         </Border>
 
-        <!--
-            These visual states belong to LayoutRoot because they change
-            elements contained inside this Grid.
-        -->
         <VisualStateManager.VisualStateGroups>
-
-            <!--  Selects the running or completed action layout.  -->
-            <VisualStateGroup
-                x:Name="CardModeStates">
-
-                <VisualState
-                    x:Name="InspectingState">
+            <VisualStateGroup x:Name="CardModeStates">
+                <VisualState x:Name="InspectingState">
                     <VisualState.Setters>
-
                         <Setter Target="InspectingView.Visibility" Value="Visible" />
-
                         <Setter Target="ResultView.Visibility" Value="Collapsed" />
-
                     </VisualState.Setters>
                 </VisualState>
-
-                <VisualState
-                    x:Name="ResultState">
+                <VisualState x:Name="ResultState">
                     <VisualState.Setters>
-
                         <Setter Target="InspectingView.Visibility" Value="Collapsed" />
-
                         <Setter Target="ResultView.Visibility" Value="Visible" />
-
                     </VisualState.Setters>
                 </VisualState>
-
             </VisualStateGroup>
 
-            <!--  Changes the result-button arrangement on wide windows.  -->
-            <VisualStateGroup
-                x:Name="ResponsiveStates">
-
-                <VisualState
-                    x:Name="WideActionLayout">
-
-                    <VisualState.StateTriggers>
-                        <AdaptiveTrigger
-                            MinWindowWidth="900" />
-                    </VisualState.StateTriggers>
-
+            <VisualStateGroup x:Name="ResponsiveActionStates">
+                <VisualState x:Name="WideActionState">
                     <VisualState.Setters>
-
-                        <Setter Target="ResultButtonPanel.Orientation" Value="Horizontal" />
-
-                        <Setter Target="ResultButtonPanel.HorizontalAlignment" Value="Center" />
-
-                        <Setter Target="ResultButtonPanel.MaxWidth" Value="760" />
-
-                        <Setter Target="SecondaryActionOneButton.HorizontalAlignment" Value="Center" />
-
-                        <Setter Target="SecondaryActionTwoButton.HorizontalAlignment" Value="Center" />
-
-                        <Setter Target="PrimaryActionButton.HorizontalAlignment" Value="Center" />
-
+                        <Setter Target="ActionColumnOne.Width" Value="*" />
+                        <Setter Target="ActionColumnTwo.Width" Value="*" />
+                        <Setter Target="ActionColumnThree.Width" Value="*" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.Row)" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.Column)" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.Row)" Value="0" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.Column)" Value="1" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="PrimaryActionHost.(Grid.Row)" Value="0" />
+                        <Setter Target="PrimaryActionHost.(Grid.Column)" Value="2" />
+                        <Setter Target="PrimaryActionHost.(Grid.ColumnSpan)" Value="1" />
                     </VisualState.Setters>
-
                 </VisualState>
-
+                <VisualState x:Name="MediumActionState">
+                    <VisualState.Setters>
+                        <Setter Target="ActionColumnOne.Width" Value="*" />
+                        <Setter Target="ActionColumnTwo.Width" Value="*" />
+                        <Setter Target="ActionColumnThree.Width" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.Row)" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.Column)" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.Row)" Value="0" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.Column)" Value="1" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="PrimaryActionHost.(Grid.Row)" Value="1" />
+                        <Setter Target="PrimaryActionHost.(Grid.Column)" Value="0" />
+                        <Setter Target="PrimaryActionHost.(Grid.ColumnSpan)" Value="2" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NarrowActionState">
+                    <VisualState.Setters>
+                        <Setter Target="ActionColumnOne.Width" Value="*" />
+                        <Setter Target="ActionColumnTwo.Width" Value="*" />
+                        <Setter Target="ActionColumnThree.Width" Value="*" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.Row)" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.Column)" Value="0" />
+                        <Setter Target="SecondaryActionOneHost.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.Row)" Value="1" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.Column)" Value="0" />
+                        <Setter Target="SecondaryActionTwoHost.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="PrimaryActionHost.(Grid.Row)" Value="2" />
+                        <Setter Target="PrimaryActionHost.(Grid.Column)" Value="0" />
+                        <Setter Target="PrimaryActionHost.(Grid.ColumnSpan)" Value="3" />
+                    </VisualState.Setters>
+                </VisualState>
             </VisualStateGroup>
-
         </VisualStateManager.VisualStateGroups>
     </Grid>
-
 </UserControl>

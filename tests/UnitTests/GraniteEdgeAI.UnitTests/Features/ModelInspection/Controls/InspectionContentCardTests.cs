@@ -3,8 +3,13 @@ using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -13,8 +18,297 @@ using System.Reflection;
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class InspectionContentCardTests
 {
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task InitialFactoryState_RendersFiveWaitingRowsAndDisabledCancel()
+    {
+        ModelInspectionPagePresentation page =
+            ModelInspectionPresentationFactory.CreateInitial(
+                PresentationTestData.CreateRequest(),
+                PresentationTestData.CreateCommand());
+        var content = new InspectionContentCard
+        {
+            Width = 840,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Presentation = page.ContentCard
+        };
+        var actions = new InspectionActionCard
+        {
+            Width = 840,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Presentation = page.ActionCard
+        };
+        var host = new StackPanel { Width = 840 };
+        host.Children.Add(content);
+        host.Children.Add(actions);
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        host.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window
+        {
+            Content = new ScrollViewer { Content = host }
+        };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            host.UpdateLayout();
+
+            DependencyObject[] descendants =
+                EnumerateDescendants(content).ToArray();
+            Grid[] rows = descendants
+                .OfType<Grid>()
+                .Where(row =>
+                    Math.Abs(row.MinHeight - 60d) < 0.01 &&
+                    !string.IsNullOrWhiteSpace(
+                        AutomationProperties.GetName(row)))
+                .ToArray();
+            TextBlock[] waitingLabels = descendants
+                .OfType<TextBlock>()
+                .Where(text =>
+                    text.Text == "Waiting" &&
+                    text.ActualHeight > 0d)
+                .ToArray();
+            ProgressRing[] visibleSpinners = descendants
+                .OfType<ProgressRing>()
+                .Where(ring =>
+                    ring.Visibility == Visibility.Visible &&
+                    ring.ActualHeight > 0d)
+                .ToArray();
+            Button cancel = (Button)actions.FindName("CancelActionButton");
+
+            Assert.AreEqual(ModelInspectionFigmaState.InspectionProgress, page.State);
+            Assert.AreEqual("Inspection progress", page.ContentCard.SectionTitle);
+            Assert.AreEqual("0 of 5 checks complete", page.ContentCard.ProgressSummary);
+            Assert.HasCount(5, rows);
+            Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 60d) < 0.01));
+            Assert.HasCount(5, waitingLabels);
+            Assert.HasCount(0, visibleSpinners);
+            Assert.AreEqual(Visibility.Visible, cancel.Visibility);
+            Assert.IsFalse(cancel.IsEnabled);
+            Assert.AreEqual("Cancel inspection", page.ActionCard.CancelAction.Text);
+            Assert.AreEqual(
+                page.ActionCard.CancelAction.AutomationName,
+                AutomationProperties.GetName(cancel));
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Disclosure_IsStableAcrossPresentationRevisionsAndForwardsCurrentRequests()
+    {
+        var control = new InspectionContentCard
+        {
+            Presentation = CreateDisclosurePresentation(isExpanded: false)
+        };
+        InspectionDisclosure first = control.ActiveDisclosure!;
+        Assert.IsNotNull(first);
+        List<bool> requests = [];
+        control.DisclosureToggleRequested += (_, args) => requests.Add(args.IsExpanded);
+
+        Button toggle = (Button)first.FindName("DisclosureToggleButton");
+        var peer = new ButtonAutomationPeer(toggle);
+        Assert.IsInstanceOfType<IInvokeProvider>(
+            peer.GetPattern(PatternInterface.Invoke)).Invoke();
+
+        control.Presentation = CreateDisclosurePresentation(isExpanded: true);
+        InspectionDisclosure second = control.ActiveDisclosure!;
+        Assert.IsNotNull(second);
+
+        Assert.AreSame(first, second);
+        CollectionAssert.AreEqual(new[] { true }, requests);
+        Assert.AreEqual(Visibility.Visible, second.ViewportTarget.Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task DisclosurePairs_UseApprovedCollapsedAndExpandedMinimumGeometry()
+    {
+        var control = new InspectionContentCard
+        {
+            Width = 840,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Presentation = CreateDisclosurePresentation(isExpanded: false)
+        };
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        control.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = control };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            control.UpdateLayout();
+            Assert.AreEqual(
+                232d,
+                control.ActualHeight,
+                1d,
+                "warning collapsed height");
+
+            control.Presentation = CreateDisclosurePresentation(isExpanded: true);
+            control.UpdateLayout();
+
+            Assert.AreEqual(
+                380d,
+                control.ActualHeight,
+                1d,
+                "warning expanded height");
+            InspectionDisclosure disclosure = control.ActiveDisclosure!;
+            Assert.IsNotNull(disclosure);
+            ScrollViewer report =
+                (ScrollViewer)control.FindName("ExpandedReportScrollViewer");
+            FrameworkElement fade =
+                (FrameworkElement)control.FindName("ExpandedReportBottomFade");
+            TextBlock affordance =
+                (TextBlock)control.FindName("ExpandedReportScrollAffordance");
+            Assert.AreEqual(172d, report.MaxHeight, 0.01);
+            Assert.AreEqual(
+                Visibility.Visible,
+                disclosure.ViewportTarget.Visibility);
+            Assert.IsGreaterThan(0d, fade.Height);
+            Assert.AreEqual("Scroll for more", affordance.Text);
+
+            Border[] reportRows = EnumerateDescendants(report)
+                .OfType<Border>()
+                .Where(row => Math.Abs(row.MinHeight - 58d) < 0.01)
+                .ToArray();
+            Assert.HasCount(3, reportRows);
+            Assert.IsTrue(reportRows.All(row =>
+                Math.Abs(row.ActualHeight - 58d) < 0.01));
+            string[] expectedTitles =
+            [
+                "Chat template warning",
+                "Tokenizer check",
+                "Runtime check"
+            ];
+            for (int index = 0; index < reportRows.Length; index++)
+            {
+                TextBlock title = EnumerateDescendants(reportRows[index])
+                    .OfType<TextBlock>()
+                    .Single(text => text.Text == expectedTitles[index]);
+                AutomationPeer titlePeer =
+                    FrameworkElementAutomationPeer.CreatePeerForElement(title)
+                    ?? new TextBlockAutomationPeer(title);
+
+                Assert.AreEqual(
+                    $"{expectedTitles[index]}. Warning.",
+                    titlePeer.GetName());
+                Assert.AreEqual(
+                    AccessibilityView.Raw,
+                    AutomationProperties.GetAccessibilityView(reportRows[index]));
+            }
+
+            Assert.IsTrue(report.IsTabStop);
+            Assert.IsGreaterThan(0d, report.ScrollableHeight);
+            Assert.IsTrue(report.Focus(FocusState.Keyboard));
+            Assert.AreSame(report, FocusManager.GetFocusedElement(control.XamlRoot));
+            var scrollPeer = new ScrollViewerAutomationPeer(report);
+            IScrollProvider scrollProvider = Assert.IsInstanceOfType<IScrollProvider>(
+                scrollPeer.GetPattern(PatternInterface.Scroll));
+            Assert.IsTrue(scrollProvider.VerticallyScrollable);
+            double initialOffset = report.VerticalOffset;
+            scrollProvider.Scroll(
+                ScrollAmount.NoAmount,
+                ScrollAmount.SmallIncrement);
+            control.UpdateLayout();
+            Assert.IsGreaterThan(initialOffset, report.VerticalOffset);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    [DataRow(4, 232d)]
+    [DataRow(5, 380d)]
+    [DataRow(6, 232d)]
+    [DataRow(7, 365d)]
+    [DataRow(8, 232d)]
+    [DataRow(9, 248d)]
+    [DataRow(10, 248d)]
+    [DataRow(11, 380d)]
+    [DataRow(12, 232d)]
+    [DataRow(13, 248d)]
+    public async Task FactoryTerminalStates_UseApprovedStandardGeometry(
+        int stateValue,
+        double expectedHeight)
+    {
+        ModelInspectionFigmaState expectedState =
+            (ModelInspectionFigmaState)stateValue;
+        ModelInspectionPagePresentation page =
+            CreateFactoryTerminalPresentation(expectedState);
+        var control = new InspectionContentCard
+        {
+            Width = 840,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Presentation = page.ContentCard
+        };
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        control.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = control };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            control.UpdateLayout();
+
+            Assert.AreEqual(expectedState, page.State);
+            Assert.AreEqual(expectedHeight, control.ActualHeight, 1d);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void TechnicalDetailsFuture_ExposesDisabledHelpTooltipAndAdjacentText()
+    {
+        var control = new InspectionContentCard
+        {
+            Presentation = new InspectionContentCardPresentation
+            {
+                Mode = InspectionContentCardMode.Unsupported,
+                SectionTitle = "Why it cannot continue",
+                TechnicalDetailsVisibility = Visibility.Visible,
+                TechnicalDetailsActionText = "View technical details",
+                TechnicalDetailsAutomationName = "View technical details",
+                TechnicalDetailsAutomationHelpText = "Coming later",
+                IsTechnicalDetailsEnabled = false
+            }
+        };
+        Button button = (Button)control.FindName("TechnicalDetailsButton");
+        TextBlock help = (TextBlock)control.FindName("TechnicalDetailsFutureHelpText");
+
+        Assert.IsFalse(button.IsEnabled);
+        Assert.AreEqual("Coming later", AutomationProperties.GetHelpText(button));
+        Assert.AreEqual("Coming later", ToolTipService.GetToolTip(button));
+        Assert.AreEqual(Visibility.Visible, help.Visibility);
+        Assert.AreEqual("Coming later", help.Text);
+        Assert.AreEqual(
+            "View technical details. Coming later",
+            AutomationProperties.GetName(help));
+    }
+
     [TestMethod]
     public void HiddenPresentations_DoNotShareProgressFallbackOrItems()
     {
@@ -217,4 +511,109 @@ public sealed class InspectionContentCardTests
             "The presentation must have exactly one progress-owner storage field.");
         return (InspectionProgressRows?)ownerFields[0].GetValue(presentation);
     }
+
+    private static InspectionContentCardPresentation CreateDisclosurePresentation(
+        bool isExpanded)
+    {
+        InspectionContentItemPresentation finding = new()
+        {
+            Title = "Chat template warning",
+            Detail = "A compatible template was not reported.",
+            DetailVisibility = Visibility.Visible,
+            Status = InspectionContentStatus.Warning,
+            StatusText = "Warning",
+            AutomationName = "Chat template warning. Warning."
+        };
+
+        return new InspectionContentCardPresentation
+        {
+            Mode = InspectionContentCardMode.Warnings,
+            SectionTitle = "Inspection warnings",
+            Items = Array.AsReadOnly(new[] { finding }),
+            DisclosureVisibility = Visibility.Visible,
+            DisclosureStatus = InspectionContentStatus.Warning,
+            DisclosureSummary = "4 checks passed, 1 warning",
+            CollapsedDisclosureText = "View full details",
+            ExpandedDisclosureText = "Hide full details",
+            DisclosureAutomationName = "Inspection warning details",
+            ExpandedItems = Array.AsReadOnly(
+                new[]
+                {
+                    CreateFinding("Chat template warning"),
+                    CreateFinding("Tokenizer check"),
+                    CreateFinding("Runtime check")
+                }),
+            IsExpanded = isExpanded
+        };
+    }
+
+    private static ModelInspectionPagePresentation CreateFactoryTerminalPresentation(
+        ModelInspectionFigmaState state)
+    {
+        ModelInspectionExecutionResult execution = state switch
+        {
+            ModelInspectionFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionFigmaState.ReadyWithWarningsExpanded =>
+                ModelInspectionExecutionResult.Completed(
+                    PresentationTestData.CreateResult(
+                        ModelInspectionOutcome.ReadyWithWarnings)),
+            ModelInspectionFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionFigmaState.ConversionRequiredExpanded =>
+                ModelInspectionExecutionResult.Completed(
+                    PresentationTestData.CreateResult(
+                        ModelInspectionOutcome.ConversionRequired)),
+            ModelInspectionFigmaState.IncompletePackage =>
+                ModelInspectionExecutionResult.Completed(
+                    PresentationTestData.CreateResult(
+                        ModelInspectionOutcome.IncompletePackage)),
+            ModelInspectionFigmaState.Unsupported =>
+                ModelInspectionExecutionResult.Completed(
+                    PresentationTestData.CreateResult(
+                        ModelInspectionOutcome.Unsupported)),
+            ModelInspectionFigmaState.InvalidCollapsed or
+            ModelInspectionFigmaState.InvalidExpanded =>
+                ModelInspectionExecutionResult.Completed(
+                    PresentationTestData.CreateResult(
+                        ModelInspectionOutcome.Invalid)),
+            ModelInspectionFigmaState.Cancelled =>
+                ModelInspectionExecutionResult.Cancelled(cooperative: true),
+            ModelInspectionFigmaState.OperationalFailure =>
+                ModelInspectionExecutionResult.OperationalFailure(
+                    PresentationTestData.CreateFailure()),
+            _ => throw new ArgumentOutOfRangeException(nameof(state))
+        };
+        var renderKey = new ModelInspectionRenderKey(1, 1);
+        var snapshot = new ModelInspectionViewSnapshot(
+            renderKey,
+            isRunActive: false,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: execution);
+        var rows = new InspectionProgressRows();
+        rows.Reset(new ModelInspectionRenderKey(1, 0));
+
+        return ModelInspectionPresentationFactory.Create(
+            PresentationTestData.CreateRequest(),
+            snapshot,
+            new ModelInspectionPresentationCommands(
+                PresentationTestData.CreateCommand(),
+                PresentationTestData.CreateCommand(),
+                PresentationTestData.CreateCommand()),
+            isDisclosureExpanded: state is
+                ModelInspectionFigmaState.ReadyWithWarningsExpanded or
+                ModelInspectionFigmaState.ConversionRequiredExpanded or
+                ModelInspectionFigmaState.InvalidExpanded,
+            rows);
+    }
+
+    private static InspectionContentItemPresentation CreateFinding(string title) =>
+        new()
+        {
+            Title = title,
+            Detail = "A compatible value was not reported.",
+            DetailVisibility = Visibility.Visible,
+            Status = InspectionContentStatus.Warning,
+            StatusText = "Warning",
+            AutomationName = $"{title}. Warning."
+        };
 }

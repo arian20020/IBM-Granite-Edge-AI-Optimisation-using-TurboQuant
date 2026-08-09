@@ -2,8 +2,6 @@ using Microsoft.UI.Xaml;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Windows.Input;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Models
@@ -11,10 +9,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
     /// <summary>
     /// Contains all display data required by <c>InspectionContentCard</c>.
     /// </summary>
-    public sealed class InspectionContentCardPresentation : INotifyPropertyChanged
+    public sealed class InspectionContentCardPresentation
     {
-        // Stores the only presentation value that changes inside the XAML control.
-        private bool _isExpanded;
         private string _progressSummary = string.Empty;
         private IReadOnlyList<InspectionContentItemPresentation> _items =
             new List<InspectionContentItemPresentation>().AsReadOnly();
@@ -146,22 +142,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
             "Inspection details";
 
         /// <summary>
-        /// Gets or sets whether the inline report is expanded.
+        /// Gets the page-owned inline-report expansion snapshot.
         /// </summary>
-        public bool IsExpanded
-        {
-            get => _isExpanded;
-            set
-            {
-                if (_isExpanded == value)
-                {
-                    return;
-                }
-
-                _isExpanded = value;
-                OnPropertyChanged();
-            }
-        }
+        public bool IsExpanded { get; init; }
 
         /// <summary>
         /// Gets whether the inline report expander is displayed.
@@ -209,20 +192,5 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public Visibility TechnicalDetailsVisibility { get; init; } =
             Visibility.Collapsed;
 
-        /// <summary>
-        /// Notifies compiled bindings when a mutable presentation value changes.
-        /// </summary>
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        /// <summary>
-        /// Raises a standard property-change notification.
-        /// </summary>
-        private void OnPropertyChanged(
-            [CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(
-                this,
-                new PropertyChangedEventArgs(propertyName));
-        }
     }
 }

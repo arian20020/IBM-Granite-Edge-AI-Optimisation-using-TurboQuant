@@ -8,29 +8,11 @@ using System.Collections.Generic;
 namespace GraniteEdgeAI.Features.ModelInspection.Controls
 {
     /// <summary>
-    /// Describes one user-originated Ready-details expansion change.
-    /// </summary>
-    internal sealed class InspectionDetailsExpansionChangedEventArgs : EventArgs
-    {
-        internal InspectionDetailsExpansionChangedEventArgs(bool isExpanded)
-        {
-            IsExpanded = isExpanded;
-        }
-
-        internal bool IsExpanded { get; }
-    }
-
-    /// <summary>
     /// Displays the selected model and its inspected metadata.
     /// </summary>
     public sealed partial class InspectionModelCard : UserControl
     {
-        // Mirrors the current visual target while presentation identity stays
-        // page-owned. It is never reset merely because a DTO is reassigned.
-        private bool _isInspectionDetailsExpanded;
-
-        // Suppresses user-request events while the page applies its target.
-        private bool _isApplyingPresentation;
+        private bool _isDisclosureAttached;
 
         private string? _responsiveStateName;
 
@@ -60,16 +42,16 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             _isInitialized = true;
             Loaded += Root_Loaded;
             Unloaded += Root_Unloaded;
+            AttachDisclosure();
             ApplyResponsiveState("WideModelState");
             ApplyPresentation(Presentation);
         }
 
         /// <summary>
-        /// Raised only when the retained Expander changes through its UI seam.
-        /// Presentation assignment does not raise this event.
+        /// Raised only when the retained shared disclosure requests a new target.
         /// </summary>
-        internal event EventHandler<InspectionDetailsExpansionChangedEventArgs>?
-            InspectionDetailsExpansionChanged;
+        internal event EventHandler<InspectionDisclosureToggleRequestedEventArgs>?
+            DisclosureToggleRequested;
 
         /// <summary>
         /// Gets or sets all model-card display data.
@@ -121,41 +103,13 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             Presentation.InspectionDetailsVisibility;
 
         /// <summary>
-        /// Exposes the retained disclosure and viewport targets to the later
-        /// page-owned interaction/motion bridge without transferring identity.
+        /// Exposes the retained disclosure to the later page-owned motion bridge.
         /// </summary>
-        internal Expander ActiveInspectionDetailsExpansionTarget =>
-            InspectionDetailsExpansionTarget;
-
-        internal FrameworkElement ActiveInspectionDetailsViewportTarget =>
-            InspectionDetailsViewport;
-
-        /// <summary>
-        /// Gets or sets whether the inspection-check report is expanded.
-        /// </summary>
-        public bool IsInspectionDetailsExpanded
-        {
-            get => _isInspectionDetailsExpanded;
-            set
-            {
-                if (_isInspectionDetailsExpanded == value)
-                {
-                    return;
-                }
-
-                _isInspectionDetailsExpanded = value;
-
-                if (_isInitialized)
-                {
-                    InspectionDetailsExpansionTarget.IsExpanded = value;
-                    ApplyVisualState(
-                        value
-                            ? "ExpandedDetailsState"
-                            : "CollapsedDetailsState");
-                    UpdateInspectionDetailsStateText();
-                }
-            }
-        }
+        internal InspectionDisclosure? ActiveDisclosure =>
+            Presentation.DisplayMode == InspectionModelCardMode.Detailed &&
+            Presentation.InspectionDetailsVisibility == Visibility.Visible
+                ? InspectionDetailsDisclosure
+                : null;
 
         public static Visibility GetPassedVisibility(
             InspectionCheckStatus status) =>
@@ -257,98 +211,76 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 return;
             }
 
-            _isApplyingPresentation = true;
-            try
+            Bindings.Update();
+            InspectionDetailsDisclosure.PrepareTargetState(
+                presentation.IsInspectionDetailsExpanded);
+            InspectionDetailsDisclosure.CompleteTargetState(
+                presentation.IsInspectionDetailsExpanded);
+
+            string displayStateName = presentation.DisplayMode switch
             {
-                // The page-provided target is authoritative. A replacement DTO
-                // with the same target must not force a collapse.
-                _isInspectionDetailsExpanded =
-                    presentation.IsInspectionDetailsExpanded;
-                Bindings.Update();
-                InspectionDetailsExpansionTarget.IsExpanded =
-                    presentation.IsInspectionDetailsExpanded;
-                UpdateInspectionDetailsStateText();
-
-                string displayStateName = presentation.DisplayMode switch
-                {
-                    InspectionModelCardMode.Compact => "CompactState",
-                    InspectionModelCardMode.Detailed => "DetailedState",
-                    _ => throw new ArgumentOutOfRangeException(
-                        nameof(presentation),
-                        presentation.DisplayMode,
-                        "Unknown inspection model-card mode.")
-                };
-                ApplyVisualState(displayStateName);
-                ApplyVisualState(presentation.BadgeState switch
-                {
-                    InspectionModelBadgeState.Inspected =>
-                        "InspectedBadgeState",
-                    InspectionModelBadgeState.Incomplete =>
-                        "WarningBadgeState",
-                    InspectionModelBadgeState.Unsupported or
-                        InspectionModelBadgeState.Invalid =>
-                            "ErrorBadgeState",
-                    InspectionModelBadgeState.NotInspected or
-                        InspectionModelBadgeState.ResultUnknown =>
-                            "NeutralBadgeState",
-                    _ => "InformationBadgeState"
-                });
-                ApplyVisualState(
-                    presentation.IsInspectionDetailsExpanded
-                        ? "ExpandedDetailsState"
-                        : "CollapsedDetailsState");
-            }
-            finally
+                InspectionModelCardMode.Compact => "CompactState",
+                InspectionModelCardMode.Detailed => "DetailedState",
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(presentation),
+                    presentation.DisplayMode,
+                    "Unknown inspection model-card mode.")
+            };
+            ApplyVisualState(displayStateName);
+            ApplyVisualState(presentation.BadgeState switch
             {
-                _isApplyingPresentation = false;
-            }
+                InspectionModelBadgeState.Inspected =>
+                    "InspectedBadgeState",
+                InspectionModelBadgeState.Incomplete =>
+                    "WarningBadgeState",
+                InspectionModelBadgeState.Unsupported or
+                    InspectionModelBadgeState.Invalid =>
+                        "ErrorBadgeState",
+                InspectionModelBadgeState.NotInspected or
+                    InspectionModelBadgeState.ResultUnknown =>
+                        "NeutralBadgeState",
+                _ => "InformationBadgeState"
+            });
+            ApplyVisualState(
+                presentation.IsInspectionDetailsExpanded
+                    ? "ExpandedDetailsState"
+                    : "CollapsedDetailsState");
         }
 
-        /// <summary>
-        /// Forwards a user-originated expansion change without treating it as
-        /// inspection evidence or changing page/outcome identity.
-        /// </summary>
-        private void InspectionDetailsExpansionTarget_Expanding(
-            Expander sender,
-            ExpanderExpandingEventArgs eventArguments)
+        private void InspectionDetailsDisclosure_ToggleRequested(
+            object? sender,
+            InspectionDisclosureToggleRequestedEventArgs eventArguments)
         {
-            ForwardExpansionChange(isExpanded: true);
-        }
-
-        private void InspectionDetailsExpansionTarget_Collapsed(
-            Expander sender,
-            ExpanderCollapsedEventArgs eventArguments)
-        {
-            ForwardExpansionChange(isExpanded: false);
-        }
-
-        private void ForwardExpansionChange(bool isExpanded)
-        {
-            if (!_isInitialized || _isApplyingPresentation)
+            if (!ReferenceEquals(sender, ActiveDisclosure))
             {
                 return;
             }
 
-            _isInspectionDetailsExpanded = isExpanded;
-            ApplyVisualState(
-                isExpanded
-                    ? "ExpandedDetailsState"
-                    : "CollapsedDetailsState");
-            UpdateInspectionDetailsStateText();
-            InspectionDetailsExpansionChanged?.Invoke(
-                this,
-                new InspectionDetailsExpansionChangedEventArgs(isExpanded));
+            DisclosureToggleRequested?.Invoke(this, eventArguments);
         }
 
-        private void UpdateInspectionDetailsStateText()
+        private void AttachDisclosure()
         {
-            AutomationProperties.SetName(
-                InspectionDetailsExpansionTarget,
-                GetInspectionDetailsAutomationName(
-                    _isInspectionDetailsExpanded));
-            InspectionDetailsActionText.Text =
-                GetInspectionDetailsActionText(
-                    _isInspectionDetailsExpanded);
+            if (_isDisclosureAttached)
+            {
+                return;
+            }
+
+            InspectionDetailsDisclosure.ToggleRequested +=
+                InspectionDetailsDisclosure_ToggleRequested;
+            _isDisclosureAttached = true;
+        }
+
+        private void DetachDisclosure()
+        {
+            if (!_isDisclosureAttached)
+            {
+                return;
+            }
+
+            InspectionDetailsDisclosure.ToggleRequested -=
+                InspectionDetailsDisclosure_ToggleRequested;
+            _isDisclosureAttached = false;
         }
 
         /// <summary>
@@ -366,6 +298,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         private void Root_Loaded(object sender, RoutedEventArgs eventArguments)
         {
+            AttachDisclosure();
             if (!ReferenceEquals(_observedXamlRoot, XamlRoot))
             {
                 DetachXamlRoot();
@@ -384,6 +317,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         private void Root_Unloaded(object sender, RoutedEventArgs eventArguments)
         {
+            DetachDisclosure();
             DetachXamlRoot();
         }
 

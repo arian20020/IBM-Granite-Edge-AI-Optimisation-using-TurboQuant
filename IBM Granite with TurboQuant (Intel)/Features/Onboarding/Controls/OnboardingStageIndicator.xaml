@@ -57,14 +57,18 @@
             x:Key="OnboardingIndicatorMutedTextBrush"
             Color="#98A2B3" />
 
+        <StaticResource
+            x:Key="OnboardingIndicatorErrorBrush"
+            ResourceKey="InspectionErrorTextBrush" />
+
         <!--  Shared appearance for every numbered stage box.  -->
         <Style
             x:Key="OnboardingStepBoxStyle"
             TargetType="Border">
 
-            <Setter Property="Width" Value="40" />
+            <Setter Property="Width" Value="36" />
 
-            <Setter Property="Height" Value="40" />
+            <Setter Property="Height" Value="36" />
 
             <Setter Property="HorizontalAlignment" Value="Center" />
 
@@ -108,7 +112,7 @@
 
             <Setter Property="VerticalAlignment" Value="Center" />
 
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="10" />
 
             <Setter Property="Foreground" Value="{StaticResource OnboardingIndicatorSecondaryTextBrush}" />
 
@@ -164,8 +168,8 @@
         -->
         <Grid
             x:Name="IndicatorLayoutGrid"
-            MaxWidth="1200"
-            Margin="32,0"
+            MaxWidth="900"
+            Margin="0"
             HorizontalAlignment="Stretch">
 
             <Grid.RowDefinitions>
@@ -188,7 +192,7 @@
 
                 <!--  Stage boxes and connectors.  -->
                 <RowDefinition
-                    Height="40" />
+                    Height="36" />
 
                 <!--  Space before stage labels.  -->
                 <RowDefinition
