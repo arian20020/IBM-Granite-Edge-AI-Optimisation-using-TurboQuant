@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -17,6 +18,397 @@ public sealed class ModelInspectionViewModelTests
         0,
         0,
         TimeSpan.Zero);
+
+    [TestMethod]
+    public void Constructor_PublishesInitialSnapshot()
+    {
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            new ControlledInspectionService(),
+            CreateRequest());
+
+        Assert.AreSame(ModelInspectionViewSnapshot.Initial, viewModel.Snapshot);
+    }
+
+    [TestMethod]
+    public async Task Snapshot_AdvancesExactKeysForStartProgressCancelAndTerminal()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        List<ModelInspectionViewSnapshot> published = [];
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ModelInspectionViewModel.Snapshot))
+            {
+                published.Add(viewModel.Snapshot);
+            }
+        };
+
+        Task run = viewModel.StartAsync();
+        ModelInspectionProgress progress = CreateProgress(
+            ModelInspectionStage.ReadModelConfiguration,
+            completedStageCount: 1);
+        call.Report(progress);
+        viewModel.CancelCommand.Execute(null);
+        ModelInspectionExecutionResult terminal = CreateFailureResult("terminal");
+        call.Complete(terminal);
+        await run;
+
+        Assert.AreEqual(4, published.Count);
+        AssertSnapshot(
+            published[0],
+            attemptGeneration: 1,
+            presentationRevision: 0,
+            isRunActive: true,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: null);
+        AssertSnapshot(
+            published[1],
+            attemptGeneration: 1,
+            presentationRevision: 1,
+            isRunActive: true,
+            isCancellationRequested: false,
+            progress,
+            terminalResult: null);
+        AssertSnapshot(
+            published[2],
+            attemptGeneration: 1,
+            presentationRevision: 2,
+            isRunActive: true,
+            isCancellationRequested: true,
+            progress,
+            terminalResult: null);
+        AssertSnapshot(
+            published[3],
+            attemptGeneration: 1,
+            presentationRevision: 3,
+            isRunActive: false,
+            isCancellationRequested: false,
+            progress: null,
+            terminal);
+    }
+
+    [TestMethod]
+    public async Task StartAsync_ReplacesActiveAttemptWithNewGenerationBeforeCancellation()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall first = service.QueueCall();
+        ControlledCall second = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task firstRun = viewModel.StartAsync();
+        ModelInspectionRenderKey cancellationObservedKey = default;
+        using CancellationTokenRegistration registration =
+            first.CancellationToken.Register(() =>
+                cancellationObservedKey = viewModel.Snapshot.RenderKey);
+
+        Task secondRun = viewModel.StartAsync();
+
+        Assert.AreEqual(
+            new ModelInspectionRenderKey(2, 0),
+            cancellationObservedKey);
+        Assert.IsTrue(viewModel.Snapshot.IsRunActive);
+        first.Complete(CreateFailureResult("stale"));
+        second.Complete(CreateFailureResult("current"));
+        await Task.WhenAll(firstRun, secondRun);
+    }
+
+    [TestMethod]
+    public async Task Retry_PublishesNewGenerationAtRevisionZero()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall first = service.QueueCall();
+        ControlledCall second = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        first.Complete(CreateFailureResult("first"));
+        await viewModel.StartAsync();
+        ModelInspectionViewSnapshot? retryStart = null;
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ModelInspectionViewModel.Snapshot) &&
+                viewModel.Snapshot.IsRunActive)
+            {
+                retryStart = viewModel.Snapshot;
+            }
+        };
+        second.Complete(CreateFailureResult("second"));
+
+        viewModel.RetryCommand.Execute(null);
+
+        Assert.IsNotNull(retryStart);
+        Assert.AreEqual(new ModelInspectionRenderKey(2, 0), retryStart.RenderKey);
+        Assert.IsNull(retryStart.Progress);
+        Assert.IsNull(retryStart.TerminalResult);
+        Assert.AreEqual(
+            new ModelInspectionRenderKey(2, 1),
+            viewModel.Snapshot.RenderKey);
+        Assert.IsNotNull(viewModel.Snapshot.TerminalResult);
+    }
+
+    [TestMethod]
+    public async Task ChooseAnother_AdvancesGenerationAndClearsActiveStateBeforeNavigation()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        call.Report(CreateProgress(
+            ModelInspectionStage.ReadModelConfiguration,
+            completedStageCount: 1));
+        ModelInspectionViewSnapshot? navigationSnapshot = null;
+        viewModel.ChooseAnotherRequested += (_, _) =>
+            navigationSnapshot = viewModel.Snapshot;
+
+        viewModel.ChooseAnotherCommand.Execute(null);
+
+        Assert.IsNotNull(navigationSnapshot);
+        AssertSnapshot(
+            navigationSnapshot,
+            attemptGeneration: 2,
+            presentationRevision: 0,
+            isRunActive: false,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: null);
+        call.Complete(CreateFailureResult("stale"));
+        await run;
+    }
+
+    [TestMethod]
+    public async Task ChooseAnother_AfterTerminalAdvancesGenerationAndClearsTerminalBeforeNavigation()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        call.Complete(CreateFailureResult("terminal"));
+        await viewModel.StartAsync();
+        ModelInspectionViewSnapshot? navigationSnapshot = null;
+        viewModel.ChooseAnotherRequested += (_, _) =>
+            navigationSnapshot = viewModel.Snapshot;
+
+        viewModel.ChooseAnotherCommand.Execute(null);
+
+        Assert.IsNotNull(navigationSnapshot);
+        AssertSnapshot(
+            navigationSnapshot,
+            attemptGeneration: 2,
+            presentationRevision: 0,
+            isRunActive: false,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: null);
+    }
+
+    [TestMethod]
+    public async Task DeactivateThenDispose_InvalidatesLifecycleOnlyOnce()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        int snapshotNotifications = 0;
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ModelInspectionViewModel.Snapshot))
+            {
+                snapshotNotifications++;
+            }
+        };
+
+        viewModel.Deactivate();
+        ModelInspectionViewSnapshot afterDeactivate = viewModel.Snapshot;
+        viewModel.Dispose();
+
+        Assert.AreEqual(new ModelInspectionRenderKey(2, 0), afterDeactivate.RenderKey);
+        Assert.AreSame(afterDeactivate, viewModel.Snapshot);
+        Assert.AreEqual(1, snapshotNotifications);
+        call.Complete(CreateFailureResult("stale"));
+        await run;
+        Assert.AreSame(afterDeactivate, viewModel.Snapshot);
+        Assert.AreEqual(1, snapshotNotifications);
+    }
+
+    [TestMethod]
+    public async Task TerminalRevisionExhaustion_DoesNotRetireAttemptOrChangeSnapshot()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        ModelInspectionViewSnapshot saturated = SaturateRevision(viewModel);
+
+        call.Complete(CreateFailureResult("terminal"));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => run);
+        Assert.AreSame(saturated, viewModel.Snapshot);
+        Assert.IsTrue(viewModel.IsRunActive);
+        Assert.IsTrue(viewModel.CancelCommand.CanExecute(null));
+        viewModel.Dispose();
+    }
+
+    [TestMethod]
+    public async Task CancellationRevisionExhaustion_DoesNotPoisonCancellationState()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        ModelInspectionViewSnapshot saturated = SaturateRevision(viewModel);
+
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => viewModel.CancelCommand.Execute(null));
+
+        Assert.AreSame(saturated, viewModel.Snapshot);
+        Assert.IsFalse(call.CancellationToken.IsCancellationRequested);
+        Assert.IsTrue(viewModel.CancelCommand.CanExecute(null));
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => viewModel.CancelCommand.Execute(null));
+
+        viewModel.Deactivate();
+        Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
+        call.Complete(CreateFailureResult("stale"));
+        await run;
+    }
+
+    [TestMethod]
+    public async Task ChooseAnotherGenerationExhaustion_DoesNotDetachAttemptOrRaiseNavigation()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        ModelInspectionViewSnapshot before = viewModel.Snapshot;
+        bool navigationRaised = false;
+        viewModel.ChooseAnotherRequested += (_, _) => navigationRaised = true;
+        SetPrivateField(viewModel, "nextAttemptGeneration", long.MaxValue);
+
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => viewModel.ChooseAnotherCommand.Execute(null));
+
+        Assert.AreSame(before, viewModel.Snapshot);
+        Assert.IsFalse(navigationRaised);
+        Assert.IsFalse(call.CancellationToken.IsCancellationRequested);
+        Assert.IsTrue(viewModel.CancelCommand.CanExecute(null));
+
+        SetPrivateField(
+            viewModel,
+            "nextAttemptGeneration",
+            before.RenderKey.AttemptGeneration);
+        viewModel.ChooseAnotherCommand.Execute(null);
+        Assert.IsTrue(navigationRaised);
+        Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
+        call.Complete(CreateFailureResult("stale"));
+        await run;
+    }
+
+    [TestMethod]
+    public async Task LifecycleGenerationExhaustion_DoesNotDetachOrMarkInvalidated()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        ModelInspectionViewSnapshot before = viewModel.Snapshot;
+        SetPrivateField(viewModel, "nextAttemptGeneration", long.MaxValue);
+
+        Assert.ThrowsExactly<InvalidOperationException>(viewModel.Deactivate);
+
+        Assert.AreSame(before, viewModel.Snapshot);
+        Assert.IsFalse(call.CancellationToken.IsCancellationRequested);
+        Assert.IsTrue(viewModel.CancelCommand.CanExecute(null));
+
+        SetPrivateField(
+            viewModel,
+            "nextAttemptGeneration",
+            before.RenderKey.AttemptGeneration);
+        viewModel.Deactivate();
+        Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
+        call.Complete(CreateFailureResult("stale"));
+        await run;
+    }
+
+    [TestMethod]
+    public async Task DisposeGenerationExhaustion_DoesNotDisposeOrDetachAttempt()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        ModelInspectionViewSnapshot before = viewModel.Snapshot;
+        SetPrivateField(viewModel, "nextAttemptGeneration", long.MaxValue);
+
+        Assert.ThrowsExactly<InvalidOperationException>(viewModel.Dispose);
+
+        Assert.AreSame(before, viewModel.Snapshot);
+        Assert.IsTrue(viewModel.IsRunActive);
+        Assert.IsTrue(viewModel.ChooseAnotherCommand.CanExecute(null));
+        Assert.IsFalse(call.CancellationToken.IsCancellationRequested);
+
+        SetPrivateField(
+            viewModel,
+            "nextAttemptGeneration",
+            before.RenderKey.AttemptGeneration);
+        viewModel.Dispose();
+        Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
+        Assert.IsFalse(viewModel.ChooseAnotherCommand.CanExecute(null));
+        call.Complete(CreateFailureResult("stale"));
+        await run;
+    }
+
+    [TestMethod]
+    public async Task DuplicateEqualProgress_DoesNotAdvanceRevisionOrNotify()
+    {
+        ControlledInspectionService service = new();
+        ControlledCall call = service.QueueCall();
+        ModelInspectionViewModel viewModel = CreateViewModel(
+            service,
+            CreateRequest());
+        Task run = viewModel.StartAsync();
+        ModelInspectionProgress first = CreateProgress(
+            ModelInspectionStage.ReadModelConfiguration,
+            completedStageCount: 1);
+        ModelInspectionProgress equal = CreateProgress(
+            ModelInspectionStage.ReadModelConfiguration,
+            completedStageCount: 1);
+        call.Report(first);
+        int snapshotNotifications = 0;
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ModelInspectionViewModel.Snapshot))
+            {
+                snapshotNotifications++;
+            }
+        };
+
+        call.Report(equal);
+
+        Assert.AreEqual(new ModelInspectionRenderKey(1, 1), viewModel.Snapshot.RenderKey);
+        Assert.AreEqual(0, snapshotNotifications);
+        call.Complete(CreateFailureResult("terminal"));
+        await run;
+    }
 
     [TestMethod]
     public async Task StartAsync_ForwardsExactRequestAndPublishesProgressAndResult()
@@ -50,19 +442,18 @@ public sealed class ModelInspectionViewModelTests
         await run;
 
         Assert.IsFalse(viewModel.IsRunActive);
-        Assert.AreSame(progress, viewModel.Progress);
+        Assert.IsNull(viewModel.Progress);
         Assert.AreSame(result, viewModel.Result);
         Assert.IsFalse(viewModel.CancelCommand.CanExecute(null));
         Assert.IsTrue(viewModel.RetryCommand.CanExecute(null));
-        CollectionAssert.Contains(
-            propertyNotifications,
-            nameof(ModelInspectionViewModel.IsRunActive));
-        CollectionAssert.Contains(
-            propertyNotifications,
-            nameof(ModelInspectionViewModel.Progress));
-        CollectionAssert.Contains(
-            propertyNotifications,
-            nameof(ModelInspectionViewModel.Result));
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                nameof(ModelInspectionViewModel.Snapshot),
+                nameof(ModelInspectionViewModel.Snapshot),
+                nameof(ModelInspectionViewModel.Snapshot)
+            },
+            propertyNotifications);
     }
 
     [TestMethod]
@@ -103,7 +494,7 @@ public sealed class ModelInspectionViewModelTests
         second.Complete(currentResult);
         await secondRun;
 
-        Assert.AreSame(currentProgress, viewModel.Progress);
+        Assert.IsNull(viewModel.Progress);
         Assert.AreSame(currentResult, viewModel.Result);
         Assert.IsFalse(viewModel.IsRunActive);
     }
@@ -125,9 +516,12 @@ public sealed class ModelInspectionViewModelTests
         bool terminalObserverSawRetiredAttempt = false;
         viewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(ModelInspectionViewModel.Result))
+            if (args.PropertyName == nameof(ModelInspectionViewModel.Snapshot) &&
+                viewModel.Snapshot.TerminalResult is not null)
             {
-                terminalObserverSawRetiredAttempt = !viewModel.IsRunActive;
+                terminalObserverSawRetiredAttempt =
+                    !viewModel.Snapshot.IsRunActive &&
+                    viewModel.Snapshot.Progress is null;
                 call.Report(queuedProgress);
             }
         };
@@ -138,7 +532,7 @@ public sealed class ModelInspectionViewModelTests
         await run;
 
         Assert.IsTrue(terminalObserverSawRetiredAttempt);
-        Assert.AreSame(acceptedProgress, viewModel.Progress);
+        Assert.IsNull(viewModel.Progress);
     }
 
     [TestMethod]
@@ -307,7 +701,7 @@ public sealed class ModelInspectionViewModelTests
         Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
         Assert.IsTrue(cancellationSawInvalidatedAttempt);
         Assert.IsTrue(eventSawInvalidatedAttempt);
-        Assert.AreSame(acceptedProgress, viewModel.Progress);
+        Assert.IsNull(viewModel.Progress);
         Assert.IsNull(viewModel.Result);
 
         call.Complete(CreateFailureResult("stale"));
@@ -378,6 +772,57 @@ public sealed class ModelInspectionViewModelTests
         {
             SynchronizationContext.SetSynchronizationContext(originalContext);
         }
+    }
+
+    private static ModelInspectionViewSnapshot SaturateRevision(
+        ModelInspectionViewModel viewModel)
+    {
+        ModelInspectionViewSnapshot current = viewModel.Snapshot;
+        ModelInspectionViewSnapshot saturated = new(
+            new ModelInspectionRenderKey(
+                current.RenderKey.AttemptGeneration,
+                long.MaxValue),
+            current.IsRunActive,
+            current.IsCancellationRequested,
+            current.Progress,
+            current.TerminalResult);
+        SetPrivateField(viewModel, "snapshot", saturated);
+        return saturated;
+    }
+
+    private static void SetPrivateField<T>(
+        ModelInspectionViewModel viewModel,
+        string fieldName,
+        T value)
+    {
+        FieldInfo field = typeof(ModelInspectionViewModel).GetField(
+            fieldName,
+            BindingFlags.Instance | BindingFlags.NonPublic) ??
+            throw new InvalidOperationException(
+                $"ModelInspectionViewModel field '{fieldName}' was not found.");
+        field.SetValue(viewModel, value);
+    }
+
+    private static void AssertSnapshot(
+        ModelInspectionViewSnapshot snapshot,
+        long attemptGeneration,
+        long presentationRevision,
+        bool isRunActive,
+        bool isCancellationRequested,
+        ModelInspectionProgress? progress,
+        ModelInspectionExecutionResult? terminalResult)
+    {
+        Assert.AreEqual(
+            new ModelInspectionRenderKey(
+                attemptGeneration,
+                presentationRevision),
+            snapshot.RenderKey);
+        Assert.AreEqual(isRunActive, snapshot.IsRunActive);
+        Assert.AreEqual(
+            isCancellationRequested,
+            snapshot.IsCancellationRequested);
+        Assert.AreSame(progress, snapshot.Progress);
+        Assert.AreSame(terminalResult, snapshot.TerminalResult);
     }
 
     private static ModelInspectionRequest CreateRequest()

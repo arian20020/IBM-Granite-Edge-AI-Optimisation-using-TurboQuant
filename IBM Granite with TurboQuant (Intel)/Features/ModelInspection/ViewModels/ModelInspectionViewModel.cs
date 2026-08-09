@@ -26,9 +26,10 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     private readonly DelegateCommand chooseAnotherCommand;
 
     private InspectionAttempt? activeAttempt;
-    private ModelInspectionProgress? progress;
-    private ModelInspectionExecutionResult? result;
-    private long nextAttemptId;
+    private ModelInspectionViewSnapshot snapshot =
+        ModelInspectionViewSnapshot.Initial;
+    private long nextAttemptGeneration;
+    private bool lifecycleInvalidated;
     private bool disposed;
 
     internal ModelInspectionViewModel(
@@ -56,38 +57,22 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
 
     internal ModelInspectionRequest Request { get; }
 
-    internal ModelInspectionProgress? Progress
+    internal ModelInspectionViewSnapshot Snapshot
     {
         get
         {
             lock (stateLock)
             {
-                return progress;
+                return snapshot;
             }
         }
     }
 
-    internal ModelInspectionExecutionResult? Result
-    {
-        get
-        {
-            lock (stateLock)
-            {
-                return result;
-            }
-        }
-    }
+    internal ModelInspectionProgress? Progress => Snapshot.Progress;
 
-    internal bool IsRunActive
-    {
-        get
-        {
-            lock (stateLock)
-            {
-                return activeAttempt is not null;
-            }
-        }
-    }
+    internal ModelInspectionExecutionResult? Result => Snapshot.TerminalResult;
+
+    internal bool IsRunActive => Snapshot.IsRunActive;
 
     internal ICommand CancelCommand => cancelCommand;
 
@@ -103,37 +88,31 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     {
         InspectionAttempt attempt;
         InspectionAttempt? replacedAttempt;
-        bool progressWasCleared;
-        bool resultWasCleared;
-        bool becameActive;
 
         lock (stateLock)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
 
-            if (nextAttemptId == long.MaxValue)
-            {
-                throw new InvalidOperationException(
-                    "The model inspection attempt sequence is exhausted.");
-            }
-
-            attempt = new InspectionAttempt(++nextAttemptId);
+            long nextGeneration = GetNextAttemptGenerationLocked();
+            attempt = new InspectionAttempt(nextGeneration);
+            ModelInspectionViewSnapshot startSnapshot = new(
+                new ModelInspectionRenderKey(nextGeneration, 0),
+                isRunActive: true,
+                isCancellationRequested: false,
+                progress: null,
+                terminalResult: null);
             replacedAttempt = activeAttempt;
-            becameActive = replacedAttempt is null;
 
             // Publish the new identity first. Synchronous cancellation callbacks
             // from the retired attempt are stale from this point forward.
+            nextAttemptGeneration = nextGeneration;
             activeAttempt = attempt;
-            progressWasCleared = progress is not null;
-            resultWasCleared = result is not null;
-            progress = null;
-            result = null;
+            lifecycleInvalidated = false;
+            snapshot = startSnapshot;
         }
 
-        PublishStartState(
-            becameActive,
-            progressWasCleared,
-            resultWasCleared);
+        PublishSnapshotChanged();
+        RaiseCommandStates();
         replacedAttempt?.Cancel();
 
         IProgress<ModelInspectionProgress> attemptProgress =
@@ -183,13 +162,14 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     /// </summary>
     internal void Deactivate()
     {
-        InspectionAttempt? invalidatedAttempt = InvalidateActiveAttempt();
+        InspectionAttempt? invalidatedAttempt = InvalidateLifecycle();
         invalidatedAttempt?.Cancel();
     }
 
     public void Dispose()
     {
         InspectionAttempt? invalidatedAttempt;
+        bool snapshotChanged;
 
         lock (stateLock)
         {
@@ -198,42 +178,34 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 return;
             }
 
-            disposed = true;
-            invalidatedAttempt = activeAttempt;
-            activeAttempt = null;
+            snapshotChanged = !lifecycleInvalidated;
+            if (snapshotChanged)
+            {
+                long nextGeneration = GetNextAttemptGenerationLocked();
+                ModelInspectionViewSnapshot invalidatedSnapshot =
+                    CreateInvalidatedSnapshot(nextGeneration);
+                invalidatedAttempt = activeAttempt;
+                disposed = true;
+                nextAttemptGeneration = nextGeneration;
+                activeAttempt = null;
+                lifecycleInvalidated = true;
+                snapshot = invalidatedSnapshot;
+            }
+            else
+            {
+                disposed = true;
+                invalidatedAttempt = null;
+            }
         }
 
-        if (invalidatedAttempt is not null)
+        if (snapshotChanged)
         {
-            OnPropertyChanged(nameof(IsRunActive));
+            PublishSnapshotChanged();
         }
 
         RaiseCommandStates();
         invalidatedAttempt?.Cancel();
         ChooseAnotherRequested = null;
-    }
-
-    private void PublishStartState(
-        bool becameActive,
-        bool progressWasCleared,
-        bool resultWasCleared)
-    {
-        if (progressWasCleared)
-        {
-            OnPropertyChanged(nameof(Progress));
-        }
-
-        if (resultWasCleared)
-        {
-            OnPropertyChanged(nameof(Result));
-        }
-
-        if (becameActive)
-        {
-            OnPropertyChanged(nameof(IsRunActive));
-        }
-
-        RaiseCommandStates();
     }
 
     private void PublishProgress(
@@ -249,10 +221,20 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 return;
             }
 
-            progress = value;
+            if (Equals(snapshot.Progress, value))
+            {
+                return;
+            }
+
+            snapshot = new ModelInspectionViewSnapshot(
+                NextRevisionKeyLocked(),
+                isRunActive: true,
+                isCancellationRequested: snapshot.IsCancellationRequested,
+                progress: value,
+                terminalResult: null);
         }
 
-        OnPropertyChanged(nameof(Progress));
+        PublishSnapshotChanged();
     }
 
     private void PublishTerminalResult(
@@ -268,14 +250,20 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 return;
             }
 
+            ModelInspectionViewSnapshot terminalSnapshot = new(
+                NextRevisionKeyLocked(),
+                isRunActive: false,
+                isCancellationRequested: false,
+                progress: null,
+                terminalResult: execution);
+
             // Retire before notifying observers. Any already-queued progress
             // callback therefore fails the attempt-identity check.
             activeAttempt = null;
-            result = execution;
+            snapshot = terminalSnapshot;
         }
 
-        OnPropertyChanged(nameof(IsRunActive));
-        OnPropertyChanged(nameof(Result));
+        PublishSnapshotChanged();
         RaiseCommandStates();
     }
 
@@ -293,23 +281,31 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 return;
             }
 
+            ModelInspectionViewSnapshot cancellationSnapshot = new(
+                NextRevisionKeyLocked(),
+                isRunActive: true,
+                isCancellationRequested: true,
+                progress: snapshot.Progress,
+                terminalResult: null);
             attempt.CancellationRequested = true;
+            snapshot = cancellationSnapshot;
         }
 
         // Disable immediately while keeping the attempt active until the
         // service returns a trusted terminal result.
+        PublishSnapshotChanged();
         cancelCommand.RaiseCanExecuteChanged();
         attempt.Cancel();
     }
 
     private void ChooseAnother()
     {
-        InspectionAttempt? invalidatedAttempt = InvalidateActiveAttempt();
+        InspectionAttempt? invalidatedAttempt = InvalidateForNavigation();
         invalidatedAttempt?.Cancel();
         ChooseAnotherRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private InspectionAttempt? InvalidateActiveAttempt()
+    private InspectionAttempt? InvalidateForNavigation()
     {
         InspectionAttempt? invalidatedAttempt;
 
@@ -320,16 +316,44 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 return null;
             }
 
+            long nextGeneration = GetNextAttemptGenerationLocked();
+            ModelInspectionViewSnapshot invalidatedSnapshot =
+                CreateInvalidatedSnapshot(nextGeneration);
             invalidatedAttempt = activeAttempt;
+            nextAttemptGeneration = nextGeneration;
             activeAttempt = null;
+            snapshot = invalidatedSnapshot;
         }
 
-        if (invalidatedAttempt is not null)
+        PublishSnapshotChanged();
+        RaiseCommandStates();
+
+        return invalidatedAttempt;
+    }
+
+    private InspectionAttempt? InvalidateLifecycle()
+    {
+        InspectionAttempt? invalidatedAttempt;
+
+        lock (stateLock)
         {
-            OnPropertyChanged(nameof(IsRunActive));
-            RaiseCommandStates();
+            if (disposed || lifecycleInvalidated)
+            {
+                return null;
+            }
+
+            long nextGeneration = GetNextAttemptGenerationLocked();
+            ModelInspectionViewSnapshot invalidatedSnapshot =
+                CreateInvalidatedSnapshot(nextGeneration);
+            invalidatedAttempt = activeAttempt;
+            nextAttemptGeneration = nextGeneration;
+            activeAttempt = null;
+            lifecycleInvalidated = true;
+            snapshot = invalidatedSnapshot;
         }
 
+        PublishSnapshotChanged();
+        RaiseCommandStates();
         return invalidatedAttempt;
     }
 
@@ -339,7 +363,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         {
             return !disposed &&
                 activeAttempt is not null &&
-                !activeAttempt.CancellationRequested;
+                !snapshot.IsCancellationRequested;
         }
     }
 
@@ -347,7 +371,9 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
     {
         lock (stateLock)
         {
-            return !disposed && activeAttempt is null && result is not null;
+            return !disposed &&
+                activeAttempt is null &&
+                snapshot.TerminalResult is not null;
         }
     }
 
@@ -365,6 +391,45 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         retryCommand.RaiseCanExecuteChanged();
         chooseAnotherCommand.RaiseCanExecuteChanged();
     }
+
+    private long GetNextAttemptGenerationLocked()
+    {
+        if (nextAttemptGeneration == long.MaxValue)
+        {
+            throw new InvalidOperationException(
+                "The model inspection attempt sequence is exhausted.");
+        }
+
+        return nextAttemptGeneration + 1;
+    }
+
+    private ModelInspectionRenderKey NextRevisionKeyLocked()
+    {
+        long revision = snapshot.RenderKey.PresentationRevision;
+        if (revision == long.MaxValue)
+        {
+            throw new InvalidOperationException(
+                "The model inspection presentation sequence is exhausted.");
+        }
+
+        return new ModelInspectionRenderKey(
+            snapshot.RenderKey.AttemptGeneration,
+            revision + 1);
+    }
+
+    private static ModelInspectionViewSnapshot CreateInvalidatedSnapshot(
+        long attemptGeneration) =>
+        new(
+            new ModelInspectionRenderKey(
+                attemptGeneration,
+                presentationRevision: 0),
+            isRunActive: false,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: null);
+
+    private void PublishSnapshotChanged() =>
+        OnPropertyChanged(nameof(Snapshot));
 
     private void OnPropertyChanged(string propertyName)
     {
