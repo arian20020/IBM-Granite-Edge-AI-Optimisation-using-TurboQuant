@@ -163,12 +163,16 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         }
 
         /// <summary>
-        /// Displays the completed checkmark only for passed stages.
+        /// Displays a terminal glyph only for explicit completed, warning,
+        /// error or informational stage states.
         /// </summary>
-        public static Visibility GetPassedVisibility(
+        public static Visibility GetTerminalMarkerVisibility(
             InspectionContentStatus status)
         {
-            return status == InspectionContentStatus.Passed
+            return status is InspectionContentStatus.Passed or
+                InspectionContentStatus.Warning or
+                InspectionContentStatus.Error or
+                InspectionContentStatus.Information
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         }

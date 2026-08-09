@@ -75,6 +75,8 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOu
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InitialInspectionProgressPresentationFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressPresentationFactory.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressRows.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressRowsUpdate.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionDisplayTextPolicy.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionFigmaState.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPagePresentation.cs
@@ -340,6 +342,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelInspectionRequ
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufQuickScannerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/ModelQuickScanResultTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Classification/ModelInspectionClassifierTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Infrastructure/ModelInspectionWorkerCompositionTests.cs
@@ -349,6 +352,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspection
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/InspectionProgressPresentationFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/InspectionProgressRowsTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionAssetContractTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionDisplayTextPolicyTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionFigmaStatePresentationTests.cs

@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -21,39 +22,111 @@ public sealed class InspectionProgressPresentationFactoryTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Create_AlwaysReturnsTheFiveApprovedStagesInOrder()
+    public void Create_AlwaysUsesTheFiveApprovedStagesInOrder()
     {
-        ModelInspectionProgress progress = CreateProgress(
-            ModelInspectionStage.ValidateModelStructure,
-            ModelInspectionStageStatus.Active,
-            completedStageCount: 3);
-
-        InspectionContentCardPresentation presentation =
-            InspectionProgressPresentationFactory.Create(progress);
+        InspectionContentCardPresentation presentation = CreatePresentation(
+            CreateProgress(
+                ModelInspectionStage.ValidateModelStructure,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 3));
 
         Assert.AreEqual(InspectionContentCardMode.Progress, presentation.Mode);
-        Assert.HasCount(5, presentation.Items);
+        Assert.HasCount(5, presentation.ProgressRows.Items);
         CollectionAssert.AreEqual(
             ExpectedStageTitles,
-            presentation.Items.Select(item => item.Title).ToArray());
-        Assert.IsTrue(presentation.Items.Take(4).All(item => item.ShowConnector));
-        Assert.IsFalse(presentation.Items[4].ShowConnector);
+            presentation.ProgressRows.Items.Select(item => item.Title).ToArray());
+        Assert.IsTrue(
+            presentation.ProgressRows.Items.Take(4)
+                .All(item => item.ShowConnector));
+        Assert.IsFalse(presentation.ProgressRows.Items[4].ShowConnector);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Create_ProducesAnImmutableSafeUpdateWithoutMutatingRows()
+    {
+        InspectionProgressRows rows = new();
+        rows.Reset(new ModelInspectionRenderKey(1, 0));
+        ModelInspectionProgress progress = CreateProgress(
+            ModelInspectionStage.ValidateTokenizerAndChatSetup,
+            ModelInspectionStageStatus.Active,
+            completedStageCount: 2);
+
+        InspectionProgressRowsUpdate update =
+            InspectionProgressPresentationFactory.Create(
+                progress,
+                new ModelInspectionRenderKey(1, 1));
+
+        Assert.IsTrue(rows.Items.All(item =>
+            item.Status == InspectionContentStatus.Waiting));
+        Assert.AreEqual(
+            ModelInspectionStage.ValidateTokenizerAndChatSetup,
+            update.Key.Stage);
+        Assert.AreEqual(ModelInspectionStageStatus.Active, update.Key.StageStatus);
+        Assert.AreEqual(2, update.Key.CompletedStageCount);
+        Assert.AreEqual(5, update.Key.StageCount);
+        Assert.AreEqual("A safe, current-stage detail.", update.Key.Detail);
+        Assert.AreEqual("2 of 5 checks complete", update.ProgressSummary);
+
+        rows.Apply(update);
+        Assert.AreEqual(InspectionContentStatus.Active, rows.Items[2].Status);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void UnifiedCreate_CarriesUpdateAndNeverMutatesRetainedRows()
+    {
+        InspectionProgressRows rows = new();
+        rows.Reset(new ModelInspectionRenderKey(1, 0));
+        ModelInspectionProgress progress = CreateProgress(
+            ModelInspectionStage.ReadModelConfiguration,
+            ModelInspectionStageStatus.Active,
+            completedStageCount: 1);
+        ModelInspectionViewSnapshot snapshot = new(
+            new ModelInspectionRenderKey(1, 1),
+            isRunActive: true,
+            isCancellationRequested: false,
+            progress,
+            terminalResult: null);
+
+        ModelInspectionPagePresentation presentation =
+            ModelInspectionPresentationFactory.Create(
+                PresentationTestData.CreateRequest(),
+                snapshot,
+                new ModelInspectionPresentationCommands(
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                rows);
+
+        Assert.AreSame(rows, presentation.ContentCard.ProgressRows);
+        Assert.IsTrue(rows.Items.All(item =>
+            item.Status == InspectionContentStatus.Waiting));
+        Assert.AreEqual(snapshot.RenderKey, presentation.ProgressRowsUpdate.OwnerKey);
+        Assert.AreEqual(
+            presentation.RegionKeys.Progress,
+            presentation.ProgressRowsUpdate.Key);
+
+        rows.Apply(presentation.ProgressRowsUpdate);
+        Assert.AreEqual(InspectionContentStatus.Active, rows.Items[1].Status);
+        Assert.AreEqual(
+            "1 of 5 checks complete",
+            presentation.ContentCard.ProgressRows.ProgressSummary);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
     public void Create_MarksPriorStagesPassedAndLaterStagesWaiting()
     {
-        ModelInspectionProgress progress = CreateProgress(
-            ModelInspectionStage.ValidateTokenizerAndChatSetup,
-            ModelInspectionStageStatus.Active,
-            completedStageCount: 2);
-
-        InspectionContentCardPresentation presentation =
-            InspectionProgressPresentationFactory.Create(progress);
+        InspectionContentCardPresentation presentation = CreatePresentation(
+            CreateProgress(
+                ModelInspectionStage.ValidateTokenizerAndChatSetup,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 2));
 
         foreach (InspectionContentItemPresentation completed in
-                 presentation.Items.Take(2))
+                 presentation.ProgressRows.Items.Take(2))
         {
             Assert.AreEqual(InspectionContentStatus.Passed, completed.Status);
             Assert.AreEqual("Passed", completed.StatusText);
@@ -62,7 +135,7 @@ public sealed class InspectionProgressPresentationFactoryTests
         }
 
         foreach (InspectionContentItemPresentation waiting in
-                 presentation.Items.Skip(3))
+                 presentation.ProgressRows.Items.Skip(3))
         {
             Assert.AreEqual(InspectionContentStatus.Waiting, waiting.Status);
             Assert.AreEqual("Waiting", waiting.StatusText);
@@ -111,14 +184,13 @@ public sealed class InspectionProgressPresentationFactoryTests
             ModelInspectionStageStatus.Warning
                 ? 2
                 : 1;
-        ModelInspectionProgress progress = CreateProgress(
-            ModelInspectionStage.ReadModelConfiguration,
-            stageStatus,
-            completedStageCount);
-
-        InspectionContentCardPresentation presentation =
-            InspectionProgressPresentationFactory.Create(progress);
-        InspectionContentItemPresentation current = presentation.Items[1];
+        InspectionContentCardPresentation presentation = CreatePresentation(
+            CreateProgress(
+                ModelInspectionStage.ReadModelConfiguration,
+                stageStatus,
+                completedStageCount));
+        InspectionContentItemPresentation current =
+            presentation.ProgressRows.Items[1];
 
         Assert.AreEqual(expectedStatus, current.Status);
         Assert.AreEqual(expectedStatusText, current.StatusText);
@@ -128,7 +200,8 @@ public sealed class InspectionProgressPresentationFactoryTests
         Assert.AreEqual(
             $"{current.Title}. {expectedStatusText}. A safe, current-stage detail.",
             current.AutomationName);
-        Assert.IsTrue(presentation.Items.Count(item => item.IsActive) <= 1);
+        Assert.IsTrue(
+            presentation.ProgressRows.Items.Count(item => item.IsActive) <= 1);
     }
 
     [UITestMethod]
@@ -144,11 +217,13 @@ public sealed class InspectionProgressPresentationFactoryTests
             userMessage: "Measured native work.");
 
         InspectionContentCardPresentation presentation =
-            InspectionProgressPresentationFactory.Create(progress);
+            CreatePresentation(progress);
 
-        Assert.AreEqual(0.375, presentation.Items[3].StageFraction);
+        Assert.AreEqual(
+            0.375,
+            presentation.ProgressRows.Items[3].StageFraction);
         Assert.IsTrue(
-            presentation.Items
+            presentation.ProgressRows.Items
                 .Where((_, index) => index != 3)
                 .All(item => item.StageFraction is null));
     }
@@ -157,30 +232,90 @@ public sealed class InspectionProgressPresentationFactoryTests
     [TestCategory("WinUI")]
     public void Create_PreservesAnUnknownStageFractionAsNull()
     {
-        ModelInspectionProgress progress = CreateProgress(
-            ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
-            ModelInspectionStageStatus.Active,
-            completedStageCount: 4);
+        InspectionContentCardPresentation presentation = CreatePresentation(
+            CreateProgress(
+                ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 4));
 
-        InspectionContentCardPresentation presentation =
-            InspectionProgressPresentationFactory.Create(progress);
-
-        Assert.IsTrue(presentation.Items.All(item => item.StageFraction is null));
+        Assert.IsTrue(
+            presentation.ProgressRows.Items
+                .All(item => item.StageFraction is null));
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
     public void Create_UsesTheReportedCompletedCountWithoutInventingProgress()
     {
-        ModelInspectionProgress progress = CreateProgress(
-            ModelInspectionStage.ValidateModelStructure,
-            ModelInspectionStageStatus.Warning,
-            completedStageCount: 4);
+        InspectionContentCardPresentation presentation = CreatePresentation(
+            CreateProgress(
+                ModelInspectionStage.ValidateModelStructure,
+                ModelInspectionStageStatus.Warning,
+                completedStageCount: 4));
 
-        InspectionContentCardPresentation presentation =
-            InspectionProgressPresentationFactory.Create(progress);
+        Assert.AreEqual(
+            "4 of 5 checks complete",
+            presentation.ProgressRows.ProgressSummary);
+    }
 
-        Assert.AreEqual("4 of 5 checks complete", presentation.ProgressSummary);
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void Create_UnsafeProgressTextNeverEntersUpdateRowsOrAutomation()
+    {
+        string[] unsafeMessages =
+        [
+            @"C:\Users\private-user\Models\secret.gguf",
+            "controlsentinel",
+            "bidi‮sentinel",
+            "oversize-" + new string('x', 513)
+        ];
+
+        foreach (string unsafeMessage in unsafeMessages)
+        {
+            ModelInspectionProgress progress = new(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 0,
+                totalStageCount: 5,
+                stageFraction: null,
+                userMessage: unsafeMessage);
+            InspectionProgressRows rows = new();
+            rows.Reset(new ModelInspectionRenderKey(1, 0));
+
+            InspectionProgressRowsUpdate update =
+                InspectionProgressPresentationFactory.Create(
+                    progress,
+                    new ModelInspectionRenderKey(1, 1));
+            rows.Apply(update);
+            string visibleAndAutomationText = string.Join(
+                "\n",
+                new[] { update.Key.Detail, update.ProgressSummary }
+                    .Concat(rows.Items.SelectMany(item => new[]
+                    {
+                        item.Detail,
+                        item.StatusText,
+                        item.AutomationName
+                    })));
+
+            Assert.AreEqual("Inspection progress updated.", update.Key.Detail);
+            Assert.IsFalse(
+                visibleAndAutomationText.Contains(
+                    unsafeMessage,
+                    StringComparison.Ordinal));
+        }
+    }
+
+    private static InspectionContentCardPresentation CreatePresentation(
+        ModelInspectionProgress progress)
+    {
+        InspectionProgressRows rows = new();
+        rows.Reset(new ModelInspectionRenderKey(1, 0));
+        InspectionProgressRowsUpdate update =
+            InspectionProgressPresentationFactory.Create(
+                progress,
+                new ModelInspectionRenderKey(1, 1));
+        rows.Apply(update);
+        return InitialInspectionProgressPresentationFactory.Create(rows);
     }
 
     private static ModelInspectionProgress CreateProgress(

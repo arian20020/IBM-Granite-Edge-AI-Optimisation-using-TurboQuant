@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Input;
@@ -41,18 +40,12 @@ internal static class ModelInspectionPresentationFactory
         ModelInspectionViewSnapshot snapshot,
         ModelInspectionPresentationCommands commands,
         bool isDisclosureExpanded,
-        IReadOnlyList<InspectionContentItemPresentation> progressRows)
+        InspectionProgressRows progressRows)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(commands);
         ArgumentNullException.ThrowIfNull(progressRows);
-        if (progressRows.Any(row => row is null))
-        {
-            throw new ArgumentException(
-                "Progress rows cannot contain null entries.",
-                nameof(progressRows));
-        }
 
         if (snapshot.TerminalResult is null)
         {
@@ -80,8 +73,7 @@ internal static class ModelInspectionPresentationFactory
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(cancelCommand);
-        InspectionContentCardPresentation progress =
-            InitialInspectionProgressPresentationFactory.Create();
+        InspectionProgressRows progressRows = new();
 
         return Create(
             request,
@@ -91,7 +83,7 @@ internal static class ModelInspectionPresentationFactory
                 DisabledCommand,
                 DisabledCommand),
             isDisclosureExpanded: false,
-            progress.Items);
+            progressRows);
     }
 
     // Compatibility adapter retained until the page migrates in Task 10.
@@ -103,8 +95,7 @@ internal static class ModelInspectionPresentationFactory
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(cancelCommand);
-        InspectionContentCardPresentation content =
-            InspectionProgressPresentationFactory.Create(progress);
+        InspectionProgressRows progressRows = new();
         ModelInspectionViewSnapshot snapshot = new(
             new ModelInspectionRenderKey(0, 0),
             isRunActive: true,
@@ -112,7 +103,7 @@ internal static class ModelInspectionPresentationFactory
             progress,
             terminalResult: null);
 
-        return Create(
+        ModelInspectionPagePresentation presentation = Create(
             request,
             snapshot,
             new ModelInspectionPresentationCommands(
@@ -120,7 +111,9 @@ internal static class ModelInspectionPresentationFactory
                 DisabledCommand,
                 DisabledCommand),
             isDisclosureExpanded: false,
-            content.Items);
+            progressRows);
+        progressRows.Apply(presentation.ProgressRowsUpdate);
+        return presentation;
     }
 
     // Compatibility adapter retained until the page migrates in Task 10.
@@ -149,29 +142,37 @@ internal static class ModelInspectionPresentationFactory
                 retryCommand,
                 chooseAnotherCommand),
             isDisclosureExpanded: false,
-            Array.Empty<InspectionContentItemPresentation>());
+            new InspectionProgressRows());
     }
 
     private static ModelInspectionPagePresentation CreateProgressState(
         ModelInspectionRequest request,
         ModelInspectionViewSnapshot snapshot,
         ModelInspectionPresentationCommands commands,
-        IReadOnlyList<InspectionContentItemPresentation> progressRows)
+        InspectionProgressRows progressRows)
     {
         ModelInspectionProgress? progress = snapshot.Progress;
         bool cancelEnabled = snapshot.IsRunActive &&
             !snapshot.IsCancellationRequested &&
             commands.Cancel.CanExecute(parameter: null);
-        string progressAnnouncement = progress is null
-            ? string.Empty
-            : ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
-                progress.UserMessage,
-                "Inspection progress updated.");
+        InspectionProgressRowsUpdate progressRowsUpdate = progress is null
+            ? new InspectionProgressRowsUpdate(
+                new ModelInspectionProgressRegionKey(
+                    stage: null,
+                    stageStatus: null,
+                    completedStageCount: 0,
+                    stageCount: 0,
+                    stageFraction: null,
+                    detail: string.Empty),
+                snapshot.RenderKey,
+                "0 of 5 checks complete")
+            : InspectionProgressPresentationFactory.Create(
+                progress,
+                snapshot.RenderKey);
+        string progressAnnouncement = progressRowsUpdate.Key.Detail;
         string statusSummary = progress is null
             ? "Awaiting inspection"
             : "Inspection in progress";
-        IReadOnlyList<InspectionContentItemPresentation> safeProgressRows =
-            ProjectProgressRows(progressRows);
         InspectionModelCardPresentation modelCard = CreateModelCard(
             request,
             result: null,
@@ -179,15 +180,8 @@ internal static class ModelInspectionPresentationFactory
             statusSummary,
             detailed: false,
             expanded: false);
-        InspectionContentCardPresentation contentCard = new()
-        {
-            Mode = InspectionContentCardMode.Progress,
-            SectionTitle = "Inspection progress",
-            ProgressSummary = progress is null
-                ? "0 of 5 checks complete"
-                : $"{progress.CompletedStageCount} of {progress.TotalStageCount} checks complete",
-            Items = safeProgressRows
-        };
+        InspectionContentCardPresentation contentCard =
+            InitialInspectionProgressPresentationFactory.Create(progressRows);
         InspectionActionCardPresentation actionCard = new()
         {
             Mode = InspectionActionCardMode.Inspecting,
@@ -200,22 +194,6 @@ internal static class ModelInspectionPresentationFactory
                 cancelEnabled,
                 minimumWidth: 184d)
         };
-        ModelInspectionProgressRegionKey progressKey = progress is null
-            ? new ModelInspectionProgressRegionKey(
-                stage: null,
-                stageStatus: null,
-                completedStageCount: 0,
-                stageCount: 0,
-                stageFraction: null,
-                detail: string.Empty)
-            : new ModelInspectionProgressRegionKey(
-                progress.Stage,
-                progress.StageStatus,
-                progress.CompletedStageCount,
-                progress.TotalStageCount,
-                progress.StageFraction,
-                progressAnnouncement);
-
         return CreatePage(
             snapshot.RenderKey,
             ModelInspectionFigmaState.InspectionProgress,
@@ -224,9 +202,10 @@ internal static class ModelInspectionPresentationFactory
             InspectionOutcomePresentation.Hidden,
             actionCard,
             InspectionFooterStatus.InProgress,
-            progressKey,
+            progressRowsUpdate.Key,
             progressAnnouncement,
-            outcomeAnnouncement: string.Empty);
+            outcomeAnnouncement: string.Empty,
+            progressRowsUpdate);
     }
 
     private static ModelInspectionPagePresentation CreateTerminalState(
@@ -323,7 +302,8 @@ internal static class ModelInspectionPresentationFactory
             definition.FooterStatus,
             EmptyProgressKey(),
             progressAnnouncement: string.Empty,
-            definition.OutcomeAnnouncement);
+            outcomeAnnouncement: definition.OutcomeAnnouncement,
+            progressRowsUpdate: CreateEmptyProgressRowsUpdate(renderKey));
     }
 
     private static ModelInspectionPagePresentation CreateCancelledState(
@@ -397,7 +377,8 @@ internal static class ModelInspectionPresentationFactory
             InspectionFooterStatus.NotComplete,
             EmptyProgressKey(),
             progressAnnouncement: string.Empty,
-            outcomeAnnouncement: "Model inspection was cancelled.");
+            outcomeAnnouncement: "Model inspection was cancelled.",
+            progressRowsUpdate: CreateEmptyProgressRowsUpdate(renderKey));
     }
 
     private static ModelInspectionPagePresentation CreateOperationalFailureState(
@@ -522,7 +503,8 @@ internal static class ModelInspectionPresentationFactory
             InspectionFooterStatus.Interrupted,
             EmptyProgressKey(),
             progressAnnouncement: string.Empty,
-            outcomeAnnouncement: "Model inspection could not be completed.");
+            outcomeAnnouncement: "Model inspection could not be completed.",
+            progressRowsUpdate: CreateEmptyProgressRowsUpdate(renderKey));
     }
 
     private static ModelInspectionPagePresentation CreatePage(
@@ -535,7 +517,8 @@ internal static class ModelInspectionPresentationFactory
         InspectionFooterStatus footerStatus,
         ModelInspectionProgressRegionKey progressKey,
         string progressAnnouncement,
-        string outcomeAnnouncement)
+        string outcomeAnnouncement,
+        InspectionProgressRowsUpdate progressRowsUpdate)
     {
         string outcomeIdentity = GetOutcomeIdentity(state);
         ModelInspectionRegionKeys keys = new(
@@ -561,7 +544,8 @@ internal static class ModelInspectionPresentationFactory
             footerStatus,
             keys,
             progressAnnouncement,
-            outcomeAnnouncement);
+            outcomeAnnouncement,
+            progressRowsUpdate);
     }
 
     private static InspectionModelCardPresentation CreateModelCard(
@@ -856,80 +840,6 @@ internal static class ModelInspectionPresentationFactory
             StatusText = statusText,
             AutomationName = $"{title}. {statusText}. {detail}"
         };
-    }
-
-    private static IReadOnlyList<InspectionContentItemPresentation>
-        ProjectProgressRows(
-            IReadOnlyList<InspectionContentItemPresentation> rows)
-    {
-        List<InspectionContentItemPresentation>? projectedRows = null;
-        for (int index = 0; index < rows.Count; index++)
-        {
-            InspectionContentItemPresentation source = rows[index];
-            string stageNumber =
-                ModelInspectionDisplayTextPolicy.ProjectOptionalLabel(
-                    source.StageNumber);
-            string title = ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
-                source.Title,
-                "Inspection stage");
-            string detail = ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
-                source.Detail,
-                "Inspection progress updated.");
-            string statusText =
-                ModelInspectionDisplayTextPolicy.ProjectOptionalLabel(
-                    source.StatusText);
-            string automationName =
-                ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
-                    source.AutomationName,
-                    "Inspection progress item.");
-            bool unchanged = string.Equals(
-                    stageNumber,
-                    source.StageNumber,
-                    StringComparison.Ordinal) &&
-                string.Equals(title, source.Title, StringComparison.Ordinal) &&
-                string.Equals(detail, source.Detail, StringComparison.Ordinal) &&
-                string.Equals(
-                    statusText,
-                    source.StatusText,
-                    StringComparison.Ordinal) &&
-                string.Equals(
-                    automationName,
-                    source.AutomationName,
-                    StringComparison.Ordinal);
-
-            if (unchanged && projectedRows is null)
-            {
-                continue;
-            }
-
-            if (projectedRows is null)
-            {
-                projectedRows = new List<InspectionContentItemPresentation>(
-                    rows.Count);
-                for (int retained = 0; retained < index; retained++)
-                {
-                    projectedRows.Add(rows[retained]);
-                }
-            }
-
-            projectedRows.Add(unchanged
-                ? source
-                : new InspectionContentItemPresentation
-                {
-                    StageNumber = stageNumber,
-                    Title = title,
-                    Detail = detail,
-                    DetailVisibility = source.DetailVisibility,
-                    Status = source.Status,
-                    StatusText = statusText,
-                    IsActive = source.IsActive,
-                    StageFraction = source.StageFraction,
-                    ShowConnector = source.ShowConnector,
-                    AutomationName = automationName
-                });
-        }
-
-        return projectedRows ?? rows;
     }
 
     private static InspectionActionPresentation CreateActiveAction(
@@ -1303,6 +1213,12 @@ internal static class ModelInspectionPresentationFactory
         stageCount: 0,
         stageFraction: null,
         detail: string.Empty);
+
+    private static InspectionProgressRowsUpdate CreateEmptyProgressRowsUpdate(
+        ModelInspectionRenderKey renderKey) => new(
+            EmptyProgressKey(),
+            renderKey,
+            "0 of 5 checks complete");
 
     private static string ProjectParameters(
         string? quickScanLabel,

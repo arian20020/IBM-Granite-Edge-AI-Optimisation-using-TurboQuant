@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,6 +15,10 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
     {
         // Stores the only presentation value that changes inside the XAML control.
         private bool _isExpanded;
+        private string _progressSummary = string.Empty;
+        private IReadOnlyList<InspectionContentItemPresentation> _items =
+            new List<InspectionContentItemPresentation>().AsReadOnly();
+        private InspectionProgressRows? _progressRows;
 
         /// <summary>
         /// Provides a safe presentation while the card is hidden.
@@ -34,13 +39,37 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         /// <summary>
         /// Gets the progress summary, for example “3 of 5 checks complete”.
         /// </summary>
-        public string ProgressSummary { get; init; } = string.Empty;
+        public string ProgressSummary
+        {
+            get => Mode == InspectionContentCardMode.Progress
+                ? ProgressRows.ProgressSummary
+                : _progressSummary;
+            init => _progressSummary = value;
+        }
 
         /// <summary>
         /// Gets the primary stage or finding rows.
         /// </summary>
-        public IReadOnlyList<InspectionContentItemPresentation> Items { get; init; } =
-            Array.Empty<InspectionContentItemPresentation>();
+        public IReadOnlyList<InspectionContentItemPresentation> Items
+        {
+            get => Mode == InspectionContentCardMode.Progress
+                ? ProgressRows.Items
+                : _items;
+            init => _items = value;
+        }
+
+        /// <summary>
+        /// Gets the stable observable owner used only by the progress layout.
+        /// </summary>
+        public InspectionProgressRows ProgressRows
+        {
+            get => _progressRows ??= new InspectionProgressRows();
+            init
+            {
+                ArgumentNullException.ThrowIfNull(value);
+                _progressRows = value;
+            }
+        }
 
         /// <summary>
         /// Gets the optional supporting instruction beneath the findings.

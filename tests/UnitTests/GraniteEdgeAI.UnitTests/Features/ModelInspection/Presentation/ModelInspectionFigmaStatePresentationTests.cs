@@ -219,7 +219,8 @@ public sealed class ModelInspectionFigmaStatePresentationTests
                 valid.FooterStatus,
                 valid.RegionKeys,
                 valid.ProgressAnnouncement,
-                valid.OutcomeAnnouncement));
+                valid.OutcomeAnnouncement,
+                valid.ProgressRowsUpdate));
     }
 
     [TestMethod]
@@ -488,19 +489,7 @@ public sealed class ModelInspectionFigmaStatePresentationTests
             ModelInspectionStageStatus.Active,
             completed: 1,
             unsafeText);
-        InspectionContentItemPresentation unsafeRow = new()
-        {
-            StageNumber = unsafeText,
-            Title = unsafeText,
-            Detail = unsafeText,
-            DetailVisibility = Visibility.Visible,
-            Status = InspectionContentStatus.Active,
-            StatusText = unsafeText,
-            IsActive = true,
-            StageFraction = 0.5,
-            ShowConnector = true,
-            AutomationName = unsafeText
-        };
+        InspectionProgressRows progressRows = CreateProgressRows(attempt: 3);
         ModelInspectionPagePresentation progressPage = Create(
             new ModelInspectionViewSnapshot(
                 new ModelInspectionRenderKey(3, 1),
@@ -508,8 +497,9 @@ public sealed class ModelInspectionFigmaStatePresentationTests
                 isCancellationRequested: false,
                 progress,
                 terminalResult: null),
-            [unsafeRow],
+            progressRows,
             request: unsafeRequest);
+        progressRows.Apply(progressPage.ProgressRowsUpdate);
 
         string allOutput = string.Join(
             "\n",
@@ -527,24 +517,24 @@ public sealed class ModelInspectionFigmaStatePresentationTests
             progressPage.ProgressAnnouncement,
             caseName);
         Assert.AreEqual(
-            "Not reported",
-            progressPage.ContentCard.Items[0].StageNumber,
+            "2",
+            progressPage.ContentCard.Items[1].StageNumber,
             caseName);
         Assert.AreEqual(
-            "Inspection stage",
-            progressPage.ContentCard.Items[0].Title,
+            "Read model configuration",
+            progressPage.ContentCard.Items[1].Title,
             caseName);
         Assert.AreEqual(
             "Inspection progress updated.",
-            progressPage.ContentCard.Items[0].Detail,
+            progressPage.ContentCard.Items[1].Detail,
             caseName);
         Assert.AreEqual(
-            "Not reported",
-            progressPage.ContentCard.Items[0].StatusText,
+            "Checking",
+            progressPage.ContentCard.Items[1].StatusText,
             caseName);
         Assert.AreEqual(
-            "Inspection progress item.",
-            progressPage.ContentCard.Items[0].AutomationName,
+            "Read model configuration. Checking. Inspection progress updated.",
+            progressPage.ContentCard.Items[1].AutomationName,
             caseName);
     }
 
@@ -761,39 +751,18 @@ public sealed class ModelInspectionFigmaStatePresentationTests
                 completed: 2,
                 "Configuration checked."),
             terminalResult: null);
-        InspectionContentItemPresentation[] firstRows =
-        [
-            new()
-            {
-                StageNumber = "1",
-                Title = "first",
-                Detail = "First safe progress row.",
-                StatusText = "Checking",
-                AutomationName = "First progress row. Checking."
-            }
-        ];
-        InspectionContentItemPresentation[] secondRows =
-        [
-            new()
-            {
-                StageNumber = "1",
-                Title = "second",
-                Detail = "Second safe progress row.",
-                StatusText = "Passed",
-                AutomationName = "Second progress row. Passed."
-            }
-        ];
-
-        ModelInspectionPagePresentation first = Create(firstSnapshot, firstRows);
-        ModelInspectionPagePresentation second = Create(secondSnapshot, secondRows);
+        InspectionProgressRows progressRows = CreateProgressRows(attempt: 7);
+        ModelInspectionPagePresentation first = Create(firstSnapshot, progressRows);
+        ModelInspectionPagePresentation second = Create(secondSnapshot, progressRows);
 
         Assert.AreNotEqual(first.RegionKeys.Progress, second.RegionKeys.Progress);
         Assert.AreNotEqual(
             first.RegionKeys.Announcements,
             second.RegionKeys.Announcements);
         Assert.AreNotEqual(first.ProgressAnnouncement, second.ProgressAnnouncement);
-        Assert.AreSame(firstRows, first.ContentCard.Items);
-        Assert.AreSame(secondRows, second.ContentCard.Items);
+        Assert.AreSame(progressRows, first.ContentCard.ProgressRows);
+        Assert.AreSame(progressRows, second.ContentCard.ProgressRows);
+        Assert.AreSame(first.ContentCard.Items, second.ContentCard.Items);
         Assert.AreEqual(first.RegionKeys.Outcome, second.RegionKeys.Outcome);
         Assert.AreEqual(first.RegionKeys.Model, second.RegionKeys.Model);
         Assert.AreEqual(first.RegionKeys.Content, second.RegionKeys.Content);
@@ -906,7 +875,7 @@ public sealed class ModelInspectionFigmaStatePresentationTests
 
     private static ModelInspectionPagePresentation Create(
         ModelInspectionViewSnapshot snapshot,
-        IReadOnlyList<InspectionContentItemPresentation>? progressRows = null,
+        InspectionProgressRows? progressRows = null,
         ModelInspectionPresentationCommands? commands = null,
         bool isDisclosureExpanded = false,
         ModelInspectionRequest? request = null)
@@ -916,7 +885,19 @@ public sealed class ModelInspectionFigmaStatePresentationTests
             snapshot,
             commands ?? CreateCommands(),
             isDisclosureExpanded,
-            progressRows ?? Array.Empty<InspectionContentItemPresentation>());
+            progressRows ?? CreateProgressRows(
+                snapshot.RenderKey.AttemptGeneration));
+    }
+
+    private static InspectionProgressRows CreateProgressRows(long attempt)
+    {
+        InspectionProgressRows rows = new();
+        if (attempt > 0)
+        {
+            rows.Reset(new ModelInspectionRenderKey(attempt, 0));
+        }
+
+        return rows;
     }
 
     private static ModelInspectionPresentationCommands CreateCommands(

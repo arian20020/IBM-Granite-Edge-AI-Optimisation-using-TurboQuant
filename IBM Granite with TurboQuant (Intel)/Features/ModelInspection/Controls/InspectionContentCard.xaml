@@ -437,7 +437,7 @@
 
                 <Grid
                     MinHeight="60"
-                    AutomationProperties.Name="{x:Bind AutomationName}">
+                    AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
 
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition
@@ -467,22 +467,22 @@
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         AutomationProperties.AccessibilityView="Raw"
-                        Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status)}"
-                        BorderBrush="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
+                        Background="{x:Bind local:InspectionContentCard.GetStatusBackground(Status), Mode=OneWay}"
+                        BorderBrush="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
                         BorderThickness="1"
                         CornerRadius="15">
 
                         <Grid>
 
-                            <!--  Passed stages.  -->
+                            <!--  Passed, warning, error or informational terminal stage.  -->
                             <SymbolIcon
                                 Width="13"
                                 Height="13"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
-                                Symbol="Accept"
-                                Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status)}" />
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                                Symbol="{x:Bind local:InspectionContentCard.GetStatusSymbol(Status), Mode=OneWay}"
+                                Visibility="{x:Bind local:InspectionContentCard.GetTerminalMarkerVisibility(Status), Mode=OneWay}" />
 
                             <!--  Currently running stage.  -->
                             <ProgressRing
@@ -490,11 +490,11 @@
                                 Height="17"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
-                                IsActive="{x:Bind IsActive}"
-                                IsIndeterminate="{x:Bind local:InspectionContentCard.IsProgressIndeterminate(StageFraction)}"
-                                Value="{x:Bind local:InspectionContentCard.GetProgressPercent(StageFraction)}"
-                                Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status)}" />
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                                IsActive="{x:Bind IsActive, Mode=OneWay}"
+                                IsIndeterminate="{x:Bind local:InspectionContentCard.IsProgressIndeterminate(StageFraction), Mode=OneWay}"
+                                Value="{x:Bind local:InspectionContentCard.GetProgressPercent(StageFraction), Mode=OneWay}"
+                                Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status), Mode=OneWay}" />
 
                             <!--  Waiting stage number.  -->
                             <TextBlock
@@ -502,9 +502,9 @@
                                 VerticalAlignment="Center"
                                 FontSize="11"
                                 FontWeight="Bold"
-                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
+                                Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
                                 Text="{x:Bind StageNumber}"
-                                Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status)}" />
+                                Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status), Mode=OneWay}" />
 
                         </Grid>
 
@@ -524,8 +524,8 @@
 
                         <TextBlock
                             Style="{StaticResource ContentSecondaryTextStyle}"
-                            Text="{x:Bind Detail}"
-                            Visibility="{x:Bind DetailVisibility}" />
+                            Text="{x:Bind Detail, Mode=OneWay}"
+                            Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
 
                     </StackPanel>
 
@@ -536,8 +536,8 @@
                         VerticalAlignment="Top"
                         FontSize="11"
                         FontWeight="SemiBold"
-                        Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
-                        Text="{x:Bind StatusText}"
+                        Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status), Mode=OneWay}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
                         TextWrapping="NoWrap" />
 
                 </Grid>
@@ -584,7 +584,7 @@
                             FontSize="12"
                             FontWeight="SemiBold"
                             Foreground="{ThemeResource InspectionSecondaryTextBrush}"
-                            Text="{x:Bind ProgressSummary}" />
+                            Text="{x:Bind ProgressRows.ProgressSummary, Mode=OneWay}" />
 
                     </Grid>
 
@@ -592,7 +592,7 @@
                         Grid.Row="1"
                         Margin="0,18,0,0"
                         ItemTemplate="{StaticResource ProgressStageTemplate}"
-                        ItemsSource="{x:Bind Items}">
+                        ItemsSource="{x:Bind ProgressRows.Items, Mode=OneWay}">
 
                         <ItemsRepeater.Layout>
                             <StackLayout

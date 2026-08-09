@@ -20,7 +20,8 @@ internal sealed class ModelInspectionPagePresentation
         InspectionFooterStatus footerStatus,
         ModelInspectionRegionKeys regionKeys,
         string progressAnnouncement,
-        string outcomeAnnouncement)
+        string outcomeAnnouncement,
+        InspectionProgressRowsUpdate progressRowsUpdate)
     {
         if (!Enum.IsDefined(state))
         {
@@ -52,6 +53,8 @@ internal sealed class ModelInspectionPagePresentation
         OutcomeAnnouncement = ProjectAnnouncement(
             outcomeAnnouncement,
             nameof(outcomeAnnouncement));
+        ProgressRowsUpdate = progressRowsUpdate ??
+            throw new ArgumentNullException(nameof(progressRowsUpdate));
 
         ValidateExpansion(state, modelCard, contentCard);
     }
@@ -75,6 +78,8 @@ internal sealed class ModelInspectionPagePresentation
     internal string ProgressAnnouncement { get; }
 
     internal string OutcomeAnnouncement { get; }
+
+    internal InspectionProgressRowsUpdate ProgressRowsUpdate { get; }
 
     private static string ProjectAnnouncement(string value, string parameterName)
     {

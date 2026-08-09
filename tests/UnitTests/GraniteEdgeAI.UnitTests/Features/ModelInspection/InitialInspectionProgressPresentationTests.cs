@@ -23,7 +23,7 @@ public sealed class InitialInspectionProgressPresentationTests
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create();
 
-        string[] actualTitles = presentation.Items
+        string[] actualTitles = presentation.ProgressRows.Items
             .Select(item => item.Title)
             .ToArray();
 
@@ -42,33 +42,21 @@ public sealed class InitialInspectionProgressPresentationTests
     }
 
     /// <summary>
-    /// Verifies the initial active/waiting state used before the real service is
-    /// connected.
+    /// Verifies that the pre-run state does not claim worker activity.
     /// </summary>
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Create_ActivatesOnlyTheFirstStage()
+    public void Create_LeavesAllFiveStagesWaiting()
     {
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create();
 
         Assert.AreEqual(
-            1,
-            presentation.Items.Count(item => item.IsActive));
-
-        InspectionContentItemPresentation firstStage =
-            presentation.Items[0];
-
-        Assert.IsTrue(firstStage.IsActive);
-        Assert.AreEqual(
-            InspectionContentStatus.Active,
-            firstStage.Status);
-        Assert.AreEqual(
-            "Checking",
-            firstStage.StatusText);
+            0,
+            presentation.ProgressRows.Items.Count(item => item.IsActive));
 
         foreach (InspectionContentItemPresentation waitingStage in
-                 presentation.Items.Skip(1))
+                 presentation.ProgressRows.Items)
         {
             Assert.IsFalse(waitingStage.IsActive);
             Assert.AreEqual(
@@ -92,26 +80,23 @@ public sealed class InitialInspectionProgressPresentationTests
 
         Assert.AreEqual(
             "0 of 5 checks complete",
-            presentation.ProgressSummary);
+            presentation.ProgressRows.ProgressSummary);
         Assert.IsTrue(
-            presentation.Items.Take(4).All(item => item.ShowConnector));
+            presentation.ProgressRows.Items.Take(4)
+                .All(item => item.ShowConnector));
         Assert.IsFalse(
-            presentation.Items[4].ShowConnector);
+            presentation.ProgressRows.Items[4].ShowConnector);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Create_ShowsDetailOnlyForTheActiveStage()
+    public void Create_HidesAllDetailsBeforeTheRunStarts()
     {
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create();
 
-        Assert.AreEqual(
-            Visibility.Visible,
-            presentation.Items[0].DetailVisibility);
-
         foreach (InspectionContentItemPresentation waitingStage in
-                 presentation.Items.Skip(1))
+                 presentation.ProgressRows.Items)
         {
             Assert.AreEqual(
                 Visibility.Collapsed,
@@ -126,7 +111,8 @@ public sealed class InitialInspectionProgressPresentationTests
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create();
 
-        foreach (InspectionContentItemPresentation item in presentation.Items)
+        foreach (InspectionContentItemPresentation item in
+                 presentation.ProgressRows.Items)
         {
             Assert.AreEqual(
                 $"{item.Title}. {item.StatusText}.",
@@ -153,7 +139,8 @@ public sealed class InitialInspectionProgressPresentationTests
             "hardware fit"
         ];
 
-        foreach (InspectionContentItemPresentation item in presentation.Items)
+        foreach (InspectionContentItemPresentation item in
+                 presentation.ProgressRows.Items)
         {
             string normalisedTitle = item.Title.ToLowerInvariant();
 
