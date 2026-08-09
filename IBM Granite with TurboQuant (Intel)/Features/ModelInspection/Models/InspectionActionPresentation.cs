@@ -44,6 +44,11 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public string AutomationName { get; init; } = string.Empty;
 
         /// <summary>
+        /// Gets the accessible explanation for an unavailable action.
+        /// </summary>
+        public string AutomationHelpText { get; init; } = string.Empty;
+
+        /// <summary>
         /// Gets the minimum width of the button in effective pixels.
         /// </summary>
         public double MinimumWidth { get; init; } = 174d;

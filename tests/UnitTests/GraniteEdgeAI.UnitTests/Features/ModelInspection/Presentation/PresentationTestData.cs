@@ -15,7 +15,11 @@ internal static class PresentationTestData
     internal static readonly DateTimeOffset FixedUtc =
         new(2026, 8, 9, 8, 0, 0, TimeSpan.Zero);
 
-    internal static ModelInspectionRequest CreateRequest()
+    internal static ModelInspectionRequest CreateRequest(
+        string modelName = "Granite 4.1 3B",
+        string architecture = "granite",
+        string? parameterSizeLabel = "3B",
+        string? quantisation = "Q4_K_M")
     {
         string modelPath = Path.GetFullPath(
             Path.Combine(
@@ -28,10 +32,10 @@ internal static class PresentationTestData
             "granite.gguf",
             new ExpectedModelFileIdentity(4_096, FixedUtc),
             ValidatedQuickScanSnapshot.CreateGguf(
-                modelName: "Granite 4.1 3B",
-                architecture: "granite",
-                parameterSizeLabel: "3B",
-                quantisation: "Q4_K_M",
+                modelName,
+                architecture,
+                parameterSizeLabel,
+                quantisation,
                 fileSizeBytes: 4_096,
                 declaredContextLength: 4_096,
                 ggufVersion: 3));
@@ -39,30 +43,41 @@ internal static class PresentationTestData
 
     internal static ModelInspectionResult CreateResult(
         ModelInspectionOutcome outcome,
-        string technicalDetail = SensitiveTechnicalMarker)
+        string technicalDetail = SensitiveTechnicalMarker,
+        string warningCode = "MI-WARN-CHAT-TEMPLATE-MISSING",
+        int warningCount = 1,
+        ModelInspectionEvidence? evidence = null,
+        TimeSpan? duration = null,
+        string findingTitle = "Review this warning",
+        string findingExplanation = "A safe explanation.",
+        string findingRecommendedAction = "A safe recommended action.")
     {
+        if (warningCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(warningCount));
+        }
+
         ModelInspectionFinding[] findings = outcome switch
         {
             ModelInspectionOutcome.Ready => [],
-            ModelInspectionOutcome.ReadyWithWarnings =>
-            [
-                CreateFinding(
+            ModelInspectionOutcome.ReadyWithWarnings => Enumerable
+                .Range(0, warningCount)
+                .Select(_ => CreateFinding(
+                    warningCode,
                     ModelInspectionFindingSeverity.Warning,
-                    "Review this warning",
-                    technicalDetail)
-            ],
-            _ =>
-            [
-                CreateFinding(
-                    ModelInspectionFindingSeverity.Blocking,
-                    "Resolve this issue",
-                    technicalDetail)
-            ]
+                    findingTitle,
+                    findingExplanation,
+                    findingRecommendedAction,
+                    technicalDetail))
+                .ToArray(),
+            _ => []
         };
 
         return new ModelInspectionResult(
             outcome,
-            CreateEvidence(),
+            evidence ?? CreateEvidence(
+                chatTemplatePresent:
+                    outcome != ModelInspectionOutcome.ReadyWithWarnings),
             findings,
             summary: $"Safe {outcome} summary.",
             recommendedAction: "Choose another model if needed.",
@@ -71,15 +86,17 @@ internal static class PresentationTestData
                     ? "gguf-conversion-route-v1"
                     : null,
             startedAtUtc: FixedUtc,
-            completedAtUtc: FixedUtc.AddSeconds(2));
+            completedAtUtc: FixedUtc + (duration ?? TimeSpan.FromSeconds(2)));
     }
 
     internal static ModelInspectionOperationalFailure CreateFailure(
-        string technicalDetail = SensitiveTechnicalMarker)
+        string technicalDetail = SensitiveTechnicalMarker,
+        string code = "MI-OP-TEST",
+        string userMessage = "Inspection could not be completed safely.")
     {
         return new ModelInspectionOperationalFailure(
-            "MI-OP-TEST",
-            "Inspection could not be completed safely.",
+            code,
+            userMessage,
             technicalDetail);
     }
 
@@ -89,24 +106,52 @@ internal static class PresentationTestData
     }
 
     private static ModelInspectionFinding CreateFinding(
+        string code,
         ModelInspectionFindingSeverity severity,
         string title,
+        string explanation,
+        string recommendedAction,
         string technicalDetail)
     {
         return new ModelInspectionFinding(
-            "MI-FINDING-TEST",
+            code,
             severity,
             title,
-            "A safe explanation.",
-            "A safe recommended action.",
+            explanation,
+            recommendedAction,
             technicalDetail);
     }
 
-    private static ModelInspectionEvidence CreateEvidence()
+    internal static ModelInspectionEvidence CreateEvidence(
+        string fileName = "granite.gguf",
+        string? configurationModelName = "Granite 4.1 3B",
+        string? configurationArchitecture = "granite",
+        string workerId = "GraniteEdgeAI.ModelInspection.Worker",
+        string workerVersion = "1.0.0",
+        int protocolVersion = 1,
+        string runtimeProfile =
+            "llamasharp-0.27.0-cpu-win-x64-vocab-only-v1",
+        string llamaSharpVersion = "0.27.0",
+        string backendPackageVersion = "0.27.0",
+        string mappedLlamaCppCommit = LlamaCppCommit,
+        string nativeLibraryName = "llama.dll",
+        string processArchitecture = "X64",
+        string inspectionMode = "VocabOnly",
+        bool usesCuda = false,
+        bool usesVulkan = false,
+        int gpuLayerCount = 0,
+        bool? tokenizerSmokePassed = true,
+        int? tokenizerSmokeTokenCount = 4,
+        bool? chatTemplatePresent = true,
+        string? tokenizerModel = "gpt2",
+        string? vocabularyType = "BPE",
+        int? layerCount = 24,
+        IReadOnlyDictionary<string, int>? knownSpecialTokenIds = null,
+        IEnumerable<ModelInspectionObservation>? observations = null)
     {
         return new ModelInspectionEvidence(
             new ModelInspectionFileEvidence(
-                "granite.gguf",
+                fileName,
                 Sha256,
                 4_096,
                 FixedUtc,
@@ -115,42 +160,54 @@ internal static class PresentationTestData
             new ModelInspectionConfigurationEvidence(
                 "GGUF",
                 ggufVersion: 3,
-                modelName: "Granite 4.1 3B",
-                architecture: "granite",
+                modelName: configurationModelName,
+                architecture: configurationArchitecture,
                 fileType: 15,
                 quantisationVersion: 2,
                 declaredContextLength: 4_096,
                 embeddingSize: 2_048,
-                layerCount: 24,
+                layerCount: layerCount,
                 attentionHeadCount: 16,
                 kvHeadCount: 8,
                 parameterCount: 3_000_000_000),
             new ModelInspectionTokenizerEvidence(
-                "gpt2",
+                tokenizerModel,
                 vocabularyCount: 49_152,
-                vocabularyType: "BPE",
-                tokenizerSmokePassed: true,
-                tokenizerSmokeTokenCount: 4,
-                knownSpecialTokenIds: new Dictionary<string, int>()),
-            new ModelInspectionChatTemplateEvidence(
-                present: true,
-                lengthCharacters: 128,
-                sha256: Sha256),
+                vocabularyType,
+                tokenizerSmokePassed: tokenizerSmokePassed,
+                tokenizerSmokeTokenCount: tokenizerSmokeTokenCount,
+                knownSpecialTokenIds:
+                    knownSpecialTokenIds ?? new Dictionary<string, int>()),
+            chatTemplatePresent switch
+            {
+                true => new ModelInspectionChatTemplateEvidence(
+                    present: true,
+                    lengthCharacters: 128,
+                    sha256: Sha256),
+                false => new ModelInspectionChatTemplateEvidence(
+                    present: false,
+                    lengthCharacters: null,
+                    sha256: null),
+                null => new ModelInspectionChatTemplateEvidence(
+                    present: null,
+                    lengthCharacters: null,
+                    sha256: null)
+            },
             new ModelInspectionRuntimeIdentity(
-                "GraniteEdgeAI.ModelInspection.Worker",
-                "1.0.0",
-                protocolVersion: 1,
-                "llamasharp-0.27.0-cpu-win-x64-vocab-only-v1",
-                "0.27.0",
-                "0.27.0",
-                LlamaCppCommit,
-                "llama.dll",
-                "X64",
-                "VocabOnly",
-                usesCuda: false,
-                usesVulkan: false,
-                gpuLayerCount: 0),
-            Array.Empty<ModelInspectionObservation>());
+                workerId,
+                workerVersion,
+                protocolVersion,
+                runtimeProfile,
+                llamaSharpVersion,
+                backendPackageVersion,
+                mappedLlamaCppCommit,
+                nativeLibraryName,
+                processArchitecture,
+                inspectionMode,
+                usesCuda,
+                usesVulkan,
+                gpuLayerCount),
+            observations ?? Array.Empty<ModelInspectionObservation>());
     }
 }
 

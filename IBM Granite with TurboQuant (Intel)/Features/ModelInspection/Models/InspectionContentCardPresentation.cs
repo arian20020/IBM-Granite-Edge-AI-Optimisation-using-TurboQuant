@@ -164,6 +164,17 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
             "View technical details";
 
         /// <summary>
+        /// Gets whether the technical-details action can currently execute.
+        /// </summary>
+        public bool IsTechnicalDetailsEnabled { get; init; }
+
+        /// <summary>
+        /// Gets the accessible explanation for an unavailable details action.
+        /// </summary>
+        public string TechnicalDetailsAutomationHelpText { get; init; } =
+            string.Empty;
+
+        /// <summary>
         /// Gets whether the technical-details action is displayed.
         /// </summary>
         public Visibility TechnicalDetailsVisibility { get; init; } =

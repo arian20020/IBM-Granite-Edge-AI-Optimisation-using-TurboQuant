@@ -13,7 +13,7 @@ public sealed class ModelInspectionPresentationFactoryTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void CreateInitial_UsesTheRequestAndLiveCancelCommand()
+    public void CreateInitial_UsesSafeMetadataAndDisablesCancelBeforeRun()
     {
         ModelInspectionRequest request = PresentationTestData.CreateRequest();
         RecordingCommand cancelCommand = PresentationTestData.CreateCommand();
@@ -23,7 +23,7 @@ public sealed class ModelInspectionPresentationFactoryTests
                 request,
                 cancelCommand);
 
-        Assert.AreEqual("granite.gguf", presentation.ModelCard.ModelName);
+        Assert.AreEqual("Granite 4.1 3B", presentation.ModelCard.ModelName);
         Assert.AreEqual(
             InspectionModelBadgeState.ModelSelected,
             presentation.ModelCard.BadgeState);
@@ -42,7 +42,7 @@ public sealed class ModelInspectionPresentationFactoryTests
         Assert.AreEqual(
             Visibility.Visible,
             presentation.ActionCard.CancelAction.Visibility);
-        Assert.IsTrue(presentation.ActionCard.CancelAction.IsEnabled);
+        Assert.IsFalse(presentation.ActionCard.CancelAction.IsEnabled);
     }
 
     [UITestMethod]
@@ -136,14 +136,16 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [TestMethod]
     [TestCategory("WinUI")]
-    [DataRow((int)ModelInspectionOutcome.Ready)]
-    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings)]
-    [DataRow((int)ModelInspectionOutcome.ConversionRequired)]
-    [DataRow((int)ModelInspectionOutcome.IncompletePackage)]
-    [DataRow((int)ModelInspectionOutcome.Unsupported)]
-    [DataRow((int)ModelInspectionOutcome.Invalid)]
-    public void CreateTerminal_CompletedOutcomeOffersOnlyChooseAnother(
-        int outcomeValue)
+    [DataRow((int)ModelInspectionOutcome.Ready, 1, 2)]
+    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings, 1, 2)]
+    [DataRow((int)ModelInspectionOutcome.ConversionRequired, 1, 2)]
+    [DataRow((int)ModelInspectionOutcome.IncompletePackage, 2, 1)]
+    [DataRow((int)ModelInspectionOutcome.Unsupported, 1, 1)]
+    [DataRow((int)ModelInspectionOutcome.Invalid, 1, 1)]
+    public void CreateTerminal_CompletedOutcomeKeepsNavigationActiveAndFutureActionsExplicit(
+        int outcomeValue,
+        int expectedActiveCount,
+        int expectedFutureCount)
     {
         ModelInspectionOutcome outcome = (ModelInspectionOutcome)outcomeValue;
         RecordingCommand retryCommand = PresentationTestData.CreateCommand();
@@ -159,26 +161,31 @@ public sealed class ModelInspectionPresentationFactoryTests
                 retryCommand,
                 chooseCommand);
 
-        InspectionActionPresentation primary =
-            presentation.ActionCard.PrimaryAction;
-        Assert.AreEqual(Visibility.Visible, primary.Visibility);
-        Assert.AreEqual("Choose another model", primary.Text);
-        Assert.AreSame(chooseCommand, primary.Command);
-        Assert.AreEqual(
-            Visibility.Collapsed,
-            presentation.ActionCard.SecondaryActionOne.Visibility);
-        Assert.AreEqual(
-            Visibility.Collapsed,
-            presentation.ActionCard.SecondaryActionTwo.Visibility);
-        Assert.AreNotSame(retryCommand, primary.Command);
+        InspectionActionPresentation[] visible = new[]
+        {
+            presentation.ActionCard.SecondaryActionOne,
+            presentation.ActionCard.SecondaryActionTwo,
+            presentation.ActionCard.PrimaryAction
+        }
+        .Where(action => action.Visibility == Visibility.Visible)
+        .ToArray();
+        InspectionActionPresentation[] active = visible
+            .Where(action => action.Command is not null)
+            .ToArray();
+        InspectionActionPresentation[] future = visible
+            .Where(action => action.Command is null)
+            .ToArray();
 
-        string allActionText = string.Join(
-            " ",
-            primary.Text,
-            presentation.ActionCard.SecondaryActionOne.Text,
-            presentation.ActionCard.SecondaryActionTwo.Text);
-        Assert.IsFalse(allActionText.Contains("hardware", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(allActionText.Contains("convert", StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(expectedActiveCount, active.Length);
+        Assert.IsTrue(active.All(action =>
+            ReferenceEquals(chooseCommand, action.Command) &&
+            action.IsEnabled));
+        Assert.AreEqual(expectedFutureCount, future.Length);
+        Assert.IsTrue(future.All(action =>
+            action.Visibility == Visibility.Visible &&
+            !action.IsEnabled &&
+            action.AutomationHelpText == "Coming later"));
+        Assert.IsTrue(visible.All(action => !ReferenceEquals(retryCommand, action.Command)));
     }
 
     [UITestMethod]
@@ -198,7 +205,10 @@ public sealed class ModelInspectionPresentationFactoryTests
         Assert.AreEqual(
             InspectionModelBadgeState.NotInspected,
             presentation.ModelCard.BadgeState);
-        AssertRecoveryActions(presentation.ActionCard);
+        AssertRecoveryActions(
+            presentation.ActionCard,
+            expectedPrimaryText: "Restart inspection",
+            expectedFutureCount: 0);
     }
 
     [UITestMethod]
@@ -231,7 +241,10 @@ public sealed class ModelInspectionPresentationFactoryTests
         Assert.AreEqual(
             Visibility.Visible,
             presentation.ContentCard.DiagnosticCodeVisibility);
-        AssertRecoveryActions(presentation.ActionCard);
+        AssertRecoveryActions(
+            presentation.ActionCard,
+            expectedPrimaryText: "Retry inspection",
+            expectedFutureCount: 1);
 
         StringAssert.DoesNotContain(
             FlattenVisibleText(presentation),
@@ -261,7 +274,7 @@ public sealed class ModelInspectionPresentationFactoryTests
             visibleText,
             PresentationTestData.SensitiveTechnicalMarker,
             StringComparison.Ordinal);
-        Assert.AreEqual("granite.gguf", presentation.ModelCard.ModelName);
+        Assert.AreEqual("Granite 4.1 3B", presentation.ModelCard.ModelName);
     }
 
     private static ModelInspectionPagePresentation CreateTerminal(
@@ -275,14 +288,25 @@ public sealed class ModelInspectionPresentationFactoryTests
     }
 
     private static void AssertRecoveryActions(
-        InspectionActionCardPresentation actions)
+        InspectionActionCardPresentation actions,
+        string expectedPrimaryText,
+        int expectedFutureCount)
     {
         Assert.AreEqual(InspectionActionCardMode.Result, actions.Mode);
         Assert.AreEqual("Choose another model", actions.SecondaryActionOne.Text);
         Assert.AreEqual(Visibility.Visible, actions.SecondaryActionOne.Visibility);
-        Assert.AreEqual("Retry inspection", actions.PrimaryAction.Text);
+        Assert.AreEqual(expectedPrimaryText, actions.PrimaryAction.Text);
         Assert.AreEqual(Visibility.Visible, actions.PrimaryAction.Visibility);
-        Assert.AreEqual(Visibility.Collapsed, actions.SecondaryActionTwo.Visibility);
+        InspectionActionPresentation[] future =
+        [
+            actions.SecondaryActionOne,
+            actions.SecondaryActionTwo,
+            actions.PrimaryAction
+        ];
+        Assert.AreEqual(
+            expectedFutureCount,
+            future.Count(action => action.Command is null &&
+                action.Visibility == Visibility.Visible));
     }
 
     private static string FlattenVisibleText(
@@ -303,6 +327,14 @@ public sealed class ModelInspectionPresentationFactoryTests
             presentation.ModelCard.FileSize,
             presentation.ModelCard.InspectionChecksSummary
         ];
+        IEnumerable<string> checkText = presentation.ModelCard.InspectionChecks
+            .SelectMany(check => new[]
+            {
+                check.Title,
+                check.Detail,
+                check.StatusText,
+                check.AutomationName
+            });
         IEnumerable<string> outcomeText =
         [
             presentation.OutcomeCard.Title,
@@ -316,7 +348,10 @@ public sealed class ModelInspectionPresentationFactoryTests
             presentation.ContentCard.SupportingText,
             presentation.ContentCard.TertiaryText,
             presentation.ContentCard.DiagnosticCode,
-            presentation.ContentCard.DisclosureSummary
+            presentation.ContentCard.DisclosureSummary,
+            presentation.ContentCard.TechnicalDetailsActionText,
+            presentation.ContentCard.TechnicalDetailsAutomationName,
+            presentation.ContentCard.TechnicalDetailsAutomationHelpText
         ];
         IEnumerable<string> itemText = presentation.ContentCard.Items
             .Concat(presentation.ContentCard.ExpandedItems)
@@ -336,12 +371,19 @@ public sealed class ModelInspectionPresentationFactoryTests
             presentation.ActionCard.CancelAction.Text,
             presentation.ActionCard.SecondaryActionOne.Text,
             presentation.ActionCard.SecondaryActionTwo.Text,
-            presentation.ActionCard.PrimaryAction.Text
+            presentation.ActionCard.PrimaryAction.Text,
+            presentation.ActionCard.CancelAction.AutomationHelpText,
+            presentation.ActionCard.SecondaryActionOne.AutomationHelpText,
+            presentation.ActionCard.SecondaryActionTwo.AutomationHelpText,
+            presentation.ActionCard.PrimaryAction.AutomationHelpText,
+            presentation.ProgressAnnouncement,
+            presentation.OutcomeAnnouncement
         ];
 
         return string.Join(
             "\n",
             modelText
+                .Concat(checkText)
                 .Concat(outcomeText)
                 .Concat(contentText)
                 .Concat(itemText)

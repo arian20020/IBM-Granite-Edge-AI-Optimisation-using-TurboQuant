@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.UI.Xaml;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Models
 {
@@ -90,5 +91,16 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         /// </summary>
         public IReadOnlyList<InspectionCheckPresentation> InspectionChecks { get; init; } =
             Array.Empty<InspectionCheckPresentation>();
+
+        /// <summary>
+        /// Gets whether the inspection-check disclosure is displayed.
+        /// </summary>
+        public Visibility InspectionDetailsVisibility { get; init; } =
+            Visibility.Collapsed;
+
+        /// <summary>
+        /// Gets the page-owned target state of the inspection-check disclosure.
+        /// </summary>
+        public bool IsInspectionDetailsExpanded { get; init; }
     }
 }
