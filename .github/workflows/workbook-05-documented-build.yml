@@ -234,7 +234,7 @@ jobs:
           & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
               -RepositoryRoot $env:GITHUB_WORKSPACE -BundleDirectory $output `
               -RouteId 'route-a-merged-openvino' -Component 'genai' `
-              -SourceCommit '05e5c7670b597746f858946974d11f38e3baf42f' `
+              -SourceCommit 'bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0' `
               -RunId '${{ github.run_id }}' -RunAttempt ${{ github.run_attempt }}
       - name: Upload exact text-only GenAI evidence
         if: always()
@@ -279,7 +279,7 @@ jobs:
           --bundle '${{ runner.temp }}\build-bundle'
           --repository-root $env:GITHUB_WORKSPACE
           --route-id route-a-merged-openvino --component genai
-          --source-commit 05e5c7670b597746f858946974d11f38e3baf42f
+          --source-commit bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0
           --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
           --report '${{ runner.temp }}\route-a-genai-validation.md'
 

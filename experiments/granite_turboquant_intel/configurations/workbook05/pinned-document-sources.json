@@ -27,7 +27,7 @@
       "document_id": "RA-GENAI-README",
       "route_id": "route-a-merged-openvino",
       "repository_full_name": "openvinotoolkit/openvino.genai",
-      "commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+      "commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
       "path": "README.md",
       "maximum_bytes": 2097152
     },
@@ -35,7 +35,7 @@
       "document_id": "RA-GENAI-BUILD",
       "route_id": "route-a-merged-openvino",
       "repository_full_name": "openvinotoolkit/openvino.genai",
-      "commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+      "commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
       "path": "src/docs/BUILD.md",
       "maximum_bytes": 2097152
     },

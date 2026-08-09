@@ -191,7 +191,7 @@ class RouteAGenAIBuildContractTests(unittest.TestCase):
     def test_pins_source_and_requires_exact_runtime_decision(self) -> None:
         required = (
             "https://github.com/openvinotoolkit/openvino.genai.git",
-            "05e5c7670b597746f858946974d11f38e3baf42f",
+            "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
             "src/docs/BUILD.md",
             "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
             "RuntimeDecisionPath",

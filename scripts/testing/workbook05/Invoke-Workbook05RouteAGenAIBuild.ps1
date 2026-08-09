@@ -22,7 +22,7 @@ $RouteId = 'route-a-merged-openvino'
 $Component = 'genai'
 $RuntimeSourceCommit = 'b9a1f201c109e0bed74763934f79483cf6c4cbf4'
 $GenAIRepository = 'https://github.com/openvinotoolkit/openvino.genai.git'
-$GenAISourceCommit = '05e5c7670b597746f858946974d11f38e3baf42f'
+$GenAISourceCommit = 'bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0'
 $BuildDocument = 'src/docs/BUILD.md'
 $Generator = 'Visual Studio 17 2022'
 $WorkspaceRoot = 'C:\w5a'
@@ -357,7 +357,6 @@ try {
     )) {
         Assert-Passed -Result $pair[0] -Name $pair[1]
     }
-
     $actualRemote = Read-Result $remoteResult
     $actualHead = Read-Result $headResult
     $sourceStatus = Read-Result $statusResult

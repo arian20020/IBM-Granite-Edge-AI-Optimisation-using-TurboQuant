@@ -33,7 +33,7 @@ class SourceAdmissionSettingsTests(unittest.TestCase):
             settings["routes"]["route-a-merged-openvino"]["runtime"]["commit"],
         )
         self.assertEqual(
-            "05e5c7670b597746f858946974d11f38e3baf42f",
+            "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
             settings["routes"]["route-a-merged-openvino"]["genai"]["commit"],
         )
         self.assertEqual(

@@ -340,7 +340,7 @@ class SourceAdmissionBundleValidationTests(unittest.TestCase):
                     "https://github.com/openvinotoolkit/openvino.genai.git"
                 ),
                 commit=(
-                    "05e5c7670b597746f858946974d11f38e3baf42f"
+                    "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0"
                 ),
                 command_path=route_a_genai_command,
             ),

@@ -120,7 +120,7 @@ def valid_compatibility_record() -> dict[str, object]:
         "component": "genai",
         "runtime_route_id": "route-a-merged-openvino",
         "runtime_source_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
-        "genai_source_commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+        "genai_source_commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
         "openvino_config_directory": "C:/w5a/run/i-ov/runtime/cmake",
         "configure_command_id": "route-a-genai-configure",
         "build_command_id": "route-a-genai-build",
