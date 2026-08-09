@@ -1,564 +1,118 @@
 # Model Inspection presentation models
 
-**Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-08  
-**Reviewed application baseline:** `e382edf484d95b6833fc86c1f0c50f1a5483b1f0`
+**Status:** Complete presentation shapes for initial, live-progress, and terminal UI states
+**Last reviewed:** 2026-08-09
 
-[← Model Inspection architecture](../README.md) · [Inspection controls](../Controls/README.md) · [Presentation construction](../Presentation/README.md)
+[Back to Model Inspection architecture](../README.md)
 
-## Important naming clarification
+## Naming clarification
 
-`Models` in this folder means **UI presentation models**.
-
-It does not mean:
-
-- GGUF files;
-- OpenVINO model packages;
-- neural-network tensor objects;
-- runtime-loaded AI models;
-- domain inspection results.
-
-These classes are structured instructions telling the four reusable controls what to display.
+`Models` here means WinUI presentation data, not machine-learning model files
+or runtime model objects. Application domain contracts live in `Contracts` and
+worker/runtime implementation remains outside this folder.
 
 ## Purpose
 
-The folder separates display data from control geometry and from state-construction behavior.
+These types define the complete data supplied to the four Model Inspection
+controls:
 
 ```text
-Models/
-    → defines which presentation data exists
-
-Presentation/
-    → constructs an approved presentation state
-
-ModelInspectionPage or future ViewModel
-    → chooses when that state is applied
-
-Controls/
-    → renders the supplied presentation
+ModelInspectionViewModel state
+    -> Presentation factories
+    -> Models (this folder)
+    -> Controls
 ```
 
-This allows one control layout to support many states without embedding state-specific decisions directly in XAML code-behind.
+The page replaces root presentation snapshots when request, progress, result,
+or command state changes.
 
-## Relationship to the `Presentation` folder
+## Root presentation types
 
-The new [`Presentation`](../Presentation/README.md) folder does not replace these models.
+- `InspectionModelCardPresentation` supplies filename, quick-scan display facts,
+  badge, compact/detailed mode, and completed-check details.
+- `InspectionContentCardPresentation` supplies progress or finding mode, rows,
+  supporting text, diagnostics, disclosure, and optional technical action.
+- `InspectionOutcomePresentation` supplies semantic result kind, visual tone,
+  icon, title, message, and accessible name.
+- `InspectionActionCardPresentation` supplies inspecting/result layout and
+  fixed Cancel/secondary/primary action slots.
+
+Safe defaults keep every binding non-null:
 
 ```text
-InspectionContentCardPresentation
-    = data contract
-
-InitialInspectionProgressPresentationFactory
-    = construction behavior that fills the contract
-```
-
-The first factory currently creates the approved five-stage initial progress state. Future runtime/domain results must still be converted into these UI-facing models only above the runtime and classifier boundaries.
-
-## Responsibility boundary
-
-### This folder owns
-
-- control presentation data;
-- semantic UI modes and statuses;
-- action slots and commands;
-- safe empty/hidden defaults;
-- row/check data for repeaters;
-- the one mutable Expander state currently needed by content presentation.
-
-### This folder does not own
-
-- presentation-factory orchestration;
-- filesystem access;
-- GGUF or OpenVINO parsing;
-- native runtime evidence;
-- classification rules;
-- cancellation-token ownership;
-- hardware-fit decisions;
-- onboarding navigation.
-
-## Object relationships
-
-```text
-InspectionModelCardPresentation
-└── IReadOnlyList<InspectionCheckPresentation>
-
-InspectionContentCardPresentation
-├── IReadOnlyList<InspectionContentItemPresentation> Items
-└── IReadOnlyList<InspectionContentItemPresentation> ExpandedItems
-
-InspectionActionCardPresentation
-├── InspectionActionPresentation CancelAction
-├── InspectionActionPresentation SecondaryActionOne
-├── InspectionActionPresentation SecondaryActionTwo
-└── InspectionActionPresentation PrimaryAction
-
-InspectionOutcomePresentation
-└── self-contained outcome banner data
-```
-
-## Root presentation classes
-
-### `InspectionModelCardPresentation.cs`
-
-Supplies both compact and detailed model-card layouts.
-
-Fields include:
-
-```text
-DisplayMode
-BadgeState
-ModelName
-CompactSummary
-FormatShortName
-OverviewFormatBadgeText
-Publisher
-FormatName
-Quantisation
-ParameterCount
-ModelType
-DeclaredContext
-FileSize
-InspectionChecksSummary
-InspectionChecks
-```
-
-Safe default:
-
-```csharp
 InspectionModelCardPresentation.Empty
-```
-
-The default uses empty strings, Compact mode, ModelSelected badge, and an empty checks list. It prevents null binding paths while the page has not supplied real presentation data.
-
-[Open file](./InspectionModelCardPresentation.cs)
-
-### `InspectionContentCardPresentation.cs`
-
-Supplies both the progress and findings templates.
-
-Main groups of data:
-
-```text
-Structure
-    Mode
-    SectionTitle
-    ProgressSummary
-    Items
-
-Optional findings support
-    SupportingText and Visibility
-    TertiaryText, Status, and Visibility
-    DiagnosticCode, Status, and Visibility
-
-Disclosure/expanded report
-    DisclosureStatus
-    DisclosureSummary
-    collapsed and expanded labels
-    IsExpanded
-    DisclosureVisibility
-    ExpandedItems
-
-Separate technical action
-    OpenTechnicalDetailsCommand
-    action text
-    automation name
-    Visibility
-```
-
-Safe default:
-
-```csharp
 InspectionContentCardPresentation.Hidden
-```
-
-`Hidden` returns a fresh safe snapshot rather than a shared mutable singleton. Each `InspectionContentCard` also installs its own hidden presentation instance after XAML initialization. This is the only root presentation currently implementing `INotifyPropertyChanged`; `IsExpanded` is mutable so a two-way XAML binding can update disclosure state and notify bound text.
-
-[Open file](./InspectionContentCardPresentation.cs)
-
-### `InspectionOutcomePresentation.cs`
-
-Supplies the high-level outcome banner:
-
-```text
-Kind
-Tone
-IconSymbol
-Title
-Message
-AutomationName
-```
-
-Safe default:
-
-```csharp
 InspectionOutcomePresentation.Hidden
-```
-
-The semantic `Kind` determines whether an outcome exists. `Tone` determines the visual color family. Keeping these separate allows multiple outcomes to share one tone without losing semantic identity.
-
-[Open file](./InspectionOutcomePresentation.cs)
-
-### `InspectionActionCardPresentation.cs`
-
-Supplies either the inspecting action layout or the completed result action layout:
-
-```text
-Mode
-Title
-Message
-AutomationName
-CancelAction
-SecondaryActionOne
-SecondaryActionTwo
-PrimaryAction
-```
-
-Safe default:
-
-```csharp
 InspectionActionCardPresentation.Hidden
+InspectionActionPresentation.Hidden
 ```
 
-Fixed action slots keep XAML layout predictable. Optional actions use a hidden action presentation instead of null.
+`InspectionContentCardPresentation.Hidden` returns a fresh instance because its
+`IsExpanded` property is mutable and notifies bindings.
 
-[Open file](./InspectionActionCardPresentation.cs)
+## Child presentation types
 
-## Child presentation classes
-
-### `InspectionContentItemPresentation.cs`
-
-Represents one progress stage, finding, warning, diagnostic row, or expanded report row.
+`InspectionContentItemPresentation` represents progress, finding, warning,
+error, or report rows. Progress rows include:
 
 ```text
 StageNumber
 Title
 Detail
-DetailVisibility
-Status
-StatusText
+Status / StatusText
 IsActive
+StageFraction (nullable)
 ShowConnector
 AutomationName
 ```
 
-The same type is deliberately reused across multiple DataTemplates because the rows share a common semantic shape.
+`StageFraction` is real progress only. `null` selects an indeterminate active
+ring; determinate values are converted to percentage by the control helper.
 
-The initial factory currently supplies these five progress titles:
+`InspectionCheckPresentation` represents compact completed checks without
+progress-only state. `InspectionActionPresentation` represents one command
+slot with text, command, parameter, enabled/visible state, automation name, and
+minimum width.
 
-```text
-Check model package
-Read model configuration
-Validate tokenizer and chat setup
-Validate model structure
-Confirm core runtime compatibility
-```
+## Semantic enums
 
-The titles deliberately exclude Vulkan, TurboQuant, GPU and Hardware Fit. Those belong to later backend verification rather than pre-Hardware-Fit model inspection.
+- model card: compact/detailed mode, badge state, check status;
+- content card: hidden/progress and seven terminal finding modes, plus explicit
+  neutral/waiting/active/passed/warning/error/information row status;
+- outcome card: hidden, all six model outcomes, cancelled, and operational
+  failure with a separate tone enum;
+- action card: hidden, inspecting, or result.
 
-[Open file](./InspectionContentItemPresentation.cs)
+Semantic identity remains separate from color/tone so accessibility and tests
+do not infer meaning from styling.
 
-### `InspectionCheckPresentation.cs`
+## Ownership boundary
 
-Represents one completed model-inspection check shown in the detailed model card.
+These presentation types may use WinUI `Visibility`, control `Symbol`, and
+`ICommand`. They must not cross into runtime adapters, services, classifiers,
+or worker projects. They contain no full model path, native handle, worker
+record, raw failure payload, or chat-template content.
 
-```text
-Title
-Detail
-Status
-StatusText
-AutomationName
-```
+## Tests
 
-It is separate from `InspectionContentItemPresentation` because detailed completed checks do not need stage numbers, active-ring state, or connector rules.
+Presentation shape and mutation behavior are covered by:
 
-[Open file](./InspectionCheckPresentation.cs)
+- `InspectionContentCardPresentationTests`
+- `InitialInspectionProgressPresentationTests`
+- `InspectionProgressPresentationFactoryTests`
+- `ModelInspectionPresentationFactoryTests`
+- `InspectionVisualStateGuardTests`
 
-### `InspectionActionPresentation.cs`
+## Scope and non-claims
 
-Represents one button slot:
-
-```text
-Text
-Command
-CommandParameter
-IsEnabled
-Visibility
-AutomationName
-MinimumWidth
-```
-
-Safe default:
-
-```csharp
-InspectionActionPresentation.Hidden
-```
-
-The hidden default provides a non-null object for every compiled binding, even when a result state does not use all secondary action slots.
-
-[Open file](./InspectionActionPresentation.cs)
-
-## Mode and status enums
-
-### Model card
-
-#### `InspectionModelCardMode.cs`
-
-```text
-Compact
-Detailed
-```
-
-[Open file](./InspectionModelCardMode.cs)
-
-#### `InspectionModelBadgeState.cs`
-
-Represents the compact status badge, including states such as model selected, inspected, source model, incomplete, unsupported, invalid, not inspected, and result unknown.
-
-[Open file](./InspectionModelBadgeState.cs)
-
-#### `InspectionCheckStatus.cs`
-
-```text
-Passed
-Warning
-Error
-Information
-```
-
-Used by detailed inspection-check rows.
-
-[Open file](./InspectionCheckStatus.cs)
-
-### Content card
-
-#### `InspectionContentCardMode.cs`
-
-```text
-Hidden
-Progress
-Warnings
-ConversionRequired
-IncompletePackage
-Unsupported
-Invalid
-Cancelled
-OperationalFailure
-```
-
-`Progress` uses the progress layout. All completed non-ready modes use the shared findings layout.
-
-[Open file](./InspectionContentCardMode.cs)
-
-#### `InspectionContentStatus.cs`
-
-```text
-Neutral
-Waiting
-Active
-Passed
-Warning
-Error
-Information
-```
-
-Used by stage markers, finding icons, status labels, diagnostic surfaces, and disclosure headers.
-
-[Open file](./InspectionContentStatus.cs)
-
-### Outcome card
-
-#### `InspectionOutcomePresentationKind.cs`
-
-```text
-Hidden
-Ready
-ReadyWithWarnings
-ConversionRequired
-IncompletePackage
-Unsupported
-Invalid
-Cancelled
-OperationalFailure
-```
-
-This is the semantic result identity exposed by the UI layer.
-
-[Open file](./InspectionOutcomePresentationKind.cs)
-
-#### `InspectionOutcomeTone.cs`
-
-```text
-Success
-Warning
-Information
-Error
-Neutral
-```
-
-Multiple semantic outcomes can share one visual tone.
-
-[Open file](./InspectionOutcomeTone.cs)
-
-### Action card
-
-#### `InspectionActionCardMode.cs`
-
-```text
-Hidden
-Inspecting
-Result
-```
-
-[Open file](./InspectionActionCardMode.cs)
-
-## Default and hidden object strategy
-
-The controls use non-null defaults:
-
-```text
-InspectionModelCardPresentation.Empty
-InspectionContentCardPresentation.Hidden
-InspectionOutcomePresentation.Hidden
-InspectionActionCardPresentation.Hidden
-InspectionActionPresentation.Hidden
-```
-
-Benefits:
-
-- compiled binding paths remain safe during construction;
-- controls can initialize before real page state exists;
-- optional action slots do not need null checks in XAML;
-- hidden state is explicit.
-
-### Mutable hidden-state isolation
-
-The immutable defaults may remain shared, but `InspectionContentCardPresentation.Hidden` is a factory-style property that returns a new instance because `IsExpanded` is mutable. Each content-card control therefore owns independent disclosure state while preserving non-null binding paths during construction.
-
-## WinUI dependencies
-
-These presentation types intentionally belong to the UI layer and currently use:
-
-```text
-Microsoft.UI.Xaml.Visibility
-Microsoft.UI.Xaml.Controls.Symbol
-System.Windows.Input.ICommand
-INotifyPropertyChanged
-```
-
-That is acceptable for control presentation, but future runtime/domain types must remain framework-neutral.
-
-Bad future boundary:
-
-```text
-llama.cpp adapter returns InspectionOutcomePresentation
-```
-
-Recommended boundary:
-
-```text
-llama.cpp/OpenVINO adapter
-    → framework-neutral runtime evidence
-
-ModelInspectionClassifier
-    → framework-neutral ModelInspectionResult
-
-presentation factory or ViewModel
-    → WinUI presentation objects
-```
-
-## Mutation model
-
-Most presentation properties are `init`-only. The page replaces the complete root presentation when a significant state changes.
-
-Current exception:
-
-```text
-InspectionContentCardPresentation.IsExpanded
-```
-
-This property changes in place and raises `PropertyChanged` because the Expander uses two-way binding.
-
-Future dynamic progress could use either:
-
-1. replace complete immutable presentation snapshots; or
-2. introduce a dedicated observable ViewModel/state object.
-
-Mixing both patterns without a clear rule would make binding updates difficult to reason about.
-
-## Tests and evidence
-
-Presentation objects are exercised through:
-
-- [`InitialInspectionProgressPresentationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs)
-- [`InspectionContentTemplateSelectorTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs)
-- [`InspectionContentCardPresentationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs)
-- [`ModelInspectionPageNavigationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs)
-- [`OnboardingModelInspectionNavigationTests.cs`](../../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs)
-
-The new initial-progress test protects:
-
-- exact five-stage wording and order;
-- initial active/waiting status;
-- connector count;
-- completed-stage summary;
-- separation from backend-specific terminology.
-
-Dedicated presentation-contract tests are still needed for:
-
-- every enum-to-layout mapping;
-- every outcome kind/tone combination;
-- action-slot visibility and command data;
-- required accessibility text;
-- future presentation factories.
-
-## Implemented now
-
-- four root presentation classes;
-- three child presentation classes;
-- explicit mode, status, tone, badge, and outcome enums;
-- non-null hidden/default objects;
-- empty list defaults;
-- one observable expanded-state property;
-- action-command slots;
-- accessibility fields throughout presentation data;
-- a separate initial-progress factory using these contracts.
-
-## Not implemented and non-claims
-
-- these classes do not contain runtime evidence;
-- no classifier creates final presentations from real inspection results;
-- no ViewModel owns the complete state transition graph;
-- no domain result or diagnostic-code contract exists yet;
-- enum values alone do not mean the corresponding runtime route is implemented;
-- the presence of a core-runtime stage does not mean CPU, Vulkan or TurboQuant has passed.
-
-## Known limitations and change hazards
-
-- the folder name `Models` is ambiguous in an AI application;
-- presentation types are coupled to WinUI and should not cross into runtime adapters;
-
-- adding an enum value requires selector, visual-state, presentation-factory, test, and documentation review;
-- fixed action slots are simple now but may need a different layout strategy if result actions become highly variable;
-- required versus optional fields are currently enforced mainly by page/control/factory construction rather than domain-level contracts.
-
-## Current and future organization
-
-```text
-ModelInspection/
-├── Models/              ← current WinUI presentation data contracts
-├── Presentation/        ← current presentation construction behavior
-├── Domain/              ← future framework-neutral results and findings
-├── Services/            ← future workflow orchestration
-├── Runtime/Gguf/        ← future llama.cpp adapter
-├── Runtime/OpenVino/    ← future OpenVINO adapter
-└── Controls/
-```
-
-A future rename of `Models` should be performed only with coordinated namespace, XAML `x:DataType`, project, test, and documentation updates.
+Enum values describe display states; they do not prove every result is produced
+by the current classifier. The live classifier currently produces `Ready` or
+`ReadyWithWarnings` from approved GGUF CPU/VocabOnly evidence. No presentation
+type proves OpenVINO, TurboQuant, Vulkan/GPU, context creation, inference,
+benchmarking, conversion execution, Hardware Fit, or chat execution.
 
 ## Related documentation
 
-- [Model Inspection architecture](../README.md)
-- [Inspection controls](../Controls/README.md)
 - [Presentation construction](../Presentation/README.md)
-- [ADR-002: core inspection versus backend verification](../../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
+- [Inspection controls](../Controls/README.md)
+- [Application contracts](../Contracts/README.md)

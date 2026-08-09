@@ -1,5 +1,7 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using System;
 
@@ -12,6 +14,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     {
         // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
+        private string? _lastAnnouncedAutomationName;
 
         /// <summary>
         /// Identifies the bindable Presentation dependency property.
@@ -65,6 +68,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             private set => SetValue(CardVisibilityProperty, value);
         }
 
+        internal int LiveRegionChangeNotificationCount { get; private set; }
+
         /// <summary>
         /// Responds whenever the page or ViewModel replaces Presentation.
         /// </summary>
@@ -93,8 +98,14 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                     : Visibility.Visible;
 
             // xaml visual states are unavailable during dependency-property initialization
-            if (!_isInitialized || CardVisibility == Visibility.Collapsed)
+            if (!_isInitialized)
             {
+                return;
+            }
+
+            if (CardVisibility == Visibility.Collapsed)
+            {
+                _lastAnnouncedAutomationName = null;
                 return;
             }
 
@@ -122,6 +133,25 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 throw new InvalidOperationException(
                     $"The outcome-card visual state '{stateName}' was not found.");
             }
+
+            AutomationProperties.SetName(this, presentation.AutomationName);
+            if (!string.Equals(
+                    presentation.AutomationName,
+                    _lastAnnouncedAutomationName,
+                    StringComparison.Ordinal))
+            {
+                _lastAnnouncedAutomationName = presentation.AutomationName;
+                RaiseLiveRegionChanged();
+            }
+        }
+
+        private void RaiseLiveRegionChanged()
+        {
+            AutomationPeer peer =
+                FrameworkElementAutomationPeer.FromElement(this) ??
+                FrameworkElementAutomationPeer.CreatePeerForElement(this);
+            peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+            LiveRegionChangeNotificationCount++;
         }
     }
 }

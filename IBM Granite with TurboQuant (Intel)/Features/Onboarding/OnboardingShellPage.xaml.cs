@@ -15,6 +15,10 @@ namespace GraniteEdgeAI.Features.Onboarding
         // currently listening to.
         private ModelImportPage? _attachedModelImportPage;
 
+        // Stores the Model Inspection page whose choose-another request the
+        // shell is currently listening to.
+        private ModelInspectionPage? _attachedModelInspectionPage;
+
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
         /// </summary>
@@ -67,6 +71,31 @@ namespace GraniteEdgeAI.Features.Onboarding
         }
 
         /// <summary>
+        /// Subscribes the shell to one active Model Inspection page.
+        /// </summary>
+        internal void AttachModelInspectionPage(
+            ModelInspectionPage modelInspectionPage)
+        {
+            ArgumentNullException.ThrowIfNull(modelInspectionPage);
+
+            // Reattaching the same Frame content must not duplicate the event
+            // handler and therefore cannot cause duplicate reset navigation.
+            if (ReferenceEquals(
+                _attachedModelInspectionPage,
+                modelInspectionPage))
+            {
+                return;
+            }
+
+            // A page replaced by successful Frame navigation is no longer
+            // allowed to drive the shell.
+            DetachModelInspectionPage();
+            _attachedModelInspectionPage = modelInspectionPage;
+            _attachedModelInspectionPage.ChooseAnotherModelRequested +=
+                ModelInspectionPage_ChooseAnotherModelRequested;
+        }
+
+        /// <summary>
         /// Navigates the onboarding frame to the model-inspection stage.
         /// </summary>
         /// <param name="request">
@@ -81,17 +110,30 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Never navigate without the validated request created by Model Import.
             ArgumentNullException.ThrowIfNull(request);
 
+            object? previousContent = StageFrame.Content;
+
             // Ask the onboarding Frame to create ModelInspectionPage.
             // The request becomes NavigationEventArgs.Parameter on that page.
             bool navigationSucceeded = StageFrame.Navigate(
                 typeof(ModelInspectionPage),
                 request);
 
-            // Preserve the current stage when WinUI reports navigation failure.
-            if (!navigationSucceeded)
+            // A cancelled Navigating event can leave Navigate reporting true.
+            // Confirm the destination before transferring any ownership.
+            if (!navigationSucceeded ||
+                ReferenceEquals(StageFrame.Content, previousContent) ||
+                StageFrame.Content is not ModelInspectionPage modelInspectionPage ||
+                !ReferenceEquals(modelInspectionPage.Request, request))
             {
                 return false;
             }
+
+            // Onboarding owns navigation through explicit stage transitions.
+            // Do not retain the import page or its path-bearing state in the
+            // Frame journal where Back could resurrect it outside that state.
+            StageFrame.BackStack.Clear();
+
+            AttachModelInspectionPage(modelInspectionPage);
 
             // Model Import is no longer the active page after navigation.
             DetachModelImportPage();
@@ -144,6 +186,56 @@ namespace GraniteEdgeAI.Features.Onboarding
         }
 
         /// <summary>
+        /// Responds only to the currently active inspection page and starts a
+        /// fresh model-selection journey.
+        /// </summary>
+        private void ModelInspectionPage_ChooseAnotherModelRequested(
+            object? sender,
+            EventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedModelInspectionPage))
+            {
+                return;
+            }
+
+            NavigateToFreshModelImport();
+        }
+
+        /// <summary>
+        /// Replaces the inspection page with a new Model Import page without
+        /// retaining Frame back-stack state as the active journey.
+        /// </summary>
+        private bool NavigateToFreshModelImport()
+        {
+            object? previousContent = StageFrame.Content;
+            bool navigationSucceeded =
+                StageFrame.Navigate(typeof(ModelImportPage));
+
+            // Frame.Navigate can report true after a cancelled Navigating
+            // event, so the expected content is the completion boundary.
+            if (!navigationSucceeded ||
+                ReferenceEquals(StageFrame.Content, previousContent) ||
+                StageFrame.Content is not ModelImportPage modelImportPage)
+            {
+                return false;
+            }
+
+
+            // A new selection is a new journey. Remove the inspection page
+            // and its request from the Frame journal before exposing the new
+            // active stage.
+            StageFrame.BackStack.Clear();
+
+            // Transfer event ownership only after the new page exists.
+            AttachModelImportPage(modelImportPage);
+            DetachModelInspectionPage();
+
+            CurrentStage = OnboardingStage.ImportModel;
+            StageIndicator.CurrentStage = CurrentStage;
+            return true;
+        }
+
+        /// <summary>
         /// Removes the current event subscription.
         /// </summary>
         private void DetachModelImportPage()
@@ -160,6 +252,21 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             // Release the reference to the old page.
             _attachedModelImportPage = null;
+        }
+
+        /// <summary>
+        /// Removes the current Model Inspection event subscription.
+        /// </summary>
+        private void DetachModelInspectionPage()
+        {
+            if (_attachedModelInspectionPage is null)
+            {
+                return;
+            }
+
+            _attachedModelInspectionPage.ChooseAnotherModelRequested -=
+                ModelInspectionPage_ChooseAnotherModelRequested;
+            _attachedModelInspectionPage = null;
         }
     }
 }

@@ -141,7 +141,7 @@ public sealed class WorkerMessageSequenceValidatorTests
             validator.AcceptProgress(CreateProgress(
                 RequestId,
                 WorkerStage.ReadModelConfiguration,
-                completed: 3)));
+                completed: 1)));
     }
 
     [TestMethod]
@@ -151,13 +151,15 @@ public sealed class WorkerMessageSequenceValidatorTests
         validator.AcceptProgress(CreateProgress(
             RequestId,
             WorkerStage.ValidateTokenizerAndChatSetup,
-            completed: 2));
+            completed: 3,
+            status: WorkerStageStatus.Completed));
 
         Assert.ThrowsExactly<WorkerProtocolException>(() =>
             validator.AcceptProgress(CreateProgress(
                 RequestId,
-                WorkerStage.ValidateModelStructure,
-                completed: 1)));
+                WorkerStage.ValidateTokenizerAndChatSetup,
+                completed: 2,
+                status: WorkerStageStatus.Active)));
     }
 
     [TestMethod]
@@ -257,7 +259,8 @@ public sealed class WorkerMessageSequenceValidatorTests
     private static WorkerProgressMessage CreateProgress(
         Guid requestId,
         WorkerStage stage,
-        int completed)
+        int completed,
+        WorkerStageStatus status = WorkerStageStatus.Active)
     {
         return new WorkerProgressMessage
         {
@@ -265,7 +268,7 @@ public sealed class WorkerMessageSequenceValidatorTests
             MessageType = WorkerMessageKind.Progress,
             RequestId = requestId,
             Stage = stage,
-            StageStatus = WorkerStageStatus.Active,
+            StageStatus = status,
             CompletedStageCount = completed,
             TotalStageCount = 5,
             StageFraction = null

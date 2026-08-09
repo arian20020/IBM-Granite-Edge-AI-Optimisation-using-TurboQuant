@@ -21,7 +21,7 @@ public sealed class BuildWorkflowContractTests
         StringAssert.Contains(workflow, "tests/ContractTests");
         StringAssert.Contains(workflow, "CONTRACT_TEST_PROJECT");
         StringAssert.Contains(workflow, "Run Model Inspection contract tests");
-        StringAssert.Contains(workflow, "--minimum-expected-tests 133");
+        StringAssert.Contains(workflow, "--minimum-expected-tests 149");
     }
 
     [TestMethod]
@@ -37,7 +37,7 @@ public sealed class BuildWorkflowContractTests
             "The dedicated contract project must run as a complete suite without a redundant category filter.");
         StringAssert.Contains(
             contractStep,
-            "--minimum-expected-tests 133",
+            "--minimum-expected-tests 149",
             "The contract floor must remain aligned with the mandatory contract suite.");
     }
 
@@ -226,16 +226,34 @@ public sealed class BuildWorkflowContractTests
         }
         StringAssert.Contains(
             workflow,
-            "$minimumExpectedTests = 229",
+            "$minimumExpectedTests = 330",
             "The permanent workflow must protect the current packaged application floor.");
-        StringAssert.Contains(
-            workflow,
-            "GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests",
-            "The permanent workflow must require the application worker-composition class.");
-        StringAssert.Contains(
-            workflow,
-            "Expected exactly 12 passing application worker-composition tests",
-            "The permanent workflow must protect every application worker-composition execution.");
+        string[] protectedApplicationClassFragments =
+        [
+            "ModelInspectionRequestFactoryTests' = 10",
+            "ModelInspectionContractTests' = 33",
+            "ModelInspectionProbeResultTests' = 4",
+            "WorkerRequestMapperTests' = 3",
+            "WorkerResultMapperTests' = 9",
+            "WorkerProcessLlamaModelProbeTests' = 7",
+            "ModelInspectionClassifierTests' = 5",
+            "ModelInspectionServiceTests' = 4",
+            "DelegateCommandTests' = 2",
+            "ModelInspectionViewModelTests' = 11",
+            "InspectionProgressPresentationFactoryTests' = 10",
+            "ModelInspectionPresentationFactoryTests' = 17",
+            "InspectionVisualStateGuardTests' = 5",
+            "ModelInspectionPageNavigationTests' = 12",
+            "OnboardingModelInspectionNavigationTests' = 12",
+            "ModelInspectionWorkerCompositionTests' = 13"
+        ];
+        foreach (string fragment in protectedApplicationClassFragments)
+        {
+            StringAssert.Contains(
+                workflow,
+                fragment,
+                $"The permanent workflow is missing the exact application guard: {fragment}");
+        }
         StringAssert.Contains(
             focusedProcessWorkflow,
             "scripts/model-inspection",

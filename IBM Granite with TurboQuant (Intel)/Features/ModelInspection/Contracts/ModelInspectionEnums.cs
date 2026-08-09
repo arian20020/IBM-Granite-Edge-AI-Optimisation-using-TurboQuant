@@ -36,6 +36,18 @@ internal enum ModelInspectionStage
 }
 
 /// <summary>
+/// Describes the truthful state reported for one inspection stage.
+/// </summary>
+internal enum ModelInspectionStageStatus
+{
+    Active,
+    Completed,
+    Warning,
+    Failed,
+    Cancelled
+}
+
+/// <summary>
 /// Describes the user-facing importance of one classified finding.
 /// </summary>
 internal enum ModelInspectionFindingSeverity

@@ -3,7 +3,7 @@
 | Metadata | Value |
 |---|---|
 | Document ID | `TEST-COV-MODEL-INSPECTION-001` |
-| Status | Baseline audit retained; scoped GGUF implementation evidence in progress; exact-head closure pending |
+| Status | Baseline audit retained; scoped GGUF implementation reconciled locally; hosted exact-head closure pending |
 | Audit date | 2026-08-08 |
 | Current evidence date | 2026-08-09 |
 | Audited commit | `8f00a64a40e916872abfd6b72721ef86f223bab9` |
@@ -23,7 +23,8 @@ behavior it does not execute.
 The original audit was read-only and its retained-execution table remains
 historical. Rows that explicitly name fresh local RED/GREEN or full-suite
 results are a current implementation addendum; they do not become exact-head
-hosted closure evidence until the final reconciliation gate runs.
+hosted closure evidence until the final repository head is verified by the
+hosted release workflow.
 
 The matrix applies the Project Testing Standard rather than creating a second
 generic testing method.
@@ -55,9 +56,9 @@ Matrix IDs are audit identifiers. They do not create product requirement IDs.
 
 | Classification | Rows |
 |---|---:|
-| `IMPLEMENTED - TEST NOW` | 50 |
+| `IMPLEMENTED - TEST NOW` | 53 |
 | `PARTIALLY IMPLEMENTED` | 6 |
-| `NOT YET IMPLEMENTED` | 4 |
+| `NOT YET IMPLEMENTED` | 1 |
 | `DEFERRED / OUT OF CURRENT GATE` | 2 |
 | `SUPERSEDED` | 1 |
 | **Total** | **63** |
@@ -66,10 +67,10 @@ Matrix IDs are audit identifiers. They do not create product requirement IDs.
 
 | Coverage | Rows |
 |---|---:|
-| `Adequate` | 18 |
-| `Partial` | 29 |
-| `None` | 9 |
-| **Current behavior total** | **56** |
+| `Adequate` | 35 |
+| `Partial` | 22 |
+| `None` | 2 |
+| **Current behavior total** | **59** |
 
 ### Protocol field audit
 
@@ -106,29 +107,29 @@ gaps below.
 | MI-TC-004 | `WF-IMP-001`, `TS` | GGUF metadata decoding and bounded parsing; `GgufQuickScanner` | every official type, order, duplicates, invalid UTF-8, excessive count/string/array/depth/key bytes, cancellation | packaged scanner tests and generated fixtures | Adequate | IMPLEMENTED - TEST NOW | Preserve explicit parser bounds and fixture manifest |
 | MI-TC-005 | `WF-IMP-001` | Scanner routing, result invariants and fallback display mapping | recognised GGUF, non-GGUF, unavailable optional metadata, invalid result combinations | packaged tests; `ModelQuickScannerTests`, `ModelQuickScanResultTests` | Adequate | IMPLEMENTED - TEST NOW | Preserve exact success/failure result mapping |
 | MI-TC-006 | `WF-IMP-001`, `TS` | Scanner filesystem boundary | directory, locked/inaccessible, read-only, spaces, Unicode, unusual name, long path | request-factory coverage handles several failures; scanner boundary lacks direct path-class tests | Partial | IMPLEMENTED - TEST NOW | Add directory, lock, read-only, spaces/Unicode and feasible long-path scanner tests |
-| MI-TC-007 | `WF-IMP-001`, `TS` | Immutable request creation and handoff revalidation; `ModelInspectionRequestFactory` | missing/directory/non-GGUF/locked/changed file, length/time identity mismatch, stale scan | packaged tests; `ModelInspectionRequestFactoryTests` | Adequate | IMPLEMENTED - TEST NOW | Preserve exact identity and fail-closed revalidation |
+| MI-TC-007 | `WF-IMP-001`, `TS` | Immutable request creation and handoff revalidation; `ModelInspectionRequestFactory` | missing/directory/non-GGUF/locked/changed file, length/time identity mismatch, stale scan | the real scanner captures length and UTC last-write time while its read handle excludes writers; packaged request-factory tests prove unchanged real-scan success and reject same-length replacement with a changed timestamp plus prior missing/lock/size failures | Adequate | IMPLEMENTED - TEST NOW | Preserve scan-time/current identity binding and fail-closed revalidation; worker hashing remains the stronger post-request boundary |
 | MI-TC-008 | `WF-IMP-001`, `TS` | Source no-write guarantee and path-minimised diagnostics | read-only source, before/after identity, exception/path leakage | no-write behavior is indirect; diagnostics do not exercise all filesystem failures | Partial | IMPLEMENTED - TEST NOW | Add read-only/integrity assertions and full-path-negative diagnostics |
 
 ## Matrix B - navigation, presentation and accessibility
 
 | ID | Source | Behavior and owner | Inputs, boundaries and realistic failures | Correct layer and existing evidence | Coverage | Implementation class | Required action |
 |---|---|---|---|---|---|---|---|
-| MI-TC-009 | `WF-IMP-001`, `WF-INS-001` | Import -> onboarding -> inspection preserves the exact request instance | event forwarding, reconstruction with equal values, replacement request | packaged navigation tests assert values; a direct helper test asserts identity but bypasses the event chain | Partial | IMPLEMENTED - TEST NOW | Assert reference identity through the real event/navigation pipeline |
-| MI-TC-010 | `WF-INS-001`, `TS` | Shell subscription replacement/detach and failed navigation handling | page replacement, unload, repeated attach, `Frame.Navigate` returns false | no direct test | None | IMPLEMENTED - TEST NOW | Add lifecycle and controlled navigation-failure tests |
-| MI-TC-011 | `WF-INS-001` | `ModelInspectionPage` navigation parameter contract | valid exact request, null, wrong type | valid request covered; wrong/missing parameter absent | Partial | IMPLEMENTED - TEST NOW | Add actual navigation tests for null and wrong parameter |
-| MI-TC-012 | `WF-INS-001` | Actual page `Loaded` composition | filename without path, hidden outcome, compact model, five stages, inspecting action, visible disabled Cancel | helper/factory tests do not execute `ModelInspectionPage_Loaded` | None | IMPLEMENTED - TEST NOW | Add packaged UI-thread Loaded composition test |
-| MI-TC-013 | `WF-INS-001`, `TS` | Repeated Loaded, re-entry and navigate-away/back lifecycle | duplicate Loaded, new request after navigation, stale visual state | no direct test | None | IMPLEMENTED - TEST NOW | Prove one application per navigation and correct reset for a new request |
+| MI-TC-009 | `WF-IMP-001`, `WF-INS-001` | Import -> onboarding -> inspection preserves the exact request instance | event forwarding, reconstruction with equal values, replacement request | packaged `ModelImportRequest_NavigatesStageFrameWithSameRequest` drives the real scan-time-identity-bound request through the page event and Frame chain and asserts reference identity at the destination; the fresh-import follow-up repeats the same-object rule and both navigation directions clear retained back-stack entries | Adequate | IMPLEMENTED - TEST NOW | Preserve reference identity, scan-time file binding and no-retained-back-stack behavior through both journeys |
+| MI-TC-010 | `WF-INS-001`, `TS` | Shell subscription replacement/detach and failed navigation handling | page replacement, unload, repeated attach, `Frame.Navigate` returns false | packaged onboarding tests cover duplicate attachment, stale import/inspection pages, successful ownership transfer and failed inspection navigation retaining the active stage/subscription | Adequate | IMPLEMENTED - TEST NOW | Preserve one active page owner and commit stage changes only after successful navigation |
+| MI-TC-011 | `WF-INS-001` | `ModelInspectionPage` navigation parameter contract | valid exact request, null, wrong type | actual packaged Frame navigation proves the exact valid request; `OnNavigatedTo_WithInvalidParameter_RejectsWithoutRetiringCurrentPage` covers null/wrong input and state preservation | Adequate | IMPLEMENTED - TEST NOW | Preserve fail-fast parameter validation and the current page on rejected input |
+| MI-TC-012 | `WF-INS-001` | Actual page `Loaded` composition | filename without path, hidden outcome, compact model, five stages, inspecting action, live Cancel | packaged page tests execute automatic start, complete four-card replacement, command state and the real N-001 service/worker journey through all five progress stages to `Ready` | Adequate | IMPLEMENTED - TEST NOW | Preserve filename-only presentation, real progress, command state and terminal result |
+| MI-TC-013 | `WF-INS-001`, `TS` | Repeated Loaded, re-entry and navigate-away/back lifecycle | duplicate Loaded, new request after navigation, stale visual state | `StartInspectionIfReadyAsync_StartsOnceForEachNavigation`, `NewNavigation_RetiresPriorViewModelBeforeStaleCallbacks`, and `OnNavigatedFrom_ClearsOwnershipAndSuppressesStaleCallbacks` cover the lifecycle directly | Adequate | IMPLEMENTED - TEST NOW | Preserve publish-new/retire-old ordering and stale callback suppression |
 | MI-TC-014 | `WF-INS-001` | Initial five-stage presentation factory | exact order/names, active first stage, pending remainder, stage count | packaged factory tests | Adequate | IMPLEMENTED - TEST NOW | Preserve semantic stage assertions |
 | MI-TC-015 | `WF-INS-001`, `WF-OVR-*` | Content template selection | every mode/status, item vs wrapper, `ContentControl`, `ContentPresenter`, null, missing template, invalid enum | warning route and selected wrapper paths covered | Partial | IMPLEMENTED - TEST NOW | Add table-driven selector coverage and controlled invalid configuration failure |
 | MI-TC-016 | `WF-INS-001`, `WF-OVR-*` | Hidden outcome independence and required visual-state guards | repeated hidden use, shared mutable state, missing visual state | direct packaged tests | Adequate | IMPLEMENTED - TEST NOW | Preserve immutable hidden state and guard tests |
-| MI-TC-017 | `WF-INS-001`, `WF-OVR-*` | Model/content card modes, badges, icons, status maps and bindings | every implemented enum value, binding refresh, disclosure state | production mappings exist; only selected presentation paths execute | Partial | PARTIALLY IMPLEMENTED | Test every currently implemented mapping; retain runtime-fed state as future |
-| MI-TC-018 | `WF-OVR-*` | Outcome/action tones, disclosure, buttons, enabled and visible state | every model/execution presentation, hidden/disabled independence, invalid combination | selected models and guards covered | Partial | PARTIALLY IMPLEMENTED | Add pure presentation and packaged control matrix for existing modes |
-| MI-TC-019 | `WF-OVR-READY-001` | Hardware Fit eligibility contract | Ready, ReadyWithWarnings, ConversionRequired, Unsupported, IncompletePackage, Invalid, Cancelled, OperationalFailure | eligibility is represented in current contracts/presentation but no live classifier exists | Partial | PARTIALLY IMPLEMENTED | Lock current Ready/ReadyWithWarnings rule; defer navigation execution |
+| MI-TC-017 | `WF-INS-001`, `WF-OVR-*` | Model/content card modes, badges, icons, status maps and bindings | every implemented enum value, binding refresh, disclosure state | live progress maps every explicit stage status and genuine fraction; terminal factory covers every application model/execution state; the page replaces complete four-card snapshots. A full rendered visual matrix remains absent | Partial | PARTIALLY IMPLEMENTED | Preserve runtime-fed snapshots; complete rendered visual/disclosure coverage separately |
+| MI-TC-018 | `WF-OVR-*` | Outcome/action tones, disclosure, buttons, enabled and visible state | every model/execution presentation, hidden/disabled independence, invalid combination | pure presentation tests cover all six outcomes, cancellation, operational failure, privacy and action policy; page tests cover immediate Cancel disable, retry and choose-another. Full rendered control coverage remains partial | Partial | PARTIALLY IMPLEMENTED | Preserve factory/command coverage and add remaining rendered-control/theme evidence |
+| MI-TC-019 | `WF-OVR-READY-001` | Hardware Fit eligibility contract | Ready, ReadyWithWarnings, ConversionRequired, Unsupported, IncompletePackage, Invalid, Cancelled, OperationalFailure | contracts lock exact eligibility; the live classifier produces Ready/ReadyWithWarnings from reliable GGUF evidence and rejects unknown evidence. This slice deliberately exposes no Hardware Fit navigation action | Partial | PARTIALLY IMPLEMENTED | Preserve eligibility/classifier rules; implement Hardware Fit navigation only in its downstream slice |
 | MI-TC-020 | `WF-INS-001`, `WF-OVR-*`, `TS` | Accessible names, semantic status text and non-color communication | every card/action/outcome, error/recovery state, icon/brush changes | static AutomationName properties and text exist; complete rendered-state evidence absent | Partial | PARTIALLY IMPLEMENTED | Add packaged semantic assertions and manual high-contrast/non-color review |
-| MI-TC-021 | `WF-INS-001`, `TS` | Observable stage live-region announcement | stage change, repeated value, peer creation, actual `LiveRegionChanged` event | existing test inspects peer/name but not the event | Partial | IMPLEMENTED - TEST NOW | Observe and assert the automation event on Windows |
+| MI-TC-021 | `WF-INS-001`, `TS` | Observable stage live-region announcement | stage change, repeated value, peer creation, actual `LiveRegionChanged` event | packaged control/page tests create automation peers and observe `LiveRegionChanged` for content progress and terminal outcome updates; duplicate-equivalent snapshots do not invent a change | Adequate | IMPLEMENTED - TEST NOW | Preserve peer/event assertions and complete manual Narrator acceptance separately |
 | MI-TC-022 | `WF-INS-001`, `WF-OVR-*`, `TS` | Keyboard, focus, tab order, 200% text scaling, resize and reduced-motion-safe behavior | keyboard-only use, visible focus, long names, expanded details, small window, high contrast | no retained automated/manual execution evidence | None | PARTIALLY IMPLEMENTED | Add feasible packaged checks and a retained manual Windows acceptance record |
 | MI-TC-023 | `WF-INS-001` | Application request/progress/result/evidence invariants and enums | null/default/invalid combinations, immutability, execution/model outcome separation | packaged `ModelInspectionContractTests` and execution-result tests | Adequate | IMPLEMENTED - TEST NOW | Preserve constructor/validation and exact outcome meaning |
-| MI-TC-024 | `WF-OVR-*`, `WF-DIAG-SCR-001` | Application result-to-presentation and privacy-safe operational failure mapping | every outcome, finding severity, safe details, absent runtime data | several presentation types exist; production mapper/classifier/service do not | Partial | PARTIALLY IMPLEMENTED | Test existing maps only; leave runtime mapping to production Gate 5 |
+| MI-TC-024 | `WF-OVR-*`, `WF-DIAG-SCR-001` | Application result-to-presentation and privacy-safe operational failure mapping | every outcome, finding severity, safe details, absent runtime data | production worker result mapper, classifier, service and presentation factory are direct-tested; operational failures expose only stable code/user message and path/raw template/stderr/exception/request identity are excluded | Adequate | IMPLEMENTED - TEST NOW | Preserve fail-closed evidence mapping and privacy-negative presentation assertions |
 
 ## Matrix C - shared contracts and protocol
 
@@ -139,7 +140,7 @@ gaps below.
 | MI-TC-027 | `ADR-003/G2`, `TS` | Strict JSON document rules | invalid UTF-8, comments, trailing commas, root shape, recursive duplicates, max depth, exact/over size | 8 of 22 audited rules direct; depth and exact-size boundary absent | Partial | IMPLEMENTED - TEST NOW | Add missing root/depth/duplicate/boundary cases |
 | MI-TC-028 | `ADR-003/G2`, `TS` | Exact wire fields, casing, enum representation, round trips and additive compatibility | all 96 properties, 19 enum members, ordinary property case, missing/null/type invalid values, nested additive fields | only 24 properties direct; cancel is the only strong full-record round trip | Partial | IMPLEMENTED - TEST NOW | Add full supported-record round trips and field/enum behavior matrix without silent requiredness change |
 | MI-TC-029 | `ADR-003/G2` | Command sequence state machine | cancel-before-start, second start, mismatched/repeated cancel, post-terminal command | all nine core command-sequence methods direct | Adequate | IMPLEMENTED - TEST NOW | Add only null/invalid input and state-after-rejection characterization if needed |
-| MI-TC-030 | `ADR-003/G2` | Message sequence state machine | hello/started/progress/terminal order, wrong request ID, decreasing stage/count, duplicate terminal, invalid status | core ordering direct; wrong IDs for progress/completed and several status branches absent | Partial | IMPLEMENTED - TEST NOW | Add missing request/status/state-preservation cases and correct misleading test name |
+| MI-TC-030 | `ADR-003/G2` | Message sequence state machine | hello/started/progress/terminal order, wrong request ID, decreasing stage/count, duplicate terminal, invalid status | core ordering is direct and progress validation now rejects contradictory stage/status/completed-count combinations; wrong IDs for progress/completed and several other status/state-preservation branches remain incomplete | Partial | IMPLEMENTED - TEST NOW | Preserve cross-field progress guards and add remaining request/status/state-preservation cases |
 | MI-TC-031 | `ADR-003/G2`, `CI/EVIDENCE` | Dependency, source, package and build-policy fitness including Contracts | forbidden third-party/native/WinUI/runtime dependency, Contracts -> Transport edge, package asset leak | blacklist and approved-subset tests omit material Contracts boundaries | Partial | IMPLEMENTED - TEST NOW | Replace finite blacklist confidence with complete allowlist/graph checks including Contracts |
 | MI-TC-032 | `CI/EVIDENCE` | Cleanup inventory uniqueness, roots and allowed review dispositions | missing current file, LLama sibling roots, duplicate row, bare invalid `reviewed` status | path/source equality tests pass historically; status vocabulary is not checked | Partial | IMPLEMENTED - TEST NOW | Discover every current root and enforce the approved final disposition set |
 
@@ -181,7 +182,7 @@ gaps below.
 
 | ID | Source | Behavior and owner | Inputs, boundaries and realistic failures | Correct layer and existing evidence | Coverage | Implementation class | Required action |
 |---|---|---|---|---|---|---|---|
-| MI-TC-052 | `CI/EVIDENCE`, `TS` | Every executable test project is discovered, reachable and protected by a meaningful floor/trigger | project omitted from solution/workflow, filter loses class, dependency change does not trigger, zero tests | Permanent Contracts uses the current 133 floor; Worker unit/process workflows include runtime, fixture and manifest-script dependency triggers/sparse roots. Worker is 77 with the exact 67 engine identities, WorkerClient is 91 with the exact five fixed-layout identities, process is 32 with exact required production classes, packaged WinUI has a 229 floor with the exact 12 composition executions, and deterministic LLama is 181 with the exact six architecture identities; cited local verification has zero skipped/not-executed tests. Other registered-project completeness work remains separate | Partial | IMPLEMENTED - TEST NOW | Preserve fresh floors, runtime/fixture/script reachability and required-class evidence; complete the broader project-register gate separately |
+| MI-TC-052 | `CI/EVIDENCE`, `TS` | Every executable test project is discovered, reachable and protected by a meaningful floor/trigger | project omitted from solution/workflow, filter loses class, dependency change does not trigger, zero tests | Permanent Contracts uses the current 149 floor; Worker unit/process workflows include runtime, fixture and manifest-script dependency triggers/sparse roots. Worker is 77 with the exact 67 engine identities, WorkerClient is 91 with the exact five fixed-layout identities, process is 32 with exact required production classes, packaged WinUI is 330 with exact protected counts for the Gate 5/6 application classes and 13 composition executions including the real application service route, and deterministic LLama is 181 with the exact six architecture identities. The reconciled Contracts Release run passed 149/149 and packaged Release/x64 run passed 330/330, both with zero failed, skipped, or not-executed tests; hosted exact-head reconciliation remains pending | Partial | IMPLEMENTED - TEST NOW | Preserve fresh floors, exact required identities/reachability and complete hosted exact-head evidence |
 | MI-TC-053 | `CI/EVIDENCE`, `TS` | Privacy scan gates every retained artifact | scan failure followed by `always()` upload, path text in TRX/evidence, non-GGUF model copy, test failure still uploads | permanent and LLama scans exist but upload conditions and scan scope are incomplete | Partial | IMPLEMENTED - TEST NOW | Gate upload on scan and intended test outcomes; scan text paths and file identity/size/hash patterns |
 | MI-TC-054 | `CI/EVIDENCE`, `ADR-003/G2` | Always-run orphan checks cover production worker, fixture and descendants | prior step failure, fixture-only scan, native helper/child survives | permanent and focused process workflows now always check both production worker and fixture; process tests retain descendant Job-empty assertions, while dedicated LLama native-helper workflow checks remain incomplete | Partial | IMPLEMENTED - TEST NOW | Add exact always-run orphan verification to relevant native workflows and preserve descendant Job evidence |
 | MI-TC-055 | `CI/EVIDENCE`, `TS` | Line/branch coverage and selective mutation evidence | unexecuted branch hidden by green test count, weak assertion survives mutation | no coverage collector/config/report exists | None | IMPLEMENTED - TEST NOW | Add coverage collection and matrix mapping; mutation-test highest-risk invariants without arbitrary percentage target |
@@ -192,9 +193,9 @@ gaps below.
 
 | ID | Source | Behavior and owner | Inputs, boundaries and realistic failures | Correct layer and existing evidence | Coverage | Implementation class | Required action |
 |---|---|---|---|---|---|---|---|
-| MI-TC-058 | `WF-INS-001`, roadmap production Gates 5–6 | Async application service/ViewModel runtime, real progress and functional Cancel | run identity, auto-start, progress, cooperative/forced cancel, stale callback | interfaces/design only; current Cancel deliberately disabled | Deferred | NOT YET IMPLEMENTED | Preserve as production Gates 5 and 6 work; do not implement in the test-completeness gate |
-| MI-TC-059 | `WF-OVR-*`, `WF-DIAG-SCR-001` | Live classifier, runtime-driven outcome routes, technical details and handoff actions | six model outcomes, two execution outcomes, precedence, recovery, route eligibility | presentation shells/contracts exist; producer and live workflow absent | Deferred | NOT YET IMPLEMENTED | Implement through production Gates 5-6 after protected runtime/package gates |
-| MI-TC-060 | `ADR-003/G2`, roadmap production Gate 3 | Production LLamaSharp worker engine and application mappers | exact CPU runtime, native lifetime, factual evidence, no duplicate implementation | Production `Program` composes the single extracted CPU/VocabOnly runtime through `LlamaSharpInspectionEngine`; unit evidence covers pins/backend/disposal, exact request/progress, factual mapping, privacy, integrity and concurrency. The app now carries the protected client plus the fixed manifest-verified x64 worker subtree without referencing/loading worker/runtime/LLamaSharp types, and the packaged worker reaches controlled completion through all five stages against `N-001`. Application outcome mappers remain unimplemented | Partial | IMPLEMENTED - TEST NOW | Preserve the worker/runtime/package boundary; implement application mapping only in the approved later gate |
+| MI-TC-058 | `WF-INS-001`, roadmap production Gates 5–6 | Async application service/ViewModel runtime, real progress and functional Cancel | run identity, auto-start, progress, cooperative/forced cancel, stale callback | service, ViewModel and page tests directly cover exact request forwarding, one auto-start per navigation, all five progress stages, replacement identity, immediate Cancel disable, cooperative versus unconfirmed cancellation, retry, deactivation/disposal and stale callback suppression; the real packaged N-001 page journey reaches `Ready` | Adequate | IMPLEMENTED - TEST NOW | Preserve attempt identity, trusted cancellation semantics and page lifecycle coverage |
+| MI-TC-059 | `WF-OVR-*`, `WF-DIAG-SCR-001` | Live classifier, runtime-driven outcome routes, technical details and handoff actions | six model outcomes, two execution outcomes, precedence, recovery, route eligibility | the live classifier produces Ready/ReadyWithWarnings from trusted evidence; presentation maps all six model outcomes plus cancellation/failure and exposes only choose/retry actions. Other live classifier outcomes, technical-details UI, Hardware Fit and conversion handoffs remain downstream | Partial | PARTIALLY IMPLEMENTED | Preserve the two justified live outcomes and safe recovery; implement other evidence policies and downstream actions only with their own gates |
+| MI-TC-060 | `ADR-003/G2`, roadmap production Gate 3 | Production LLamaSharp worker engine and application mappers | exact CPU runtime, native lifetime, factual evidence, no duplicate implementation | the single extracted CPU/VocabOnly runtime is composed through `LlamaSharpInspectionEngine`; application request/result mappers enforce request, file, runtime, tokenizer and privacy invariants; the fixed manifest-verified worker reaches all five stages and `Ready` through both default service and packaged N-001 page tests | Adequate | IMPLEMENTED - TEST NOW | Preserve the single runtime, fixed package boundary, fail-closed mapper, and real packaged application journey |
 | MI-TC-061 | downstream programme boundary | OpenVINO/Hugging Face conversion/optimisation/TurboQuant execution | backend/package/model routes and performance evidence | not part of current Model Inspection production boundary | Deferred | NOT YET IMPLEMENTED | Keep downstream; Model Inspection owns only extension/handoff contracts |
 | MI-TC-062 | `ADR-003/G2` | In-process LLamaSharp production probe | native abort would terminate WinUI process | older July design only | Deferred | SUPERSEDED | Protected worker architecture in ADR-003 and protected-worker Gate 2 is authoritative |
 | MI-TC-063 | `LLAMA-MATRIX`, downstream evaluation | Full CPU inference, Vulkan/GPU, TurboQuant performance and destructive environment campaigns | generation, quality, memory/performance, device/power/disconnection | outside lightweight inspection and current evidence boundary | Deferred | DEFERRED / OUT OF CURRENT GATE | Follow the named CPU, GPU/Vulkan, TurboQuant and destructive-reliability routes in roadmap section 3.1 |
@@ -214,14 +215,18 @@ No critical defect was proven during the static audit.
    and proves process cleanup.
 3. Eighteen implemented fixture scenarios are never exercised through the real
    process boundary.
-4. Actual `ModelInspectionPage.Loaded` composition has no direct packaged test.
+4. Resolved in Gate 6: a real Window/visual-tree test proves one automatic
+   `ModelInspectionPage.Loaded` start and the N-001 page journey proves all five
+   ordered stages before `Ready`.
 5. Shared evidence validators and most serialized fields have weak or no direct
    coverage.
 6. Buffered transport pre-cancellation may be ignored when a complete frame is
    already read ahead.
-7. Current accessibility evidence does not prove live announcements, keyboard,
-   focus, text scaling, high contrast or screen-reader use.
-8. CI project discovery, floors and dependency triggers are incomplete.
+7. Partially resolved in Gate 6: packaged tests prove automation peers,
+   `LiveRegionChanged`, dedupe/reset and one assertive outcome owner; keyboard,
+   focus, text scaling, High Contrast and manual Narrator acceptance remain.
+8. Scoped project floors, dependency triggers and exact Gate 5/6 class guards
+   are current; broader project-register completeness remains open.
 9. Artifact upload conditions can retain evidence after a privacy scan or test
    failure.
 10. Resolved in Task 6: focused process orphan verification now runs
@@ -340,13 +345,13 @@ closure evidence:
 
 | Current executable project | Passed |
 |---|---:|
-| Contracts | 133 |
+| Contracts | 149 |
 | Transport | 27 |
 | Worker | 77 |
 | WorkerClient | 91 |
 | Worker process | 32 |
-| Packaged WinUI | 229 |
-| **Current permanent-project total** | **589** |
+| Packaged WinUI | 330 |
+| **Current permanent-project total** | **706** |
 | Deterministic LLama specialist suite (separate) | 181 |
 
 ## Original gap-closing order and current state

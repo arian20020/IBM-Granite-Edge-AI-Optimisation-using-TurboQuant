@@ -1,145 +1,252 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
-using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.Services;
+using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.ComponentModel;
+using System.Threading.Tasks;
 
-namespace GraniteEdgeAI.Features.ModelInspection
+namespace GraniteEdgeAI.Features.ModelInspection;
+
+/// <summary>
+/// Displays and owns the UI lifecycle of one GGUF Model Inspection request.
+/// </summary>
+public sealed partial class ModelInspectionPage : Page
 {
+    private readonly IModelInspectionService service;
+    private ModelInspectionViewModel? startedViewModel;
+
     /// <summary>
-    /// Displays the model-inspection journey for one validated model package.
+    /// Creates the production page with the approved x64 Model Inspection
+    /// service composition.
     /// </summary>
-    public sealed partial class ModelInspectionPage : Page
+    public ModelInspectionPage()
+        : this(ModelInspectionServiceComposition.CreateDefault())
     {
-        // loaded can run again when the same page returns to the visual tree
-        private bool _initialPresentationApplied;
+    }
 
-        /// <summary>
-        /// Creates the page and loads its XAML visual tree.
-        /// </summary>
-        public ModelInspectionPage()
+    /// <summary>
+    /// Creates a page with an explicit application service.
+    /// </summary>
+    internal ModelInspectionPage(IModelInspectionService service)
+    {
+        this.service = service ?? throw new ArgumentNullException(nameof(service));
+        InitializeComponent();
+        Loaded += ModelInspectionPage_Loaded;
+    }
+
+    /// <summary>
+    /// Requests that the onboarding owner return to model selection.
+    /// </summary>
+    internal event EventHandler? ChooseAnotherModelRequested;
+
+    /// <summary>
+    /// Gets the exact immutable request supplied by onboarding navigation.
+    /// </summary>
+    internal ModelInspectionRequest? Request { get; private set; }
+
+    /// <summary>
+    /// Gets the current navigation-owned ViewModel.
+    /// </summary>
+    internal ModelInspectionViewModel? ViewModel { get; private set; }
+
+    /// <summary>
+    /// Gets the initial inspection task started for this navigation.
+    /// </summary>
+    internal Task? CurrentInspectionTask { get; private set; }
+
+    /// <summary>
+    /// Gets the complete snapshot most recently assigned to the four cards.
+    /// </summary>
+    internal ModelInspectionPagePresentation? CurrentPresentation
+        { get; private set; }
+
+    /// <summary>
+    /// Creates a fresh ViewModel for the exact validated navigation request.
+    /// </summary>
+    protected override void OnNavigatedTo(NavigationEventArgs eventArguments)
+    {
+        base.OnNavigatedTo(eventArguments);
+
+        if (eventArguments.Parameter is not ModelInspectionRequest request)
         {
-            InitializeComponent();
-
-            // control bindings are ready only after the page enters the visual tree
-            Loaded += ModelInspectionPage_Loaded;
+            throw new ArgumentException(
+                "ModelInspectionPage requires a validated ModelInspectionRequest.",
+                nameof(eventArguments));
         }
 
-        /// <summary>
-        /// Gets the immutable request supplied by onboarding navigation.
-        /// </summary>
-        internal ModelInspectionRequest? Request { get; private set; }
+        RetireCurrentViewModel();
 
-        /// <summary>
-        /// Receives the immutable request passed through StageFrame.Navigate.
-        /// </summary>
-        protected override void OnNavigatedTo(
-            NavigationEventArgs eventArguments)
+        var viewModel = new ModelInspectionViewModel(service, request);
+        Request = request;
+        ViewModel = viewModel;
+        Subscribe(viewModel);
+        ApplyPresentation(ModelInspectionPresentationFactory.CreateInitial(
+            request,
+            viewModel.CancelCommand));
+    }
+
+    /// <summary>
+    /// Relinquishes all ownership before the page leaves the navigation stack.
+    /// </summary>
+    protected override void OnNavigatedFrom(NavigationEventArgs eventArguments)
+    {
+        RetireCurrentViewModel();
+        base.OnNavigatedFrom(eventArguments);
+    }
+
+    /// <summary>
+    /// Starts at most one automatic inspection for the current navigation.
+    /// A ViewModel retry remains a separate, explicit user attempt.
+    /// </summary>
+    internal Task? StartInspectionIfReadyAsync()
+    {
+        ModelInspectionViewModel? viewModel = ViewModel;
+        if (viewModel is null)
         {
-            base.OnNavigatedTo(eventArguments);
-
-            if (eventArguments.Parameter is not ModelInspectionRequest request)
-            {
-                throw new ArgumentException(
-                    "ModelInspectionPage requires a validated ModelInspectionRequest.",
-                    nameof(eventArguments));
-            }
-
-            // keep the exact validated request so no handoff facts are reconstructed
-            Request = request;
-            _initialPresentationApplied = false;
+            return null;
         }
 
-        /// <summary>
-        /// Applies the initial card presentations after the page's visual tree
-        /// and compiled XAML bindings are ready.
-        /// </summary>
-        private void ModelInspectionPage_Loaded(
-            object sender,
-            RoutedEventArgs eventArguments)
+        if (ReferenceEquals(startedViewModel, viewModel))
         {
-            if (_initialPresentationApplied)
-            {
-                return;
-            }
-
-            ModelInspectionRequest request = Request
-                ?? throw new InvalidOperationException(
-                    "ModelInspectionPage loaded without an inspection request.");
-
-            // set the guard first so a re-entrant loaded event cannot apply state twice
-            _initialPresentationApplied = true;
-            ShowInitialInspectionState(request);
+            return CurrentInspectionTask;
         }
 
-        /// <summary>
-        /// Displays the selected model, the five inspection stages, and the
-        /// inspection action area.
-        /// </summary>
-        private void ShowInitialInspectionState(ModelInspectionRequest request)
+        // Set the identity first so a re-entrant Loaded event cannot start a
+        // duplicate service call.
+        startedViewModel = viewModel;
+        CurrentInspectionTask = viewModel.StartAsync();
+        return CurrentInspectionTask;
+    }
+
+    private void ModelInspectionPage_Loaded(
+        object sender,
+        RoutedEventArgs eventArguments)
+    {
+        _ = StartInspectionIfReadyAsync();
+    }
+
+    private void Subscribe(ModelInspectionViewModel viewModel)
+    {
+        viewModel.PropertyChanged += ViewModel_PropertyChanged;
+        viewModel.ChooseAnotherRequested += ViewModel_ChooseAnotherRequested;
+        viewModel.CancelCommand.CanExecuteChanged += Command_CanExecuteChanged;
+        viewModel.RetryCommand.CanExecuteChanged += Command_CanExecuteChanged;
+        viewModel.ChooseAnotherCommand.CanExecuteChanged +=
+            Command_CanExecuteChanged;
+    }
+
+    private void Unsubscribe(ModelInspectionViewModel viewModel)
+    {
+        viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        viewModel.ChooseAnotherRequested -= ViewModel_ChooseAnotherRequested;
+        viewModel.CancelCommand.CanExecuteChanged -= Command_CanExecuteChanged;
+        viewModel.RetryCommand.CanExecuteChanged -= Command_CanExecuteChanged;
+        viewModel.ChooseAnotherCommand.CanExecuteChanged -=
+            Command_CanExecuteChanged;
+    }
+
+    private void ViewModel_PropertyChanged(
+        object? sender,
+        PropertyChangedEventArgs eventArguments)
+    {
+        if (sender is ModelInspectionViewModel viewModel &&
+            ReferenceEquals(viewModel, ViewModel))
         {
-            InspectionOutcomeCardControl.Presentation =
-                InspectionOutcomePresentation.Hidden;
-            InspectionModelCardControl.Presentation =
-                CreateInitialModelPresentation(request);
-            InspectionContentCardControl.Presentation =
-                InitialInspectionProgressPresentationFactory.Create();
-            InspectionActionCardControl.Presentation =
-                CreateInitialActionPresentation();
+            RefreshPresentation(viewModel);
+        }
+    }
+
+    private void Command_CanExecuteChanged(object? sender, EventArgs eventArguments)
+    {
+        ModelInspectionViewModel? viewModel = ViewModel;
+        if (viewModel is null ||
+            (!ReferenceEquals(sender, viewModel.CancelCommand) &&
+             !ReferenceEquals(sender, viewModel.RetryCommand) &&
+             !ReferenceEquals(sender, viewModel.ChooseAnotherCommand)))
+        {
+            return;
         }
 
-        /// <summary>
-        /// Creates the compact selected-model presentation.
-        /// </summary>
-        private static InspectionModelCardPresentation
-            CreateInitialModelPresentation(ModelInspectionRequest request)
-        {
-            string modelFileName = request.FileName;
-            string formatName = request.QuickScan.Format;
+        RefreshPresentation(viewModel);
+    }
 
-            return new InspectionModelCardPresentation
-            {
-                DisplayMode = InspectionModelCardMode.Compact,
-                BadgeState = InspectionModelBadgeState.ModelSelected,
-                ModelName = modelFileName,
-                CompactSummary =
-                    $"{formatName} · Awaiting full inspection",
-                FormatShortName = formatName,
-                OverviewFormatBadgeText = $"{formatName} MODEL",
-                FormatName = formatName,
-                InspectionChecksSummary =
-                    $"0 of {InitialInspectionProgressPresentationFactory.StageCount} " +
-                    "inspection checks complete"
-            };
+    private void ViewModel_ChooseAnotherRequested(
+        object? sender,
+        EventArgs eventArguments)
+    {
+        if (sender is ModelInspectionViewModel viewModel &&
+            ReferenceEquals(viewModel, ViewModel))
+        {
+            ChooseAnotherModelRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void RefreshPresentation(ModelInspectionViewModel viewModel)
+    {
+        if (!ReferenceEquals(viewModel, ViewModel) ||
+            !ReferenceEquals(viewModel.Request, Request))
+        {
+            return;
         }
 
-        /// <summary>
-        /// Creates the initial action-card presentation.
-        /// </summary>
-        private static InspectionActionCardPresentation
-            CreateInitialActionPresentation()
+        ModelInspectionPagePresentation presentation;
+        if (viewModel.Result is ModelInspectionExecutionResult result)
         {
-            return new InspectionActionCardPresentation
-            {
-                Mode = InspectionActionCardMode.Inspecting,
-                Message =
-                    "You can safely return to model selection at any time.",
-                AutomationName =
-                    "Actions available while inspecting the model",
-                CancelAction = new InspectionActionPresentation
-                {
-                    Text = "Cancel inspection",
-                    Visibility = Visibility.Visible,
-
-                    // cancellation stays disabled until the asynchronous service exists
-                    IsEnabled = false,
-                    AutomationName =
-                        "Cancel model inspection",
-                    MinimumWidth = 184d
-                }
-            };
+            presentation = ModelInspectionPresentationFactory.CreateTerminal(
+                viewModel.Request,
+                result,
+                viewModel.RetryCommand,
+                viewModel.ChooseAnotherCommand);
         }
+        else if (viewModel.Progress is ModelInspectionProgress progress)
+        {
+            presentation = ModelInspectionPresentationFactory.CreateProgress(
+                viewModel.Request,
+                progress,
+                viewModel.CancelCommand);
+        }
+        else
+        {
+            presentation = ModelInspectionPresentationFactory.CreateInitial(
+                viewModel.Request,
+                viewModel.CancelCommand);
+        }
+
+        ApplyPresentation(presentation);
+    }
+
+    private void ApplyPresentation(ModelInspectionPagePresentation presentation)
+    {
+        CurrentPresentation = presentation ??
+            throw new ArgumentNullException(nameof(presentation));
+        InspectionOutcomeCardControl.Presentation = presentation.OutcomeCard;
+        InspectionModelCardControl.Presentation = presentation.ModelCard;
+        InspectionContentCardControl.Presentation = presentation.ContentCard;
+        InspectionActionCardControl.Presentation = presentation.ActionCard;
+    }
+
+    private void RetireCurrentViewModel()
+    {
+        ModelInspectionViewModel? retired = ViewModel;
+
+        // Invalidate page ownership before cancellation can synchronously
+        // invoke callbacks from the retired service attempt.
+        Request = null;
+        ViewModel = null;
+        startedViewModel = null;
+        CurrentInspectionTask = null;
+
+        if (retired is null)
+        {
+            return;
+        }
+
+        Unsubscribe(retired);
+        retired.Deactivate();
+        retired.Dispose();
     }
 }

@@ -13,6 +13,9 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants Condition="'$(Platform)' == 'x64'">$(DefineConstants);MODEL_INSPECTION_X64</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Features\NewFolder\**" />
     <EmbeddedResource Remove="Features\NewFolder\**" />
@@ -63,14 +66,21 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The WinUI process owns only the protected client. LLamaSharp, the
-         worker host and native CPU libraries remain in the child process. -->
+    <!-- The WinUI process owns only the protocol contracts and protected
+         client. LLamaSharp, the worker host and native CPU libraries remain
+         in the child process. -->
+    <ProjectReference
+      Include="..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj"
+      Condition="'$(Platform)' == 'x64'" />
     <ProjectReference
       Include="..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
       Condition="'$(Platform)' == 'x64'" />
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)' != 'x64'">
     <Compile Remove="Features\ModelInspection\Infrastructure\**\*.cs" />
+    <Compile Remove="Features\ModelInspection\Runtime\WorkerRequestMapper.cs" />
+    <Compile Remove="Features\ModelInspection\Runtime\WorkerResultMapper.cs" />
+    <Compile Remove="Features\ModelInspection\Runtime\WorkerProcessLlamaModelProbe.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml">

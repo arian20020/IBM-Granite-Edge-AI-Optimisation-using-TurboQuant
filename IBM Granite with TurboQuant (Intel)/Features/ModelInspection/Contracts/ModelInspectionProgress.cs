@@ -15,6 +15,7 @@ internal sealed record ModelInspectionProgress
     /// </summary>
     internal ModelInspectionProgress(
         ModelInspectionStage stage,
+        ModelInspectionStageStatus stageStatus,
         int completedStageCount,
         int totalStageCount,
         double? stageFraction,
@@ -23,6 +24,9 @@ internal sealed record ModelInspectionProgress
         Stage = ModelInspectionContractValidation.RequireDefinedEnum(
             stage,
             nameof(stage));
+        StageStatus = ModelInspectionContractValidation.RequireDefinedEnum(
+            stageStatus,
+            nameof(stageStatus));
 
         // The current Model Inspection workflow has exactly five stages.
         if (totalStageCount != ExpectedStageCount)
@@ -40,6 +44,18 @@ internal sealed record ModelInspectionProgress
                 nameof(completedStageCount),
                 completedStageCount,
                 "Completed stage count must be within the total stage range.");
+        }
+
+        int expectedCompletedStageCount = stageStatus is
+            ModelInspectionStageStatus.Completed or
+            ModelInspectionStageStatus.Warning
+                ? (int)stage
+                : (int)stage - 1;
+        if (completedStageCount != expectedCompletedStageCount)
+        {
+            throw new ArgumentException(
+                "Completed stage count must agree with stage and status.",
+                nameof(completedStageCount));
         }
 
         // A fraction is nullable unless the runtime can measure genuine work.
@@ -61,6 +77,8 @@ internal sealed record ModelInspectionProgress
     }
 
     internal ModelInspectionStage Stage { get; }
+
+    internal ModelInspectionStageStatus StageStatus { get; }
 
     internal int CompletedStageCount { get; }
 

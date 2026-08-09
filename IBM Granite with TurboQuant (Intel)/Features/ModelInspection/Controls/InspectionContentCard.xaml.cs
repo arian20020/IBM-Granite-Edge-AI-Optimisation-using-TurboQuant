@@ -1,8 +1,11 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
+using System.Linq;
 using Windows.UI;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Controls
@@ -36,6 +39,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         // Prevents generated binding updates before InitializeComponent completes.
         private bool _isInitialized;
+        private string? _lastAnnouncedAutomationName;
 
         /// <summary>
         /// Identifies the bindable presentation dependency property.
@@ -88,6 +92,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             get => (Visibility)GetValue(CardVisibilityProperty);
             private set => SetValue(CardVisibilityProperty, value);
         }
+
+        internal int LiveRegionChangeNotificationCount { get; private set; }
 
         /// <summary>
         /// Returns the background used by a status marker or badge.
@@ -179,6 +185,24 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         }
 
         /// <summary>
+        /// Keeps an active ring indeterminate unless the runtime supplied a
+        /// genuine measurable fraction.
+        /// </summary>
+        public static bool IsProgressIndeterminate(double? stageFraction)
+        {
+            return !stageFraction.HasValue;
+        }
+
+        /// <summary>
+        /// Converts the validated zero-to-one domain fraction into the
+        /// percentage scale used by WinUI ProgressRing.
+        /// </summary>
+        public static double GetProgressPercent(double? stageFraction)
+        {
+            return stageFraction.GetValueOrDefault() * 100d;
+        }
+
+        /// <summary>
         /// Displays the stage number only before the stage starts.
         /// </summary>
         public static Visibility GetWaitingVisibility(
@@ -235,6 +259,41 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
             // Refreshes nested x:Bind paths after the presentation object changes.
             Bindings.Update();
+
+            if (CardVisibility == Visibility.Visible &&
+                presentation.Mode == InspectionContentCardMode.Progress)
+            {
+                InspectionContentItemPresentation? current = presentation.Items
+                    .LastOrDefault(item =>
+                        item.Status != InspectionContentStatus.Waiting);
+                string automationName = current is null
+                    ? $"{presentation.SectionTitle}. {presentation.ProgressSummary}"
+                    : $"{presentation.SectionTitle}. " +
+                      $"{presentation.ProgressSummary}. {current.AutomationName}";
+                AutomationProperties.SetName(this, automationName);
+
+                if (!string.Equals(
+                        automationName,
+                        _lastAnnouncedAutomationName,
+                        StringComparison.Ordinal))
+                {
+                    _lastAnnouncedAutomationName = automationName;
+                    RaiseLiveRegionChanged();
+                }
+            }
+            else
+            {
+                _lastAnnouncedAutomationName = null;
+            }
+        }
+
+        private void RaiseLiveRegionChanged()
+        {
+            AutomationPeer peer =
+                FrameworkElementAutomationPeer.FromElement(this) ??
+                FrameworkElementAutomationPeer.CreatePeerForElement(this);
+            peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+            LiveRegionChangeNotificationCount++;
         }
 
         /// <summary>

@@ -1,8 +1,7 @@
 # Model Import architecture
 
-**Status:** Local GGUF quick scan and immutable Model Inspection handoff implemented; production inspection worker not yet implemented  
-**Last reviewed:** 2026-08-05  
-**Current branch:** `feature/model-inspection-runtime-integration`
+**Status:** Local GGUF quick scan and immutable handoff implemented; the downstream protected x64 inspection journey is connected
+**Last reviewed:** 2026-08-09
 
 [← Application feature architecture](../README.md)
 
@@ -72,7 +71,10 @@ Choose GGUF
     → enable Continue to model inspection
 ```
 
-A quick-scan success is not permanently trusted. The file may be deleted, replaced, resized, locked for writing, or otherwise changed before the user continues.
+A quick-scan success is not permanently trusted. The scanner captures file
+length and UTC last-write time while its read handle excludes writers and
+replacement. The file may still be deleted, replaced, resized, locked for
+writing, or otherwise changed before the user continues.
 
 ## Immutable handoff
 
@@ -89,7 +91,8 @@ canonicalise path
 open read-only while excluding concurrent writers
 require ordinary .gguf file
 require current size = quick-scan size
-capture current length and UTC last-write time
+require current UTC last-write time = scan-time UTC last-write time
+capture the matched current length and timestamp
 copy bounded quick-scan facts
     ↓
 raise ModelInspectionRequested(Request)
@@ -174,7 +177,8 @@ The current tests cover:
 - diagnostic containment and path minimisation;
 - immutable request construction;
 - missing files, directories, non-GGUF files, size changes, and concurrent writers;
-- deleted or modified files between scan and Continue;
+- deleted or modified files between scan and Continue, including a same-length
+  replacement with a changed timestamp;
 - successful request event creation;
 - no navigation request without a validated model.
 
@@ -199,9 +203,8 @@ Relevant tests:
 - OpenVINO quick scanning and validated import;
 - actual drag-and-drop handling;
 - recommended-model catalog and download verification;
-- worker executable or worker launch;
-- LLamaSharp production evidence collection;
-- classification, service, ViewModel, or live result UI;
+- worker launch, inspection evidence, classification, or result presentation
+  (owned by Model Inspection, not Model Import);
 - full model allocation, context, inference, or chat.
 
 ## Related documentation

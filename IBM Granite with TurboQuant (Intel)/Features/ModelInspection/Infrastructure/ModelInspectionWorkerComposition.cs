@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using GraniteEdgeAI.Features.ModelInspection.Classification;
+using GraniteEdgeAI.Features.ModelInspection.Runtime;
+using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.ModelInspection.WorkerClient;
 using Windows.ApplicationModel;
 
@@ -37,6 +40,17 @@ internal static class ModelInspectionWorkerComposition
             approvedRoot,
             LoadTrustedWorkerManifest(),
             processClient);
+    }
+
+    /// <summary>
+    /// Composes the complete application-owned GGUF inspection use case while
+    /// keeping worker protocol and process details behind the runtime probe.
+    /// </summary>
+    internal static IModelInspectionService CreateDefaultService()
+    {
+        return new ModelInspectionService(
+            new WorkerProcessLlamaModelProbe(CreateDefaultClient()),
+            new ModelInspectionClassifier());
     }
 
     internal static string ResolveApprovedApplicationRoot()

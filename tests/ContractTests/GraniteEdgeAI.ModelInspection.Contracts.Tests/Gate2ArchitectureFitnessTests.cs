@@ -86,12 +86,14 @@ public sealed class Gate2ArchitectureFitnessTests
                 string[] approvedCompositionSources =
                 [
                     "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs",
-                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs"
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs",
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerProcessLlamaModelProbe.cs",
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerResultMapper.cs"
                 ];
                 CollectionAssert.Contains(
                     approvedCompositionSources,
                     Relative(path),
-                    "Only the Model Inspection infrastructure composition may depend on WorkerClient.");
+                    "Only the approved Model Inspection execution boundary may depend on WorkerClient.");
             }
             Assert.IsFalse(
                 source.Contains(

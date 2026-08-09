@@ -1,164 +1,104 @@
 # Onboarding architecture
 
-**Status:** Five-stage shell and immutable Model Import-to-Inspection navigation implemented  
-**Last reviewed:** 2026-08-05  
-**Current branch:** `feature/model-inspection-runtime-integration`
+**Status:** Exact Model Import-to-Inspection handoff and Choose-another reset lifecycle implemented
+**Last reviewed:** 2026-08-09
 
-[← Application feature architecture](../README.md)
+[Back to application feature architecture](../README.md)
 
 ## Purpose
 
-Onboarding owns the multi-stage setup journey. It keeps one stage page visible inside `StageFrame` while the persistent `OnboardingStageIndicator` remains outside the frame and synchronized with the active stage.
+Onboarding owns the multi-stage setup shell. It keeps one active stage page in
+`StageFrame` while the persistent stage indicator remains outside the frame and
+synchronized with the active page.
 
-Individual stage pages report intent and carry small project-owned data contracts. They do not locate or manipulate the shell's frame themselves.
+Stage pages report intent and carry project-owned data contracts. They do not
+search for or manipulate the shell's frame.
 
-## Responsibility boundary
-
-### This feature owns
-
-- the five-stage onboarding enum;
-- `StageFrame` and current-stage state;
-- synchronization of the persistent stage indicator;
-- stage-page event subscription and cleanup;
-- navigation from Model Import to Model Inspection;
-- forwarding the exact immutable `ModelInspectionRequest`;
-- preserving stage state when navigation fails.
-
-### This feature does not own
-
-- model selection or quick scanning;
-- request construction or file identity capture;
-- Model Inspection presentation or runtime work;
-- worker protocol, classification, hardware fit, configuration, or chat.
-
-## Five-stage model
+## Current stage model
 
 | Stage | Enum | Current implementation |
 |---:|---|---|
-| 1 | `ImportModel` | Local GGUF selection and immutable inspection request implemented |
-| 2 | `InspectModel` | Request navigation and initial UI implemented; runtime execution deferred |
-| 3 | `CheckHardwareFit` | Not implemented |
-| 4 | `ConfigureModel` | Not implemented |
-| 5 | `ReadyToChat` | Not implemented |
+| 1 | `ImportModel` | Local GGUF selection and immutable inspection request |
+| 2 | `InspectModel` | Automatic protected GGUF inspection and terminal result |
+| 3 | `CheckHardwareFit` | Not implemented in this slice |
+| 4 | `ConfigureModel` | Not implemented in this slice |
+| 5 | `ReadyToChat` | Not implemented in this slice |
 
-## Composition
-
-```text
-OnboardingShellPage
-└── Grid
-    ├── StageFrame
-    │   └── one active onboarding page
-    └── OnboardingStageIndicator
-        └── persistent five-stage progress
-```
-
-The indicator is outside `StageFrame`, so stage navigation replaces only the active page.
-
-## Immutable navigation flow
+## Exact request handoff
 
 ```text
 ModelImportPage
-    → raises ModelInspectionRequested(Request)
-
+    -> raises ModelInspectionRequested(exact Request)
 OnboardingShellPage
-    → receives the event
-    → NavigateToModelInspection(Request)
-
-StageFrame
-    → creates ModelInspectionPage
-    → supplies the same Request as NavigationEventArgs.Parameter
-
-OnboardingShellPage
-    → records InspectModel only after navigation succeeds
-    → updates StageIndicator
-    → detaches the inactive ModelImportPage subscription
-```
-
-The shell does not reconstruct the request, re-read the file, or reduce the handoff back to a path. Object identity is preserved from the event through the destination page.
-
-## Navigation ownership rule
-
-```text
-ModelImportPage
-    ✓ reports intent and validated request
-    ✗ does not own StageFrame
-
-OnboardingShellPage
-    ✓ owns navigation and stage synchronization
-    ✗ does not inspect or classify the model
-
+    -> navigates StageFrame with the same Request instance
 ModelInspectionPage
-    ✓ receives the request
-    ✗ does not navigate itself
+    -> retains that exact Request in its ViewModel
 ```
 
-This avoids visual-tree searches and keeps the user journey independent from page implementation details.
+The shell does not reconstruct the request, re-read the file, or reduce the
+handoff to a path. It updates `CurrentStage` and the persistent indicator only
+after `Frame.Navigate` succeeds and the expected inspection page exists. It
+then clears `StageFrame.BackStack`, so the retired import page and path-bearing
+request cannot be resurrected through frame back navigation.
 
-## Synchronization invariant
+## Active-page subscription lifecycle
 
-After successful navigation, these must describe the same conceptual stage:
+The shell has one active page event subscription at a time:
 
-```text
-Page displayed by StageFrame
-        =
-OnboardingShellPage.CurrentStage
-        =
-StageIndicator.CurrentStage
-```
+- while Model Import is active, it listens for `ModelInspectionRequested`;
+- after successful inspection navigation, it attaches the new inspection page
+  before detaching the old import page;
+- while Model Inspection is active, it listens for
+  `ChooseAnotherModelRequested`;
+- duplicate attachment to the same page is ignored;
+- an inactive import or inspection page cannot drive shell navigation.
 
-`CurrentStage` is updated only after `Frame.Navigate` returns `true`.
+## Choose another model
 
-## Event-subscription lifecycle
+When the active inspection page requests another model, the shell navigates to
+a fresh `ModelImportPage`, attaches its request event, detaches the retired
+inspection page, and resets both `CurrentStage` and the indicator to
+`ImportModel`. It clears `StageFrame.BackStack` after the successful transition,
+leaving the fresh import page as the only reachable stage page.
 
-```text
-Attach page
-    → reject null
-    → ignore duplicate attachment
-    → detach previous page
-    → subscribe to ModelInspectionRequested
+If navigation fails, the current stage and active subscription are preserved.
+The next successful import request is again forwarded as the exact object
+instance to a fresh inspection page.
 
-Successful navigation away
-    → unsubscribe
-    → release the page reference
-```
+## Ownership boundary
 
-This prevents duplicate requests and avoids retaining an inactive page through an event handler.
+The onboarding shell owns frame navigation, stage synchronization, and active
+page event lifetimes. It does not select or scan models, run the inspection
+service, map worker evidence, classify results, or choose a hardware backend.
 
-## Controlled failures
-
-- A null inspection request is rejected before navigation and the stage remains `ImportModel`.
-- Failure to display the initial Model Import page raises a clear `InvalidOperationException`.
-- An unexpected initial page type is rejected rather than silently continuing.
-- When `Frame.Navigate` returns `false`, current stage, indicator, and event subscription remain unchanged.
+The inspection page reports user intent; it does not navigate the shell. Model
+Import constructs/validates the request; it does not own stage navigation.
 
 ## Tests
 
-- [`OnboardingModelInspectionNavigationTests.cs`](../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs)
-- [`OnboardingStageIndicatorTests.cs`](../../../tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/OnboardingStageIndicatorTests.cs)
+`OnboardingModelInspectionNavigationTests` covers:
 
-The navigation tests verify request forwarding, destination type, same-object preservation, stage synchronization, and null-request rejection.
+- the real event/navigation chain with exact request identity;
+- current-stage and indicator updates;
+- null request and failed navigation behavior;
+- Choose-another reset with a fresh import page;
+- the next exact request after reset;
+- duplicate subscription prevention;
+- stale import and inspection pages unable to drive the shell;
+- an empty, non-go-backable frame history after both successful transitions.
 
-## Implemented now
+`ModelInspectionPageNavigationTests` covers inspection-page ownership and
+stale-callback suppression when the shell navigates away.
 
-- persistent onboarding shell;
-- explicit five-stage enum;
-- initial Model Import navigation;
-- event-driven Model Import-to-Inspection transition;
-- immutable request forwarding;
-- current-stage and indicator synchronization;
-- event-subscription cleanup;
-- focused UI-thread tests.
+## Scope and non-claims
 
-## Non-claims and deferred work
-
-- Hardware Fit, Configure Model, or Ready to Chat navigation;
-- back-navigation and restart/session restoration;
-- global navigation service or history abstraction;
-- production model inspection execution;
-- worker process, classification, service, ViewModel, or functional Cancel action.
+The connected stage-two route is the local GGUF Windows x64 CPU
+LLamaSharp/llama.cpp `VocabOnly` inspection path only. Hardware Fit,
+configuration, chat, OpenVINO, TurboQuant, Vulkan/GPU, context creation,
+inference, conversion, and benchmarking remain downstream.
 
 ## Related documentation
 
-- [Onboarding controls](./Controls/README.md)
 - [Model Import architecture](../ModelImport/README.md)
 - [Model Inspection architecture](../ModelInspection/README.md)
+- [Onboarding controls](./Controls/README.md)

@@ -16,8 +16,13 @@ IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelInspectionRequestFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelInspectionRequestedEventArgs.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/GgufQuickScanner.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/ModelQuickScanResult.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/IModelInspectionClassifier.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/ModelInspectionClassifier.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ExpectedModelFileIdentity.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionChatTemplateEvidence.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionConfigurationEvidence.cs
@@ -68,8 +73,24 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOu
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomeTone.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InitialInspectionProgressPresentationFactory.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressPresentationFactory.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPagePresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/ILlamaModelProbe.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/ModelInspectionProbeResult.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerProcessLlamaModelProbe.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerRequestMapper.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerResultMapper.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/IModelInspectionService.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionService.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionServiceComposition.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/DelegateCommand.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewModel.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/README.md
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/README.md
@@ -234,6 +255,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ContractGraphT
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ArchitectureFitnessTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGraphTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4PackagingContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate5ApplicationBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerEvidenceValidationTests.cs
@@ -303,6 +325,9 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/Model
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportNavigationRequestTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportPageCompositionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelInspectionRequestFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufQuickScannerTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/ModelQuickScanResultTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Classification/ModelInspectionClassifierTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Infrastructure/ModelInspectionWorkerCompositionTests.cs
@@ -311,6 +336,17 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspection
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionExecutionResultAdditionalTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/InspectionProgressPresentationFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionPresentationFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/PresentationTestData.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/ModelInspectionProbeResultTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/RuntimeTestData.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/WorkerProcessLlamaModelProbeTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/WorkerRequestMapperTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/WorkerResultMapperTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Services/ModelInspectionServiceTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/DelegateCommandTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/ModelInspectionViewModelTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/OnboardingStageIndicatorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingEntryPointTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs

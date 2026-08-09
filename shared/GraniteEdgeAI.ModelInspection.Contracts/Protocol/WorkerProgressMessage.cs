@@ -48,6 +48,15 @@ public sealed record WorkerProgressMessage
             nameof(CompletedStageCount),
             "must be between zero and TotalStageCount");
 
+        int expectedCompletedStageCount = StageStatus is
+            WorkerStageStatus.Completed or WorkerStageStatus.Warning
+                ? (int)Stage
+                : (int)Stage - 1;
+        WorkerProtocolValidation.Require(
+            CompletedStageCount == expectedCompletedStageCount,
+            nameof(CompletedStageCount),
+            "must agree with Stage and StageStatus");
+
         if (StageFraction is double fraction)
         {
             WorkerProtocolValidation.Require(

@@ -195,7 +195,9 @@ public sealed class ModelImportNavigationRequestTests
                 quantization: "Q4_K_M",
                 fileSizeBytes: fileSizeBytes,
                 contextLength: 131_072UL,
-                ggufVersion: 3);
+                ggufVersion: 3,
+                fileLastWriteTimeUtc: new DateTimeOffset(
+                    File.GetLastWriteTimeUtc(selectedPath)));
 
         return new ModelImportPage(
             () => Task.FromResult(ModelFormatSelection.Gguf),

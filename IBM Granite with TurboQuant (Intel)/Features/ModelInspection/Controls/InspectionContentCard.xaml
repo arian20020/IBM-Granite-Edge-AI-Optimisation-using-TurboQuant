@@ -492,6 +492,8 @@
                                 VerticalAlignment="Center"
                                 Foreground="{x:Bind local:InspectionContentCard.GetStatusForeground(Status)}"
                                 IsActive="{x:Bind IsActive}"
+                                IsIndeterminate="{x:Bind local:InspectionContentCard.IsProgressIndeterminate(StageFraction)}"
+                                Value="{x:Bind local:InspectionContentCard.GetProgressPercent(StageFraction)}"
                                 Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status)}" />
 
                             <!--  Waiting stage number.  -->

@@ -82,11 +82,12 @@
 
                     <!--  Permanent page explanation.  -->
                     <TextBlock
+                        x:Name="ModelInspectionExplanation"
                         MaxWidth="720"
                         HorizontalAlignment="Center"
                         FontSize="14"
                         Foreground="#667085"
-                        Text="We are checking that the model package, tokenizer, structure and runtime is support before checking hardware fit."
+                        Text="We are checking that the model package, tokenizer, structure, and runtime are supported before checking hardware fit."
                         TextAlignment="Center"
                         TextWrapping="WrapWholeWords" />
 
@@ -112,6 +113,7 @@
                 <controls:InspectionOutcomeCard
                     x:Name="InspectionOutcomeCardControl"
                     HorizontalAlignment="Stretch"
+                    AutomationProperties.LiveSetting="Assertive"
                     AutomationProperties.Name="Model inspection outcome" />
 
                 <!--  =================================================  -->
@@ -145,6 +147,7 @@
                 <controls:InspectionContentCard
                     x:Name="InspectionContentCardControl"
                     HorizontalAlignment="Stretch"
+                    AutomationProperties.LiveSetting="Polite"
                     AutomationProperties.Name="Model inspection progress and findings" />
 
                 <!--  =================================================  -->

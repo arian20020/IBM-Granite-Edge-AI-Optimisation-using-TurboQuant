@@ -23,9 +23,9 @@ is a packaged WinUI 3 MSTest application. Its project reference compiles the
 application, and its app-container runner supplies the XAML UI thread required
 by `[UITestMethod]`.
 
-The current Release/x64 floor is 229 tests. It includes scanner/import coverage,
+The current Release/x64 floor is 330 tests. It includes scanner/import coverage,
 Model Inspection contracts and presentation behavior, onboarding/navigation,
-and twelve application-root/worker-package composition cases. The composition
+and thirteen application-root/worker-package composition cases. The composition
 suite includes a real package-identity-root launch through the production
 client and controlled five-stage CPU/VocabOnly completion. The package test
 requires the detached manifest-verified 44-file CPU worker closure under

@@ -144,7 +144,7 @@ jobs:
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --minimum-expected-tests 133 `
+            --minimum-expected-tests 149 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
@@ -505,7 +505,7 @@ jobs:
           }
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
-          $minimumExpectedTests = 229
+          $minimumExpectedTests = 330
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }
@@ -529,11 +529,30 @@ jobs:
             }
           }
 
-          $compositionClass = 'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests'
-          $compositionIds = @($definitions | Where-Object { $_.TestMethod.className -eq $compositionClass } | ForEach-Object { $_.id })
-          $compositionResults = @($results | Where-Object { $_.testId -in $compositionIds -and $_.outcome -eq 'Passed' })
-          if ($compositionIds.Count -ne 12 -or $compositionResults.Count -ne 12) {
-            throw 'Expected exactly 12 passing application worker-composition tests.'
+          $protectedClassCounts = [ordered]@{
+            'GraniteEdgeAI.UnitTests.ModelInspectionRequestFactoryTests' = 10
+            'GraniteEdgeAI.UnitTests.ModelInspectionContractTests' = 33
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Runtime.ModelInspectionProbeResultTests' = 4
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Runtime.WorkerRequestMapperTests' = 3
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Runtime.WorkerResultMapperTests' = 9
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Runtime.WorkerProcessLlamaModelProbeTests' = 7
+            'GraniteEdgeAI.UnitTests.ModelInspectionClassifierTests' = 5
+            'GraniteEdgeAI.UnitTests.ModelInspectionServiceTests' = 4
+            'GraniteEdgeAI.UnitTests.DelegateCommandTests' = 2
+            'GraniteEdgeAI.UnitTests.ModelInspectionViewModelTests' = 11
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests' = 10
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 17
+            'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 5
+            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 12
+            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 12
+            'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests' = 13
+          }
+          foreach ($entry in $protectedClassCounts.GetEnumerator()) {
+            $classIds = @($definitions | Where-Object { $_.TestMethod.className -eq $entry.Key } | ForEach-Object { $_.id })
+            $passedClassResults = @($results | Where-Object { $_.testId -in $classIds -and $_.outcome -eq 'Passed' })
+            if ($classIds.Count -ne [int]$entry.Value -or $passedClassResults.Count -ne [int]$entry.Value) {
+              throw "Expected exactly $($entry.Value) passing executions from $($entry.Key)."
+            }
           }
 
       # This check always runs. It records a failure before cleaning the runner,

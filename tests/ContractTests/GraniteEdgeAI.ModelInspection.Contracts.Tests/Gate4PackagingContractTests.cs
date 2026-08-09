@@ -24,7 +24,7 @@ public sealed class Gate4PackagingContractTests
     private static readonly string Root = FindRepositoryRoot();
 
     [TestMethod]
-    public void WinUiReferencesOnlyWorkerClientAndOnlyForX64()
+    public void WinUiReferencesOnlyContractsAndWorkerClientAndOnlyForX64()
     {
         XDocument project = XDocument.Load(Absolute(AppProject));
         XElement[] modelInspectionReferences = project
@@ -33,13 +33,21 @@ public sealed class Gate4PackagingContractTests
                 .Contains("ModelInspection", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.HasCount(1, modelInspectionReferences);
-        StringAssert.Contains(
-            modelInspectionReferences[0].Attribute("Include")!.Value,
-            "GraniteEdgeAI.ModelInspection.WorkerClient.csproj");
-        Assert.AreEqual(
+        Assert.HasCount(2, modelInspectionReferences);
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                "GraniteEdgeAI.ModelInspection.Contracts.csproj",
+                "GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
+            },
+            modelInspectionReferences
+                .Select(reference => Path.GetFileName(
+                    reference.Attribute("Include")!.Value))
+                .ToArray());
+        Assert.IsTrue(modelInspectionReferences.All(reference => string.Equals(
             "'$(Platform)' == 'x64'",
-            modelInspectionReferences[0].Attribute("Condition")?.Value);
+            reference.Attribute("Condition")?.Value,
+            StringComparison.Ordinal)));
 
         string projectText = File.ReadAllText(Absolute(AppProject));
         Assert.IsFalse(projectText.Contains(

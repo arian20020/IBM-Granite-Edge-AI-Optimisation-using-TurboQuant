@@ -376,7 +376,6 @@
         x:Name="LayoutRoot"
         MaxWidth="840"
         HorizontalAlignment="Stretch"
-        AutomationProperties.LiveSetting="Polite"
         AutomationProperties.Name="{x:Bind Presentation.AutomationName, Mode=OneWay}"
         Visibility="{x:Bind CardVisibility, Mode=OneWay}">
         <!--  Shared outcome-banner shell.  -->

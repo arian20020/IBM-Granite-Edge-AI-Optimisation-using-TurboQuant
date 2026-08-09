@@ -44,6 +44,12 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public bool IsActive { get; init; }
 
         /// <summary>
+        /// Gets genuine measurable progress within this stage, or null when
+        /// the runtime cannot truthfully quantify the remaining work.
+        /// </summary>
+        public double? StageFraction { get; init; }
+
+        /// <summary>
         /// Gets whether the connector below this stage is displayed.
         /// </summary>
         public bool ShowConnector { get; init; }

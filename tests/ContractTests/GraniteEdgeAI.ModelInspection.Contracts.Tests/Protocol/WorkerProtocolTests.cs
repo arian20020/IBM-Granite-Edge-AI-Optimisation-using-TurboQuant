@@ -202,6 +202,48 @@ public sealed class WorkerProtocolTests
     }
 
     [TestMethod]
+    [DataRow(1, (int)WorkerStageStatus.Active, 1)]
+    [DataRow(5, (int)WorkerStageStatus.Completed, 0)]
+    [DataRow(3, (int)WorkerStageStatus.Warning, 2)]
+    [DataRow(4, (int)WorkerStageStatus.Failed, 4)]
+    [DataRow(2, (int)WorkerStageStatus.Cancelled, 2)]
+    public void Progress_ContradictoryStageStatusAndCount_Throws(
+        int stageValue,
+        int statusValue,
+        int completedStageCount)
+    {
+        WorkerProgressMessage message = CreateValidProgress() with
+        {
+            Stage = (WorkerStage)stageValue,
+            StageStatus = (WorkerStageStatus)statusValue,
+            CompletedStageCount = completedStageCount
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(message.Validate);
+    }
+
+    [TestMethod]
+    [DataRow(1, (int)WorkerStageStatus.Active, 0)]
+    [DataRow(5, (int)WorkerStageStatus.Completed, 5)]
+    [DataRow(3, (int)WorkerStageStatus.Warning, 3)]
+    [DataRow(4, (int)WorkerStageStatus.Failed, 3)]
+    [DataRow(2, (int)WorkerStageStatus.Cancelled, 1)]
+    public void Progress_TruthfulStageStatusAndCount_IsAccepted(
+        int stageValue,
+        int statusValue,
+        int completedStageCount)
+    {
+        WorkerProgressMessage message = CreateValidProgress() with
+        {
+            Stage = (WorkerStage)stageValue,
+            StageStatus = (WorkerStageStatus)statusValue,
+            CompletedStageCount = completedStageCount
+        };
+
+        message.Validate();
+    }
+
+    [TestMethod]
     public void CancelledStatus_ForbidsEvidence()
     {
         WorkerCompletedMessage message = new()

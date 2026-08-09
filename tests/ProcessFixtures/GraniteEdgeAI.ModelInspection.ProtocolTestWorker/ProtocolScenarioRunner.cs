@@ -168,12 +168,12 @@ internal sealed class ProtocolScenarioRunner
             await WriteProgressAsync(
                     start.RequestId,
                     WorkerStage.ReadModelConfiguration,
-                    2)
+                    1)
                 .ConfigureAwait(false);
             await WriteProgressAsync(
                     start.RequestId,
                     WorkerStage.CheckModelPackage,
-                    1)
+                    0)
                 .ConfigureAwait(false);
             await HangAsync().ConfigureAwait(false);
         }

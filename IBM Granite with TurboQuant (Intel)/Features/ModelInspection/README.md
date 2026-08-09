@@ -1,163 +1,107 @@
 # Model Inspection architecture
 
-**Status:** Presentation, application contracts, protected worker/process boundary, production CPU/VocabOnly engine, and fixed x64 application worker closure implemented; application mapping, classification, and live UI execution remain later gates
+**Status:** End-to-end local GGUF inspection journey implemented for the protected Windows x64 CPU path
 **Last reviewed:** 2026-08-09
 
-[← Application feature architecture](../README.md)
+[Back to application feature architecture](../README.md)
 
 ## Purpose
 
-Model Inspection is onboarding stage two. It receives one currently validated local model selection, will collect lightweight core-runtime evidence in a protected worker, and will classify that evidence into one controlled application outcome before Hardware Fit.
+Model Inspection is onboarding stage two. It receives one immutable validated
+GGUF selection, runs lightweight core-runtime inspection in a protected worker,
+and presents one controlled application result before any Hardware Fit work.
 
 ```text
 Validated Model Import
-        ↓ ModelInspectionRequest
-Model Inspection
-        ↓
-Ready / ReadyWithWarnings /
-ConversionRequired / IncompletePackage /
-Unsupported / Invalid
-        ↓
-Hardware Fit only for Ready or ReadyWithWarnings
+    -> exact ModelInspectionRequest
+ModelInspectionPage / ModelInspectionViewModel
+    -> ModelInspectionService
+    -> WorkerProcessLlamaModelProbe
+    -> protected x64 worker process
+    -> LLamaSharp 0.27.0 / matched llama.cpp CPU VocabOnly
+    -> trusted application evidence
+    -> ModelInspectionClassifier
+    -> Ready or ReadyWithWarnings
+    -> terminal page presentation
 ```
 
-The page remains presentation-only. The protected production worker now completes the five lightweight GGUF stages and is carried in the x64 application/test package at one fixed path, but the page does not yet launch it or display live runtime results.
+The application and worker remain separated by versioned contracts and bounded
+redirected streams. LLamaSharp and native CPU libraries stay in the fixed child
+worker subtree; they are not loaded into the WinUI process.
 
 ## Accepted architecture
 
-- [ADR-001 — matched LLamaSharp application runtime](../../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
-- [ADR-002 — core inspection versus backend verification](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
-- [ADR-003 — protected Model Inspection worker](../../../docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md)
+- [ADR-001 - matched LLamaSharp application runtime](../../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
+- [ADR-002 - core inspection versus backend verification](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
+- [ADR-003 - protected Model Inspection worker](../../../docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md)
 
-Production direction:
+Application ownership is intentionally layered:
 
 ```text
-ModelInspectionPage
-        ↓
-ModelInspectionViewModel
-        ↓
-IModelInspectionService
-        ↓
-ModelInspectionService
-        ├── ModelInspectionClassifier
-        └── ILlamaModelProbe
-                ↓
-        WorkerProcessLlamaModelProbe
-                ↓ bounded JSON lines over redirected standard streams
-        GraniteEdgeAI.ModelInspection.Worker.exe
-                ↓
-        LLamaSharp 0.27.0 / matched llama.cpp CPU runtime
+Page
+    -> ViewModel (attempt identity, commands, stale suppression)
+    -> Service (orchestration and terminal semantics)
+    -> Classifier (reliable evidence only)
+    -> Runtime adapter (application/worker mapping)
+    -> Infrastructure (fixed root and manifest-verifying client)
+    -> Worker / production LLamaSharp runtime
 ```
 
-The worker will return technical evidence. Application code—not the worker—will own final user-facing classification.
-
-Chat remains a separate later route through a pinned `llama-cli.exe`; it does not share the inspection worker.
-
-## Current capability status
+## Current capability
 
 | Capability | Status |
 |---|---|
-| Receive immutable `ModelInspectionRequest` | Implemented |
-| Retain exact request as the page source of truth | Implemented |
-| Preserve request object across onboarding navigation | Implemented |
-| Initial selected-model card | Implemented |
-| Approved five-stage tracker | Implemented |
-| Reusable model/content/outcome/action controls | Implemented |
-| Application request/progress/evidence/result contracts | Implemented and tested |
-| Shared versioned worker protocol contracts | Implemented and tested |
-| Strict bounded JSON and protocol sequence validation | Implemented and tested |
-| Matched LLamaSharp CPU feasibility | Verified in isolated tools |
-| Production worker executable boundary | Implemented and tested through real CPU/VocabOnly completion |
-| Process adapter and bounded stream host | Implemented and tested |
-| Production LLamaSharp inspection engine | Implemented and tested for lightweight GGUF CPU/VocabOnly inspection |
-| Fixed x64 worker/native application closure | Implemented for build output and packaged test layout; release MSIX attestation remains pending |
-| Installed/unpackaged approved-root composition | Implemented; fixed path only, no current-directory or `PATH` fallback |
-| Worker-to-application mappers | Not implemented |
-| Classifier and service | Not implemented |
-| `ModelInspectionViewModel` | Not implemented |
-| Live progress and functional Cancel | Not implemented |
-| Hardware Fit continuation | Not implemented |
+| immutable Model Import request and exact-instance handoff | Implemented |
+| automatic page start once per navigation | Implemented |
+| five live progress stages with explicit status/fraction | Implemented |
+| functional Cancel with confirmed-cancellation semantics | Implemented |
+| retry same request as a fresh attempt | Implemented |
+| choose another model and fresh onboarding reset | Implemented |
+| stale callback suppression across replacement/navigation | Implemented |
+| request/progress/evidence/result contracts | Implemented |
+| worker-to-application request/result mappers | Implemented |
+| deterministic classifier and application service | Implemented |
+| privacy-safe initial/progress/terminal presentation | Implemented |
+| fixed manifest-verified x64 worker closure | Implemented in build/test package |
+| real N-001 packaged page journey through all five stages | Implemented and locally tested |
+| Hardware Fit or conversion execution | Not implemented in this feature slice |
+| extracted MSIX and hosted exact-head release attestation | Pending |
 
 ## Source hierarchy
 
 ```text
 Features/ModelInspection/
-├── README.md
-├── ModelInspectionPage.xaml
-├── ModelInspectionPage.xaml.cs
-├── Contracts/
-│   ├── README.md
-│   └── application request/progress/evidence/result contracts
-├── Controls/
-├── Infrastructure/
-│   ├── README.md
-│   └── approved-root and fixed WorkerClient composition
-├── Models/
-└── Presentation/
+|-- ModelInspectionPage.xaml(.cs)  page lifecycle and four-card assignment
+|-- Contracts/                     framework-neutral application language
+|-- Runtime/                       worker request/result adapter
+|-- Classification/                reliable-evidence outcome policy
+|-- Services/                      use-case orchestration and x64 entry point
+|-- ViewModels/                    async attempt and command lifecycle
+|-- Presentation/                  privacy-safe snapshot construction
+|-- Models/                        WinUI presentation shapes
+|-- Controls/                      reusable four-card rendering
+`-- Infrastructure/                fixed worker root/client composition
 ```
 
-Shared transport contracts remain framework-neutral:
+Shared protocol/transport, worker host, client, and production LLamaSharp
+runtime remain separate repository projects.
 
-```text
-shared/GraniteEdgeAI.ModelInspection.Contracts/
-├── Evidence/
-└── Protocol/
-```
+## Page lifecycle
 
-The historical feasibility CLI and its specialist test campaigns remain
-outside the WinUI application; production inspection is owned by the protected
-worker and extracted runtime:
+`ModelInspectionPage.OnNavigatedTo` requires the exact
+`ModelInspectionRequest`, retires any prior ViewModel, creates a fresh
+navigation-owned ViewModel, subscribes to property/command/event changes, and
+applies the initial four-card snapshot.
 
-```text
-tools/ModelInspection.LlamaSharpSpike*/
-```
+The first `Loaded` event starts at most one automatic attempt for that
+navigation. Progress, command state, and terminal results replace the complete
+four-card snapshot. `OnNavigatedFrom` invalidates page ownership before
+cancellation, unsubscribes, deactivates/disposes the ViewModel, and prevents
+retired callbacks from repainting the page.
 
-## Page responsibility
-
-`ModelInspectionPage` currently owns presentation composition and navigation-data retention only.
-
-```text
-OnNavigatedTo
-    → require ModelInspectionRequest
-    → retain the exact request object as the page source of truth
-    → reset initial-presentation guard
-
-Loaded
-    → require retained request
-    → apply initial model, progress, outcome, and action presentations
-```
-
-The page does not:
-
-- open or hash the model;
-- reference LLamaSharp or worker protocol records;
-- create or manage a process;
-- classify findings;
-- choose a hardware backend;
-- initialise Vulkan or TurboQuant;
-- retain native handles.
-
-## Initial presentation
-
-```text
-Outcome card
-    → Hidden
-
-Model card
-    → Compact
-    → Model selected
-    → request filename and validated quick-scan format only
-    → no invented compatibility claim
-
-Content card
-    → Progress
-    → 0 of 5 checks complete
-    → stage 1 active
-
-Action card
-    → Inspecting layout
-    → Cancel visible but disabled until a cancellable service exists
-```
+Completed results offer Choose another model. Cancellation or operational
+failure offers Retry and Choose another. The page reports choose-another intent
+to the onboarding shell; it does not manipulate the shell frame itself.
 
 ## Five user-visible stages
 
@@ -169,126 +113,96 @@ Action card
 5. Confirm core runtime compatibility
 ```
 
-These are Model Inspection workflow stages. They do not prove Vulkan, GPU offload, context allocation, TurboQuant, or inference.
+The worker executes those stages with CPU `VocabOnly` loading, metadata and
+tokenizer smoke evidence, file integrity verification, and deterministic
+runtime identity. A genuine worker fraction is shown when available; otherwise
+the current ring remains indeterminate.
 
-## Application contracts
+## Outcome policy
 
-The application domain owns:
-
-- `ModelInspectionRequest` and expected file identity;
-- validated quick-scan snapshot;
-- progress and five-stage state;
-- path-minimised technical evidence;
-- findings and final outcomes;
-- operational failure separation;
-- Hardware Fit continuation rules.
-
-Only `Ready` and `ReadyWithWarnings` can continue. `ConversionRequired` requires an implemented and verified conversion-route identifier; unsupported models are not automatically described as convertible.
-
-See [application contracts](./Contracts/README.md).
-
-## Shared worker protocol
-
-Protocol Gate 1 defines:
-
-```text
-Protocol version:               1
-Worker ID:                      GraniteEdgeAI.ModelInspection.Worker
-Runtime profile:                llamasharp-0.27.0-cpu-win-x64-vocab-only-v1
-Maximum message:                1 MiB UTF-8
-Maximum retained stderr:        256 KiB UTF-8
-Startup timeout contract:       5 seconds
-Overall timeout contract:       5 minutes
-Cancellation grace contract:    5 seconds
-```
-
-The protocol has bounded commands, messages, evidence records, strict JSON parsing, duplicate-property rejection, and deterministic command/message sequence validators. It does not itself launch a process or inspect a model.
-
-## Runtime identities
-
-```text
-Protected application worker runtime
-    LLamaSharp 0.27.0
-    LLamaSharp.Backend.Cpu 0.27.0
-    llama.cpp 3f7c29d318e317b63f54c558bc69803963d7d88c
-    win-x64
-
-Separate upstream research runtime
-    llama.cpp b9870
-    2d973636e292ee6f75fadcf08d29cb33511f509f
-```
-
-These are separate evidence tracks and must not be represented as the same native build.
-
-## Verified feasibility evidence
-
-Isolated LLamaSharp work verified:
-
-- CPU native-library selection;
-- controlled Granite `VocabOnly` metadata inspection;
-- tokenizer smoke and embedded chat-template presence;
-- cancellation and disposal evidence;
-- malformed/hostile GGUF containment in child processes;
-- model integrity and evidence privacy checks.
-
-Evidence:
-
-- [Tier 1 verification](../../../docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md)
-- [Tier 2 trusted verification](../../../docs/testing/evidence/2026-08-05-llamasharp-tier2-local-verification.md)
-- [Coverage matrix](../../../docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md)
-
-Production evidence now also proves the published worker reaches `Completed` through all five stages against the controlled zero-tensor N-001 tokenizer fixture, and that the x64 application/test layout contains the exact 44-file CPU closure plus a detached SHA-256 manifest. The same manifest is embedded in the application, and every execution verifies the detached bytes and all staged path/length/hash entries before the process client can launch. The installed-package route anchors that snapshot with Windows package immutability; the unpackaged AppContext route is development/test-only and does not claim protection from a concurrent writer. This does not claim trusted-Granite inference, quality, performance, or final release approval.
-
-## Operational states versus model outcomes
-
-Execution state and model classification remain distinct:
+Execution state and model outcome remain distinct:
 
 ```text
 Completed
-    → reliable evidence exists
-    → application classifier produces one model outcome
+    -> reliable evidence
+    -> Ready when tokenizer smoke passed and chat template is present
+    -> ReadyWithWarnings when tokenizer smoke passed and template is absent
 
 Cancelled
-    → only cooperative worker completion may produce cancellation
+    -> only a cooperative worker terminal proves cancellation
 
 OperationalFailure
-    → reliable classification evidence does not exist
-    → no model outcome is invented
+    -> no reliable model classification is invented
 ```
 
-Examples:
+The presentation layer supports all six domain model outcomes for future
+classifier policies, but the current protected GGUF route produces only
+`Ready` or `ReadyWithWarnings` from completed evidence.
+
+## Runtime and package identity
 
 ```text
-Missing native DLL      ≠ Invalid model
-File permission failure ≠ Unsupported model
-Forced worker kill      ≠ Successful cancellation
-Worker crash            ≠ Corrupt GGUF
+Protocol version:          1
+Worker ID:                 GraniteEdgeAI.ModelInspection.Worker
+Runtime profile:           llamasharp-0.27.0-cpu-win-x64-vocab-only-v1
+LLamaSharp:                0.27.0
+CPU backend package:       0.27.0
+Mapped llama.cpp commit:   3f7c29d318e317b63f54c558bc69803963d7d88c
+Process architecture:      x64
+Inspection mode:           VocabOnly
 ```
 
-## Next production gate
+The fixed worker subtree is resolved only from the installed package root or
+controlled unpackaged `AppContext.BaseDirectory`. A detached manifest is
+checked against the embedded trusted manifest, then every staged path, length,
+and SHA-256 digest is verified before launch. No current-directory or `PATH`
+fallback exists.
 
-The protected worker, real lightweight LLamaSharp engine, fixed x64 child path, prelaunch-verified deterministic CPU dependency manifest, and application-root selection are implemented. The remaining release-packaging work is an extracted unsigned MSIX closure/notice attestation; it does not block beginning the application adapter because the packaged test layout already proves the fixed files are present, isolated, and checked before execution.
+## Tests and evidence
 
-The next user-journey gate is worker-to-application mapping, deterministic classification, and service orchestration. The following gate then connects that service to the page/ViewModel for automatic start, live progress, Cancel, retry, and outcome actions without loading LLamaSharp in the WinUI process.
+Focused packaged tests cover contracts, application boundary fitness, mapper,
+classifier, service, ViewModel, presentation, page lifecycle, onboarding shell
+lifecycle, and the manifest-verifying composition. A real packaged N-001 page
+journey reaches all five stage snapshots and final `Ready` through the actual
+protected worker/service path.
 
-## Non-claims
+The reconciled full packaged Release/x64 run passes 330/330 with zero failed,
+skipped, or not-executed tests. This is local application evidence, not the
+still-pending extracted-MSIX or hosted exact-head release attestation.
 
-- no LLamaSharp, worker-host, or native-library reference in the WinUI process; the app references only WorkerClient on x64;
-- no worker evidence extraction from a real model through the application;
-- no classifier, service, ViewModel, live progress, or working Cancel action;
-- no full tensor load, context, KV cache, or generation;
-- no OpenVINO inspection;
-- no Vulkan or TurboQuant result;
-- no Hardware Fit handoff.
+N-001 is a controlled zero-tensor tokenizer fixture. It proves the lightweight
+VocabOnly journey and native closure, not trusted Granite inference, quality,
+or performance.
+
+## Strict scope and non-claims
+
+This completed feature slice is only local GGUF Model Inspection through the
+Windows x64 CPU LLamaSharp/llama.cpp `VocabOnly` path.
+
+It does not perform or prove:
+
+- OpenVINO;
+- TurboQuant;
+- Vulkan or GPU initialization/offload;
+- full inference or context creation;
+- performance or quality benchmarking;
+- model conversion execution;
+- Hardware Fit execution/navigation;
+- chat execution;
+- non-x64 inspection;
+- extracted MSIX closure/notice approval or hosted exact-head release evidence.
+
+Those are downstream product/release gates and must not be folded into the
+meaning of Model Inspection completion.
 
 ## Related documentation
 
-- [Application feature architecture](../README.md)
-- [Model Import architecture](../ModelImport/README.md)
-- [Onboarding architecture](../Onboarding/README.md)
 - [Application contracts](./Contracts/README.md)
-- [Inspection controls](./Controls/README.md)
-- [Infrastructure composition](./Infrastructure/README.md)
-- [Presentation models](./Models/README.md)
-- [Presentation construction](./Presentation/README.md)
-- [Shared worker contracts](../../../shared/GraniteEdgeAI.ModelInspection.Contracts/README.md)
+- [Runtime adapter](./Runtime/README.md)
+- [Classification](./Classification/README.md)
+- [Application service](./Services/README.md)
+- [ViewModel](./ViewModels/README.md)
+- [Presentation](./Presentation/README.md)
+- [Controls](./Controls/README.md)
+- [Infrastructure](./Infrastructure/README.md)
+- [Completeness matrix](../../../docs/testing/Model-Inspection-Test-Completeness-Matrix.md)

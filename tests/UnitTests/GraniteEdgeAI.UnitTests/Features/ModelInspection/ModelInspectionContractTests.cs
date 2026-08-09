@@ -133,6 +133,7 @@ public sealed class ModelInspectionContractTests
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             new ModelInspectionProgress(
                 ModelInspectionStage.ReadModelConfiguration,
+                ModelInspectionStageStatus.Active,
                 completedStageCount: 1,
                 totalStageCount: 5,
                 stageFraction: 1.01,
@@ -144,12 +145,48 @@ public sealed class ModelInspectionContractTests
     {
         ModelInspectionProgress progress = new(
             ModelInspectionStage.ReadModelConfiguration,
+            ModelInspectionStageStatus.Active,
             completedStageCount: 1,
             totalStageCount: 5,
             stageFraction: null,
             userMessage: "Reading model configuration.");
 
+        Assert.AreEqual(ModelInspectionStageStatus.Active, progress.StageStatus);
         Assert.IsNull(progress.StageFraction);
+    }
+
+    [TestMethod]
+    public void Progress_RejectsUndefinedStageStatus()
+    {
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new ModelInspectionProgress(
+                ModelInspectionStage.ReadModelConfiguration,
+                (ModelInspectionStageStatus)999,
+                completedStageCount: 1,
+                totalStageCount: 5,
+                stageFraction: null,
+                userMessage: "Reading model configuration."));
+    }
+
+    [TestMethod]
+    [DataRow(1, (int)ModelInspectionStageStatus.Active, 1)]
+    [DataRow(5, (int)ModelInspectionStageStatus.Completed, 0)]
+    [DataRow(3, (int)ModelInspectionStageStatus.Warning, 2)]
+    [DataRow(4, (int)ModelInspectionStageStatus.Failed, 4)]
+    [DataRow(2, (int)ModelInspectionStageStatus.Cancelled, 2)]
+    public void Progress_RejectsContradictoryStageStatusAndCount(
+        int stageValue,
+        int statusValue,
+        int completedStageCount)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelInspectionProgress(
+                (ModelInspectionStage)stageValue,
+                (ModelInspectionStageStatus)statusValue,
+                completedStageCount,
+                totalStageCount: 5,
+                stageFraction: null,
+                userMessage: "Controlled progress update."));
     }
 
     [TestMethod]

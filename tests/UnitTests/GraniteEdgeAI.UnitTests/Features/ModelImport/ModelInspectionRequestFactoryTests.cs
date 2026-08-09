@@ -21,9 +21,11 @@ public sealed class ModelInspectionRequestFactoryTests
 
         try
         {
-            ModelQuickScanResult scanResult = CreateSuccessfulScan(64);
             DateTimeOffset expectedLastWriteTime = new(
                 File.GetLastWriteTimeUtc(modelPath));
+            ModelQuickScanResult scanResult = CreateSuccessfulScan(
+                64,
+                expectedLastWriteTime);
 
             bool created = ModelInspectionRequestFactory.TryCreate(
                 modelPath,
@@ -40,6 +42,79 @@ public sealed class ModelInspectionRequestFactoryTests
                 request.ExpectedFileIdentity.LastWriteTimeUtc);
             Assert.AreSame(scanResult.ModelName, request.QuickScan.ModelName);
             Assert.AreEqual(3U, request.QuickScan.GgufVersion);
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(modelPath);
+        }
+    }
+
+    [TestMethod]
+    public async Task TryCreate_UnchangedFileAfterRealQuickScan_CreatesRequest()
+    {
+        string modelPath = CreateTemporaryValidGgufCopy();
+
+        try
+        {
+            ModelQuickScanResult scanResult = await new GgufQuickScanner().ScanAsync(
+                modelPath,
+                CancellationToken.None);
+
+            bool created = ModelInspectionRequestFactory.TryCreate(
+                modelPath,
+                scanResult,
+                out ModelInspectionRequest? request);
+
+            Assert.AreEqual(ModelQuickScanOutcome.Success, scanResult.Outcome);
+            Assert.IsTrue(created);
+            Assert.IsNotNull(request);
+            Assert.AreEqual(
+                new DateTimeOffset(File.GetLastWriteTimeUtc(modelPath)),
+                request.ExpectedFileIdentity.LastWriteTimeUtc);
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(modelPath);
+        }
+    }
+
+    [TestMethod]
+    public async Task TryCreate_SameLengthReplacementWithChangedTimestamp_ReturnsFalseWithoutRequest()
+    {
+        string modelPath = CreateTemporaryValidGgufCopy();
+
+        try
+        {
+            ModelQuickScanResult scanResult = await new GgufQuickScanner().ScanAsync(
+                modelPath,
+                CancellationToken.None);
+            Assert.AreEqual(ModelQuickScanOutcome.Success, scanResult.Outcome);
+
+            byte[] replacementBytes = await File.ReadAllBytesAsync(modelPath);
+            replacementBytes[^1] ^= 0x01;
+            DateTime changedLastWriteTimeUtc =
+                File.GetLastWriteTimeUtc(modelPath).AddMinutes(1);
+            string replacementPath = Path.Combine(
+                Path.GetDirectoryName(modelPath)!,
+                "replacement.gguf");
+            await File.WriteAllBytesAsync(replacementPath, replacementBytes);
+            File.SetLastWriteTimeUtc(
+                replacementPath,
+                changedLastWriteTimeUtc);
+            File.Move(replacementPath, modelPath, overwrite: true);
+
+            Assert.AreEqual(replacementBytes.LongLength, new FileInfo(modelPath).Length);
+            Assert.AreEqual(
+                changedLastWriteTimeUtc,
+                File.GetLastWriteTimeUtc(modelPath));
+
+            bool created = ModelInspectionRequestFactory.TryCreate(
+                modelPath,
+                scanResult,
+                out ModelInspectionRequest? request);
+
+            Assert.IsFalse(created);
+            Assert.IsNull(request);
         }
         finally
         {
@@ -207,7 +282,9 @@ public sealed class ModelInspectionRequestFactoryTests
         Assert.IsNull(nullScanRequest);
     }
 
-    private static ModelQuickScanResult CreateSuccessfulScan(long fileSizeBytes)
+    private static ModelQuickScanResult CreateSuccessfulScan(
+        long fileSizeBytes,
+        DateTimeOffset? fileLastWriteTimeUtc = null)
     {
         return ModelQuickScanResult.CreateSuccess(
             modelName: "Granite 4.1 3B Instruct",
@@ -216,7 +293,15 @@ public sealed class ModelInspectionRequestFactoryTests
             quantization: "Q4_K_M",
             fileSizeBytes: fileSizeBytes,
             contextLength: 131_072UL,
-            ggufVersion: 3);
+            ggufVersion: 3,
+            fileLastWriteTimeUtc: fileLastWriteTimeUtc ?? new DateTimeOffset(
+                2026,
+                8,
+                9,
+                0,
+                0,
+                0,
+                TimeSpan.Zero));
     }
 
     private static string CreateTemporaryModelFile(
@@ -232,6 +317,27 @@ public sealed class ModelInspectionRequestFactoryTests
             directoryPath,
             $"granite-4.1-3b{extension}");
         File.WriteAllBytes(modelPath, new byte[lengthBytes]);
+        return modelPath;
+    }
+
+    private static string CreateTemporaryValidGgufCopy()
+    {
+        string sourceFixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "GGUF",
+            "V-001-complete-metadata-v3.gguf");
+        Assert.IsTrue(File.Exists(sourceFixturePath));
+
+        string directoryPath = Path.Combine(
+            Path.GetTempPath(),
+            $"granite-edge-ai-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directoryPath);
+
+        string modelPath = Path.Combine(
+            directoryPath,
+            "granite-4.1-3b-instruct-q4_k_m.gguf");
+        File.Copy(sourceFixturePath, modelPath);
         return modelPath;
     }
 

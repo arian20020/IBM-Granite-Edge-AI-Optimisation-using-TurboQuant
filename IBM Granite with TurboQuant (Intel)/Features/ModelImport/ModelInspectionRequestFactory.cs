@@ -50,6 +50,8 @@ namespace GraniteEdgeAI.Features.ModelImport
             string? modelName = scanResult.ModelName;
             string? architecture = scanResult.Architecture;
             long? scannedFileSizeBytes = scanResult.FileSizeBytes;
+            DateTimeOffset? scannedFileLastWriteTimeUtc =
+                scanResult.FileLastWriteTimeUtc;
             uint? ggufVersion = scanResult.GgufVersion;
 
             // A successful result must still contain every required GGUF fact.
@@ -57,6 +59,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 string.IsNullOrWhiteSpace(architecture) ||
                 !scannedFileSizeBytes.HasValue ||
                 scannedFileSizeBytes.Value <= 0 ||
+                !scannedFileLastWriteTimeUtc.HasValue ||
+                scannedFileLastWriteTimeUtc.Value.Offset != TimeSpan.Zero ||
                 !ggufVersion.HasValue ||
                 ggufVersion.Value == 0)
             {
@@ -97,6 +101,10 @@ namespace GraniteEdgeAI.Features.ModelImport
                 // file handle remains open.
                 DateTimeOffset lastWriteTimeUtc = new(
                     File.GetLastWriteTimeUtc(fullModelPath));
+                if (lastWriteTimeUtc != scannedFileLastWriteTimeUtc.Value)
+                {
+                    return false;
+                }
 
                 // Copy only the bounded facts needed by the next use case.
                 ValidatedQuickScanSnapshot quickScan =

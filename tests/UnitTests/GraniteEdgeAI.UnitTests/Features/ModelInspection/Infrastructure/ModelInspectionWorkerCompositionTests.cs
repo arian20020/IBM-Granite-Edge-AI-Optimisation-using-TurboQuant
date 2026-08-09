@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Infrastructure;
+using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.ModelInspection.Contracts;
 using GraniteEdgeAI.ModelInspection.WorkerClient;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -146,6 +148,62 @@ public sealed class ModelInspectionWorkerCompositionTests
                     : WorkerStageStatus.Completed,
                 core[index].StageStatus);
         }
+    }
+
+    [TestMethod]
+    public async Task CreateDefaultService_ActualPackagedRootReturnsApplicationReadyResult()
+    {
+        string approvedRoot = ModelInspectionWorkerComposition
+            .ResolveApprovedApplicationRoot();
+        string fixturePath = Path.Combine(
+            approvedRoot,
+            "TestFixtures",
+            "GGUF",
+            "N-001-vocab-only-spm.gguf");
+        Assert.IsTrue(File.Exists(fixturePath));
+        FileInfo fixture = new(fixturePath);
+        fixture.Refresh();
+        ModelInspectionRequest request = new(
+            fixturePath,
+            fixture.Name,
+            new ExpectedModelFileIdentity(
+                fixture.Length,
+                new DateTimeOffset(fixture.LastWriteTimeUtc, TimeSpan.Zero)),
+            ValidatedQuickScanSnapshot.CreateGguf(
+                modelName: "Controlled packaged VocabOnly fixture",
+                architecture: "granite",
+                parameterSizeLabel: null,
+                quantisation: null,
+                fileSizeBytes: fixture.Length,
+                declaredContextLength: null,
+                ggufVersion: 3));
+        List<ModelInspectionProgress> progress = [];
+        IModelInspectionService service = ModelInspectionWorkerComposition
+            .CreateDefaultService();
+
+        ModelInspectionExecutionResult result = await service.InspectAsync(
+                request,
+                new DelegatingProgress<ModelInspectionProgress>(progress.Add),
+                CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+
+        Assert.AreEqual(ModelInspectionExecutionStatus.Completed, result.Status);
+        Assert.IsNotNull(result.Result);
+        Assert.AreEqual(ModelInspectionOutcome.Ready, result.Result.Outcome);
+        Assert.IsTrue(result.Result.CanContinueToHardwareFit);
+        Assert.IsNull(result.Failure);
+        Assert.IsTrue(progress.Count >= 10);
+        CollectionAssert.AreEqual(
+            Enum.GetValues<ModelInspectionStage>(),
+            progress
+                .Where(update =>
+                    update.StageStatus == ModelInspectionStageStatus.Completed)
+                .Select(update => update.Stage)
+                .ToArray());
+        Assert.AreEqual(5, progress[^1].CompletedStageCount);
+        Assert.AreEqual(
+            ModelInspectionStageStatus.Completed,
+            progress[^1].StageStatus);
     }
 
     [TestMethod]

@@ -1655,6 +1655,9 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual(expected.ExpectedMetadata.ParameterSizeLabel, result.ParameterSizeLabel);
         Assert.AreEqual(expected.ExpectedMetadata.Quantization, result.Quantization);
         Assert.AreEqual(expected.ExpectedMetadata.FileSizeBytes, result.FileSizeBytes);
+        Assert.AreEqual(
+            new DateTimeOffset(File.GetLastWriteTimeUtc(fixturePath)),
+            result.FileLastWriteTimeUtc);
         Assert.AreEqual(expected.ExpectedMetadata.ContextLength, result.ContextLength);
         Assert.AreEqual(expected.ExpectedMetadata.GgufVersion, result.GgufVersion);
         Assert.IsNull(result.FailureCode);

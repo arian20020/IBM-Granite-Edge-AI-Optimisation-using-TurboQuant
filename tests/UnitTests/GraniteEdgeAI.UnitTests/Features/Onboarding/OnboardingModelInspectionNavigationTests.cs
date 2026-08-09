@@ -8,10 +8,12 @@ using GraniteEdgeAI.Features.Onboarding.Controls;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
 using System.IO;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -34,6 +36,9 @@ public sealed class OnboardingModelInspectionNavigationTests
                 CreateSuccessfulModelImportPage(
                     selectedModelPath,
                     fileSizeBytes: 64);
+            ModelInspectionRequest? raisedRequest = null;
+            modelImportPage.ModelInspectionRequested += (_, eventArguments) =>
+                raisedRequest = eventArguments.Request;
             shell.AttachModelImportPage(modelImportPage);
 
             await modelImportPage.BrowseFilesAsync();
@@ -47,11 +52,12 @@ public sealed class OnboardingModelInspectionNavigationTests
 
             Assert.AreEqual(typeof(ModelInspectionPage), stageFrame.SourcePageType);
             Assert.IsNotNull(inspectionPage);
-            Assert.IsNotNull(inspectionPage.Request);
-            Assert.AreEqual(selectedModelPath, inspectionPage.Request.ModelPath);
+            Assert.IsNotNull(raisedRequest);
+            Assert.AreSame(raisedRequest, inspectionPage.Request);
+            Assert.AreEqual(selectedModelPath, raisedRequest.ModelPath);
             Assert.AreEqual(
                 Path.GetFileName(selectedModelPath),
-                inspectionPage.Request.FileName);
+                raisedRequest.FileName);
         }
         finally
         {
@@ -115,6 +121,7 @@ public sealed class OnboardingModelInspectionNavigationTests
         Assert.IsTrue(navigationSucceeded);
         Assert.IsNotNull(inspectionPage);
         Assert.AreSame(request, inspectionPage.Request);
+        Assert.HasCount(0, stageFrame.BackStack);
     }
 
     [UITestMethod]
@@ -131,6 +138,209 @@ public sealed class OnboardingModelInspectionNavigationTests
             shell.CurrentStage);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ChooseAnother_FromActiveInspection_ResetsStageWithFreshImportPage()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+        var stageIndicator =
+            (OnboardingStageIndicator)shell.FindName("StageIndicator");
+        var initialImportPage = (ModelImportPage)stageFrame.Content;
+
+        bool navigationSucceeded = shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\granite.gguf"));
+        var inspectionPage = stageFrame.Content as ModelInspectionPage;
+
+        Assert.IsTrue(navigationSucceeded);
+        Assert.IsNotNull(inspectionPage);
+        Assert.IsNotNull(inspectionPage.ViewModel);
+
+        inspectionPage.ViewModel.ChooseAnotherCommand.Execute(null);
+
+        Assert.AreEqual(typeof(ModelImportPage), stageFrame.SourcePageType);
+        Assert.IsInstanceOfType<ModelImportPage>(stageFrame.Content);
+        Assert.AreNotSame(initialImportPage, stageFrame.Content);
+        Assert.HasCount(0, stageFrame.BackStack);
+        Assert.IsFalse(stageFrame.CanGoBack);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+        Assert.AreEqual(shell.CurrentStage, stageIndicator.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ChooseAnother_AttachesFreshImportPageForNextExactRequest()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+        ModelInspectionRequest firstRequest = CreateRequest(
+            @"C:\Models\first.gguf");
+        ModelInspectionRequest secondRequest = CreateRequest(
+            @"C:\Models\second.gguf");
+
+        Assert.IsTrue(shell.NavigateToModelInspection(firstRequest));
+        var inspectionPage = (ModelInspectionPage)stageFrame.Content;
+        inspectionPage.ViewModel!.ChooseAnotherCommand.Execute(null);
+        var freshImportPage = (ModelImportPage)stageFrame.Content;
+
+        RaiseModelInspectionRequested(freshImportPage, secondRequest);
+
+        var nextInspectionPage = stageFrame.Content as ModelInspectionPage;
+        Assert.IsNotNull(nextInspectionPage);
+        Assert.AreSame(secondRequest, nextInspectionPage.Request);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void AttachModelInspectionPage_Repeatedly_DoesNotDuplicateChooseAnotherNavigation()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\granite.gguf")));
+        var inspectionPage = (ModelInspectionPage)stageFrame.Content;
+        int importNavigationCount = 0;
+        stageFrame.Navigated += (_, eventArguments) =>
+        {
+            if (eventArguments.SourcePageType == typeof(ModelImportPage))
+            {
+                importNavigationCount++;
+            }
+        };
+
+        shell.AttachModelInspectionPage(inspectionPage);
+        shell.AttachModelInspectionPage(inspectionPage);
+        inspectionPage.ViewModel!.ChooseAnotherCommand.Execute(null);
+
+        Assert.AreEqual(1, importNavigationCount);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void InactiveInspectionPage_CannotDriveShellNavigation()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\first.gguf")));
+        var inactivePage = (ModelInspectionPage)stageFrame.Content;
+
+        ModelInspectionRequest activeRequest = CreateRequest(
+            @"C:\Models\second.gguf");
+        Assert.IsTrue(shell.NavigateToModelInspection(activeRequest));
+        var activePage = (ModelInspectionPage)stageFrame.Content;
+
+        RaiseChooseAnotherModelRequestedIfSubscribed(inactivePage);
+
+        Assert.AreSame(activePage, stageFrame.Content);
+        Assert.AreSame(activeRequest, activePage.Request);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void InactiveImportPage_CannotReplaceActiveInspection()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+        var inactiveImportPage = new ModelImportPage();
+        shell.AttachModelImportPage(inactiveImportPage);
+
+        ModelInspectionRequest activeRequest = CreateRequest(
+            @"C:\Models\active.gguf");
+        RaiseModelInspectionRequested(inactiveImportPage, activeRequest);
+        var activeInspectionPage = (ModelInspectionPage)stageFrame.Content;
+
+        RaiseModelInspectionRequestedIfSubscribed(
+            inactiveImportPage,
+            CreateRequest(@"C:\Models\stale.gguf"));
+
+        Assert.AreSame(activeInspectionPage, stageFrame.Content);
+        Assert.AreSame(activeRequest, activeInspectionPage.Request);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task FailedInspectionNavigation_RetainsImportStageAndSubscription()
+    {
+        string selectedModelPath = CreateTemporaryModelFile(lengthBytes: 64);
+
+        try
+        {
+            var shell = new OnboardingShellPage();
+            var stageFrame = (Frame)shell.FindName("StageFrame");
+            var modelImportPage = CreateSuccessfulModelImportPage(
+                selectedModelPath,
+                fileSizeBytes: 64);
+            shell.AttachModelImportPage(modelImportPage);
+            await modelImportPage.BrowseFilesAsync();
+
+            NavigatingCancelEventHandler cancelInspectionNavigation =
+                (_, eventArguments) =>
+                {
+                    if (eventArguments.SourcePageType ==
+                        typeof(ModelInspectionPage))
+                    {
+                        eventArguments.Cancel = true;
+                    }
+                };
+            stageFrame.Navigating += cancelInspectionNavigation;
+
+            Assert.IsTrue(modelImportPage.TryRequestModelInspection());
+            Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+            Assert.AreEqual(typeof(ModelImportPage), stageFrame.SourcePageType);
+
+            stageFrame.Navigating -= cancelInspectionNavigation;
+
+            Assert.IsTrue(modelImportPage.TryRequestModelInspection());
+            Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+            Assert.AreEqual(
+                typeof(ModelInspectionPage),
+                stageFrame.SourcePageType);
+        }
+        finally
+        {
+            DeleteTemporaryModelFile(selectedModelPath);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void FailedChooseAnotherNavigation_RetainsInspectionStageAndSubscription()
+    {
+        var shell = new OnboardingShellPage();
+        var stageFrame = (Frame)shell.FindName("StageFrame");
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\granite.gguf")));
+        var inspectionPage = (ModelInspectionPage)stageFrame.Content;
+
+        NavigatingCancelEventHandler cancelImportNavigation =
+            (_, eventArguments) =>
+            {
+                if (eventArguments.SourcePageType == typeof(ModelImportPage))
+                {
+                    eventArguments.Cancel = true;
+                }
+            };
+        stageFrame.Navigating += cancelImportNavigation;
+
+        inspectionPage.ViewModel!.ChooseAnotherCommand.Execute(null);
+
+        Assert.AreSame(inspectionPage, stageFrame.Content);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+
+        stageFrame.Navigating -= cancelImportNavigation;
+        inspectionPage.ViewModel.ChooseAnotherCommand.Execute(null);
+
+        Assert.AreEqual(typeof(ModelImportPage), stageFrame.SourcePageType);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+    }
+
     private static ModelImportPage CreateSuccessfulModelImportPage(
         string selectedModelPath,
         long fileSizeBytes)
@@ -143,7 +353,9 @@ public sealed class OnboardingModelInspectionNavigationTests
                 quantization: "Q4_K_M",
                 fileSizeBytes: fileSizeBytes,
                 contextLength: 131_072UL,
-                ggufVersion: 3);
+                ggufVersion: 3,
+                fileLastWriteTimeUtc: new DateTimeOffset(
+                    File.GetLastWriteTimeUtc(selectedModelPath)));
 
         return new ModelImportPage(
             () => Task.FromResult(ModelFormatSelection.Gguf),
@@ -175,6 +387,53 @@ public sealed class OnboardingModelInspectionNavigationTests
                 fileSizeBytes: 64,
                 declaredContextLength: 131_072,
                 ggufVersion: 3));
+    }
+
+    private static void RaiseModelInspectionRequested(
+        ModelImportPage modelImportPage,
+        ModelInspectionRequest request)
+    {
+        FieldInfo? eventField = typeof(ModelImportPage).GetField(
+            "ModelInspectionRequested",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(eventField);
+
+        var eventHandler = eventField.GetValue(modelImportPage)
+            as EventHandler<ModelInspectionRequestedEventArgs>;
+        Assert.IsNotNull(eventHandler);
+
+        eventHandler.Invoke(
+            modelImportPage,
+            new ModelInspectionRequestedEventArgs(request));
+    }
+
+    private static void RaiseModelInspectionRequestedIfSubscribed(
+        ModelImportPage modelImportPage,
+        ModelInspectionRequest request)
+    {
+        FieldInfo? eventField = typeof(ModelImportPage).GetField(
+            "ModelInspectionRequested",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(eventField);
+
+        var eventHandler = eventField.GetValue(modelImportPage)
+            as EventHandler<ModelInspectionRequestedEventArgs>;
+        eventHandler?.Invoke(
+            modelImportPage,
+            new ModelInspectionRequestedEventArgs(request));
+    }
+
+    private static void RaiseChooseAnotherModelRequestedIfSubscribed(
+        ModelInspectionPage modelInspectionPage)
+    {
+        FieldInfo? eventField = typeof(ModelInspectionPage).GetField(
+            "ChooseAnotherModelRequested",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(eventField);
+
+        var eventHandler = eventField.GetValue(modelInspectionPage)
+            as EventHandler;
+        eventHandler?.Invoke(modelInspectionPage, EventArgs.Empty);
     }
 
     private static string CreateTemporaryModelFile(int lengthBytes)
