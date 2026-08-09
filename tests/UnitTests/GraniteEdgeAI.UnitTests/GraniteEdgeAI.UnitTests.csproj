@@ -23,6 +23,10 @@
   <ItemGroup>
     <Page Remove="UnitTestApp.xaml" />
     <ApplicationDefinition Include="UnitTestApp.xaml" />
+    <Page Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Presentation\ModelInspectionTheme.xaml"
+          Link="Features\ModelInspection\Presentation\ModelInspectionTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <ProjectCapability Include="TestContainer" />
   </ItemGroup>
 
@@ -34,6 +38,10 @@
     <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\Square44x44Logo.targetsize-24_altform-unplated.png" Link="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\StoreLogo.png" Link="Assets\StoreLogo.png" />
     <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\Wide310x150Logo.scale-200.png" Link="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\Fonts\Inter-Regular.ttf" Link="Assets\Fonts\Inter-Regular.ttf" />
+    <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\Fonts\Inter-Bold.ttf" Link="Assets\Fonts\Inter-Bold.ttf" />
+    <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\Fonts\OFL.txt" Link="Assets\Fonts\OFL.txt" />
+    <Content Include="..\..\..\IBM Granite with TurboQuant (Intel)\Assets\Fonts\inter-manifest.json" Link="Assets\Fonts\inter-manifest.json" />
   </ItemGroup>
 
   <ItemGroup>

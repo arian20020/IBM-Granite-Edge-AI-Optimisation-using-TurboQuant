@@ -76,6 +76,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/Initia
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressPresentationFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPagePresentation.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationFactory.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionTheme.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/ILlamaModelProbe.cs
@@ -148,6 +149,8 @@ docs/testing/evidence/2026-08-06-model-inspection-cleanup-baseline.md
 docs/testing/evidence/2026-08-07-model-inspection-cleanup-phase-1.md
 docs/testing/evidence/README.md
 docs/testing/runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md
+docs/ux/screenshots/model-inspection/reference/README.md
+docs/ux/screenshots/model-inspection/reference/model-inspection-complete-ordered-board-v2.svg
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/BoundedStandardErrorCollector.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/IInspectionWorkerClient.cs
@@ -259,6 +262,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGr
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4PackagingContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate5ApplicationBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionVisualSourceContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerEvidenceValidationTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerMessageSequenceValidatorTests.cs
@@ -339,6 +343,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspection
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/InspectionProgressPresentationFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionAssetContractTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionPresentationFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/PresentationTestData.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/ModelInspectionProbeResultTests.cs
@@ -355,6 +360,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspe
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingShellPageTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj
 tests/UnitTests/GraniteEdgeAI.UnitTests/StringAssert.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/UnitTestApp.xaml
 tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/InvalidNativeBackendProcessTests.cs
 tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/MissingNativeBackendProcessTests.cs
 tools/ModelInspection.LlamaSharpSpike.NativeIntegrationTests/ModelInspection.LlamaSharpSpike.NativeIntegrationTests.csproj

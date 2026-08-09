@@ -30,6 +30,7 @@
     <None Remove="Features\ModelInspection\Controls\InspectionContentCard.xaml" />
     <None Remove="Features\ModelInspection\Controls\InspectionModelCard.xaml" />
     <None Remove="Features\ModelInspection\Controls\InspectionOutcomeCard.xaml" />
+    <None Remove="Features\ModelInspection\Presentation\ModelInspectionTheme.xaml" />
     <None Remove="Features\ModelInspection\ModelInspectionPage.xaml" />
     <None Remove="Features\Onboarding\Controls\OnboardingStageIndicator.xaml" />
     <None Remove="Features\Onboarding\OnboardingShellPage.xaml" />
@@ -47,6 +48,12 @@
 
 		<!-- Granite Edge AI branding used inside the application UI. -->
 		<Content Include="Assets\Branding\granite-edge-ai-icon.svg" />
+
+		<!-- Licensed Inter 4.1 faces and immutable provenance for Model Inspection. -->
+		<Content Update="Assets\Fonts\Inter-Regular.ttf" />
+		<Content Update="Assets\Fonts\Inter-Bold.ttf" />
+		<Content Update="Assets\Fonts\OFL.txt" />
+		<Content Update="Assets\Fonts\inter-manifest.json" />
 	</ItemGroup>
 
   <ItemGroup>
@@ -138,6 +145,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PRIResource Remove="Features\NewFolder\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelInspection\Presentation\ModelInspectionTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="Features\ModelInspection\Controls\InspectionActionCard.xaml">
