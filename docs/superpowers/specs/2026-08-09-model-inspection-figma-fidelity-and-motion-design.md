@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |---|---|
-| Status | Approved specification; implementation plan pending |
+| Status | Approved specification; implementation plan ready |
 | Date | 2026-08-09 |
 | Branch | `test/model-inspection-completeness-gate` |
 | Verified base commit | `e5e3f6cfaa0744fab32aa57eafca750faf1f1876` |
@@ -11,6 +11,7 @@
 | Figma file | `gAmBX1DYh71hqxHVqiivus` (`Granite Edge AI`) |
 | Figma board | `142:2148` (`model-inspection-complete-ordered-board-v2 1`) |
 | Supplied SVG evidence | 4624 x 5836 flattened board; SHA-256 `8A171A3A1DF66D158990789A368C439752EBE5309B364A870E0C0107B519B7EB` |
+| Implementation plan | `docs/superpowers/plans/2026-08-09-model-inspection-figma-fidelity-and-motion.md` |
 
 ---
 
@@ -833,6 +834,7 @@ The user explicitly approved:
 - the acceptance strategy covering layout, motion, all states, packaged N-001,
   privacy and Visual Studio Debug verification.
 
-No open product decision remains before implementation planning. The user gave
-written approval to this specification on 2026-08-09. Implementation begins
-only through the separately reviewed task plan derived from this specification.
+No open product decision remains. The user gave written approval to this
+specification and authority to proceed without another approval pause on
+2026-08-09. Implementation follows the separately reviewed task plan derived
+from this specification.

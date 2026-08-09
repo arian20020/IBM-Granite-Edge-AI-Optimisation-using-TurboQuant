@@ -125,6 +125,7 @@ docs/superpowers/plans/2026-08-06-model-inspection-cleanup-master.md
 docs/superpowers/plans/2026-08-06-model-inspection-cleanup-phase-0-baseline-inventory.md
 docs/superpowers/plans/2026-08-06-model-inspection-cleanup-phase-1-winui-contracts.md
 docs/superpowers/plans/2026-08-08-model-inspection-test-completeness-gate.md
+docs/superpowers/plans/2026-08-09-model-inspection-figma-fidelity-and-motion.md
 docs/superpowers/specs/2026-07-30-embedded-model-download-card-responsive-indicator-design.md
 docs/superpowers/specs/2026-08-03-feature-architecture-readmes-design.md
 docs/superpowers/specs/2026-08-04-core-runtime-progress-and-backend-gates-design.md
