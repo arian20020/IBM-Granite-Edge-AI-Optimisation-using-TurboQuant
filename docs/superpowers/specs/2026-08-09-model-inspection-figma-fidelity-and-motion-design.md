@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |---|---|
-| Status | Approved conversational design; self-reviewed specification awaiting user approval |
+| Status | Approved specification; implementation plan pending |
 | Date | 2026-08-09 |
 | Branch | `test/model-inspection-completeness-gate` |
 | Verified base commit | `e5e3f6cfaa0744fab32aa57eafca750faf1f1876` |
@@ -833,6 +833,6 @@ The user explicitly approved:
 - the acceptance strategy covering layout, motion, all states, packaged N-001,
   privacy and Visual Studio Debug verification.
 
-No open product decision remains before implementation planning. This
-specification must receive written user approval before the implementation plan
-is created.
+No open product decision remains before implementation planning. The user gave
+written approval to this specification on 2026-08-09. Implementation begins
+only through the separately reviewed task plan derived from this specification.
