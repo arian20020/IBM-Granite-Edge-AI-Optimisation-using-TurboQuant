@@ -76,6 +76,8 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOu
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomePresentationKind.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomeTone.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherQueueModelInspectionRenderDispatcher.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionRenderDispatcher.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InitialInspectionProgressPresentationFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressPresentationFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressRows.cs
@@ -84,9 +86,12 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelI
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionFigmaState.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPagePresentation.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationCommands.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationDelta.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionRegionKeys.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionRenderCoordinator.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionTheme.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionVisualOperationKey.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/ILlamaModelProbe.cs
@@ -365,6 +370,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/Mo
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionDisplayTextPolicyTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionFigmaStatePresentationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionPresentationFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionRenderCoordinatorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/PresentationTestData.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/ModelInspectionProbeResultTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/RuntimeTestData.cs

@@ -932,18 +932,22 @@ internal static class ModelInspectionPresentationFactory
             model.ModelType,
             model.DeclaredContext,
             model.FileSize,
-            model.InspectionChecksSummary,
             EnumIdentity(model.InspectionDetailsVisibility),
-            BooleanIdentity(model.IsInspectionDetailsExpanded),
-            model.InspectionChecks.Count.ToString(CultureInfo.InvariantCulture)
+            BooleanIdentity(model.IsInspectionDetailsExpanded)
         ];
-        foreach (InspectionCheckPresentation check in model.InspectionChecks)
+        if (model.DisplayMode == InspectionModelCardMode.Detailed)
         {
-            values.Add(check.Title);
-            values.Add(check.Detail);
-            values.Add(EnumIdentity(check.Status));
-            values.Add(check.StatusText);
-            values.Add(check.AutomationName);
+            values.Add(model.InspectionChecksSummary);
+            values.Add(model.InspectionChecks.Count.ToString(
+                CultureInfo.InvariantCulture));
+            foreach (InspectionCheckPresentation check in model.InspectionChecks)
+            {
+                values.Add(check.Title);
+                values.Add(check.Detail);
+                values.Add(EnumIdentity(check.Status));
+                values.Add(check.StatusText);
+                values.Add(check.AutomationName);
+            }
         }
 
         return CreateSemanticRegionKey("model", values);

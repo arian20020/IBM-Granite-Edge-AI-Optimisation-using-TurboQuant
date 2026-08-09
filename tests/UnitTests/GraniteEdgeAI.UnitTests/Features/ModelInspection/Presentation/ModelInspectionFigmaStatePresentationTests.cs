@@ -729,6 +729,46 @@ public sealed class ModelInspectionFigmaStatePresentationTests
     }
 
     [TestMethod]
+    public void RegionKeys_InitialToFirstProgressIgnoresHiddenInspectionSummary()
+    {
+        ModelInspectionViewSnapshot initialSnapshot = new(
+            new ModelInspectionRenderKey(7, 0),
+            isRunActive: true,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: null);
+        ModelInspectionViewSnapshot progressSnapshot = new(
+            new ModelInspectionRenderKey(7, 1),
+            isRunActive: true,
+            isCancellationRequested: false,
+            CreateProgress(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Active,
+                completed: 0,
+                "Checking the package."),
+            terminalResult: null);
+        InspectionProgressRows progressRows = CreateProgressRows(attempt: 7);
+
+        ModelInspectionPagePresentation initial = Create(
+            initialSnapshot,
+            progressRows);
+        ModelInspectionPagePresentation progress = Create(
+            progressSnapshot,
+            progressRows);
+
+        Assert.AreEqual(
+            initial.ModelCard.CompactSummary,
+            progress.ModelCard.CompactSummary);
+        Assert.AreEqual(initial.RegionKeys.Model, progress.RegionKeys.Model);
+        Assert.AreNotEqual(
+            initial.RegionKeys.Progress,
+            progress.RegionKeys.Progress);
+        Assert.AreNotEqual(
+            initial.RegionKeys.Announcements,
+            progress.RegionKeys.Announcements);
+    }
+
+    [TestMethod]
     public void RegionKeys_ProgressChangesProgressAndAnnouncementOnly()
     {
         ModelInspectionViewSnapshot firstSnapshot = new(
