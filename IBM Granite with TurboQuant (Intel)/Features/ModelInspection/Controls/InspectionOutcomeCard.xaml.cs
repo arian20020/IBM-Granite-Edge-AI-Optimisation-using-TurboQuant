@@ -103,11 +103,17 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 return;
             }
 
+            LayoutRoot.Visibility = CardVisibility;
+
             if (CardVisibility == Visibility.Collapsed)
             {
                 _lastAnnouncedAutomationName = null;
                 return;
             }
+
+            // Presentation is a dependency property rather than an observable
+            // DTO. Refresh every bound text/icon before applying its tone.
+            Bindings.Update();
 
             string stateName = presentation.Tone switch
             {

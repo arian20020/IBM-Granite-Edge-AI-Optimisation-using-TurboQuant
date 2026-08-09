@@ -12,709 +12,600 @@
     d:DesignWidth="840"
     mc:Ignorable="d">
 
-    <!--
-        Displays model identity and model metadata only.
-        Outcome, progress and actions belong to their own controls.
-    -->
     <UserControl.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary
-                    x:Key="Dark">
-                    <SolidColorBrush
-                        x:Key="InspectionCardBackgroundBrush"
-                        Color="#1F1F1F" />
-                    <SolidColorBrush
-                        x:Key="InspectionSubtleBackgroundBrush"
-                        Color="#25282D" />
-                    <SolidColorBrush
-                        x:Key="InspectionCardBorderBrush"
-                        Color="#424852" />
-                    <SolidColorBrush
-                        x:Key="InspectionDividerBrush"
-                        Color="#363C45" />
-                    <SolidColorBrush
-                        x:Key="InspectionPrimaryTextBrush"
-                        Color="#F7F8FA" />
-                    <SolidColorBrush
-                        x:Key="InspectionSecondaryTextBrush"
-                        Color="#D0D5DD" />
-                    <SolidColorBrush
-                        x:Key="InspectionMutedTextBrush"
-                        Color="#AAB2BF" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBrush"
-                        Color="#78A9FF" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBackgroundBrush"
-                        Color="#172A46" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBorderBrush"
-                        Color="#355C91" />
-                    <SolidColorBrush
-                        x:Key="InspectionSuccessBrush"
-                        Color="#42BEA7" />
-                    <SolidColorBrush
-                        x:Key="InspectionSuccessBackgroundBrush"
-                        Color="#153A33" />
-                    <SolidColorBrush
-                        x:Key="InspectionWarningBrush"
-                        Color="#F1C21B" />
-                    <SolidColorBrush
-                        x:Key="InspectionWarningBackgroundBrush"
-                        Color="#44370A" />
-                    <SolidColorBrush
-                        x:Key="InspectionErrorBrush"
-                        Color="#FA4D56" />
-                    <SolidColorBrush
-                        x:Key="InspectionErrorBackgroundBrush"
-                        Color="#4A1E22" />
-                    <SolidColorBrush
-                        x:Key="InspectionNeutralBrush"
-                        Color="#AAB2BF" />
-                    <SolidColorBrush
-                        x:Key="InspectionNeutralBackgroundBrush"
-                        Color="#30343A" />
-                </ResourceDictionary>
+        <Style
+            x:Key="MetadataLabelStyle"
+            TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionLabelFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionLabelFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionLabelFontWeight}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+            <Setter Property="CharacterSpacing" Value="40" />
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+        </Style>
+        <Style
+            x:Key="MetadataValueStyle"
+            TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,7,0,0" />
+            <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionBodyFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style
+            x:Key="InspectionCheckStatusStyle"
+            TargetType="TextBlock">
+            <Setter Property="Margin" Value="12,0,4,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="AutomationProperties.AccessibilityView" Value="Raw" />
+            <Setter Property="FontFamily" Value="{StaticResource InspectionLabelFontFamily}" />
+            <Setter Property="FontSize" Value="{StaticResource InspectionLabelFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionLabelFontWeight}" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
 
-                <ResourceDictionary
-                    x:Key="Light">
-                    <SolidColorBrush
-                        x:Key="InspectionCardBackgroundBrush"
-                        Color="#FFFFFF" />
-                    <SolidColorBrush
-                        x:Key="InspectionSubtleBackgroundBrush"
-                        Color="#F8FAFC" />
-                    <SolidColorBrush
-                        x:Key="InspectionCardBorderBrush"
-                        Color="#D7E0EA" />
-                    <SolidColorBrush
-                        x:Key="InspectionDividerBrush"
-                        Color="#E8EDF3" />
-                    <SolidColorBrush
-                        x:Key="InspectionPrimaryTextBrush"
-                        Color="#101828" />
-                    <SolidColorBrush
-                        x:Key="InspectionSecondaryTextBrush"
-                        Color="#475467" />
-                    <SolidColorBrush
-                        x:Key="InspectionMutedTextBrush"
-                        Color="#667085" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBrush"
-                        Color="#0F62FE" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBackgroundBrush"
-                        Color="#EEF5FF" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBorderBrush"
-                        Color="#C6D7F2" />
-                    <SolidColorBrush
-                        x:Key="InspectionSuccessBrush"
-                        Color="#067A57" />
-                    <SolidColorBrush
-                        x:Key="InspectionSuccessBackgroundBrush"
-                        Color="#E9F7F1" />
-                    <SolidColorBrush
-                        x:Key="InspectionWarningBrush"
-                        Color="#9A6700" />
-                    <SolidColorBrush
-                        x:Key="InspectionWarningBackgroundBrush"
-                        Color="#FFF6E0" />
-                    <SolidColorBrush
-                        x:Key="InspectionErrorBrush"
-                        Color="#B42318" />
-                    <SolidColorBrush
-                        x:Key="InspectionErrorBackgroundBrush"
-                        Color="#FFF0EF" />
-                    <SolidColorBrush
-                        x:Key="InspectionNeutralBrush"
-                        Color="#667085" />
-                    <SolidColorBrush
-                        x:Key="InspectionNeutralBackgroundBrush"
-                        Color="#F2F4F7" />
-                </ResourceDictionary>
-
-                <ResourceDictionary
-                    x:Key="HighContrast">
-                    <SolidColorBrush
-                        x:Key="InspectionCardBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionSubtleBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionCardBorderBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionDividerBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionPrimaryTextBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionSecondaryTextBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionMutedTextBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBrush"
-                        Color="{ThemeResource SystemColorHighlightColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionBlueBorderBrush"
-                        Color="{ThemeResource SystemColorHighlightColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionSuccessBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionSuccessBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionWarningBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionWarningBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionErrorBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionErrorBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionNeutralBrush"
-                        Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush
-                        x:Key="InspectionNeutralBackgroundBrush"
-                        Color="{ThemeResource SystemColorWindowColor}" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
-
-            <Style
-                x:Key="MetadataLabelStyle"
-                TargetType="TextBlock">
-                <Setter Property="FontSize" Value="11" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{ThemeResource InspectionMutedTextBrush}" />
-                <Setter Property="CharacterSpacing" Value="40" />
-                <Setter Property="TextWrapping" Value="WrapWholeWords" />
-            </Style>
-
-            <Style
-                x:Key="MetadataValueStyle"
-                TargetType="TextBlock">
-                <Setter Property="Margin" Value="0,7,0,0" />
-                <Setter Property="FontSize" Value="14" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="{ThemeResource InspectionPrimaryTextBrush}" />
-                <Setter Property="TextWrapping" Value="WrapWholeWords" />
-                <Setter Property="MaxLines" Value="2" />
-            </Style>
-
-            <!--  One row template serves every inspection check.  -->
-            <DataTemplate
-                x:Key="InspectionCheckTemplate"
-                x:DataType="models:InspectionCheckPresentation">
-
-                <Border
-                    MinHeight="56"
-                    Padding="0,10"
-                    AutomationProperties.Name="{x:Bind AutomationName}"
-                    BorderBrush="{ThemeResource InspectionDividerBrush}"
-                    BorderThickness="0,0,0,1">
-
+        <DataTemplate
+            x:Key="InspectionCheckTemplate"
+            x:DataType="models:InspectionCheckPresentation">
+            <Border
+                Tag="InspectionCheckRow"
+                MinHeight="56"
+                Padding="0,10"
+                AutomationProperties.AccessibilityView="Raw"
+                BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                BorderThickness="0,0,0,1">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
                     <Grid
-                        ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition
-                                Width="24" />
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
+                        Grid.Column="0"
+                        Width="22"
+                        Height="22"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw">
                         <Border
-                            Grid.Column="0"
-                            Width="22"
-                            Height="22"
-                            VerticalAlignment="Center"
-                            AutomationProperties.AccessibilityView="Raw"
-                            Background="{x:Bind local:InspectionModelCard.GetCheckBackground(Status)}"
-                            CornerRadius="11">
-
+                            Tag="InspectionCheckStatusIcon"
+                            Background="{ThemeResource InspectionSuccessSurfaceBrush}"
+                            CornerRadius="11"
+                            Visibility="{x:Bind local:InspectionModelCard.GetPassedVisibility(Status)}">
                             <SymbolIcon
                                 Width="12"
                                 Height="12"
-                                Foreground="{x:Bind local:InspectionModelCard.GetCheckForeground(Status)}"
-                                Symbol="{x:Bind local:InspectionModelCard.GetCheckSymbol(Status)}" />
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Symbol="Accept" />
                         </Border>
-
-                        <StackPanel
-                            Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Spacing="3">
-                            <TextBlock
-                                FontSize="13"
-                                FontWeight="SemiBold"
-                                Foreground="{ThemeResource InspectionPrimaryTextBrush}"
-                                Text="{x:Bind Title}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                FontSize="11"
-                                Foreground="{ThemeResource InspectionMutedTextBrush}"
-                                Text="{x:Bind Detail}"
-                                TextWrapping="WrapWholeWords" />
-                        </StackPanel>
-
-                        <TextBlock
-                            Grid.Column="2"
-                            Margin="12,0,4,0"
-                            VerticalAlignment="Center"
-                            FontSize="11"
-                            FontWeight="SemiBold"
-                            Foreground="{x:Bind local:InspectionModelCard.GetCheckForeground(Status)}"
-                            Text="{x:Bind StatusText}"
-                            TextWrapping="NoWrap" />
+                        <Border
+                            Tag="InspectionCheckStatusIcon"
+                            Background="{ThemeResource InspectionWarningSurfaceBrush}"
+                            CornerRadius="11"
+                            Visibility="{x:Bind local:InspectionModelCard.GetWarningVisibility(Status)}">
+                            <SymbolIcon
+                                Width="12"
+                                Height="12"
+                                Foreground="{ThemeResource InspectionWarningTextBrush}"
+                                Symbol="Important" />
+                        </Border>
+                        <Border
+                            Tag="InspectionCheckStatusIcon"
+                            Background="{ThemeResource InspectionErrorSurfaceBrush}"
+                            CornerRadius="11"
+                            Visibility="{x:Bind local:InspectionModelCard.GetErrorVisibility(Status)}">
+                            <SymbolIcon
+                                Width="12"
+                                Height="12"
+                                Foreground="{ThemeResource InspectionErrorTextBrush}"
+                                Symbol="Cancel" />
+                        </Border>
+                        <Border
+                            Tag="InspectionCheckStatusIcon"
+                            Background="{ThemeResource InspectionBlueSurfaceBrush}"
+                            CornerRadius="11"
+                            Visibility="{x:Bind local:InspectionModelCard.GetInformationVisibility(Status)}">
+                            <SymbolIcon
+                                Width="12"
+                                Height="12"
+                                Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
+                                Symbol="Help" />
+                        </Border>
                     </Grid>
-                </Border>
-            </DataTemplate>
-        </ResourceDictionary>
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Spacing="3">
+                        <TextBlock
+                            Tag="InspectionCheckAutomationElement"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.Name="{x:Bind AutomationName}"
+                            FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                            FontSize="{StaticResource InspectionBodyFontSize}"
+                            FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                            Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                            Text="{x:Bind Title}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            AutomationProperties.AccessibilityView="Raw"
+                            FontFamily="{StaticResource InspectionHelperFontFamily}"
+                            FontSize="{StaticResource InspectionHelperFontSize}"
+                            FontWeight="{StaticResource InspectionHelperFontWeight}"
+                            Foreground="{ThemeResource InspectionTextMutedBrush}"
+                            Text="{x:Bind Detail}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Grid Grid.Column="2">
+                        <TextBlock
+                            Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                            Style="{StaticResource InspectionCheckStatusStyle}"
+                            Text="{x:Bind StatusText}"
+                            Visibility="{x:Bind local:InspectionModelCard.GetPassedVisibility(Status)}" />
+                        <TextBlock
+                            Foreground="{ThemeResource InspectionWarningTextBrush}"
+                            Style="{StaticResource InspectionCheckStatusStyle}"
+                            Text="{x:Bind StatusText}"
+                            Visibility="{x:Bind local:InspectionModelCard.GetWarningVisibility(Status)}" />
+                        <TextBlock
+                            Foreground="{ThemeResource InspectionErrorTextBrush}"
+                            Style="{StaticResource InspectionCheckStatusStyle}"
+                            Text="{x:Bind StatusText}"
+                            Visibility="{x:Bind local:InspectionModelCard.GetErrorVisibility(Status)}" />
+                        <TextBlock
+                            Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
+                            Style="{StaticResource InspectionCheckStatusStyle}"
+                            Text="{x:Bind StatusText}"
+                            Visibility="{x:Bind local:InspectionModelCard.GetInformationVisibility(Status)}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
-    <!--  The parent page controls vertical spacing; this control has no outer Margin.  -->
     <Grid
         x:Name="LayoutRoot"
-        MaxWidth="840"
-        HorizontalAlignment="Stretch">
-        <!--  Compact presentation used during inspection and non-ready outcomes.  -->
+        MaxWidth="{StaticResource InspectionContentColumnWidth}"
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Top"
+        SizeChanged="LayoutRoot_SizeChanged">
+
         <Border
             x:Name="CompactView"
             MinHeight="94"
-            Padding="24,16"
-            Background="{ThemeResource InspectionCardBackgroundBrush}"
-            BorderBrush="{ThemeResource InspectionCardBorderBrush}"
+            Padding="24,15"
+            Background="{ThemeResource InspectionSurfaceBrush}"
+            BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
             BorderThickness="1"
-            CornerRadius="21">
-
+            CornerRadius="{StaticResource InspectionCardCornerRadius}">
             <Grid
+                x:Name="CompactGrid"
                 ColumnSpacing="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition
-                        Width="62" />
-                    <ColumnDefinition
-                        Width="*" />
-                    <ColumnDefinition
-                        Width="Auto" />
+                    <ColumnDefinition Width="62" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-
                 <Border
+                    x:Name="CompactFormatTile"
+                    Grid.Row="0"
                     Grid.Column="0"
-                    Width="62"
-                    Height="62"
+                    MinWidth="62"
+                    MinHeight="62"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="{x:Bind FormatShortName}"
-                    Background="{ThemeResource InspectionBlueBackgroundBrush}"
+                    Background="{ThemeResource InspectionBlueSurfaceBrush}"
                     BorderBrush="{ThemeResource InspectionBlueBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="15">
+                    CornerRadius="{StaticResource InspectionCardCornerRadius}">
                     <TextBlock
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         d:Text="GGUF"
-                        FontSize="11"
-                        FontWeight="Bold"
-                        Foreground="{ThemeResource InspectionBlueBrush}"
+                        FontFamily="{StaticResource InspectionLabelFontFamily}"
+                        FontSize="{StaticResource InspectionLabelFontSize}"
+                        FontWeight="{StaticResource InspectionLabelFontWeight}"
+                        Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
                         Text="{x:Bind FormatShortName}"
-                        TextAlignment="Center" />
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
                 </Border>
-
                 <StackPanel
+                    x:Name="CompactModelSummaryPanel"
+                    Grid.Row="0"
                     Grid.Column="1"
                     MinWidth="0"
                     VerticalAlignment="Center"
                     Spacing="6">
                     <TextBlock
-                        d:Text="Granite 4.1 3B Instruct"
-                        FontSize="17"
-                        FontWeight="SemiBold"
-                        Foreground="{ThemeResource InspectionPrimaryTextBrush}"
-                        MaxLines="2"
+                        d:Text="Selected model"
+                        FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
+                        FontSize="{StaticResource InspectionSectionTitleFontSize}"
+                        FontWeight="{StaticResource InspectionSectionTitleFontWeight}"
+                        Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                         Text="{x:Bind ModelName}"
-                        TextWrapping="WrapWholeWords" />
+                        TextWrapping="Wrap" />
                     <TextBlock
-                        d:Text="GGUF · Q4_K_M · 2.08 GB"
-                        FontSize="13"
-                        Foreground="{ThemeResource InspectionSecondaryTextBrush}"
+                        d:Text="GGUF · Not reported · 2.08 GB"
+                        FontFamily="{StaticResource InspectionBodyFontFamily}"
+                        FontSize="{StaticResource InspectionBodyFontSize}"
+                        FontWeight="{StaticResource InspectionBodyFontWeight}"
+                        Foreground="{ThemeResource InspectionTextSecondaryBrush}"
                         Text="{x:Bind CompactSummary}"
-                        TextTrimming="CharacterEllipsis"
-                        TextWrapping="NoWrap" />
+                        TextWrapping="Wrap" />
                 </StackPanel>
-
                 <Border
+                    x:Name="CompactStatusChip"
+                    Grid.Row="0"
                     Grid.Column="2"
-                    Height="34"
+                    MinHeight="34"
                     MinWidth="120"
                     MaxWidth="184"
                     Padding="15,0"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="{x:Bind GetBadgeAutomationName(BadgeState)}"
-                    Background="{x:Bind GetBadgeBackground(BadgeState)}"
-                    BorderBrush="{x:Bind GetBadgeBorderBrush(BadgeState)}"
+                    Background="{ThemeResource InspectionBlueSurfaceBrush}"
+                    BorderBrush="{ThemeResource InspectionPrimaryBlueBrush}"
                     BorderThickness="1"
                     CornerRadius="17">
-
-                    <StackPanel
+                    <Grid
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="8">
+                        ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <Ellipse
+                            x:Name="CompactStatusMarker"
+                            Grid.Column="0"
                             Width="9"
                             Height="9"
                             AutomationProperties.AccessibilityView="Raw"
-                            Fill="{x:Bind GetBadgeForeground(BadgeState)}" />
+                            Fill="{ThemeResource InspectionPrimaryBlueBrush}" />
                         <TextBlock
+                            x:Name="CompactStatusText"
+                            Grid.Column="1"
                             d:Text="MODEL SELECTED"
-                            FontSize="10"
-                            FontWeight="Bold"
-                            Foreground="{x:Bind GetBadgeForeground(BadgeState)}"
-                            MaxLines="1"
+                            FontFamily="{StaticResource InspectionLabelFontFamily}"
+                            FontSize="{StaticResource InspectionLabelFontSize}"
+                            FontWeight="{StaticResource InspectionLabelFontWeight}"
+                            Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
                             Text="{x:Bind GetBadgeText(BadgeState)}"
                             TextAlignment="Center"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                            TextWrapping="Wrap" />
+                    </Grid>
                 </Border>
             </Grid>
         </Border>
 
-        <!--  Detailed presentation used by the successful Ready outcome.  -->
         <Border
             x:Name="DetailedView"
             MinHeight="304"
-            Background="{ThemeResource InspectionCardBackgroundBrush}"
-            BorderBrush="{ThemeResource InspectionCardBorderBrush}"
+            Background="{ThemeResource InspectionSurfaceBrush}"
+            BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
             BorderThickness="1"
-            CornerRadius="23"
+            CornerRadius="{StaticResource InspectionCardCornerRadius}"
             Visibility="Collapsed">
-
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition
-                        Height="Auto" />
-                    <RowDefinition
-                        Height="Auto" />
-                    <RowDefinition
-                        Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Grid
+                    x:Name="DetailedHeader"
                     Grid.Row="0"
-                    Margin="32,20,32,0"
+                    MinHeight="63"
+                    Margin="31,0"
                     ColumnSpacing="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition
-                            Width="*" />
-                        <ColumnDefinition
-                            Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock
-                        FontSize="17"
-                        FontWeight="SemiBold"
-                        Foreground="{ThemeResource InspectionPrimaryTextBrush}"
-                        Text="Model overview" />
+                        x:Name="ModelOverviewTitle"
+                        Grid.Row="0"
+                        Grid.Column="0"
+                        VerticalAlignment="Center"
+                        FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
+                        FontSize="{StaticResource InspectionSectionTitleFontSize}"
+                        FontWeight="{StaticResource InspectionSectionTitleFontWeight}"
+                        Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                        Text="Model overview"
+                        TextWrapping="WrapWholeWords" />
                     <Border
+                        x:Name="OverviewFormatChip"
+                        Grid.Row="0"
                         Grid.Column="1"
-                        Height="30"
+                        MinHeight="30"
                         MinWidth="108"
+                        MaxWidth="240"
                         Padding="16,0"
-                        Background="{ThemeResource InspectionBlueBackgroundBrush}"
-                        BorderBrush="{ThemeResource InspectionBlueBorderBrush}"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource InspectionBlueSurfaceBrush}"
+                        BorderBrush="{ThemeResource InspectionBlueBorderStrongBrush}"
                         BorderThickness="1"
                         CornerRadius="15">
                         <TextBlock
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             d:Text="GGUF MODEL"
-                            FontSize="10"
-                            FontWeight="Bold"
-                            Foreground="{ThemeResource InspectionBlueBrush}"
-                            Text="{x:Bind OverviewFormatBadgeText}" />
+                            FontFamily="{StaticResource InspectionLabelFontFamily}"
+                            FontSize="{StaticResource InspectionLabelFontSize}"
+                            FontWeight="{StaticResource InspectionLabelFontWeight}"
+                            Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
+                            Text="{x:Bind OverviewFormatBadgeText}"
+                            TextWrapping="Wrap" />
                     </Border>
                 </Grid>
 
-                <!--  Eight metadata fields in the approved four-by-two layout.  -->
                 <Grid
+                    x:Name="MetadataGrid"
                     Grid.Row="1"
-                    Margin="32,16,32,0">
+                    MinHeight="156"
+                    Margin="31,0">
                     <Grid.RowDefinitions>
-                        <RowDefinition
-                            Height="Auto" />
-                        <RowDefinition
-                            Height="1" />
-                        <RowDefinition
-                            Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="MetadataColumnOne" Width="*" />
+                        <ColumnDefinition x:Name="MetadataColumnTwo" Width="*" />
+                        <ColumnDefinition x:Name="MetadataColumnThree" Width="*" />
+                        <ColumnDefinition x:Name="MetadataColumnFour" Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                    <Grid
+                    <Border
+                        x:Name="ModelNameField"
                         Grid.Row="0"
-                        MinHeight="78">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border
-                            Grid.Column="0"
-                            Padding="0,0,20,16"
-                            BorderBrush="{ThemeResource InspectionDividerBrush}"
-                            BorderThickness="0,0,1,0">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="MODEL NAME" />
-                                <TextBlock
-                                    d:Text="Granite 4.1 3B Instruct"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind ModelName}" />
-                            </StackPanel>
-                        </Border>
-                        <Border
-                            Grid.Column="1"
-                            Padding="20,0,20,16"
-                            BorderBrush="{ThemeResource InspectionDividerBrush}"
-                            BorderThickness="0,0,1,0">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="PUBLISHER" />
-                                <TextBlock
-                                    d:Text="IBM"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind Publisher}" />
-                            </StackPanel>
-                        </Border>
-                        <Border
-                            Grid.Column="2"
-                            Padding="20,0,20,16"
-                            BorderBrush="{ThemeResource InspectionDividerBrush}"
-                            BorderThickness="0,0,1,0">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="FORMAT" />
-                                <TextBlock
-                                    d:Text="GGUF"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind FormatName}" />
-                            </StackPanel>
-                        </Border>
-                        <Border
-                            Grid.Column="3"
-                            Padding="20,0,0,16">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="QUANTISATION" />
-                                <TextBlock
-                                    d:Text="Q4_K_M"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind Quantisation}" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <Rectangle
+                        Grid.Column="0"
+                        MinHeight="78"
+                        Padding="0,10,20,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,1,1">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="MODEL NAME" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ModelName}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="PublisherField"
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        MinHeight="78"
+                        Padding="20,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,1,1">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="PUBLISHER" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind Publisher}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="FormatField"
+                        Grid.Row="0"
+                        Grid.Column="2"
+                        MinHeight="78"
+                        Padding="20,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,1,1">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="FORMAT" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind FormatName}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="QuantisationField"
+                        Grid.Row="0"
+                        Grid.Column="3"
+                        MinHeight="78"
+                        Padding="20,10,0,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,0,1">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="QUANTISATION" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind Quantisation}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="ParametersField"
                         Grid.Row="1"
-                        AutomationProperties.AccessibilityView="Raw"
-                        Fill="{ThemeResource InspectionDividerBrush}" />
-
-                    <Grid
-                        Grid.Row="2"
-                        MinHeight="78">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border
-                            Grid.Column="0"
-                            Padding="0,16,20,16"
-                            BorderBrush="{ThemeResource InspectionDividerBrush}"
-                            BorderThickness="0,0,1,0">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="PARAMETERS" />
-                                <TextBlock
-                                    d:Text="3.2B"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind ParameterCount}" />
-                            </StackPanel>
-                        </Border>
-                        <Border
-                            Grid.Column="1"
-                            Padding="20,16,20,16"
-                            BorderBrush="{ThemeResource InspectionDividerBrush}"
-                            BorderThickness="0,0,1,0">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="MODEL TYPE" />
-                                <TextBlock
-                                    d:Text="Instruction tuned"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind ModelType}" />
-                            </StackPanel>
-                        </Border>
-                        <Border
-                            Grid.Column="2"
-                            Padding="20,16,20,16"
-                            BorderBrush="{ThemeResource InspectionDividerBrush}"
-                            BorderThickness="0,0,1,0">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="DECLARED MAX CONTEXT" />
-                                <TextBlock
-                                    d:Text="131,072 tokens"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind DeclaredContext}" />
-                            </StackPanel>
-                        </Border>
-                        <Border
-                            Grid.Column="3"
-                            Padding="20,16,0,16">
-                            <StackPanel>
-                                <TextBlock
-                                    Style="{StaticResource MetadataLabelStyle}"
-                                    Text="FILE SIZE" />
-                                <TextBlock
-                                    d:Text="2.08 GB"
-                                    Style="{StaticResource MetadataValueStyle}"
-                                    Text="{x:Bind FileSize}" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                        Grid.Column="0"
+                        MinHeight="78"
+                        Padding="0,10,20,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,1,0">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="PARAMETERS" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ParameterCount}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="ModelTypeField"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        MinHeight="78"
+                        Padding="20,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,1,0">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="MODEL TYPE" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ModelType}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="DeclaredContextField"
+                        Grid.Row="1"
+                        Grid.Column="2"
+                        MinHeight="78"
+                        Padding="20,10"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,0,1,0">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="DECLARED MAX CONTEXT" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind DeclaredContext}" />
+                        </StackPanel>
+                    </Border>
+                    <Border
+                        x:Name="FileSizeField"
+                        Grid.Row="1"
+                        Grid.Column="3"
+                        MinHeight="78"
+                        Padding="20,10,0,10">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="FILE SIZE" />
+                            <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind FileSize}" />
+                        </StackPanel>
+                    </Border>
                 </Grid>
 
-                <!--  Expanding pushes later page content down instead of overlaying it.  -->
                 <Expander
-                    x:Name="InspectionDetailsExpander"
+                    x:Name="InspectionDetailsExpansionTarget"
                     Grid.Row="2"
+                    HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Stretch"
                     AutomationProperties.Name="{x:Bind GetInspectionDetailsAutomationName(IsInspectionDetailsExpanded)}"
                     Background="Transparent"
-                    BorderBrush="{ThemeResource InspectionDividerBrush}"
+                    BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                     BorderThickness="0,1,0,0"
-                    IsExpanded="{x:Bind IsInspectionDetailsExpanded, Mode=TwoWay}">
-
+                    Padding="0"
+                    Expanding="InspectionDetailsExpansionTarget_Expanding"
+                    Collapsed="InspectionDetailsExpansionTarget_Collapsed"
+                    Visibility="{x:Bind InspectionDetailsVisibility}">
                     <Expander.Header>
                         <Grid
-                            MinHeight="58"
-                            Padding="12,0"
+                            x:Name="InspectionDetailsHeader"
+                            MinHeight="52"
+                            Padding="24,0"
                             ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition
-                                    Width="24" />
-                                <ColumnDefinition
-                                    Width="*" />
-                                <ColumnDefinition
-                                    Width="Auto" />
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Border
                                 Width="22"
                                 Height="22"
                                 VerticalAlignment="Center"
                                 AutomationProperties.AccessibilityView="Raw"
-                                Background="{ThemeResource InspectionSuccessBackgroundBrush}"
+                                Background="{ThemeResource InspectionSuccessSurfaceBrush}"
                                 CornerRadius="11">
                                 <SymbolIcon
                                     Width="12"
                                     Height="12"
-                                    Foreground="{ThemeResource InspectionSuccessBrush}"
+                                    Foreground="{ThemeResource InspectionSuccessTextBrush}"
                                     Symbol="Accept" />
                             </Border>
                             <TextBlock
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
-                                d:Text="All 5 inspection checks passed"
-                                FontSize="13"
-                                FontWeight="SemiBold"
-                                Foreground="{ThemeResource InspectionPrimaryTextBrush}"
+                                FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                                FontSize="{StaticResource InspectionBodyFontSize}"
+                                FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                                Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                                 Text="{x:Bind InspectionChecksSummary}"
                                 TextWrapping="WrapWholeWords" />
                             <TextBlock
+                                x:Name="InspectionDetailsActionText"
                                 Grid.Column="2"
                                 Margin="12,0,6,0"
                                 VerticalAlignment="Center"
-                                d:Text="View inspection details"
-                                FontSize="13"
-                                FontWeight="SemiBold"
-                                Foreground="{ThemeResource InspectionPrimaryTextBrush}"
-                                Text="{x:Bind GetInspectionDetailsActionText(IsInspectionDetailsExpanded)}" />
+                                FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                                FontSize="{StaticResource InspectionBodyFontSize}"
+                                FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                                Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                                Text="{x:Bind GetInspectionDetailsActionText(IsInspectionDetailsExpanded)}"
+                                TextWrapping="WrapWholeWords" />
                         </Grid>
                     </Expander.Header>
 
                     <Border
-                        Margin="24,0,24,20"
+                        x:Name="InspectionDetailsViewport"
+                        Height="172"
+                        Margin="22,0,22,22"
                         Padding="18,8,10,12"
-                        Background="{ThemeResource InspectionSubtleBackgroundBrush}"
-                        BorderBrush="{ThemeResource InspectionCardBorderBrush}"
+                        Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                        BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
                         BorderThickness="1"
-                        CornerRadius="14">
-
+                        CornerRadius="{StaticResource InspectionCardCornerRadius}">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition
-                                    Height="Auto" />
-                                <RowDefinition
-                                    Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-
                             <ScrollViewer
+                                x:Name="InspectionChecksScrollViewer"
                                 Grid.Row="0"
                                 MaxHeight="172"
+                                AutomationProperties.HelpText="Use the arrow and Page Up or Page Down keys to review all five inspection checks."
+                                AutomationProperties.Name="{x:Bind InspectionChecksSummary}"
                                 HorizontalScrollBarVisibility="Disabled"
                                 HorizontalScrollMode="Disabled"
+                                IsTabStop="True"
+                                UseSystemFocusVisuals="True"
                                 VerticalScrollBarVisibility="Auto"
                                 VerticalScrollMode="Enabled"
                                 ZoomMode="Disabled">
-                                <ItemsRepeater
+                                <ItemsControl
+                                    x:Name="InspectionChecksItemsControl"
                                     ItemTemplate="{StaticResource InspectionCheckTemplate}"
                                     ItemsSource="{x:Bind InspectionChecks}">
-                                    <ItemsRepeater.Layout>
-                                        <StackLayout
-                                            Orientation="Vertical"
-                                            Spacing="0" />
-                                    </ItemsRepeater.Layout>
-                                </ItemsRepeater>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Vertical" Spacing="0" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
                             </ScrollViewer>
-
+                            <Grid
+                                x:Name="InspectionChecksBottomFade"
+                                Grid.Row="0"
+                                Height="24"
+                                VerticalAlignment="Bottom"
+                                AutomationProperties.AccessibilityView="Raw"
+                                IsHitTestVisible="False">
+                                <Border
+                                    Height="8"
+                                    VerticalAlignment="Top"
+                                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                                    Opacity="0.25" />
+                                <Border
+                                    Height="8"
+                                    VerticalAlignment="Center"
+                                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                                    Opacity="0.55" />
+                                <Border
+                                    Height="8"
+                                    VerticalAlignment="Bottom"
+                                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                                    Opacity="0.85" />
+                            </Grid>
                             <TextBlock
                                 Grid.Row="1"
                                 Margin="0,7,8,0"
                                 HorizontalAlignment="Right"
-                                FontSize="10"
-                                FontWeight="SemiBold"
-                                Foreground="{ThemeResource InspectionMutedTextBrush}"
+                                FontFamily="{StaticResource InspectionLabelFontFamily}"
+                                FontSize="{StaticResource InspectionLabelFontSize}"
+                                FontWeight="{StaticResource InspectionLabelFontWeight}"
+                                Foreground="{ThemeResource InspectionTextMutedBrush}"
+                                AutomationProperties.AccessibilityView="Raw"
                                 Text="Scroll for more" />
                         </Grid>
                     </Border>
@@ -723,20 +614,187 @@
         </Border>
 
         <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup
-                x:Name="DisplayModeStates">
-                <VisualState
-                    x:Name="CompactState">
+            <VisualStateGroup x:Name="DisplayModeStates">
+                <VisualState x:Name="CompactState">
                     <VisualState.Setters>
                         <Setter Target="CompactView.Visibility" Value="Visible" />
                         <Setter Target="DetailedView.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
-                <VisualState
-                    x:Name="DetailedState">
+                <VisualState x:Name="DetailedState">
                     <VisualState.Setters>
                         <Setter Target="CompactView.Visibility" Value="Collapsed" />
                         <Setter Target="DetailedView.Visibility" Value="Visible" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <VisualStateGroup x:Name="BadgeToneStates">
+                <VisualState x:Name="InformationBadgeState">
+                    <VisualState.Setters>
+                        <Setter Target="CompactStatusChip.Background" Value="{ThemeResource InspectionBlueSurfaceBrush}" />
+                        <Setter Target="CompactStatusChip.BorderBrush" Value="{ThemeResource InspectionPrimaryBlueBrush}" />
+                        <Setter Target="CompactStatusMarker.Fill" Value="{ThemeResource InspectionPrimaryBlueBrush}" />
+                        <Setter Target="CompactStatusText.Foreground" Value="{ThemeResource InspectionPrimaryBlueBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="InspectedBadgeState">
+                    <VisualState.Setters>
+                        <Setter Target="CompactStatusChip.Background" Value="{ThemeResource InspectionSuccessSurfaceBrush}" />
+                        <Setter Target="CompactStatusChip.BorderBrush" Value="{ThemeResource InspectionSuccessTextBrush}" />
+                        <Setter Target="CompactStatusMarker.Fill" Value="{ThemeResource InspectionSuccessTextBrush}" />
+                        <Setter Target="CompactStatusText.Foreground" Value="{ThemeResource InspectionSuccessTextBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="WarningBadgeState">
+                    <VisualState.Setters>
+                        <Setter Target="CompactStatusChip.Background" Value="{ThemeResource InspectionWarningSurfaceBrush}" />
+                        <Setter Target="CompactStatusChip.BorderBrush" Value="{ThemeResource InspectionWarningTextBrush}" />
+                        <Setter Target="CompactStatusMarker.Fill" Value="{ThemeResource InspectionWarningTextBrush}" />
+                        <Setter Target="CompactStatusText.Foreground" Value="{ThemeResource InspectionWarningTextBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="ErrorBadgeState">
+                    <VisualState.Setters>
+                        <Setter Target="CompactStatusChip.Background" Value="{ThemeResource InspectionErrorSurfaceBrush}" />
+                        <Setter Target="CompactStatusChip.BorderBrush" Value="{ThemeResource InspectionErrorTextBrush}" />
+                        <Setter Target="CompactStatusMarker.Fill" Value="{ThemeResource InspectionErrorTextBrush}" />
+                        <Setter Target="CompactStatusText.Foreground" Value="{ThemeResource InspectionErrorTextBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NeutralBadgeState">
+                    <VisualState.Setters>
+                        <Setter Target="CompactStatusChip.Background" Value="{ThemeResource InspectionSurfaceMutedBrush}" />
+                        <Setter Target="CompactStatusChip.BorderBrush" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+                        <Setter Target="CompactStatusMarker.Fill" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+                        <Setter Target="CompactStatusText.Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <VisualStateGroup x:Name="InspectionDetailsStates">
+                <VisualState x:Name="CollapsedDetailsState">
+                    <VisualState.Setters>
+                        <Setter Target="InspectionDetailsExpansionTarget.MinHeight" Value="83" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="ExpandedDetailsState">
+                    <VisualState.Setters>
+                        <Setter Target="InspectionDetailsExpansionTarget.MinHeight" Value="0" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+
+            <VisualStateGroup x:Name="ResponsiveModelStates">
+                <VisualState x:Name="WideModelState">
+                    <VisualState.Setters>
+                        <Setter Target="MetadataColumnOne.Width" Value="*" />
+                        <Setter Target="MetadataColumnTwo.Width" Value="*" />
+                        <Setter Target="MetadataColumnThree.Width" Value="*" />
+                        <Setter Target="MetadataColumnFour.Width" Value="*" />
+                        <Setter Target="DetailedHeader.Margin" Value="31,0" />
+                        <Setter Target="MetadataGrid.Margin" Value="31,0" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="22,0,22,22" />
+                        <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
+                        <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
+                        <Setter Target="PublisherField.(Grid.Row)" Value="0" />
+                        <Setter Target="PublisherField.(Grid.Column)" Value="1" />
+                        <Setter Target="FormatField.(Grid.Row)" Value="0" />
+                        <Setter Target="FormatField.(Grid.Column)" Value="2" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="0" />
+                        <Setter Target="QuantisationField.(Grid.Column)" Value="3" />
+                        <Setter Target="ParametersField.(Grid.Row)" Value="1" />
+                        <Setter Target="ParametersField.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelTypeField.(Grid.Row)" Value="1" />
+                        <Setter Target="ModelTypeField.(Grid.Column)" Value="1" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="1" />
+                        <Setter Target="DeclaredContextField.(Grid.Column)" Value="2" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="1" />
+                        <Setter Target="FileSizeField.(Grid.Column)" Value="3" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="MediumModelState">
+                    <VisualState.Setters>
+                        <Setter Target="MetadataColumnOne.Width" Value="*" />
+                        <Setter Target="MetadataColumnTwo.Width" Value="*" />
+                        <Setter Target="MetadataColumnThree.Width" Value="0" />
+                        <Setter Target="MetadataColumnFour.Width" Value="0" />
+                        <Setter Target="DetailedHeader.Margin" Value="23,0" />
+                        <Setter Target="MetadataGrid.Margin" Value="23,0" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="22,0,22,22" />
+                        <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
+                        <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
+                        <Setter Target="PublisherField.(Grid.Row)" Value="0" />
+                        <Setter Target="PublisherField.(Grid.Column)" Value="1" />
+                        <Setter Target="FormatField.(Grid.Row)" Value="1" />
+                        <Setter Target="FormatField.(Grid.Column)" Value="0" />
+                        <Setter Target="FormatField.Padding" Value="0,10,20,10" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="1" />
+                        <Setter Target="QuantisationField.(Grid.Column)" Value="1" />
+                        <Setter Target="ParametersField.(Grid.Row)" Value="2" />
+                        <Setter Target="ParametersField.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelTypeField.(Grid.Row)" Value="2" />
+                        <Setter Target="ModelTypeField.(Grid.Column)" Value="1" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="3" />
+                        <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
+                        <Setter Target="DeclaredContextField.Padding" Value="0,10,20,10" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="3" />
+                        <Setter Target="FileSizeField.(Grid.Column)" Value="1" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NarrowModelState">
+                    <VisualState.Setters>
+                        <Setter Target="MetadataColumnOne.Width" Value="*" />
+                        <Setter Target="MetadataColumnTwo.Width" Value="0" />
+                        <Setter Target="MetadataColumnThree.Width" Value="0" />
+                        <Setter Target="MetadataColumnFour.Width" Value="0" />
+                        <Setter Target="CompactView.Padding" Value="16" />
+                        <Setter Target="CompactFormatTile.(Grid.Row)" Value="0" />
+                        <Setter Target="CompactFormatTile.(Grid.Column)" Value="0" />
+                        <Setter Target="CompactFormatTile.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="CompactFormatTile.HorizontalAlignment" Value="Stretch" />
+                        <Setter Target="CompactModelSummaryPanel.(Grid.Row)" Value="1" />
+                        <Setter Target="CompactModelSummaryPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="CompactModelSummaryPanel.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="CompactModelSummaryPanel.Margin" Value="0,12,0,0" />
+                        <Setter Target="CompactStatusChip.(Grid.Row)" Value="2" />
+                        <Setter Target="CompactStatusChip.(Grid.Column)" Value="0" />
+                        <Setter Target="CompactStatusChip.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="CompactStatusChip.Margin" Value="0,12,0,0" />
+                        <Setter Target="CompactStatusChip.HorizontalAlignment" Value="Left" />
+                        <Setter Target="DetailedHeader.Margin" Value="15,0" />
+                        <Setter Target="OverviewFormatChip.(Grid.Row)" Value="1" />
+                        <Setter Target="OverviewFormatChip.(Grid.Column)" Value="0" />
+                        <Setter Target="OverviewFormatChip.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="OverviewFormatChip.Margin" Value="0,12,0,0" />
+                        <Setter Target="OverviewFormatChip.HorizontalAlignment" Value="Left" />
+                        <Setter Target="MetadataGrid.Margin" Value="15,0" />
+                        <Setter Target="InspectionDetailsHeader.Padding" Value="15,0" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="14,0,14,22" />
+                        <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
+                        <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelNameField.Padding" Value="0,10" />
+                        <Setter Target="PublisherField.(Grid.Row)" Value="1" />
+                        <Setter Target="PublisherField.(Grid.Column)" Value="0" />
+                        <Setter Target="PublisherField.Padding" Value="0,10" />
+                        <Setter Target="FormatField.(Grid.Row)" Value="2" />
+                        <Setter Target="FormatField.(Grid.Column)" Value="0" />
+                        <Setter Target="FormatField.Padding" Value="0,10" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="3" />
+                        <Setter Target="QuantisationField.(Grid.Column)" Value="0" />
+                        <Setter Target="QuantisationField.Padding" Value="0,10" />
+                        <Setter Target="ParametersField.(Grid.Row)" Value="4" />
+                        <Setter Target="ParametersField.(Grid.Column)" Value="0" />
+                        <Setter Target="ParametersField.Padding" Value="0,10" />
+                        <Setter Target="ModelTypeField.(Grid.Row)" Value="5" />
+                        <Setter Target="ModelTypeField.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelTypeField.Padding" Value="0,10" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="6" />
+                        <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
+                        <Setter Target="DeclaredContextField.Padding" Value="0,10" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="7" />
+                        <Setter Target="FileSizeField.(Grid.Column)" Value="0" />
+                        <Setter Target="FileSizeField.Padding" Value="0,10" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>

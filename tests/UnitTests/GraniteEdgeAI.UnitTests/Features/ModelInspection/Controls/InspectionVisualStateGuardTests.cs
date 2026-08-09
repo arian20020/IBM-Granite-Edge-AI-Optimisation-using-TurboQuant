@@ -1,6 +1,8 @@
 using GraniteEdgeAI.Features.ModelInspection.Controls;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -58,6 +60,30 @@ public sealed class InspectionVisualStateGuardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void ExpandedReadyPresentation_MissingExpandedDetailsState_ThrowsClearException()
+    {
+        InspectionModelCard control = new();
+        FrameworkElement layoutRoot =
+            (FrameworkElement)control.FindName("LayoutRoot");
+        RemoveVisualState(
+            layoutRoot,
+            "InspectionDetailsStates",
+            "ExpandedDetailsState");
+
+        InvalidOperationException exception =
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                control.Presentation = new InspectionModelCardPresentation
+                {
+                    DisplayMode = InspectionModelCardMode.Detailed,
+                    InspectionDetailsVisibility = Visibility.Visible,
+                    IsInspectionDetailsExpanded = true
+                });
+
+        StringAssert.Contains(exception.Message, "ExpandedDetailsState");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public void ReadyPresentation_MissingSuccessTone_ThrowsClearException()
     {
         InspectionOutcomeCard control = new();
@@ -99,8 +125,19 @@ public sealed class InspectionVisualStateGuardTests
         AutomationProperties.SetLiveSetting(
             content,
             AutomationLiveSetting.Polite);
+        var progressRows = new InspectionProgressRows();
+        progressRows.Apply(new InspectionProgressRowsUpdate(
+            new ModelInspectionProgressRegionKey(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 0,
+                stageCount: 5,
+                stageFraction: 0.25,
+                detail: "Inspection progress updated."),
+            new ModelInspectionRenderKey(0, 1),
+            "0 of 5 checks complete"));
         content.Presentation =
-            InitialInspectionProgressPresentationFactory.Create();
+            InitialInspectionProgressPresentationFactory.Create(progressRows);
 
         Assert.IsNotNull(
             FrameworkElementAutomationPeer.FromElement(content));

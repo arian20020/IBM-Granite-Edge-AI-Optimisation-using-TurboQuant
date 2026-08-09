@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
 
-<!--
-    Represents the complete Model Inspection screen.
-    
-    This page arranges the reusable inspection controls.
-    The individual controls remain responsible for their own internal design.
--->
 <Page
     x:Class="GraniteEdgeAI.Features.ModelInspection.ModelInspectionPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -13,165 +7,135 @@
     xmlns:controls="using:GraniteEdgeAI.Features.ModelInspection.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    d:DesignHeight="900"
-    d:DesignWidth="1200"
+    d:DesignHeight="1024"
+    d:DesignWidth="1440"
     RequestedTheme="Light"
     mc:Ignorable="d">
 
     <!--
-        A Page can contain one root object.
-        
-        This Grid becomes the root layout container for the complete page.
+        One retained Grid/ScrollViewer tree owns the page for the complete
+        navigation attempt. Individual cards keep their own semantic regions.
     -->
     <Grid
-        Background="White">
+        x:Name="LayoutRoot"
+        Background="{ThemeResource InspectionSurfaceBrush}">
 
-        <!--
-            Allows the inspection content to scroll when:
-            
-            - The application window is short.
-            - Windows text scaling is increased.
-            - An inspection-details Expander is opened.
-        -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ResponsivePageStates">
+                <VisualState x:Name="DesktopPageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="888" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="InspectionContentHost.Margin" Value="24,28,24,32" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="MediumPageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="600" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="InspectionContentHost.Margin" Value="24,28,24,32" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NarrowPageState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="InspectionContentHost.Margin" Value="16,28,16,32" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <ScrollViewer
+            x:Name="InspectionPageScrollViewer"
             HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"
             HorizontalScrollMode="Disabled"
             VerticalScrollBarVisibility="Auto"
-            VerticalScrollMode="Auto"
+            VerticalScrollMode="Enabled"
             ZoomMode="Disabled">
 
-            <!--
-                Arranges the heading and all four cards in one vertical column.
-                
-                MaxWidth keeps every major card aligned to the same
-                840-pixel centre line used by the prototypes.
-                
-                The Margin creates space around the complete page content.
-            -->
-            <StackPanel
-                MaxWidth="840"
-                Margin="32,28,32,32"
+            <Grid
+                x:Name="InspectionScrollContent"
                 HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Orientation="Vertical"
-                Spacing="16">
-
-                <!--  =================================================  -->
-                <!--  PERMANENT PAGE HEADING  -->
-                <!--  =================================================  -->
-
-                <!--
-                    This heading remains visible throughout every
-                    inspection state.
-                -->
-                <StackPanel
-                    Margin="0,0,0,8"
+                VerticalAlignment="Top">
+                <Grid
+                    x:Name="InspectionContentHost"
+                    MaxWidth="{StaticResource InspectionContentColumnWidth}"
+                    Margin="16,28,16,32"
                     HorizontalAlignment="Stretch"
-                    Spacing="8">
+                    VerticalAlignment="Top">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <!--  Permanent page title.  -->
-                    <TextBlock
+                    <StackPanel
+                        x:Name="Header"
+                        Grid.Row="0"
+                        Margin="0,0,0,8"
                         HorizontalAlignment="Stretch"
-                        FontSize="34"
-                        FontWeight="SemiBold"
-                        Foreground="#101828"
-                        Text="Model inspection"
-                        TextAlignment="Center"
-                        TextWrapping="WrapWholeWords" />
+                        Spacing="8">
+                        <TextBlock
+                            x:Name="PageTitle"
+                            HorizontalAlignment="Stretch"
+                            FontFamily="{StaticResource InspectionPageTitleFontFamily}"
+                            FontSize="{StaticResource InspectionPageTitleFontSize}"
+                            FontWeight="{StaticResource InspectionPageTitleFontWeight}"
+                            Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                            Text="Model inspection"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock
+                            x:Name="ModelInspectionExplanation"
+                            MaxWidth="720"
+                            HorizontalAlignment="Center"
+                            FontFamily="{StaticResource InspectionBodyFontFamily}"
+                            FontSize="{StaticResource InspectionBodyFontSize}"
+                            FontWeight="{StaticResource InspectionBodyFontWeight}"
+                            Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
+                            Text="We are checking that the model package, tokenizer, structure, and runtime are supported before checking hardware fit."
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
+                    </StackPanel>
 
-                    <!--  Permanent page explanation.  -->
-                    <TextBlock
-                        x:Name="ModelInspectionExplanation"
-                        MaxWidth="720"
-                        HorizontalAlignment="Center"
-                        FontSize="14"
-                        Foreground="#667085"
-                        Text="We are checking that the model package, tokenizer, structure, and runtime are supported before checking hardware fit."
-                        TextAlignment="Center"
-                        TextWrapping="WrapWholeWords" />
+                    <controls:InspectionOutcomeCard
+                        x:Name="InspectionOutcomeCardControl"
+                        Grid.Row="1"
+                        Margin="0,16,0,0"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.LiveSetting="Assertive"
+                        AutomationProperties.Name="Model inspection outcome" />
 
-                </StackPanel>
+                    <controls:InspectionModelCard
+                        x:Name="InspectionModelCardControl"
+                        Grid.Row="2"
+                        Margin="0,16,0,0"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.Name="Selected model information" />
 
-                <!--  =================================================  -->
-                <!--  1. INSPECTION OUTCOME CARD  -->
-                <!--  =================================================  -->
+                    <controls:InspectionContentCard
+                        x:Name="InspectionContentCardControl"
+                        Grid.Row="3"
+                        Margin="0,16,0,0"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.LiveSetting="Polite"
+                        AutomationProperties.Name="Model inspection progress and findings" />
 
-                <!--
-                    Hidden while inspection is running.
-                    
-                    Later displays:
-                    - Ready
-                    - Ready with warnings
-                    - Conversion required
-                    - Incomplete package
-                    - Unsupported
-                    - Invalid
-                    - Cancelled
-                    - Operational failure
-                -->
-                <controls:InspectionOutcomeCard
-                    x:Name="InspectionOutcomeCardControl"
-                    HorizontalAlignment="Stretch"
-                    AutomationProperties.LiveSetting="Assertive"
-                    AutomationProperties.Name="Model inspection outcome" />
-
-                <!--  =================================================  -->
-                <!--  2. SELECTED MODEL CARD  -->
-                <!--  =================================================  -->
-
-                <!--
-                    Displays the selected model throughout the journey.
-                    
-                    During inspection it uses the compact layout.
-                    For the Ready result it uses the detailed layout.
-                -->
-                <controls:InspectionModelCard
-                    x:Name="InspectionModelCardControl"
-                    HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="Selected model information" />
-
-                <!--  =================================================  -->
-                <!--  3. INSPECTION CONTENT CARD  -->
-                <!--  =================================================  -->
-
-                <!--
-                    Displays the changing centre section.
-                    
-                    Initially this will contain the five-stage
-                    inspection progress tracker.
-                    
-                    After inspection it can display warnings,
-                    conversion information or failure details.
-                -->
-                <controls:InspectionContentCard
-                    x:Name="InspectionContentCardControl"
-                    HorizontalAlignment="Stretch"
-                    AutomationProperties.LiveSetting="Polite"
-                    AutomationProperties.Name="Model inspection progress and findings" />
-
-                <!--  =================================================  -->
-                <!--  4. INSPECTION ACTION CARD  -->
-                <!--  =================================================  -->
-
-                <!--
-                    Displays the actions available for the current state.
-                    
-                    Initially this will display:
-                    - Cancel inspection
-                    
-                    Completed states will display their relevant
-                    primary and secondary actions.
-                -->
-                <controls:InspectionActionCard
-                    x:Name="InspectionActionCardControl"
-                    HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="Model inspection actions" />
-
-            </StackPanel>
-
+                    <controls:InspectionActionCard
+                        x:Name="InspectionActionCardControl"
+                        Grid.Row="4"
+                        Margin="0,16,0,0"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.Name="Model inspection actions" />
+                </Grid>
+            </Grid>
         </ScrollViewer>
-
     </Grid>
-
 </Page>

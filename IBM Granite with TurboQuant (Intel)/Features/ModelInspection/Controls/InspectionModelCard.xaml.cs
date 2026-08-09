@@ -1,38 +1,40 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
-using Windows.UI;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Controls
 {
+    /// <summary>
+    /// Describes one user-originated Ready-details expansion change.
+    /// </summary>
+    internal sealed class InspectionDetailsExpansionChangedEventArgs : EventArgs
+    {
+        internal InspectionDetailsExpansionChangedEventArgs(bool isExpanded)
+        {
+            IsExpanded = isExpanded;
+        }
+
+        internal bool IsExpanded { get; }
+    }
+
     /// <summary>
     /// Displays the selected model and its inspected metadata.
     /// </summary>
     public sealed partial class InspectionModelCard : UserControl
     {
-        // cached status brushes are shared by repeated inspection-check rows
-        private static readonly Brush CheckInformationBackground =
-            CreateBrush(0xEE, 0xF5, 0xFF);
-        private static readonly Brush CheckInformationForeground =
-            CreateBrush(0x0F, 0x62, 0xFE);
-        private static readonly Brush CheckSuccessBackground =
-            CreateBrush(0xE9, 0xF7, 0xF1);
-        private static readonly Brush CheckSuccessForeground =
-            CreateBrush(0x06, 0x7A, 0x57);
-        private static readonly Brush CheckWarningBackground =
-            CreateBrush(0xFF, 0xF6, 0xE0);
-        private static readonly Brush CheckWarningForeground =
-            CreateBrush(0x9A, 0x67, 0x00);
-        private static readonly Brush CheckErrorBackground =
-            CreateBrush(0xFF, 0xF0, 0xEF);
-        private static readonly Brush CheckErrorForeground =
-            CreateBrush(0xB4, 0x23, 0x18);
-
-        // stores the expander state because the xaml uses a two-way binding
+        // Mirrors the current visual target while presentation identity stays
+        // page-owned. It is never reset merely because a DTO is reassigned.
         private bool _isInspectionDetailsExpanded;
+
+        // Suppresses user-request events while the page applies its target.
+        private bool _isApplyingPresentation;
+
+        private string? _responsiveStateName;
+
+        private XamlRoot? _observedXamlRoot;
 
         // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
@@ -56,8 +58,18 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         {
             InitializeComponent();
             _isInitialized = true;
+            Loaded += Root_Loaded;
+            Unloaded += Root_Unloaded;
+            ApplyResponsiveState("WideModelState");
             ApplyPresentation(Presentation);
         }
+
+        /// <summary>
+        /// Raised only when the retained Expander changes through its UI seam.
+        /// Presentation assignment does not raise this event.
+        /// </summary>
+        internal event EventHandler<InspectionDetailsExpansionChangedEventArgs>?
+            InspectionDetailsExpansionChanged;
 
         /// <summary>
         /// Gets or sets all model-card display data.
@@ -105,6 +117,19 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         public IReadOnlyList<InspectionCheckPresentation> InspectionChecks =>
             Presentation.InspectionChecks;
 
+        public Visibility InspectionDetailsVisibility =>
+            Presentation.InspectionDetailsVisibility;
+
+        /// <summary>
+        /// Exposes the retained disclosure and viewport targets to the later
+        /// page-owned interaction/motion bridge without transferring identity.
+        /// </summary>
+        internal Expander ActiveInspectionDetailsExpansionTarget =>
+            InspectionDetailsExpansionTarget;
+
+        internal FrameworkElement ActiveInspectionDetailsViewportTarget =>
+            InspectionDetailsViewport;
+
         /// <summary>
         /// Gets or sets whether the inspection-check report is expanded.
         /// </summary>
@@ -122,56 +147,41 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
                 if (_isInitialized)
                 {
-                    // refresh action text and accessibility names after expansion changes
-                    Bindings.Update();
+                    InspectionDetailsExpansionTarget.IsExpanded = value;
+                    ApplyVisualState(
+                        value
+                            ? "ExpandedDetailsState"
+                            : "CollapsedDetailsState");
+                    UpdateInspectionDetailsStateText();
                 }
             }
         }
 
-        /// <summary>
-        /// Returns the check-row background for the supplied status.
-        /// </summary>
-        public static Brush GetCheckBackground(InspectionCheckStatus status)
-        {
-            return status switch
-            {
-                InspectionCheckStatus.Passed => CheckSuccessBackground,
-                InspectionCheckStatus.Warning => CheckWarningBackground,
-                InspectionCheckStatus.Error => CheckErrorBackground,
-                InspectionCheckStatus.Information => CheckInformationBackground,
-                _ => CheckInformationBackground
-            };
-        }
+        public static Visibility GetPassedVisibility(
+            InspectionCheckStatus status) =>
+            status == InspectionCheckStatus.Passed
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-        /// <summary>
-        /// Returns the check-row foreground for the supplied status.
-        /// </summary>
-        public static Brush GetCheckForeground(InspectionCheckStatus status)
-        {
-            return status switch
-            {
-                InspectionCheckStatus.Passed => CheckSuccessForeground,
-                InspectionCheckStatus.Warning => CheckWarningForeground,
-                InspectionCheckStatus.Error => CheckErrorForeground,
-                InspectionCheckStatus.Information => CheckInformationForeground,
-                _ => CheckInformationForeground
-            };
-        }
+        public static Visibility GetWarningVisibility(
+            InspectionCheckStatus status) =>
+            status == InspectionCheckStatus.Warning
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-        /// <summary>
-        /// Returns the icon used by one inspection-check row.
-        /// </summary>
-        public static Symbol GetCheckSymbol(InspectionCheckStatus status)
-        {
-            return status switch
-            {
-                InspectionCheckStatus.Passed => Symbol.Accept,
-                InspectionCheckStatus.Warning => Symbol.Important,
-                InspectionCheckStatus.Error => Symbol.Cancel,
-                InspectionCheckStatus.Information => Symbol.Help,
-                _ => Symbol.Help
-            };
-        }
+        public static Visibility GetErrorVisibility(
+            InspectionCheckStatus status) =>
+            status == InspectionCheckStatus.Error
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+        public static Visibility GetInformationVisibility(
+            InspectionCheckStatus status) =>
+            status is InspectionCheckStatus.Passed or
+                InspectionCheckStatus.Warning or
+                InspectionCheckStatus.Error
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
 
         /// <summary>
         /// Returns the accessible description of the compact badge.
@@ -179,60 +189,6 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         public string GetBadgeAutomationName(InspectionModelBadgeState state)
         {
             return $"Model status: {GetBadgeText(state)}";
-        }
-
-        /// <summary>
-        /// Returns the compact badge background from the active theme dictionary.
-        /// </summary>
-        public Brush GetBadgeBackground(InspectionModelBadgeState state)
-        {
-            return state switch
-            {
-                InspectionModelBadgeState.Inspected =>
-                    GetThemeBrush("InspectionSuccessBackgroundBrush"),
-                InspectionModelBadgeState.Incomplete =>
-                    GetThemeBrush("InspectionWarningBackgroundBrush"),
-                InspectionModelBadgeState.Unsupported =>
-                    GetThemeBrush("InspectionErrorBackgroundBrush"),
-                InspectionModelBadgeState.Invalid =>
-                    GetThemeBrush("InspectionErrorBackgroundBrush"),
-                InspectionModelBadgeState.NotInspected =>
-                    GetThemeBrush("InspectionNeutralBackgroundBrush"),
-                InspectionModelBadgeState.ResultUnknown =>
-                    GetThemeBrush("InspectionNeutralBackgroundBrush"),
-                _ => GetThemeBrush("InspectionBlueBackgroundBrush")
-            };
-        }
-
-        /// <summary>
-        /// Returns the compact badge border brush.
-        /// </summary>
-        public Brush GetBadgeBorderBrush(InspectionModelBadgeState state)
-        {
-            return GetBadgeForeground(state);
-        }
-
-        /// <summary>
-        /// Returns the compact badge foreground from the active theme dictionary.
-        /// </summary>
-        public Brush GetBadgeForeground(InspectionModelBadgeState state)
-        {
-            return state switch
-            {
-                InspectionModelBadgeState.Inspected =>
-                    GetThemeBrush("InspectionSuccessBrush"),
-                InspectionModelBadgeState.Incomplete =>
-                    GetThemeBrush("InspectionWarningBrush"),
-                InspectionModelBadgeState.Unsupported =>
-                    GetThemeBrush("InspectionErrorBrush"),
-                InspectionModelBadgeState.Invalid =>
-                    GetThemeBrush("InspectionErrorBrush"),
-                InspectionModelBadgeState.NotInspected =>
-                    GetThemeBrush("InspectionNeutralBrush"),
-                InspectionModelBadgeState.ResultUnknown =>
-                    GetThemeBrush("InspectionNeutralBrush"),
-                _ => GetThemeBrush("InspectionBlueBrush")
-            };
         }
 
         /// <summary>
@@ -301,52 +257,185 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 return;
             }
 
-            // a new presentation starts with its inspection details collapsed
-            _isInspectionDetailsExpanded = false;
-
-            // refresh forwarding x:Bind properties before applying the layout state
-            Bindings.Update();
-
-            string stateName = presentation.DisplayMode switch
+            _isApplyingPresentation = true;
+            try
             {
-                InspectionModelCardMode.Compact => "CompactState",
-                InspectionModelCardMode.Detailed => "DetailedState",
-                _ => throw new ArgumentOutOfRangeException(
-                    nameof(presentation),
-                    presentation.DisplayMode,
-                    "Unknown inspection model-card mode.")
-            };
+                // The page-provided target is authoritative. A replacement DTO
+                // with the same target must not force a collapse.
+                _isInspectionDetailsExpanded =
+                    presentation.IsInspectionDetailsExpanded;
+                Bindings.Update();
+                InspectionDetailsExpansionTarget.IsExpanded =
+                    presentation.IsInspectionDetailsExpanded;
+                UpdateInspectionDetailsStateText();
 
-            bool stateApplied = VisualStateManager.GoToState(
+                string displayStateName = presentation.DisplayMode switch
+                {
+                    InspectionModelCardMode.Compact => "CompactState",
+                    InspectionModelCardMode.Detailed => "DetailedState",
+                    _ => throw new ArgumentOutOfRangeException(
+                        nameof(presentation),
+                        presentation.DisplayMode,
+                        "Unknown inspection model-card mode.")
+                };
+                ApplyVisualState(displayStateName);
+                ApplyVisualState(presentation.BadgeState switch
+                {
+                    InspectionModelBadgeState.Inspected =>
+                        "InspectedBadgeState",
+                    InspectionModelBadgeState.Incomplete =>
+                        "WarningBadgeState",
+                    InspectionModelBadgeState.Unsupported or
+                        InspectionModelBadgeState.Invalid =>
+                            "ErrorBadgeState",
+                    InspectionModelBadgeState.NotInspected or
+                        InspectionModelBadgeState.ResultUnknown =>
+                            "NeutralBadgeState",
+                    _ => "InformationBadgeState"
+                });
+                ApplyVisualState(
+                    presentation.IsInspectionDetailsExpanded
+                        ? "ExpandedDetailsState"
+                        : "CollapsedDetailsState");
+            }
+            finally
+            {
+                _isApplyingPresentation = false;
+            }
+        }
+
+        /// <summary>
+        /// Forwards a user-originated expansion change without treating it as
+        /// inspection evidence or changing page/outcome identity.
+        /// </summary>
+        private void InspectionDetailsExpansionTarget_Expanding(
+            Expander sender,
+            ExpanderExpandingEventArgs eventArguments)
+        {
+            ForwardExpansionChange(isExpanded: true);
+        }
+
+        private void InspectionDetailsExpansionTarget_Collapsed(
+            Expander sender,
+            ExpanderCollapsedEventArgs eventArguments)
+        {
+            ForwardExpansionChange(isExpanded: false);
+        }
+
+        private void ForwardExpansionChange(bool isExpanded)
+        {
+            if (!_isInitialized || _isApplyingPresentation)
+            {
+                return;
+            }
+
+            _isInspectionDetailsExpanded = isExpanded;
+            ApplyVisualState(
+                isExpanded
+                    ? "ExpandedDetailsState"
+                    : "CollapsedDetailsState");
+            UpdateInspectionDetailsStateText();
+            InspectionDetailsExpansionChanged?.Invoke(
                 this,
-                stateName,
-                false);
+                new InspectionDetailsExpansionChangedEventArgs(isExpanded));
+        }
 
-            // fail fast if xaml and code-behind state contracts drift apart
-            if (!stateApplied)
+        private void UpdateInspectionDetailsStateText()
+        {
+            AutomationProperties.SetName(
+                InspectionDetailsExpansionTarget,
+                GetInspectionDetailsAutomationName(
+                    _isInspectionDetailsExpanded));
+            InspectionDetailsActionText.Text =
+                GetInspectionDetailsActionText(
+                    _isInspectionDetailsExpanded);
+        }
+
+        /// <summary>
+        /// Applies the model layout endpoint selected from the current client
+        /// width. XamlRoot supplies production window breakpoints; an isolated
+        /// control uses its measured width so geometry tests remain deterministic.
+        /// </summary>
+        private void LayoutRoot_SizeChanged(
+            object sender,
+            SizeChangedEventArgs eventArguments)
+        {
+            double width = XamlRoot?.Size.Width ?? eventArguments.NewSize.Width;
+            ApplyResponsiveLayout(width);
+        }
+
+        private void Root_Loaded(object sender, RoutedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(_observedXamlRoot, XamlRoot))
+            {
+                DetachXamlRoot();
+                _observedXamlRoot = XamlRoot;
+                if (_observedXamlRoot is not null)
+                {
+                    _observedXamlRoot.Changed += XamlRoot_Changed;
+                }
+            }
+
+            if (_observedXamlRoot is not null)
+            {
+                ApplyResponsiveLayout(_observedXamlRoot.Size.Width);
+            }
+        }
+
+        private void Root_Unloaded(object sender, RoutedEventArgs eventArguments)
+        {
+            DetachXamlRoot();
+        }
+
+        private void XamlRoot_Changed(
+            XamlRoot sender,
+            XamlRootChangedEventArgs eventArguments)
+        {
+            ApplyResponsiveLayout(sender.Size.Width);
+        }
+
+        private void DetachXamlRoot()
+        {
+            if (_observedXamlRoot is not null)
+            {
+                _observedXamlRoot.Changed -= XamlRoot_Changed;
+                _observedXamlRoot = null;
+            }
+        }
+
+        private void ApplyResponsiveLayout(double width)
+        {
+            string stateName = width >= 888
+                ? "WideModelState"
+                : width >= 600
+                    ? "MediumModelState"
+                    : "NarrowModelState";
+            ApplyResponsiveState(stateName);
+        }
+
+        private void ApplyResponsiveState(string stateName)
+        {
+            if (!_isInitialized ||
+                string.Equals(
+                    _responsiveStateName,
+                    stateName,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            ApplyVisualState(stateName);
+            _responsiveStateName = stateName;
+        }
+
+        private void ApplyVisualState(string stateName)
+        {
+            if (!VisualStateManager.GoToState(this, stateName, false))
             {
                 throw new InvalidOperationException(
                     $"The model-card visual state '{stateName}' was not found.");
             }
         }
 
-        /// <summary>
-        /// Resolves one brush from this control's active theme resources.
-        /// </summary>
-        private Brush GetThemeBrush(string resourceKey)
-        {
-            return Resources[resourceKey] as Brush
-                ?? throw new InvalidOperationException(
-                    $"The brush resource '{resourceKey}' was not found.");
-        }
-
-        /// <summary>
-        /// Creates one opaque solid-colour brush.
-        /// </summary>
-        private static Brush CreateBrush(byte red, byte green, byte blue)
-        {
-            return new SolidColorBrush(
-                Color.FromArgb(0xFF, red, green, blue));
-        }
     }
 }
