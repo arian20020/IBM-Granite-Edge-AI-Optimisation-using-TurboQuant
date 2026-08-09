@@ -31,6 +31,7 @@ class BuildPowerShellContractTests(unittest.TestCase):
             "Write-Wb05Json",
             "Write-Wb05Manifest",
             "Assert-Wb05SafePath",
+            "Test-Wb05SameWindowsPath",
             "Get-Wb05CMakeCacheValue",
             "Get-Wb05BinaryRecords",
             "Restore-Wb05Environment",
@@ -238,6 +239,9 @@ class RouteAGenAIBuildContractTests(unittest.TestCase):
             "'-DENABLE_PYTHON=ON'",
             "'-DENABLE_JS=OFF'",
             '"-DPython3_EXECUTABLE=$PythonPath"',
+            "Test-Wb05SameWindowsPath",
+            "$openvinoConfigPathMatches",
+            "-not $openvinoConfigPathMatches",
             "compatibility-attempt.json",
             "binaries.json",
             "decision.json",
@@ -246,6 +250,11 @@ class RouteAGenAIBuildContractTests(unittest.TestCase):
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
+
+        self.assertNotIn(
+            "$cacheValues.OpenVINO_DIR -ne $openvinoConfigDirectory.Replace",
+            self.text,
+        )
 
         argument_pairs = (
             r"'-G'\s*,\s*\$Generator",
