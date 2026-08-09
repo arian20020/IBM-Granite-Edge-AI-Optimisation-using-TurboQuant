@@ -1,9 +1,11 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 using System.Windows.Input;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
@@ -13,15 +15,21 @@ public sealed class ModelInspectionPresentationFactoryTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void CreateInitial_UsesSafeMetadataAndDisablesCancelBeforeRun()
+    public void Create_InitialSnapshotUsesSafeMetadataAndDisablesCancelBeforeRun()
     {
         ModelInspectionRequest request = PresentationTestData.CreateRequest();
         RecordingCommand cancelCommand = PresentationTestData.CreateCommand();
 
         ModelInspectionPagePresentation presentation =
-            ModelInspectionPresentationFactory.CreateInitial(
+            ModelInspectionPresentationFactory.Create(
                 request,
-                cancelCommand);
+                ModelInspectionViewSnapshot.Initial,
+                new ModelInspectionPresentationCommands(
+                    cancelCommand,
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                new InspectionProgressRows());
 
         Assert.AreEqual("Granite 4.1 3B", presentation.ModelCard.ModelName);
         Assert.AreEqual(
@@ -47,7 +55,7 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void CreateProgress_ProjectsTheLatestFiveStageSnapshot()
+    public void Create_ProgressSnapshotProjectsTheLatestFiveStageUpdate()
     {
         ModelInspectionRequest request = PresentationTestData.CreateRequest();
         RecordingCommand cancelCommand =
@@ -59,12 +67,26 @@ public sealed class ModelInspectionPresentationFactoryTests
             totalStageCount: 5,
             stageFraction: 0.5,
             userMessage: "Checking tokenizer evidence.");
+        var progressRows = new InspectionProgressRows();
+        progressRows.Reset(new ModelInspectionRenderKey(1, 0));
+        ModelInspectionViewSnapshot snapshot = new(
+            new ModelInspectionRenderKey(1, 3),
+            isRunActive: true,
+            isCancellationRequested: false,
+            progress,
+            terminalResult: null);
 
         ModelInspectionPagePresentation presentation =
-            ModelInspectionPresentationFactory.CreateProgress(
+            ModelInspectionPresentationFactory.Create(
                 request,
-                progress,
-                cancelCommand);
+                snapshot,
+                new ModelInspectionPresentationCommands(
+                    cancelCommand,
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                progressRows);
+        progressRows.Apply(presentation.ProgressRowsUpdate);
 
         Assert.AreEqual("2 of 5 checks complete", presentation.ContentCard.ProgressSummary);
         Assert.AreEqual(0.5, presentation.ContentCard.Items[2].StageFraction);
@@ -113,7 +135,7 @@ public sealed class ModelInspectionPresentationFactoryTests
         InspectionOutcomeTone.Error,
         InspectionContentCardMode.Invalid,
         InspectionModelBadgeState.Invalid)]
-    public void CreateTerminal_MapsEveryCompletedModelOutcome(
+    public void Create_TerminalSnapshotMapsEveryCompletedModelOutcome(
         int outcomeValue,
         InspectionOutcomePresentationKind expectedKind,
         InspectionOutcomeTone expectedTone,
@@ -142,7 +164,7 @@ public sealed class ModelInspectionPresentationFactoryTests
     [DataRow((int)ModelInspectionOutcome.IncompletePackage, 2, 1)]
     [DataRow((int)ModelInspectionOutcome.Unsupported, 1, 1)]
     [DataRow((int)ModelInspectionOutcome.Invalid, 1, 1)]
-    public void CreateTerminal_CompletedOutcomeKeepsNavigationActiveAndFutureActionsExplicit(
+    public void Create_CompletedOutcomeKeepsNavigationActiveAndFutureActionsExplicit(
         int outcomeValue,
         int expectedActiveCount,
         int expectedFutureCount)
@@ -155,11 +177,7 @@ public sealed class ModelInspectionPresentationFactoryTests
                 PresentationTestData.CreateResult(outcome));
 
         ModelInspectionPagePresentation presentation =
-            ModelInspectionPresentationFactory.CreateTerminal(
-                PresentationTestData.CreateRequest(),
-                execution,
-                retryCommand,
-                chooseCommand);
+            CreateTerminal(execution, retryCommand, chooseCommand);
 
         InspectionActionPresentation[] visible = new[]
         {
@@ -190,7 +208,7 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void CreateTerminal_CooperativeCancellationOffersRetryAndChoose()
+    public void Create_CooperativeCancellationOffersRetryAndChoose()
     {
         ModelInspectionPagePresentation presentation = CreateTerminal(
             ModelInspectionExecutionResult.Cancelled(cooperative: true));
@@ -213,7 +231,7 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void CreateTerminal_OperationalFailureShowsOnlySafeMessageAndStableCode()
+    public void Create_OperationalFailureShowsOnlySafeMessageAndStableCode()
     {
         string forbiddenTechnicalDetail =
             $"{PresentationTestData.SensitiveTechnicalMarker}: stderr; " +
@@ -254,7 +272,7 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void CreateTerminal_DoesNotExposePathsOrFindingTechnicalDetail()
+    public void Create_DoesNotExposePathsOrFindingTechnicalDetail()
     {
         ModelInspectionResult result = PresentationTestData.CreateResult(
             ModelInspectionOutcome.ReadyWithWarnings,
@@ -278,13 +296,43 @@ public sealed class ModelInspectionPresentationFactoryTests
     }
 
     private static ModelInspectionPagePresentation CreateTerminal(
-        ModelInspectionExecutionResult execution)
+        ModelInspectionExecutionResult execution,
+        ICommand? retryCommand = null,
+        ICommand? chooseCommand = null)
     {
-        return ModelInspectionPresentationFactory.CreateTerminal(
+        var snapshot = new ModelInspectionViewSnapshot(
+            new ModelInspectionRenderKey(1, 4),
+            isRunActive: false,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: execution);
+        return ModelInspectionPresentationFactory.Create(
             PresentationTestData.CreateRequest(),
-            execution,
-            PresentationTestData.CreateCommand(),
-            PresentationTestData.CreateCommand());
+            snapshot,
+            new ModelInspectionPresentationCommands(
+                PresentationTestData.CreateCommand(),
+                retryCommand ?? PresentationTestData.CreateCommand(),
+                chooseCommand ?? PresentationTestData.CreateCommand()),
+            isDisclosureExpanded: false,
+            new InspectionProgressRows());
+    }
+
+    [TestMethod]
+    [TestCategory("WinUI")]
+    public void UnifiedCreate_IsTheOnlyNonPrivateFactoryEntryPoint()
+    {
+        MethodInfo[] entryPoints = typeof(ModelInspectionPresentationFactory)
+            .GetMethods(
+                BindingFlags.Static |
+                BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.DeclaredOnly)
+            .Where(method => !method.IsPrivate && !method.IsSpecialName)
+            .ToArray();
+
+        Assert.HasCount(1, entryPoints);
+        Assert.AreEqual(nameof(ModelInspectionPresentationFactory.Create),
+            entryPoints[0].Name);
     }
 
     private static void AssertRecoveryActions(

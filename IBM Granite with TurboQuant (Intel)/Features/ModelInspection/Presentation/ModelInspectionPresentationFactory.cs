@@ -33,8 +33,6 @@ internal static class ModelInspectionPresentationFactory
     private const string ExpectedProcessArchitecture = "X64";
     private const string ExpectedInspectionMode = "VocabOnly";
 
-    private static readonly ICommand DisabledCommand = new DisabledNoOpCommand();
-
     internal static ModelInspectionPagePresentation Create(
         ModelInspectionRequest request,
         ModelInspectionViewSnapshot snapshot,
@@ -64,85 +62,6 @@ internal static class ModelInspectionPresentationFactory
             snapshot,
             commands,
             isDisclosureExpanded);
-    }
-
-    // Compatibility adapter retained until the page migrates in Task 10.
-    internal static ModelInspectionPagePresentation CreateInitial(
-        ModelInspectionRequest request,
-        ICommand cancelCommand)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(cancelCommand);
-        InspectionProgressRows progressRows = new();
-
-        return Create(
-            request,
-            ModelInspectionViewSnapshot.Initial,
-            new ModelInspectionPresentationCommands(
-                cancelCommand,
-                DisabledCommand,
-                DisabledCommand),
-            isDisclosureExpanded: false,
-            progressRows);
-    }
-
-    // Compatibility adapter retained until the page migrates in Task 10.
-    internal static ModelInspectionPagePresentation CreateProgress(
-        ModelInspectionRequest request,
-        ModelInspectionProgress progress,
-        ICommand cancelCommand)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(progress);
-        ArgumentNullException.ThrowIfNull(cancelCommand);
-        InspectionProgressRows progressRows = new();
-        ModelInspectionViewSnapshot snapshot = new(
-            new ModelInspectionRenderKey(0, 0),
-            isRunActive: true,
-            isCancellationRequested: false,
-            progress,
-            terminalResult: null);
-
-        ModelInspectionPagePresentation presentation = Create(
-            request,
-            snapshot,
-            new ModelInspectionPresentationCommands(
-                cancelCommand,
-                DisabledCommand,
-                DisabledCommand),
-            isDisclosureExpanded: false,
-            progressRows);
-        progressRows.Apply(presentation.ProgressRowsUpdate);
-        return presentation;
-    }
-
-    // Compatibility adapter retained until the page migrates in Task 10.
-    internal static ModelInspectionPagePresentation CreateTerminal(
-        ModelInspectionRequest request,
-        ModelInspectionExecutionResult execution,
-        ICommand retryCommand,
-        ICommand chooseAnotherCommand)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(execution);
-        ArgumentNullException.ThrowIfNull(retryCommand);
-        ArgumentNullException.ThrowIfNull(chooseAnotherCommand);
-        ModelInspectionViewSnapshot snapshot = new(
-            new ModelInspectionRenderKey(0, 0),
-            isRunActive: false,
-            isCancellationRequested: false,
-            progress: null,
-            terminalResult: execution);
-
-        return Create(
-            request,
-            snapshot,
-            new ModelInspectionPresentationCommands(
-                DisabledCommand,
-                retryCommand,
-                chooseAnotherCommand),
-            isDisclosureExpanded: false,
-            new InspectionProgressRows());
     }
 
     private static ModelInspectionPagePresentation CreateProgressState(
@@ -1447,18 +1366,4 @@ internal static class ModelInspectionPresentationFactory
         internal string SupportingText => GenericRowDetail;
     }
 
-    private sealed class DisabledNoOpCommand : ICommand
-    {
-        public event EventHandler? CanExecuteChanged
-        {
-            add { }
-            remove { }
-        }
-
-        public bool CanExecute(object? parameter) => false;
-
-        public void Execute(object? parameter)
-        {
-        }
-    }
 }

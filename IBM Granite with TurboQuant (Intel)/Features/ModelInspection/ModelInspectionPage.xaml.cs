@@ -419,6 +419,7 @@ public sealed partial class ModelInspectionPage : Page
                 !_isApplyingMotionSettingsChange &&
                 !IsMotionSettingsChangePending)
             {
+                long terminalLifetime = _navigationLifetime;
                 animationDriver.StartTerminal(
                     OutgoingProgressContentCard,
                     InspectionOutcomeCardControl,
@@ -428,7 +429,8 @@ public sealed partial class ModelInspectionPage : Page
                         // Terminal retirement belongs to the semantic render.
                         // Disclosure interactions for that same render must not
                         // strand the inert outgoing progress layer.
-                        if (coordinator.IsCurrent(completedKey.RenderKey))
+                        if (terminalLifetime == _navigationLifetime &&
+                            coordinator.IsCurrent(completedKey.RenderKey))
                         {
                             RetireOutgoingProgressLayer();
                         }
@@ -559,11 +561,25 @@ public sealed partial class ModelInspectionPage : Page
         bool expanded = IsExpandedState(presentation.State);
         if (HasModelDisclosure(presentation.State))
         {
+            if (InspectionModelCardControl.ActiveDisclosure is not
+                    InspectionDisclosure disclosure ||
+                disclosure.IsExpanded == expanded)
+            {
+                return;
+            }
+
             InspectionModelCardControl.PrepareDisclosureTarget(expanded);
             InspectionModelCardControl.CompleteDisclosureTarget(expanded);
         }
         else if (HasContentDisclosure(presentation.State))
         {
+            if (InspectionContentCardControl.ActiveDisclosure is not
+                    InspectionDisclosure disclosure ||
+                disclosure.IsExpanded == expanded)
+            {
+                return;
+            }
+
             InspectionContentCardControl.PrepareDisclosureTarget(expanded);
             InspectionContentCardControl.CompleteDisclosureTarget(expanded);
         }

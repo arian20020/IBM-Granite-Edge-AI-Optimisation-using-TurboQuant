@@ -20,11 +20,25 @@ namespace GraniteEdgeAI.Features.Onboarding
         // shell is currently listening to.
         private ModelInspectionPage? _attachedModelInspectionPage;
 
+        private readonly Func<Frame, ModelInspectionRequest, bool>
+            _modelInspectionNavigator;
+
         /// <summary>
         /// Creates the onboarding shell and displays the first stage.
         /// </summary>
         public OnboardingShellPage()
+            : this(static (frame, request) => frame.Navigate(
+                typeof(ModelInspectionPage),
+                request))
         {
+        }
+
+        internal OnboardingShellPage(
+            Func<Frame, ModelInspectionRequest, bool> modelInspectionNavigator)
+        {
+            _modelInspectionNavigator = modelInspectionNavigator ??
+                throw new ArgumentNullException(nameof(modelInspectionNavigator));
+
             // Create all controls declared in OnboardingShellPage.xaml.
             InitializeComponent();
 
@@ -122,8 +136,8 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             // Ask the onboarding Frame to create ModelInspectionPage.
             // The request becomes NavigationEventArgs.Parameter on that page.
-            bool navigationSucceeded = StageFrame.Navigate(
-                typeof(ModelInspectionPage),
+            bool navigationSucceeded = _modelInspectionNavigator(
+                StageFrame,
                 request);
 
             // A cancelled Navigating event can leave Navigate reporting true.

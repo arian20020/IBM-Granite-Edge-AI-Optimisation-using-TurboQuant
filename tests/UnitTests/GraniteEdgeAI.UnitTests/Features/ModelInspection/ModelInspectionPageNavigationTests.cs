@@ -17,6 +17,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -55,24 +56,50 @@ public sealed class ModelInspectionPageNavigationTests
             request);
 
         var page = frame.Content as ModelInspectionPage;
-        Assert.IsTrue(navigationSucceeded);
-        Assert.IsNotNull(page);
-        Assert.AreSame(request, page.Request);
-        Assert.IsNotNull(page.ViewModel);
-        Assert.AreSame(request, page.ViewModel.Request);
-        Assert.IsNull(page.CurrentInspectionTask);
+        try
+        {
+            Assert.IsTrue(navigationSucceeded);
+            Assert.IsNotNull(page);
+            Assert.AreSame(request, page.Request);
+            Assert.IsNotNull(page.ViewModel);
+            Assert.AreSame(request, page.ViewModel.Request);
+            Assert.IsNull(page.CurrentInspectionTask);
 
-        ModelInspectionPagePresentation snapshot =
-            AssertCompleteSnapshotApplied(page);
-        Assert.AreEqual(
-            InspectionContentCardMode.Progress,
-            snapshot.ContentCard.Mode);
-        Assert.AreEqual(
-            InspectionOutcomePresentationKind.Hidden,
-            snapshot.OutcomeCard.Kind);
-        Assert.AreEqual(
-            "Granite 4.1 3B Instruct",
-            snapshot.ModelCard.ModelName);
+            ModelInspectionPagePresentation snapshot =
+                AssertCompleteSnapshotApplied(page);
+            Assert.AreEqual(
+                new ModelInspectionRenderKey(0, 0),
+                snapshot.RenderKey);
+            Assert.AreEqual(
+                ModelInspectionFigmaState.InspectionProgress,
+                snapshot.State);
+            Assert.AreEqual(
+                InspectionContentCardMode.Progress,
+                snapshot.ContentCard.Mode);
+            Assert.AreEqual(
+                "0 of 5 checks complete",
+                snapshot.ContentCard.ProgressSummary);
+            Assert.HasCount(5, snapshot.ContentCard.Items);
+            Assert.IsTrue(snapshot.ContentCard.Items.All(item =>
+                item.Status == InspectionContentStatus.Waiting &&
+                item.StatusText == "Waiting"));
+            Assert.AreEqual(
+                InspectionOutcomePresentationKind.Hidden,
+                snapshot.OutcomeCard.Kind);
+            Assert.AreEqual(
+                "Granite 4.1 3B Instruct",
+                snapshot.ModelCard.ModelName);
+            Assert.IsFalse(snapshot.ActionCard.CancelAction.IsEnabled);
+        }
+        finally
+        {
+            if (page is not null)
+            {
+                InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            }
+
+            frame.Content = null;
+        }
     }
 
     [UITestMethod]
@@ -180,61 +207,174 @@ public sealed class ModelInspectionPageNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ProgressAndTerminalEvents_ReplaceTheCompleteFourCardSnapshot()
+    public async Task ProgressBurst_CoalescesAndRetainsControlIdentity()
     {
         var service = new ControlledInspectionService();
         ControlledCall call = service.QueueCall();
-        var page = CreatePage(service, CreateRequest());
-        ModelInspectionPagePresentation initial =
-            AssertCompleteSnapshotApplied(page);
-        var modelControl = (InspectionModelCard)page.FindName(
-            "InspectionModelCardControl");
-        var contentControl = (InspectionContentCard)page.FindName(
-            "InspectionContentCardControl");
-        var actionControl = (InspectionActionCard)page.FindName(
-            "InspectionActionCardControl");
-        InspectionModelCardPresentation retainedModel = modelControl.Presentation;
-        InspectionContentCardPresentation retainedContent =
-            contentControl.Presentation;
-        Task run = page.StartInspectionIfReadyAsync()!;
-        ModelInspectionProgress progress = CreateProgress(
-            ModelInspectionStage.ReadModelConfiguration,
-            completedStageCount: 1);
+        var dispatcher = new ManualRenderDispatcher();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            new RecordingPageAnimationDriver(),
+            new RecordingMotionSettings(animationsEnabled: false));
+        try
+        {
+            var modelControl = (InspectionModelCard)page.FindName(
+                "InspectionModelCardControl");
+            var contentControl = (InspectionContentCard)page.FindName(
+                "InspectionContentCardControl");
+            var outcomeControl = (InspectionOutcomeCard)page.FindName(
+                "InspectionOutcomeCardControl");
+            var actionControl = (InspectionActionCard)page.FindName(
+                "InspectionActionCardControl");
+            var outgoingControl = (InspectionContentCard)page.FindName(
+                "OutgoingProgressContentCard");
+            InspectionProgressRows progressRows =
+                contentControl.Presentation.ProgressRows;
+            object[] retainedRows = progressRows.Items.Cast<object>().ToArray();
+            Task run = page.StartInspectionIfReadyAsync()!;
+            Assert.AreEqual(1, dispatcher.PendingCount);
+            dispatcher.RunAll();
+            ModelInspectionPagePresentation active =
+                AssertCompleteSnapshotApplied(page);
+            InspectionModelCardPresentation retainedModel = modelControl.Presentation;
+            InspectionContentCardPresentation retainedContent =
+                contentControl.Presentation;
+            InspectionOutcomePresentation retainedOutcome =
+                outcomeControl.Presentation;
+            InspectionActionCardPresentation retainedActions =
+                actionControl.Presentation;
 
-        call.Report(progress);
-        await DrainDispatcherAsync(page);
+            call.Report(CreateProgress(
+                ModelInspectionStage.CheckModelPackage,
+                completedStageCount: 0));
+            call.Report(CreateProgress(
+                ModelInspectionStage.ReadModelConfiguration,
+                completedStageCount: 1));
+            call.Report(CreateProgress(
+                ModelInspectionStage.ValidateTokenizerAndChatSetup,
+                completedStageCount: 2));
 
-        ModelInspectionPagePresentation active =
-            AssertCompleteSnapshotApplied(page);
-        Assert.AreNotSame(initial, active);
-        Assert.AreEqual(
-            "1 of 5 checks complete",
-            active.ContentCard.ProgressSummary);
-        Assert.AreEqual(
-            InspectionOutcomePresentationKind.Hidden,
-            active.OutcomeCard.Kind);
-        Assert.IsTrue(active.ActionCard.CancelAction.IsEnabled);
-        Assert.AreSame(retainedModel, modelControl.Presentation);
-        Assert.AreSame(retainedContent, contentControl.Presentation);
-        Assert.AreSame(active.ActionCard, actionControl.Presentation);
+            Assert.AreEqual(
+                1,
+                dispatcher.PendingCount,
+                "A burst must own exactly one queued page render.");
+            Assert.AreSame(active, page.CurrentPresentation);
+            dispatcher.RunAll();
 
-        call.Complete(CreateFailureResult("terminal"));
-        await run;
-        await DrainDispatcherAsync(page);
+            ModelInspectionPagePresentation latest =
+                AssertCompleteSnapshotApplied(page);
+            Assert.AreEqual(
+                "2 of 5 checks complete",
+                latest.ContentCard.ProgressSummary);
+            Assert.AreSame(modelControl, page.FindName("InspectionModelCardControl"));
+            Assert.AreSame(contentControl, page.FindName("InspectionContentCardControl"));
+            Assert.AreSame(outcomeControl, page.FindName("InspectionOutcomeCardControl"));
+            Assert.AreSame(actionControl, page.FindName("InspectionActionCardControl"));
+            Assert.AreSame(retainedModel, modelControl.Presentation);
+            Assert.AreSame(retainedContent, contentControl.Presentation);
+            Assert.AreSame(retainedOutcome, outcomeControl.Presentation);
+            Assert.AreSame(retainedActions, actionControl.Presentation);
+            CollectionAssert.AreEqual(
+                retainedRows,
+                progressRows.Items.Cast<object>().ToArray());
+            Assert.AreEqual(
+                InspectionContentStatus.Active,
+                progressRows.Items[2].Status);
 
-        ModelInspectionPagePresentation terminal =
-            AssertCompleteSnapshotApplied(page);
-        Assert.AreNotSame(active, terminal);
-        Assert.AreEqual(
-            InspectionOutcomePresentationKind.OperationalFailure,
-            terminal.OutcomeCard.Kind);
-        Assert.AreEqual(
-            InspectionContentCardMode.OperationalFailure,
-            terminal.ContentCard.Mode);
-        Assert.IsTrue(terminal.ActionCard.PrimaryAction.IsEnabled);
-        Assert.AreSame(terminal.ModelCard, modelControl.Presentation);
-        Assert.AreSame(terminal.ContentCard, contentControl.Presentation);
-        Assert.AreSame(terminal.ActionCard, actionControl.Presentation);
+            int modelAssignments = 0;
+            int contentAssignments = 0;
+            int outcomeAssignments = 0;
+            int actionAssignments = 0;
+            long modelToken = modelControl.RegisterPropertyChangedCallback(
+                InspectionModelCard.PresentationProperty,
+                (_, _) => modelAssignments++);
+            long contentToken = contentControl.RegisterPropertyChangedCallback(
+                InspectionContentCard.PresentationProperty,
+                (_, _) => contentAssignments++);
+            long outcomeToken = outcomeControl.RegisterPropertyChangedCallback(
+                InspectionOutcomeCard.PresentationProperty,
+                (_, _) => outcomeAssignments++);
+            long actionToken = actionControl.RegisterPropertyChangedCallback(
+                InspectionActionCard.PresentationProperty,
+                (_, _) => actionAssignments++);
+
+            latest.ActionCard.CancelAction.Command!.Execute(null);
+            Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
+            Assert.AreEqual(1, dispatcher.PendingCount);
+            dispatcher.RunAll();
+
+            Assert.AreEqual(0, modelAssignments);
+            Assert.AreEqual(0, contentAssignments);
+            Assert.AreEqual(0, outcomeAssignments);
+            Assert.AreEqual(1, actionAssignments);
+            Assert.AreSame(retainedModel, modelControl.Presentation);
+            Assert.AreSame(retainedContent, contentControl.Presentation);
+            Assert.AreSame(retainedOutcome, outcomeControl.Presentation);
+            Assert.AreNotSame(retainedActions, actionControl.Presentation);
+            Assert.IsFalse(
+                page.CurrentPresentation!.ActionCard.CancelAction.IsEnabled);
+            modelControl.UnregisterPropertyChangedCallback(
+                InspectionModelCard.PresentationProperty,
+                modelToken);
+            contentControl.UnregisterPropertyChangedCallback(
+                InspectionContentCard.PresentationProperty,
+                contentToken);
+            outcomeControl.UnregisterPropertyChangedCallback(
+                InspectionOutcomeCard.PresentationProperty,
+                outcomeToken);
+            actionControl.UnregisterPropertyChangedCallback(
+                InspectionActionCard.PresentationProperty,
+                actionToken);
+
+            bool progressRetiredBeforeOutcome = false;
+            long visibilityToken = outcomeControl.RegisterPropertyChangedCallback(
+                InspectionOutcomeCard.CardVisibilityProperty,
+                (_, _) =>
+                {
+                    if (outcomeControl.CardVisibility != Visibility.Visible)
+                    {
+                        return;
+                    }
+
+                    progressRetiredBeforeOutcome =
+                        contentControl.Presentation.Mode !=
+                            InspectionContentCardMode.Progress &&
+                        AutomationProperties.GetLiveSetting(contentControl) ==
+                            AutomationLiveSetting.Off &&
+                        outgoingControl.Visibility == Visibility.Visible &&
+                        !outgoingControl.IsHitTestVisible &&
+                        AutomationProperties.GetAccessibilityView(outgoingControl) ==
+                            AccessibilityView.Raw &&
+                        AutomationProperties.GetLiveSetting(outgoingControl) ==
+                            AutomationLiveSetting.Off;
+                });
+
+            call.Complete(CreateFailureResult("terminal"));
+            await run;
+            dispatcher.RunAll();
+            outcomeControl.UnregisterPropertyChangedCallback(
+                InspectionOutcomeCard.CardVisibilityProperty,
+                visibilityToken);
+
+            ModelInspectionPagePresentation terminal =
+                AssertCompleteSnapshotApplied(page);
+            Assert.IsTrue(
+                progressRetiredBeforeOutcome,
+                "Progress semantics must retire before the terminal banner becomes visible.");
+            Assert.AreEqual(
+                InspectionOutcomePresentationKind.OperationalFailure,
+                terminal.OutcomeCard.Kind);
+            Assert.AreEqual(
+                InspectionContentCardMode.OperationalFailure,
+                terminal.ContentCard.Mode);
+            Assert.IsTrue(terminal.ActionCard.PrimaryAction.IsEnabled);
+        }
+        finally
+        {
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        }
     }
 
     [UITestMethod]
@@ -484,6 +624,164 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.IsTrue(settings.IsDisposed);
         Assert.IsFalse(viewModel.ChooseAnotherCommand.CanExecute(null));
         Assert.IsNull(page.ViewModel);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OnNavigatedFrom_RejectsTerminalCompletionDuringDriverCancellation()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(CreateFailureResult("retirement-completion"));
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            new RecordingMotionSettings(animationsEnabled: true));
+        bool retired = false;
+
+        try
+        {
+            await page.StartInspectionIfReadyAsync()!;
+            dispatcher.RunAll();
+            Assert.HasCount(1, driver.TerminalStarts);
+            var outgoing = (InspectionContentCard)page.FindName(
+                "OutgoingProgressContentCard");
+            Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+            InspectionContentCardPresentation retained = outgoing.Presentation;
+            bool completionWasRejected = false;
+            driver.CancelAllCallback = () =>
+            {
+                driver.CompleteTerminal(index: 0);
+                completionWasRejected =
+                    outgoing.Visibility == Visibility.Visible &&
+                    ReferenceEquals(retained, outgoing.Presentation);
+            };
+
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            retired = true;
+
+            Assert.IsTrue(
+                completionWasRejected,
+                "A synchronous driver completion cannot mutate controls after navigation retirement begins.");
+            Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+        }
+        finally
+        {
+            if (!retired)
+            {
+                InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            }
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OnNavigatedFrom_RetiresCoordinatorBeforeSynchronousCancellationCallback()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall call = service.QueueCall();
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            settings);
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+        bool retired = false;
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Task? run = page.CurrentInspectionTask;
+            Assert.IsNotNull(run);
+            dispatcher.RunAll();
+            page.UpdateLayout();
+            var pageScroll = (ScrollViewer)page.FindName(
+                "InspectionPageScrollViewer");
+            pageScroll.IsTabStop = true;
+            Assert.IsTrue(pageScroll.Focus(FocusState.Programmatic));
+            object? retainedFocus = FocusManager.GetFocusedElement(
+                page.XamlRoot);
+            Assert.AreSame(pageScroll, retainedFocus);
+            ModelInspectionPagePresentation retainedPresentation =
+                page.CurrentPresentation!;
+            InspectionFooterStatus retainedFooter = page.CurrentFooterStatus;
+            var content = (InspectionContentCard)page.FindName(
+                "InspectionContentCardControl");
+            var outcome = (InspectionOutcomeCard)page.FindName(
+                "InspectionOutcomeCardControl");
+            int retainedProgressAnnouncements =
+                content.LiveRegionChangeNotificationCount;
+            int retainedOutcomeAnnouncements =
+                outcome.LiveRegionChangeNotificationCount;
+            int retainedMotionStarts = driver.TotalStartCount;
+            ModelInspectionRenderCoordinator coordinator =
+                GetCoordinator(page);
+            ModelInspectionRenderKey visibleKey =
+                retainedPresentation.RenderKey;
+            bool cancellationObserved = false;
+            bool retiredBeforeCallback = false;
+            using CancellationTokenRegistration registration =
+                call.CancellationToken.Register(() =>
+                {
+                    cancellationObserved = true;
+                    retiredBeforeCallback =
+                        !coordinator.IsCurrent(visibleKey) &&
+                        driver.IsDisposed &&
+                        settings.IsDisposed &&
+                        page.ViewModel is null &&
+                        page.CurrentInspectionTask is null;
+                    call.Report(CreateProgress(
+                        ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+                        completedStageCount: 4));
+                    settings.RaiseChanged();
+                    call.Complete(ModelInspectionExecutionResult.Cancelled(
+                        cooperative: true));
+                });
+
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            retired = true;
+            await run.WaitAsync(TimeSpan.FromSeconds(10));
+            dispatcher.RunAll();
+
+            Assert.IsTrue(cancellationObserved);
+            Assert.IsTrue(
+                retiredBeforeCallback,
+                "Coordinator, animation, settings, and page ownership must be retired before service cancellation callbacks run.");
+            Assert.AreSame(retainedPresentation, page.CurrentPresentation);
+            Assert.AreEqual(retainedFooter, page.CurrentFooterStatus);
+            Assert.AreEqual(
+                retainedProgressAnnouncements,
+                content.LiveRegionChangeNotificationCount);
+            Assert.AreEqual(
+                retainedOutcomeAnnouncements,
+                outcome.LiveRegionChangeNotificationCount);
+            Assert.AreSame(
+                retainedFocus,
+                FocusManager.GetFocusedElement(page.XamlRoot));
+            Assert.AreEqual(retainedMotionStarts, driver.TotalStartCount);
+            Assert.AreEqual(0, dispatcher.PendingCount);
+        }
+        finally
+        {
+            if (!retired)
+            {
+                InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            }
+
+            window.Content = null;
+            window.Close();
+        }
     }
 
     [UITestMethod]
@@ -1150,13 +1448,47 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.AreEqual(offset, scroll.VerticalOffset, 0.01d);
 
             int terminalStartIndex = fixture.Driver.TerminalStarts.Count;
+            ModelInspectionRenderKey retiredKey =
+                fixture.Page.CurrentPresentation!.RenderKey;
+            var outcome = (InspectionOutcomeCard)fixture.Page.FindName(
+                "InspectionOutcomeCardControl");
+            int retiredAnnouncementCount =
+                outcome.LiveRegionChangeNotificationCount;
             ControlledCall retry = fixture.Service.QueueCall();
             fixture.Page.ViewModel!.RetryCommand.Execute(null);
-            await Task.Yield();
+            Assert.AreEqual(1, fixture.Dispatcher.PendingCount);
             fixture.Dispatcher.RunAll();
+            ModelInspectionPagePresentation retryProgress =
+                fixture.Page.CurrentPresentation!;
+            Assert.AreEqual(
+                ModelInspectionFigmaState.InspectionProgress,
+                retryProgress.State);
             Assert.AreEqual(
                 InspectionModelCardMode.Compact,
                 model.Presentation.DisplayMode);
+            Assert.IsNull(
+                model.ActiveDisclosure,
+                "Retry must reset the prior attempt's expanded disclosure.");
+
+            fixture.InitialCall.Report(CreateProgress(
+                ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+                completedStageCount: 4));
+            GetCoordinator(fixture.Page).RequestRender(
+                new ModelInspectionViewSnapshot(
+                    retiredKey,
+                    isRunActive: false,
+                    isCancellationRequested: false,
+                    progress: null,
+                    terminalResult: ModelInspectionExecutionResult.Completed(
+                        CreateReadyResult())));
+            fixture.Driver.CompleteTerminal(index: 0);
+            fixture.Dispatcher.RunAll();
+
+            Assert.AreSame(retryProgress, fixture.Page.CurrentPresentation);
+            Assert.AreEqual(
+                retiredAnnouncementCount,
+                outcome.LiveRegionChangeNotificationCount,
+                "Retired progress/result/animation work cannot repeat the prior announcement.");
 
             retry.Complete(CreateCompletedResult(ModelInspectionOutcome.Ready));
             await DrainDispatcherAsync(fixture.Page);
@@ -1166,6 +1498,12 @@ public sealed class ModelInspectionPageNavigationTests
                 fixture.Driver.TerminalStarts.Count);
             fixture.Driver.CompleteLastTerminal();
             fixture.Page.UpdateLayout();
+            Assert.AreEqual(
+                ModelInspectionFigmaState.ReadyCollapsed,
+                fixture.Page.CurrentPresentation!.State);
+            Assert.AreEqual(
+                retiredAnnouncementCount + 1,
+                outcome.LiveRegionChangeNotificationCount);
 
             Assert.IsNotNull(
                 model.ActiveDisclosure,
@@ -1196,6 +1534,61 @@ public sealed class ModelInspectionPageNavigationTests
                 isExpanded: true);
             Assert.AreSame(replacement, items.ItemsSource,
                 "The replacement owner must then survive expansion-only renders.");
+        }
+        finally
+        {
+            RetireLoadedPage(fixture.Page, fixture.Window);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task SameOutcomeRevision_PreservesExpandedDisclosureAndFocusedElement()
+    {
+        var fixture = await CreateLoadedTerminalPageAsync(
+            ModelInspectionOutcome.Ready);
+
+        try
+        {
+            var model = (InspectionModelCard)fixture.Page.FindName(
+                "InspectionModelCardControl");
+            InspectionDisclosure disclosure = model.ActiveDisclosure!;
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+            var checks = (ScrollViewer)model.FindName(
+                "InspectionChecksScrollViewer");
+            checks.IsTabStop = true;
+            Assert.IsTrue(checks.Focus(FocusState.Programmatic));
+            Assert.AreSame(
+                checks,
+                FocusManager.GetFocusedElement(fixture.Page.XamlRoot));
+
+            ModelInspectionRenderKey currentKey =
+                fixture.Page.CurrentPresentation!.RenderKey;
+            var updatedSnapshot = new ModelInspectionViewSnapshot(
+                new ModelInspectionRenderKey(
+                    currentKey.AttemptGeneration,
+                    currentKey.PresentationRevision + 1),
+                isRunActive: false,
+                isCancellationRequested: false,
+                progress: null,
+                terminalResult: ModelInspectionExecutionResult.Completed(
+                    CreateReadyResult(TimeSpan.FromSeconds(5))));
+
+            GetCoordinator(fixture.Page).RequestRender(updatedSnapshot);
+            fixture.Dispatcher.RunAll();
+
+            Assert.AreEqual(
+                ModelInspectionFigmaState.ReadyExpanded,
+                fixture.Page.CurrentPresentation.State);
+            Assert.IsTrue(disclosure.IsExpanded);
+            Assert.AreSame(
+                checks,
+                FocusManager.GetFocusedElement(fixture.Page.XamlRoot));
         }
         finally
         {
@@ -1423,6 +1816,7 @@ public sealed class ModelInspectionPageNavigationTests
     }
 
     [UITestMethod]
+    [DoNotParallelize]
     [TestCategory("WinUI")]
     [TestCategory("ModelInspectionPackagedIntegration")]
     public async Task PackagedN001_PageJourneyCompletesAllFiveStagesAsReady()
@@ -1442,66 +1836,246 @@ public sealed class ModelInspectionPageNavigationTests
             fixture.Length,
             new DateTimeOffset(fixture.LastWriteTimeUtc, TimeSpan.Zero));
         var frame = new Frame();
-        Assert.IsTrue(frame.Navigate(typeof(ModelInspectionPage), request));
-        var page = frame.Content as ModelInspectionPage;
-        Assert.IsNotNull(page);
-        Assert.AreSame(request, page.Request);
-        Assert.IsNotNull(page.ViewModel);
-        List<ModelInspectionProgress> observedProgress = [];
-        page.ViewModel.PropertyChanged += (_, eventArguments) =>
+        ModelInspectionPage? page = null;
+        Window? window = null;
+
+        try
         {
-            if (eventArguments.PropertyName ==
-                    nameof(ModelInspectionViewModel.Snapshot) &&
-                page.ViewModel?.Snapshot.Progress is
-                    ModelInspectionProgress progress)
+            Assert.IsTrue(frame.Navigate(typeof(ModelInspectionPage), request));
+            page = frame.Content as ModelInspectionPage;
+            Assert.IsNotNull(page);
+            Assert.AreSame(request, page.Request);
+            Assert.IsNotNull(page.ViewModel);
+            List<(
+                ModelInspectionStage Stage,
+                ModelInspectionStageStatus Status,
+                int CompletedStageCount)> observedTransitions = [];
+            page.ViewModel.PropertyChanged += (_, eventArguments) =>
             {
-                observedProgress.Add(progress);
+                if (eventArguments.PropertyName !=
+                        nameof(ModelInspectionViewModel.Snapshot) ||
+                    page.ViewModel?.Snapshot.Progress is not
+                        ModelInspectionProgress progress)
+                {
+                    return;
+                }
+
+                RecordCoreProgressObservation(
+                    observedTransitions,
+                    progress);
+            };
+            var loaded = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            page.Loaded += (_, _) => loaded.TrySetResult(true);
+            window = new Window { Content = frame };
+
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Task? run = page.CurrentInspectionTask;
+            Assert.IsNotNull(run,
+                "The production Loaded path must start the inspection.");
+            page.InvalidateMeasure();
+            page.UpdateLayout();
+            Assert.AreSame(run, page.CurrentInspectionTask,
+                "A later layout must not start another inspection.");
+
+            await run.WaitAsync(TimeSpan.FromSeconds(30));
+            await DrainDispatcherAsync(page);
+
+            Assert.IsNull(page.ViewModel.Progress,
+                "Terminal snapshots retire mutable progress evidence.");
+            var expectedTransitions = Enum.GetValues<ModelInspectionStage>()
+                .SelectMany(stage => new[]
+                {
+                    (
+                        stage,
+                        ModelInspectionStageStatus.Active,
+                        (int)stage - 1),
+                    (
+                        stage,
+                        ModelInspectionStageStatus.Completed,
+                        (int)stage)
+                })
+                .ToArray();
+            CollectionAssert.AreEqual(
+                expectedTransitions,
+                observedTransitions.ToArray(),
+                "Every stage must become Active and then Completed in order.");
+            Assert.AreEqual(
+                ModelInspectionExecutionStatus.Completed,
+                page.ViewModel.Result?.Status);
+            Assert.AreEqual(
+                ModelInspectionOutcome.Ready,
+                page.ViewModel.Result?.Result?.Outcome);
+            Assert.IsFalse(page.ViewModel.CancelCommand.CanExecute(null));
+
+            ModelInspectionPagePresentation terminal =
+                AssertCompleteSnapshotApplied(page);
+            Assert.AreEqual(
+                InspectionOutcomePresentationKind.Ready,
+                terminal.OutcomeCard.Kind);
+            Assert.AreEqual(
+                Visibility.Collapsed,
+                terminal.ActionCard.CancelAction.Visibility);
+
+            var model = (InspectionModelCard)page.FindName(
+                "InspectionModelCardControl");
+            InspectionDisclosure? disclosure = model.ActiveDisclosure;
+            Assert.IsNotNull(disclosure);
+            disclosure.RequestTargetState(isExpanded: true);
+            await WaitForDisclosureStateAsync(
+                page,
+                disclosure,
+                isExpanded: true);
+            ModelInspectionPagePresentation expanded =
+                AssertCompleteSnapshotApplied(page);
+            Assert.AreEqual(
+                ModelInspectionFigmaState.ReadyExpanded,
+                expanded.State);
+            string visibleTerminalText = FlattenVisibleText(expanded);
+            StringAssert.DoesNotContain(
+                visibleTerminalText,
+                fixturePath,
+                StringComparison.OrdinalIgnoreCase);
+            StringAssert.DoesNotContain(
+                visibleTerminalText,
+                applicationRoot,
+                StringComparison.OrdinalIgnoreCase);
+            StringAssert.DoesNotContain(
+                visibleTerminalText,
+                "{% for message in messages %}{{ message['content'] }}{% endfor %}",
+                StringComparison.Ordinal);
+
+            disclosure.RequestTargetState(isExpanded: false);
+            await WaitForDisclosureStateAsync(
+                page,
+                disclosure,
+                isExpanded: false);
+            Assert.AreEqual(
+                ModelInspectionFigmaState.ReadyCollapsed,
+                page.CurrentPresentation?.State);
+            Assert.HasCount(0, frame.BackStack);
+            Assert.IsFalse(frame.CanGoBack);
+        }
+        finally
+        {
+            if (page is not null)
+            {
+                InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
             }
-        };
 
-        Task run = page.StartInspectionIfReadyAsync()!;
-        await run.WaitAsync(TimeSpan.FromSeconds(30));
-        await DrainDispatcherAsync(page);
+            if (window is not null)
+            {
+                window.Content = null;
+                window.Close();
+            }
 
-        Assert.IsNull(page.ViewModel.Progress,
-            "Terminal snapshots retire mutable progress evidence.");
-        ModelInspectionProgress finalProgress = observedProgress[^1];
-        Assert.AreEqual(5, finalProgress.CompletedStageCount);
-        Assert.AreEqual(
+            await AssertNoProcessesRemainAsync(
+                "GraniteEdgeAI.ModelInspection.Worker",
+                "GraniteEdgeAI.ModelInspection.ProtocolTestWorker");
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("WinUI")]
+    public void CoreProgressObserver_RecordsDuplicatesAndIgnoresFractionalNoise()
+    {
+        List<(
+            ModelInspectionStage Stage,
+            ModelInspectionStageStatus Status,
+            int CompletedStageCount)> observedTransitions = [];
+        var active = new ModelInspectionProgress(
+            ModelInspectionStage.CheckModelPackage,
+            ModelInspectionStageStatus.Active,
+            completedStageCount: 0,
+            totalStageCount: 5,
+            stageFraction: null,
+            userMessage: "Checking package.");
+        var fractionalActive = new ModelInspectionProgress(
+            ModelInspectionStage.CheckModelPackage,
+            ModelInspectionStageStatus.Active,
+            completedStageCount: 0,
+            totalStageCount: 5,
+            stageFraction: 0.5,
+            userMessage: "Checking package.");
+        var completed = new ModelInspectionProgress(
+            ModelInspectionStage.CheckModelPackage,
             ModelInspectionStageStatus.Completed,
-            finalProgress.StageStatus);
-        Assert.AreEqual(
-            ModelInspectionExecutionStatus.Completed,
-            page.ViewModel.Result?.Status);
-        Assert.AreEqual(
-            ModelInspectionOutcome.Ready,
-            page.ViewModel.Result?.Result?.Outcome);
-        Assert.IsFalse(page.ViewModel.CancelCommand.CanExecute(null));
-        CollectionAssert.AreEqual(
-            Enum.GetValues<ModelInspectionStage>(),
-            observedProgress
-                .Where(progress =>
-                    progress.StageStatus ==
-                    ModelInspectionStageStatus.Completed)
-                .Select(progress => progress.Stage)
-                .ToArray());
-        CollectionAssert.AreEqual(
-            Enum.GetValues<ModelInspectionStage>(),
-            observedProgress
-                .Where(progress =>
-                    progress.StageStatus == ModelInspectionStageStatus.Active)
-                .Select(progress => progress.Stage)
-                .Distinct()
-                .ToArray());
+            completedStageCount: 1,
+            totalStageCount: 5,
+            stageFraction: null,
+            userMessage: "Package checked.");
+        var fractionalCompleted = new ModelInspectionProgress(
+            ModelInspectionStage.CheckModelPackage,
+            ModelInspectionStageStatus.Completed,
+            completedStageCount: 1,
+            totalStageCount: 5,
+            stageFraction: 1d,
+            userMessage: "Package checked.");
 
-        ModelInspectionPagePresentation terminal =
-            AssertCompleteSnapshotApplied(page);
-        Assert.AreEqual(
-            InspectionOutcomePresentationKind.Ready,
-            terminal.OutcomeCard.Kind);
-        Assert.AreEqual(
-            Visibility.Collapsed,
-            terminal.ActionCard.CancelAction.Visibility);
+        RecordCoreProgressObservation(observedTransitions, active);
+        RecordCoreProgressObservation(observedTransitions, active);
+        RecordCoreProgressObservation(observedTransitions, fractionalActive);
+        RecordCoreProgressObservation(observedTransitions, completed);
+        RecordCoreProgressObservation(observedTransitions, completed);
+        RecordCoreProgressObservation(observedTransitions, fractionalCompleted);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                (
+                    ModelInspectionStage.CheckModelPackage,
+                    ModelInspectionStageStatus.Active,
+                    0),
+                (
+                    ModelInspectionStage.CheckModelPackage,
+                    ModelInspectionStageStatus.Active,
+                    0),
+                (
+                    ModelInspectionStage.CheckModelPackage,
+                    ModelInspectionStageStatus.Completed,
+                    1),
+                (
+                    ModelInspectionStage.CheckModelPackage,
+                    ModelInspectionStageStatus.Completed,
+                    1)
+            },
+            observedTransitions.ToArray(),
+            "Duplicate fractionless stage boundaries must remain visible to the exact N-001 sequence assertion, while fractional noise is ignored.");
+
+        Assert.IsFalse(
+            observedTransitions.SequenceEqual(
+                new[]
+                {
+                    (
+                        ModelInspectionStage.CheckModelPackage,
+                        ModelInspectionStageStatus.Active,
+                        0),
+                    (
+                        ModelInspectionStage.CheckModelPackage,
+                        ModelInspectionStageStatus.Completed,
+                        1)
+                }),
+            "A duplicate fractionless boundary must make the exact one-Active/one-Completed sequence mismatch instead of being hidden.");
+    }
+
+    private static void RecordCoreProgressObservation(
+        ICollection<(
+            ModelInspectionStage Stage,
+            ModelInspectionStageStatus Status,
+            int CompletedStageCount)> observedTransitions,
+        ModelInspectionProgress progress)
+    {
+        if (progress.StageFraction is not null)
+        {
+            return;
+        }
+
+        var transition = (
+            progress.Stage,
+            progress.StageStatus,
+            progress.CompletedStageCount);
+        observedTransitions.Add(transition);
     }
 
     private static ModelInspectionPage CreatePage(
@@ -1727,7 +2301,8 @@ public sealed class ModelInspectionPageNavigationTests
                 technicalDetail: "Controlled test failure."));
     }
 
-    private static ModelInspectionResult CreateReadyResult()
+    private static ModelInspectionResult CreateReadyResult(
+        TimeSpan? duration = null)
     {
         return new ModelInspectionResult(
             ModelInspectionOutcome.Ready,
@@ -1737,7 +2312,8 @@ public sealed class ModelInspectionPageNavigationTests
             recommendedAction: "Continue.",
             verifiedConversionRouteId: null,
             startedAtUtc: FixedUtc,
-            completedAtUtc: FixedUtc + TimeSpan.FromSeconds(2));
+            completedAtUtc: FixedUtc +
+                (duration ?? TimeSpan.FromSeconds(2)));
     }
 
     private static ModelInspectionExecutionResult CreateCompletedResult(
@@ -1747,6 +2323,7 @@ public sealed class ModelInspectionPageNavigationTests
 
     private static async Task<(
         ControlledInspectionService Service,
+        ControlledCall InitialCall,
         ModelInspectionPage Page,
         ManualRenderDispatcher Dispatcher,
         RecordingPageAnimationDriver Driver,
@@ -1754,7 +2331,8 @@ public sealed class ModelInspectionPageNavigationTests
             ModelInspectionOutcome outcome)
     {
         var service = new ControlledInspectionService();
-        service.QueueCall(CreateCompletedResult(outcome));
+        ControlledCall initialCall = service.QueueCall(
+            CreateCompletedResult(outcome));
         var dispatcher = new ManualRenderDispatcher();
         var driver = new RecordingPageAnimationDriver();
         var page = CreateInjectedPage(
@@ -1775,7 +2353,20 @@ public sealed class ModelInspectionPageNavigationTests
         await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await DrainDispatcherAsync(page);
         page.UpdateLayout();
-        return (service, page, dispatcher, driver, window);
+        return (service, initialCall, page, dispatcher, driver, window);
+    }
+
+    private static ModelInspectionRenderCoordinator GetCoordinator(
+        ModelInspectionPage page)
+    {
+        FieldInfo? field = typeof(ModelInspectionPage).GetField(
+            "_coordinator",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(field);
+        var coordinator = field.GetValue(page) as
+            ModelInspectionRenderCoordinator;
+        Assert.IsNotNull(coordinator);
+        return coordinator;
     }
 
     private static async Task CompleteDisclosureRequestAsync(
@@ -1840,6 +2431,155 @@ public sealed class ModelInspectionPageNavigationTests
         return element.TransformToVisual(root).TransformPoint(default).Y;
     }
 
+    private static async Task WaitForDisclosureStateAsync(
+        ModelInspectionPage page,
+        InspectionDisclosure disclosure,
+        bool isExpanded)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow +
+            TimeSpan.FromSeconds(10);
+        ModelInspectionFigmaState expectedState = isExpanded
+            ? ModelInspectionFigmaState.ReadyExpanded
+            : ModelInspectionFigmaState.ReadyCollapsed;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            await DrainDispatcherAsync(page);
+            page.UpdateLayout();
+            if (disclosure.IsExpanded == isExpanded &&
+                page.CurrentPresentation?.State == expectedState)
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+        }
+
+        Assert.Fail(
+            $"The Ready disclosure did not reach {expectedState} before timeout.");
+    }
+
+    private static string FlattenVisibleText(
+        ModelInspectionPagePresentation presentation)
+    {
+        IEnumerable<string> modelText =
+        [
+            presentation.ModelCard.ModelName,
+            presentation.ModelCard.CompactSummary,
+            presentation.ModelCard.FormatShortName,
+            presentation.ModelCard.OverviewFormatBadgeText,
+            presentation.ModelCard.Publisher,
+            presentation.ModelCard.FormatName,
+            presentation.ModelCard.Quantisation,
+            presentation.ModelCard.ParameterCount,
+            presentation.ModelCard.ModelType,
+            presentation.ModelCard.DeclaredContext,
+            presentation.ModelCard.FileSize,
+            presentation.ModelCard.InspectionChecksSummary
+        ];
+        IEnumerable<string> checkText = presentation.ModelCard.InspectionChecks
+            .SelectMany(check => new[]
+            {
+                check.Title,
+                check.Detail,
+                check.StatusText,
+                check.AutomationName
+            });
+        IEnumerable<string> contentText =
+        [
+            presentation.ContentCard.SectionTitle,
+            presentation.ContentCard.ProgressSummary,
+            presentation.ContentCard.SupportingText,
+            presentation.ContentCard.TertiaryText,
+            presentation.ContentCard.DiagnosticCode,
+            presentation.ContentCard.DisclosureSummary,
+            presentation.ContentCard.TechnicalDetailsActionText,
+            presentation.ContentCard.TechnicalDetailsAutomationName,
+            presentation.ContentCard.TechnicalDetailsAutomationHelpText
+        ];
+        IEnumerable<string> itemText = presentation.ContentCard.Items
+            .Concat(presentation.ContentCard.ExpandedItems)
+            .SelectMany(item => new[]
+            {
+                item.StageNumber,
+                item.Title,
+                item.Detail,
+                item.StatusText,
+                item.AutomationName
+            });
+        IEnumerable<string> outcomeText =
+        [
+            presentation.OutcomeCard.Title,
+            presentation.OutcomeCard.Message,
+            presentation.OutcomeCard.AutomationName
+        ];
+        IEnumerable<string> actionText =
+        [
+            presentation.ActionCard.Title,
+            presentation.ActionCard.Message,
+            presentation.ActionCard.AutomationName,
+            presentation.ActionCard.CancelAction.Text,
+            presentation.ActionCard.SecondaryActionOne.Text,
+            presentation.ActionCard.SecondaryActionTwo.Text,
+            presentation.ActionCard.PrimaryAction.Text,
+            presentation.ActionCard.CancelAction.AutomationHelpText,
+            presentation.ActionCard.SecondaryActionOne.AutomationHelpText,
+            presentation.ActionCard.SecondaryActionTwo.AutomationHelpText,
+            presentation.ActionCard.PrimaryAction.AutomationHelpText,
+            presentation.ProgressAnnouncement,
+            presentation.OutcomeAnnouncement
+        ];
+
+        return string.Join(
+            "\n",
+            modelText
+                .Concat(checkText)
+                .Concat(contentText)
+                .Concat(itemText)
+                .Concat(outcomeText)
+                .Concat(actionText));
+    }
+
+    private static async Task AssertNoProcessesRemainAsync(
+        params string[] processNames)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow +
+            TimeSpan.FromSeconds(5);
+        while (true)
+        {
+            List<int> processIds = [];
+            foreach (string processName in processNames)
+            {
+                Process[] processes = Process.GetProcessesByName(processName);
+                try
+                {
+                    processIds.AddRange(
+                        processes.Select(process => process.Id));
+                }
+                finally
+                {
+                    foreach (Process process in processes)
+                    {
+                        process.Dispose();
+                    }
+                }
+            }
+
+            if (processIds.Count == 0)
+            {
+                return;
+            }
+
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                Assert.Fail(
+                    $"Inspection worker processes remained after cleanup: " +
+                    string.Join(", ", processIds));
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+        }
+    }
+
     private static void RetireLoadedPage(
         ModelInspectionPage page,
         Window window)
@@ -1889,7 +2629,7 @@ public sealed class ModelInspectionPageNavigationTests
     private sealed class ControlledCall
     {
         internal TaskCompletionSource<ModelInspectionExecutionResult> Completion
-            { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         internal ModelInspectionRequest? Request { get; private set; }
 
@@ -1922,6 +2662,8 @@ public sealed class ModelInspectionPageNavigationTests
     private sealed class ManualRenderDispatcher : IModelInspectionRenderDispatcher
     {
         private readonly Queue<Action> callbacks = new();
+
+        internal int PendingCount => callbacks.Count;
 
         public bool TryEnqueue(Action callback)
         {

@@ -25,10 +25,17 @@ public sealed class InspectionContentCardTests
     [TestCategory("WinUI")]
     public async Task InitialFactoryState_RendersFiveWaitingRowsAndDisabledCancel()
     {
+        RecordingCommand command = PresentationTestData.CreateCommand();
         ModelInspectionPagePresentation page =
-            ModelInspectionPresentationFactory.CreateInitial(
+            ModelInspectionPresentationFactory.Create(
                 PresentationTestData.CreateRequest(),
-                PresentationTestData.CreateCommand());
+                ModelInspectionViewSnapshot.Initial,
+                new ModelInspectionPresentationCommands(
+                    command,
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                new InspectionProgressRows());
         var content = new InspectionContentCard
         {
             Width = 840,
