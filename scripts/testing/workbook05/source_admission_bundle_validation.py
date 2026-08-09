@@ -113,7 +113,7 @@ PINNED_SOURCE_REPORTS = {
         "expected_origin_url": (
             "https://github.com/openvinotoolkit/openvino.genai.git"
         ),
-        "expected_commit": "05e5c7670b597746f858946974d11f38e3baf42f",
+        "expected_commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
     },
     "routes/route-b/source-tree-runtime.json": {
         "route_id": ROUTE_B_ID,
