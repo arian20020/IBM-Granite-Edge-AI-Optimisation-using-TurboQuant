@@ -3,10 +3,12 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Windows.System;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Controls;
@@ -15,6 +17,8 @@ internal sealed partial class InspectionDisclosure : UserControl
 {
     private bool _isExpanded;
     private bool? _preparedTarget;
+    private bool? _claimedTarget;
+    private double _retainedViewportExtent;
     private readonly Dictionary<DependencyObject, AccessibilityView>
         _viewportAccessibilityViews = [];
     private readonly Dictionary<Control, (bool IsEnabled, bool IsTabStop)>
@@ -72,13 +76,57 @@ internal sealed partial class InspectionDisclosure : UserControl
 
     internal FrameworkElement ViewportTarget => DisclosureViewport;
 
+    internal FrameworkElement ViewportLayoutTarget => DisclosureViewportHost;
+
     internal bool IsExpanded => _isExpanded;
+
+    /// <summary>
+    /// Records a coordinator-accepted request without changing visual or
+    /// automation state. A second gesture can therefore reverse an accepted
+    /// request before its queued presentation is drained.
+    /// </summary>
+    internal void ClaimTargetState(bool isExpanded)
+    {
+        _claimedTarget = isExpanded;
+    }
+
+    /// <summary>
+    /// Removes only the matching optimistic claim after enqueue rejection.
+    /// </summary>
+    internal void RollbackTargetStateClaim(bool isExpanded)
+    {
+        if (_claimedTarget == isExpanded)
+        {
+            _claimedTarget = null;
+        }
+    }
 
     internal void PrepareTargetState(bool isExpanded)
     {
+        _claimedTarget = null;
         _preparedTarget = isExpanded;
+        if (!isExpanded)
+        {
+            RetainViewportExtent();
+        }
+
+        if (_retainedViewportExtent > 0d)
+        {
+            DisclosureViewport.Height = _retainedViewportExtent;
+        }
+        else
+        {
+            DisclosureViewport.Height = double.NaN;
+        }
+
+        DisclosureViewportHost.Visibility = Visibility.Visible;
         DisclosureViewport.Visibility = Visibility.Visible;
+        DisclosureViewportHost.Height = isExpanded ? double.NaN : 0d;
+        DisclosureViewportHost.IsHitTestVisible = false;
         DisclosureViewport.IsHitTestVisible = false;
+        AutomationProperties.SetAccessibilityView(
+            DisclosureViewportHost,
+            AccessibilityView.Raw);
         AutomationProperties.SetAccessibilityView(
             DisclosureViewport,
             AccessibilityView.Raw);
@@ -90,7 +138,6 @@ internal sealed partial class InspectionDisclosure : UserControl
             DisclosureViewport.Opacity = 0d;
         }
 
-        DisclosureChevronRotation.Angle = isExpanded ? 180d : 0d;
     }
 
     internal void CompleteTargetState(bool isExpanded)
@@ -146,7 +193,8 @@ internal sealed partial class InspectionDisclosure : UserControl
         RequestTargetState(!EffectiveTarget);
     }
 
-    private bool EffectiveTarget => _preparedTarget ?? _isExpanded;
+    private bool EffectiveTarget =>
+        _claimedTarget ?? _preparedTarget ?? _isExpanded;
 
     private void Root_KeyDown(object sender, KeyRoutedEventArgs eventArguments)
     {
@@ -167,12 +215,30 @@ internal sealed partial class InspectionDisclosure : UserControl
     {
         bool previous = _isExpanded;
         _isExpanded = isExpanded;
+        _claimedTarget = null;
         _preparedTarget = isExpanded;
-        DisclosureChevronRotation.Angle = isExpanded ? 180d : 0d;
+        SetChevronEndpoint(isExpanded);
+        ElementCompositionPreview.GetElementVisual(DisclosureViewport).Clip =
+            null;
+        if (isExpanded)
+        {
+            RetainViewportExtent();
+        }
+
         DisclosureViewport.Opacity = isExpanded ? 1d : 0d;
+        DisclosureViewportHost.Visibility = isExpanded
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         DisclosureViewport.Visibility = isExpanded
             ? Visibility.Visible
             : Visibility.Collapsed;
+        DisclosureViewportHost.Height = double.NaN;
+        DisclosureViewport.Height = isExpanded
+            ? double.NaN
+            : _retainedViewportExtent > 0d
+                ? _retainedViewportExtent
+                : double.NaN;
+        DisclosureViewportHost.IsHitTestVisible = isExpanded;
         DisclosureViewport.IsHitTestVisible = isExpanded;
 
         if (isExpanded)
@@ -184,6 +250,9 @@ internal sealed partial class InspectionDisclosure : UserControl
             SuppressViewportSubtree();
         }
 
+        AutomationProperties.SetAccessibilityView(
+            DisclosureViewportHost,
+            AccessibilityView.Raw);
         AutomationProperties.SetAccessibilityView(
             DisclosureViewport,
             isExpanded ? AccessibilityView.Content : AccessibilityView.Raw);
@@ -202,11 +271,33 @@ internal sealed partial class InspectionDisclosure : UserControl
 
     private void SuppressViewportSubtree()
     {
-        SuppressElementAndDescendants(DisclosureViewport);
+        SuppressElementAndDescendants(DisclosureViewportHost);
         if (ViewportContent is DependencyObject viewportContent)
         {
             SuppressElementAndDescendants(viewportContent);
         }
+    }
+
+    private void RetainViewportExtent()
+    {
+        double extent = DisclosureViewport.ActualHeight;
+        if (!(extent > 0d) || !double.IsFinite(extent))
+        {
+            extent = DisclosureViewport.DesiredSize.Height;
+        }
+
+        if (extent > 0d && double.IsFinite(extent))
+        {
+            _retainedViewportExtent = extent;
+        }
+    }
+
+    private void SetChevronEndpoint(bool isExpanded)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(
+            DisclosureChevron);
+        visual.CenterPoint = new Vector3(22f, 22f, 0f);
+        visual.RotationAngleInDegrees = isExpanded ? 180f : 0f;
     }
 
     private void SuppressElementAndDescendants(DependencyObject root)

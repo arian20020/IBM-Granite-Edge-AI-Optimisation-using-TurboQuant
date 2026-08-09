@@ -72,22 +72,29 @@
                         Symbol="{x:Bind Presentation.IconSymbol, Mode=OneWay}" />
                 </Border>
 
-                <StackPanel
+                <ContentControl
+                    x:Name="OutcomeFocusTarget"
                     Grid.Column="1"
                     MinWidth="0"
                     VerticalAlignment="Center"
-                    Spacing="4">
-                    <TextBlock
-                        x:Name="OutcomeTitle"
-                        d:Text="Ready for hardware check"
-                        Style="{StaticResource InspectionOutcomeTitleStyle}"
-                        Text="{x:Bind Presentation.Title, Mode=OneWay}" />
-                    <TextBlock
-                        x:Name="OutcomeMessage"
-                        d:Text="The package, tokenizer, model structure and selected runtime all passed inspection."
-                        Style="{StaticResource InspectionOutcomeMessageStyle}"
-                        Text="{x:Bind Presentation.Message, Mode=OneWay}" />
-                </StackPanel>
+                    AutomationProperties.AccessibilityView="Content"
+                    AutomationProperties.HeadingLevel="Level2"
+                    AutomationProperties.Name="{x:Bind Presentation.Title, Mode=OneWay}"
+                    IsTabStop="False"
+                    UseSystemFocusVisuals="True">
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            x:Name="OutcomeTitle"
+                            d:Text="Ready for hardware check"
+                            Style="{StaticResource InspectionOutcomeTitleStyle}"
+                            Text="{x:Bind Presentation.Title, Mode=OneWay}" />
+                        <TextBlock
+                            x:Name="OutcomeMessage"
+                            d:Text="The package, tokenizer, model structure and selected runtime all passed inspection."
+                            Style="{StaticResource InspectionOutcomeMessageStyle}"
+                            Text="{x:Bind Presentation.Message, Mode=OneWay}" />
+                    </StackPanel>
+                </ContentControl>
             </Grid>
         </Border>
 

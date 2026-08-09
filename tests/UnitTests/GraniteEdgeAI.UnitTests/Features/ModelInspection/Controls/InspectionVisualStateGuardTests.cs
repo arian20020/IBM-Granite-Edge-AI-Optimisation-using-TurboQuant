@@ -119,7 +119,7 @@ public sealed class InspectionVisualStateGuardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void PresentationChanges_CreateMeaningfulLiveRegionPeers()
+    public void PresentationChanges_AreSilentUntilExplicitCurrentAnnouncement()
     {
         var content = new InspectionContentCard();
         AutomationProperties.SetLiveSetting(
@@ -147,6 +147,12 @@ public sealed class InspectionVisualStateGuardTests
         StringAssert.Contains(
             AutomationProperties.GetName(content),
             "Check model package");
+        Assert.AreEqual(0, content.LiveRegionChangeNotificationCount);
+
+        content.AnnounceProgress(
+            "Inspection progress. 0 of 5 checks complete. " +
+            "Check model package. Checking.");
+
         Assert.AreEqual(1, content.LiveRegionChangeNotificationCount);
 
         var outcome = new InspectionOutcomeCard();
@@ -168,12 +174,54 @@ public sealed class InspectionVisualStateGuardTests
         Assert.AreEqual(
             "Ready. The model passed inspection.",
             AutomationProperties.GetName(outcome));
+        Assert.AreEqual(0, outcome.LiveRegionChangeNotificationCount);
+
+        outcome.AnnounceOutcome("Ready. The model passed inspection.");
+
         Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
 
         outcome.Presentation = InspectionOutcomePresentation.Hidden;
         outcome.Presentation = ready;
 
-        Assert.AreEqual(2, outcome.LiveRegionChangeNotificationCount);
+        Assert.AreEqual(
+            1,
+            outcome.LiveRegionChangeNotificationCount,
+            "Assignment and hide/show churn must not announce by itself.");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    [DataRow("")]
+    [DataRow("   ")]
+    [DataRow("C:\\private-model-directory\\granite.gguf")]
+    [DataRow("/home/private/granite.gguf")]
+    [DataRow("unsafe\u0001control")]
+    [DataRow("unsafe\u202Eoverride")]
+    public void ExplicitAnnouncementHooks_RejectUnsafeText(string unsafeText)
+    {
+        var content = new InspectionContentCard();
+        var outcome = new InspectionOutcomeCard();
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            content.AnnounceProgress(unsafeText));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            outcome.AnnounceOutcome(unsafeText));
+        Assert.AreEqual(0, content.LiveRegionChangeNotificationCount);
+        Assert.AreEqual(0, outcome.LiveRegionChangeNotificationCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ExplicitAnnouncementHooks_RejectMoreThan512CodeUnits()
+    {
+        string oversize = new('A', 513);
+        var content = new InspectionContentCard();
+        var outcome = new InspectionOutcomeCard();
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            content.AnnounceProgress(oversize));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            outcome.AnnounceOutcome(oversize));
     }
 
     private static void RemoveVisualState(

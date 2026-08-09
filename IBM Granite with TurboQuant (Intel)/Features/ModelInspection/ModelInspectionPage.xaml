@@ -125,8 +125,22 @@
                         Grid.Row="3"
                         Margin="0,16,0,0"
                         HorizontalAlignment="Stretch"
-                        AutomationProperties.LiveSetting="Polite"
                         AutomationProperties.Name="Model inspection progress and findings" />
+
+                    <!--
+                        One inert outgoing progress layer remains realized only
+                        for the terminal crossfade. It never participates in
+                        hit testing, live regions, or the automation tree.
+                    -->
+                    <controls:InspectionContentCard
+                        x:Name="OutgoingProgressContentCard"
+                        Grid.Row="3"
+                        Margin="0,16,0,0"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Canvas.ZIndex="2"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed" />
 
                     <controls:InspectionActionCard
                         x:Name="InspectionActionCardControl"

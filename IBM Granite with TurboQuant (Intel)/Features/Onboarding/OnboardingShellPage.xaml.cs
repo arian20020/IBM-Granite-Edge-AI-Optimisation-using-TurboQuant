@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
 using System;
 
@@ -93,6 +94,13 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedModelInspectionPage = modelInspectionPage;
             _attachedModelInspectionPage.ChooseAnotherModelRequested +=
                 ModelInspectionPage_ChooseAnotherModelRequested;
+            _attachedModelInspectionPage.FooterStatusChanged +=
+                ModelInspectionPage_FooterStatusChanged;
+
+            // Navigation has already completed by the time the Frame hands
+            // ownership to the shell, so sample the authoritative status now.
+            StageIndicator.InspectionStatus =
+                _attachedModelInspectionPage.CurrentFooterStatus;
         }
 
         /// <summary>
@@ -201,6 +209,18 @@ namespace GraniteEdgeAI.Features.Onboarding
             NavigateToFreshModelImport();
         }
 
+        private void ModelInspectionPage_FooterStatusChanged(
+            object? sender,
+            InspectionFooterStatusChangedEventArgs eventArguments)
+        {
+            if (!ReferenceEquals(sender, _attachedModelInspectionPage))
+            {
+                return;
+            }
+
+            StageIndicator.InspectionStatus = eventArguments.Status;
+        }
+
         /// <summary>
         /// Replaces the inspection page with a new Model Import page without
         /// retaining Frame back-stack state as the active journey.
@@ -266,6 +286,8 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             _attachedModelInspectionPage.ChooseAnotherModelRequested -=
                 ModelInspectionPage_ChooseAnotherModelRequested;
+            _attachedModelInspectionPage.FooterStatusChanged -=
+                ModelInspectionPage_FooterStatusChanged;
             _attachedModelInspectionPage = null;
         }
     }

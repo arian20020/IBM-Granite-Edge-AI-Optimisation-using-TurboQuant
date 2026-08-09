@@ -52,6 +52,8 @@ internal sealed class ModelInspectionRenderCoordinator : IDisposable
 
     internal long InteractionRevision => _interactionRevision;
 
+    internal bool DesiredDisclosureExpanded => _isDisclosureExpanded;
+
     internal bool HasPendingRender =>
         !_disposed && (_isRenderQueued || _pendingSnapshot is not null);
 
@@ -176,13 +178,39 @@ internal sealed class ModelInspectionRenderCoordinator : IDisposable
         IsCurrent(operationKey.RenderKey) &&
         operationKey.InteractionRevision == _interactionRevision;
 
-    internal void InvalidateInteractions()
+    internal void InvalidateInteractions(
+        bool preserveDisclosureTarget = false)
     {
         ThrowIfDisposed();
         IncrementInteractionRevision();
-        _isDisclosureExpanded = CurrentPresentation is not null &&
-            IsExpanded(CurrentPresentation.State);
+        if (!preserveDisclosureTarget)
+        {
+            _isDisclosureExpanded = CurrentPresentation is not null &&
+                IsExpanded(CurrentPresentation.State);
+        }
+
         _requestVersion = checked(_requestVersion + 1);
+    }
+
+    /// <summary>
+    /// Applies the newest accepted snapshot on the caller's UI thread. Motion
+    /// preference changes use this to preserve an accepted disclosure target
+    /// while invalidating any in-flight visual completion.
+    /// </summary>
+    internal void FlushPendingRender()
+    {
+        ThrowIfDisposed();
+        EnsureInitialApplied();
+        ModelInspectionViewSnapshot? snapshot =
+            _pendingSnapshot ?? _latestSnapshot;
+        _pendingSnapshot = null;
+        _isRenderQueued = false;
+        if (snapshot is null || !IsCurrent(snapshot.RenderKey))
+        {
+            return;
+        }
+
+        RenderSnapshot(snapshot);
     }
 
     public void Dispose()
@@ -215,6 +243,12 @@ internal sealed class ModelInspectionRenderCoordinator : IDisposable
         {
             return;
         }
+
+        RenderSnapshot(snapshot);
+    }
+
+    private void RenderSnapshot(ModelInspectionViewSnapshot snapshot)
+    {
 
         long requestVersion = _requestVersion;
         long interactionRevision = _interactionRevision;

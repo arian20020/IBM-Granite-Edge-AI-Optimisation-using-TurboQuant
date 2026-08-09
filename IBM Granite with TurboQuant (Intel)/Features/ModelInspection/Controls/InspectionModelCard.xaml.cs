@@ -14,6 +14,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     {
         private bool _isDisclosureAttached;
 
+        private IReadOnlyList<InspectionCheckPresentation> _inspectionChecks =
+            Array.Empty<InspectionCheckPresentation>();
+
         private string? _responsiveStateName;
 
         private XamlRoot? _observedXamlRoot;
@@ -97,7 +100,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             Presentation.InspectionChecksSummary;
 
         public IReadOnlyList<InspectionCheckPresentation> InspectionChecks =>
-            Presentation.InspectionChecks;
+            _inspectionChecks;
 
         public Visibility InspectionDetailsVisibility =>
             Presentation.InspectionDetailsVisibility;
@@ -110,6 +113,24 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             Presentation.InspectionDetailsVisibility == Visibility.Visible
                 ? InspectionDetailsDisclosure
                 : null;
+
+        /// <summary>
+        /// Selects the production page-owned two-phase disclosure path. Direct
+        /// standalone controls retain their synchronous compatibility path.
+        /// </summary>
+        internal bool IsDisclosureStateExternallyOwned { get; set; }
+
+        internal void PrepareDisclosureTarget(bool isExpanded) =>
+            InspectionDetailsDisclosure.PrepareTargetState(isExpanded);
+
+        internal void CompleteDisclosureTarget(bool isExpanded) =>
+            InspectionDetailsDisclosure.CompleteTargetState(isExpanded);
+
+        internal void ClaimDisclosureTarget(bool isExpanded) =>
+            InspectionDetailsDisclosure.ClaimTargetState(isExpanded);
+
+        internal void RollbackDisclosureTargetClaim(bool isExpanded) =>
+            InspectionDetailsDisclosure.RollbackTargetStateClaim(isExpanded);
 
         public static Visibility GetPassedVisibility(
             InspectionCheckStatus status) =>
@@ -196,8 +217,120 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             InspectionModelCardPresentation presentation =
                 eventArguments.NewValue as InspectionModelCardPresentation
                 ?? InspectionModelCardPresentation.Empty;
+            InspectionModelCardPresentation previous =
+                eventArguments.OldValue as InspectionModelCardPresentation
+                ?? InspectionModelCardPresentation.Empty;
 
+            control.UpdateInspectionChecks(previous, presentation);
             control.ApplyPresentation(presentation);
+        }
+
+        private void UpdateInspectionChecks(
+            InspectionModelCardPresentation previous,
+            InspectionModelCardPresentation current)
+        {
+            if (CanRetainInspectionChecks(previous, current))
+            {
+                return;
+            }
+
+            _inspectionChecks = current.InspectionChecks;
+        }
+
+        private static bool CanRetainInspectionChecks(
+            InspectionModelCardPresentation previous,
+            InspectionModelCardPresentation current)
+        {
+            if (previous.DisplayMode != InspectionModelCardMode.Detailed ||
+                current.DisplayMode != InspectionModelCardMode.Detailed ||
+                previous.InspectionDetailsVisibility != Visibility.Visible ||
+                current.InspectionDetailsVisibility != Visibility.Visible ||
+                previous.BadgeState != current.BadgeState ||
+                !string.Equals(
+                    previous.ModelName,
+                    current.ModelName,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.CompactSummary,
+                    current.CompactSummary,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.FormatShortName,
+                    current.FormatShortName,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.OverviewFormatBadgeText,
+                    current.OverviewFormatBadgeText,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.Publisher,
+                    current.Publisher,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.FormatName,
+                    current.FormatName,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.Quantisation,
+                    current.Quantisation,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.ParameterCount,
+                    current.ParameterCount,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.ModelType,
+                    current.ModelType,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.DeclaredContext,
+                    current.DeclaredContext,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.FileSize,
+                    current.FileSize,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    previous.InspectionChecksSummary,
+                    current.InspectionChecksSummary,
+                    StringComparison.Ordinal) ||
+                previous.InspectionChecks.Count !=
+                    current.InspectionChecks.Count)
+            {
+                return false;
+            }
+
+            for (int index = 0;
+                index < previous.InspectionChecks.Count;
+                index++)
+            {
+                InspectionCheckPresentation oldCheck =
+                    previous.InspectionChecks[index];
+                InspectionCheckPresentation newCheck =
+                    current.InspectionChecks[index];
+                if (oldCheck.Status != newCheck.Status ||
+                    !string.Equals(
+                        oldCheck.Title,
+                        newCheck.Title,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        oldCheck.Detail,
+                        newCheck.Detail,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        oldCheck.StatusText,
+                        newCheck.StatusText,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        oldCheck.AutomationName,
+                        newCheck.AutomationName,
+                        StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -212,10 +345,13 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             }
 
             Bindings.Update();
-            InspectionDetailsDisclosure.PrepareTargetState(
-                presentation.IsInspectionDetailsExpanded);
-            InspectionDetailsDisclosure.CompleteTargetState(
-                presentation.IsInspectionDetailsExpanded);
+            if (!IsDisclosureStateExternallyOwned)
+            {
+                InspectionDetailsDisclosure.PrepareTargetState(
+                    presentation.IsInspectionDetailsExpanded);
+                InspectionDetailsDisclosure.CompleteTargetState(
+                    presentation.IsInspectionDetailsExpanded);
+            }
 
             string displayStateName = presentation.DisplayMode switch
             {

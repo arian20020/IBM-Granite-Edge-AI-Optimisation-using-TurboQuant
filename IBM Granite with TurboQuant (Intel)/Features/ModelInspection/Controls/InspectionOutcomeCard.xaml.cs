@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -14,7 +15,6 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     {
         // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
-        private string? _lastAnnouncedAutomationName;
 
         /// <summary>
         /// Identifies the bindable Presentation dependency property.
@@ -70,6 +70,29 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         internal int LiveRegionChangeNotificationCount { get; private set; }
 
+        internal FrameworkElement FocusTarget => OutcomeFocusTarget;
+
+        internal bool FocusOutcome()
+        {
+            bool wasTabStop = OutcomeFocusTarget.IsTabStop;
+            OutcomeFocusTarget.IsTabStop = true;
+            try
+            {
+                return OutcomeFocusTarget.Focus(FocusState.Programmatic);
+            }
+            finally
+            {
+                OutcomeFocusTarget.IsTabStop = wasTabStop;
+            }
+        }
+
+        internal void AnnounceOutcome(string automationName)
+        {
+            ValidateAnnouncement(automationName, nameof(automationName));
+            AutomationProperties.SetName(this, automationName);
+            RaiseLiveRegionChanged();
+        }
+
         /// <summary>
         /// Responds whenever the page or ViewModel replaces Presentation.
         /// </summary>
@@ -107,7 +130,6 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
             if (CardVisibility == Visibility.Collapsed)
             {
-                _lastAnnouncedAutomationName = null;
                 return;
             }
 
@@ -141,13 +163,21 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             }
 
             AutomationProperties.SetName(this, presentation.AutomationName);
-            if (!string.Equals(
-                    presentation.AutomationName,
-                    _lastAnnouncedAutomationName,
-                    StringComparison.Ordinal))
+        }
+
+        private static void ValidateAnnouncement(
+            string automationName,
+            string parameterName)
+        {
+            ArgumentNullException.ThrowIfNull(automationName);
+            string projected = ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
+                automationName,
+                "Inspection outcome unavailable.");
+            if (!string.Equals(projected, automationName, StringComparison.Ordinal))
             {
-                _lastAnnouncedAutomationName = presentation.AutomationName;
-                RaiseLiveRegionChanged();
+                throw new ArgumentException(
+                    "Announcement text must already be bounded display-safe text.",
+                    parameterName);
             }
         }
 

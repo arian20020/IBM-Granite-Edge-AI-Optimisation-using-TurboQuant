@@ -1,9 +1,12 @@
 using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Controls;
@@ -12,7 +15,14 @@ public sealed partial class InspectionContentCard : UserControl
 {
     private bool _isInitialized;
     private bool _isDisclosureAttached;
-    private string? _lastAnnouncedAutomationName;
+    private readonly Dictionary<
+        InspectionContentItemPresentation,
+        ProgressMotionTargets> _progressMotionTargets = [];
+    private readonly Dictionary<UIElement, InspectionContentItemPresentation>
+        _progressRowsByElement = [];
+    private IReadOnlyList<InspectionContentItemPresentation> _expandedItems =
+        Array.Empty<InspectionContentItemPresentation>();
+    private InspectionProgressRows? _progressRowsOwner;
     private XamlRoot? _observedXamlRoot;
     private string? _responsiveStateName;
 
@@ -61,13 +71,103 @@ public sealed partial class InspectionContentCard : UserControl
         private set => SetValue(CardVisibilityProperty, value);
     }
 
+    public IReadOnlyList<InspectionContentItemPresentation> ExpandedItems =>
+        _expandedItems;
+
     internal InspectionDisclosure? ActiveDisclosure =>
         CardVisibility == Visibility.Visible &&
         Presentation.DisclosureVisibility == Visibility.Visible
             ? FindingsDisclosure
             : null;
 
+    /// <summary>
+    /// Selects the production page-owned two-phase disclosure path. Direct
+    /// standalone controls retain their synchronous compatibility path.
+    /// </summary>
+    internal bool IsDisclosureStateExternallyOwned { get; set; }
+
+    internal void PrepareDisclosureTarget(bool isExpanded) =>
+        FindingsDisclosure.PrepareTargetState(isExpanded);
+
+    internal void CompleteDisclosureTarget(bool isExpanded) =>
+        FindingsDisclosure.CompleteTargetState(isExpanded);
+
+    internal void ClaimDisclosureTarget(bool isExpanded) =>
+        FindingsDisclosure.ClaimTargetState(isExpanded);
+
+    internal void RollbackDisclosureTargetClaim(bool isExpanded) =>
+        FindingsDisclosure.RollbackTargetStateClaim(isExpanded);
+
     internal int LiveRegionChangeNotificationCount { get; private set; }
+
+    internal void AnnounceProgress(string automationName)
+    {
+        ValidateAnnouncement(automationName, nameof(automationName));
+        if (Presentation.Mode != InspectionContentCardMode.Progress ||
+            CardVisibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        AutomationProperties.SetName(this, automationName);
+        RaiseLiveRegionChanged();
+    }
+
+    internal void AnimateProgressChanges(
+        InspectionProgressRowsApplyResult changes,
+        IModelInspectionAnimationDriver driver,
+        ModelInspectionVisualOperationKey operationKey,
+        Func<ModelInspectionVisualOperationKey, bool> isCurrent)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+        ArgumentNullException.ThrowIfNull(driver);
+        ArgumentNullException.ThrowIfNull(isCurrent);
+        if (changes.IsEmpty || !isCurrent(operationKey))
+        {
+            return;
+        }
+
+        IReadOnlyList<InspectionContentItemPresentation> rows =
+            Presentation.ProgressRows.Items;
+        foreach (InspectionProgressRowChange change in changes.RowChanges)
+        {
+            if (change.RowIndex >= rows.Count ||
+                !_progressMotionTargets.TryGetValue(
+                    rows[change.RowIndex],
+                    out ProgressMotionTargets? targets) ||
+                targets is null)
+            {
+                continue;
+            }
+
+            if (change.StatusChanged && isCurrent(operationKey))
+            {
+                driver.StartStageStatus(
+                    targets.Status,
+                    operationKey,
+                    completedKey => _ = isCurrent(completedKey));
+            }
+
+            if (change.DetailChanged &&
+                rows[change.RowIndex].IsActive &&
+                rows[change.RowIndex].DetailVisibility == Visibility.Visible &&
+                isCurrent(operationKey))
+            {
+                driver.StartActiveDetail(
+                    targets.Detail,
+                    operationKey,
+                    completedKey => _ = isCurrent(completedKey));
+            }
+        }
+    }
+
+    internal void CancelProgressMotion()
+    {
+        foreach (ProgressMotionTargets targets in _progressMotionTargets.Values)
+        {
+            StopProgressMotion(targets);
+        }
+    }
 
     public static Visibility GetPassedVisibility(InspectionContentStatus status) =>
         StatusVisibility(status, InspectionContentStatus.Passed);
@@ -162,7 +262,73 @@ public sealed partial class InspectionContentCard : UserControl
         var presentation =
             eventArguments.NewValue as InspectionContentCardPresentation
             ?? InspectionContentCardPresentation.Hidden;
+        var previous =
+            eventArguments.OldValue as InspectionContentCardPresentation
+            ?? InspectionContentCardPresentation.Hidden;
+        control.UpdateExpandedItems(previous, presentation);
         control.ApplyPresentation(presentation);
+    }
+
+    private void UpdateExpandedItems(
+        InspectionContentCardPresentation previous,
+        InspectionContentCardPresentation current)
+    {
+        if (CanRetainExpandedItems(previous, current))
+        {
+            return;
+        }
+
+        _expandedItems = current.ExpandedItems;
+    }
+
+    private static bool CanRetainExpandedItems(
+        InspectionContentCardPresentation previous,
+        InspectionContentCardPresentation current)
+    {
+        if (previous.Mode != current.Mode ||
+            current.Mode is not (
+                InspectionContentCardMode.Warnings or
+                InspectionContentCardMode.ConversionRequired or
+                InspectionContentCardMode.Invalid) ||
+            previous.DisclosureVisibility != Visibility.Visible ||
+            current.DisclosureVisibility != Visibility.Visible ||
+            previous.ExpandedItems.Count != current.ExpandedItems.Count)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < previous.ExpandedItems.Count; index++)
+        {
+            InspectionContentItemPresentation oldItem =
+                previous.ExpandedItems[index];
+            InspectionContentItemPresentation newItem =
+                current.ExpandedItems[index];
+            if (oldItem.Status != newItem.Status ||
+                oldItem.StageNumber != newItem.StageNumber ||
+                oldItem.ShowConnector != newItem.ShowConnector ||
+                oldItem.StageFraction != newItem.StageFraction ||
+                !string.Equals(
+                    oldItem.Title,
+                    newItem.Title,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    oldItem.Detail,
+                    newItem.Detail,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    oldItem.StatusText,
+                    newItem.StatusText,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    oldItem.AutomationName,
+                    newItem.AutomationName,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void ApplyPresentation(
@@ -179,6 +345,15 @@ public sealed partial class InspectionContentCard : UserControl
 
         Bindings.Update();
 
+        if (presentation.Mode == InspectionContentCardMode.Progress &&
+            !ReferenceEquals(_progressRowsOwner, presentation.ProgressRows))
+        {
+            CancelProgressMotion();
+            _progressMotionTargets.Clear();
+            _progressRowsByElement.Clear();
+            _progressRowsOwner = presentation.ProgressRows;
+        }
+
         if (CardVisibility == Visibility.Visible)
         {
             ApplyVisualState(
@@ -190,13 +365,23 @@ public sealed partial class InspectionContentCard : UserControl
         bool disclosureVisible =
             presentation.DisclosureVisibility == Visibility.Visible;
         bool disclosureTarget = disclosureVisible && presentation.IsExpanded;
-        FindingsDisclosure.PrepareTargetState(disclosureTarget);
-        FindingsDisclosure.CompleteTargetState(disclosureTarget);
+        if (!IsDisclosureStateExternallyOwned)
+        {
+            FindingsDisclosure.PrepareTargetState(disclosureTarget);
+            FindingsDisclosure.CompleteTargetState(disclosureTarget);
+        }
         ContentCardShell.MinHeight = GetStandardMinimumHeight(presentation);
         ExpandedReportViewport.Height = GetStandardViewportHeight(presentation);
 
-        if (CardVisibility == Visibility.Visible &&
-            presentation.Mode == InspectionContentCardMode.Progress)
+        bool isActiveProgress = CardVisibility == Visibility.Visible &&
+            presentation.Mode == InspectionContentCardMode.Progress;
+        AutomationProperties.SetLiveSetting(
+            this,
+            isActiveProgress
+                ? AutomationLiveSetting.Polite
+                : AutomationLiveSetting.Off);
+
+        if (isActiveProgress)
         {
             InspectionContentItemPresentation? current = presentation.Items
                 .LastOrDefault(item =>
@@ -206,19 +391,16 @@ public sealed partial class InspectionContentCard : UserControl
                 : $"{presentation.SectionTitle}. " +
                   $"{presentation.ProgressSummary}. {current.AutomationName}";
             AutomationProperties.SetName(this, automationName);
-
-            if (!string.Equals(
-                    automationName,
-                    _lastAnnouncedAutomationName,
-                    StringComparison.Ordinal))
-            {
-                _lastAnnouncedAutomationName = automationName;
-                RaiseLiveRegionChanged();
-            }
+            RegisterRealizedProgressRows();
         }
         else
         {
-            _lastAnnouncedAutomationName = null;
+            string automationName =
+                CardVisibility == Visibility.Visible &&
+                !string.IsNullOrWhiteSpace(presentation.SectionTitle)
+                    ? presentation.SectionTitle
+                    : "Model inspection progress and findings";
+            AutomationProperties.SetName(this, automationName);
         }
     }
 
@@ -258,6 +440,123 @@ public sealed partial class InspectionContentCard : UserControl
         }
 
         DisclosureToggleRequested?.Invoke(this, eventArguments);
+    }
+
+    private void ProgressItemsRepeater_ElementPrepared(
+        ItemsRepeater sender,
+        ItemsRepeaterElementPreparedEventArgs eventArguments)
+    {
+        RegisterProgressElement(eventArguments.Element, eventArguments.Index);
+    }
+
+    private void RegisterRealizedProgressRows()
+    {
+        if (Presentation.Mode != InspectionContentCardMode.Progress)
+        {
+            return;
+        }
+
+        int rowCount = Presentation.ProgressRows.Items.Count;
+        for (int index = 0; index < rowCount; index++)
+        {
+            if (ProgressItemsRepeater.TryGetElement(index) is UIElement element)
+            {
+                RegisterProgressElement(element, index);
+            }
+        }
+    }
+
+    private void RegisterProgressElement(UIElement element, int rowIndex)
+    {
+        IReadOnlyList<InspectionContentItemPresentation> rows =
+            Presentation.ProgressRows.Items;
+        if (rowIndex < 0 ||
+            rowIndex >= rows.Count ||
+            element is not FrameworkElement rowElement ||
+            rowElement.DataContext is InspectionContentItemPresentation dataRow &&
+                !ReferenceEquals(dataRow, rows[rowIndex]) ||
+            rowElement.FindName("ProgressStatusMotionTarget") is not UIElement status ||
+            rowElement.FindName("ProgressDetailMotionTarget") is not UIElement detail)
+        {
+            return;
+        }
+
+        InspectionContentItemPresentation row = rows[rowIndex];
+        if (_progressRowsByElement.TryGetValue(element, out var currentRow) &&
+            ReferenceEquals(currentRow, row))
+        {
+            return;
+        }
+
+        if (_progressRowsByElement.Remove(
+                element,
+                out InspectionContentItemPresentation? replacedRow) &&
+            !ReferenceEquals(replacedRow, row) &&
+            _progressMotionTargets.Remove(
+                replacedRow,
+                out ProgressMotionTargets? replacedTargets) &&
+            replacedTargets is not null)
+        {
+            StopProgressMotion(replacedTargets);
+        }
+
+        if (_progressMotionTargets.Remove(
+                row,
+                out ProgressMotionTargets? previous) &&
+            previous is not null)
+        {
+            StopProgressMotion(previous);
+        }
+
+        _progressRowsByElement[element] = row;
+        _progressMotionTargets[row] = new ProgressMotionTargets(status, detail);
+    }
+
+    private void ProgressItemsRepeater_ElementClearing(
+        ItemsRepeater sender,
+        ItemsRepeaterElementClearingEventArgs eventArguments)
+    {
+        if (!_progressRowsByElement.Remove(
+                eventArguments.Element,
+                out InspectionContentItemPresentation? row) ||
+            !_progressMotionTargets.Remove(
+                row,
+                out ProgressMotionTargets? targets) ||
+            targets is null)
+        {
+            return;
+        }
+
+        StopProgressMotion(targets);
+    }
+
+    private static void StopProgressMotion(ProgressMotionTargets targets)
+    {
+        ElementCompositionPreview.GetElementVisual(targets.Status)
+            .StopAnimation("Opacity");
+        var detailVisual = ElementCompositionPreview.GetElementVisual(
+            targets.Detail);
+        detailVisual.StopAnimation("Opacity");
+        ElementCompositionPreview.SetIsTranslationEnabled(
+            targets.Detail,
+            true);
+        detailVisual.StopAnimation("Translation.Y");
+    }
+
+    private static void ValidateAnnouncement(
+        string automationName,
+        string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(automationName);
+        string projected = ModelInspectionDisplayTextPolicy.ProjectRequiredDetail(
+            automationName,
+            "Inspection update unavailable.");
+        if (!string.Equals(projected, automationName, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                "Announcement text must already be bounded display-safe text.",
+                parameterName);
+        }
     }
 
     private void AttachDisclosure()
@@ -316,10 +615,15 @@ public sealed partial class InspectionContentCard : UserControl
 
         ApplyResponsiveLayout(
             _observedXamlRoot?.Size.Width ?? ActualWidth);
+        RegisterRealizedProgressRows();
     }
 
     private void Root_Unloaded(object sender, RoutedEventArgs eventArguments)
     {
+        CancelProgressMotion();
+        _progressMotionTargets.Clear();
+        _progressRowsByElement.Clear();
+        _progressRowsOwner = null;
         DetachDisclosure();
         DetachXamlRoot();
     }
@@ -371,4 +675,8 @@ public sealed partial class InspectionContentCard : UserControl
                 $"The content-card visual state '{stateName}' was not found.");
         }
     }
+
+    private sealed record ProgressMotionTargets(
+        UIElement Status,
+        UIElement Detail);
 }

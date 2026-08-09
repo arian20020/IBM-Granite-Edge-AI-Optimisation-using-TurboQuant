@@ -4,7 +4,9 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using Windows.System;
@@ -100,6 +102,46 @@ public sealed class InspectionDisclosureTests
         CollectionAssert.AreEqual(
             new[] { true, false, false, false, true },
             requests);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void AcceptedNonvisualClaim_DrivesRapidReverseWithoutChangingPeerState()
+    {
+        var disclosure = CreateDisclosure();
+        IExpandCollapseProvider provider = GetExpandCollapseProvider(disclosure);
+        List<bool> requests = [];
+        disclosure.ToggleRequested += (_, args) => requests.Add(args.IsExpanded);
+
+        provider.Expand();
+        disclosure.ClaimTargetState(isExpanded: true);
+        disclosure.HandleKeyboardActivation(
+            VirtualKey.Space,
+            repeatCount: 1,
+            wasKeyDown: false);
+
+        CollectionAssert.AreEqual(new[] { true }, requests,
+            "The unfocused keyboard path remains ignored in this direct fixture.");
+        disclosure.RequestTargetState(isExpanded: false);
+        CollectionAssert.AreEqual(new[] { true, false }, requests);
+        Assert.AreEqual(ExpandCollapseState.Collapsed, provider.ExpandCollapseState);
+        Assert.IsFalse(disclosure.IsExpanded);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void RejectedClaimRollback_RestoresCompletedDirection()
+    {
+        var disclosure = CreateDisclosure();
+        List<bool> requests = [];
+        disclosure.ToggleRequested += (_, args) => requests.Add(args.IsExpanded);
+
+        disclosure.ClaimTargetState(isExpanded: true);
+        disclosure.RollbackTargetStateClaim(isExpanded: true);
+        disclosure.RequestTargetState(isExpanded: true);
+
+        CollectionAssert.AreEqual(new[] { true }, requests);
+        Assert.IsFalse(disclosure.IsExpanded);
     }
 
     [UITestMethod]
@@ -215,6 +257,121 @@ public sealed class InspectionDisclosureTests
         Assert.AreEqual(
             AccessibilityView.Raw,
             AutomationProperties.GetAccessibilityView(viewport));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CollapsePreparation_ReflowsHostButRetainsRenderableExtent()
+    {
+        var disclosure = CreateDisclosure();
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        disclosure.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = disclosure };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            disclosure.PrepareTargetState(isExpanded: true);
+            disclosure.UpdateLayout();
+            disclosure.CompleteTargetState(isExpanded: true);
+            disclosure.UpdateLayout();
+            double expandedExtent = disclosure.ViewportTarget.ActualHeight;
+            Assert.IsGreaterThan(0d, expandedExtent);
+
+            disclosure.PrepareTargetState(isExpanded: false);
+            disclosure.UpdateLayout();
+
+            Assert.AreEqual(0d, disclosure.ViewportLayoutTarget.ActualHeight, 0.01);
+            Assert.AreEqual(expandedExtent, disclosure.ViewportTarget.ActualHeight, 0.01);
+            Assert.AreEqual(Visibility.Visible, disclosure.ViewportTarget.Visibility);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task InstantExpand_ClearsRetainedAnimatedCollapseClip()
+    {
+        var disclosure = CreateDisclosure();
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        disclosure.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = disclosure };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            disclosure.PrepareTargetState(isExpanded: true);
+            disclosure.CompleteTargetState(isExpanded: true);
+            disclosure.UpdateLayout();
+
+            var visual = ElementCompositionPreview.GetElementVisual(
+                disclosure.ViewportTarget);
+            var collapsedClip = visual.Compositor.CreateInsetClip();
+            collapsedClip.BottomInset = (float)Math.Max(
+                1d,
+                disclosure.ViewportTarget.ActualHeight);
+            visual.Clip = collapsedClip;
+
+            disclosure.PrepareTargetState(isExpanded: false);
+            disclosure.CompleteTargetState(isExpanded: false);
+            disclosure.PrepareTargetState(isExpanded: true);
+            disclosure.CompleteTargetState(isExpanded: true);
+            disclosure.UpdateLayout();
+
+            var remaining = visual.Clip as Microsoft.UI.Composition.InsetClip;
+            Assert.IsTrue(
+                remaining is null || remaining.BottomInset == 0f,
+                "The instant expanded endpoint must not retain the animated collapse clip.");
+            Assert.AreEqual(Visibility.Visible, disclosure.ViewportTarget.Visibility);
+            Assert.AreEqual(1d, disclosure.ViewportTarget.Opacity, 0.001d);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ChevronMotionTarget_HasSingleCompositionRotationOwner()
+    {
+        var disclosure = CreateDisclosure();
+        var target = (FrameworkElement)disclosure.ChevronTarget;
+        var visual = ElementCompositionPreview.GetElementVisual(target);
+
+        Assert.IsNotInstanceOfType<RotateTransform>(target.RenderTransform);
+        if (target.RenderTransform is MatrixTransform matrixTransform)
+        {
+            Assert.AreEqual(1d, matrixTransform.Matrix.M11, 0.001);
+            Assert.AreEqual(0d, matrixTransform.Matrix.M12, 0.001);
+            Assert.AreEqual(0d, matrixTransform.Matrix.M21, 0.001);
+            Assert.AreEqual(1d, matrixTransform.Matrix.M22, 0.001);
+            Assert.AreEqual(0d, matrixTransform.Matrix.OffsetX, 0.001);
+            Assert.AreEqual(0d, matrixTransform.Matrix.OffsetY, 0.001);
+        }
+        else
+        {
+            Assert.IsNull(target.RenderTransform,
+                "Only the platform identity MatrixTransform is permitted.");
+        }
+        Assert.AreEqual(0f, visual.RotationAngleInDegrees, 0.01f);
+
+        disclosure.PrepareTargetState(isExpanded: true);
+        disclosure.CompleteTargetState(isExpanded: true);
+        Assert.AreEqual(180f, visual.RotationAngleInDegrees, 0.01f);
+
+        disclosure.PrepareTargetState(isExpanded: false);
+        disclosure.CompleteTargetState(isExpanded: false);
+        Assert.AreEqual(0f, visual.RotationAngleInDegrees, 0.01f);
     }
 
     [UITestMethod]

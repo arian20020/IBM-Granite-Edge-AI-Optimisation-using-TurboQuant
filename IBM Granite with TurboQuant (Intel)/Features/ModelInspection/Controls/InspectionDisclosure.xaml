@@ -41,6 +41,7 @@
                     VerticalAlignment="Stretch"
                     Content="{x:Bind HeaderContent, Mode=OneWay}" />
                 <Grid
+                    x:Name="DisclosureChevron"
                     Grid.Column="1"
                     Width="44"
                     Height="44"
@@ -48,29 +49,29 @@
                     VerticalAlignment="Center"
                     AutomationProperties.AccessibilityView="Raw">
                     <FontIcon
-                        x:Name="DisclosureChevron"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         FontSize="12"
                         Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
-                        Glyph="&#xE70D;">
-                        <FontIcon.RenderTransform>
-                            <RotateTransform x:Name="DisclosureChevronRotation" CenterX="6" CenterY="6" />
-                        </FontIcon.RenderTransform>
-                    </FontIcon>
+                        Glyph="&#xE70D;" />
                 </Grid>
             </Grid>
         </Button>
 
         <Border
-            x:Name="DisclosureViewport"
+            x:Name="DisclosureViewportHost"
             Grid.Row="1"
-            Opacity="0"
+            AutomationProperties.AccessibilityView="Raw"
             Visibility="Collapsed">
-            <ContentPresenter
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch"
-                Content="{x:Bind ViewportContent, Mode=OneWay}" />
+            <Border
+                x:Name="DisclosureViewport"
+                Opacity="0"
+                Visibility="Collapsed">
+                <ContentPresenter
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    Content="{x:Bind ViewportContent, Mode=OneWay}" />
+            </Border>
         </Border>
     </Grid>
 </UserControl>

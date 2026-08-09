@@ -3,6 +3,8 @@ using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.Features.Onboarding.Controls;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -216,6 +218,54 @@ public sealed class OnboardingModelInspectionNavigationTests
 
         Assert.AreEqual(1, importNavigationCount);
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void AttachModelInspectionPage_SamplesFooterAndRejectsStaleSender()
+    {
+        var shell = new OnboardingShellPage();
+        var indicator = (OnboardingStageIndicator)shell.FindName(
+            "StageIndicator");
+        var first = new ModelInspectionPage();
+        var second = new ModelInspectionPage();
+        int liveNotifications = indicator.LiveRegionChangeNotificationCount;
+
+        shell.AttachModelInspectionPage(first);
+
+        Assert.AreEqual(first.CurrentFooterStatus, indicator.InspectionStatus);
+
+        shell.AttachModelInspectionPage(second);
+        RaiseFooterStatusChanged(
+            first,
+            sender: first,
+            InspectionFooterStatus.Complete);
+        Assert.AreEqual(
+            second.CurrentFooterStatus,
+            indicator.InspectionStatus,
+            "A detached page cannot mutate the shell footer.");
+
+        RaiseFooterStatusChanged(
+            second,
+            sender: first,
+            InspectionFooterStatus.Complete);
+        Assert.AreEqual(
+            second.CurrentFooterStatus,
+            indicator.InspectionStatus,
+            "The active event must still validate sender identity.");
+
+        RaiseFooterStatusChanged(
+            second,
+            sender: second,
+            InspectionFooterStatus.NotComplete);
+
+        Assert.AreEqual(
+            InspectionFooterStatus.NotComplete,
+            indicator.InspectionStatus);
+        Assert.AreEqual(
+            liveNotifications,
+            indicator.LiveRegionChangeNotificationCount,
+            "Footer status is sampled without adding a duplicate polite live announcement.");
     }
 
     [UITestMethod]
@@ -434,6 +484,23 @@ public sealed class OnboardingModelInspectionNavigationTests
         var eventHandler = eventField.GetValue(modelInspectionPage)
             as EventHandler;
         eventHandler?.Invoke(modelInspectionPage, EventArgs.Empty);
+    }
+
+    private static void RaiseFooterStatusChanged(
+        ModelInspectionPage modelInspectionPage,
+        object sender,
+        InspectionFooterStatus status)
+    {
+        FieldInfo? eventField = typeof(ModelInspectionPage).GetField(
+            "FooterStatusChanged",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(eventField);
+
+        var eventHandler = eventField.GetValue(modelInspectionPage)
+            as EventHandler<InspectionFooterStatusChangedEventArgs>;
+        eventHandler?.Invoke(
+            sender,
+            new InspectionFooterStatusChangedEventArgs(status));
     }
 
     private static string CreateTemporaryModelFile(int lengthBytes)

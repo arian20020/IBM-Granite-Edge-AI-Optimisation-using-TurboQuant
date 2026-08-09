@@ -190,6 +190,7 @@
                     Fill="{ThemeResource InspectionBorderLightBrush}"
                     Visibility="{x:Bind local:InspectionContentCard.GetConnectorVisibility(ShowConnector)}" />
                 <Border
+                    x:Name="ProgressStatusMotionTarget"
                     Grid.Column="0"
                     Width="30"
                     Height="30"
@@ -228,7 +229,11 @@
                 </Border>
                 <StackPanel Grid.Column="1" MinWidth="0" Margin="0,1,0,10" Spacing="4">
                     <TextBlock Style="{StaticResource ContentPrimaryTextStyle}" Text="{x:Bind Title}" />
-                    <TextBlock Style="{StaticResource ContentSecondaryTextStyle}" Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
+                    <TextBlock
+                        x:Name="ProgressDetailMotionTarget"
+                        Style="{StaticResource ContentSecondaryTextStyle}"
+                        Text="{x:Bind Detail, Mode=OneWay}"
+                        Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
                 </StackPanel>
                 <TextBlock
                     Grid.Column="2"
@@ -278,8 +283,11 @@
                             Text="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}" />
                     </Grid>
                     <ItemsRepeater
+                        x:Name="ProgressItemsRepeater"
                         Grid.Row="1"
                         Margin="0,18,0,0"
+                        ElementClearing="ProgressItemsRepeater_ElementClearing"
+                        ElementPrepared="ProgressItemsRepeater_ElementPrepared"
                         ItemTemplate="{StaticResource ProgressStageTemplate}"
                         ItemsSource="{x:Bind Presentation.ProgressRows.Items, Mode=OneWay}">
                         <ItemsRepeater.Layout>
@@ -415,7 +423,10 @@
                                         VerticalScrollBarVisibility="Auto"
                                         VerticalScrollMode="Enabled"
                                         ZoomMode="Disabled">
-                                        <ItemsControl ItemTemplate="{StaticResource ReportRowTemplate}" ItemsSource="{x:Bind Presentation.ExpandedItems, Mode=OneWay}">
+                                        <ItemsControl
+                                            x:Name="ExpandedReportItemsControl"
+                                            ItemTemplate="{StaticResource ReportRowTemplate}"
+                                            ItemsSource="{x:Bind ExpandedItems, Mode=OneWay}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <StackPanel Orientation="Vertical" Spacing="0" />

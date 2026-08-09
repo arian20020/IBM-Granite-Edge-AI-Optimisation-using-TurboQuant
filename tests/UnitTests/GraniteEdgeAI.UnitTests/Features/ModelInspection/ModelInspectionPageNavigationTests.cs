@@ -6,16 +6,19 @@ using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -68,7 +71,7 @@ public sealed class ModelInspectionPageNavigationTests
             InspectionOutcomePresentationKind.Hidden,
             snapshot.OutcomeCard.Kind);
         Assert.AreEqual(
-            "granite-4.1-3b-instruct.gguf",
+            "Granite 4.1 3B Instruct",
             snapshot.ModelCard.ModelName);
     }
 
@@ -111,6 +114,7 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.AreSame(first, page.CurrentInspectionTask);
         Assert.AreEqual(1, service.CallCount);
         Assert.IsTrue(page.ViewModel!.IsRunActive);
+        await DrainDispatcherAsync(page);
         Assert.IsTrue(
             AssertCompleteSnapshotApplied(page)
                 .ActionCard.CancelAction.IsEnabled);
@@ -183,12 +187,22 @@ public sealed class ModelInspectionPageNavigationTests
         var page = CreatePage(service, CreateRequest());
         ModelInspectionPagePresentation initial =
             AssertCompleteSnapshotApplied(page);
+        var modelControl = (InspectionModelCard)page.FindName(
+            "InspectionModelCardControl");
+        var contentControl = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        var actionControl = (InspectionActionCard)page.FindName(
+            "InspectionActionCardControl");
+        InspectionModelCardPresentation retainedModel = modelControl.Presentation;
+        InspectionContentCardPresentation retainedContent =
+            contentControl.Presentation;
         Task run = page.StartInspectionIfReadyAsync()!;
         ModelInspectionProgress progress = CreateProgress(
             ModelInspectionStage.ReadModelConfiguration,
             completedStageCount: 1);
 
         call.Report(progress);
+        await DrainDispatcherAsync(page);
 
         ModelInspectionPagePresentation active =
             AssertCompleteSnapshotApplied(page);
@@ -200,9 +214,13 @@ public sealed class ModelInspectionPageNavigationTests
             InspectionOutcomePresentationKind.Hidden,
             active.OutcomeCard.Kind);
         Assert.IsTrue(active.ActionCard.CancelAction.IsEnabled);
+        Assert.AreSame(retainedModel, modelControl.Presentation);
+        Assert.AreSame(retainedContent, contentControl.Presentation);
+        Assert.AreSame(active.ActionCard, actionControl.Presentation);
 
         call.Complete(CreateFailureResult("terminal"));
         await run;
+        await DrainDispatcherAsync(page);
 
         ModelInspectionPagePresentation terminal =
             AssertCompleteSnapshotApplied(page);
@@ -214,6 +232,9 @@ public sealed class ModelInspectionPageNavigationTests
             InspectionContentCardMode.OperationalFailure,
             terminal.ContentCard.Mode);
         Assert.IsTrue(terminal.ActionCard.PrimaryAction.IsEnabled);
+        Assert.AreSame(terminal.ModelCard, modelControl.Presentation);
+        Assert.AreSame(terminal.ContentCard, contentControl.Presentation);
+        Assert.AreSame(terminal.ActionCard, actionControl.Presentation);
     }
 
     [UITestMethod]
@@ -224,10 +245,12 @@ public sealed class ModelInspectionPageNavigationTests
         ControlledCall call = service.QueueCall();
         var page = CreatePage(service, CreateRequest());
         Task run = page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
         InspectionActionPresentation cancel =
             AssertCompleteSnapshotApplied(page).ActionCard.CancelAction;
 
         cancel.Command!.Execute(null);
+        await DrainDispatcherAsync(page);
 
         Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
         Assert.IsFalse(
@@ -237,6 +260,7 @@ public sealed class ModelInspectionPageNavigationTests
 
         call.Complete(ModelInspectionExecutionResult.Cancelled(cooperative: true));
         await run;
+        await DrainDispatcherAsync(page);
 
         ModelInspectionPagePresentation terminal =
             AssertCompleteSnapshotApplied(page);
@@ -262,10 +286,12 @@ public sealed class ModelInspectionPageNavigationTests
         var page = CreatePage(service, request);
 
         await page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
         InspectionActionPresentation retry =
             AssertCompleteSnapshotApplied(page).ActionCard.PrimaryAction;
 
         retry.Command!.Execute(null);
+        await DrainDispatcherAsync(page);
 
         Assert.AreEqual(2, service.CallCount);
         Assert.AreSame(request, first.Request);
@@ -322,7 +348,9 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.IsNull(page.CurrentInspectionTask);
         ModelInspectionPagePresentation replacementSnapshot =
             AssertCompleteSnapshotApplied(page);
-        Assert.AreEqual("replacement.gguf", replacementSnapshot.ModelCard.ModelName);
+        Assert.AreEqual(
+            "Granite 4.1 3B Instruct",
+            replacementSnapshot.ModelCard.ModelName);
 
         oldCall.Report(CreateProgress(
             ModelInspectionStage.ValidateModelStructure,
@@ -344,9 +372,11 @@ public sealed class ModelInspectionPageNavigationTests
         var page = CreatePage(service, CreateRequest());
         ModelInspectionViewModel retiredViewModel = page.ViewModel!;
         Task run = page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
         call.Report(CreateProgress(
             ModelInspectionStage.ReadModelConfiguration,
             completedStageCount: 1));
+        await DrainDispatcherAsync(page);
         ModelInspectionPagePresentation lastVisibleSnapshot =
             AssertCompleteSnapshotApplied(page);
 
@@ -372,7 +402,8 @@ public sealed class ModelInspectionPageNavigationTests
     [TestCategory("WinUI")]
     public void Constructor_ConfiguresProgressAndOutcomeLiveRegions()
     {
-        var page = new ModelInspectionPage(new ControlledInspectionService());
+        var service = new ControlledInspectionService();
+        var page = new ModelInspectionPage(service);
         var explanation = (TextBlock)page.FindName(
             "ModelInspectionExplanation");
         var content = (InspectionContentCard)page.FindName(
@@ -385,11 +416,1010 @@ public sealed class ModelInspectionPageNavigationTests
             "and runtime are supported before checking hardware fit.",
             explanation.Text);
         Assert.AreEqual(
-            AutomationLiveSetting.Polite,
+            AutomationLiveSetting.Off,
             AutomationProperties.GetLiveSetting(content));
         Assert.AreEqual(
             AutomationLiveSetting.Assertive,
             AutomationProperties.GetLiveSetting(outcome));
+
+        InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
+        Assert.AreEqual(
+            AutomationLiveSetting.Polite,
+            AutomationProperties.GetLiveSetting(content));
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void InjectedNavigationLifetime_CreatesFactoriesOnceAndRetiresMotionFirst()
+    {
+        var service = new ControlledInspectionService();
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        int dispatcherFactoryCalls = 0;
+        int driverFactoryCalls = 0;
+        int settingsFactoryCalls = 0;
+        var page = new ModelInspectionPage(
+            service,
+            () =>
+            {
+                dispatcherFactoryCalls++;
+                return dispatcher;
+            },
+            () =>
+            {
+                driverFactoryCalls++;
+                return driver;
+            },
+            () =>
+            {
+                settingsFactoryCalls++;
+                return settings;
+            });
+        InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
+        ModelInspectionViewModel viewModel = page.ViewModel!;
+        List<string> retirement = [];
+        driver.CancelAllCallback = () => retirement.Add(
+            $"cancel:{viewModel.ChooseAnotherCommand.CanExecute(null)}");
+        driver.DisposeCallback = () => retirement.Add(
+            $"driver:{viewModel.ChooseAnotherCommand.CanExecute(null)}");
+        settings.DisposeCallback = () =>
+        {
+            retirement.Add(
+                $"settings:{viewModel.ChooseAnotherCommand.CanExecute(null)}");
+            settings.RaiseChanged();
+        };
+
+        Assert.AreEqual(1, dispatcherFactoryCalls);
+        Assert.AreEqual(1, driverFactoryCalls);
+        Assert.AreEqual(1, settingsFactoryCalls);
+
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+
+        CollectionAssert.AreEqual(
+            new[] { "cancel:True", "driver:True", "settings:True" },
+            retirement);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.IsTrue(driver.IsDisposed);
+        Assert.IsTrue(settings.IsDisposed);
+        Assert.IsFalse(viewModel.ChooseAnotherCommand.CanExecute(null));
+        Assert.IsNull(page.ViewModel);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void RetiredMotionSettingsCallback_CannotClearNewLifetimePendingChange()
+    {
+        var service = new ControlledInspectionService();
+        var oldDispatcher = new ManualRenderDispatcher();
+        var newDispatcher = new ManualRenderDispatcher();
+        var oldSettings = new RecordingMotionSettings(animationsEnabled: true);
+        var newSettings = new RecordingMotionSettings(animationsEnabled: true);
+        IModelInspectionRenderDispatcher[] dispatchers =
+            [oldDispatcher, newDispatcher];
+        IModelInspectionMotionSettings[] settings =
+            [oldSettings, newSettings];
+        int dispatcherIndex = 0;
+        int settingsIndex = 0;
+        var page = new ModelInspectionPage(
+            service,
+            () => dispatchers[dispatcherIndex++],
+            () => new RecordingPageAnimationDriver(),
+            () => settings[settingsIndex++]);
+
+        InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
+        oldSettings.RaiseChanged();
+        InvokeNavigation(
+            page,
+            "OnNavigatedTo",
+            CreateRequest(@"C:\Models\second-lifetime.gguf"));
+        newSettings.RaiseChanged();
+
+        Assert.IsTrue(GetMotionSettingsChangePending(page));
+        oldDispatcher.RunAll();
+        Assert.IsTrue(
+            GetMotionSettingsChangePending(page),
+            "A stale retired-lifetime callback must not clear the current pending change.");
+
+        newDispatcher.RunAll();
+        Assert.IsFalse(GetMotionSettingsChangePending(page));
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task PausedRetiredSettingsHandler_CannotPoisonNewLifetimeMotion()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(ModelInspectionExecutionResult.Completed(
+            CreateReadyResult()));
+        var oldDispatcher = new ManualRenderDispatcher();
+        var newDispatcher = new ManualRenderDispatcher();
+        var oldDriver = new RecordingPageAnimationDriver();
+        var newDriver = new RecordingPageAnimationDriver();
+        var oldSettings = new RecordingMotionSettings(animationsEnabled: true);
+        var newSettings = new RecordingMotionSettings(animationsEnabled: true);
+        IModelInspectionRenderDispatcher[] dispatchers =
+            [oldDispatcher, newDispatcher];
+        IModelInspectionAnimationDriver[] drivers = [oldDriver, newDriver];
+        IModelInspectionMotionSettings[] settings =
+            [oldSettings, newSettings];
+        int dispatcherIndex = 0;
+        int driverIndex = 0;
+        int settingsIndex = 0;
+        var page = new ModelInspectionPage(
+            service,
+            () => dispatchers[dispatcherIndex++],
+            () => drivers[driverIndex++],
+            () => settings[settingsIndex++]);
+        using var validated = new ManualResetEventSlim();
+        using var resume = new ManualResetEventSlim();
+
+        try
+        {
+            InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
+            page.MotionSettingsChangeValidatedForTesting = () =>
+            {
+                validated.Set();
+                if (!resume.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new TimeoutException(
+                        "The paused settings handler was not resumed.");
+                }
+            };
+
+            Task staleChange = Task.Run(oldSettings.RaiseChanged);
+            Assert.IsTrue(
+                validated.Wait(TimeSpan.FromSeconds(10)),
+                "The retired handler did not reach the deterministic pause.");
+
+            InvokeNavigation(
+                page,
+                "OnNavigatedTo",
+                CreateRequest(@"C:\Models\replacement-lifetime.gguf"));
+            page.MotionSettingsChangeValidatedForTesting = null;
+            resume.Set();
+            await staleChange.WaitAsync(TimeSpan.FromSeconds(10));
+            oldDispatcher.RunAll();
+
+            Assert.IsFalse(
+                GetMotionSettingsChangePending(page),
+                "A retired off-thread handler must not poison the new lifetime.");
+
+            await page.StartInspectionIfReadyAsync()!;
+            newDispatcher.RunAll();
+            Assert.HasCount(
+                1,
+                newDriver.TerminalStarts,
+                "The new lifetime must retain motion after the stale handler drains.");
+        }
+        finally
+        {
+            resume.Set();
+            page.MotionSettingsChangeValidatedForTesting = null;
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OlderSameLifetimeSettingsHandler_CannotReassertPending()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(ModelInspectionExecutionResult.Completed(
+            CreateReadyResult()));
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            settings);
+        using var firstRevisionClaimed = new ManualResetEventSlim();
+        using var resumeFirstHandler = new ManualResetEventSlim();
+
+        try
+        {
+            page.MotionSettingsChangeRevisionClaimedForTesting = revision =>
+            {
+                if (revision != 1)
+                {
+                    return;
+                }
+
+                firstRevisionClaimed.Set();
+                if (!resumeFirstHandler.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new TimeoutException(
+                        "The first settings handler was not resumed.");
+                }
+            };
+
+            Task firstChange = Task.Run(settings.RaiseChanged);
+            Assert.IsTrue(
+                firstRevisionClaimed.Wait(TimeSpan.FromSeconds(10)),
+                "The first handler did not pause after claiming revision one.");
+
+            settings.RaiseChanged();
+            dispatcher.RunAll();
+            Assert.IsFalse(
+                GetMotionSettingsChangePending(page),
+                "The newer settings callback must complete revision two.");
+
+            page.MotionSettingsChangeRevisionClaimedForTesting = null;
+            resumeFirstHandler.Set();
+            await firstChange.WaitAsync(TimeSpan.FromSeconds(10));
+            dispatcher.RunAll();
+
+            Assert.IsFalse(
+                GetMotionSettingsChangePending(page),
+                "A stale revision-one callback must not reassert pending work.");
+
+            await page.StartInspectionIfReadyAsync()!;
+            dispatcher.RunAll();
+            Assert.HasCount(
+                1,
+                driver.TerminalStarts,
+                "Motion must remain enabled after the stale callback drains.");
+        }
+        finally
+        {
+            resumeFirstHandler.Set();
+            page.MotionSettingsChangeRevisionClaimedForTesting = null;
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task CoordinatorDelta_RetainsProgressRowsAndOneOutgoingTerminalLayer()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall call = service.QueueCall();
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            settings);
+        Task run = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        InspectionContentCardPresentation progressPresentation =
+            content.Presentation;
+        InspectionProgressRows owner = progressPresentation.ProgressRows;
+        object[] rowReferences = owner.Items.Cast<object>().ToArray();
+
+        call.Report(CreateProgress(
+            ModelInspectionStage.CheckModelPackage,
+            completedStageCount: 0));
+        dispatcher.RunAll();
+
+        Assert.AreSame(progressPresentation, content.Presentation,
+            "A progress-only delta must not replace the stable content card DTO.");
+        CollectionAssert.AreEqual(
+            rowReferences,
+            owner.Items.Cast<object>().ToArray());
+        Assert.AreEqual(InspectionContentStatus.Active, owner.Items[0].Status);
+
+        call.Complete(CreateFailureResult("terminal-retained"));
+        await run;
+        dispatcher.RunAll();
+
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        Assert.AreSame(progressPresentation, outgoing.Presentation);
+        Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+        Assert.IsFalse(outgoing.IsHitTestVisible);
+        Assert.AreEqual(
+            AccessibilityView.Raw,
+            AutomationProperties.GetAccessibilityView(outgoing));
+        Assert.AreEqual(InspectionContentCardMode.OperationalFailure,
+            content.Presentation.Mode);
+        Assert.AreEqual(1, driver.TerminalStarts.Count);
+
+        driver.CompleteLastTerminal();
+
+        Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+        Assert.AreEqual(
+            InspectionContentCardMode.Hidden,
+            outgoing.Presentation.Mode);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task TerminalCrossfade_DisclosureRevisionStillRetiresOutgoingLayer()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall call = service.QueueCall();
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            new RecordingMotionSettings(animationsEnabled: true));
+        Task run = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            page.UpdateLayout();
+
+            call.Complete(CreateCompletedResult(
+                ModelInspectionOutcome.ReadyWithWarnings));
+            await run;
+            dispatcher.RunAll();
+            page.UpdateLayout();
+
+            var outgoing = (InspectionContentCard)page.FindName(
+                "OutgoingProgressContentCard");
+            var content = (InspectionContentCard)page.FindName(
+                "InspectionContentCardControl");
+            var actions = (InspectionActionCard)page.FindName(
+                "InspectionActionCardControl");
+            Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+            Assert.IsGreaterThan(0d, outgoing.ActualHeight);
+            Assert.AreEqual(
+                AutomationLiveSetting.Off,
+                AutomationProperties.GetLiveSetting(outgoing));
+            Assert.AreEqual(
+                AutomationLiveSetting.Off,
+                AutomationProperties.GetLiveSetting(content));
+            Assert.HasCount(1, driver.TerminalStarts);
+            Assert.IsNotNull(content.ActiveDisclosure);
+
+            content.ActiveDisclosure!.RequestTargetState(isExpanded: true);
+            dispatcher.RunAll();
+            page.UpdateLayout();
+            double actionTopWithOutgoing = GetAbsoluteTop(actions);
+            Assert.HasCount(1, driver.DisclosureStarts);
+            Assert.AreEqual(
+                driver.TerminalStarts[0].Key.RenderKey,
+                driver.DisclosureStarts[0].Key.RenderKey);
+            Assert.AreNotEqual(
+                driver.TerminalStarts[0].Key.InteractionRevision,
+                driver.DisclosureStarts[0].Key.InteractionRevision);
+
+            driver.CompleteTerminal(index: 0);
+            page.UpdateLayout();
+
+            Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+            Assert.AreEqual(
+                InspectionContentCardMode.Hidden,
+                outgoing.Presentation.Mode);
+
+            driver.CompleteDisclosure(index: 0);
+            content.ActiveDisclosure.RequestTargetState(isExpanded: false);
+            dispatcher.RunAll();
+            Assert.HasCount(2, driver.DisclosureStarts);
+            driver.CompleteDisclosure(index: 1);
+            page.UpdateLayout();
+            Assert.IsLessThan(
+                actionTopWithOutgoing,
+                GetAbsoluteTop(actions),
+                "Retiring the taller progress overlay must release its Grid-row height.");
+        }
+        finally
+        {
+            RetireLoadedPage(page, window);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task TerminalOutcome_RetiresProgressLiveRegionAndStaleAnnouncement()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall call = service.QueueCall();
+        var dispatcher = new ManualRenderDispatcher();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            new RecordingPageAnimationDriver(),
+            new RecordingMotionSettings(animationsEnabled: false));
+        Task run = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        var outcome = (InspectionOutcomeCard)page.FindName(
+            "InspectionOutcomeCardControl");
+
+        call.Report(CreateProgress(
+            ModelInspectionStage.ReadModelConfiguration,
+            completedStageCount: 1));
+        dispatcher.RunAll();
+        string progressName = AutomationProperties.GetName(content);
+        int progressNotifications = content.LiveRegionChangeNotificationCount;
+        Assert.AreEqual(
+            AutomationLiveSetting.Polite,
+            AutomationProperties.GetLiveSetting(content));
+        Assert.IsGreaterThan(0, progressNotifications);
+
+        call.Complete(CreateFailureResult("live-region-retirement"));
+        await run;
+        dispatcher.RunAll();
+
+        string terminalName = AutomationProperties.GetName(content);
+        Assert.AreEqual(
+            AutomationLiveSetting.Off,
+            AutomationProperties.GetLiveSetting(content));
+        Assert.AreEqual(
+            page.CurrentPresentation!.ContentCard.SectionTitle,
+            terminalName);
+        Assert.AreNotEqual(progressName, terminalName);
+        Assert.AreEqual(
+            progressNotifications,
+            content.LiveRegionChangeNotificationCount,
+            "Terminal assignment must not raise the retired polite region.");
+        Assert.AreEqual(
+            AutomationLiveSetting.Assertive,
+            AutomationProperties.GetLiveSetting(outcome));
+        Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
+
+        content.AnnounceProgress("Stale progress must not be announced.");
+        Assert.AreEqual(terminalName, AutomationProperties.GetName(content));
+        Assert.AreEqual(
+            progressNotifications,
+            content.LiveRegionChangeNotificationCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task StaleTerminalCompletion_CannotRetireNewAttemptOverlay()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(CreateFailureResult("first-terminal"));
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            new RecordingMotionSettings(animationsEnabled: true));
+
+        await page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        Assert.HasCount(1, driver.TerminalStarts);
+
+        ControlledCall retry = service.QueueCall();
+        page.ViewModel!.RetryCommand.Execute(null);
+        await Task.Yield();
+        dispatcher.RunAll();
+        retry.Complete(CreateFailureResult("replacement-terminal"));
+        await DrainDispatcherAsync(page);
+        dispatcher.RunAll();
+
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        Assert.HasCount(2, driver.TerminalStarts);
+        Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+        InspectionContentCardPresentation replacement = outgoing.Presentation;
+
+        driver.CompleteTerminal(index: 0);
+
+        Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+        Assert.AreSame(replacement, outgoing.Presentation);
+
+        driver.CompleteTerminal(index: 1);
+        Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+        Assert.AreEqual(
+            InspectionContentCardMode.Hidden,
+            outgoing.Presentation.Mode);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RetiredNavigationTerminalCompletion_CannotRetireCurrentOverlay()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(CreateFailureResult("retired-navigation"));
+        service.QueueCall(CreateFailureResult("current-navigation"));
+        var oldDispatcher = new ManualRenderDispatcher();
+        var currentDispatcher = new ManualRenderDispatcher();
+        var oldDriver = new RecordingPageAnimationDriver();
+        var currentDriver = new RecordingPageAnimationDriver();
+        var dispatchers = new Queue<ManualRenderDispatcher>(
+            [oldDispatcher, currentDispatcher]);
+        var drivers = new Queue<RecordingPageAnimationDriver>(
+            [oldDriver, currentDriver]);
+        var page = new ModelInspectionPage(
+            service,
+            () => dispatchers.Dequeue(),
+            () => drivers.Dequeue(),
+            () => new RecordingMotionSettings(animationsEnabled: true));
+
+        InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
+        await page.StartInspectionIfReadyAsync()!;
+        oldDispatcher.RunAll();
+        Assert.HasCount(1, oldDriver.TerminalStarts);
+
+        InvokeNavigation(
+            page,
+            "OnNavigatedTo",
+            CreateRequest(@"C:\Models\replacement-terminal.gguf"));
+        await page.StartInspectionIfReadyAsync()!;
+        currentDispatcher.RunAll();
+        Assert.HasCount(1, currentDriver.TerminalStarts);
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+        InspectionContentCardPresentation replacement = outgoing.Presentation;
+
+        oldDriver.CompleteTerminal(index: 0);
+
+        Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
+        Assert.AreSame(replacement, outgoing.Presentation);
+
+        currentDriver.CompleteTerminal(index: 0);
+        Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+        Assert.AreEqual(
+            InspectionContentCardMode.Hidden,
+            outgoing.Presentation.Mode);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ReducedMotion_AppliesSameTerminalStateWithoutDriverStarts()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall call = service.QueueCall();
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: false);
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            settings);
+        Task run = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+
+        call.Complete(CreateFailureResult("reduced"));
+        await run;
+        dispatcher.RunAll();
+
+        Assert.AreEqual(0, driver.TotalStartCount);
+        Assert.AreEqual(
+            InspectionOutcomePresentationKind.OperationalFailure,
+            page.CurrentPresentation!.OutcomeCard.Kind);
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task FailureFocus_MovesOnlyWhenRetiringProgressOwnedFocus()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall first = service.QueueCall();
+        var dispatcher = new ManualRenderDispatcher();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            new RecordingPageAnimationDriver(),
+            new RecordingMotionSettings(animationsEnabled: false));
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            dispatcher.RunAll();
+            var progressCard = (InspectionContentCard)page.FindName(
+                "InspectionContentCardControl");
+            progressCard.IsTabStop = true;
+            Assert.IsTrue(progressCard.Focus(FocusState.Programmatic));
+
+            first.Complete(CreateFailureResult("focused-progress"));
+            await page.CurrentInspectionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+            dispatcher.RunAll();
+            var outcome = (InspectionOutcomeCard)page.FindName(
+                "InspectionOutcomeCardControl");
+            Assert.AreSame(
+                outcome.FocusTarget,
+                FocusManager.GetFocusedElement(page.XamlRoot));
+            Assert.IsFalse(((Control)outcome.FocusTarget).IsTabStop);
+
+            service.QueueCall(CreateFailureResult("stable-focus"));
+            var pageScroll = (ScrollViewer)page.FindName(
+                "InspectionPageScrollViewer");
+            pageScroll.IsTabStop = true;
+            Assert.IsTrue(pageScroll.Focus(FocusState.Programmatic));
+            page.ViewModel!.RetryCommand.Execute(null);
+            dispatcher.RunAll();
+
+            Assert.AreSame(
+                pageScroll,
+                FocusManager.GetFocusedElement(page.XamlRoot));
+        }
+        finally
+        {
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OutcomeAnnouncements_DedupePerAttemptAndRepeatForRetryGeneration()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(CreateFailureResult("first-announcement"));
+        service.QueueCall(CreateFailureResult("second-announcement"));
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            new RecordingMotionSettings(animationsEnabled: false));
+
+        await page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        var outcome = (InspectionOutcomeCard)page.FindName(
+            "InspectionOutcomeCardControl");
+        Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
+
+        outcome.Visibility = Visibility.Collapsed;
+        outcome.Visibility = Visibility.Visible;
+        Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
+
+        page.ViewModel!.RetryCommand.Execute(null);
+        await Task.Yield();
+        dispatcher.RunAll();
+
+        Assert.AreEqual(2, outcome.LiveRegionChangeNotificationCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ReadyDisclosure_RetainsRowsAndScrollAcrossPageOwnedRevisions()
+    {
+        var fixture = await CreateLoadedTerminalPageAsync(
+            ModelInspectionOutcome.Ready);
+
+        try
+        {
+            var model = (InspectionModelCard)fixture.Page.FindName(
+                "InspectionModelCardControl");
+            Assert.IsNotNull(
+                model.ActiveDisclosure,
+                "The initial Ready presentation must expose its disclosure.");
+            InspectionDisclosure disclosure = model.ActiveDisclosure!;
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+
+            var items = (ItemsControl)model.FindName(
+                "InspectionChecksItemsControl");
+            var scroll = (ScrollViewer)model.FindName(
+                "InspectionChecksScrollViewer");
+            Assert.IsNotNull(items.ItemsSource);
+            object source = items.ItemsSource;
+            object[] rows = items.Items.Cast<object>().ToArray();
+            object[] containers = CaptureItemContainers(items);
+            double offset = await SetNonzeroScrollOffsetAsync(
+                fixture.Page,
+                scroll);
+
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: false);
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+
+            Assert.AreSame(source, items.ItemsSource);
+            CollectionAssert.AreEqual(rows, items.Items.Cast<object>().ToArray());
+            CollectionAssert.AreEqual(
+                containers,
+                CaptureItemContainers(items));
+            Assert.AreEqual(offset, scroll.VerticalOffset, 0.01d);
+
+            int terminalStartIndex = fixture.Driver.TerminalStarts.Count;
+            ControlledCall retry = fixture.Service.QueueCall();
+            fixture.Page.ViewModel!.RetryCommand.Execute(null);
+            await Task.Yield();
+            fixture.Dispatcher.RunAll();
+            Assert.AreEqual(
+                InspectionModelCardMode.Compact,
+                model.Presentation.DisplayMode);
+
+            retry.Complete(CreateCompletedResult(ModelInspectionOutcome.Ready));
+            await DrainDispatcherAsync(fixture.Page);
+            fixture.Dispatcher.RunAll();
+            Assert.AreEqual(
+                terminalStartIndex + 1,
+                fixture.Driver.TerminalStarts.Count);
+            fixture.Driver.CompleteLastTerminal();
+            fixture.Page.UpdateLayout();
+
+            Assert.IsNotNull(
+                model.ActiveDisclosure,
+                "The replacement Ready presentation must expose its disclosure.");
+            disclosure = model.ActiveDisclosure!;
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+
+            Assert.AreNotSame(source, items.ItemsSource,
+                "A new attempt must install one new disclosure row owner.");
+            Assert.IsNotNull(items.ItemsSource);
+            object replacement = items.ItemsSource;
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: false);
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+            Assert.AreSame(replacement, items.ItemsSource,
+                "The replacement owner must then survive expansion-only renders.");
+        }
+        finally
+        {
+            RetireLoadedPage(fixture.Page, fixture.Window);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings)]
+    [DataRow((int)ModelInspectionOutcome.ConversionRequired)]
+    [DataRow((int)ModelInspectionOutcome.Invalid)]
+    public async Task ContentDisclosure_RetainsRowsAndScrollAcrossPageOwnedRevisions(
+        int outcomeValue)
+    {
+        ModelInspectionOutcome outcome = (ModelInspectionOutcome)outcomeValue;
+        var fixture = await CreateLoadedTerminalPageAsync(outcome);
+
+        try
+        {
+            var content = (InspectionContentCard)fixture.Page.FindName(
+                "InspectionContentCardControl");
+            Assert.IsNotNull(
+                content.ActiveDisclosure,
+                "The initial terminal presentation must expose its disclosure.");
+            InspectionDisclosure disclosure = content.ActiveDisclosure!;
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+
+            var items = (ItemsControl)content.FindName(
+                "ExpandedReportItemsControl");
+            var scroll = (ScrollViewer)content.FindName(
+                "ExpandedReportScrollViewer");
+            scroll.Height = 24d;
+            fixture.Page.UpdateLayout();
+            Assert.IsNotNull(items.ItemsSource);
+            object source = items.ItemsSource;
+            object[] rows = items.Items.Cast<object>().ToArray();
+            object[] containers = CaptureItemContainers(items);
+            double offset = await SetNonzeroScrollOffsetAsync(
+                fixture.Page,
+                scroll);
+
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: false);
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+
+            Assert.AreSame(source, items.ItemsSource);
+            CollectionAssert.AreEqual(rows, items.Items.Cast<object>().ToArray());
+            CollectionAssert.AreEqual(
+                containers,
+                CaptureItemContainers(items));
+            Assert.AreEqual(offset, scroll.VerticalOffset, 0.01d);
+
+            int terminalStartIndex = fixture.Driver.TerminalStarts.Count;
+            ControlledCall retry = fixture.Service.QueueCall();
+            fixture.Page.ViewModel!.RetryCommand.Execute(null);
+            await Task.Yield();
+            fixture.Dispatcher.RunAll();
+            Assert.AreEqual(
+                InspectionContentCardMode.Progress,
+                content.Presentation.Mode);
+
+            ModelInspectionOutcome replacementOutcome = outcome switch
+            {
+                ModelInspectionOutcome.ReadyWithWarnings =>
+                    ModelInspectionOutcome.ConversionRequired,
+                ModelInspectionOutcome.ConversionRequired =>
+                    ModelInspectionOutcome.Invalid,
+                ModelInspectionOutcome.Invalid =>
+                    ModelInspectionOutcome.ReadyWithWarnings,
+                _ => throw new ArgumentOutOfRangeException(nameof(outcome))
+            };
+            retry.Complete(CreateCompletedResult(replacementOutcome));
+            await DrainDispatcherAsync(fixture.Page);
+            fixture.Dispatcher.RunAll();
+            Assert.AreEqual(
+                terminalStartIndex + 1,
+                fixture.Driver.TerminalStarts.Count);
+            fixture.Driver.CompleteLastTerminal();
+            fixture.Page.UpdateLayout();
+
+            Assert.IsNotNull(
+                content.ActiveDisclosure,
+                "The replacement terminal presentation must expose its disclosure.");
+            disclosure = content.ActiveDisclosure!;
+            await CompleteDisclosureRequestAsync(
+                fixture.Page,
+                disclosure,
+                fixture.Dispatcher,
+                fixture.Driver,
+                isExpanded: true);
+            Assert.AreNotSame(source, items.ItemsSource,
+                "A new attempt/outcome must install one new report owner.");
+        }
+        finally
+        {
+            RetireLoadedPage(fixture.Page, fixture.Window);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task DisclosureRapidReverse_UsesOneAbsoluteCoordinateSpace()
+    {
+        var fixture = await CreateLoadedTerminalPageAsync(
+            ModelInspectionOutcome.Ready);
+
+        try
+        {
+            var pageScroll = (ScrollViewer)fixture.Page.FindName(
+                "InspectionPageScrollViewer");
+            var host = (FrameworkElement)fixture.Page.FindName(
+                "InspectionContentHost");
+            var model = (InspectionModelCard)fixture.Page.FindName(
+                "InspectionModelCardControl");
+            var content = (InspectionContentCard)fixture.Page.FindName(
+                "InspectionContentCardControl");
+            var actions = (InspectionActionCard)fixture.Page.FindName(
+                "InspectionActionCardControl");
+            Assert.IsGreaterThan(0d, host.Margin.Top);
+            pageScroll.Height = 320d;
+            fixture.Page.UpdateLayout();
+            await SetNonzeroScrollOffsetAsync(fixture.Page, pageScroll);
+            InspectionDisclosure disclosure = model.ActiveDisclosure!;
+
+            double[] collapsedAbsoluteTops =
+                [GetAbsoluteTop(content), GetAbsoluteTop(actions)];
+            disclosure.RequestTargetState(isExpanded: true);
+            fixture.Dispatcher.RunAll();
+            fixture.Page.UpdateLayout();
+
+            Assert.HasCount(1, fixture.Driver.DisclosureStarts);
+            RecordingPageAnimationDriver.DisclosureCall expansion =
+                fixture.Driver.DisclosureStarts[0];
+            CollectionAssert.AreEqual(
+                collapsedAbsoluteTops,
+                expansion.PreviousTopOffsets.ToArray());
+            CollectionAssert.AreEqual(
+                new[] { GetAbsoluteTop(content), GetAbsoluteTop(actions) },
+                expansion.CurrentTopOffsets.ToArray());
+            for (int index = 0; index < collapsedAbsoluteTops.Length; index++)
+            {
+                Assert.AreEqual(
+                    collapsedAbsoluteTops[index] -
+                        expansion.CurrentTopOffsets[index],
+                    expansion.PreviousTopOffsets[index] -
+                        expansion.CurrentTopOffsets[index],
+                    0.01d);
+            }
+
+            double[] expandedAbsoluteTops =
+                [GetAbsoluteTop(content), GetAbsoluteTop(actions)];
+            disclosure.RequestTargetState(isExpanded: false);
+            fixture.Dispatcher.RunAll();
+            fixture.Page.UpdateLayout();
+            Assert.HasCount(2, fixture.Driver.DisclosureStarts);
+            RecordingPageAnimationDriver.DisclosureCall collapse =
+                fixture.Driver.DisclosureStarts[1];
+            CollectionAssert.AreEqual(
+                expandedAbsoluteTops,
+                collapse.PreviousTopOffsets.ToArray());
+            CollectionAssert.AreEqual(
+                new[] { GetAbsoluteTop(content), GetAbsoluteTop(actions) },
+                collapse.CurrentTopOffsets.ToArray());
+
+            fixture.Driver.CompleteDisclosure(index: 0);
+            Assert.IsFalse(disclosure.IsExpanded,
+                "The stale expansion completion must not win after reversal.");
+            fixture.Driver.CompleteDisclosure(index: 1);
+            Assert.IsFalse(disclosure.IsExpanded);
+            Assert.AreEqual(
+                ModelInspectionFigmaState.ReadyCollapsed,
+                fixture.Page.CurrentPresentation!.State);
+        }
+        finally
+        {
+            RetireLoadedPage(fixture.Page, fixture.Window);
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task MotionSettingChange_PreservesAcceptedTargetWithoutReplacementMotion()
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(ModelInspectionExecutionResult.Completed(
+            CreateReadyResult()));
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        var page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            dispatcher,
+            driver,
+            settings);
+        await page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        InspectionDisclosure disclosure = ((InspectionModelCard)page.FindName(
+            "InspectionModelCardControl")).ActiveDisclosure!;
+
+        disclosure.RequestTargetState(isExpanded: true);
+        settings.SetAnimationsEnabled(value: false);
+        dispatcher.RunAll();
+
+        Assert.AreEqual(0, driver.DisclosureStarts.Count);
+        Assert.IsTrue(disclosure.IsExpanded);
+        Assert.AreEqual(
+            ModelInspectionFigmaState.ReadyExpanded,
+            page.CurrentPresentation!.State);
     }
 
     [UITestMethod]
@@ -421,8 +1451,9 @@ public sealed class ModelInspectionPageNavigationTests
         page.ViewModel.PropertyChanged += (_, eventArguments) =>
         {
             if (eventArguments.PropertyName ==
-                    nameof(ModelInspectionViewModel.Progress) &&
-                page.ViewModel?.Progress is ModelInspectionProgress progress)
+                    nameof(ModelInspectionViewModel.Snapshot) &&
+                page.ViewModel?.Snapshot.Progress is
+                    ModelInspectionProgress progress)
             {
                 observedProgress.Add(progress);
             }
@@ -430,12 +1461,15 @@ public sealed class ModelInspectionPageNavigationTests
 
         Task run = page.StartInspectionIfReadyAsync()!;
         await run.WaitAsync(TimeSpan.FromSeconds(30));
+        await DrainDispatcherAsync(page);
 
-        Assert.IsNotNull(page.ViewModel.Progress);
-        Assert.AreEqual(5, page.ViewModel.Progress.CompletedStageCount);
+        Assert.IsNull(page.ViewModel.Progress,
+            "Terminal snapshots retire mutable progress evidence.");
+        ModelInspectionProgress finalProgress = observedProgress[^1];
+        Assert.AreEqual(5, finalProgress.CompletedStageCount);
         Assert.AreEqual(
             ModelInspectionStageStatus.Completed,
-            page.ViewModel.Progress.StageStatus);
+            finalProgress.StageStatus);
         Assert.AreEqual(
             ModelInspectionExecutionStatus.Completed,
             page.ViewModel.Result?.Status);
@@ -479,6 +1513,22 @@ public sealed class ModelInspectionPageNavigationTests
         return page;
     }
 
+    private static ModelInspectionPage CreateInjectedPage(
+        IModelInspectionService service,
+        ModelInspectionRequest request,
+        ManualRenderDispatcher dispatcher,
+        RecordingPageAnimationDriver driver,
+        RecordingMotionSettings settings)
+    {
+        var page = new ModelInspectionPage(
+            service,
+            () => dispatcher,
+            () => driver,
+            () => settings);
+        InvokeNavigation(page, "OnNavigatedTo", request);
+        return page;
+    }
+
     private static ModelInspectionPagePresentation AssertCompleteSnapshotApplied(
         ModelInspectionPage page)
     {
@@ -493,11 +1543,106 @@ public sealed class ModelInspectionPageNavigationTests
         var actions = (InspectionActionCard)page.FindName(
             "InspectionActionCardControl");
 
-        Assert.AreSame(snapshot.ModelCard, model.Presentation);
-        Assert.AreSame(snapshot.ContentCard, content.Presentation);
-        Assert.AreSame(snapshot.OutcomeCard, outcome.Presentation);
-        Assert.AreSame(snapshot.ActionCard, actions.Presentation);
+        AssertModelPresentation(snapshot.ModelCard, model.Presentation);
+        AssertContentPresentation(snapshot.ContentCard, content.Presentation);
+        AssertOutcomePresentation(snapshot.OutcomeCard, outcome.Presentation);
+        AssertActionPresentation(snapshot.ActionCard, actions.Presentation);
         return snapshot;
+    }
+
+    private static async Task DrainDispatcherAsync(FrameworkElement element)
+    {
+        var drained = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.IsTrue(element.DispatcherQueue.TryEnqueue(
+            () => drained.TrySetResult(true)));
+        await drained.Task.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    private static void AssertModelPresentation(
+        InspectionModelCardPresentation expected,
+        InspectionModelCardPresentation actual)
+    {
+        Assert.AreEqual(expected.DisplayMode, actual.DisplayMode);
+        Assert.AreEqual(expected.BadgeState, actual.BadgeState);
+        Assert.AreEqual(expected.ModelName, actual.ModelName);
+        Assert.AreEqual(expected.CompactSummary, actual.CompactSummary);
+        Assert.AreEqual(expected.FormatShortName, actual.FormatShortName);
+        Assert.AreEqual(
+            expected.InspectionDetailsVisibility,
+            actual.InspectionDetailsVisibility);
+        Assert.AreEqual(
+            expected.IsInspectionDetailsExpanded,
+            actual.IsInspectionDetailsExpanded);
+    }
+
+    private static void AssertContentPresentation(
+        InspectionContentCardPresentation expected,
+        InspectionContentCardPresentation actual)
+    {
+        Assert.AreEqual(expected.Mode, actual.Mode);
+        Assert.AreEqual(expected.SectionTitle, actual.SectionTitle);
+        Assert.AreEqual(expected.ProgressSummary, actual.ProgressSummary);
+        Assert.AreEqual(expected.SupportingText, actual.SupportingText);
+        Assert.AreEqual(
+            expected.SupportingTextVisibility,
+            actual.SupportingTextVisibility);
+        Assert.AreEqual(expected.TertiaryText, actual.TertiaryText);
+        Assert.AreEqual(
+            expected.TertiaryTextVisibility,
+            actual.TertiaryTextVisibility);
+        Assert.AreEqual(expected.DiagnosticCode, actual.DiagnosticCode);
+        Assert.AreEqual(
+            expected.DiagnosticCodeVisibility,
+            actual.DiagnosticCodeVisibility);
+        Assert.AreEqual(expected.DisclosureSummary, actual.DisclosureSummary);
+        Assert.AreEqual(
+            expected.DisclosureVisibility,
+            actual.DisclosureVisibility);
+        Assert.AreEqual(expected.IsExpanded, actual.IsExpanded);
+        if (expected.Mode == InspectionContentCardMode.Progress)
+        {
+            Assert.AreSame(expected.ProgressRows, actual.ProgressRows);
+        }
+    }
+
+    private static void AssertOutcomePresentation(
+        InspectionOutcomePresentation expected,
+        InspectionOutcomePresentation actual)
+    {
+        Assert.AreEqual(expected.Kind, actual.Kind);
+        Assert.AreEqual(expected.Tone, actual.Tone);
+        Assert.AreEqual(expected.Title, actual.Title);
+        Assert.AreEqual(expected.Message, actual.Message);
+        Assert.AreEqual(expected.AutomationName, actual.AutomationName);
+    }
+
+    private static void AssertActionPresentation(
+        InspectionActionCardPresentation expected,
+        InspectionActionCardPresentation actual)
+    {
+        Assert.AreEqual(expected.Mode, actual.Mode);
+        Assert.AreEqual(expected.Title, actual.Title);
+        Assert.AreEqual(expected.Message, actual.Message);
+        Assert.AreEqual(expected.AutomationName, actual.AutomationName);
+        AssertActionSlot(expected.CancelAction, actual.CancelAction);
+        AssertActionSlot(expected.SecondaryActionOne, actual.SecondaryActionOne);
+        AssertActionSlot(expected.SecondaryActionTwo, actual.SecondaryActionTwo);
+        AssertActionSlot(expected.PrimaryAction, actual.PrimaryAction);
+    }
+
+    private static void AssertActionSlot(
+        InspectionActionPresentation expected,
+        InspectionActionPresentation actual)
+    {
+        Assert.AreEqual(expected.Text, actual.Text);
+        Assert.AreEqual(expected.Visibility, actual.Visibility);
+        Assert.AreEqual(expected.IsEnabled, actual.IsEnabled);
+        Assert.AreEqual(expected.AutomationName, actual.AutomationName);
+        Assert.AreEqual(expected.AutomationHelpText, actual.AutomationHelpText);
+        Assert.AreEqual(expected.CommandParameter, actual.CommandParameter);
+        Assert.AreEqual(expected.MinimumWidth, actual.MinimumWidth);
+        Assert.AreSame(expected.Command, actual.Command);
     }
 
     private static void InvokeNavigation(
@@ -521,6 +1666,10 @@ public sealed class ModelInspectionPageNavigationTests
             ExceptionDispatchInfo.Capture(error.InnerException).Throw();
         }
     }
+
+    private static bool GetMotionSettingsChangePending(
+        ModelInspectionPage page) =>
+        page.MotionSettingsChangePendingForTesting;
 
     private static NavigationEventArgs CreateNavigationEventArgs(
         object? parameter)
@@ -576,6 +1725,128 @@ public sealed class ModelInspectionPageNavigationTests
                 code: $"MI-OP-{discriminator}",
                 userMessage: "Model inspection could not be completed.",
                 technicalDetail: "Controlled test failure."));
+    }
+
+    private static ModelInspectionResult CreateReadyResult()
+    {
+        return new ModelInspectionResult(
+            ModelInspectionOutcome.Ready,
+            PresentationTestData.CreateEvidence(),
+            Array.Empty<ModelInspectionFinding>(),
+            summary: "All checks passed.",
+            recommendedAction: "Continue.",
+            verifiedConversionRouteId: null,
+            startedAtUtc: FixedUtc,
+            completedAtUtc: FixedUtc + TimeSpan.FromSeconds(2));
+    }
+
+    private static ModelInspectionExecutionResult CreateCompletedResult(
+        ModelInspectionOutcome outcome) =>
+        ModelInspectionExecutionResult.Completed(
+            PresentationTestData.CreateResult(outcome));
+
+    private static async Task<(
+        ControlledInspectionService Service,
+        ModelInspectionPage Page,
+        ManualRenderDispatcher Dispatcher,
+        RecordingPageAnimationDriver Driver,
+        Window Window)> CreateLoadedTerminalPageAsync(
+            ModelInspectionOutcome outcome)
+    {
+        var service = new ControlledInspectionService();
+        service.QueueCall(CreateCompletedResult(outcome));
+        var dispatcher = new ManualRenderDispatcher();
+        var driver = new RecordingPageAnimationDriver();
+        var page = CreateInjectedPage(
+            service,
+            PresentationTestData.CreateRequest(),
+            dispatcher,
+            driver,
+            new RecordingMotionSettings(animationsEnabled: true));
+        await page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        driver.CompleteLastTerminal();
+
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+        window.Activate();
+        await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await DrainDispatcherAsync(page);
+        page.UpdateLayout();
+        return (service, page, dispatcher, driver, window);
+    }
+
+    private static async Task CompleteDisclosureRequestAsync(
+        ModelInspectionPage page,
+        InspectionDisclosure disclosure,
+        ManualRenderDispatcher dispatcher,
+        RecordingPageAnimationDriver driver,
+        bool isExpanded)
+    {
+        Assert.IsNotNull(page);
+        Assert.IsNotNull(disclosure);
+        Assert.IsNotNull(dispatcher);
+        Assert.IsNotNull(driver);
+        int startIndex = driver.DisclosureStarts.Count;
+        disclosure.RequestTargetState(isExpanded);
+        dispatcher.RunAll();
+        Assert.AreEqual(startIndex + 1, driver.DisclosureStarts.Count);
+        page.UpdateLayout();
+        driver.CompleteDisclosure(startIndex);
+        await DrainDispatcherAsync(page);
+        page.UpdateLayout();
+        Assert.AreEqual(isExpanded, disclosure.IsExpanded);
+    }
+
+    private static object[] CaptureItemContainers(ItemsControl items)
+    {
+        items.UpdateLayout();
+        var containers = new object[items.Items.Count];
+        for (int index = 0; index < containers.Length; index++)
+        {
+            object? container = items.ContainerFromIndex(index);
+            Assert.IsNotNull(container);
+            containers[index] = container;
+        }
+
+        return containers;
+    }
+
+    private static async Task<double> SetNonzeroScrollOffsetAsync(
+        FrameworkElement dispatcherOwner,
+        ScrollViewer scroll)
+    {
+        scroll.UpdateLayout();
+        Assert.IsGreaterThan(0d, scroll.ScrollableHeight);
+        double target = Math.Min(16d, scroll.ScrollableHeight);
+        Assert.IsTrue(scroll.ChangeView(
+            horizontalOffset: null,
+            verticalOffset: target,
+            zoomFactor: null,
+            disableAnimation: true));
+        await DrainDispatcherAsync(dispatcherOwner);
+        scroll.UpdateLayout();
+        Assert.IsGreaterThan(0d, scroll.VerticalOffset);
+        return scroll.VerticalOffset;
+    }
+
+    private static double GetAbsoluteTop(UIElement element)
+    {
+        Assert.IsNotNull(element.XamlRoot);
+        var root = element.XamlRoot.Content as UIElement;
+        Assert.IsNotNull(root);
+        return element.TransformToVisual(root).TransformPoint(default).Y;
+    }
+
+    private static void RetireLoadedPage(
+        ModelInspectionPage page,
+        Window window)
+    {
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        window.Content = null;
+        window.Close();
     }
 
     private sealed class ControlledInspectionService : IModelInspectionService
@@ -645,6 +1916,179 @@ public sealed class ModelInspectionPageNavigationTests
         internal void Complete(ModelInspectionExecutionResult result)
         {
             Completion.SetResult(result);
+        }
+    }
+
+    private sealed class ManualRenderDispatcher : IModelInspectionRenderDispatcher
+    {
+        private readonly Queue<Action> callbacks = new();
+
+        public bool TryEnqueue(Action callback)
+        {
+            callbacks.Enqueue(callback);
+            return true;
+        }
+
+        internal void RunAll()
+        {
+            while (callbacks.Count > 0)
+            {
+                callbacks.Dequeue()();
+            }
+        }
+    }
+
+    private sealed class RecordingMotionSettings : IModelInspectionMotionSettings
+    {
+        internal RecordingMotionSettings(bool animationsEnabled)
+        {
+            AnimationsEnabled = animationsEnabled;
+        }
+
+        public bool AnimationsEnabled { get; private set; }
+
+        public event EventHandler? AnimationsEnabledChanged;
+
+        internal Action? DisposeCallback { get; set; }
+
+        internal bool IsDisposed { get; private set; }
+
+        internal void SetAnimationsEnabled(bool value)
+        {
+            AnimationsEnabled = value;
+            RaiseChanged();
+        }
+
+        internal void RaiseChanged() =>
+            AnimationsEnabledChanged?.Invoke(this, EventArgs.Empty);
+
+        public void Dispose()
+        {
+            IsDisposed = true;
+            DisposeCallback?.Invoke();
+        }
+    }
+
+    private sealed class RecordingPageAnimationDriver :
+        IModelInspectionAnimationDriver
+    {
+        private readonly List<(
+            ModelInspectionVisualOperationKey Key,
+            Action<ModelInspectionVisualOperationKey> Completed)> terminal = [];
+        private readonly List<DisclosureCall> disclosure = [];
+
+        internal sealed record DisclosureCall(
+            ModelInspectionVisualOperationKey Key,
+            Action<ModelInspectionVisualOperationKey> Completed,
+            IReadOnlyList<double> PreviousTopOffsets,
+            IReadOnlyList<double> CurrentTopOffsets);
+
+        internal Action? CancelAllCallback { get; set; }
+
+        internal Action? DisposeCallback { get; set; }
+
+        internal int CancelAllCount { get; private set; }
+
+        internal bool IsDisposed { get; private set; }
+
+        internal int StageStatusStartCount { get; private set; }
+
+        internal int ActiveDetailStartCount { get; private set; }
+
+        internal int DisclosureStartCount { get; private set; }
+
+        internal IReadOnlyList<DisclosureCall> DisclosureStarts => disclosure;
+
+        internal IReadOnlyList<(
+            ModelInspectionVisualOperationKey Key,
+            Action<ModelInspectionVisualOperationKey> Completed)> TerminalStarts =>
+            terminal;
+
+        internal int TotalStartCount =>
+            StageStatusStartCount +
+            ActiveDetailStartCount +
+            DisclosureStartCount +
+            terminal.Count;
+
+        public void StartStageStatus(
+            UIElement target,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+            StageStatusStartCount++;
+        }
+
+        public void StartActiveDetail(
+            UIElement target,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+            ActiveDetailStartCount++;
+        }
+
+        public void StartDisclosure(
+            UIElement chevron,
+            FrameworkElement viewport,
+            IReadOnlyList<UIElement> followingElements,
+            bool isExpanded,
+            IReadOnlyList<double> previousTopOffsets,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+            DisclosureStartCount++;
+            double[] currentTopOffsets = new double[followingElements.Count];
+            for (int index = 0; index < followingElements.Count; index++)
+            {
+                UIElement element = followingElements[index];
+                currentTopOffsets[index] = element.XamlRoot?.Content is UIElement root
+                    ? element.TransformToVisual(root).TransformPoint(default).Y
+                    : double.NaN;
+            }
+
+            disclosure.Add(new DisclosureCall(
+                key,
+                completed,
+                previousTopOffsets.ToArray(),
+                currentTopOffsets));
+        }
+
+        public void StartTerminal(
+            UIElement outgoing,
+            UIElement incoming,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+            terminal.Add((key, completed));
+        }
+
+        internal void CompleteLastTerminal()
+        {
+            var call = terminal[^1];
+            call.Completed(call.Key);
+        }
+
+        internal void CompleteTerminal(int index)
+        {
+            var call = terminal[index];
+            call.Completed(call.Key);
+        }
+
+        internal void CompleteDisclosure(int index)
+        {
+            var call = disclosure[index];
+            call.Completed(call.Key);
+        }
+
+        public void CancelAll()
+        {
+            CancelAllCount++;
+            CancelAllCallback?.Invoke();
+        }
+
+        public void Dispose()
+        {
+            IsDisposed = true;
+            DisposeCallback?.Invoke();
         }
     }
 }

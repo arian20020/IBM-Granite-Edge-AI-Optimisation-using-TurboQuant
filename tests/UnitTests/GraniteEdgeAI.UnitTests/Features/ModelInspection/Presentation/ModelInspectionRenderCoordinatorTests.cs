@@ -497,6 +497,38 @@ public sealed class ModelInspectionRenderCoordinatorTests
     }
 
     [TestMethod]
+    public void MotionPolicyChange_PreservesAcceptedTargetAndFlushesItSynchronously()
+    {
+        using CoordinatorHarness harness = new();
+        ModelInspectionViewSnapshot ready = TerminalSnapshot(
+            1,
+            1,
+            ModelInspectionOutcome.Ready);
+        harness.Coordinator.ApplyInitial(ready);
+        harness.ClearObservations();
+        Assert.IsTrue(harness.Coordinator.TryRequestDisclosure(
+            ready.RenderKey,
+            isExpanded: true,
+            out ModelInspectionVisualOperationKey staleMotionKey));
+
+        harness.Coordinator.InvalidateInteractions(
+            preserveDisclosureTarget: true);
+        harness.Coordinator.FlushPendingRender();
+
+        Assert.IsFalse(harness.Coordinator.IsCurrent(staleMotionKey));
+        Assert.IsTrue(harness.Coordinator.DesiredDisclosureExpanded);
+        Assert.AreEqual(
+            ModelInspectionFigmaState.ReadyExpanded,
+            harness.Coordinator.CurrentPresentation!.State);
+        Assert.HasCount(1, harness.AppliedDeltas);
+        Assert.IsFalse(harness.Coordinator.HasPendingRender);
+
+        harness.Dispatcher.RunNext();
+        Assert.HasCount(1, harness.AppliedDeltas,
+            "The stale queued drain must not apply a second presentation.");
+    }
+
+    [TestMethod]
     public void NewAttempt_ClearsPendingDisclosureBeforeFactoryInvocation()
     {
         using CoordinatorHarness harness = new();
