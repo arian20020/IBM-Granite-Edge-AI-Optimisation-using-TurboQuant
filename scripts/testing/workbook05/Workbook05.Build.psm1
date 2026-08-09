@@ -73,6 +73,29 @@ function Assert-Wb05SafePath {
     return $fullPath
 }
 
+function Test-Wb05SameWindowsPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Left,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Right
+    )
+
+    # CMake and .NET can emit the same absolute Windows directory with different
+    # separator or case conventions. Canonicalise both before identity testing.
+    $leftFull = [IO.Path]::GetFullPath($Left).TrimEnd('\', '/')
+    $rightFull = [IO.Path]::GetFullPath($Right).TrimEnd('\', '/')
+
+    return $leftFull.Equals(
+        $rightFull,
+        [StringComparison]::OrdinalIgnoreCase
+    )
+}
+
 function Get-Wb05RelativePath {
     param(
         [Parameter(Mandatory)]
@@ -742,7 +765,7 @@ function Restore-Wb05Environment {
     }
 }
 
-# Export only the ten reviewed public primitives. All quoting and relative-path
+# Export only the eleven reviewed public primitives. All quoting and relative-path
 # helpers remain private implementation details of the module.
 Export-ModuleMember -Function @(
     'New-Wb05ExternalWorkspace',
@@ -752,6 +775,7 @@ Export-ModuleMember -Function @(
     'Write-Wb05Json',
     'Write-Wb05Manifest',
     'Assert-Wb05SafePath',
+    'Test-Wb05SameWindowsPath',
     'Get-Wb05CMakeCacheValue',
     'Get-Wb05BinaryRecords',
     'Restore-Wb05Environment'
