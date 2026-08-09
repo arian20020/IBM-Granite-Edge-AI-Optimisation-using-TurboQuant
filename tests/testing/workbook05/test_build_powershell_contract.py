@@ -111,9 +111,9 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             "'-A', 'x64'",
             "'-DENABLE_INTEL_CPU=ON'",
             "'-DENABLE_OV_IR_FRONTEND=ON'",
-            "'-DENABLE_OV_ONNX_FRONTEND=OFF'",
+            "'-DENABLE_OV_ONNX_FRONTEND=ON'",
             "'-DENABLE_OV_PADDLE_FRONTEND=OFF'",
-            "'-DENABLE_OV_TF_FRONTEND=OFF'",
+            "'-DENABLE_OV_TF_FRONTEND=ON'",
             "'-DENABLE_OV_TF_LITE_FRONTEND=OFF'",
             "'-DENABLE_OV_PYTORCH_FRONTEND=OFF'",
             "'-DENABLE_OV_JAX_FRONTEND=OFF'",
@@ -132,19 +132,21 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
 
-        # The narrow Runtime experiment must not accidentally restore the broad
-        # sample build or the previous two-job concurrency.
+        # The Runtime hand-off must keep unrelated frontends and samples disabled,
+        # while retaining the conservative one-job build boundary.
         self.assertNotIn("'-DENABLE_SAMPLES=ON'", self.text)
+        self.assertNotIn("'-DENABLE_OV_ONNX_FRONTEND=OFF'", self.text)
+        self.assertNotIn("'-DENABLE_OV_TF_FRONTEND=OFF'", self.text)
         self.assertNotIn("parallelism = 2", self.text)
         self.assertNotIn("'--parallel', '2'", self.text)
 
-    def test_requires_materialized_narrow_runtime_cache_controls(self) -> None:
+    def test_requires_materialized_runtime_cache_controls(self) -> None:
         required_cache_checks = (
             "$cacheValues.ENABLE_INTEL_CPU -eq 'ON'",
             "$cacheValues.ENABLE_OV_IR_FRONTEND -eq 'ON'",
-            "$cacheValues.ENABLE_OV_ONNX_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_ONNX_FRONTEND -eq 'ON'",
             "$cacheValues.ENABLE_OV_PADDLE_FRONTEND -eq 'OFF'",
-            "$cacheValues.ENABLE_OV_TF_FRONTEND -eq 'OFF'",
+            "$cacheValues.ENABLE_OV_TF_FRONTEND -eq 'ON'",
             "$cacheValues.ENABLE_OV_TF_LITE_FRONTEND -eq 'OFF'",
             "$cacheValues.ENABLE_OV_PYTORCH_FRONTEND -eq 'OFF'",
             "$cacheValues.ENABLE_OV_JAX_FRONTEND -eq 'OFF'",
@@ -160,6 +162,18 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             "$cacheValues.ENABLE_SYSTEM_PROTOBUF -eq 'OFF'",
         )
         for token in required_cache_checks:
+            with self.subTest(token=token):
+                self.assertIn(token, self.text)
+
+    def test_runtime_install_requires_genai_tokenizer_frontend_headers(self) -> None:
+        required = (
+            "$RequiredGenAIFrontendHeaders",
+            "runtime/include/openvino/frontend/onnx/extension/conversion.hpp",
+            "runtime/include/openvino/frontend/tensorflow/extension/conversion.hpp",
+            "$missingGenAIFrontendHeaders",
+            "Route A Runtime install is missing OpenVINO frontend headers required by the pinned GenAI tokenizer submodule",
+        )
+        for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
 

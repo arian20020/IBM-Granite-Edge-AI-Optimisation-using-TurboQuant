@@ -39,6 +39,14 @@ $WorkspaceRoot = 'C:\w5a'
 $ExpectedPythonVersion = 'Python 3.12.10'
 $CMakePath = 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 
+# The pinned OpenVINO Tokenizers source used by the source-matched GenAI build
+# registers ONNX and TensorFlow conversion extensions in one compilation unit.
+# Keep these exact development headers as an explicit Runtime hand-off contract.
+$RequiredGenAIFrontendHeaders = @(
+    'runtime/include/openvino/frontend/onnx/extension/conversion.hpp',
+    'runtime/include/openvino/frontend/tensorflow/extension/conversion.hpp'
+)
+
 function Write-RouteARuntimeDecision {
     param(
         [Parameter(Mandatory = $true)]
@@ -60,7 +68,7 @@ function Write-RouteARuntimeDecision {
         source_commit = $SourceCommit
         status = $Status
         reasons = @($Reasons)
-        required_components = @()
+        required_components = @($RequiredGenAIFrontendHeaders)
         granite_model_test_authorised = $false
         activation_claim_authorised = $false
         packed_storage_claim_authorised = $false
@@ -308,9 +316,9 @@ try {
         source_root = $sourceRoot
     })
 
-    # Configure only the reviewed CPU + OpenVINO IR Runtime surface. Optional
-    # framework frontends that are not used by this Route A hand-off stay off so
-    # the build does not create unnecessary executable/dependency surface.
+    # Configure the reviewed CPU + IR Runtime surface plus the exact ONNX and
+    # TensorFlow frontend development surfaces required by the pinned GenAI
+    # tokenizer submodule. All unrelated framework/device surfaces remain off.
     $configureArguments = @(
         '-S', $sourceRoot,
         '-B', $buildRoot,
@@ -319,9 +327,9 @@ try {
         '-DCMAKE_BUILD_TYPE=Release',
         '-DENABLE_INTEL_CPU=ON',
         '-DENABLE_OV_IR_FRONTEND=ON',
-        '-DENABLE_OV_ONNX_FRONTEND=OFF',
+        '-DENABLE_OV_ONNX_FRONTEND=ON',
         '-DENABLE_OV_PADDLE_FRONTEND=OFF',
-        '-DENABLE_OV_TF_FRONTEND=OFF',
+        '-DENABLE_OV_TF_FRONTEND=ON',
         '-DENABLE_OV_TF_LITE_FRONTEND=OFF',
         '-DENABLE_OV_PYTORCH_FRONTEND=OFF',
         '-DENABLE_OV_JAX_FRONTEND=OFF',
@@ -399,9 +407,9 @@ try {
         $cacheValues.ENABLE_WHEEL -eq 'OFF' -and
         $cacheValues.ENABLE_JS -eq 'OFF' -and
         $cacheValues.ENABLE_OV_IR_FRONTEND -eq 'ON' -and
-        $cacheValues.ENABLE_OV_ONNX_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_ONNX_FRONTEND -eq 'ON' -and
         $cacheValues.ENABLE_OV_PADDLE_FRONTEND -eq 'OFF' -and
-        $cacheValues.ENABLE_OV_TF_FRONTEND -eq 'OFF' -and
+        $cacheValues.ENABLE_OV_TF_FRONTEND -eq 'ON' -and
         $cacheValues.ENABLE_OV_TF_LITE_FRONTEND -eq 'OFF' -and
         $cacheValues.ENABLE_OV_PYTORCH_FRONTEND -eq 'OFF' -and
         $cacheValues.ENABLE_OV_JAX_FRONTEND -eq 'OFF' -and
@@ -411,7 +419,7 @@ try {
         )
     )
     if (-not $cacheMatches) {
-        Complete-RouteARuntimeEvidence -Status 'Blocked' -Reasons @('Generated Route A Runtime CMake cache does not match the reviewed CPU-only build controls.')
+        Complete-RouteARuntimeEvidence -Status 'Blocked' -Reasons @('Generated Route A Runtime CMake cache does not match the reviewed CPU and GenAI frontend hand-off controls.')
         return
     }
 
@@ -471,6 +479,26 @@ try {
         return
     }
 
+    # The exact tokenizer source compiles ONNX and TensorFlow conversion-extension
+    # registration in one source file. Verify both development headers at the
+    # Runtime hand-off boundary so an incomplete package cannot be called Passed.
+    $missingGenAIFrontendHeaders = @(
+        foreach ($relativePath in $RequiredGenAIFrontendHeaders) {
+            $headerPath = Join-Path $installRoot $relativePath
+            if (-not (Test-Path -LiteralPath $headerPath -PathType Leaf)) {
+                $relativePath
+            }
+        }
+    )
+    if ($missingGenAIFrontendHeaders.Count -ne 0) {
+        Complete-RouteARuntimeEvidence `
+            -Status 'Blocked' `
+            -Reasons @(
+                "Route A Runtime install is missing OpenVINO frontend headers required by the pinned GenAI tokenizer submodule: $($missingGenAIFrontendHeaders -join ', ')."
+            )
+        return
+    }
+
     # Hash retained install outputs in place; no DLL/EXE/LIB/PDB/PYD is copied
     # into the evidence artifact or repository.
     $binaryRecords = Get-Wb05BinaryRecords -Root $installRoot -RouteId $RouteId -Component $Component -ProducerCommandId 'route-a-runtime-install'
@@ -482,7 +510,7 @@ try {
 
     # The final pass is intentionally build-only. Model execution and all later
     # activation/storage/performance/quality claims remain disabled.
-    Complete-RouteARuntimeEvidence -Status 'Passed' -Reasons @('The exact pinned Route A OpenVINO Runtime configured, built, installed, and produced hashable outputs under the reviewed Windows build controls. No model or scientific claim is authorised.')
+    Complete-RouteARuntimeEvidence -Status 'Passed' -Reasons @('The exact pinned Route A OpenVINO Runtime configured, built, installed, retained the required GenAI frontend hand-off headers, and produced hashable outputs under the reviewed Windows build controls. No model or scientific claim is authorised.')
 }
 catch {
     # Integrity failures are recorded separately from a normal upstream build
