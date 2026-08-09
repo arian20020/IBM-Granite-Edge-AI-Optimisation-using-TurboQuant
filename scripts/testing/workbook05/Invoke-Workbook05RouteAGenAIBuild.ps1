@@ -456,10 +456,20 @@ try {
         sha256 = (Get-FileHash $cachePath -Algorithm SHA256).Hash.ToLowerInvariant()
         values = $cacheValues
     })
+
+    # A missing cache path remains a failure. Otherwise compare canonical Windows
+    # path identity so equivalent separator/case forms do not create a false block.
+    $openvinoConfigPathMatches = (
+        -not [string]::IsNullOrWhiteSpace([string]$cacheValues.OpenVINO_DIR) -and
+        (Test-Wb05SameWindowsPath `
+            -Left $cacheValues.OpenVINO_DIR `
+            -Right $openvinoConfigDirectory)
+    )
+
     if (
         $cacheValues.CMAKE_GENERATOR -ne $Generator -or
         $cacheValues.CMAKE_GENERATOR_PLATFORM -ne 'x64' -or
-        $cacheValues.OpenVINO_DIR -ne $openvinoConfigDirectory.Replace('\', '/') -or
+        -not $openvinoConfigPathMatches -or
         $cacheValues.ENABLE_PYTHON -ne 'ON' -or
         $cacheValues.ENABLE_JS -ne 'OFF'
     ) {
