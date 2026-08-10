@@ -107,7 +107,7 @@ public sealed class Gate5ApplicationBoundaryContractTests
     }
 
     [TestMethod]
-    public void WinUiReferencesAndCompilesWorkerBoundSourcesOnlyForX64()
+    public void WinUiReferencesWorkerSourcesOnlyForX64AndFixturesOnlyForDebugX64()
     {
         XDocument project = XDocument.Load(Absolute(AppProject));
         XElement[] references = project
@@ -116,11 +116,12 @@ public sealed class Gate5ApplicationBoundaryContractTests
                 .Contains("ModelInspection", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.HasCount(2, references);
+        Assert.HasCount(3, references);
         string[] expectedProjectNames =
         [
             "GraniteEdgeAI.ModelInspection.Contracts.csproj",
-            "GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
+            "GraniteEdgeAI.ModelInspection.WorkerClient.csproj",
+            "GraniteEdgeAI.ModelInspection.Fixtures.csproj"
         ];
         CollectionAssert.AreEquivalent(
             expectedProjectNames,
@@ -128,10 +129,13 @@ public sealed class Gate5ApplicationBoundaryContractTests
                 .Select(reference => Path.GetFileName(
                     reference.Attribute("Include")!.Value))
                 .ToArray());
-        Assert.IsTrue(references.All(reference => string.Equals(
-            reference.Attribute("Condition")?.Value,
-            "'$(Platform)' == 'x64'",
-            StringComparison.Ordinal)));
+
+        CollectionAssert.AreEquivalent(
+            expectedProjectNames[..2],
+            ProjectNamesFor(references, configuration: "Release", platform: "x64"));
+        CollectionAssert.AreEquivalent(
+            expectedProjectNames,
+            ProjectNamesFor(references, configuration: "Debug", platform: "x64"));
 
         string[] removals = project
             .Descendants("Compile")
@@ -223,6 +227,33 @@ public sealed class Gate5ApplicationBoundaryContractTests
 
     private static string Absolute(string relative) =>
         Path.Combine(Root, relative.Replace('/', Path.DirectorySeparatorChar));
+
+    private static string[] ProjectNamesFor(
+        IEnumerable<XElement> references,
+        string configuration,
+        string platform) =>
+        references
+            .Where(reference => IsIncluded(reference, configuration, platform))
+            .Select(reference => Path.GetFileName(reference.Attribute("Include")!.Value))
+            .ToArray();
+
+    private static bool IsIncluded(
+        XElement reference,
+        string configuration,
+        string platform)
+    {
+        string? condition = reference.Attribute("Condition")?.Value ??
+            reference.Parent?.Attribute("Condition")?.Value;
+
+        return condition switch
+        {
+            "'$(Platform)' == 'x64'" => platform == "x64",
+            "'$(Configuration)|$(Platform)' == 'Debug|x64'" =>
+                configuration == "Debug" && platform == "x64",
+            _ => throw new InvalidDataException(
+                "A Model Inspection reference has an unrecognized condition.")
+        };
+    }
 
     private static string Relative(string path) =>
         Path.GetRelativePath(Root, path).Replace('\\', '/');

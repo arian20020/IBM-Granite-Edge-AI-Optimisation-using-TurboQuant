@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Fixtures\GraniteEdgeAI.ModelInspection.Fixtures.csproj" />
   </ItemGroup>
 
 </Project>

@@ -20,6 +20,32 @@
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DefineConstants>$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Features\ModelInspection\DebugFixtures\**" />
+    <Page Remove="Features\ModelInspection\DebugFixtures\**" />
+    <None Remove="Features\ModelInspection\DebugFixtures\**" />
+    <Content Remove="Features\ModelInspection\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\ModelInspection\DebugFixtures\**" />
+    <PRIResource Remove="Features\ModelInspection\DebugFixtures\**" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Compile Include="Features\ModelInspection\DebugFixtures\**\*.cs" />
+    <Page Include="Features\ModelInspection\DebugFixtures\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Content Include="..\..\TestFixtures\ModelInspectionScenarios\**\*.json">
+      <Link>TestFixtures\ModelInspectionScenarios\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <TargetPath>TestFixtures\ModelInspectionScenarios\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <Page Remove="UnitTestApp.xaml" />
     <ApplicationDefinition Include="UnitTestApp.xaml" />

@@ -24,7 +24,7 @@ public sealed class Gate4PackagingContractTests
     private static readonly string Root = FindRepositoryRoot();
 
     [TestMethod]
-    public void WinUiReferencesOnlyContractsAndWorkerClientAndOnlyForX64()
+    public void WinUiReferencesOnlyProductionDependenciesInReleaseAndAddsFixturesOnlyForDebugX64()
     {
         XDocument project = XDocument.Load(Absolute(AppProject));
         XElement[] modelInspectionReferences = project
@@ -33,21 +33,43 @@ public sealed class Gate4PackagingContractTests
                 .Contains("ModelInspection", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.HasCount(2, modelInspectionReferences);
+        Assert.HasCount(3, modelInspectionReferences);
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                "GraniteEdgeAI.ModelInspection.Contracts.csproj",
+                "GraniteEdgeAI.ModelInspection.WorkerClient.csproj",
+                "GraniteEdgeAI.ModelInspection.Fixtures.csproj"
+            },
+            modelInspectionReferences
+                .Select(reference => Path.GetFileName(
+                    reference.Attribute("Include")!.Value))
+                .ToArray());
+
+        string[] releaseX64References = ProjectNamesFor(
+            modelInspectionReferences,
+            configuration: "Release",
+            platform: "x64");
         CollectionAssert.AreEquivalent(
             new[]
             {
                 "GraniteEdgeAI.ModelInspection.Contracts.csproj",
                 "GraniteEdgeAI.ModelInspection.WorkerClient.csproj"
             },
-            modelInspectionReferences
-                .Select(reference => Path.GetFileName(
-                    reference.Attribute("Include")!.Value))
-                .ToArray());
-        Assert.IsTrue(modelInspectionReferences.All(reference => string.Equals(
-            "'$(Platform)' == 'x64'",
-            reference.Attribute("Condition")?.Value,
-            StringComparison.Ordinal)));
+            releaseX64References);
+
+        string[] debugX64References = ProjectNamesFor(
+            modelInspectionReferences,
+            configuration: "Debug",
+            platform: "x64");
+        CollectionAssert.AreEquivalent(
+            new[]
+            {
+                "GraniteEdgeAI.ModelInspection.Contracts.csproj",
+                "GraniteEdgeAI.ModelInspection.WorkerClient.csproj",
+                "GraniteEdgeAI.ModelInspection.Fixtures.csproj"
+            },
+            debugX64References);
 
         string projectText = File.ReadAllText(Absolute(AppProject));
         Assert.IsFalse(projectText.Contains(
@@ -179,6 +201,33 @@ public sealed class Gate4PackagingContractTests
         Path.Combine(
             Root,
             relative.Replace('/', Path.DirectorySeparatorChar));
+
+    private static string[] ProjectNamesFor(
+        IEnumerable<XElement> references,
+        string configuration,
+        string platform) =>
+        references
+            .Where(reference => IsIncluded(reference, configuration, platform))
+            .Select(reference => Path.GetFileName(reference.Attribute("Include")!.Value))
+            .ToArray();
+
+    private static bool IsIncluded(
+        XElement reference,
+        string configuration,
+        string platform)
+    {
+        string? condition = reference.Attribute("Condition")?.Value ??
+            reference.Parent?.Attribute("Condition")?.Value;
+
+        return condition switch
+        {
+            "'$(Platform)' == 'x64'" => platform == "x64",
+            "'$(Configuration)|$(Platform)' == 'Debug|x64'" =>
+                configuration == "Debug" && platform == "x64",
+            _ => throw new InvalidDataException(
+                "A Model Inspection reference has an unrecognized condition.")
+        };
+    }
 
     private static string FindRepositoryRoot()
     {
