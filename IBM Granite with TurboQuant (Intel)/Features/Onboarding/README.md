@@ -1,7 +1,7 @@
 # Onboarding architecture
 
-**Status:** Exact Model Import-to-Inspection handoff and Choose-another reset lifecycle implemented
-**Last reviewed:** 2026-08-09
+**Status:** Exact Model Import-to-Inspection handoff, live footer status, and Choose-another reset lifecycle implemented
+**Last reviewed:** 2026-08-10
 
 [Back to application feature architecture](../README.md)
 
@@ -49,7 +49,7 @@ The shell has one active page event subscription at a time:
 - after successful inspection navigation, it attaches the new inspection page
   before detaching the old import page;
 - while Model Inspection is active, it listens for
-  `ChooseAnotherModelRequested`;
+  `ChooseAnotherModelRequested` and `FooterStatusChanged`;
 - duplicate attachment to the same page is ignored;
 - an inactive import or inspection page cannot drive shell navigation.
 
@@ -64,6 +64,16 @@ leaving the fresh import page as the only reachable stage page.
 If navigation fails, the current stage and active subscription are preserved.
 The next successful import request is again forwarded as the exact object
 instance to a fresh inspection page.
+
+## Inspection footer status
+
+The active inspection page publishes only the semantic footer states
+`InProgress`, `Complete`, `NotComplete`, and `Interrupted`. The shell forwards
+the current value to `OnboardingStageIndicator.InspectionStatus` and detaches
+that event together with Choose another when page ownership changes. A stale
+inspection page cannot alter the persistent footer. These values describe the
+current Model Inspection result; they do not advance to Hardware Fit or claim
+that any downstream action executed.
 
 ## Ownership boundary
 
@@ -85,10 +95,17 @@ Import constructs/validates the request; it does not own stage navigation.
 - the next exact request after reset;
 - duplicate subscription prevention;
 - stale import and inspection pages unable to drive the shell;
+- initial and changed footer status, including stale-page suppression;
 - an empty, non-go-backable frame history after both successful transitions.
 
 `ModelInspectionPageNavigationTests` covers inspection-page ownership and
 stale-callback suppression when the shell navigates away.
+
+The local ordinary hosted-equivalent packaged candidate executed 14
+`OnboardingModelInspectionNavigationTests` and 34
+`ModelInspectionPageNavigationTests`. Actual controlled High Contrast/200%
+text scale, manual Narrator, strict Figma pixels, and hosted exact-head evidence
+remain open.
 
 ## Scope and non-claims
 

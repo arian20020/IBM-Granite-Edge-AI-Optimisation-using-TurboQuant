@@ -11,6 +11,7 @@ using System.Numerics;
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 
 [TestClass]
+[DoNotParallelize]
 [TestCategory("WinUI")]
 public sealed class ModelInspectionMotionTests
 {

@@ -1,8 +1,8 @@
 # Onboarding controls
 
-**Status:** Living current-state documentation  
-**Last reviewed:** 2026-08-03  
-**Reviewed implementation baseline:** `2c51bb0551cb5556e422e63c19888c1f3874d0e5`
+**Status:** Five-stage indicator and live Model Inspection footer status implemented
+**Last reviewed:** 2026-08-10
+**Reviewed implementation baseline:** Task 12 candidate based on `5f90a5d9299363214f11454f548ff8571d98b1a5`
 
 [← Onboarding architecture](../README.md)
 
@@ -10,7 +10,7 @@
 
 This folder contains the persistent visual control that shows progress through the five-stage setup journey.
 
-The control is separated from `OnboardingShellPage` because the shell owns navigation, while the indicator owns only visual and accessible representation of a supplied `OnboardingStage`.
+The control is separated from `OnboardingShellPage` because the shell owns navigation, while the indicator owns only visual and accessible representation of a supplied `OnboardingStage` and `InspectionFooterStatus`.
 
 ## Responsibility boundary
 
@@ -19,6 +19,7 @@ The control is separated from `OnboardingShellPage` because the shell owns navig
 - the five visible step boxes and labels;
 - connector-line presentation;
 - completed, active, and future step appearances;
+- in-progress, complete, not-complete, and interrupted Model Inspection footer appearances;
 - the current-step eyebrow text;
 - validation of values assigned to the indicator;
 - accessible stage descriptions and live-region notifications;
@@ -53,6 +54,12 @@ step boxes, numbers/checkmarks, labels,
 connectors, eyebrow, AutomationProperties.Name
 ```
 
+While stage 2 is active, the shell also forwards the owned inspection page's
+`FooterStatusChanged` value to `StageIndicator.InspectionStatus`. The indicator
+updates the Inspect model box, eyebrow, and accessible status without advancing
+the onboarding stage. Retired inspection pages are detached and cannot update
+the persistent footer.
+
 ## File inventory
 
 ### `OnboardingStageIndicator.xaml`
@@ -84,7 +91,7 @@ It communicates progress rather than acting as a navigation control.
 
 ### `OnboardingStageIndicator.xaml.cs`
 
-Defines the `CurrentStage` dependency property and applies the correct visual state to all five steps.
+Defines the `CurrentStage` and `InspectionStatus` dependency properties and applies the correct visual state to all five steps.
 
 Main responsibilities:
 
@@ -109,6 +116,7 @@ ApplyStage
 
 ```csharp
 public OnboardingStage CurrentStage
+public InspectionFooterStatus InspectionStatus
 ```
 
 Default value:
@@ -117,7 +125,8 @@ Default value:
 OnboardingStage.ImportModel
 ```
 
-The dependency property allows the shell to assign a stage using the standard WinUI property system while the control reacts through `OnCurrentStageChanged`.
+The dependency properties allow the shell to assign a stage and the current
+inspection footer state through the standard WinUI property system.
 
 ## Stage validation and restoration
 
@@ -136,6 +145,10 @@ ArgumentOutOfRangeException is thrown
 `_isRestoringCurrentStage` prevents the corrective `SetValue` call from recursively entering the same validation route.
 
 This behavior ensures the dependency-property store does not remain in an invalid state after a rejected assignment.
+
+`InspectionStatus` applies the same restore-and-throw rule for undefined enum
+values. Its approved values are `InProgress`, `Complete`, `NotComplete`, and
+`Interrupted`.
 
 ## Step-state rules
 
@@ -195,6 +208,7 @@ The indicator exposes:
 - `AutomationProperties.HelpText` describing the five-stage setup process;
 - `AutomationProperties.LiveSetting="Polite"`;
 - an updated accessible name such as `Model setup progress. Step 2 of 5: Inspect model.`;
+- an inspection suffix such as `Inspection complete.` while stage 2 is active;
 - `LiveRegionChanged` after a valid stage transition.
 
 The stage boxes are visual representations; the complete control provides the readable progress summary.
@@ -230,6 +244,7 @@ The tests cover:
 - eyebrow text;
 - resource use;
 - invalid stage rejection and restoration;
+- all four inspection-footer values and invalid-value restoration;
 - accessibility names and live-region behavior.
 
 Shell synchronization is covered by:
@@ -242,6 +257,7 @@ Shell synchronization is covered by:
 - dependency-property input;
 - completed, active, and future appearances;
 - connector progression;
+- live Model Inspection footer projection without stage advancement;
 - invalid-value restoration;
 - accessible stage summary;
 - polite live-region notification;
@@ -255,6 +271,10 @@ Shell synchronization is covered by:
 - dark-theme resources are not currently defined in this control;
 - the indicator does not decide whether a workflow stage passed.
 
+The ordinary packaged tests cover the supplied semantic state and resource
+projection. They do not prove an actual Windows High Contrast session, actual
+200% text scale, Narrator output, or hosted exact-head execution.
+
 ## Known limitations and change hazards
 
 - adding or reordering stages requires coordinated changes to `OnboardingStage`, XAML elements, connector transforms, `ApplyStage`, display names, shell transitions, tests, and documentation;
@@ -267,3 +287,4 @@ Shell synchronization is covered by:
 
 - [Onboarding architecture](../README.md)
 - [Application feature architecture](../../README.md)
+- [Model Inspection architecture](../../ModelInspection/README.md)

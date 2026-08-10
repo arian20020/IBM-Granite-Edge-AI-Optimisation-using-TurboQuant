@@ -1,23 +1,23 @@
 # Model Inspection presentation construction
 
-**Status:** Initial, live-progress, and terminal presentation mapping implemented
-**Last reviewed:** 2026-08-09
+**Status:** Thirteen-state mapping, stable rendering, motion, and privacy-safe display projection implemented
+**Last reviewed:** 2026-08-10
 
 [Back to Model Inspection architecture](../README.md)
 
 ## Purpose
 
-This folder converts application-owned inspection state into complete,
-replaceable snapshots for the four WinUI cards. Presentation construction is
-kept above the service and classifier so runtime code never depends on WinUI.
+This folder converts application-owned inspection state into immutable page
+presentations and changed-region deltas for four stable WinUI card controls.
+Presentation construction remains above the service and classifier so runtime
+code never depends on WinUI.
 
 ```text
-application request/progress/result + commands
-    -> presentation factory
-    -> model card
-    -> content card
-    -> outcome card
-    -> action card
+ViewModel snapshot + commands
+    -> presentation factory and exact Figma-state identity
+    -> render coordinator (coalesce, reject stale keys, diff regions)
+    -> stable model/content/outcome/action controls
+    -> stable five-row progress owner
 ```
 
 ## Files
@@ -37,8 +37,10 @@ worker did not report one.
 
 ### `ModelInspectionPagePresentation.cs`
 
-Groups one complete model/content/outcome/action snapshot. The page replaces
-all four card inputs together when state changes.
+Groups one immutable model/content/outcome/action/footer/announcement
+presentation with its render key, exact `ModelInspectionFigmaState`, semantic
+region keys, and progress-row update. It is input to delta calculation; it does
+not require every control input to be reassigned.
 
 ### `ModelInspectionPresentationFactory.cs`
 
@@ -49,17 +51,36 @@ Creates:
 - all six completed model-outcome presentations;
 - cancelled and operational-failure recovery presentations.
 
+It also projects all display text through `ModelInspectionDisplayTextPolicy`,
+assigns exact region identities, maps the 13 approved state names, and keeps
+future report/conversion/Hardware Fit actions visible but disabled with the
+accessible `Coming later` explanation.
+
+### Stable rendering and motion
+
+- `ModelInspectionRenderCoordinator.cs` coalesces bursts, accepts only the
+  newest truthful render key, preserves disclosure state for the same outcome,
+  resets it for a new outcome/attempt, and emits changed-region deltas.
+- `InspectionProgressRows.cs` owns exactly five observable row instances for
+  one attempt and mutates only changed row values.
+- `ModelInspectionMotion.cs` defines the exact 160/180/240 ms tokens and
+  easing/endpoints; the driver rejects stale visual-operation keys and reduces
+  duration to zero when Windows animations are disabled.
+- `ModelInspectionRegionKeys.cs` and
+  `ModelInspectionPresentationDelta.cs` make reassignment and live-region
+  changes explicit and testable.
+
 ## Terminal mapping
 
 | Application state | Visible action policy |
 |---|---|
-| completed model outcome | choose another model |
+| completed model outcome | choose another model; applicable future actions remain disabled with `Coming later` |
 | cancelled | retry or choose another model |
 | operational failure | retry or choose another model |
 
-The current page deliberately exposes no Hardware Fit or conversion execution
-action. `Ready` and `ReadyWithWarnings` eligibility remains in the domain
-contract for a later downstream navigation slice.
+The current page executes no Hardware Fit, conversion, or report action.
+`Ready` and `ReadyWithWarnings` eligibility remains in the domain contract for
+a later downstream navigation slice.
 
 All model outcomes have explicit semantic kind, tone, badge, content mode, and
 accessible text. `Ready` hides the content/finding card because there is no
@@ -93,11 +114,20 @@ full inference, Hardware Fit, or performance/quality benchmarking.
 - `InitialInspectionProgressPresentationTests`
 - `InspectionProgressPresentationFactoryTests`
 - `ModelInspectionPresentationFactoryTests`
+- `ModelInspectionDisplayTextPolicyTests`
+- `ModelInspectionFigmaStatePresentationTests`
+- `InspectionProgressRowsTests`
+- `ModelInspectionRenderCoordinatorTests`
+- `ModelInspectionMotionTests`
 - `PresentationTestData`
 
-The focused tests cover ordering, explicit stage statuses, real nullable
-fractions, one-spinner behavior, all outcome/execution mappings, command state,
-action policy, accessibility text, and privacy-sensitive exclusions.
+The ordinary packaged candidate executed these exact Task 12 class counts:
+display policy 46, Figma states 77, progress rows 16, presentation factory 18,
+progress factory 13, render coordinator 27, and motion 29. They cover ordering,
+real nullable fractions, all outcome/execution mappings, stable identity and
+delta behavior, stale-operation rejection, reduced-motion endpoints, action
+policy, accessibility text, and privacy-sensitive exclusions. Exact Figma PNG
+comparison and controlled OS execution remain open.
 
 ## Change hazards
 

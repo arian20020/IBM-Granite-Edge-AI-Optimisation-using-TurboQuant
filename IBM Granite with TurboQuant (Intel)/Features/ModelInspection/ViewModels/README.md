@@ -1,7 +1,7 @@
 # Model Inspection ViewModel
 
-**Status:** Implemented with atomic snapshots for one replaceable inspection journey
-**Last reviewed:** 2026-08-09
+**Status:** Atomic render-keyed snapshots implemented for replaceable inspection attempts
+**Last reviewed:** 2026-08-10
 
 [Back to Model Inspection architecture](../README.md)
 
@@ -39,6 +39,11 @@ revision. A direct active-attempt replacement and a terminal-state Retry both
 advance the generation before synchronous callbacks can observe state.
 Notifications are marshalled to the synchronization context captured at
 construction when one exists.
+
+The ViewModel does not schedule XAML work or calculate changed presentation
+regions. `ModelInspectionPage` passes accepted immutable snapshots to the
+page-owned `ModelInspectionRenderCoordinator`, which coalesces dispatcher work,
+rejects stale keys, and preserves stable control/row identity.
 
 ## Commands
 
@@ -81,3 +86,8 @@ retry, stale and duplicate progress/results, UI-context notification,
 deactivation, choose-another ordering, privacy-safe unexpected failure,
 disposal, and sequence-exhaustion transactions that leave the prior state
 untouched when no further generation or revision can be represented.
+
+The local hosted-equivalent ordinary packaged candidate executed 24
+`ModelInspectionViewModelTests` and 6 `ModelInspectionViewSnapshotTests`. This
+is automated snapshot/lifecycle evidence; strict pixel, controlled OS, manual
+Narrator, and hosted exact-head evidence remain open.

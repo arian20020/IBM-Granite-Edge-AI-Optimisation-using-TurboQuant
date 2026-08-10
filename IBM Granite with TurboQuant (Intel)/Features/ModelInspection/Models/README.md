@@ -1,7 +1,7 @@
 # Model Inspection presentation models
 
-**Status:** Complete presentation shapes for initial, live-progress, and terminal UI states
-**Last reviewed:** 2026-08-09
+**Status:** Complete presentation shapes for the ordinary 13-state stable-control UI
+**Last reviewed:** 2026-08-10
 
 [Back to Model Inspection architecture](../README.md)
 
@@ -23,19 +23,23 @@ ModelInspectionViewModel state
     -> Controls
 ```
 
-The page replaces root presentation snapshots when request, progress, result,
-or command state changes.
+The factory creates an immutable root presentation for each accepted semantic
+revision. Region keys let the page update only changed control inputs, and the
+progress presentation points to a stable observable five-row owner so row
+instances are not replaced during an attempt.
 
 ## Root presentation types
 
 - `InspectionModelCardPresentation` supplies filename, quick-scan display facts,
   badge, compact/detailed mode, and completed-check details.
-- `InspectionContentCardPresentation` supplies progress or finding mode, rows,
-  supporting text, diagnostics, disclosure, and optional technical action.
+- `InspectionContentCardPresentation` supplies progress or finding mode, a
+  stable progress-row owner, supporting text, diagnostics, page-owned
+  disclosure state, and an optional disabled future technical action.
 - `InspectionOutcomePresentation` supplies semantic result kind, visual tone,
   icon, title, message, and accessible name.
 - `InspectionActionCardPresentation` supplies inspecting/result layout and
-  fixed Cancel/secondary/primary action slots.
+  fixed Cancel/secondary/primary action slots, including accessible help for
+  visible disabled future actions.
 
 Safe defaults keep every binding non-null:
 
@@ -47,8 +51,9 @@ InspectionActionCardPresentation.Hidden
 InspectionActionPresentation.Hidden
 ```
 
-`InspectionContentCardPresentation.Hidden` returns a fresh instance because its
-`IsExpanded` property is mutable and notifies bindings.
+`InspectionContentCardPresentation.Hidden` returns a fresh safe instance. Its
+expansion value is immutable after construction and is owned by the page's
+render/disclosure state, not by the control.
 
 ## Child presentation types
 
@@ -68,6 +73,8 @@ AutomationName
 
 `StageFraction` is real progress only. `null` selects an indeterminate active
 ring; determinate values are converted to percentage by the control helper.
+The five progress objects themselves are retained and their observable fields
+are changed only when the corresponding row delta changes.
 
 `InspectionCheckPresentation` represents compact completed checks without
 progress-only state. `InspectionActionPresentation` represents one command
@@ -102,6 +109,13 @@ Presentation shape and mutation behavior are covered by:
 - `InspectionProgressPresentationFactoryTests`
 - `ModelInspectionPresentationFactoryTests`
 - `InspectionVisualStateGuardTests`
+- `InspectionProgressRowsTests`
+- `ModelInspectionFigmaStatePresentationTests`
+
+The ordinary packaged candidate executed 9 `InspectionModelCardTests`, 25
+`InspectionContentCardTests`, 7 `InspectionOutcomeCardTests`, and 4
+`InspectionActionCardTests`. Exact Figma PNG references and controlled OS
+evidence remain separate open requirements.
 
 ## Scope and non-claims
 

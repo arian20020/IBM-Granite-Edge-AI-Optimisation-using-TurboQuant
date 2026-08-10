@@ -32,6 +32,7 @@ namespace GraniteEdgeAI.UnitTests;
 /// application service, and the four replaceable presentation cards.
 /// </summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class ModelInspectionPageNavigationTests
 {
     private static readonly DateTimeOffset FixedUtc = new(

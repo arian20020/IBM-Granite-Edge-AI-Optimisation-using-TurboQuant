@@ -1,0 +1,275 @@
+name: Model Inspection controlled evidence preflight (blocked)
+
+# This manual workflow is intentionally preflight-only. Exact Figma node
+# exports, strict test classes, controlled-environment pins, and a privacy-safe
+# result schema do not exist yet, so it must fail before producing evidence.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-inspection-controlled-preflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  controlled-evidence-preflight:
+    name: Preflight only - ${{ matrix.campaign }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - campaign: light-96dpi-100text
+            runner: model-inspection-visual-light
+            requiredTheme: Light
+            requiredDpi: 96
+            requiredTextScale: 100
+            requiredHighContrast: false
+            requiredCategory: ModelInspectionVisualRegression
+          - campaign: high-contrast
+            runner: model-inspection-visual-high-contrast
+            requiredTheme: HighContrast
+            requiredDpi: 96
+            requiredTextScale: 100
+            requiredHighContrast: true
+            requiredCategory: ModelInspectionControlledHighContrast
+          - campaign: text-scale-200
+            runner: model-inspection-visual-text-scale-200
+            requiredTheme: Light
+            requiredDpi: 96
+            requiredTextScale: 200
+            requiredHighContrast: false
+            requiredCategory: ModelInspectionControlledTextScale200
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - ${{ matrix.runner }}
+    timeout-minutes: 10
+
+    steps:
+      # Pinned immutable commit for actions/checkout v7.0.0.
+      - name: Check out preflight inputs
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Preflight exact references, strict classes, environment, and evidence schema
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $blockers = [Collections.Generic.List[string]]::new()
+          $referenceRoot = Join-Path $env:GITHUB_WORKSPACE `
+            'tests/TestFixtures/ModelInspectionVisual/References'
+          $manifestName = 'visual-reference-manifest.json'
+          $expectedReferences = @(
+            '01-inspection-progress.png'
+            '02-ready.png'
+            '03-ready-expanded.png'
+            '04-ready-with-warnings.png'
+            '05-ready-with-warnings-expanded.png'
+            '06-conversion-required.png'
+            '07-conversion-required-expanded.png'
+            '08-incomplete-package.png'
+            '09-unsupported.png'
+            '10-invalid.png'
+            '11-invalid-expanded.png'
+            '12-cancelled.png'
+            '13-operational-failure.png'
+          )
+          $expectedReferenceInventory = @($manifestName) + $expectedReferences
+          if ($expectedReferences.Count -ne 13) {
+            $blockers.Add('The exact controlled reference inventory is not 13 rows.')
+          }
+          if ($expectedReferenceInventory.Count -ne 14) {
+            $blockers.Add('The manifest plus exact reference inventory is not 14 files.')
+          }
+          if (-not (Test-Path -LiteralPath $referenceRoot -PathType Container)) {
+            $blockers.Add('The exact controlled reference directory is absent.')
+          }
+          else {
+            $actualReferenceInventory = @(
+              Get-ChildItem -LiteralPath $referenceRoot -File -Force |
+                ForEach-Object Name |
+                Sort-Object
+            )
+            $unexpectedReferences = @(
+              $actualReferenceInventory |
+                Where-Object { $_ -notin $expectedReferenceInventory }
+            )
+            foreach ($unexpectedReference in $unexpectedReferences) {
+              $blockers.Add(
+                "The reference directory contains an unapproved file: $unexpectedReference")
+            }
+          }
+          foreach ($reference in $expectedReferences) {
+            $path = Join-Path $referenceRoot $reference
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              $blockers.Add("Exact Figma node export is absent: $reference")
+            }
+          }
+          $manifestPath = Join-Path $referenceRoot $manifestName
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            $blockers.Add('Exact visual reference manifest is absent.')
+          }
+          else {
+            $manifestText = Get-Content -LiteralPath $manifestPath -Raw
+            if ($manifestText -notmatch '"encoding"\s*:\s*"base64-bitset-v1"') {
+              $blockers.Add(
+                'Reference manifest lacks embedded base64-bitset-v1 masks.')
+            }
+            if ($manifestText -notmatch '"sha256"\s*:\s*"[0-9a-f]{64}"') {
+              $blockers.Add(
+                'Reference manifest lacks lowercase pinned reference/mask hashes.')
+            }
+          }
+
+          $strictRoot = Join-Path $env:GITHUB_WORKSPACE `
+            'tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual'
+          $strictClasses = [ordered]@{
+            'ModelInspectionVisualReferenceIntegrityTests.cs' = @(
+              'ModelInspectionVisualReferenceIntegrityTests'
+            )
+            'ModelInspectionVisualRegressionTests.cs' = @(
+              'ModelInspectionVisualRegression'
+              '[DoNotParallelize]'
+            )
+            'ModelInspectionControlledAccessibilityTests.cs' = @(
+              'ModelInspectionControlledOs'
+              'ModelInspectionControlledHighContrast'
+              'ModelInspectionControlledTextScale200'
+              '[DoNotParallelize]'
+            )
+          }
+          foreach ($entry in $strictClasses.GetEnumerator()) {
+            $path = Join-Path $strictRoot $entry.Key
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              $blockers.Add("Strict controlled test source is absent: $($entry.Key)")
+              continue
+            }
+
+            $source = Get-Content -LiteralPath $path -Raw
+            foreach ($requiredFragment in $entry.Value) {
+              if (-not $source.Contains($requiredFragment, [StringComparison]::Ordinal)) {
+                $blockers.Add(
+                  "Strict source $($entry.Key) is missing $requiredFragment.")
+              }
+            }
+          }
+
+          $approvedOsBuild = '${{ vars.MODEL_INSPECTION_VISUAL_APPROVED_OS_BUILD }}'
+          $approvedRasterizerBuild = `
+            '${{ vars.MODEL_INSPECTION_VISUAL_APPROVED_RASTERIZER_BUILD }}'
+          if ([string]::IsNullOrWhiteSpace($approvedOsBuild)) {
+            $blockers.Add('Approved controlled OS build pin is absent.')
+          }
+          if ([string]::IsNullOrWhiteSpace($approvedRasterizerBuild)) {
+            $blockers.Add('Approved WinUI rasterizer build pin is absent.')
+          }
+
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class Task12VisualPreflightNativeMethods
+          {
+              [DllImport("user32.dll")]
+              public static extern uint GetDpiForSystem();
+
+              [DllImport("user32.dll", SetLastError = true)]
+              [return: MarshalAs(UnmanagedType.Bool)]
+              public static extern bool SystemParametersInfo(
+                  uint action,
+                  uint parameter,
+                  out bool value,
+                  uint update);
+          }
+          '@
+
+          $bounds = [Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $resolution = "$($bounds.Width)x$($bounds.Height)"
+          $dpi = [int][Task12VisualPreflightNativeMethods]::GetDpiForSystem()
+          $textScale = $null
+          try {
+            $textScale = [int](Get-ItemPropertyValue `
+              -LiteralPath 'HKCU:\Software\Microsoft\Accessibility' `
+              -Name TextScaleFactor `
+              -ErrorAction Stop)
+            if ($textScale -le 0) {
+              throw 'Windows returned an invalid text scale.'
+            }
+          }
+          catch {
+            $textScale = $null
+            $blockers.Add('Actual Windows text scale could not be read.')
+          }
+          $highContrast = [Windows.Forms.SystemInformation]::HighContrast
+          $appsTheme = Get-ItemPropertyValue `
+            -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' `
+            -Name AppsUseLightTheme `
+            -ErrorAction SilentlyContinue
+          $theme = if ($highContrast) {
+            'HighContrast'
+          }
+          elseif ([int]$appsTheme -eq 1) {
+            'Light'
+          }
+          else {
+            'Dark'
+          }
+          $animationsEnabled = $false
+          $animationQuerySucceeded = `
+            [Task12VisualPreflightNativeMethods]::SystemParametersInfo(
+              0x1042,
+              0,
+              [ref]$animationsEnabled,
+              0)
+          if (-not $animationQuerySucceeded) {
+            $blockers.Add('Actual Windows animation state could not be read.')
+          }
+
+          $actualOsBuild = [Environment]::OSVersion.Version.ToString()
+          $actualRasterizerBuild = $env:MODEL_INSPECTION_VISUAL_RASTERIZER_BUILD
+          if ($actualOsBuild -cne $approvedOsBuild) {
+            $blockers.Add(
+              "Actual OS build $actualOsBuild does not match the approved pin.")
+          }
+          if ($actualRasterizerBuild -cne $approvedRasterizerBuild) {
+            $blockers.Add('Actual WinUI rasterizer build does not match the approved pin.')
+          }
+          if ($resolution -cne '1440x1024') {
+            $blockers.Add("Actual resolution is $resolution, not 1440x1024.")
+          }
+          if ($dpi -ne [int]'${{ matrix.requiredDpi }}') {
+            $blockers.Add("Actual DPI is $dpi, not ${{ matrix.requiredDpi }}.")
+          }
+          if ($null -eq $textScale) {
+            $blockers.Add('Actual Windows text scale is unknown.')
+          }
+          elseif ($textScale -ne [int]'${{ matrix.requiredTextScale }}') {
+            $blockers.Add(
+              "Actual text scale is $textScale, not ${{ matrix.requiredTextScale }}.")
+          }
+          if ($theme -cne '${{ matrix.requiredTheme }}') {
+            $blockers.Add("Actual theme is $theme, not ${{ matrix.requiredTheme }}.")
+          }
+          if ($highContrast -ne `
+              [Convert]::ToBoolean('${{ matrix.requiredHighContrast }}')) {
+            $blockers.Add('Actual High Contrast state does not match this campaign.')
+          }
+
+          Write-Host (
+            "Observed campaign=${{ matrix.campaign }}; category=${{ matrix.requiredCategory }}; " +
+            "os=$actualOsBuild; resolution=$resolution; dpi=$dpi; " +
+            "textScale=$textScale; theme=$theme; highContrast=$highContrast; " +
+            "animationsEnabled=$animationsEnabled")
+
+          $blockers.Add('13-row controlled execution is not implemented.')
+          $blockers.Add(
+            'sanitized artifact scan/upload closure is not implemented.')
+          $blockers | ForEach-Object { Write-Error $_ -ErrorAction Continue }
+          throw (
+            'CONTROLLED_EVIDENCE_PREFLIGHT_BLOCKED: exact references, strict ' +
+            'classes, approved environment pins, and privacy-safe evidence ' +
+            'retention must all close before artifact production.')

@@ -23,15 +23,29 @@ is a packaged WinUI 3 MSTest application. Its project reference compiles the
 application, and its app-container runner supplies the XAML UI thread required
 by `[UITestMethod]`.
 
-The current Release/x64 floor is 330 tests. It includes scanner/import coverage,
-Model Inspection contracts and presentation behavior, onboarding/navigation,
-and thirteen application-root/worker-package composition cases. The composition
-suite includes a real package-identity-root launch through the production
-client and controlled five-stage CPU/VocabOnly completion. The package test
-requires the detached manifest-verified 44-file CPU worker closure under
-`ModelInspection/Worker` and rejects LLamaSharp/native files at the application
-root. Treat the generated TRX, rather than a hand-maintained method table, as
-the authoritative execution count.
+The ordinary hosted-equivalent Release/x64 floor is 686 tests with this exact
+filter:
+
+```text
+TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs
+```
+
+That floor was observed in a local packaged candidate based on commit
+`5f90a5d9299363214f11454f548ff8571d98b1a5`: total 686, executed 686, passed
+686, and zero non-passing results. It includes scanner/import coverage, Model
+Inspection contracts, presentation/view/render/motion/control/accessibility
+coverage, onboarding/navigation, and application-root/worker-package
+composition. The composition suite includes a real package-identity-root
+launch through the production client and controlled five-stage CPU/VocabOnly
+completion. The package test requires the detached manifest-verified 44-file
+CPU worker closure under `ModelInspection/Worker` and rejects
+LLamaSharp/native files at the application root.
+
+The generated local TRX files are the authoritative source for execution
+counts, but they contain machine names and absolute paths. Both packaged-unit
+and Gate 2 TRX remain runner-ephemeral and are not uploaded by ordinary CI. The
+permanent workflow validates their counters and exact protected class counts
+before the runner discards them.
 
 The scanner tests are categorized as `Unit`, but the fixture-backed cases open
 real files copied into the package output. They therefore also exercise the
@@ -148,11 +162,23 @@ regenerates fixtures with Windows PowerShell 5.1 and requires a clean fixture
 tree, restores and builds the WinUI application, builds the packaged test
 project, runs the `.build.appxrecipe` through VSTest on a Windows runner, and
 requires an all-passing nonempty TRX with executed scanner, fixture-integrity,
-router, and worker-package composition tests. It uploads available test results
-for 30 days.
+router, worker-package composition, and Model Inspection presentation classes.
+It always applies the two-category exclusion shown above so unavailable strict
+Figma regression and controlled-OS campaigns cannot make ordinary CI fail or
+silently appear to pass. Raw packaged-unit and Gate 2 TRX files are not
+retained.
 
-The workflow currently executes the full packaged project. The focused filters
-above are for local diagnosis and evidence snapshots.
+[model-inspection-visual-regression.yml](../.github/workflows/model-inspection-visual-regression.yml)
+is a manual, fail-closed preflight only. It describes separate Light 96 DPI,
+actual High Contrast, and actual 200% text-scale environments, but it cannot
+produce or upload controlled evidence until the exact 13 Figma node exports,
+approved runner pins, strict test classes, exact 13-row execution, and a
+privacy-safe result schema/scanner/upload closure exist. Missing self-hosted
+runner labels can prevent scheduling before the preflight is reached.
+
+See the [17-step Visual Studio Debug guide](../docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md)
+and the [Task 12 visual verification record](../docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md)
+for the reproducible local route and precise open evidence boundaries.
 
 ## Reserved test layers
 

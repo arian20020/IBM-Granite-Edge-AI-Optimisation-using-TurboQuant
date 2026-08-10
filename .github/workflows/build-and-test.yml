@@ -144,7 +144,7 @@ jobs:
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --minimum-expected-tests 149 `
+            --minimum-expected-tests 167 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
@@ -494,7 +494,8 @@ jobs:
             "D:\s\$env:TEST_RECIPE" `
             /Platform:x64 `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
-            /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY"
+            /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY" `
+            /TestCaseFilter:"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs"
           if ($LASTEXITCODE -ne 0) {
             throw "The packaged unit-test run failed with exit code $LASTEXITCODE."
           }
@@ -505,7 +506,7 @@ jobs:
           }
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
-          $minimumExpectedTests = 330
+          $minimumExpectedTests = 686
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
           }
@@ -539,13 +540,28 @@ jobs:
             'GraniteEdgeAI.UnitTests.ModelInspectionClassifierTests' = 5
             'GraniteEdgeAI.UnitTests.ModelInspectionServiceTests' = 4
             'GraniteEdgeAI.UnitTests.DelegateCommandTests' = 2
-            'GraniteEdgeAI.UnitTests.ModelInspectionViewModelTests' = 11
-            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests' = 10
-            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 17
-            'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 5
-            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 12
-            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 12
+            'GraniteEdgeAI.UnitTests.ModelInspectionViewModelTests' = 24
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests' = 13
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 18
+            'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 13
+            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 34
+            'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 14
             'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests' = 13
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionDisplayTextPolicyTests' = 46
+            'GraniteEdgeAI.UnitTests.ModelInspectionViewSnapshotTests' = 6
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionFigmaStatePresentationTests' = 77
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressRowsTests' = 16
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls.InspectionActionCardTests' = 4
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls.InspectionContentCardTests' = 25
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls.InspectionModelCardTests' = 9
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls.InspectionOutcomeCardTests' = 7
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionRenderCoordinatorTests' = 27
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionMotionTests' = 29
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls.ModelInspectionDisclosureTests' = 5
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.ModelInspectionRenderHarnessTests' = 2
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.ModelInspectionRenderedStateTests' = 21
+            'GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.ModelInspectionAccessibilityTests' = 9
           }
           foreach ($entry in $protectedClassCounts.GetEnumerator()) {
             $classIds = @($definitions | Where-Object { $_.TestMethod.className -eq $entry.Key } | ForEach-Object { $_.id })
@@ -575,46 +591,5 @@ jobs:
           }
           Write-Host 'No Gate 2 worker or fixture process remains.'
 
-      # Preserve only bounded test reports and a hash manifest. The published
-      # fixture itself is intentionally excluded from product/evidence output.
-      - name: Scan Gate 2 evidence for sensitive content
-        if: ${{ always() }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not (Test-Path -LiteralPath $env:GATE2_RESULTS_DIRECTORY)) {
-            Write-Warning 'No Gate 2 evidence directory exists to scan.'
-            return
-          }
-          $forbiddenPatterns = @(
-            'C:\\Users\\[^\\\s]+'
-            'Bearer\s+[A-Za-z0-9._-]+'
-            '(?i)(api[_-]?key|password|secret)\s*[:=]\s*[^\s<]+'
-          )
-          foreach ($file in Get-ChildItem $env:GATE2_RESULTS_DIRECTORY -File -Recurse) {
-            $text = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction Stop
-            foreach ($pattern in $forbiddenPatterns) {
-              if ($text -match $pattern) {
-                throw "Sensitive content pattern was retained in $($file.Name)."
-              }
-            }
-          }
-          Write-Host 'Gate 2 retained evidence passed the bounded privacy scan.'
-
-      # Pinned immutable commit for actions/upload-artifact v7.0.0.
-      - name: Upload Gate 2 verification results
-        if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
-        with:
-          name: gate2-verification-${{ github.run_id }}-${{ github.run_attempt }}
-          path: D:/s/TestResults/Gate2/**
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: Upload unit-test results
-        if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
-        with:
-          name: unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}
-          path: D:/s/TestResults/UnitTests/**/*.trx
-          if-no-files-found: warn
-          retention-days: 30
+      # Gate 2 TRX contains machine identity and absolute paths. It remains
+      # runner-ephemeral until a complete sanitizer and gated upload exist.

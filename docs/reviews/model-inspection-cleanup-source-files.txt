@@ -2,6 +2,7 @@
 .github/workflows/llamasharp-feasibility-smoke.yml
 .github/workflows/llamasharp-real-model-integration.yml
 .github/workflows/model-inspection-transport-tests.yml
+.github/workflows/model-inspection-visual-regression.yml
 .github/workflows/model-inspection-worker-client-tests.yml
 .github/workflows/model-inspection-worker-process-tests.yml
 .github/workflows/model-inspection-worker-tests.yml
@@ -131,6 +132,8 @@ docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.
 docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
 docs/architecture/decisions/README.md
 docs/development/Model-Import-Quick-Scan-Current-State.md
+docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md
+docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md
 docs/reviews/model-inspection-cleanup-inventory.md
 docs/reviews/model-inspection-cleanup-source-files.txt
 docs/risks/Licence-Register.md

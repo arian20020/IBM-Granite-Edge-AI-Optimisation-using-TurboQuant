@@ -1,14 +1,14 @@
 # Model Inspection controls
 
-**Status:** Reusable four-card UI supports initial, live-progress, and terminal snapshots
-**Last reviewed:** 2026-08-09
+**Status:** Four stable card controls and reusable disclosures implement the ordinary 13-state presentation
+**Last reviewed:** 2026-08-10
 
 [Back to Model Inspection architecture](../README.md)
 
 ## Purpose
 
 This folder owns the reusable WinUI controls that render Model Inspection
-presentation snapshots. Controls do not run inspection or interpret runtime
+presentation regions. Controls do not run inspection or interpret runtime
 evidence.
 
 ```text
@@ -20,9 +20,11 @@ ModelInspectionPage
 ```
 
 Each control exposes one typed `Presentation` dependency property, installs a
-safe non-null default during construction, refreshes compiled bindings when the
-root snapshot changes, and derives visual state from semantic presentation
-values.
+safe non-null default during construction, and derives visual state from
+semantic presentation values. The page creates each control once; the render
+coordinator reapplies only regions whose semantic key changed. The content
+control retains one `InspectionProgressRows` owner and the same five row
+instances during an attempt.
 
 ## `InspectionModelCard`
 
@@ -82,10 +84,21 @@ The current action policy is:
 | State | Actions |
 |---|---|
 | inspecting | Cancel |
-| completed | Choose another model |
+| completed | Choose another model plus state-specific future actions that are visible, disabled, and expose `Coming later` help |
 | cancelled or operational failure | Retry; Choose another model |
 
-No Hardware Fit or conversion execution action is connected in this slice.
+No Hardware Fit, conversion, technical-report, or separate technical-details
+execution action is connected in this slice.
+
+## Disclosure and motion
+
+`InspectionDisclosure` is the single accessible disclosure primitive used by
+the Ready model details and warning/conversion/invalid content details. It
+exposes expanded/collapsed state and Enter/Space behavior, keeps the selected
+button focused, and lets the page own the requested state. Page interaction
+revisions prevent an older 240 ms disclosure completion from overwriting a
+newer toggle, outcome, attempt, or navigation state. When Windows animations
+are disabled, the same semantic result is applied immediately.
 
 ## Theme and accessibility
 
@@ -95,9 +108,13 @@ labels. Progress changes use one polite content-card live region; terminal
 changes use one authoritative assertive outcome-card live region. Both controls
 create automation peers, raise `LiveRegionChanged` only for changed semantic
 announcements, and reset their dedupe state when hidden so a later equal result
-is announced as a new journey. Manual Windows acceptance is still required for
-keyboard navigation, Narrator behavior, high text scaling, responsive layout,
-and High Contrast rendering.
+is announced as a new journey.
+
+Ordinary packaged tests cover keyboard invocation, focus retention, non-color
+status, automation properties/events, 200%-equivalent layout simulation,
+High-Contrast resource selection, responsive modes, and reduced-motion policy.
+They do not prove an actual Windows 200% setting, actual High Contrast session,
+or Narrator output. Those controlled/manual campaigns remain open.
 
 ## Tests
 
@@ -105,16 +122,27 @@ Focused packaged tests include:
 
 - `InspectionContentTemplateSelectorTests`
 - `InspectionVisualStateGuardTests`
+- `InspectionActionCardTests`
+- `InspectionContentCardTests`
+- `InspectionModelCardTests`
+- `InspectionOutcomeCardTests`
+- `ModelInspectionDisclosureTests`
+- `ModelInspectionPageDisclosureTests`
+- `ModelInspectionRenderedStateTests`
+- `ModelInspectionAccessibilityTests`
 - `InspectionContentCardPresentationTests`
 - `InitialInspectionProgressPresentationTests`
 - `InspectionProgressPresentationFactoryTests`
 - `ModelInspectionPresentationFactoryTests`
 - `ModelInspectionPageNavigationTests`
 
-They protect bootstrap selection, hidden-state isolation, fail-fast visual
-states, nullable fraction conversion, fixed stage semantics, terminal mappings,
-commands, automation peer/event counts, hidden-state reannouncement, and page
-snapshot replacement.
+The local hosted-equivalent candidate executed Action 4, Content 25, Model 9,
+Outcome 7, disclosure 5, rendered-state 21, and accessibility 9 tests. Together
+with page/disclosure coverage, they protect bootstrap selection, exact geometry
+and typography, hidden-state isolation, nullable fraction conversion, fixed
+stage semantics, all 13 mapped terminal variants, commands, automation
+peer/event counts, focus/disclosure continuity, and stable control identity.
+Strict pixel comparison and controlled OS evidence remain absent and open.
 
 ## Ownership boundary and non-claims
 

@@ -6,6 +6,7 @@ an immutable geometry/provenance source, not a production UI asset.
 
 - Figma file key: `gAmBX1DYh71hqxHVqiivus`
 - Board node: `142:2148`
+- Byte length: `8,190,259` bytes
 - SHA-256: `8A171A3A1DF66D158990789A368C439752EBE5309B364A870E0C0107B519B7EB`
 - Flattened board canvas: `4624 x 5836` px
 - SVG viewBox: `0 0 4624 5836`
@@ -70,15 +71,20 @@ The corresponding fail-closed executable evidence is also deferred:
 - `ModelInspectionVisualRegressionTests.cs`
 - `ModelInspectionControlledAccessibilityTests.cs`
 - reference `Content` items in the packaged test project
-- Task 12 workflow category exclusions and controlled preflight wiring
+
+The permanent ordinary workflow now excludes the two unavailable strict
+categories, and the separate manual workflow only performs a fail-closed
+prerequisite check. It cannot build, execute, retain, or upload controlled
+evidence while the files/classes above and approved environment pins are
+absent.
 
 The ordinary packaged suite may prove deterministic capture, effective-pixel
 geometry, palette, typography, responsive hierarchy, accessibility structure,
 and reduced-motion policy. Those results do not prove exact Figma pixels,
 external UI Automation or Narrator output, real Windows High Contrast, or real
-Windows 200% text scale. The raw TRX also contains machine/path data and is not
-privacy-approved by the visual artifact scanner; sanitized retention remains a
-Task 12 blocker.
+Windows 200% text scale. Raw identity-bearing TRX is not uploaded by the
+ordinary workflow; a sanitized controlled result schema and upload closure
+remain open.
 
 The Task 11 privacy scanner approves only the current fixed nine-property
 preflight manifest shape with ordered states `01` through `13`, plus PNGs whose
@@ -89,4 +95,6 @@ entries and a sanitized upload layout are implemented.
 
 Consequently DoD 2, 8, 11, 12, and 13 remain open. They can close only after
 the exact node exports, controlled OS runs, sanitized artifact pipeline,
-reconciled workflow gates, and reproducible manual instructions exist.
+hosted exact-head verification, and retained reproducible manual acceptance
+exist. The checked-in 17-step guide is preparation for that acceptance, not an
+execution claim.

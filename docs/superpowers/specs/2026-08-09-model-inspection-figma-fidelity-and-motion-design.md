@@ -2,16 +2,19 @@
 
 | Metadata | Value |
 |---|---|
-| Status | Approved specification; implementation plan ready |
+| Status | Ordinary packaged implementation verified locally; strict pixel, controlled High Contrast/200%, manual Narrator, and hosted exact-head evidence open |
 | Date | 2026-08-09 |
+| Evidence update | 2026-08-10 |
 | Branch | `test/model-inspection-completeness-gate` |
-| Verified base commit | `e5e3f6cfaa0744fab32aa57eafca750faf1f1876` |
+| Verified base commit | `5f90a5d9299363214f11454f548ff8571d98b1a5` |
 | Product boundary | Model Inspection presentation, disclosure, motion, accessibility and visual verification |
 | Runtime boundary | Existing x64 GGUF, CPU-only, LLamaSharp/llama.cpp VocabOnly inspection path |
 | Figma file | `gAmBX1DYh71hqxHVqiivus` (`Granite Edge AI`) |
 | Figma board | `142:2148` (`model-inspection-complete-ordered-board-v2 1`) |
-| Supplied SVG evidence | 4624 x 5836 flattened board; SHA-256 `8A171A3A1DF66D158990789A368C439752EBE5309B364A870E0C0107B519B7EB` |
+| Supplied SVG evidence | 8,190,259-byte, 4624 x 5836 flattened board; SHA-256 `8A171A3A1DF66D158990789A368C439752EBE5309B364A870E0C0107B519B7EB` |
 | Implementation plan | `docs/superpowers/plans/2026-08-09-model-inspection-figma-fidelity-and-motion.md` |
+| Debug guide | `docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md` |
+| Verification record | `docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md` |
 
 ---
 

@@ -1,7 +1,7 @@
 # Model Inspection architecture
 
-**Status:** End-to-end local GGUF inspection journey implemented for the protected Windows x64 CPU path
-**Last reviewed:** 2026-08-09
+**Status:** Ordinary packaged implementation verified locally; strict pixel, controlled OS, manual Narrator, and hosted exact-head evidence remain open
+**Last reviewed:** 2026-08-10
 
 [Back to application feature architecture](../README.md)
 
@@ -71,15 +71,15 @@ Page
 
 ```text
 Features/ModelInspection/
-|-- ModelInspectionPage.xaml(.cs)  page lifecycle and four-card assignment
+|-- ModelInspectionPage.xaml(.cs)  page lifecycle and delta application to stable controls
 |-- Contracts/                     framework-neutral application language
 |-- Runtime/                       worker request/result adapter
 |-- Classification/                reliable-evidence outcome policy
 |-- Services/                      use-case orchestration and x64 entry point
 |-- ViewModels/                    async attempt and command lifecycle
-|-- Presentation/                  privacy-safe snapshot construction
+|-- Presentation/                  privacy-safe state mapping, render coordination and motion
 |-- Models/                        WinUI presentation shapes
-|-- Controls/                      reusable four-card rendering
+|-- Controls/                      four stable card controls and reusable disclosure
 `-- Infrastructure/                fixed worker root/client composition
 ```
 
@@ -91,13 +91,16 @@ runtime remain separate repository projects.
 `ModelInspectionPage.OnNavigatedTo` requires the exact
 `ModelInspectionRequest`, retires any prior ViewModel, creates a fresh
 navigation-owned ViewModel, subscribes to property/command/event changes, and
-applies the initial four-card snapshot.
+binds one stable four-control visual tree to the initial presentation.
 
 The first `Loaded` event starts at most one automatic attempt for that
-navigation. Progress, command state, and terminal results replace the complete
-four-card snapshot. `OnNavigatedFrom` invalidates page ownership before
-cancellation, unsubscribes, deactivates/disposes the ViewModel, and prevents
-retired callbacks from repainting the page.
+navigation. `ModelInspectionRenderCoordinator` coalesces snapshot notifications,
+rejects stale render/interaction keys, and applies only changed regions. The
+four controls and five progress-row instances retain identity while progress,
+commands, disclosure, footer, and terminal state change. `OnNavigatedFrom`
+invalidates page ownership before cancellation, unsubscribes,
+deactivates/disposes the ViewModel, and prevents retired callbacks or motion
+completions from repainting the page.
 
 Completed results offer Choose another model. Cancellation or operational
 failure offers Retry and Choose another. The page reports choose-another intent
@@ -161,14 +164,20 @@ fallback exists.
 ## Tests and evidence
 
 Focused packaged tests cover contracts, application boundary fitness, mapper,
-classifier, service, ViewModel, presentation, page lifecycle, onboarding shell
-lifecycle, and the manifest-verifying composition. A real packaged N-001 page
-journey reaches all five stage snapshots and final `Ready` through the actual
-protected worker/service path.
+classifier, service, ViewModel snapshots, all 13 presentation identities,
+stable render coordination, motion, all four controls, disclosure,
+deterministic 1440 x 1024 rendering, accessibility structure, page lifecycle,
+onboarding shell lifecycle, and manifest-verifying composition. A real
+packaged N-001 page journey reaches all five ordered stages and final `Ready`
+through the actual protected worker/service path.
 
-The reconciled full packaged Release/x64 run passes 330/330 with zero failed,
-skipped, or not-executed tests. This is local application evidence, not the
-still-pending extracted-MSIX or hosted exact-head release attestation.
+The local hosted-equivalent Release/x64 candidate based on
+`5f90a5d9299363214f11454f548ff8571d98b1a5` passed 686/686 with the permanent
+`ModelInspectionVisualRegression` and `ModelInspectionControlledOs` category
+exclusions and zero non-passing results. The raw identity-bearing TRX remains
+local and untracked. This is ordinary packaged candidate evidence, not strict
+Figma-pixel, actual High Contrast/200% text-scale, manual Narrator,
+extracted-MSIX, or hosted exact-head closure.
 
 N-001 is a controlled zero-tensor tokenizer fixture. It proves the lightweight
 VocabOnly journey and native closure, not trusted Granite inference, quality,
@@ -206,3 +215,5 @@ meaning of Model Inspection completion.
 - [Controls](./Controls/README.md)
 - [Infrastructure](./Infrastructure/README.md)
 - [Completeness matrix](../../../docs/testing/Model-Inspection-Test-Completeness-Matrix.md)
+- [Visual Studio Debug guide](../../../docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md)
+- [Figma visual verification evidence](../../../docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md)

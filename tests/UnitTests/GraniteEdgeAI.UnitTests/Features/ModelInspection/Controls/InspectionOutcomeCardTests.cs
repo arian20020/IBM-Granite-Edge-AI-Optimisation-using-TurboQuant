@@ -10,33 +10,50 @@ using Windows.Foundation;
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class InspectionOutcomeCardTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void Ready_UsesApprovedHeightTypographyAndSuccessResources()
+    public async Task Ready_UsesApprovedHeightTypographyAndSuccessResources()
     {
         InspectionOutcomeCard control = CreateControl(
             InspectionOutcomeTone.Success,
             "Ready for hardware check",
             "The package and runtime passed inspection.");
-        Border card = Find<Border>(control, "OutcomeCardBorder");
-        Border iconContainer = Find<Border>(control, "OutcomeIconContainer");
-        TextBlock title = FindText(control, "Ready for hardware check");
-        TextBlock message = FindText(
-            control,
-            "The package and runtime passed inspection.");
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        control.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = control };
 
-        Assert.AreEqual(82d, card.ActualHeight, 0.01, "ready banner height");
-        Assert.AreEqual(40d, iconContainer.ActualWidth, 0.01, "status icon width");
-        Assert.AreEqual(40d, iconContainer.ActualHeight, 0.01, "status icon height");
-        Assert.AreEqual(12d, card.CornerRadius.TopLeft, 0.01, "shared card radius");
-        Assert.AreEqual(14d, title.FontSize, 0.01, "outcome title size");
-        Assert.AreEqual(12d, message.FontSize, 0.01, "outcome helper size");
-        Assert.AreSame(Resource("InspectionSuccessSurfaceBrush"), card.Background);
-        Assert.AreSame(Resource("InspectionSuccessBorderBrush"), card.BorderBrush);
-        Assert.AreSame(Resource("InspectionStrongBodyFontFamily"), title.FontFamily);
-        Assert.AreSame(Resource("InspectionHelperFontFamily"), message.FontFamily);
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            ArrangeControl(control, width: 840);
+            Border card = Find<Border>(control, "OutcomeCardBorder");
+            Border iconContainer = Find<Border>(control, "OutcomeIconContainer");
+            TextBlock title = FindText(control, "Ready for hardware check");
+            TextBlock message = FindText(
+                control,
+                "The package and runtime passed inspection.");
+
+            Assert.AreEqual(82d, card.ActualHeight, 0.01, "ready banner height");
+            Assert.AreEqual(40d, iconContainer.ActualWidth, 0.01, "status icon width");
+            Assert.AreEqual(40d, iconContainer.ActualHeight, 0.01, "status icon height");
+            Assert.AreEqual(12d, card.CornerRadius.TopLeft, 0.01, "shared card radius");
+            Assert.AreEqual(14d, title.FontSize, 0.01, "outcome title size");
+            Assert.AreEqual(12d, message.FontSize, 0.01, "outcome helper size");
+            Assert.AreSame(Resource("InspectionSuccessSurfaceBrush"), card.Background);
+            Assert.AreSame(Resource("InspectionSuccessBorderBrush"), card.BorderBrush);
+            Assert.AreSame(Resource("InspectionStrongBodyFontFamily"), title.FontFamily);
+            Assert.AreSame(Resource("InspectionHelperFontFamily"), message.FontFamily);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
     }
 
     [UITestMethod]
