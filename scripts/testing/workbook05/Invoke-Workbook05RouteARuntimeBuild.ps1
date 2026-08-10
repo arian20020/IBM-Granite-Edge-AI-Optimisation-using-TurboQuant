@@ -68,7 +68,10 @@ function Write-RouteARuntimeDecision {
         source_commit = $SourceCommit
         status = $Status
         reasons = @($Reasons)
-        required_components = @($RequiredGenAIFrontendHeaders)
+        # Runtime is the lower Route A build component, so it has no lower
+        # component dependency. File-level GenAI hand-off requirements are
+        # verified separately after installation and do not belong here.
+        required_components = @()
         granite_model_test_authorised = $false
         activation_claim_authorised = $false
         packed_storage_claim_authorised = $false
@@ -455,9 +458,22 @@ try {
     )
     Write-Wb05Json -Path (Join-Path $OutputDirectory 'dependencies.json') -Value $dependencies
 
-    # Limit Runtime compilation to one concurrent build job for this experiment.
+    # Limit both native build scheduling and the MSVC `/MP` compiler process
+    # count to one. CMake forwards arguments after `--` to MSBuild, preventing
+    # a one-job build from silently spawning many concurrent cl.exe processes.
     # The existing resource-safety boundary remains fixed and monitored.
-    $build = Invoke-RouteACommand -CommandId 'route-a-runtime-build' -FilePath $CMakePath -Arguments @('--build', $buildRoot, '--config', 'Release', '--parallel', '1', '--verbose') -WorkingDirectory $workspace.work_directory -MonitorResources
+    $build = Invoke-RouteACommand `
+        -CommandId 'route-a-runtime-build' `
+        -FilePath $CMakePath `
+        -Arguments @(
+            '--build', $buildRoot,
+            '--config', 'Release',
+            '--parallel', '1',
+            '--verbose',
+            '--', '/p:CL_MPCount=1'
+        ) `
+        -WorkingDirectory $workspace.work_directory `
+        -MonitorResources
     if (Test-Wb05SafetyStop -Result $build) {
         Complete-RouteARuntimeEvidence -Status 'Infrastructure interrupted' -Reasons @('Route A Runtime build was terminated by the reviewed resource-safety boundary.')
         return
