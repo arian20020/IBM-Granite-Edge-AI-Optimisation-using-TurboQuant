@@ -165,6 +165,19 @@ class RouteARuntimeBuildContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
 
+    def test_runtime_build_caps_native_and_compiler_parallelism(self) -> None:
+        self.assertIn("'--parallel', '1'", self.text)
+        self.assertIn("'--', '/p:CL_MPCount=1'", self.text)
+        self.assertNotIn("'/p:CL_MPCount=2'", self.text)
+        self.assertNotIn("'/p:CL_MPCount=4'", self.text)
+
+    def test_runtime_decision_has_no_lower_build_component_dependencies(self) -> None:
+        self.assertIn("required_components = @()", self.text)
+        self.assertNotIn(
+            "required_components = @($RequiredGenAIFrontendHeaders)",
+            self.text,
+        )
+
     def test_runtime_install_requires_genai_tokenizer_frontend_headers(self) -> None:
         required = (
             "$RequiredGenAIFrontendHeaders",
