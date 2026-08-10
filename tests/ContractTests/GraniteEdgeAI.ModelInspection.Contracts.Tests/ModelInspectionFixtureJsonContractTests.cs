@@ -185,6 +185,110 @@ public sealed class ModelInspectionFixtureJsonContractTests
     }
 
     [TestMethod]
+    public void StrictJson_RequiresEveryConstructorMemberAndRejectsNonNullableNulls()
+    {
+        AssertEveryObjectMemberRequired(
+            FixtureContractDocuments.ValidDescriptorJson,
+            json => AssertInvalid(json),
+            new HashSet<string>(StringComparer.Ordinal) { "$.presetExpectations" });
+        AssertEveryObjectMemberRequired(
+            FixtureContractDocuments.PolicyJson,
+            AssertPolicyInvalid,
+            new HashSet<string>(StringComparer.Ordinal) { "$.copyRegistry" });
+
+        Action<JsonObject>[] descriptorMutations =
+        [
+            root => root.Remove("category"),
+            root => root["category"] = null,
+            root => root["input"]!["request"]!.AsObject().Remove("displayName"),
+            root => root["input"]!["request"]!["displayName"] = null,
+            root => root["coverage"]!.AsObject().Remove("stages"),
+            root => root["coverage"]!["stages"] = null,
+            root => root["input"]!["attempts"]![0]!["serviceSteps"]![0]!["trigger"]!
+                .AsObject().Remove("kind"),
+            root => root["input"]!["attempts"]![0]!["serviceSteps"]![0]!["trigger"]!["kind"] = null,
+            root => root["input"]!["attempts"]![0]!["serviceSteps"]![0]!["effect"]!
+                .AsObject().Remove("failureProfile"),
+            root => root["expected"]!["outcome"]!.AsObject().Remove("visible"),
+            root => root["expected"]!["outcome"]!["visible"] = null,
+            root => root["expected"]!["outcome"]!.AsObject().Remove("badge"),
+            root => root["expected"]!["focus"]!.AsObject().Remove("target"),
+            root => root["expected"]!["focus"]!["target"] = null,
+            root => root["expected"]!["actions"]!["items"]![0]!.AsObject().Remove("enabled"),
+            root => root["expected"]!["actions"]!["items"]![0]!["enabled"] = null,
+            root => root["expected"]!["announcements"]!.AsObject().Remove("count"),
+            root => root["expected"]!["announcements"]!["count"] = null,
+            root => root["presetExpectations"]!["P01"]!.AsObject()
+                .Remove("minimumContentColumnWidth"),
+            root => root["presetExpectations"]!["P01"]!["minimumContentColumnWidth"] = null,
+            root => root["expected"]!["rowsAndScroll"]!.AsObject().Remove("scrollOwner")
+        ];
+
+        foreach (Action<JsonObject> mutation in descriptorMutations)
+        {
+            AssertInvalid(FixtureContractDocuments.MutateDescriptor(mutation));
+        }
+
+        Action<JsonObject>[] policyMutations =
+        [
+            root => root.Remove("schemaVersion"),
+            root => root["schemaVersion"] = null,
+            root => root["fixtures"]![0]!.AsObject().Remove("canonicalFigmaState"),
+            root => root["fixtures"]![0]!["canonicalFigmaState"] = null,
+            root => root["fixtures"]![0]!.AsObject().Remove("pairedWithId"),
+            root => root["presets"]![0]!.AsObject().Remove("width"),
+            root => root["presets"]![0]!["width"] = null,
+            root => root["presets"]![0]!.AsObject().Remove("resources")
+        ];
+
+        foreach (Action<JsonObject> mutation in policyMutations)
+        {
+            AssertPolicyInvalid(FixtureContractDocuments.MutatePolicy(mutation));
+        }
+    }
+
+    [TestMethod]
+    public void Diagnostics_WhitelistOnlyAuthoritativeDocumentFileNames()
+    {
+        string[] authoritativeFileNames =
+        [
+            "model-inspection-fixture.schema.json",
+            "model-inspection-fixture-coverage-policy.json",
+            FixtureContractDocuments.ValidFileName
+        ];
+        foreach (string fileName in authoritativeFileNames)
+        {
+            ModelInspectionFixtureValidationException exception = FailureFor(fileName);
+            Assert.AreEqual(fileName, exception.FileName);
+        }
+
+        string[] rejectedFileNames =
+        [
+            "api-key-abc123.json",
+            "MI-001-username.fixture.json",
+            "Model-inspection-fixture.schema.json",
+            "model-inspection-fixture-policy.json",
+            "mi-001-ready.fixture.json",
+            "MI-01-ready.fixture.json",
+            "MI-001-ready--collapsed.fixture.json",
+            "MI-001-ready-.fixture.json",
+            "MI-001-ready.fixture.json.extra",
+            $"MI-001-{new string('a', StrictModelInspectionFixtureJson.MaximumDisplayFileNameLength)}.fixture.json"
+        ];
+        foreach (string fileName in rejectedFileNames)
+        {
+            ModelInspectionFixtureValidationException exception = FailureFor(fileName);
+            Assert.AreEqual("<invalid-filename>", exception.FileName);
+            Assert.IsFalse(
+                exception.Message.Contains(fileName, StringComparison.Ordinal));
+        }
+
+        static ModelInspectionFixtureValidationException FailureFor(string fileName) =>
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                Load("{", fileName));
+    }
+
+    [TestMethod]
     public void StrictJson_RejectsExcessiveBytesAndDepth()
     {
         byte[] oversized = new byte[StrictModelInspectionFixtureJson.MaximumDocumentBytes + 1];
@@ -333,7 +437,9 @@ public sealed class ModelInspectionFixtureJsonContractTests
         Assert.AreEqual(fixture.Sha256, revalidated.Sha256);
     }
 
-    private static ModelInspectionFixtureCatalogue Load(string descriptorJson)
+    private static ModelInspectionFixtureCatalogue Load(
+        string descriptorJson,
+        string fileName = FixtureContractDocuments.ValidFileName)
     {
         VerifiedModelInspectionFixtureSchema schema =
             ModelInspectionFixtureCatalogue.VerifySchema(
@@ -343,9 +449,85 @@ public sealed class ModelInspectionFixtureJsonContractTests
                 FixtureContractDocuments.PolicySource(),
                 schema);
         return ModelInspectionFixtureCatalogue.LoadDescriptors(
-            [FixtureContractDocuments.DescriptorSource(descriptorJson)],
+            [FixtureContractDocuments.DescriptorSource(descriptorJson, fileName)],
             policy,
             schema);
+    }
+
+    private static void AssertPolicyInvalid(string policyJson)
+    {
+        VerifiedModelInspectionFixtureSchema schema =
+            ModelInspectionFixtureCatalogue.VerifySchema(
+                FixtureContractDocuments.SchemaSource());
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            ModelInspectionFixtureCatalogue.LoadPolicy(
+                FixtureContractDocuments.PolicySource(policyJson),
+                schema));
+    }
+
+    private static void AssertEveryObjectMemberRequired(
+        string json,
+        Action<string> assertInvalid,
+        IReadOnlySet<string> dictionaryPaths)
+    {
+        JsonNode root = JsonNode.Parse(json)!;
+        Visit(root, []);
+        return;
+
+        void Visit(JsonNode? node, IReadOnlyList<object> path)
+        {
+            if (node is JsonObject objectNode)
+            {
+                string currentPath = "$" + string.Concat(path.Select(segment =>
+                    segment is int index ? $"[{index}]" : $".{segment}"));
+                foreach ((string propertyName, JsonNode? value) in objectNode.ToArray())
+                {
+                    if (!dictionaryPaths.Contains(currentPath))
+                    {
+                        JsonNode clone = root.DeepClone();
+                        JsonObject parent = Navigate(clone, path).AsObject();
+                        parent.Remove(propertyName);
+                        try
+                        {
+                            assertInvalid(clone.ToJsonString());
+                        }
+                        catch (AssertFailedException exception)
+                        {
+                            throw new AssertFailedException(
+                                $"Missing member was accepted at {currentPath}.{propertyName}.",
+                                exception);
+                        }
+                    }
+
+                    var childPath = new List<object>(path) { propertyName };
+                    Visit(value, childPath);
+                }
+            }
+            else if (node is JsonArray arrayNode)
+            {
+                for (int index = 0; index < arrayNode.Count; index++)
+                {
+                    var childPath = new List<object>(path) { index };
+                    Visit(arrayNode[index], childPath);
+                }
+            }
+        }
+
+        static JsonNode Navigate(JsonNode node, IReadOnlyList<object> path)
+        {
+            JsonNode current = node;
+            foreach (object segment in path)
+            {
+                current = segment switch
+                {
+                    string propertyName => current[propertyName]!,
+                    int index => current[index]!,
+                    _ => throw new InvalidOperationException("Unknown JSON path segment.")
+                };
+            }
+
+            return current;
+        }
     }
 
     internal static void AssertInvalid(

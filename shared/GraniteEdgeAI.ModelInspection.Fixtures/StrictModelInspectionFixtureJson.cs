@@ -1,9 +1,13 @@
+using System.Collections;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using System.Text.RegularExpressions;
 
 namespace GraniteEdgeAI.ModelInspection.Fixtures;
 
-public static class StrictModelInspectionFixtureJson
+public static partial class StrictModelInspectionFixtureJson
 {
     public const int MaximumDocumentBytes = 256 * 1024;
     public const int MaximumDepth = 32;
@@ -21,7 +25,13 @@ public static class StrictModelInspectionFixtureJson
         try
         {
             T? value = JsonSerializer.Deserialize<T>(source.Utf8Json.Span, SerializerOptions);
-            return value ?? throw Failure(source, "$", "json.null-root");
+            if (value is null)
+            {
+                throw Failure(source, "$", "json.null-root");
+            }
+
+            ValidateNullability(source, value);
+            return value;
         }
         catch (ModelInspectionFixtureValidationException)
         {
@@ -157,10 +167,14 @@ public static class StrictModelInspectionFixtureJson
     {
         if (string.IsNullOrEmpty(fileName) ||
             fileName.Length > MaximumDisplayFileNameLength ||
-            fileName.IndexOfAny(['/', '\\', ':']) >= 0 ||
-            !fileName.All(character =>
-                char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-') ||
-            ContainsIdentity(fileName))
+            ContainsIdentity(fileName) ||
+            !(fileName.Equals(
+                  "model-inspection-fixture.schema.json",
+                  StringComparison.Ordinal) ||
+              fileName.Equals(
+                  "model-inspection-fixture-coverage-policy.json",
+                  StringComparison.Ordinal) ||
+              DiagnosticFixtureFileNameRegex().IsMatch(fileName)))
         {
             return "<invalid-filename>";
         }
@@ -192,6 +206,70 @@ public static class StrictModelInspectionFixtureJson
                 fileName.Contains(machineName, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static void ValidateNullability<T>(
+        ModelInspectionFixtureDocumentSource source,
+        T root)
+    {
+        var nullability = new NullabilityInfoContext();
+        HashSet<object> visited = new(ReferenceEqualityComparer.Instance);
+        Visit(root);
+
+        void Visit(object? value)
+        {
+            if (value is null || value is string || value.GetType().IsValueType)
+            {
+                return;
+            }
+
+            if (!visited.Add(value))
+            {
+                return;
+            }
+
+            if (value is IDictionary dictionary)
+            {
+                foreach (DictionaryEntry entry in dictionary)
+                {
+                    Visit(entry.Key);
+                    Visit(entry.Value);
+                }
+
+                return;
+            }
+
+            if (value is IEnumerable enumerable)
+            {
+                foreach (object? item in enumerable)
+                {
+                    Visit(item);
+                }
+
+                return;
+            }
+
+            foreach (PropertyInfo property in value.GetType()
+                         .GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (property.GetIndexParameters().Length != 0)
+                {
+                    continue;
+                }
+
+                object? propertyValue = property.GetValue(value);
+                NullabilityInfo info = nullability.Create(property);
+                bool permitsNull = Nullable.GetUnderlyingType(property.PropertyType) is not null ||
+                    (!property.PropertyType.IsValueType &&
+                     info.ReadState != NullabilityState.NotNull);
+                if (propertyValue is null && !permitsNull)
+                {
+                    throw Failure(source, "$", "json.null-member");
+                }
+
+                Visit(propertyValue);
+            }
+        }
+    }
+
     private static string NormalizePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) ||
@@ -210,6 +288,18 @@ public static class StrictModelInspectionFixtureJson
 
     private static JsonSerializerOptions CreateOptions()
     {
+        var resolver = new DefaultJsonTypeInfoResolver();
+        resolver.Modifiers.Add(typeInfo =>
+        {
+            if (typeInfo.Kind == JsonTypeInfoKind.Object &&
+                typeInfo.Type.Assembly == typeof(ModelInspectionFixtureDescriptor).Assembly)
+            {
+                foreach (JsonPropertyInfo property in typeInfo.Properties)
+                {
+                    property.IsRequired = true;
+                }
+            }
+        });
         JsonSerializerOptions options = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -218,11 +308,17 @@ public static class StrictModelInspectionFixtureJson
             AllowTrailingCommas = false,
             ReadCommentHandling = JsonCommentHandling.Disallow,
             MaxDepth = MaximumDepth,
-            NumberHandling = JsonNumberHandling.Strict
+            NumberHandling = JsonNumberHandling.Strict,
+            TypeInfoResolver = resolver
         };
         options.Converters.Add(new StrictFixtureEnumConverterFactory());
         return options;
     }
+
+    [GeneratedRegex(
+        @"^MI-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.fixture\.json$",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex DiagnosticFixtureFileNameRegex();
 
     private sealed class StrictFixtureEnumConverterFactory : JsonConverterFactory
     {

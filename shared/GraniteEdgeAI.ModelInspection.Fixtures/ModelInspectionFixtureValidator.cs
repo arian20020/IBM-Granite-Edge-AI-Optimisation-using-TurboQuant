@@ -11,6 +11,16 @@ internal static partial class ModelInspectionFixtureValidator
 {
     private const string ExpectedSchemaFileName =
         "model-inspection-fixture.schema.json";
+    private const string MissingChatTemplateFindingId =
+        "MI-WARN-CHAT-TEMPLATE-MISSING";
+    private const string MissingChatTemplateTitleKey =
+        "fixture.warning.chat-template-missing.title";
+    private const string MissingChatTemplateTitle =
+        "Chat template not reported";
+    private const string MissingChatTemplateDetailKey =
+        "fixture.warning.chat-template-missing.detail";
+    private const string MissingChatTemplateDetail =
+        "The model does not report a chat template. Chat formatting may require manual configuration.";
 
     private static readonly ModelInspectionFixtureStage[] OrderedStages =
         Enum.GetValues<ModelInspectionFixtureStage>();
@@ -546,25 +556,34 @@ internal static partial class ModelInspectionFixtureValidator
         int failedOrdinal,
         int cancelledOrdinal)
     {
-        if (warningOrdinal > 0)
+        ModelInspectionFixtureProgressDescriptor[] warnings = progresses
+            .Where(progress => progress.Status == ModelInspectionFixtureStageStatus.Warning)
+            .ToArray();
+        bool warningTerminal = terminal?.Kind == ModelInspectionFixtureServiceEffectKind.Completed &&
+            terminal.Outcome == ModelInspectionFixtureOutcome.ReadyWithWarnings &&
+            terminal.EvidenceProfile == ModelInspectionFixtureEvidenceProfile.MissingChatTemplate;
+        if (warnings.Length > 0 || warningTerminal)
         {
+            const int approvedWarningOrdinal =
+                (int)ModelInspectionFixtureStage.ValidateTokenizerAndChatSetup;
             int[] subsequent = progresses
-                .Where(progress => (int)progress.Stage > warningOrdinal)
+                .Where(progress => (int)progress.Stage > approvedWarningOrdinal)
                 .Select(progress => (int)progress.Stage)
                 .Distinct()
                 .ToArray();
             int[] expected = Enumerable.Range(
-                    warningOrdinal + 1,
-                    OrderedStages.Length - warningOrdinal)
+                    approvedWarningOrdinal + 1,
+                    OrderedStages.Length - approvedWarningOrdinal)
                 .ToArray();
             bool remainingCompleted = progresses
-                .Where(progress => (int)progress.Stage > warningOrdinal)
+                .Where(progress => (int)progress.Stage > approvedWarningOrdinal)
                 .All(progress => progress.Status == ModelInspectionFixtureStageStatus.Completed);
-            if (!subsequent.SequenceEqual(expected) ||
+            if (warnings.Length != 1 ||
+                warningOrdinal != approvedWarningOrdinal ||
+                warnings[0].Stage != ModelInspectionFixtureStage.ValidateTokenizerAndChatSetup ||
+                !subsequent.SequenceEqual(expected) ||
                 !remainingCompleted ||
-                terminal?.Kind != ModelInspectionFixtureServiceEffectKind.Completed ||
-                terminal.Outcome != ModelInspectionFixtureOutcome.ReadyWithWarnings ||
-                terminal.EvidenceProfile != ModelInspectionFixtureEvidenceProfile.MissingChatTemplate)
+                !warningTerminal)
             {
                 throw Failure(source, "$.input.attempts[].serviceSteps", "progress.warning-terminal");
             }
@@ -615,6 +634,7 @@ internal static partial class ModelInspectionFixtureValidator
         HashSet<(int Attempt, string Checkpoint)> releasedServiceCheckpoints = [];
         HashSet<(int Attempt, string Checkpoint)> availableDeferredCheckpoints = [];
         HashSet<(int Attempt, string Checkpoint)> releasedDeferredCheckpoints = [];
+        HashSet<int> obsoleteAttempts = [];
         int activeAttempt = input.Attempts.Count == 0 ? 0 : 1;
         int nextServiceStep = 0;
         bool terminalReleased = false;
@@ -717,11 +737,23 @@ internal static partial class ModelInspectionFixtureValidator
                             throw Failure(source, "$.input.setupSteps[]", "setup.dangling-attempt-transition");
                         }
 
+                        obsoleteAttempts.Add(activeAttempt);
                         activeAttempt++;
                         nextServiceStep = 0;
                         terminalReleased = false;
                         currentEffect = null;
                         ApplyAutomaticSteps();
+                    }
+                    else if (step.Kind == ModelInspectionFixtureSetupStepKind.InvokeChooseAnother ||
+                             interaction.LifetimeEffect is
+                                 ModelInspectionFixtureInteractionLifetimeEffect.RetirePage or
+                                 ModelInspectionFixtureInteractionLifetimeEffect.NoActiveFixture)
+                    {
+                        if (activeAttempt > 0)
+                        {
+                            obsoleteAttempts.Add(activeAttempt);
+                            activeAttempt = 0;
+                        }
                     }
 
                     break;
@@ -816,6 +848,11 @@ internal static partial class ModelInspectionFixtureValidator
                 throw Failure(source, "$.input.setupSteps[]", "setup.deferred-not-captured");
             }
 
+            if (!obsoleteAttempts.Contains(deferredKey.Attempt))
+            {
+                throw Failure(source, "$.input.setupSteps[]", "setup.deferred-owner-active");
+            }
+
             if (!releasedDeferredCheckpoints.Add(deferredKey))
             {
                 throw Failure(source, "$.input.setupSteps[]", "setup.duplicate-stale-release");
@@ -876,6 +913,60 @@ internal static partial class ModelInspectionFixtureValidator
                 throw Failure(source, "$.expected", "expected.copy-registry");
             }
         }
+
+        ValidateWarningFinding(source, expected);
+    }
+
+    private static void ValidateWarningFinding(
+        ModelInspectionFixtureDocumentSource source,
+        ModelInspectionExpectedScreen expected)
+    {
+        if (expected.Outcome.Kind == ModelInspectionExpectedOutcomeKind.ReadyWithWarnings)
+        {
+            ModelInspectionExpectedContentRow? finding =
+                expected.Content.Rows.Count == 1 ? expected.Content.Rows[0] : null;
+            if (!expected.Content.Visible ||
+                expected.Content.Mode != ModelInspectionExpectedContentMode.Warnings ||
+                finding is null ||
+                !string.Equals(finding.Id, MissingChatTemplateFindingId, StringComparison.Ordinal) ||
+                finding.Status != ModelInspectionExpectedRowStatus.Warning ||
+                !MatchesCopy(
+                    finding.PrimaryText,
+                    MissingChatTemplateTitleKey,
+                    MissingChatTemplateTitle) ||
+                !MatchesCopy(
+                    finding.SecondaryText,
+                    MissingChatTemplateDetailKey,
+                    MissingChatTemplateDetail) ||
+                !expected.RowsAndScroll.OrderedRowIds.SequenceEqual(
+                    [MissingChatTemplateFindingId],
+                    StringComparer.Ordinal))
+            {
+                throw Failure(source, "$.expected.content.rows", "expected.warning-finding");
+            }
+
+            return;
+        }
+
+        if (expected.Outcome.Kind == ModelInspectionExpectedOutcomeKind.Ready &&
+            (expected.Content.Mode == ModelInspectionExpectedContentMode.Warnings ||
+             expected.Content.Rows.Any(row =>
+                 row.Status == ModelInspectionExpectedRowStatus.Warning ||
+                 string.Equals(
+                     row.Id,
+                     MissingChatTemplateFindingId,
+                     StringComparison.Ordinal))))
+        {
+            throw Failure(source, "$.expected.content.rows", "expected.ready-warning");
+        }
+
+        static bool MatchesCopy(
+            ModelInspectionExpectedCopy? copy,
+            string copyKey,
+            string defaultText) =>
+            copy is not null &&
+            string.Equals(copy.CopyKey, copyKey, StringComparison.Ordinal) &&
+            string.Equals(copy.DefaultText, defaultText, StringComparison.Ordinal);
     }
 
     private static void ValidatePresetExpectations(
@@ -1136,6 +1227,8 @@ internal static partial class ModelInspectionFixtureValidator
                 link.SourcePath.StartsWith('/') ||
                 link.SourcePath.StartsWith('\\') ||
                 link.SourcePath.Contains('\\') ||
+                link.SourcePath.EndsWith('/') ||
+                link.SourcePath.Contains("//", StringComparison.Ordinal) ||
                 link.SourcePath.Contains("..", StringComparison.Ordinal) ||
                 link.SourcePath.Contains("://", StringComparison.Ordinal) ||
                 Path.IsPathRooted(link.SourcePath))
@@ -1350,7 +1443,7 @@ internal static partial class ModelInspectionFixtureValidator
              text.Contains(machineName, StringComparison.OrdinalIgnoreCase));
         if (text.StartsWith('/') ||
             text.StartsWith('\\') ||
-            (!allowRepositoryPath && PathShapeRegex().IsMatch(text)) ||
+            (!allowRepositoryPath && text.IndexOfAny(['/', '\\']) >= 0) ||
             IsUnsafeUri(text, allowInternalTransitionReference) ||
             DriveTokenRegex().IsMatch(text) ||
             IdentityTokenRegex().IsMatch(text) ||
@@ -1375,12 +1468,21 @@ internal static partial class ModelInspectionFixtureValidator
 
     private static bool IsUnsafeUri(
         string text,
-        bool allowInternalTransitionReference) =>
-        UriSchemeRegex().IsMatch(text) &&
-        !(allowInternalTransitionReference &&
-          (text.StartsWith("gallery:", StringComparison.Ordinal) ||
-           text.StartsWith("fixture:", StringComparison.Ordinal) ||
-           text.StartsWith("step:", StringComparison.Ordinal)));
+        bool allowInternalTransitionReference)
+    {
+        MatchCollection schemeTokens = UriSchemeTokenRegex().Matches(text);
+        if (schemeTokens.Count == 0)
+        {
+            return false;
+        }
+
+        return !allowInternalTransitionReference ||
+            schemeTokens.Count != 1 ||
+            schemeTokens[0].Index != 0 ||
+            !(text.StartsWith("gallery:", StringComparison.Ordinal) ||
+              text.StartsWith("fixture:", StringComparison.Ordinal) ||
+              text.StartsWith("step:", StringComparison.Ordinal));
+    }
 
     private static void ValidateId(
         string? id,
@@ -1606,14 +1708,13 @@ internal static partial class ModelInspectionFixtureValidator
     [GeneratedRegex(@"^[a-z0-9]+(?:[.-][a-z0-9]+)*$", RegexOptions.CultureInvariant)]
     private static partial Regex CopyKeyRegex();
 
-    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9+.-]+:", RegexOptions.CultureInvariant)]
-    private static partial Regex UriSchemeRegex();
+    [GeneratedRegex(
+        @"(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex UriSchemeTokenRegex();
 
     [GeneratedRegex(@"^[A-Za-z]:", RegexOptions.CultureInvariant)]
     private static partial Regex DriveTokenRegex();
-
-    [GeneratedRegex(@"[^\s/\\]+[/\\][^\s/\\]+", RegexOptions.CultureInvariant)]
-    private static partial Regex PathShapeRegex();
 
     [GeneratedRegex(@"(%[^%]+%|\$\{[^}]+\}|\$env:|username|userprofile|computername|machine[_-]?name)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IdentityTokenRegex();

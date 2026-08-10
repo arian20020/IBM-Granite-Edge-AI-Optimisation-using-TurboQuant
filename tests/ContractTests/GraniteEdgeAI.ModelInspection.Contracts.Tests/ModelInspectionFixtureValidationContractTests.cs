@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -9,6 +11,19 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 [TestCategory("Contract")]
 public sealed class ModelInspectionFixtureValidationContractTests
 {
+    private const string DebugX64Condition =
+        "'$(Configuration)|$(Platform)' == 'Debug|x64'";
+    private const string MissingChatTemplateFindingId =
+        "MI-WARN-CHAT-TEMPLATE-MISSING";
+    private const string MissingChatTemplateTitleKey =
+        "fixture.warning.chat-template-missing.title";
+    private const string MissingChatTemplateTitle =
+        "Chat template not reported";
+    private const string MissingChatTemplateDetailKey =
+        "fixture.warning.chat-template-missing.detail";
+    private const string MissingChatTemplateDetail =
+        "The model does not report a chat template. Chat formatting may require manual configuration.";
+
     [TestMethod]
     public void Filename_RequiresExactIdTargetAndVariant()
     {
@@ -106,6 +121,34 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
+    [DoNotParallelize]
+    public void ModelInspectionFixtureGalleryBuildBoundary_EvaluatesOnboardingOnlyForDebugX64()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string[] projectPaths =
+        [
+            Path.Combine(
+                repositoryRoot,
+                "IBM Granite with TurboQuant (Intel)",
+                "IBM Granite with TurboQuant (Intel).csproj"),
+            Path.Combine(
+                repositoryRoot,
+                "tests",
+                "UnitTests",
+                "GraniteEdgeAI.UnitTests",
+                "GraniteEdgeAI.UnitTests.csproj")
+        ];
+
+        foreach (string projectPath in projectPaths)
+        {
+            XDocument project = XDocument.Load(projectPath);
+            AssertDebugFixtureBoundary(project, "Features\\ModelInspection\\DebugFixtures");
+            AssertDebugFixtureBoundary(project, "Features\\Onboarding\\DebugFixtures");
+            AssertSentinelEvaluation(projectPath);
+        }
+    }
+
+    [TestMethod]
     public void SetupScript_RequiresDeclaredCheckpointsInteractionsAndOneFinalObservation()
     {
         AssertInvalid(root =>
@@ -199,17 +242,24 @@ public sealed class ModelInspectionFixtureValidationContractTests
     {
         string descriptor = FixtureContractDocuments.MutateDescriptor(root =>
         {
+            AddSecondAttempt(root);
             AddDeferredStep(root, "deferStaleProgress", "old-progress");
-            root["interactions"] = new JsonArray(
+            root["interactions"]!.AsArray().Add(
                 Interaction(
                     "choose-current",
                     "chooseAnother",
-                    "service-ready",
+                    "service-ready-2",
                     "gallery:no-active-fixture"));
             JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
             setup.Insert(
                 setup.Count - 1,
+                SetupStep("invoke-retry", null, null, "retry-attempt"));
+            setup.Insert(
+                setup.Count - 1,
                 SetupStep("release-stale-progress", 1, "old-progress", null));
+            setup.Insert(
+                setup.Count - 1,
+                SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
             setup.Insert(
                 setup.Count - 1,
                 SetupStep("invoke-choose-another", null, null, "choose-current"));
@@ -219,8 +269,12 @@ public sealed class ModelInspectionFixtureValidationContractTests
 
         AssertInvalid(root =>
         {
+            AddSecondAttempt(root);
             AddDeferredStep(root, "deferStaleProgress", "old-progress");
             JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
+            setup.Insert(
+                setup.Count - 1,
+                SetupStep("invoke-retry", null, null, "retry-attempt"));
             JsonObject stale = SetupStep(
                 "release-stale-progress",
                 1,
@@ -229,6 +283,68 @@ public sealed class ModelInspectionFixtureValidationContractTests
             setup.Insert(setup.Count - 1, stale);
             setup.Insert(setup.Count - 1, stale.DeepClone());
         });
+    }
+
+    [TestMethod]
+    public void SetupReplay_RequiresRetiredOwnershipForEveryStaleReleaseKind()
+    {
+        (string DeferKind, string ReleaseKind, string Checkpoint)[] cases =
+        [
+            ("deferStaleProgress", "release-stale-progress", "old-progress"),
+            ("deferStaleResultSnapshot", "submit-stale-result-snapshot", "old-result"),
+            ("deferStaleMotion", "release-stale-motion", "old-motion"),
+            ("deferStaleAnnouncement", "release-stale-announcement", "old-announcement")
+        ];
+
+        foreach ((string deferKind, string releaseKind, string checkpoint) in cases)
+        {
+            AssertInvalid(root =>
+            {
+                AddDeferredStep(root, deferKind, checkpoint);
+                root["input"]!["setupSteps"]!.AsArray().Insert(
+                    1,
+                    SetupStep(releaseKind, 1, checkpoint, null));
+            });
+
+            string afterRetirement = FixtureContractDocuments.MutateDescriptor(root =>
+            {
+                AddSecondAttempt(root);
+                AddDeferredStep(root, deferKind, checkpoint);
+                JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("invoke-retry", null, null, "retry-attempt"));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep(releaseKind, 1, checkpoint, null));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
+            });
+            Load(afterRetirement);
+
+            AssertInvalid(root =>
+            {
+                AddSecondAttempt(root);
+                JsonObject deferred = ServiceStep("capture-current", deferKind);
+                deferred["effect"]!["deferredCheckpoint"] = checkpoint;
+                root["input"]!["attempts"]![1]!["serviceSteps"]!.AsArray()
+                    .Insert(0, deferred);
+                JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("invoke-retry", null, null, "retry-attempt"));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("release-service-checkpoint", 2, "capture-current", null));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep(releaseKind, 2, checkpoint, null));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
+            });
+        }
     }
 
     [TestMethod]
@@ -383,6 +499,72 @@ public sealed class ModelInspectionFixtureValidationContractTests
             AddProgressStep(root, "confirmCoreRuntimeCompatibility", "cancelled", 4, null);
             MutateTerminal(root, "ready", "compatible", null);
         });
+    }
+
+    [TestMethod]
+    public void ReadyWithWarnings_RequiresExactChatTemplateStageAndApprovedFinding()
+    {
+        string policy = FixtureContractDocuments.MutatePolicy(ConfigureWarningPolicy);
+        string valid = FixtureContractDocuments.MutateDescriptor(root =>
+            ConfigureReadyWithWarnings(root, warningOrdinal: 3));
+        LoadMany([FixtureContractDocuments.DescriptorSource(valid)], policy);
+
+        AssertReadyWithWarningsInvalid(root => RemoveWarningProgress(root));
+        AssertReadyWithWarningsInvalid(_ => { }, warningOrdinal: 1);
+        AssertReadyWithWarningsInvalid(root =>
+            root["input"]!["attempts"]![0]!["serviceSteps"]![1]!["effect"]!["progress"]!["status"] =
+                "warning");
+        AssertReadyWithWarningsInvalid(root =>
+        {
+            root["expected"]!["content"]!["rows"] = new JsonArray();
+            root["expected"]!["rowsAndScroll"]!["orderedRowIds"] = new JsonArray();
+        });
+        AssertReadyWithWarningsInvalid(root =>
+            root["expected"]!["content"]!["rows"]!.AsArray().Add(
+                root["expected"]!["content"]!["rows"]![0]!.DeepClone()));
+        AssertReadyWithWarningsInvalid(root =>
+            root["expected"]!["content"]!["rows"]![0]!["id"] = "MI-WARN-ARBITRARY");
+        AssertReadyWithWarningsInvalid(root =>
+            root["expected"]!["content"]!["rows"]![0]!["status"] = "information");
+
+        string arbitraryCopyDescriptor = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureReadyWithWarnings(root, warningOrdinal: 3);
+            JsonObject row = root["expected"]!["content"]!["rows"]![0]!.AsObject();
+            row["primaryText"] = new JsonObject
+            {
+                ["copyKey"] = "fixture.warning.arbitrary.title",
+                ["defaultText"] = "Arbitrary warning"
+            };
+            row["secondaryText"] = new JsonObject
+            {
+                ["copyKey"] = "fixture.warning.arbitrary.detail",
+                ["defaultText"] = "Arbitrary detail"
+            };
+        });
+        string arbitraryCopyPolicy = FixtureContractDocuments.MutatePolicy(root =>
+        {
+            ConfigureWarningPolicy(root);
+            root["copyRegistry"]!["fixture.warning.arbitrary.title"] = "Arbitrary warning";
+            root["copyRegistry"]!["fixture.warning.arbitrary.detail"] = "Arbitrary detail";
+        });
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany(
+                [FixtureContractDocuments.DescriptorSource(arbitraryCopyDescriptor)],
+                arbitraryCopyPolicy));
+
+        string readyWithWarningFinding = FixtureContractDocuments.MutateDescriptor(root =>
+            AddApprovedWarningFinding(root));
+        string readyPolicyWithWarningCopy = FixtureContractDocuments.MutatePolicy(root =>
+        {
+            JsonObject registry = root["copyRegistry"]!.AsObject();
+            registry[MissingChatTemplateTitleKey] = MissingChatTemplateTitle;
+            registry[MissingChatTemplateDetailKey] = MissingChatTemplateDetail;
+        });
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany(
+                [FixtureContractDocuments.DescriptorSource(readyWithWarningFinding)],
+                readyPolicyWithWarningCopy));
     }
 
     [TestMethod]
@@ -563,6 +745,70 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
+    public void Privacy_RejectsEmbeddedUrisAndEverySlashShapedTextValue()
+    {
+        string[] unsafeValues =
+        [
+            " https://example.invalid",
+            "prefix https://example.invalid",
+            "prefix mailto:user@example.invalid",
+            "prefix file:C:/secret",
+            "folder//file",
+            "folder/"
+        ];
+
+        foreach (string unsafeValue in unsafeValues)
+        {
+            ModelInspectionFixtureValidationException exception =
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    Load(FixtureContractDocuments.MutateDescriptor(
+                        root => root["title"] = unsafeValue)));
+            Assert.IsFalse(
+                exception.Message.Contains(unsafeValue, StringComparison.Ordinal));
+        }
+
+        Load(FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "choose-current",
+                    "chooseAnother",
+                    "ready-observed",
+                    "gallery:no-active-fixture"));
+        }));
+
+        LoadPolicyWithEvidencePath("release-evidence/model-inspection/fixture-proof.md");
+        foreach (string unsafeSourcePath in new[]
+                 {
+                     "release-evidence//fixture-proof.md",
+                     "release-evidence/model-inspection/"
+                 })
+        {
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadPolicyWithEvidencePath(unsafeSourcePath));
+        }
+
+        static ValidatedModelInspectionFixtureCoveragePolicy LoadPolicyWithEvidencePath(
+            string sourcePath)
+        {
+            string policy = FixtureContractDocuments.MutatePolicy(root =>
+                root["externalEvidenceLinks"]!.AsArray().Add(new JsonObject
+                {
+                    ["fixtureId"] = "MI-001",
+                    ["evidenceId"] = "fixture-proof",
+                    ["sourcePath"] = sourcePath,
+                    ["journeyTest"] = "fixture-boundary-journey"
+                }));
+            VerifiedModelInspectionFixtureSchema schema =
+                ModelInspectionFixtureCatalogue.VerifySchema(
+                    FixtureContractDocuments.SchemaSource());
+            return ModelInspectionFixtureCatalogue.LoadPolicy(
+                FixtureContractDocuments.PolicySource(policy),
+                schema);
+        }
+    }
+
+    [TestMethod]
     public void PolicyAndDescriptor_RequireClosedPresetAndExactExpectationSets()
     {
         AssertInvalid(root => root["presets"]![0] = "P99");
@@ -630,6 +876,189 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     FixtureContractDocuments.DescriptorSource(secondDescriptor, secondFileName)
                 ],
                 pairedPolicy).Fixtures.Count);
+    }
+
+    private static void AssertDebugFixtureBoundary(XDocument project, string subtree)
+    {
+        string remove = subtree + "\\**";
+        foreach (string itemType in new[]
+                 {
+                     "Compile", "Page", "None", "Content", "EmbeddedResource", "PRIResource"
+                 })
+        {
+            Assert.AreEqual(
+                1,
+                project.Descendants(itemType).Count(item => string.Equals(
+                    item.Attribute("Remove")?.Value,
+                    remove,
+                    StringComparison.Ordinal) &&
+                    item.Attribute("Condition") is null &&
+                    item.Parent?.Attribute("Condition") is null),
+                $"{itemType} must unconditionally remove {remove} exactly once.");
+        }
+
+        XElement compile = project.Descendants("Compile").Single(item => string.Equals(
+            item.Attribute("Include")?.Value,
+            subtree + "\\**\\*.cs",
+            StringComparison.Ordinal));
+        XElement page = project.Descendants("Page").Single(item => string.Equals(
+            item.Attribute("Include")?.Value,
+            subtree + "\\**\\*.xaml",
+            StringComparison.Ordinal));
+        Assert.AreEqual(DebugX64Condition, compile.Parent?.Attribute("Condition")?.Value);
+        Assert.AreEqual(DebugX64Condition, page.Parent?.Attribute("Condition")?.Value);
+        Assert.AreEqual("MSBuild:Compile", page.Element("Generator")?.Value);
+    }
+
+    private static void AssertSentinelEvaluation(string projectPath)
+    {
+        const string csharpSentinel = "OnboardingShellPage.FixtureBoundarySentinel.cs";
+        const string xamlSentinel = "OnboardingShellPage.FixtureBoundarySentinel.xaml";
+        string projectDirectory = Path.GetDirectoryName(projectPath)!;
+        string sentinelDirectory = Path.Combine(
+            projectDirectory,
+            "Features",
+            "Onboarding",
+            "DebugFixtures");
+        string csharpPath = Path.Combine(sentinelDirectory, csharpSentinel);
+        string xamlPath = Path.Combine(sentinelDirectory, xamlSentinel);
+        Assert.IsFalse(File.Exists(csharpPath), $"Unexpected sentinel collision: {csharpPath}");
+        Assert.IsFalse(File.Exists(xamlPath), $"Unexpected sentinel collision: {xamlPath}");
+        try
+        {
+            Directory.CreateDirectory(sentinelDirectory);
+            File.WriteAllText(
+                csharpPath,
+                "internal sealed class OnboardingFixtureSentinel { }");
+            File.WriteAllText(
+                xamlPath,
+                "<Page xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" />");
+
+            foreach (string configuration in new[] { "Debug", "Release" })
+            {
+                foreach (string platform in new[] { "x86", "x64", "ARM64" })
+                {
+                    JsonObject items = EvaluateProjectItems(
+                        projectPath,
+                        configuration,
+                        platform);
+                    bool intended = configuration == "Debug" && platform == "x64";
+                    Assert.AreEqual(
+                        intended ? 1 : 0,
+                        CountItem(items, "Compile", csharpSentinel),
+                        $"Compile ownership for {configuration}|{platform} in {projectPath}");
+                    Assert.AreEqual(
+                        intended ? 1 : 0,
+                        CountItem(items, "Page", xamlSentinel),
+                        $"Page ownership for {configuration}|{platform} in {projectPath}");
+
+                    foreach (string itemType in new[]
+                             {
+                                 "Page", "None", "Content", "EmbeddedResource", "PRIResource"
+                             })
+                    {
+                        Assert.AreEqual(
+                            0,
+                            CountItem(items, itemType, csharpSentinel),
+                            $"C# sentinel leaked to {itemType} for {configuration}|{platform}.");
+                    }
+
+                    foreach (string itemType in new[]
+                             {
+                                 "Compile", "None", "Content", "EmbeddedResource", "PRIResource"
+                             })
+                    {
+                        Assert.AreEqual(
+                            0,
+                            CountItem(items, itemType, xamlSentinel),
+                            $"XAML sentinel leaked to {itemType} for {configuration}|{platform}.");
+                    }
+                }
+            }
+        }
+        finally
+        {
+            File.Delete(csharpPath);
+            File.Delete(xamlPath);
+            if (Directory.Exists(sentinelDirectory) &&
+                !Directory.EnumerateFileSystemEntries(sentinelDirectory).Any())
+            {
+                Directory.Delete(sentinelDirectory);
+            }
+        }
+    }
+
+    private static JsonObject EvaluateProjectItems(
+        string projectPath,
+        string configuration,
+        string platform)
+    {
+        var startInfo = new ProcessStartInfo("dotnet")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = Path.GetDirectoryName(projectPath)!
+        };
+        startInfo.ArgumentList.Add("msbuild");
+        startInfo.ArgumentList.Add(projectPath);
+        startInfo.ArgumentList.Add("-nologo");
+        startInfo.ArgumentList.Add($"-p:Configuration={configuration}");
+        startInfo.ArgumentList.Add($"-p:Platform={platform}");
+        startInfo.ArgumentList.Add(
+            "-getItem:Compile,Page,None,Content,EmbeddedResource,PRIResource");
+
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start dotnet msbuild.");
+        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> errorTask = process.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            process.WaitForExitAsync(timeout.Token).GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            Assert.Fail("MSBuild fixture-boundary evaluation timed out.");
+        }
+
+        Task.WaitAll(outputTask, errorTask);
+        string output = outputTask.Result;
+        string error = errorTask.Result;
+        Assert.AreEqual(
+            0,
+            process.ExitCode,
+            $"MSBuild fixture-boundary evaluation failed.{Environment.NewLine}{output}{error}");
+        int jsonStart = output.IndexOf('{');
+        int jsonEnd = output.LastIndexOf('}');
+        Assert.IsTrue(jsonStart >= 0 && jsonEnd >= jsonStart, output + error);
+        return JsonNode.Parse(output[jsonStart..(jsonEnd + 1)])!["Items"]!.AsObject();
+    }
+
+    private static int CountItem(JsonObject items, string itemType, string fileName) =>
+        items[itemType]!.AsArray().Count(item => string.Equals(
+            Path.GetFileName(item!["Identity"]!.GetValue<string>()),
+            fileName,
+            StringComparison.Ordinal));
+
+    private static string FindRepositoryRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(
+                    directory.FullName,
+                    "IBM Granite with TurboQuant (Intel).slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
     private static void AssertInvalid(Action<JsonObject> mutation) =>
@@ -762,6 +1191,116 @@ public sealed class ModelInspectionFixtureValidationContractTests
         setup.Insert(
             0,
             SetupStep("release-service-checkpoint", 1, "progress-first", null));
+    }
+
+    private static void ConfigureReadyWithWarnings(JsonObject root, int warningOrdinal)
+    {
+        string[] stages =
+        [
+            "checkModelPackage",
+            "readModelConfiguration",
+            "validateTokenizerAndChatSetup",
+            "validateModelStructure",
+            "confirmCoreRuntimeCompatibility"
+        ];
+        JsonArray serviceSteps =
+            root["input"]!["attempts"]![0]!["serviceSteps"]!.AsArray();
+        JsonArray setupSteps = root["input"]!["setupSteps"]!.AsArray();
+        int insertionIndex = 0;
+        for (int ordinal = warningOrdinal; ordinal <= stages.Length; ordinal++)
+        {
+            string checkpoint = $"warning-path-{ordinal}";
+            string status = ordinal == warningOrdinal ? "warning" : "completed";
+            serviceSteps.Insert(
+                insertionIndex,
+                ServiceStep(
+                    checkpoint,
+                    "progress",
+                    Progress(stages[ordinal - 1], status, ordinal, null)));
+            setupSteps.Insert(
+                insertionIndex,
+                SetupStep("release-service-checkpoint", 1, checkpoint, null));
+            insertionIndex++;
+        }
+
+        root["input"]!["request"]!["evidenceProfile"] = "missingChatTemplate";
+        MutateTerminal(root, "readyWithWarnings", "missingChatTemplate", null);
+        root["coverage"]!["figmaStates"]![0] = "readyWithWarningsCollapsed";
+        root["coverage"]!["outcomes"]![0] = "readyWithWarnings";
+        root["expected"]!["figma"]!["state"] = "readyWithWarningsCollapsed";
+        root["expected"]!["outcome"]!["kind"] = "readyWithWarnings";
+        root["expected"]!["outcome"]!["tone"] = "warning";
+        root["expected"]!["content"]!["mode"] = "warnings";
+        AddApprovedWarningFinding(root);
+    }
+
+    private static void ConfigureWarningPolicy(JsonObject root)
+    {
+        root["fixtures"]![0]!["canonicalFigmaState"] = "readyWithWarningsCollapsed";
+        JsonObject registry = root["copyRegistry"]!.AsObject();
+        registry[MissingChatTemplateTitleKey] = MissingChatTemplateTitle;
+        registry[MissingChatTemplateDetailKey] = MissingChatTemplateDetail;
+    }
+
+    private static void AddApprovedWarningFinding(JsonObject root)
+    {
+        root["expected"]!["content"]!["rows"] = new JsonArray(new JsonObject
+        {
+            ["id"] = MissingChatTemplateFindingId,
+            ["primaryText"] = new JsonObject
+            {
+                ["copyKey"] = MissingChatTemplateTitleKey,
+                ["defaultText"] = MissingChatTemplateTitle
+            },
+            ["secondaryText"] = new JsonObject
+            {
+                ["copyKey"] = MissingChatTemplateDetailKey,
+                ["defaultText"] = MissingChatTemplateDetail
+            },
+            ["status"] = "warning"
+        });
+        root["expected"]!["rowsAndScroll"]!["orderedRowIds"] =
+            new JsonArray(MissingChatTemplateFindingId);
+    }
+
+    private static void RemoveWarningProgress(JsonObject root)
+    {
+        JsonArray serviceSteps =
+            root["input"]!["attempts"]![0]!["serviceSteps"]!.AsArray();
+        for (int index = serviceSteps.Count - 1; index >= 0; index--)
+        {
+            if (string.Equals(
+                    serviceSteps[index]!["effect"]!["kind"]!.GetValue<string>(),
+                    "progress",
+                    StringComparison.Ordinal))
+            {
+                serviceSteps.RemoveAt(index);
+            }
+        }
+
+        JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
+        for (int index = setup.Count - 1; index >= 0; index--)
+        {
+            string? checkpoint = setup[index]!["checkpoint"]?.GetValue<string>();
+            if (checkpoint?.StartsWith("warning-path-", StringComparison.Ordinal) == true)
+            {
+                setup.RemoveAt(index);
+            }
+        }
+    }
+
+    private static void AssertReadyWithWarningsInvalid(
+        Action<JsonObject> mutation,
+        int warningOrdinal = 3)
+    {
+        string descriptor = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureReadyWithWarnings(root, warningOrdinal);
+            mutation(root);
+        });
+        string policy = FixtureContractDocuments.MutatePolicy(ConfigureWarningPolicy);
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany([FixtureContractDocuments.DescriptorSource(descriptor)], policy));
     }
 
     private static void AddDeferredStep(

@@ -31,11 +31,21 @@
     <Content Remove="Features\ModelInspection\DebugFixtures\**" />
     <EmbeddedResource Remove="Features\ModelInspection\DebugFixtures\**" />
     <PRIResource Remove="Features\ModelInspection\DebugFixtures\**" />
+    <Compile Remove="Features\Onboarding\DebugFixtures\**" />
+    <Page Remove="Features\Onboarding\DebugFixtures\**" />
+    <None Remove="Features\Onboarding\DebugFixtures\**" />
+    <Content Remove="Features\Onboarding\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\Onboarding\DebugFixtures\**" />
+    <PRIResource Remove="Features\Onboarding\DebugFixtures\**" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <Compile Include="Features\ModelInspection\DebugFixtures\**\*.cs" />
     <Page Include="Features\ModelInspection\DebugFixtures\**\*.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Features\Onboarding\DebugFixtures\**\*.cs" />
+    <Page Include="Features\Onboarding\DebugFixtures\**\*.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\**\*.json">
