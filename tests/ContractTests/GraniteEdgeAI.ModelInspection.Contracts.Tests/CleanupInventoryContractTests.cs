@@ -51,7 +51,34 @@ public sealed class CleanupInventoryContractTests
     [TestMethod]
     public void CleanupInventoryContainsEverySourceFileExactlyOnce()
     {
-        CollectionAssert.AreEqual(ReadSourceFiles(), ReadInventoryFiles());
+        string[] sourceFiles = ReadSourceFiles();
+        string[] inventoryFiles = ReadInventoryFiles();
+        CollectionAssert.AreEqual(sourceFiles, inventoryFiles);
+
+        string inventoryPath = Path.Combine(
+            Root,
+            "docs",
+            "reviews",
+            "model-inspection-cleanup-inventory.md");
+        string[] inventoryRows = File.ReadAllLines(inventoryPath);
+        foreach (string selfLedgerPath in new[]
+                 {
+                     "docs/reviews/model-inspection-cleanup-inventory.md",
+                     "docs/reviews/model-inspection-cleanup-source-files.txt"
+                 })
+        {
+            string rowPrefix = $"| `{selfLedgerPath}` |";
+            string row = inventoryRows.Single(line =>
+                line.StartsWith(rowPrefix, StringComparison.Ordinal));
+            StringAssert.Contains(
+                row,
+                $"current cleanup scope contains {sourceFiles.Length} " +
+                "exact, sorted, unique paths");
+            StringAssert.Contains(
+                row,
+                $"source/inventory reconcile at " +
+                $"{sourceFiles.Length}/{inventoryFiles.Length}");
+        }
     }
 
     [TestMethod]

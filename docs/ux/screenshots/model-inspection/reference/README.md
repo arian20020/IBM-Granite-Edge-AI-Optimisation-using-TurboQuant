@@ -36,3 +36,57 @@ frame coordinates:
 
 These are 13 state nodes. Production must render validated evidence and fixed
 fallbacks; sample strings in the flattened reference are not application data.
+
+## Strict-reference status
+
+**STRICT PIXEL DOD: BLOCKED.** Exact 1440 x 1024 PNG goldens require exact
+Figma node exports for every node listed above. That export path is unavailable
+in the current session. The flattened SVG is a board/geometry reference only;
+it and its individual frames must not be cropped or rerasterized into strict
+goldens. AI-generated, reconstructed, placeholder, blank, or otherwise derived
+images are also forbidden as reference evidence.
+
+The following reference-bundle files are therefore deliberately absent and
+deferred, not skipped or passed:
+
+- `tests/TestFixtures/ModelInspectionVisual/References/visual-reference-manifest.json`
+- `tests/TestFixtures/ModelInspectionVisual/References/01-inspection-progress.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/02-ready.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/03-ready-expanded.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/04-ready-with-warnings.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/05-ready-with-warnings-expanded.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/06-conversion-required.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/07-conversion-required-expanded.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/08-incomplete-package.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/09-unsupported.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/10-invalid.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/11-invalid-expanded.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/12-cancelled.png`
+- `tests/TestFixtures/ModelInspectionVisual/References/13-operational-failure.png`
+
+The corresponding fail-closed executable evidence is also deferred:
+
+- `ModelInspectionVisualReferenceIntegrityTests.cs`
+- `ModelInspectionVisualRegressionTests.cs`
+- `ModelInspectionControlledAccessibilityTests.cs`
+- reference `Content` items in the packaged test project
+- Task 12 workflow category exclusions and controlled preflight wiring
+
+The ordinary packaged suite may prove deterministic capture, effective-pixel
+geometry, palette, typography, responsive hierarchy, accessibility structure,
+and reduced-motion policy. Those results do not prove exact Figma pixels,
+external UI Automation or Narrator output, real Windows High Contrast, or real
+Windows 200% text scale. The raw TRX also contains machine/path data and is not
+privacy-approved by the visual artifact scanner; sanitized retention remains a
+Task 12 blocker.
+
+The Task 11 privacy scanner approves only the current fixed nine-property
+preflight manifest shape with ordered states `01` through `13`, plus PNGs whose
+optional encoder metadata exactly matches the pinned WinUI
+`sRGB`/`gAMA`/`pHYs` sequence. It checks neither rendered pixel text nor IDAT
+content. Task 12 must extend the schema atomically when hashed per-state result
+entries and a sanitized upload layout are implemented.
+
+Consequently DoD 2, 8, 11, 12, and 13 remain open. They can close only after
+the exact node exports, controlled OS runs, sanitized artifact pipeline,
+reconciled workflow gates, and reproducible manual instructions exist.

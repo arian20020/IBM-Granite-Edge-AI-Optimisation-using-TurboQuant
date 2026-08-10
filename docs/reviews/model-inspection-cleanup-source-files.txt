@@ -240,6 +240,7 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/README.md
 runtime/README.md
 scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
+scripts/model-inspection/Test-ModelInspectionVisualArtifactPrivacy.ps1
 scripts/model-inspection/Test-ModelInspectionWorkerManifest.ps1
 scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerChatTemplateEvidence.cs
@@ -389,6 +390,12 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Services/ModelI
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/DelegateCommandTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/ModelInspectionViewModelTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/ModelInspectionViewSnapshotTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/ModelInspectionAccessibilityTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/ModelInspectionRenderHarnessTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/ModelInspectionRenderedStateTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/PixelDiff.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/RenderedFrame.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/WinUiRenderHost.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/OnboardingStageIndicatorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingEntryPointTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs

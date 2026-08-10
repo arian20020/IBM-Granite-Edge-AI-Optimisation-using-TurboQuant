@@ -779,19 +779,41 @@ public sealed partial class ModelInspectionPage : Page
     private void ApplyPageReflow(ModelInspectionPagePresentation presentation)
     {
         bool expanded = IsExpandedState(presentation.State);
-        Thickness hostMargin = InspectionContentHost.Margin;
-        InspectionContentHost.Margin = new Thickness(
+        Thickness hostMargin = InspectionReflowHost.Margin;
+        double hostTop = presentation.State switch
+        {
+            ModelInspectionFigmaState.InspectionProgress => 21d,
+            _ when expanded => 11d,
+            _ => 27d
+        };
+        InspectionReflowHost.Margin = new Thickness(
             hostMargin.Left,
-            expanded ? 12d : 28d,
+            hostTop,
             hostMargin.Right,
             hostMargin.Bottom);
 
+        Thickness contentMargin = InspectionContentCardControl.Margin;
+        InspectionContentCardControl.Margin = new Thickness(
+            contentMargin.Left,
+            presentation.State == ModelInspectionFigmaState.InspectionProgress
+                ? 20d
+                : 16d,
+            contentMargin.Right,
+            contentMargin.Bottom);
+
         Thickness actionMargin = InspectionActionCardControl.Margin;
+        double actionTop = presentation.State switch
+        {
+            ModelInspectionFigmaState.InspectionProgress or
+            ModelInspectionFigmaState.Cancelled => 30d,
+            ModelInspectionFigmaState.ReadyCollapsed => 14d,
+            ModelInspectionFigmaState.ReadyExpanded => 6d,
+            _ when expanded => 22d,
+            _ => 24d
+        };
         InspectionActionCardControl.Margin = new Thickness(
             actionMargin.Left,
-            presentation.State == ModelInspectionFigmaState.InspectionProgress
-                ? 16d
-                : 24d,
+            actionTop,
             actionMargin.Right,
             actionMargin.Bottom);
     }

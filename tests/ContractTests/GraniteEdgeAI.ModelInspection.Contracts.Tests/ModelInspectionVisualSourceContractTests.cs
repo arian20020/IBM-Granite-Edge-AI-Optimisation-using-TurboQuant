@@ -1,4 +1,8 @@
+using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -10,6 +14,43 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 public sealed class ModelInspectionVisualSourceContractTests
 {
     private static readonly string Root = FindRepositoryRoot();
+
+    private const string WorkerPublishedFilesItemName =
+        "_ModelInspectionWorkerPublishedFiles";
+
+    private const string WorkerPublishedFilesRootExpression =
+        "$(_ModelInspectionWorkerPublishRoot)\\**\\*";
+
+    private const string WorkerPublishRootPropertyName =
+        "_ModelInspectionWorkerPublishRoot";
+
+    private const string WorkerPublishRootPropertyValue =
+        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\win-x64'))";
+
+    private const string WorkerManifestPathPropertyName =
+        "_ModelInspectionWorkerManifestPath";
+
+    private const string WorkerManifestPathPropertyValue =
+        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\worker-manifest.json'))";
+
+    private static readonly HashSet<string> WorkerPackagePathPropertyNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            WorkerPublishRootPropertyName,
+            WorkerManifestPathPropertyName
+        };
+
+    private static readonly HashSet<string> PackageRelevantItemNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "ApplicationDefinition",
+            "Content",
+            "EmbeddedResource",
+            "None",
+            "Page",
+            "PRIResource",
+            "Resource"
+        };
 
     private static readonly IReadOnlyDictionary<string, string> LightPalette =
         new Dictionary<string, string>(StringComparer.Ordinal)
@@ -131,6 +172,7 @@ public sealed class ModelInspectionVisualSourceContractTests
             "model-inspection-complete-ordered-board-v2.svg");
         string hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(boardPath)));
 
+        Assert.AreEqual(8_190_259L, new FileInfo(boardPath).Length);
         Assert.AreEqual(
             "8A171A3A1DF66D158990789A368C439752EBE5309B364A870E0C0107B519B7EB",
             hash);
@@ -182,6 +224,378 @@ public sealed class ModelInspectionVisualSourceContractTests
         StringAssert.Contains(readme, "1440 x 1024");
         StringAssert.Contains(readme, "x = 300");
         StringAssert.Contains(readme, "840 px");
+    }
+
+    [TestMethod]
+    public void StrictNodeExports_AreExplicitlyBlockedAndNotFabricated()
+    {
+        string readme = Read(
+            "docs/ux/screenshots/model-inspection/reference/README.md");
+        string prose = Regex.Replace(readme, "\\s+", " ");
+        StringAssert.Contains(prose, "STRICT PIXEL DOD: BLOCKED");
+        StringAssert.Contains(prose, "exact Figma node exports");
+        StringAssert.Contains(prose, "must not be cropped or rerasterized");
+        StringAssert.Contains(prose, "DoD 2, 8, 11, 12, and 13 remain open");
+
+        string[] deferredBundleFiles =
+        [
+            "visual-reference-manifest.json",
+            "01-inspection-progress.png",
+            "02-ready.png",
+            "03-ready-expanded.png",
+            "04-ready-with-warnings.png",
+            "05-ready-with-warnings-expanded.png",
+            "06-conversion-required.png",
+            "07-conversion-required-expanded.png",
+            "08-incomplete-package.png",
+            "09-unsupported.png",
+            "10-invalid.png",
+            "11-invalid-expanded.png",
+            "12-cancelled.png",
+            "13-operational-failure.png"
+        ];
+        foreach (string deferred in deferredBundleFiles)
+        {
+            StringAssert.Contains(readme, deferred);
+        }
+
+        string fixtureRoot = Path.Combine(
+            Root,
+            "tests",
+            "TestFixtures",
+            "ModelInspectionVisual");
+        Assert.IsFalse(
+            Directory.Exists(fixtureRoot),
+            "No visual fixture directory may exist before exact node exports are available.");
+
+        foreach (string deferredTest in new[]
+                 {
+                     "ModelInspectionVisualReferenceIntegrityTests.cs",
+                     "ModelInspectionVisualRegressionTests.cs",
+                     "ModelInspectionControlledAccessibilityTests.cs"
+                 })
+        {
+            string path = Path.Combine(
+                Root,
+                "tests",
+                "UnitTests",
+                "GraniteEdgeAI.UnitTests",
+                "Features",
+                "ModelInspection",
+                "Visual",
+                deferredTest);
+            Assert.IsFalse(
+                File.Exists(path),
+                $"{deferredTest} must remain absent instead of reporting a false GREEN.");
+            StringAssert.Contains(readme, deferredTest);
+        }
+    }
+
+    [TestMethod]
+    public void DurableBoardAndBlockedReferences_AreExcludedFromAppAndTestPackages()
+    {
+        string appProjectPath = Path.Combine(
+            Root,
+            "IBM Granite with TurboQuant (Intel)/" +
+            "IBM Granite with TurboQuant (Intel).csproj");
+        string testProjectPath = Path.Combine(
+            Root,
+            "tests/UnitTests/GraniteEdgeAI.UnitTests/" +
+            "GraniteEdgeAI.UnitTests.csproj");
+        string referenceRoot = Path.Combine(
+            Root,
+            "docs",
+            "ux",
+            "screenshots",
+            "model-inspection",
+            "reference");
+        string[] prohibitedSources =
+        [
+            Path.Combine(
+                referenceRoot,
+                "model-inspection-complete-ordered-board-v2.svg"),
+            Path.Combine(referenceRoot, "README.md")
+        ];
+
+        foreach (string projectPath in new[] { appProjectPath, testProjectPath })
+        {
+            ProjectPackageItemSpec[] itemSpecs =
+                ProjectItemSpecs(projectPath).ToArray();
+            int expectedControlledImportItems = string.Equals(
+                projectPath,
+                appProjectPath,
+                StringComparison.OrdinalIgnoreCase)
+                    ? 3
+                    : 0;
+            Assert.AreEqual(
+                expectedControlledImportItems,
+                itemSpecs.Count(itemSpec =>
+                    itemSpec.IsControlledWorkerPackageExpression),
+                $"{projectPath} must account for its exact controlled imported package items.");
+            int expectedControlledBackingItems = string.Equals(
+                projectPath,
+                appProjectPath,
+                StringComparison.OrdinalIgnoreCase)
+                    ? 1
+                    : 0;
+            Assert.AreEqual(
+                expectedControlledBackingItems,
+                itemSpecs.Count(itemSpec =>
+                    itemSpec.IsControlledWorkerPublishedFilesExpression),
+                $"{projectPath} must account for the exact worker-package backing item.");
+            int expectedControlledPathProperties = string.Equals(
+                projectPath,
+                appProjectPath,
+                StringComparison.OrdinalIgnoreCase)
+                    ? 2
+                    : 0;
+            Assert.AreEqual(
+                expectedControlledPathProperties,
+                itemSpecs.Count(itemSpec =>
+                    itemSpec.IsWorkerPackagePathPropertyDefinition),
+                $"{projectPath} must not define or override worker-package path properties outside their exact trusted definitions.");
+            Assert.AreEqual(
+                expectedControlledPathProperties,
+                itemSpecs.Count(itemSpec =>
+                    itemSpec.IsControlledWorkerPackagePathPropertyDefinition),
+                $"{projectPath} must retain the exact trusted worker-package path property definitions.");
+            foreach (string prohibitedSource in prohibitedSources)
+            {
+                Assert.IsFalse(
+                    itemSpecs.Any(itemSpec => ProjectItemSpecMatchesPath(
+                        itemSpec,
+                        prohibitedSource)),
+                    $"{projectPath} must not package {prohibitedSource}.");
+            }
+
+            Assert.IsFalse(
+                itemSpecs
+                    .Select(itemSpec => NormalizeProjectPath(itemSpec.Value))
+                    .Any(itemSpec => itemSpec?.Contains(
+                        "TestFixtures/ModelInspectionVisual",
+                        StringComparison.OrdinalIgnoreCase) is true),
+                $"{projectPath} must not package blocked visual fixtures.");
+        }
+    }
+
+    [TestMethod]
+    public void VisualArtifactPrivacyScanner_AcceptsOnlySafeManifestAndApprovedPngMetadata()
+    {
+        string temporaryRoot = Directory.CreateTempSubdirectory(
+            "model-inspection-visual-privacy-safe-").FullName;
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(temporaryRoot, "run-manifest.json"),
+                """
+                {
+                  "candidateCommit": "0123456789abcdef0123456789abcdef01234567",
+                  "osBuild": "10.0.26100",
+                  "rasterizer": "WinUI RenderTargetBitmap",
+                  "resolution": "1440x1024",
+                  "dpi": 96,
+                  "textScale": 100,
+                  "theme": "Light",
+                  "animationsEnabled": false,
+                  "states": [
+                    "01", "02", "03", "04", "05", "06", "07",
+                    "08", "09", "10", "11", "12", "13"
+                  ]
+                }
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllBytes(
+                Path.Combine(temporaryRoot, "01-actual.png"),
+                MinimalPng());
+            File.WriteAllBytes(
+                Path.Combine(temporaryRoot, "02-actual.png"),
+                PngWithEncoderMetadata(
+                    gammaPayload: [0, 0, 177, 143],
+                    repeatPhysicalDimensions: false));
+
+            PrivacyScanResult result = RunPrivacyScanner(temporaryRoot);
+
+            Assert.AreEqual(0, result.ExitCode, result.CombinedOutput);
+            StringAssert.Contains(
+                result.CombinedOutput,
+                "Privacy scan passed for 1 JSON and 2 PNG artifact(s).");
+            StringAssert.Contains(
+                result.CombinedOutput,
+                "Raw TRX is not approved by this scanner");
+        }
+        finally
+        {
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void VisualArtifactPrivacyScanner_RejectsPathsIdentityModelMetadataPngTextAndTrx()
+    {
+        string temporaryRoot = Directory.CreateTempSubdirectory(
+            "model-inspection-visual-privacy-reject-").FullName;
+        try
+        {
+            string currentIdentity = Environment.UserName.Length >= 3
+                ? Environment.UserName
+                : Environment.MachineName;
+            var cases = new Dictionary<string, (string FileName, byte[] Bytes, string Error)>
+            {
+                ["absolute-path"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"output\":\"C:\\\\Private\\\\actual.png\"}"),
+                    "absolute path"),
+                ["posix-absolute-path"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"output\":\"/opt/private/actual.png\"}"),
+                    "absolute path"),
+                ["escaped-posix-absolute-path"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"output\":\"\\/opt\\/private\\/actual.png\"}"),
+                    "absolute path"),
+                ["escaped-current-drive-rooted-path"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"output\":\"\\u005cPrivate\\u005cactual.png\"}"),
+                    "absolute path"),
+                ["forward-slash-unc-path"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"output\":\"//private-server/share/actual.png\"}"),
+                    "absolute path"),
+                ["identity"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"userName\":\"private-user\",\"computerName\":\"private-host\"}"),
+                    "identity metadata"),
+                ["escaped-identity-key"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"user\\u004eame\":\"private-user\"}"),
+                    "identity metadata"),
+                ["identity-value-under-approved-key"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes(
+                        $"{{\"rasterizer\":{JsonSerializer.Serialize(currentIdentity)}}}"),
+                    "identity metadata"),
+                ["model-metadata"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"modelName\":\"Private model\",\"file\":\"private.gguf\"}"),
+                    "real-model metadata"),
+                ["escaped-model-key"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"model\\u004eame\":\"Private model\"}"),
+                    "real-model metadata"),
+                ["gguf-value-under-approved-key"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"rasterizer\":\"private.gguf\"}"),
+                    "real-model metadata"),
+                ["duplicate-approved-property"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes(
+                        """
+                        {
+                          "candidateCommit": "0123456789abcdef0123456789abcdef01234567",
+                          "osBuild": "10.0.26100",
+                          "ras\u0074erizer": "\u0043\u003a\u005cPrivate\u005cactual.png",
+                          "rasterizer": "WinUI RenderTargetBitmap",
+                          "resolution": "1440x1024",
+                          "dpi": 96,
+                          "textScale": 100,
+                          "theme": "Light",
+                          "animationsEnabled": false,
+                          "states": [
+                            "01", "02", "03", "04", "05", "06", "07",
+                            "08", "09", "10", "11", "12", "13"
+                          ]
+                        }
+                        """),
+                    "duplicate JSON property"),
+                ["unknown-owner-key"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"owner\":\"external-operator\"}"),
+                    "unapproved JSON property"),
+                ["unknown-model-key"] = (
+                    "manifest.json",
+                    Encoding.UTF8.GetBytes("{\"model\":\"Granite 4.1 3B\"}"),
+                    "unapproved JSON property"),
+                ["png-text"] = (
+                    "actual.png",
+                    PngWithTextChunk("Comment", "private metadata"),
+                    "textual metadata"),
+                ["png-profile"] = (
+                    "actual.png",
+                    PngWithChunk("iCCP", Encoding.Latin1.GetBytes("private-profile")),
+                    "unapproved PNG chunk"),
+                ["png-corrupt-crc"] = (
+                    "actual.png",
+                    PngWithCorruptCrc(),
+                    "invalid PNG chunk CRC"),
+                ["png-approved-type-bad-payload"] = (
+                    "actual.png",
+                    PngWithEncoderMetadata(
+                        gammaPayload: [0, 0, 0, 1],
+                        repeatPhysicalDimensions: false),
+                    "unapproved PNG metadata payload"),
+                ["png-repeated-approved-metadata"] = (
+                    "actual.png",
+                    PngWithEncoderMetadata(
+                        gammaPayload: [0, 0, 177, 143],
+                        repeatPhysicalDimensions: true),
+                    "approved PNG metadata sequence"),
+                ["png-approved-metadata-after-image-data"] = (
+                    "actual.png",
+                    PngWithChunk(
+                        "pHYs",
+                        [0, 0, 14, 195, 0, 0, 14, 195, 1]),
+                    "invalid PNG chunk order"),
+                ["raw-trx"] = (
+                    "raw-results.trx",
+                    Encoding.UTF8.GetBytes("<TestRun computerName=\"private-host\" />"),
+                    "Raw TRX"),
+                ["nested-raw-trx"] = (
+                    Path.Combine("nested", "raw-results.trx"),
+                    Encoding.UTF8.GetBytes("<TestRun computerName=\"private-host\" />"),
+                    "Raw TRX"),
+                ["unsupported-extension"] = (
+                    "notes.txt",
+                    Encoding.UTF8.GetBytes("otherwise harmless"),
+                    "unsupported artifact extension")
+            };
+
+            foreach ((string caseName, var input) in cases)
+            {
+                string caseRoot = Path.Combine(temporaryRoot, caseName);
+                Directory.CreateDirectory(caseRoot);
+                string caseFile = Path.Combine(caseRoot, input.FileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(caseFile)!);
+                File.WriteAllBytes(caseFile, input.Bytes);
+
+                PrivacyScanResult result = RunPrivacyScanner(caseRoot);
+
+                Assert.AreNotEqual(0, result.ExitCode, caseName);
+                StringAssert.Contains(result.CombinedOutput, input.Error);
+            }
+
+            string hiddenRoot = Path.Combine(temporaryRoot, "hidden-raw-trx");
+            Directory.CreateDirectory(hiddenRoot);
+            string hiddenTrx = Path.Combine(hiddenRoot, "raw-results.trx");
+            File.WriteAllText(
+                hiddenTrx,
+                "<TestRun computerName=\"private-host\" />",
+                Encoding.UTF8);
+            File.SetAttributes(hiddenTrx, FileAttributes.Hidden);
+            try
+            {
+                PrivacyScanResult hiddenResult = RunPrivacyScanner(hiddenRoot);
+                Assert.AreNotEqual(0, hiddenResult.ExitCode, "hidden-raw-trx");
+                StringAssert.Contains(hiddenResult.CombinedOutput, "Raw TRX");
+            }
+            finally
+            {
+                File.SetAttributes(hiddenTrx, FileAttributes.Normal);
+            }
+        }
+        finally
+        {
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
     }
 
     [TestMethod]
@@ -336,6 +750,276 @@ public sealed class ModelInspectionVisualSourceContractTests
                 expectedPath,
                 StringComparison.Ordinal));
 
+    private static IReadOnlyList<ProjectPackageItemSpec> ProjectItemSpecs(
+        string projectPath)
+    {
+        string absoluteProjectPath = Path.GetFullPath(projectPath);
+        string evaluationProjectDirectory = Path.GetDirectoryName(
+            absoluteProjectPath)
+            ?? throw new InvalidDataException(
+                $"{absoluteProjectPath} has no directory.");
+        var itemSpecs = new List<ProjectPackageItemSpec>();
+        var visitedProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        AddProjectItemSpecs(
+            absoluteProjectPath,
+            evaluationProjectDirectory,
+            visitedProjects,
+            itemSpecs);
+        return itemSpecs;
+    }
+
+    private static void AddProjectItemSpecs(
+        string projectPath,
+        string evaluationProjectDirectory,
+        ISet<string> visitedProjects,
+        ICollection<ProjectPackageItemSpec> itemSpecs)
+    {
+        string absoluteProjectPath = Path.GetFullPath(projectPath);
+        if (!visitedProjects.Add(absoluteProjectPath))
+        {
+            return;
+        }
+
+        XDocument project = XDocument.Load(absoluteProjectPath);
+        foreach (XElement item in project
+                     .Descendants()
+                     .Where(item =>
+                         PackageRelevantItemNames.Contains(item.Name.LocalName) ||
+                         string.Equals(
+                             item.Name.LocalName,
+                             WorkerPublishedFilesItemName,
+                             StringComparison.OrdinalIgnoreCase) ||
+                         WorkerPackagePathPropertyNames.Contains(
+                             item.Name.LocalName)))
+        {
+            if (WorkerPackagePathPropertyNames.Contains(item.Name.LocalName))
+            {
+                itemSpecs.Add(new ProjectPackageItemSpec(
+                    item.Value,
+                    absoluteProjectPath,
+                    evaluationProjectDirectory,
+                    IsControlledWorkerPackageExpression: false,
+                    IsControlledWorkerPublishedFilesExpression: false,
+                    IsWorkerPackagePathPropertyDefinition: true,
+                    IsControlledWorkerPackagePathPropertyDefinition:
+                        IsControlledWorkerPackagePathPropertyDefinition(
+                            absoluteProjectPath,
+                            item.Name.LocalName,
+                            item.Value)));
+                continue;
+            }
+
+            foreach (string attributeName in new[] { "Include", "Update" })
+            {
+                string? value = item.Attribute(attributeName)?.Value;
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    itemSpecs.Add(new ProjectPackageItemSpec(
+                        value,
+                        absoluteProjectPath,
+                        evaluationProjectDirectory,
+                        IsControlledWorkerPackageExpression(
+                            absoluteProjectPath,
+                            item.Name.LocalName,
+                            value),
+                        IsControlledWorkerPublishedFilesExpression(
+                            absoluteProjectPath,
+                            item.Name.LocalName,
+                            value),
+                        IsWorkerPackagePathPropertyDefinition: false,
+                        IsControlledWorkerPackagePathPropertyDefinition: false));
+                }
+            }
+        }
+
+        string projectDirectory = Path.GetDirectoryName(absoluteProjectPath)
+            ?? throw new InvalidDataException(
+                $"{absoluteProjectPath} has no directory.");
+        foreach (XElement import in project
+                     .Descendants()
+                     .Where(element => string.Equals(
+                         element.Name.LocalName,
+                         "Import",
+                         StringComparison.Ordinal)))
+        {
+            string importSpec = import.Attribute("Project")?.Value
+                ?? throw new InvalidDataException(
+                    $"{absoluteProjectPath} has an Import without Project.");
+            if (ContainsMsBuildExpression(importSpec) ||
+                importSpec.IndexOfAny(['*', '?']) >= 0)
+            {
+                Assert.Fail(
+                    $"{absoluteProjectPath} has an unresolved explicit Import " +
+                    $"'{importSpec}'.");
+            }
+
+            foreach (string importCandidate in importSpec.Split(
+                         ';',
+                         StringSplitOptions.RemoveEmptyEntries |
+                         StringSplitOptions.TrimEntries))
+            {
+                string importedProject = Path.GetFullPath(Path.Combine(
+                    projectDirectory,
+                    NormalizeProjectPath(importCandidate)!));
+                Assert.IsTrue(
+                    File.Exists(importedProject),
+                    $"Explicit import does not exist: {importedProject}");
+                AddProjectItemSpecs(
+                    importedProject,
+                    evaluationProjectDirectory,
+                    visitedProjects,
+                    itemSpecs);
+            }
+        }
+    }
+
+    private static bool IsControlledWorkerPackageExpression(
+        string sourcePath,
+        string itemName,
+        string itemSpec)
+    {
+        if (!IsWorkerPackagingTarget(sourcePath))
+        {
+            return false;
+        }
+
+        return (itemName, itemSpec) switch
+        {
+            ("Content", "@(_ModelInspectionWorkerPublishedFiles)") => true,
+            ("Content", "$(_ModelInspectionWorkerManifestPath)") => true,
+            ("EmbeddedResource", "$(_ModelInspectionWorkerManifestPath)") => true,
+            _ => false
+        };
+    }
+
+    private static bool IsControlledWorkerPublishedFilesExpression(
+        string sourcePath,
+        string itemName,
+        string itemSpec) =>
+        IsWorkerPackagingTarget(sourcePath) &&
+        string.Equals(
+            itemName,
+            WorkerPublishedFilesItemName,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            itemSpec,
+            WorkerPublishedFilesRootExpression,
+            StringComparison.Ordinal);
+
+    private static bool IsControlledWorkerPackagePathPropertyDefinition(
+        string sourcePath,
+        string propertyName,
+        string propertyValue)
+    {
+        if (!IsWorkerPackagingTarget(sourcePath))
+        {
+            return false;
+        }
+
+        return (propertyName, propertyValue) switch
+        {
+            (WorkerPublishRootPropertyName, WorkerPublishRootPropertyValue) => true,
+            (WorkerManifestPathPropertyName, WorkerManifestPathPropertyValue) => true,
+            _ => false
+        };
+    }
+
+    private static bool IsWorkerPackagingTarget(string sourcePath)
+    {
+        string relativeSource = NormalizeProjectPath(
+            Path.GetRelativePath(Root, sourcePath))!;
+        return string.Equals(
+            relativeSource,
+            "IBM Granite with TurboQuant (Intel)/" +
+            "ModelInspection.WorkerPackaging.targets",
+            StringComparison.Ordinal);
+    }
+
+    private static bool ContainsMsBuildExpression(string value) =>
+        value.Contains("$(", StringComparison.Ordinal) ||
+        value.Contains("@(", StringComparison.Ordinal) ||
+        value.Contains("%(", StringComparison.Ordinal);
+
+    private static bool ProjectItemSpecMatchesPath(
+        ProjectPackageItemSpec itemSpec,
+        string targetPath)
+    {
+        string normalizedTarget = NormalizeProjectPath(Path.GetFullPath(targetPath))!;
+        foreach (string candidate in itemSpec.Value.Split(
+                     ';',
+                     StringSplitOptions.RemoveEmptyEntries |
+                     StringSplitOptions.TrimEntries))
+        {
+            if (ContainsMsBuildExpression(candidate))
+            {
+                if (!itemSpec.IsControlledWorkerPackageExpression &&
+                    !itemSpec.IsControlledWorkerPublishedFilesExpression &&
+                    !itemSpec.IsControlledWorkerPackagePathPropertyDefinition)
+                {
+                    Assert.Fail(
+                        $"{itemSpec.SourcePath} contains unresolved " +
+                        $"package-relevant item expression '{candidate}'.");
+                }
+
+                continue;
+            }
+
+            string normalizedCandidate = NormalizeProjectPath(candidate)!;
+            int wildcardIndex = normalizedCandidate.IndexOfAny(['*', '?']);
+            string absolutePattern;
+            if (wildcardIndex < 0)
+            {
+                absolutePattern = NormalizeProjectPath(Path.GetFullPath(
+                    Path.Combine(
+                        itemSpec.EvaluationProjectDirectory,
+                        normalizedCandidate)))!;
+            }
+            else
+            {
+                int directoryEnd = normalizedCandidate.LastIndexOf(
+                    '/',
+                    wildcardIndex);
+                string staticDirectory = directoryEnd < 0
+                    ? string.Empty
+                    : normalizedCandidate[..(directoryEnd + 1)];
+                string wildcardPattern = directoryEnd < 0
+                    ? normalizedCandidate
+                    : normalizedCandidate[(directoryEnd + 1)..];
+                string absoluteDirectory = NormalizeProjectPath(Path.GetFullPath(
+                    Path.Combine(
+                        itemSpec.EvaluationProjectDirectory,
+                        staticDirectory)))!;
+                absolutePattern =
+                    $"{absoluteDirectory.TrimEnd('/')}/{wildcardPattern}";
+            }
+
+            string regexPattern = Regex.Escape(absolutePattern)
+                .Replace(@"\*\*/", "(?:.*/)?", StringComparison.Ordinal)
+                .Replace(@"\*\*", ".*", StringComparison.Ordinal)
+                .Replace(@"\*", "[^/]*", StringComparison.Ordinal)
+                .Replace(@"\?", "[^/]", StringComparison.Ordinal);
+            if (Regex.IsMatch(
+                    normalizedTarget,
+                    $"^{regexPattern}$",
+                    RegexOptions.CultureInvariant |
+                    RegexOptions.IgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private sealed record ProjectPackageItemSpec(
+        string Value,
+        string SourcePath,
+        string EvaluationProjectDirectory,
+        bool IsControlledWorkerPackageExpression,
+        bool IsControlledWorkerPublishedFilesExpression,
+        bool IsWorkerPackagePathPropertyDefinition,
+        bool IsControlledWorkerPackagePathPropertyDefinition);
+
     private static string? NormalizeProjectPath(string? path) => path?.Replace('\\', '/');
 
     private static int Count(string source, string value) =>
@@ -346,6 +1030,139 @@ public sealed class ModelInspectionVisualSourceContractTests
 
     private static XDocument ReadXml(string relativePath) =>
         XDocument.Load(Path.Combine(Root, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+    private static PrivacyScanResult RunPrivacyScanner(string artifactRoot)
+    {
+        string script = Path.Combine(
+            Root,
+            "scripts",
+            "model-inspection",
+            "Test-ModelInspectionVisualArtifactPrivacy.ps1");
+        var startInfo = new ProcessStartInfo("powershell.exe")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("-NoLogo");
+        startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-File");
+        startInfo.ArgumentList.Add(script);
+        startInfo.ArgumentList.Add("-ArtifactRoot");
+        startInfo.ArgumentList.Add(artifactRoot);
+
+        using Process process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start PowerShell.");
+        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+        Task<string> standardError = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(milliseconds: 20_000))
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(milliseconds: 5_000);
+            Assert.Fail("The visual-artifact privacy scanner timed out.");
+        }
+
+        Task.WaitAll(standardOutput, standardError);
+        return new PrivacyScanResult(
+            process.ExitCode,
+            standardOutput.Result + Environment.NewLine + standardError.Result);
+    }
+
+    private static byte[] MinimalPng() => Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg==");
+
+    private static byte[] PngWithTextChunk(string keyword, string value)
+        => PngWithChunk(
+            "tEXt",
+            Encoding.Latin1.GetBytes($"{keyword}\0{value}"));
+
+    private static byte[] PngWithChunk(string chunkType, byte[] payload)
+    {
+        byte[] png = MinimalPng();
+        byte[] chunk = BuildPngChunk(chunkType, payload);
+
+        int insertionOffset = png.Length - 12;
+        byte[] withText = new byte[checked(png.Length + chunk.Length)];
+        png.AsSpan(0, insertionOffset).CopyTo(withText);
+        chunk.CopyTo(withText, insertionOffset);
+        png.AsSpan(insertionOffset).CopyTo(
+            withText.AsSpan(insertionOffset + chunk.Length));
+        return withText;
+    }
+
+    private static byte[] PngWithEncoderMetadata(
+        byte[] gammaPayload,
+        bool repeatPhysicalDimensions)
+    {
+        byte[] png = MinimalPng();
+        byte[] physicalDimensions = [0, 0, 14, 195, 0, 0, 14, 195, 1];
+        var chunks = new List<byte[]>
+        {
+            BuildPngChunk("sRGB", [0]),
+            BuildPngChunk("gAMA", gammaPayload),
+            BuildPngChunk("pHYs", physicalDimensions)
+        };
+        if (repeatPhysicalDimensions)
+        {
+            chunks.Add(BuildPngChunk("pHYs", physicalDimensions));
+        }
+
+        const int AfterHeaderOffset = 33;
+        int metadataLength = chunks.Sum(chunk => chunk.Length);
+        byte[] result = new byte[checked(png.Length + metadataLength)];
+        png.AsSpan(0, AfterHeaderOffset).CopyTo(result);
+        int offset = AfterHeaderOffset;
+        foreach (byte[] chunk in chunks)
+        {
+            chunk.CopyTo(result, offset);
+            offset += chunk.Length;
+        }
+
+        png.AsSpan(AfterHeaderOffset).CopyTo(result.AsSpan(offset));
+        return result;
+    }
+
+    private static byte[] PngWithCorruptCrc()
+    {
+        byte[] png = MinimalPng();
+        const int IdatCrcOffset = 54;
+        png[IdatCrcOffset] ^= 0x01;
+        return png;
+    }
+
+    private static byte[] BuildPngChunk(string chunkType, byte[] payload)
+    {
+        byte[] chunk = new byte[checked(payload.Length + 12)];
+        BinaryPrimitives.WriteUInt32BigEndian(
+            chunk.AsSpan(0, 4),
+            checked((uint)payload.Length));
+        Encoding.ASCII.GetBytes(chunkType, chunk.AsSpan(4, 4));
+        payload.CopyTo(chunk, 8);
+        BinaryPrimitives.WriteUInt32BigEndian(
+            chunk.AsSpan(payload.Length + 8, 4),
+            ComputePngCrc(chunk.AsSpan(4, payload.Length + 4)));
+        return chunk;
+    }
+
+    private static uint ComputePngCrc(ReadOnlySpan<byte> bytes)
+    {
+        uint crc = uint.MaxValue;
+        foreach (byte value in bytes)
+        {
+            crc ^= value;
+            for (int bit = 0; bit < 8; bit++)
+            {
+                crc = (crc & 1) == 0
+                    ? crc >> 1
+                    : (crc >> 1) ^ 0xedb88320u;
+            }
+        }
+
+        return ~crc;
+    }
+
+    private sealed record PrivacyScanResult(int ExitCode, string CombinedOutput);
 
     private static string FindRepositoryRoot()
     {

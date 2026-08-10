@@ -68,86 +68,91 @@
                     Margin="16,28,16,32"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel
-                        x:Name="Header"
-                        Grid.Row="0"
-                        Margin="0,0,0,8"
+                    <Grid
+                        x:Name="InspectionReflowHost"
                         HorizontalAlignment="Stretch"
-                        Spacing="8">
-                        <TextBlock
-                            x:Name="PageTitle"
+                        VerticalAlignment="Top">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel
+                            x:Name="Header"
+                            Grid.Row="0"
+                            Margin="0,0,0,8"
                             HorizontalAlignment="Stretch"
-                            FontFamily="{StaticResource InspectionPageTitleFontFamily}"
-                            FontSize="{StaticResource InspectionPageTitleFontSize}"
-                            FontWeight="{StaticResource InspectionPageTitleFontWeight}"
-                            Foreground="{ThemeResource InspectionTextPrimaryBrush}"
-                            Text="Model inspection"
-                            TextAlignment="Center"
-                            TextWrapping="WrapWholeWords" />
-                        <TextBlock
-                            x:Name="ModelInspectionExplanation"
-                            MaxWidth="720"
-                            HorizontalAlignment="Center"
-                            FontFamily="{StaticResource InspectionBodyFontFamily}"
-                            FontSize="{StaticResource InspectionBodyFontSize}"
-                            FontWeight="{StaticResource InspectionBodyFontWeight}"
-                            Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
-                            Text="We are checking that the model package, tokenizer, structure, and runtime are supported before checking hardware fit."
-                            TextAlignment="Center"
-                            TextWrapping="WrapWholeWords" />
-                    </StackPanel>
+                            Spacing="8">
+                            <TextBlock
+                                x:Name="PageTitle"
+                                HorizontalAlignment="Stretch"
+                                FontFamily="{StaticResource InspectionPageTitleFontFamily}"
+                                FontSize="{StaticResource InspectionPageTitleFontSize}"
+                                FontWeight="{StaticResource InspectionPageTitleFontWeight}"
+                                Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                                Text="Model inspection"
+                                TextAlignment="Center"
+                                TextWrapping="WrapWholeWords" />
+                            <TextBlock
+                                x:Name="ModelInspectionExplanation"
+                                MaxWidth="720"
+                                HorizontalAlignment="Center"
+                                FontFamily="{StaticResource InspectionBodyFontFamily}"
+                                FontSize="{StaticResource InspectionBodyFontSize}"
+                                FontWeight="{StaticResource InspectionBodyFontWeight}"
+                                Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
+                                Text="We are checking that the model package, tokenizer, structure, and runtime are supported before checking hardware fit."
+                                TextAlignment="Center"
+                                TextWrapping="WrapWholeWords" />
+                        </StackPanel>
 
-                    <controls:InspectionOutcomeCard
-                        x:Name="InspectionOutcomeCardControl"
-                        Grid.Row="1"
-                        Margin="0,16,0,0"
-                        HorizontalAlignment="Stretch"
-                        AutomationProperties.LiveSetting="Assertive"
-                        AutomationProperties.Name="Model inspection outcome" />
+                        <controls:InspectionOutcomeCard
+                            x:Name="InspectionOutcomeCardControl"
+                            Grid.Row="1"
+                            Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.LiveSetting="Assertive"
+                            AutomationProperties.Name="Model inspection outcome" />
 
-                    <controls:InspectionModelCard
-                        x:Name="InspectionModelCardControl"
-                        Grid.Row="2"
-                        Margin="0,16,0,0"
-                        HorizontalAlignment="Stretch"
-                        AutomationProperties.Name="Selected model information" />
+                        <controls:InspectionModelCard
+                            x:Name="InspectionModelCardControl"
+                            Grid.Row="2"
+                            Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="Selected model information" />
 
-                    <controls:InspectionContentCard
-                        x:Name="InspectionContentCardControl"
-                        Grid.Row="3"
-                        Margin="0,16,0,0"
-                        HorizontalAlignment="Stretch"
-                        AutomationProperties.Name="Model inspection progress and findings" />
+                        <controls:InspectionContentCard
+                            x:Name="InspectionContentCardControl"
+                            Grid.Row="3"
+                            Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="Model inspection progress and findings" />
 
-                    <!--
-                        One inert outgoing progress layer remains realized only
-                        for the terminal crossfade. It never participates in
-                        hit testing, live regions, or the automation tree.
-                    -->
-                    <controls:InspectionContentCard
-                        x:Name="OutgoingProgressContentCard"
-                        Grid.Row="3"
-                        Margin="0,16,0,0"
-                        HorizontalAlignment="Stretch"
-                        AutomationProperties.AccessibilityView="Raw"
-                        Canvas.ZIndex="2"
-                        IsHitTestVisible="False"
-                        Visibility="Collapsed" />
+                        <!--
+                            One inert outgoing progress layer remains realized only
+                            for the terminal crossfade. It never participates in
+                            hit testing, live regions, or the automation tree.
+                        -->
+                        <controls:InspectionContentCard
+                            x:Name="OutgoingProgressContentCard"
+                            Grid.Row="3"
+                            Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Canvas.ZIndex="2"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed" />
 
-                    <controls:InspectionActionCard
-                        x:Name="InspectionActionCardControl"
-                        Grid.Row="4"
-                        Margin="0,16,0,0"
-                        HorizontalAlignment="Stretch"
-                        AutomationProperties.Name="Model inspection actions" />
+                        <controls:InspectionActionCard
+                            x:Name="InspectionActionCardControl"
+                            Grid.Row="4"
+                            Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="Model inspection actions" />
+                    </Grid>
                 </Grid>
             </Grid>
         </ScrollViewer>

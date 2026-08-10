@@ -993,14 +993,11 @@ internal static class ModelInspectionPresentationFactory
 
         string detailIdentity = Convert.ToHexString(
             SHA256.HashData(Encoding.UTF8.GetBytes(progress.Detail)));
-        string fraction = progress.StageFraction?.ToString(
-            "R",
-            CultureInfo.InvariantCulture) ?? "none";
         return new ModelInspectionRegionKey(
             $"announcements:progress:{renderKey.AttemptGeneration}:" +
             $"{(int?)progress.Stage ?? 0}:{(int?)progress.StageStatus ?? -1}:" +
             $"{progress.CompletedStageCount}:{progress.StageCount}:" +
-            $"{fraction}:{detailIdentity}");
+            detailIdentity);
     }
 
     private static bool HasSupportedFindings(ModelInspectionResult result)

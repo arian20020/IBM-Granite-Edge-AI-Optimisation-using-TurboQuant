@@ -245,10 +245,10 @@ public sealed class InspectionContentCardTests
     [DataRow(6, 232d)]
     [DataRow(7, 365d)]
     [DataRow(8, 232d)]
-    [DataRow(9, 248d)]
+    [DataRow(9, 232d)]
     [DataRow(10, 248d)]
     [DataRow(11, 380d)]
-    [DataRow(12, 232d)]
+    [DataRow(12, 202d)]
     [DataRow(13, 248d)]
     public async Task FactoryTerminalStates_UseApprovedStandardGeometry(
         int stateValue,

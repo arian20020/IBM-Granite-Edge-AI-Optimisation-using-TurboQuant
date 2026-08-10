@@ -413,10 +413,10 @@ public sealed partial class InspectionContentCard : UserControl
             InspectionContentCardMode.ConversionRequired =>
                 presentation.IsExpanded ? 365d : 232d,
             InspectionContentCardMode.IncompletePackage => 232d,
-            InspectionContentCardMode.Unsupported => 248d,
+            InspectionContentCardMode.Unsupported => 232d,
             InspectionContentCardMode.Invalid =>
                 presentation.IsExpanded ? 380d : 248d,
-            InspectionContentCardMode.Cancelled => 232d,
+            InspectionContentCardMode.Cancelled => 202d,
             InspectionContentCardMode.OperationalFailure => 248d,
             _ => 0d
         };
