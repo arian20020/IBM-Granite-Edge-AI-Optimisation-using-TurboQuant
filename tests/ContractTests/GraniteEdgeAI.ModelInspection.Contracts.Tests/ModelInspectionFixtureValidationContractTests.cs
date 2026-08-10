@@ -257,10 +257,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 SetupStep("invoke-retry", null, null, "retry-attempt"));
             setup.Insert(
                 setup.Count - 1,
-                SetupStep("release-stale-progress", 1, "old-progress", null));
+                SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
             setup.Insert(
                 setup.Count - 1,
-                SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
+                SetupStep("release-stale-progress", 1, "old-progress", null));
             setup.Insert(
                 setup.Count - 1,
                 SetupStep("invoke-choose-another", null, null, "choose-current"));
@@ -317,10 +317,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     SetupStep("invoke-retry", null, null, "retry-attempt"));
                 setup.Insert(
                     setup.Count - 1,
-                    SetupStep(releaseKind, 1, checkpoint, null));
+                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
                 setup.Insert(
                     setup.Count - 1,
-                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
+                    SetupStep(releaseKind, 1, checkpoint, null));
             });
             Load(afterRetirement);
 
@@ -381,6 +381,78 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
+    public void ObservationInteractions_RejectUnavailableReadyActions()
+    {
+        foreach (string kind in new[] { "cancel", "retry", "restart" })
+        {
+            AssertInvalid(root =>
+                root["interactions"] = new JsonArray(
+                    Interaction(
+                        "unavailable-action",
+                        kind,
+                        "ready-observed",
+                        "ready-observed")));
+
+            AssertInvalid(root =>
+            {
+                ConfigureExpectedActions(
+                    root,
+                    "result",
+                    (kind, "fixture.action.choose", "Choose another model"));
+                root["interactions"] = new JsonArray(
+                    Interaction(
+                        "wrong-state-action",
+                        kind,
+                        "ready-observed",
+                        "ready-observed"));
+            });
+        }
+
+        foreach (string kind in new[] { "cancel", "retry", "restart", "chooseAnother" })
+        {
+            AssertStateValidInteractionInvalid(kind, root =>
+                root["expected"]!["actions"]!["visible"] = false);
+            AssertStateValidInteractionInvalid(kind, root =>
+                root["expected"]!["actions"]!["mode"] = "hidden");
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAction(root, InteractionActionId(kind))["visible"] = false);
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAction(root, InteractionActionId(kind))["enabled"] = false);
+        }
+
+        AssertStateValidInteractionInvalid("expand", root =>
+            root["expected"]!["model"]!["visible"] = false);
+        AssertStateValidInteractionInvalid("expand", root =>
+            root["expected"]!["model"]!["disclosureExpanded"] = true);
+        AssertStateValidInteractionInvalid("collapse", root =>
+            root["expected"]!["model"]!["disclosureExpanded"] = false);
+
+        AssertInvalid(root =>
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "wrong-direction",
+                    "collapse",
+                    "ready-observed",
+                    "ready-observed")));
+        AssertStateValidInteractionInvalid("collapse", root =>
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "wrong-direction",
+                    "expand",
+                    "ready-observed",
+                    "ready-observed")));
+
+        AssertInvalid(root =>
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "wrong-reset-target",
+                    "reset",
+                    "ready-observed",
+                    "ready-observed",
+                    "retirePage")));
+    }
+
+    [TestMethod]
     public void Interactions_RequireClosedKindLifetimeEffectMappings()
     {
         (string Kind, string Target, string AllowedLifetimeEffect)[] mappings =
@@ -397,26 +469,37 @@ public sealed class ModelInspectionFixtureValidationContractTests
 
         foreach ((string kind, string target, string allowedLifetimeEffect) in mappings)
         {
-            Load(FixtureContractDocuments.MutateDescriptor(root =>
+            string policy = FixtureContractDocuments.MutatePolicy(root =>
+                ConfigureStateValidInteractionPolicy(root, kind));
+            string valid = FixtureContractDocuments.MutateDescriptor(root =>
+            {
+                ConfigureStateValidInteractionScreen(root, kind);
                 root["interactions"] = new JsonArray(
                     Interaction(
                         "mapped-action",
                         kind,
                         "ready-observed",
                         target,
-                        allowedLifetimeEffect))));
+                        allowedLifetimeEffect));
+            });
+            LoadMany([FixtureContractDocuments.DescriptorSource(valid)], policy);
 
             foreach (string invalidLifetimeEffect in lifetimeEffects.Where(
                          effect => !effect.Equals(allowedLifetimeEffect, StringComparison.Ordinal)))
             {
-                AssertInvalid(root =>
+                string invalid = FixtureContractDocuments.MutateDescriptor(root =>
+                {
+                    ConfigureStateValidInteractionScreen(root, kind);
                     root["interactions"] = new JsonArray(
                         Interaction(
                             "mapped-action",
                             kind,
                             "ready-observed",
                             target,
-                            invalidLifetimeEffect)));
+                            invalidLifetimeEffect));
+                });
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    LoadMany([FixtureContractDocuments.DescriptorSource(invalid)], policy));
             }
         }
 
@@ -437,10 +520,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     SetupStep(setupKind, null, null, "retry-attempt"));
                 setup.Insert(
                     setup.Count - 1,
-                    SetupStep("release-stale-progress", 1, "old-progress", null));
+                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
                 setup.Insert(
                     setup.Count - 1,
-                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
+                    SetupStep("release-stale-progress", 1, "old-progress", null));
             });
 
             Load(transitioned);
@@ -1225,6 +1308,214 @@ public sealed class ModelInspectionFixtureValidationContractTests
             ["expectedFooterStatus"] = "complete",
             ["lifetimeEffect"] = lifetimeEffect
         };
+
+    private static void AssertStateValidInteractionInvalid(
+        string kind,
+        Action<JsonObject> mutation)
+    {
+        string descriptor = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureStateValidInteractionScreen(root, kind);
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "available-action",
+                    kind,
+                    "ready-observed",
+                    kind == "chooseAnother"
+                        ? "gallery:no-active-fixture"
+                        : kind == "reset" ? "MI-001" : "ready-observed",
+                    kind == "chooseAnother"
+                        ? "noActiveFixture"
+                        : kind == "reset" ? "retirePage" : "none"));
+            mutation(root);
+        });
+        string policy = FixtureContractDocuments.MutatePolicy(root =>
+            ConfigureStateValidInteractionPolicy(root, kind));
+
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany([FixtureContractDocuments.DescriptorSource(descriptor)], policy));
+    }
+
+    private static void ConfigureStateValidInteractionScreen(JsonObject root, string kind)
+    {
+        switch (kind)
+        {
+            case "expand":
+            case "chooseAnother":
+            case "reset":
+                return;
+
+            case "collapse":
+                root["coverage"]!["figmaStates"]![0] = "readyExpanded";
+                root["expected"]!["figma"]!["state"] = "readyExpanded";
+                root["expected"]!["model"]!["mode"] = "detailed";
+                root["expected"]!["model"]!["disclosureExpanded"] = true;
+                return;
+
+            case "cancel":
+                AddProgressStep(root, "readModelConfiguration", "active", 1, 0.5);
+                root["input"]!["setupSteps"]!.AsArray().RemoveAt(1);
+                root["coverage"]!["figmaStates"]![0] = "inspectionProgress";
+                root["coverage"]!["outcomes"] = new JsonArray();
+                root["expected"]!["figma"]!["state"] = "inspectionProgress";
+                root["expected"]!["outcome"]!["visible"] = false;
+                root["expected"]!["outcome"]!["kind"] = "hidden";
+                root["expected"]!["content"]!["mode"] = "progress";
+                root["expected"]!["footer"]!["status"] = "inProgress";
+                root["expected"]!["footer"]!["rows"]![0]!["status"] = "complete";
+                root["expected"]!["footer"]!["rows"]![1]!["status"] = "inProgress";
+                for (int index = 2; index < 5; index++)
+                {
+                    root["expected"]!["footer"]!["rows"]![index]!["status"] = "notComplete";
+                }
+
+                ConfigureExpectedActions(
+                    root,
+                    "inspecting",
+                    ("cancel", "fixture.action.cancel", "Cancel inspection"));
+                return;
+
+            case "retry":
+                ConfigureTerminalRecoveryScreen(
+                    root,
+                    "operationalFailure",
+                    "operationalFailure",
+                    "workerTimeout",
+                    "interrupted");
+                ConfigureExpectedActions(
+                    root,
+                    "result",
+                    ("choose-another", "fixture.action.choose", "Choose another model"),
+                    ("retry", "fixture.action.retry", "Retry inspection"));
+                return;
+
+            case "restart":
+                ConfigureTerminalRecoveryScreen(
+                    root,
+                    "cancelled",
+                    "cancelled",
+                    failureProfile: null,
+                    "notComplete");
+                ConfigureExpectedActions(
+                    root,
+                    "result",
+                    ("choose-another", "fixture.action.choose", "Choose another model"),
+                    ("restart", "fixture.action.restart", "Restart inspection"));
+                return;
+
+            default:
+                Assert.Fail($"Unknown interaction kind: {kind}");
+                return;
+        }
+    }
+
+    private static void ConfigureTerminalRecoveryScreen(
+        JsonObject root,
+        string effectKind,
+        string figmaState,
+        string? failureProfile,
+        string footerStatus)
+    {
+        JsonObject effect = root["input"]!["attempts"]![0]!["serviceSteps"]![0]!["effect"]!
+            .AsObject();
+        effect["kind"] = effectKind;
+        effect["progress"] = null;
+        effect["outcome"] = null;
+        effect["evidenceProfile"] = null;
+        effect["failureProfile"] = failureProfile;
+        effect["deferredCheckpoint"] = null;
+        root["coverage"]!["figmaStates"]![0] = figmaState;
+        root["coverage"]!["outcomes"] = new JsonArray();
+        root["coverage"]!["failureProfiles"] = failureProfile is null
+            ? new JsonArray()
+            : new JsonArray(failureProfile);
+        root["expected"]!["figma"]!["state"] = figmaState;
+        root["expected"]!["outcome"]!["kind"] = figmaState;
+        root["expected"]!["outcome"]!["tone"] = figmaState == "cancelled" ? "neutral" : "error";
+        root["expected"]!["content"]!["mode"] = figmaState;
+        root["expected"]!["footer"]!["status"] = footerStatus;
+        for (int index = 0; index < 5; index++)
+        {
+            root["expected"]!["footer"]!["rows"]![index]!["status"] = "notComplete";
+        }
+    }
+
+    private static void ConfigureExpectedActions(
+        JsonObject root,
+        string mode,
+        params (string Id, string CopyKey, string Text)[] specifications)
+    {
+        JsonArray items = new();
+        JsonArray controls = new();
+        JsonArray tabOrder = new();
+        foreach ((string id, string copyKey, string text) in specifications)
+        {
+            items.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["label"] = new JsonObject
+                {
+                    ["copyKey"] = copyKey,
+                    ["defaultText"] = text
+                },
+                ["visible"] = true,
+                ["enabled"] = true,
+                ["helpText"] = null
+            });
+            controls.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["accessibleName"] = new JsonObject
+                {
+                    ["copyKey"] = copyKey,
+                    ["defaultText"] = text
+                },
+                ["controlType"] = "button",
+                ["liveSetting"] = "off",
+                ["helpText"] = null
+            });
+            tabOrder.Add(id);
+        }
+
+        root["expected"]!["actions"]!["visible"] = true;
+        root["expected"]!["actions"]!["mode"] = mode;
+        root["expected"]!["actions"]!["items"] = items;
+        root["expected"]!["automation"]!["controls"] = controls;
+        root["expected"]!["focus"]!["target"] = specifications[^1].Id;
+        root["presetExpectations"]!["P01"]!["tabOrder"] = tabOrder.DeepClone();
+        root["presetExpectations"]!["P01"]!["focusTarget"] = specifications[^1].Id;
+    }
+
+    private static JsonObject FindExpectedAction(JsonObject root, string id) =>
+        root["expected"]!["actions"]!["items"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => string.Equals(item["id"]!.GetValue<string>(), id, StringComparison.Ordinal));
+
+    private static string InteractionActionId(string kind) => kind switch
+    {
+        "cancel" => "cancel",
+        "retry" => "retry",
+        "restart" => "restart",
+        "chooseAnother" => "choose-another",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
+
+    private static void ConfigureStateValidInteractionPolicy(JsonObject root, string kind)
+    {
+        string figmaState = kind switch
+        {
+            "collapse" => "readyExpanded",
+            "cancel" => "inspectionProgress",
+            "retry" => "operationalFailure",
+            "restart" => "cancelled",
+            _ => "readyCollapsed"
+        };
+        root["fixtures"]![0]!["canonicalFigmaState"] = figmaState;
+        JsonObject registry = root["copyRegistry"]!.AsObject();
+        registry["fixture.action.cancel"] = "Cancel inspection";
+        registry["fixture.action.retry"] = "Retry inspection";
+        registry["fixture.action.restart"] = "Restart inspection";
+    }
 
     private static JsonObject Progress(
         string stage,

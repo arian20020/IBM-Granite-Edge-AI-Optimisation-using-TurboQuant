@@ -171,7 +171,7 @@ internal static partial class ModelInspectionFixtureValidator
             policy.Value);
         ValidateExpected(source, descriptor.Expected, policyEntry, policy.Value.CopyRegistry);
         ValidatePresetExpectations(source, descriptor, policyEntry, policy.Value);
-        ValidateInteractions(source, descriptor.Interactions, descriptor.Input, policy.Value);
+        ValidateInteractions(source, descriptor, policy.Value);
         ValidateCurrentScreenConsistency(source, descriptor, replay);
 
         return Freeze(descriptor);
@@ -1003,10 +1003,11 @@ internal static partial class ModelInspectionFixtureValidator
 
     private static void ValidateInteractions(
         ModelInspectionFixtureDocumentSource source,
-        IReadOnlyList<ModelInspectionFixtureInteraction> interactions,
-        ModelInspectionFixtureInput input,
+        ModelInspectionFixtureDescriptor descriptor,
         ModelInspectionFixtureCoveragePolicy policy)
     {
+        IReadOnlyList<ModelInspectionFixtureInteraction> interactions = descriptor.Interactions;
+        ModelInspectionFixtureInput input = descriptor.Input;
         HashSet<string> knownCheckpoints = input.Attempts
             .SelectMany(attempt => attempt.ServiceSteps)
             .SelectMany(step => new[] { step.Trigger.Checkpoint, step.Effect.DeferredCheckpoint })
@@ -1043,8 +1044,76 @@ internal static partial class ModelInspectionFixtureValidator
             {
                 throw Failure(source, "$.interactions[].target", "interaction.dangling-target");
             }
+
+            bool isObservationScoped = string.Equals(
+                interaction.SourceCheckpoint,
+                input.ObservationCheckpoint,
+                StringComparison.Ordinal);
+            if (interaction.Kind == ModelInspectionFixtureInteractionKind.Reset &&
+                (!isObservationScoped ||
+                 !string.Equals(interaction.Target, descriptor.Id, StringComparison.Ordinal)))
+            {
+                throw Failure(source, "$.interactions[].target", "interaction.reset-target");
+            }
+
+            if (isObservationScoped &&
+                !IsAvailableAtExpectedScreen(interaction.Kind, descriptor.Expected))
+            {
+                throw Failure(source, "$.interactions[]", "interaction.unavailable");
+            }
         }
     }
+
+    private static bool IsAvailableAtExpectedScreen(
+        ModelInspectionFixtureInteractionKind kind,
+        ModelInspectionExpectedScreen expected) =>
+        kind switch
+        {
+            ModelInspectionFixtureInteractionKind.Expand =>
+                expected.Model.Visible &&
+                !expected.Model.DisclosureExpanded &&
+                expected.Figma.State is
+                    ModelInspectionExpectedFigmaState.ReadyCollapsed or
+                    ModelInspectionExpectedFigmaState.ReadyWithWarningsCollapsed or
+                    ModelInspectionExpectedFigmaState.ConversionRequiredCollapsed or
+                    ModelInspectionExpectedFigmaState.InvalidCollapsed,
+            ModelInspectionFixtureInteractionKind.Collapse =>
+                expected.Model.Visible &&
+                expected.Model.DisclosureExpanded &&
+                expected.Figma.State is
+                    ModelInspectionExpectedFigmaState.ReadyExpanded or
+                    ModelInspectionExpectedFigmaState.ReadyWithWarningsExpanded or
+                    ModelInspectionExpectedFigmaState.ConversionRequiredExpanded or
+                    ModelInspectionExpectedFigmaState.InvalidExpanded,
+            ModelInspectionFixtureInteractionKind.Cancel =>
+                expected.Figma.State == ModelInspectionExpectedFigmaState.InspectionProgress &&
+                HasAvailableAction(expected.Actions, ModelInspectionExpectedActionMode.Inspecting, "cancel"),
+            ModelInspectionFixtureInteractionKind.Retry =>
+                expected.Figma.State == ModelInspectionExpectedFigmaState.OperationalFailure &&
+                HasAvailableAction(expected.Actions, ModelInspectionExpectedActionMode.Result, "retry"),
+            ModelInspectionFixtureInteractionKind.Restart =>
+                expected.Figma.State == ModelInspectionExpectedFigmaState.Cancelled &&
+                HasAvailableAction(expected.Actions, ModelInspectionExpectedActionMode.Result, "restart"),
+            ModelInspectionFixtureInteractionKind.ChooseAnother =>
+                expected.Figma.State != ModelInspectionExpectedFigmaState.InspectionProgress &&
+                HasAvailableAction(
+                    expected.Actions,
+                    ModelInspectionExpectedActionMode.Result,
+                    "choose-another"),
+            ModelInspectionFixtureInteractionKind.Reset => true,
+            _ => false
+        };
+
+    private static bool HasAvailableAction(
+        ModelInspectionExpectedActionRegion actions,
+        ModelInspectionExpectedActionMode requiredMode,
+        string requiredId) =>
+        actions.Visible &&
+        actions.Mode == requiredMode &&
+        actions.Items.Any(action =>
+            action.Visible &&
+            action.Enabled &&
+            string.Equals(action.Id, requiredId, StringComparison.Ordinal));
 
     private static bool HasValidLifetimeEffect(
         ModelInspectionFixtureInteraction interaction) =>
