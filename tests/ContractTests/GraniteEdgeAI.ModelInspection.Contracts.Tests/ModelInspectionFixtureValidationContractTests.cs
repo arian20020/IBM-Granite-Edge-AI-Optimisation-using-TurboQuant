@@ -249,7 +249,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     "choose-current",
                     "chooseAnother",
                     "service-ready-2",
-                    "gallery:no-active-fixture"));
+                    "gallery:no-active-fixture",
+                    "noActiveFixture"));
             JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
             setup.Insert(
                 setup.Count - 1,
@@ -348,13 +349,117 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
+    public void SetupReplay_CancelAndDisclosureCannotForgeOwnerRetirement()
+    {
+        (string SetupKind, string InteractionKind, string LifetimeEffect)[] cases =
+        [
+            ("invoke-cancel", "cancel", "retirePage"),
+            ("invoke-disclosure", "expand", "noActiveFixture")
+        ];
+
+        foreach ((string setupKind, string interactionKind, string lifetimeEffect) in cases)
+        {
+            AssertInvalid(root =>
+            {
+                AddDeferredStep(root, "deferStaleProgress", "old-progress");
+                root["interactions"]!.AsArray().Add(
+                    Interaction(
+                        "forged-retirement",
+                        interactionKind,
+                        "service-ready",
+                        "service-ready",
+                        lifetimeEffect));
+                JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep(setupKind, null, null, "forged-retirement"));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("release-stale-progress", 1, "old-progress", null));
+            });
+        }
+    }
+
+    [TestMethod]
+    public void Interactions_RequireClosedKindLifetimeEffectMappings()
+    {
+        (string Kind, string Target, string AllowedLifetimeEffect)[] mappings =
+        [
+            ("expand", "ready-observed", "none"),
+            ("collapse", "ready-observed", "none"),
+            ("cancel", "ready-observed", "none"),
+            ("retry", "service-ready", "none"),
+            ("restart", "service-ready", "none"),
+            ("chooseAnother", "gallery:no-active-fixture", "noActiveFixture"),
+            ("reset", "MI-001", "retirePage")
+        ];
+        string[] lifetimeEffects = ["none", "retirePage", "noActiveFixture"];
+
+        foreach ((string kind, string target, string allowedLifetimeEffect) in mappings)
+        {
+            Load(FixtureContractDocuments.MutateDescriptor(root =>
+                root["interactions"] = new JsonArray(
+                    Interaction(
+                        "mapped-action",
+                        kind,
+                        "ready-observed",
+                        target,
+                        allowedLifetimeEffect))));
+
+            foreach (string invalidLifetimeEffect in lifetimeEffects.Where(
+                         effect => !effect.Equals(allowedLifetimeEffect, StringComparison.Ordinal)))
+            {
+                AssertInvalid(root =>
+                    root["interactions"] = new JsonArray(
+                        Interaction(
+                            "mapped-action",
+                            kind,
+                            "ready-observed",
+                            target,
+                            invalidLifetimeEffect)));
+            }
+        }
+
+        foreach ((string setupKind, string interactionKind) in new[]
+                 {
+                     ("invoke-retry", "retry"),
+                     ("invoke-restart", "restart")
+                 })
+        {
+            string transitioned = FixtureContractDocuments.MutateDescriptor(root =>
+            {
+                AddSecondAttempt(root);
+                AddDeferredStep(root, "deferStaleProgress", "old-progress");
+                root["interactions"]![0]!["kind"] = interactionKind;
+                JsonArray setup = root["input"]!["setupSteps"]!.AsArray();
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep(setupKind, null, null, "retry-attempt"));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("release-stale-progress", 1, "old-progress", null));
+                setup.Insert(
+                    setup.Count - 1,
+                    SetupStep("release-service-checkpoint", 2, "service-ready-2", null));
+            });
+
+            Load(transitioned);
+        }
+    }
+
+    [TestMethod]
     public void VisibleInteractions_AreOnlyThoseAtObservationCheckpoint()
     {
         string descriptor = FixtureContractDocuments.MutateDescriptor(root =>
         {
             root["interactions"] = new JsonArray(
                 Interaction("history", "retry", "service-ready", "service-ready"),
-                Interaction("current", "chooseAnother", "ready-observed", "gallery:no-active-fixture"));
+                Interaction(
+                    "current",
+                    "chooseAnother",
+                    "ready-observed",
+                    "gallery:no-active-fixture",
+                    "noActiveFixture"));
         });
 
         ValidatedModelInspectionFixture fixture = Load(descriptor).Fixtures.Single();
@@ -774,7 +879,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     "choose-current",
                     "chooseAnother",
                     "ready-observed",
-                    "gallery:no-active-fixture"));
+                    "gallery:no-active-fixture",
+                    "noActiveFixture"));
         }));
 
         LoadPolicyWithEvidencePath("release-evidence/model-inspection/fixture-proof.md");
@@ -1106,7 +1212,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
         string id,
         string kind,
         string sourceCheckpoint,
-        string target) =>
+        string target,
+        string lifetimeEffect = "none") =>
         new()
         {
             ["id"] = id,
@@ -1116,7 +1223,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
             ["expectedFocus"] = null,
             ["expectedAnnouncementCount"] = 0,
             ["expectedFooterStatus"] = "complete",
-            ["lifetimeEffect"] = "none"
+            ["lifetimeEffect"] = lifetimeEffect
         };
 
     private static JsonObject Progress(

@@ -744,10 +744,7 @@ internal static partial class ModelInspectionFixtureValidator
                         currentEffect = null;
                         ApplyAutomaticSteps();
                     }
-                    else if (step.Kind == ModelInspectionFixtureSetupStepKind.InvokeChooseAnother ||
-                             interaction.LifetimeEffect is
-                                 ModelInspectionFixtureInteractionLifetimeEffect.RetirePage or
-                                 ModelInspectionFixtureInteractionLifetimeEffect.NoActiveFixture)
+                    else if (step.Kind == ModelInspectionFixtureSetupStepKind.InvokeChooseAnother)
                     {
                         if (activeAttempt > 0)
                         {
@@ -1031,6 +1028,14 @@ internal static partial class ModelInspectionFixtureValidator
                 throw Failure(source, "$.interactions[]", "interaction.scope");
             }
 
+            if (!HasValidLifetimeEffect(interaction))
+            {
+                throw Failure(
+                    source,
+                    "$.interactions[].lifetimeEffect",
+                    "interaction.lifetime-effect");
+            }
+
             bool targetKnown = knownCheckpoints.Contains(interaction.Target) ||
                 policyIds.Contains(interaction.Target) ||
                 interaction.Target.Equals("gallery:no-active-fixture", StringComparison.Ordinal);
@@ -1040,6 +1045,25 @@ internal static partial class ModelInspectionFixtureValidator
             }
         }
     }
+
+    private static bool HasValidLifetimeEffect(
+        ModelInspectionFixtureInteraction interaction) =>
+        interaction.Kind switch
+        {
+            ModelInspectionFixtureInteractionKind.Expand or
+            ModelInspectionFixtureInteractionKind.Collapse or
+            ModelInspectionFixtureInteractionKind.Cancel or
+            ModelInspectionFixtureInteractionKind.Retry or
+            ModelInspectionFixtureInteractionKind.Restart =>
+                interaction.LifetimeEffect == ModelInspectionFixtureInteractionLifetimeEffect.None,
+            ModelInspectionFixtureInteractionKind.ChooseAnother =>
+                interaction.LifetimeEffect ==
+                    ModelInspectionFixtureInteractionLifetimeEffect.NoActiveFixture,
+            ModelInspectionFixtureInteractionKind.Reset =>
+                interaction.LifetimeEffect ==
+                    ModelInspectionFixtureInteractionLifetimeEffect.RetirePage,
+            _ => false
+        };
 
     private static void ValidateCurrentScreenConsistency(
         ModelInspectionFixtureDocumentSource source,
