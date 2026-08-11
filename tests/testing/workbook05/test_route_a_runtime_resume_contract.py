@@ -33,7 +33,8 @@ class BuildProcessDeadlineContractTests(unittest.TestCase):
             "[double]$MaximumCommitPercent = 90",
             "[int]$ConsecutiveSafetySamples = 5",
             "Stop-Wb05ControlledProcessTree",
-            "Sort-Object -Descending",
+            "$index = $ProcessIds.Count - 1",
+            "Stop-Process -Id $ProcessIds[$index]",
             "ReadToEndAsync",
             "Write-Wb05Json",
             "build-resource-summary",
@@ -42,6 +43,8 @@ class BuildProcessDeadlineContractTests(unittest.TestCase):
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
+
+        self.assertNotIn("Sort-Object -Descending", self.text)
 
     def test_resume_adapter_does_not_weaken_process_or_payload_boundaries(self) -> None:
         forbidden = (
@@ -70,7 +73,10 @@ class RouteARuntimeResumeContractTests(unittest.TestCase):
             "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
             "docs/dev/build_windows.md",
             r"C:\w5a",
+            "$workspaceRootItem = Get-Item",
+            "$workspaceRootItem.Attributes",
             "[IO.FileAttributes]::ReparsePoint",
+            "Resume workspace root must not be a reparse point",
             "'cmake', 'MSBuild', 'cl', 'ninja', 'vctip'",
             "route_a_runtime_resume_bundle_validation",
             "CMakeCache.txt",
