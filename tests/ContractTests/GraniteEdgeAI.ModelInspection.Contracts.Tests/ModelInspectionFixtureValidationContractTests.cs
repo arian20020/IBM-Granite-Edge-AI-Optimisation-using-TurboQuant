@@ -453,6 +453,90 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
+    public void ObservationInteractions_RequireCanonicalAutomationControls()
+    {
+        foreach (string kind in new[] { "cancel", "retry", "restart", "chooseAnother" })
+        {
+            string automationId = InteractionActionId(kind);
+            AssertStateValidInteractionInvalid(kind, root =>
+                RemoveExpectedAutomationControl(root, automationId));
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAutomationControl(root, automationId)["id"] = "wrong-control");
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAutomationControl(root, automationId)["controlType"] = "text");
+            AssertStateValidInteractionInvalid(kind, root =>
+                root["expected"]!["automation"]!["controls"] = new JsonArray());
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAutomationControl(root, automationId)["id"] =
+                    kind == "cancel" ? "retry" : "cancel");
+        }
+
+        foreach (string kind in new[] { "expand", "collapse" })
+        {
+            AssertStateValidInteractionInvalid(kind, root =>
+                RemoveExpectedAutomationControl(root, "inspection-details-disclosure"));
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAutomationControl(root, "inspection-details-disclosure")["id"] =
+                    "wrong-control");
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAutomationControl(root, "inspection-details-disclosure")["controlType"] =
+                    "button");
+            AssertStateValidInteractionInvalid(kind, root =>
+                FindExpectedAutomationControl(root, "inspection-details-disclosure")["id"] =
+                    "findings-disclosure");
+        }
+
+        string contentDisclosure = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureReadyWithWarnings(root, warningOrdinal: 3);
+            AddExpectedAutomationControl(
+                root,
+                "findings-disclosure",
+                "group",
+                "fixture.content.heading",
+                "Inspection complete");
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "expand-findings",
+                    "expand",
+                    "ready-observed",
+                    "ready-observed"));
+        });
+        string contentPolicy = FixtureContractDocuments.MutatePolicy(ConfigureWarningPolicy);
+        LoadMany([FixtureContractDocuments.DescriptorSource(contentDisclosure)], contentPolicy);
+
+        foreach (Action<JsonObject> mutation in new Action<JsonObject>[]
+                 {
+                     root => RemoveExpectedAutomationControl(root, "findings-disclosure"),
+                     root => FindExpectedAutomationControl(root, "findings-disclosure")["id"] =
+                         "inspection-details-disclosure",
+                     root => FindExpectedAutomationControl(root, "findings-disclosure")["controlType"] =
+                         "button"
+                 })
+        {
+            string invalid = FixtureContractDocuments.MutateDescriptor(root =>
+            {
+                ConfigureReadyWithWarnings(root, warningOrdinal: 3);
+                AddExpectedAutomationControl(
+                    root,
+                    "findings-disclosure",
+                    "group",
+                    "fixture.content.heading",
+                    "Inspection complete");
+                root["interactions"] = new JsonArray(
+                    Interaction(
+                        "expand-findings",
+                        "expand",
+                        "ready-observed",
+                        "ready-observed"));
+                mutation(root);
+            });
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadMany([FixtureContractDocuments.DescriptorSource(invalid)], contentPolicy));
+        }
+    }
+
+    [TestMethod]
     public void Interactions_RequireClosedKindLifetimeEffectMappings()
     {
         (string Kind, string Target, string AllowedLifetimeEffect)[] mappings =
@@ -1341,6 +1425,14 @@ public sealed class ModelInspectionFixtureValidationContractTests
         switch (kind)
         {
             case "expand":
+                AddExpectedAutomationControl(
+                    root,
+                    "inspection-details-disclosure",
+                    "group",
+                    "fixture.model.name",
+                    "Synthetic Granite");
+                return;
+
             case "chooseAnother":
             case "reset":
                 return;
@@ -1350,6 +1442,12 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 root["expected"]!["figma"]!["state"] = "readyExpanded";
                 root["expected"]!["model"]!["mode"] = "detailed";
                 root["expected"]!["model"]!["disclosureExpanded"] = true;
+                AddExpectedAutomationControl(
+                    root,
+                    "inspection-details-disclosure",
+                    "group",
+                    "fixture.model.name",
+                    "Synthetic Granite");
                 return;
 
             case "cancel":
@@ -1490,6 +1588,36 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["actions"]!["items"]!.AsArray()
             .Select(item => item!.AsObject())
             .Single(item => string.Equals(item["id"]!.GetValue<string>(), id, StringComparison.Ordinal));
+
+    private static JsonObject FindExpectedAutomationControl(JsonObject root, string id) =>
+        root["expected"]!["automation"]!["controls"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => string.Equals(item["id"]!.GetValue<string>(), id, StringComparison.Ordinal));
+
+    private static void RemoveExpectedAutomationControl(JsonObject root, string id)
+    {
+        JsonArray controls = root["expected"]!["automation"]!["controls"]!.AsArray();
+        controls.Remove(FindExpectedAutomationControl(root, id));
+    }
+
+    private static void AddExpectedAutomationControl(
+        JsonObject root,
+        string id,
+        string controlType,
+        string copyKey,
+        string text) =>
+        root["expected"]!["automation"]!["controls"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = id,
+            ["accessibleName"] = new JsonObject
+            {
+                ["copyKey"] = copyKey,
+                ["defaultText"] = text
+            },
+            ["controlType"] = controlType,
+            ["liveSetting"] = "off",
+            ["helpText"] = null
+        });
 
     private static string InteractionActionId(string kind) => kind switch
     {
