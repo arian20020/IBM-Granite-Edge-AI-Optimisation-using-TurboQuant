@@ -26,6 +26,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
     private const string ViewModelDetailsKey =
         "fixture.automation.model-disclosure.view";
     private const string ViewModelDetails = "View model inspection details";
+    private const string ShowModelDetails = "Show model inspection details";
     private const string HideModelDetailsKey =
         "fixture.automation.model-disclosure.hide";
     private const string HideModelDetails = "Hide model inspection details";
@@ -38,6 +39,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
     private const string InvalidDetailsKey =
         "fixture.automation.invalid-disclosure";
     private const string InvalidDetails = "Model validation report";
+    private const string CancelInspectionAliasKey =
+        "fixture.automation.action-alias.cancel";
 
     [TestMethod]
     public void Filename_RequiresExactIdTargetAndVariant()
@@ -570,6 +573,12 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     wrongKey,
                     wrongText));
         }
+        AssertStateValidInteractionInvalid("cancel", root =>
+            SetExpectedAutomationName(
+                root,
+                "cancel",
+                CancelInspectionAliasKey,
+                "Cancel inspection"));
 
         AssertStateValidInteractionInvalid("expand", root =>
             SetExpectedAutomationName(
@@ -589,6 +598,31 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 "inspection-details-disclosure",
                 WarningDetailsKey,
                 WarningDetails));
+
+        string changedCanonicalText = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureStateValidInteractionScreen(root, "expand");
+            SetExpectedAutomationName(
+                root,
+                "inspection-details-disclosure",
+                ViewModelDetailsKey,
+                ShowModelDetails);
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    "expand-details",
+                    "expand",
+                    "ready-observed",
+                    "ready-observed"));
+        });
+        string changedCanonicalTextPolicy = FixtureContractDocuments.MutatePolicy(root =>
+        {
+            ConfigureStateValidInteractionPolicy(root, "expand");
+            root["copyRegistry"]![ViewModelDetailsKey] = ShowModelDetails;
+        });
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany(
+                [FixtureContractDocuments.DescriptorSource(changedCanonicalText)],
+                changedCanonicalTextPolicy));
 
         (string State, string Key, string Text, string WrongKey, string WrongText)[] contentContracts =
         [
@@ -1753,6 +1787,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
         registry["fixture.action.cancel"] = "Cancel inspection";
         registry["fixture.action.retry"] = "Retry inspection";
         registry["fixture.action.restart"] = "Restart inspection";
+        registry[CancelInspectionAliasKey] = "Cancel inspection";
         AddAutomationCopyRegistry(registry);
     }
 
