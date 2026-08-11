@@ -3,18 +3,24 @@ param()
 
 <#
 .SYNOPSIS
-Proves that the shared Workbook 05 process adapter stops a native process at
-its own controlled elapsed-time boundary and still writes complete evidence.
+Proves that the resume-only Workbook 05 process adapter stops a native process
+at its own controlled elapsed-time boundary and still writes complete evidence.
 #>
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
-$modulePath = Join-Path `
+$repositoryRoot = (
+    Resolve-Path (Join-Path $PSScriptRoot '../../..')
+).Path
+$baseModulePath = Join-Path `
     $repositoryRoot `
     'scripts/testing/workbook05/Workbook05.Build.psm1'
-Import-Module $modulePath -Force -ErrorAction Stop
+$controlledModulePath = Join-Path `
+    $repositoryRoot `
+    'scripts/testing/workbook05/Workbook05.ControlledProcess.psm1'
+Import-Module $baseModulePath -Force -ErrorAction Stop
+Import-Module $controlledModulePath -Force -ErrorAction Stop
 
 $temporaryRoot = Join-Path `
     ([IO.Path]::GetTempPath()) `
@@ -31,7 +37,7 @@ try {
         $env:SystemRoot `
         'System32\WindowsPowerShell\v1.0\powershell.exe'
 
-    $result = Invoke-Wb05LoggedProcess `
+    $result = Invoke-Wb05ControlledLoggedProcess `
         -CommandId 'deadline-test' `
         -RouteId 'route-a-merged-openvino' `
         -Component 'runtime' `
@@ -45,7 +51,6 @@ try {
         -WorkingDirectory $temporaryRoot `
         -EvidenceDirectory $evidenceDirectory `
         -EvidenceRoot $temporaryRoot `
-        -MonitorResources `
         -MaximumElapsedSeconds 3
 
     if ($null -eq $result.resource_summary) {
@@ -70,7 +75,9 @@ try {
     foreach ($path in @(
         $result.record_path,
         $result.stdout_path,
-        $result.stderr_path
+        $result.stderr_path,
+        $result.resource_csv_path,
+        $result.resource_summary_path
     )) {
         if ($path -and -not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Expected deadline evidence file is missing: $path"
@@ -81,7 +88,15 @@ try {
     Write-Host 'Workbook 05 controlled process deadline tests passed.'
 }
 finally {
-    Remove-Module 'Workbook05.Build' -Force -ErrorAction SilentlyContinue
+    Remove-Module `
+        'Workbook05.ControlledProcess' `
+        -Force `
+        -ErrorAction SilentlyContinue
+    Remove-Module `
+        'Workbook05.Build' `
+        -Force `
+        -ErrorAction SilentlyContinue
+
     if (Test-Path -LiteralPath $temporaryRoot) {
         Remove-Item `
             -LiteralPath $temporaryRoot `

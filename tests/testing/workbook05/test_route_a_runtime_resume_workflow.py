@@ -116,7 +116,22 @@ class RouteARuntimeResumeWorkflowTests(unittest.TestCase):
         self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", block)
         self.assertIn("repository: ${{ github.repository }}", block)
         self.assertIn("run-id: ${{ inputs.resume_run_id }}", block)
-        self.assertIn("ResumeRunAttempt ${{ inputs.resume_run_attempt }}", block)
+        self.assertIn(
+            "WB05_RESUME_RUN_ATTEMPT: ${{ inputs.resume_run_attempt }}",
+            block,
+        )
+        self.assertIn(
+            "-ResumeRunAttempt $env:WB05_RESUME_RUN_ATTEMPT",
+            block,
+        )
+        self.assertIn(
+            "-ResumeWorkspaceDirectory $env:WB05_RESUME_WORKSPACE",
+            block,
+        )
+        self.assertIn(
+            "-ExpectedArtifactDigest $env:WB05_RESUME_EXPECTED_DIGEST",
+            block,
+        )
         self.assertIn("InternalDeadlineSeconds 39600", block)
 
     def test_new_evidence_is_bound_uploaded_and_independently_validated(self) -> None:

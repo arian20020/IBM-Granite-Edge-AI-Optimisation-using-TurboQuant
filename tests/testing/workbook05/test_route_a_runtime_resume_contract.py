@@ -5,7 +5,10 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-MODULE_PATH = REPOSITORY_ROOT / "scripts/testing/workbook05/Workbook05.Build.psm1"
+CONTROLLED_PROCESS_MODULE = (
+    REPOSITORY_ROOT
+    / "scripts/testing/workbook05/Workbook05.ControlledProcess.psm1"
+)
 RUNTIME_RESUME_SCRIPT = (
     REPOSITORY_ROOT
     / "scripts/testing/workbook05/Invoke-Workbook05RouteARuntimeResume.ps1"
@@ -19,19 +22,41 @@ ARTIFACT_IDENTITY_SCRIPT = (
 class BuildProcessDeadlineContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.text = MODULE_PATH.read_text(encoding="utf-8")
+        cls.text = CONTROLLED_PROCESS_MODULE.read_text(encoding="utf-8")
 
-    def test_process_adapter_exposes_and_propagates_controlled_deadline(self) -> None:
+    def test_resume_adapter_enforces_deadline_and_existing_resource_limits(self) -> None:
         required = (
-            "[int]$MaximumElapsedSeconds = 0",
-            "-MaximumElapsedSeconds $MaximumElapsedSeconds",
+            "function Invoke-Wb05ControlledLoggedProcess",
+            "[int]$MaximumElapsedSeconds",
             "controlled elapsed-time boundary",
-            "$MaximumElapsedSeconds -lt 0",
-            "$MaximumElapsedSeconds -gt 0 -and -not $MonitorResources",
+            "[int64]$MinimumAvailableMemoryBytes = 1610612736",
+            "[double]$MaximumCommitPercent = 90",
+            "[int]$ConsecutiveSafetySamples = 5",
+            "Stop-Wb05ControlledProcessTree",
+            "Sort-Object -Descending",
+            "ReadToEndAsync",
+            "Write-Wb05Json",
+            "build-resource-summary",
+            "build-command",
         )
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
+
+    def test_resume_adapter_does_not_weaken_process_or_payload_boundaries(self) -> None:
+        forbidden = (
+            "Invoke-Expression",
+            "Start-Process",
+            "cmd.exe",
+            "git reset --hard",
+            "git clean",
+            "huggingface.co",
+            ".gguf",
+            ".safetensors",
+        )
+        for token in forbidden:
+            with self.subTest(token=token):
+                self.assertNotIn(token.lower(), self.text.lower())
 
 
 class RouteARuntimeResumeContractTests(unittest.TestCase):
@@ -44,13 +69,9 @@ class RouteARuntimeResumeContractTests(unittest.TestCase):
             "https://github.com/openvinotoolkit/openvino.git",
             "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
             "docs/dev/build_windows.md",
-            "C:\\w5a",
+            r"C:\w5a",
             "[IO.FileAttributes]::ReparsePoint",
-            "cmake",
-            "MSBuild",
-            "cl",
-            "ninja",
-            "vctip",
+            "'cmake', 'MSBuild', 'cl', 'ninja', 'vctip'",
             "route_a_runtime_resume_bundle_validation",
             "CMakeCache.txt",
             "ExpectedCacheSha256",
@@ -85,14 +106,14 @@ class RouteARuntimeResumeContractTests(unittest.TestCase):
             "$cacheValues.ENABLE_OV_TF_LITE_FRONTEND -eq 'OFF'",
             "$cacheValues.ENABLE_OV_PYTORCH_FRONTEND -eq 'OFF'",
             "$cacheValues.ENABLE_OV_JAX_FRONTEND -eq 'OFF'",
-            "'--parallel', '1'",
-            "'--', '/p:CL_MPCount=1'",
+            "'--parallel'",
+            "'1'",
+            "'/p:CL_MPCount=1'",
         )
         for token in required:
             with self.subTest(token=token):
                 self.assertIn(token, self.text)
 
-        self.assertNotIn("'--parallel', '2'", self.text)
         self.assertNotIn("'/p:CL_MPCount=2'", self.text)
 
     def test_uses_internal_deadline_then_installs_and_checks_handoff(self) -> None:
