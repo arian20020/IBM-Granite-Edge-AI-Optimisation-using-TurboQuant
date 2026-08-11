@@ -1,0 +1,533 @@
+{
+  "$schema": "model-inspection-fixture.schema.json",
+  "schemaVersion": 1,
+  "id": "MI-049",
+  "targetCondition": "operational-failure-detail-copy-maximum",
+  "variant": null,
+  "title": "MI-049 operational failure detail copy maximum",
+  "category": "stress",
+  "coverage": {
+    "figmaStates": [
+      "operationalFailure"
+    ],
+    "stages": [],
+    "stageStatuses": [],
+    "outcomes": [],
+    "interactions": [
+      "retry",
+      "chooseAnother",
+      "reset"
+    ],
+    "lifecycleTags": [],
+    "failureProfiles": [
+      "workerStartFailure"
+    ],
+    "stressTags": [
+      "maximumDetailCopy"
+    ]
+  },
+  "input": {
+    "request": {
+      "displayName": "Granite Fixture Model",
+      "displayFileName": "granite-fixture.gguf",
+      "evidenceProfile": "compatible"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "serviceSteps": [
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "terminal"
+            },
+            "effect": {
+              "kind": "operationalFailure",
+              "progress": null,
+              "outcome": null,
+              "evidenceProfile": null,
+              "failureProfile": "workerStartFailure",
+              "failureDetailProfile": "maximum",
+              "deferredCheckpoint": null
+            }
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "serviceSteps": [
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "attempt-2-ready"
+            },
+            "effect": {
+              "kind": "completed",
+              "progress": null,
+              "outcome": "ready",
+              "evidenceProfile": "compatible",
+              "failureProfile": null,
+              "failureDetailProfile": null,
+              "deferredCheckpoint": null
+            }
+          }
+        ]
+      }
+    ],
+    "setupSteps": [
+      {
+        "kind": "release-service-checkpoint",
+        "attempt": 1,
+        "checkpoint": "terminal",
+        "interactionId": null
+      },
+      {
+        "kind": "observe",
+        "attempt": null,
+        "checkpoint": "observed",
+        "interactionId": null
+      }
+    ],
+    "observationCheckpoint": "observed"
+  },
+  "expected": {
+    "figma": {
+      "state": "operationalFailure",
+      "geometryProfile": "canonical"
+    },
+    "outcome": {
+      "visible": true,
+      "kind": "operationalFailure",
+      "tone": "error",
+      "badge": null,
+      "title": {
+        "copyKey": "fixture.outcome.failure.title",
+        "defaultText": "Inspection could not be completed"
+      },
+      "supportingText": {
+        "copyKey": "fixture.failure.detail.maximum",
+        "defaultText": "Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validati"
+      }
+    },
+    "model": {
+      "visible": true,
+      "mode": "compact",
+      "badge": "resultUnknown",
+      "displayName": {
+        "copyKey": "fixture.model.name",
+        "defaultText": "Granite Fixture Model"
+      },
+      "displayFileName": {
+        "copyKey": "fixture.model.file",
+        "defaultText": "granite-fixture.gguf"
+      },
+      "metadata": [
+        {
+          "id": "metadata-format",
+          "label": {
+            "copyKey": "fixture.metadata.format.label",
+            "defaultText": "Format"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.format.value",
+            "defaultText": "GGUF"
+          }
+        },
+        {
+          "id": "metadata-file-size",
+          "label": {
+            "copyKey": "fixture.metadata.file-size.label",
+            "defaultText": "File size"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.file-size.value",
+            "defaultText": "1.50 GB"
+          }
+        },
+        {
+          "id": "metadata-quantisation",
+          "label": {
+            "copyKey": "fixture.metadata.quantisation.label",
+            "defaultText": "Quantisation"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.quantisation.value",
+            "defaultText": "Q4_K_M"
+          }
+        },
+        {
+          "id": "metadata-parameters",
+          "label": {
+            "copyKey": "fixture.metadata.parameters.label",
+            "defaultText": "Parameters"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.parameters.value",
+            "defaultText": "8 billion"
+          }
+        },
+        {
+          "id": "metadata-context",
+          "label": {
+            "copyKey": "fixture.metadata.context.label",
+            "defaultText": "Context"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.context.value",
+            "defaultText": "8,192 tokens"
+          }
+        }
+      ],
+      "checks": [
+        {
+          "id": "check-package",
+          "text": {
+            "copyKey": "fixture.check.package",
+            "defaultText": "GGUF version 3; package boundaries validated and source integrity preserved."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-configuration",
+          "text": {
+            "copyKey": "fixture.check.configuration",
+            "defaultText": "Architecture llama; 32 layers; quantisation Q4_K_M; 8 billion parameters."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-tokenizer",
+          "text": {
+            "copyKey": "fixture.check.tokenizer",
+            "defaultText": "Tokenizer sentencepiece; smoke check passed with 4 tokens; chat template present."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-structure",
+          "text": {
+            "copyKey": "fixture.check.structure",
+            "defaultText": "Model structure validation completed using reported configuration evidence."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-runtime",
+          "text": {
+            "copyKey": "fixture.check.runtime",
+            "defaultText": "CPU X64 VocabOnly inspection completed with llama.dll using the approved profile."
+          },
+          "status": "passed"
+        }
+      ],
+      "disclosureExpanded": false
+    },
+    "content": {
+      "visible": true,
+      "mode": "operationalFailure",
+      "disclosureExpanded": false,
+      "heading": {
+        "copyKey": "fixture.content.failure.heading",
+        "defaultText": "Inspection did not complete"
+      },
+      "rows": [
+        {
+          "id": "operational-failure-row",
+          "primaryText": {
+            "copyKey": "fixture.content.failure.row",
+            "defaultText": "Model result unavailable"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.failure.detail.maximum",
+            "defaultText": "Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validati"
+          },
+          "status": "error"
+        }
+      ]
+    },
+    "actions": {
+      "visible": true,
+      "mode": "result",
+      "items": [
+        {
+          "id": "choose-another",
+          "label": {
+            "copyKey": "fixture.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "visible": true,
+          "enabled": true,
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "label": {
+            "copyKey": "fixture.action.technical-report",
+            "defaultText": "View technical report"
+          },
+          "visible": true,
+          "enabled": false,
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "retry",
+          "label": {
+            "copyKey": "fixture.action.retry",
+            "defaultText": "Retry inspection"
+          },
+          "visible": true,
+          "enabled": true,
+          "helpText": null
+        }
+      ]
+    },
+    "footer": {
+      "rows": [
+        {
+          "stage": "checkModelPackage",
+          "status": "interrupted"
+        },
+        {
+          "stage": "readModelConfiguration",
+          "status": "interrupted"
+        },
+        {
+          "stage": "validateTokenizerAndChatSetup",
+          "status": "interrupted"
+        },
+        {
+          "stage": "validateModelStructure",
+          "status": "interrupted"
+        },
+        {
+          "stage": "confirmCoreRuntimeCompatibility",
+          "status": "interrupted"
+        }
+      ],
+      "status": "interrupted"
+    },
+    "focus": {
+      "target": "choose-another"
+    },
+    "automation": {
+      "controls": [
+        {
+          "id": "model-card",
+          "accessibleName": {
+            "copyKey": "fixture.model.name",
+            "defaultText": "Granite Fixture Model"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "choose-another",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.technical-report",
+            "defaultText": "View technical inspection report"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "retry",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.retry",
+            "defaultText": "Retry model inspection"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "content-list",
+          "accessibleName": {
+            "copyKey": "fixture.content.failure.heading",
+            "defaultText": "Inspection did not complete"
+          },
+          "controlType": "list",
+          "liveSetting": "polite",
+          "helpText": null
+        },
+        {
+          "id": "operational-failure-row",
+          "accessibleName": {
+            "copyKey": "fixture.content.failure.row",
+            "defaultText": "Model result unavailable"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.failure.detail.maximum",
+            "defaultText": "Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validation. Operational failure detail remains bounded for deterministic maximum-copy validati"
+          }
+        }
+      ]
+    },
+    "announcements": {
+      "count": 1,
+      "items": [
+        {
+          "copyKey": "fixture.announcement.failure",
+          "defaultText": "Model inspection could not be completed."
+        }
+      ]
+    },
+    "rowsAndScroll": {
+      "orderedRowIds": [
+        "operational-failure-row"
+      ],
+      "scrollOwner": "content-list"
+    },
+    "retainedIdentities": {
+      "ids": [
+        "model-card",
+        "metadata-format",
+        "metadata-file-size",
+        "metadata-quantisation",
+        "metadata-parameters",
+        "metadata-context",
+        "check-package",
+        "check-configuration",
+        "check-tokenizer",
+        "check-structure",
+        "check-runtime",
+        "content-list",
+        "operational-failure-row",
+        "choose-another",
+        "technical-report",
+        "retry"
+      ]
+    }
+  },
+  "presetExpectations": {
+    "P01": {
+      "responsiveLayout": "desktop",
+      "minimumContentColumnWidth": 480,
+      "maximumContentColumnWidth": 960,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "operational-failure-row",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "content-list",
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "choose-another",
+        "technical-report",
+        "retry",
+        "content-list",
+        "operational-failure-row"
+      ],
+      "tabOrder": [
+        "choose-another",
+        "retry"
+      ],
+      "focusTarget": "choose-another",
+      "resources": "light",
+      "textScale": "standard100",
+      "motion": "normal",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 1,
+      "maximumAnimationStarts": 1
+    },
+    "P08": {
+      "responsiveLayout": "narrow",
+      "minimumContentColumnWidth": 280,
+      "maximumContentColumnWidth": 360,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "operational-failure-row",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "content-list",
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "choose-another",
+        "technical-report",
+        "retry",
+        "content-list",
+        "operational-failure-row"
+      ],
+      "tabOrder": [
+        "choose-another",
+        "retry"
+      ],
+      "focusTarget": "choose-another",
+      "resources": "dark",
+      "textScale": "preview200",
+      "motion": "normal",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 1,
+      "maximumAnimationStarts": 1
+    }
+  },
+  "interactions": [
+    {
+      "id": "choose-another",
+      "kind": "chooseAnother",
+      "sourceCheckpoint": "observed",
+      "target": "gallery:no-active-fixture",
+      "expectedFocus": null,
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "interrupted",
+      "lifetimeEffect": "noActiveFixture"
+    },
+    {
+      "id": "retry",
+      "kind": "retry",
+      "sourceCheckpoint": "observed",
+      "target": "MI-002",
+      "expectedFocus": "choose-another",
+      "expectedAnnouncementCount": 1,
+      "expectedFooterStatus": "complete",
+      "lifetimeEffect": "none"
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "sourceCheckpoint": "observed",
+      "target": "MI-049",
+      "expectedFocus": "choose-another",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "interrupted",
+      "lifetimeEffect": "retirePage"
+    }
+  ],
+  "presets": [
+    "P01",
+    "P08"
+  ]
+}

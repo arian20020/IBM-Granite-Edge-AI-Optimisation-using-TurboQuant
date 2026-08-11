@@ -56,6 +56,7 @@ public sealed record ModelInspectionFixtureServiceEffectDescriptor(
     ModelInspectionFixtureOutcome? Outcome,
     ModelInspectionFixtureEvidenceProfile? EvidenceProfile,
     ModelInspectionFixtureFailureProfile? FailureProfile,
+    ModelInspectionFixtureFailureDetailProfile? FailureDetailProfile,
     string? DeferredCheckpoint);
 
 public sealed record ModelInspectionFixtureProgressDescriptor(
@@ -134,7 +135,8 @@ public sealed record ModelInspectionExpectedContentRegion(
     bool Visible,
     ModelInspectionExpectedContentMode Mode,
     ModelInspectionExpectedCopy? Heading,
-    IReadOnlyList<ModelInspectionExpectedContentRow> Rows);
+    IReadOnlyList<ModelInspectionExpectedContentRow> Rows,
+    bool DisclosureExpanded);
 
 public sealed record ModelInspectionExpectedContentRow(
     string Id,
@@ -202,7 +204,10 @@ public sealed record ModelInspectionPresetExpectation(
     ModelInspectionFixtureResourceProfile Resources,
     ModelInspectionFixtureTextProfile TextScale,
     ModelInspectionFixtureMotionProfile Motion,
-    int ExpectedAnimationStarts);
+    bool SemanticBrushesResolvedWithoutColorOnlyMeaning,
+    bool FinalGeometryAndSemanticsEquivalentToNormalMotion,
+    int MinimumAnimationStarts,
+    int MaximumAnimationStarts);
 
 public sealed record ModelInspectionExpectedTextRole(
     string Id,

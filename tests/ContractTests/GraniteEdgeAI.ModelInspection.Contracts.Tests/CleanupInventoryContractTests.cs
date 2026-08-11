@@ -9,10 +9,20 @@ public sealed class CleanupInventoryContractTests
 {
     private static readonly string Root = FindRepositoryRoot();
 
+    private static readonly string[] RequiredFixtureCatalogueRoots =
+    [
+        "shared/GraniteEdgeAI.ModelInspection.Fixtures",
+        "tests/TestFixtures/ModelInspectionScenarios"
+    ];
+
+    private const string RequiredFixtureReportPath =
+        "docs/evidence/testing/Model-Inspection-Fixture-Catalog.md";
+
     private static readonly string[] CompleteRoots =
     [
         "IBM Granite with TurboQuant (Intel)/Features/ModelInspection",
         "shared/GraniteEdgeAI.ModelInspection.Contracts",
+        "shared/GraniteEdgeAI.ModelInspection.Fixtures",
         "shared/GraniteEdgeAI.ModelInspection.Transport",
         "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient",
         "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp",
@@ -24,6 +34,7 @@ public sealed class CleanupInventoryContractTests
         "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests",
         "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests",
         "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker",
+        "tests/TestFixtures/ModelInspectionScenarios",
         "scripts/model-inspection"
     ];
 
@@ -61,6 +72,19 @@ public sealed class CleanupInventoryContractTests
             "reviews",
             "model-inspection-cleanup-inventory.md");
         string[] inventoryRows = File.ReadAllLines(inventoryPath);
+        string header = inventoryRows.Single(line =>
+            line.StartsWith(
+                "This ledger records one review disposition",
+                StringComparison.Ordinal));
+        StringAssert.Contains(
+            header,
+            $"The current source list and ledger contain {sourceFiles.Length} " +
+            "exact, sorted, unique paths.");
+        StringAssert.Contains(
+            header,
+            $"cleanup reconciliation is recorded at " +
+            $"{sourceFiles.Length}/{inventoryFiles.Length}");
+
         foreach (string selfLedgerPath in new[]
                  {
                      "docs/reviews/model-inspection-cleanup-inventory.md",
@@ -86,14 +110,67 @@ public sealed class CleanupInventoryContractTests
     {
         string[] sourceFiles = ReadSourceFiles();
         string[] currentFiles = DiscoverCurrentScopeFiles();
+        string[] missingRoots = RequiredFixtureCatalogueRoots
+            .Except(CompleteRoots, StringComparer.Ordinal)
+            .ToArray();
         string[] missing = currentFiles
             .Except(sourceFiles, StringComparer.Ordinal)
             .ToArray();
+        string inventoryHeader = File.ReadLines(Path.Combine(
+                Root,
+                "docs",
+                "reviews",
+                "model-inspection-cleanup-inventory.md"))
+            .Single(line => line.StartsWith(
+                "This ledger records one review disposition",
+                StringComparison.Ordinal));
+
+        List<string> failures = [];
+        if (missingRoots.Length != 0)
+        {
+            failures.Add(
+                $"Required complete roots are missing:{Environment.NewLine}" +
+                string.Join(Environment.NewLine, missingRoots));
+        }
+
+        if (!currentFiles.Contains(
+                RequiredFixtureReportPath,
+                StringComparer.Ordinal) ||
+            !sourceFiles.Contains(
+                RequiredFixtureReportPath,
+                StringComparer.Ordinal))
+        {
+            failures.Add(
+                $"Required fixture report is absent from the cleanup source list: " +
+                RequiredFixtureReportPath);
+        }
+
+        if (missing.Length != 0)
+        {
+            failures.Add(
+                $"Current Model Inspection files need {missing.Length} inventory rows:" +
+                $"{Environment.NewLine}{string.Join(Environment.NewLine, missing)}");
+        }
+
+        int expectedSourceCount = sourceFiles
+            .Union(currentFiles, StringComparer.Ordinal)
+            .Count();
+        string expectedHeaderCount =
+            $"The current source list and ledger contain {expectedSourceCount} " +
+            "exact, sorted, unique paths.";
+        if (!inventoryHeader.Contains(expectedHeaderCount, StringComparison.Ordinal))
+        {
+            failures.Add(
+                $"The inventory header must contain the computed current-scope claim: " +
+                expectedHeaderCount);
+        }
 
         Assert.AreEqual(
             0,
-            missing.Length,
-            $"Current Model Inspection files need inventory rows:{Environment.NewLine}{string.Join(Environment.NewLine, missing)}");
+            failures.Count,
+            string.Join(
+                $"{Environment.NewLine}{Environment.NewLine}",
+                failures));
     }
 
     private static string[] ReadSourceFiles() =>
@@ -121,7 +198,9 @@ public sealed class CleanupInventoryContractTests
     {
         HashSet<string> files = new(StringComparer.Ordinal);
 
-        foreach (string root in CompleteRoots)
+        foreach (string root in CompleteRoots
+                     .Concat(RequiredFixtureCatalogueRoots)
+                     .Distinct(StringComparer.Ordinal))
         {
             string fullRoot = Path.Combine(Root, root);
             if (!Directory.Exists(fullRoot))

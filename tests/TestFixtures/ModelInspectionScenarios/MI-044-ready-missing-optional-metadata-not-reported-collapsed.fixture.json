@@ -1,0 +1,525 @@
+{
+  "$schema": "model-inspection-fixture.schema.json",
+  "schemaVersion": 1,
+  "id": "MI-044",
+  "targetCondition": "ready-missing-optional-metadata-not-reported",
+  "variant": "collapsed",
+  "title": "MI-044 ready missing optional metadata not reported",
+  "category": "stress",
+  "coverage": {
+    "figmaStates": [
+      "readyCollapsed"
+    ],
+    "stages": [],
+    "stageStatuses": [],
+    "outcomes": [
+      "ready"
+    ],
+    "interactions": [
+      "expand",
+      "chooseAnother",
+      "reset"
+    ],
+    "lifecycleTags": [],
+    "failureProfiles": [],
+    "stressTags": [
+      "missingOptionalMetadata"
+    ]
+  },
+  "input": {
+    "request": {
+      "displayName": "Granite Fixture Model",
+      "displayFileName": "granite-fixture.gguf",
+      "evidenceProfile": "compatibleMissingOptionalMetadata"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "serviceSteps": [
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "terminal"
+            },
+            "effect": {
+              "kind": "completed",
+              "progress": null,
+              "outcome": "ready",
+              "evidenceProfile": "compatibleMissingOptionalMetadata",
+              "failureProfile": null,
+              "failureDetailProfile": null,
+              "deferredCheckpoint": null
+            }
+          }
+        ]
+      }
+    ],
+    "setupSteps": [
+      {
+        "kind": "release-service-checkpoint",
+        "attempt": 1,
+        "checkpoint": "terminal",
+        "interactionId": null
+      },
+      {
+        "kind": "observe",
+        "attempt": null,
+        "checkpoint": "observed",
+        "interactionId": null
+      }
+    ],
+    "observationCheckpoint": "observed"
+  },
+  "expected": {
+    "figma": {
+      "state": "readyCollapsed",
+      "geometryProfile": "canonical"
+    },
+    "outcome": {
+      "visible": true,
+      "kind": "ready",
+      "tone": "success",
+      "badge": null,
+      "title": {
+        "copyKey": "fixture.outcome.ready.title",
+        "defaultText": "Model inspection complete"
+      },
+      "supportingText": {
+        "copyKey": "fixture.outcome.ready.supporting",
+        "defaultText": "The model passed all lightweight inspection checks."
+      }
+    },
+    "model": {
+      "visible": true,
+      "mode": "detailed",
+      "badge": "inspected",
+      "displayName": {
+        "copyKey": "fixture.model.name",
+        "defaultText": "Granite Fixture Model"
+      },
+      "displayFileName": {
+        "copyKey": "fixture.model.file",
+        "defaultText": "granite-fixture.gguf"
+      },
+      "metadata": [
+        {
+          "id": "metadata-format",
+          "label": {
+            "copyKey": "fixture.metadata.format.label",
+            "defaultText": "Format"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.format.value",
+            "defaultText": "GGUF"
+          }
+        },
+        {
+          "id": "metadata-file-size",
+          "label": {
+            "copyKey": "fixture.metadata.file-size.label",
+            "defaultText": "File size"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.file-size.value",
+            "defaultText": "1.50 GB"
+          }
+        },
+        {
+          "id": "metadata-quantisation",
+          "label": {
+            "copyKey": "fixture.metadata.quantisation.label",
+            "defaultText": "Quantisation"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.quantisation.value",
+            "defaultText": "Q4_K_M"
+          }
+        },
+        {
+          "id": "metadata-parameters",
+          "label": {
+            "copyKey": "fixture.metadata.parameters.label",
+            "defaultText": "Parameters"
+          },
+          "value": {
+            "copyKey": "fixture.metadata.parameters.value",
+            "defaultText": "8 billion"
+          }
+        },
+        {
+          "id": "metadata-context",
+          "label": {
+            "copyKey": "fixture.metadata.context.label",
+            "defaultText": "Context"
+          },
+          "value": {
+            "copyKey": "fixture.not-reported",
+            "defaultText": "Not reported"
+          }
+        },
+        {
+          "id": "metadata-publisher",
+          "label": {
+            "copyKey": "fixture.metadata.publisher.label",
+            "defaultText": "Publisher"
+          },
+          "value": {
+            "copyKey": "fixture.not-reported",
+            "defaultText": "Not reported"
+          }
+        },
+        {
+          "id": "metadata-model-type",
+          "label": {
+            "copyKey": "fixture.metadata.model-type.label",
+            "defaultText": "Model type"
+          },
+          "value": {
+            "copyKey": "fixture.not-reported",
+            "defaultText": "Not reported"
+          }
+        }
+      ],
+      "checks": [
+        {
+          "id": "check-package",
+          "text": {
+            "copyKey": "fixture.check.package",
+            "defaultText": "GGUF version 3; package boundaries validated and source integrity preserved."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-configuration",
+          "text": {
+            "copyKey": "fixture.check.configuration",
+            "defaultText": "Architecture llama; 32 layers; quantisation Q4_K_M; 8 billion parameters."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-tokenizer",
+          "text": {
+            "copyKey": "fixture.check.tokenizer",
+            "defaultText": "Tokenizer sentencepiece; smoke check passed with 4 tokens; chat template present."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-structure",
+          "text": {
+            "copyKey": "fixture.check.structure",
+            "defaultText": "Model structure validation completed using reported configuration evidence."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "check-runtime",
+          "text": {
+            "copyKey": "fixture.check.runtime",
+            "defaultText": "CPU X64 VocabOnly inspection completed with llama.dll using the approved profile."
+          },
+          "status": "passed"
+        }
+      ],
+      "disclosureExpanded": false
+    },
+    "content": {
+      "visible": false,
+      "mode": "hidden",
+      "disclosureExpanded": false,
+      "heading": null,
+      "rows": []
+    },
+    "actions": {
+      "visible": true,
+      "mode": "result",
+      "items": [
+        {
+          "id": "choose-another",
+          "label": {
+            "copyKey": "fixture.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "visible": true,
+          "enabled": true,
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "label": {
+            "copyKey": "fixture.action.technical-report",
+            "defaultText": "View technical report"
+          },
+          "visible": true,
+          "enabled": false,
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "hardware-fit",
+          "label": {
+            "copyKey": "fixture.action.hardware-fit",
+            "defaultText": "Check hardware fit"
+          },
+          "visible": true,
+          "enabled": false,
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        }
+      ]
+    },
+    "footer": {
+      "rows": [
+        {
+          "stage": "checkModelPackage",
+          "status": "complete"
+        },
+        {
+          "stage": "readModelConfiguration",
+          "status": "complete"
+        },
+        {
+          "stage": "validateTokenizerAndChatSetup",
+          "status": "complete"
+        },
+        {
+          "stage": "validateModelStructure",
+          "status": "complete"
+        },
+        {
+          "stage": "confirmCoreRuntimeCompatibility",
+          "status": "complete"
+        }
+      ],
+      "status": "complete"
+    },
+    "focus": {
+      "target": "choose-another"
+    },
+    "automation": {
+      "controls": [
+        {
+          "id": "model-card",
+          "accessibleName": {
+            "copyKey": "fixture.model.name",
+            "defaultText": "Granite Fixture Model"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "choose-another",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.technical-report",
+            "defaultText": "View technical inspection report"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "hardware-fit",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.hardware-fit",
+            "defaultText": "Check model hardware fit"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "inspection-details-disclosure",
+          "accessibleName": {
+            "copyKey": "fixture.automation.model-disclosure.view",
+            "defaultText": "View model inspection details"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        }
+      ]
+    },
+    "announcements": {
+      "count": 1,
+      "items": [
+        {
+          "copyKey": "fixture.announcement.ready",
+          "defaultText": "Model inspection complete."
+        }
+      ]
+    },
+    "rowsAndScroll": {
+      "orderedRowIds": [],
+      "scrollOwner": null
+    },
+    "retainedIdentities": {
+      "ids": [
+        "model-card",
+        "metadata-format",
+        "metadata-file-size",
+        "metadata-quantisation",
+        "metadata-parameters",
+        "metadata-context",
+        "metadata-publisher",
+        "metadata-model-type",
+        "check-package",
+        "check-configuration",
+        "check-tokenizer",
+        "check-structure",
+        "check-runtime",
+        "choose-another",
+        "technical-report",
+        "hardware-fit",
+        "inspection-details-disclosure"
+      ]
+    }
+  },
+  "presetExpectations": {
+    "P01": {
+      "responsiveLayout": "desktop",
+      "minimumContentColumnWidth": 480,
+      "maximumContentColumnWidth": 960,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "metadata-context",
+          "behavior": "wrap"
+        },
+        {
+          "id": "metadata-publisher",
+          "behavior": "wrap"
+        },
+        {
+          "id": "metadata-model-type",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": null,
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "choose-another",
+        "technical-report",
+        "hardware-fit",
+        "inspection-details-disclosure"
+      ],
+      "tabOrder": [
+        "inspection-details-disclosure",
+        "choose-another"
+      ],
+      "focusTarget": "choose-another",
+      "resources": "light",
+      "textScale": "standard100",
+      "motion": "normal",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 1,
+      "maximumAnimationStarts": 1
+    },
+    "P03": {
+      "responsiveLayout": "desktop",
+      "minimumContentColumnWidth": 480,
+      "maximumContentColumnWidth": 960,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "metadata-context",
+          "behavior": "wrap"
+        },
+        {
+          "id": "metadata-publisher",
+          "behavior": "wrap"
+        },
+        {
+          "id": "metadata-model-type",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": null,
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "choose-another",
+        "technical-report",
+        "hardware-fit",
+        "inspection-details-disclosure"
+      ],
+      "tabOrder": [
+        "inspection-details-disclosure",
+        "choose-another"
+      ],
+      "focusTarget": "choose-another",
+      "resources": "highContrastPreview",
+      "textScale": "standard100",
+      "motion": "reduced",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 0,
+      "maximumAnimationStarts": 0
+    }
+  },
+  "interactions": [
+    {
+      "id": "expand",
+      "kind": "expand",
+      "sourceCheckpoint": "observed",
+      "target": "MI-003",
+      "expectedFocus": "choose-another",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "complete",
+      "lifetimeEffect": "none"
+    },
+    {
+      "id": "choose-another",
+      "kind": "chooseAnother",
+      "sourceCheckpoint": "observed",
+      "target": "gallery:no-active-fixture",
+      "expectedFocus": null,
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "complete",
+      "lifetimeEffect": "noActiveFixture"
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "sourceCheckpoint": "observed",
+      "target": "MI-044",
+      "expectedFocus": "choose-another",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "complete",
+      "lifetimeEffect": "retirePage"
+    }
+  ],
+  "presets": [
+    "P01",
+    "P03"
+  ]
+}

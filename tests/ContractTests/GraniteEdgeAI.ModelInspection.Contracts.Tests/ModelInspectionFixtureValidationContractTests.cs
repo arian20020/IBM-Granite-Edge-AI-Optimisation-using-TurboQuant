@@ -413,10 +413,11 @@ public sealed class ModelInspectionFixtureValidationContractTests
 
             AssertInvalid(root =>
             {
+                (string labelKey, string labelText) = CanonicalActionLabel(kind);
                 ConfigureExpectedActions(
                     root,
                     "result",
-                    (kind, "fixture.action.choose", "Choose another model"));
+                    (kind, labelKey, labelText));
                 root["interactions"] = new JsonArray(
                     Interaction(
                         "wrong-state-action",
@@ -665,6 +666,376 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 });
                 Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
                     LoadMany([FixtureContractDocuments.DescriptorSource(invalid)], policy));
+            }
+        }
+    }
+
+    [TestMethod]
+    public void ActionAutomationNames_RejectJointPolicyAndDescriptorAlias()
+    {
+        AssertStateValidInteractionInvalid("cancel", root =>
+        {
+            FindExpectedAction(root, "cancel")["label"] = new JsonObject
+            {
+                ["copyKey"] = CancelInspectionAliasKey,
+                ["defaultText"] = "Cancel inspection"
+            };
+            SetExpectedAutomationName(
+                root,
+                "cancel",
+                CancelInspectionAliasKey,
+                "Cancel inspection");
+        });
+    }
+
+    [TestMethod]
+    public void ActionAutomationRegistry_RejectsArbitraryReservedKeys()
+    {
+        string policy = FixtureContractDocuments.MutatePolicy(root =>
+            root["copyRegistry"]!["fixture.automation.action.alias"] =
+                "Registered but not canonical");
+        VerifiedModelInspectionFixtureSchema schema =
+            ModelInspectionFixtureCatalogue.VerifySchema(
+                FixtureContractDocuments.SchemaSource());
+
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            ModelInspectionFixtureCatalogue.LoadPolicy(
+                FixtureContractDocuments.PolicySource(policy),
+                schema));
+    }
+
+    [TestMethod]
+    public void CurrentActionAutomationContracts_MatchIndependentProductionOracle()
+    {
+        string directory = CurrentScenarioDirectory();
+        JsonObject policyDocument = JsonNode.Parse(File.ReadAllText(Path.Combine(
+            directory,
+            "model-inspection-fixture-coverage-policy.json")))!.AsObject();
+        (string Id, string LabelKey, string LabelText, string AutomationKey,
+            string AutomationText, bool IsFuture)[] contracts =
+            CanonicalActionContracts();
+
+        string[] expectedRegistry = contracts
+            .Select(contract => $"{contract.AutomationKey}\0{contract.AutomationText}")
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        string[] actualRegistry = policyDocument["copyRegistry"]!.AsObject()
+            .Where(entry => entry.Key.StartsWith(
+                "fixture.automation.action.",
+                StringComparison.Ordinal))
+            .Select(entry => $"{entry.Key}\0{entry.Value!.GetValue<string>()}")
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        CollectionAssert.AreEqual(expectedRegistry, actualRegistry);
+
+        string[] fileNames = Enumerable.Range(1, 13)
+            .Select(index => Directory.GetFiles(
+                directory,
+                $"MI-{index:000}-*.fixture.json").Single())
+            .ToArray();
+        int visibleActionCount = 0;
+        int actionControlCount = 0;
+        foreach (string fileName in fileNames)
+        {
+            JsonObject descriptor = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
+            JsonArray actions = descriptor["expected"]!["actions"]!["items"]!.AsArray();
+            JsonArray controls = descriptor["expected"]!["automation"]!["controls"]!
+                .AsArray();
+            foreach (JsonObject action in actions
+                         .Select(node => node!.AsObject())
+                         .Where(action => action["visible"]!.GetValue<bool>()))
+            {
+                string id = action["id"]!.GetValue<string>();
+                (string Id, string LabelKey, string LabelText, string AutomationKey,
+                    string AutomationText, bool IsFuture) contract =
+                    contracts.Single(candidate => string.Equals(
+                        candidate.Id,
+                        id,
+                        StringComparison.Ordinal));
+                JsonObject label = action["label"]!.AsObject();
+                Assert.AreEqual(contract.LabelKey, label["copyKey"]!.GetValue<string>());
+                Assert.AreEqual(contract.LabelText, label["defaultText"]!.GetValue<string>());
+
+                JsonObject[] matchingControls = controls
+                    .Select(node => node!.AsObject())
+                    .Where(control => string.Equals(
+                        control["id"]!.GetValue<string>(),
+                        id,
+                        StringComparison.Ordinal))
+                    .ToArray();
+                Assert.HasCount(1, matchingControls, $"{Path.GetFileName(fileName)}:{id}");
+                JsonObject control = matchingControls[0];
+                Assert.AreEqual("button", control["controlType"]!.GetValue<string>());
+                JsonObject accessibleName = control["accessibleName"]!.AsObject();
+                Assert.AreEqual(
+                    contract.AutomationKey,
+                    accessibleName["copyKey"]!.GetValue<string>());
+                Assert.AreEqual(
+                    contract.AutomationText,
+                    accessibleName["defaultText"]!.GetValue<string>());
+                Assert.AreNotEqual(
+                    $"{label["copyKey"]!.GetValue<string>()}\0{label["defaultText"]!.GetValue<string>()}",
+                    $"{accessibleName["copyKey"]!.GetValue<string>()}\0{accessibleName["defaultText"]!.GetValue<string>()}");
+
+                if (contract.IsFuture)
+                {
+                    Assert.IsFalse(action["enabled"]!.GetValue<bool>());
+                    AssertComingLater(action["helpText"]);
+                    AssertComingLater(control["helpText"]);
+                }
+
+                visibleActionCount++;
+            }
+
+            foreach (JsonObject control in controls
+                         .Select(node => node!.AsObject())
+                         .Where(control => control["controlType"]!.GetValue<string>() == "button"))
+            {
+                string id = control["id"]!.GetValue<string>();
+                Assert.HasCount(
+                    1,
+                    actions.Select(node => node!.AsObject()).Where(action =>
+                        action["visible"]!.GetValue<bool>() &&
+                        action["id"]!.GetValue<string>() == id),
+                    $"{Path.GetFileName(fileName)}:{id}");
+                Assert.HasCount(
+                    1,
+                    contracts.Where(contract => contract.Id == id),
+                    $"{Path.GetFileName(fileName)}:{id}");
+                actionControlCount++;
+            }
+        }
+
+        Assert.AreEqual(33, visibleActionCount);
+        Assert.AreEqual(33, actionControlCount);
+        ModelInspectionFixtureDocumentSource[] descriptorSources = fileNames
+            .Select(fileName => new ModelInspectionFixtureDocumentSource(
+                Path.GetFileName(fileName),
+                File.ReadAllBytes(fileName)))
+            .ToArray();
+        Assert.AreEqual(
+            13,
+            LoadCurrentDescriptors(policyDocument, descriptorSources).Fixtures.Count);
+    }
+
+    [TestMethod]
+    public void ActionAutomationContract_RejectsStructuralAndCanonicalMutations()
+    {
+        Action<JsonObject>[] mutations =
+        [
+            root => RemoveExpectedAutomationControl(root, "locate-missing"),
+            root => root["expected"]!["automation"]!["controls"]!.AsArray().Add(
+                FindExpectedAutomationControl(root, "locate-missing").DeepClone()),
+            root => FindExpectedAutomationControl(root, "locate-missing")["controlType"] =
+                "text",
+            root => FindExpectedAutomationControl(root, "locate-missing")["id"] =
+                "unexpected-action",
+            root =>
+            {
+                JsonObject choose = FindExpectedAutomationControl(root, "choose-another");
+                JsonObject locate = FindExpectedAutomationControl(root, "locate-missing");
+                choose["id"] = "locate-missing";
+                locate["id"] = "choose-another";
+            },
+            root =>
+            {
+                JsonObject choose = FindExpectedAutomationControl(root, "choose-another");
+                JsonObject locate = FindExpectedAutomationControl(root, "locate-missing");
+                JsonNode chooseName = choose["accessibleName"]!.DeepClone();
+                choose["accessibleName"] = locate["accessibleName"]!.DeepClone();
+                locate["accessibleName"] = chooseName;
+            },
+            root => SetExpectedAutomationName(
+                root,
+                "locate-missing",
+                "fixture.action.locate-missing",
+                "Locate missing file"),
+            root => AddExpectedAutomationControl(
+                root,
+                "unexpected-action",
+                "button",
+                "fixture.automation.action.choose-another",
+                "Choose another model")
+        ];
+
+        foreach (Action<JsonObject> mutation in mutations)
+        {
+            AssertCurrentActionContractInvalid(mutation);
+        }
+    }
+
+    [TestMethod]
+    public void ActionAutomationContract_RejectsPolicyDescriptorCollusion()
+    {
+        AssertCurrentActionContractInvalid(
+            root => SetExpectedAutomationName(
+                root,
+                "locate-missing",
+                "fixture.registered.action.locate-missing",
+                "Find another model file"),
+            policy => policy["copyRegistry"]!["fixture.registered.action.locate-missing"] =
+                "Find another model file");
+
+        AssertCurrentActionContractInvalid(
+            root => SetExpectedAutomationName(
+                root,
+                "locate-missing",
+                "fixture.registered.alias.locate-missing",
+                "Locate missing model file"),
+            policy => policy["copyRegistry"]!["fixture.registered.alias.locate-missing"] =
+                "Locate missing model file");
+
+        AssertCurrentActionContractInvalid(
+            root =>
+            {
+                FindExpectedAction(root, "locate-missing")["label"] = new JsonObject
+                {
+                    ["copyKey"] = "fixture.registered.changed.locate-missing",
+                    ["defaultText"] = "Find missing package content"
+                };
+                SetExpectedAutomationName(
+                    root,
+                    "locate-missing",
+                    "fixture.registered.changed.locate-missing",
+                    "Find missing package content");
+            },
+            policy => policy["copyRegistry"]!["fixture.registered.changed.locate-missing"] =
+                "Find missing package content");
+
+        AssertCurrentActionContractInvalid(
+            root => FindExpectedAction(root, "locate-missing")["label"] = new JsonObject
+            {
+                ["copyKey"] = "fixture.registered.label.locate-missing",
+                ["defaultText"] = "Find missing file"
+            },
+            policy => policy["copyRegistry"]!["fixture.registered.label.locate-missing"] =
+                "Find missing file");
+    }
+
+    [TestMethod]
+    public void FutureActionAutomationContract_RequiresDisabledComingLaterHelp()
+    {
+        Action<JsonObject>[] mutations =
+        [
+            root => FindExpectedAction(root, "technical-report")["enabled"] = true,
+            root => FindExpectedAction(root, "technical-report")["helpText"] = null,
+            root => FindExpectedAutomationControl(root, "technical-report")["helpText"] = null,
+            root => FindExpectedAutomationControl(root, "technical-report")["helpText"] =
+                new JsonObject
+                {
+                    ["copyKey"] = "fixture.action.coming-later",
+                    ["defaultText"] = "Available later"
+                }
+        ];
+
+        foreach (Action<JsonObject> mutation in mutations)
+        {
+            AssertCurrentActionContractInvalid(mutation);
+        }
+    }
+
+    [TestMethod]
+    public void DisclosurePairs_AcceptCanonicalOwnerStateModeAndInteraction()
+    {
+        foreach ((string state, string key, string text) in DisclosurePairContracts())
+        {
+            string policy = FixtureContractDocuments.MutatePolicy(root =>
+                ConfigureDisclosurePairPolicy(root, state));
+            string descriptor = FixtureContractDocuments.MutateDescriptor(root =>
+                ConfigureDisclosurePairInteraction(root, state, key, text));
+
+            LoadMany([FixtureContractDocuments.DescriptorSource(descriptor)], policy);
+        }
+    }
+
+    [TestMethod]
+    public void DisclosurePairs_RejectWrongOwnerAmbiguousStateModeAndAutomationOwner()
+    {
+        foreach ((string state, string key, string text) in DisclosurePairContracts())
+        {
+            string policy = FixtureContractDocuments.MutatePolicy(root =>
+                ConfigureDisclosurePairPolicy(root, state));
+
+            AssertDisclosurePairInvalid(policy, state, key, text, root =>
+            {
+                string expectedMode = state.StartsWith("ready", StringComparison.Ordinal) &&
+                    !state.StartsWith("readyWithWarnings", StringComparison.Ordinal)
+                        ? "detailed"
+                        : "compact";
+                root["expected"]!["model"]!["mode"] =
+                    expectedMode == "detailed" ? "compact" : "detailed";
+            });
+
+            string canonicalOwner = state.StartsWith("ready", StringComparison.Ordinal) &&
+                !state.StartsWith("readyWithWarnings", StringComparison.Ordinal)
+                    ? "model"
+                    : "content";
+            string wrongOwner = canonicalOwner == "model" ? "content" : "model";
+            AssertDisclosurePairInvalid(policy, state, key, text, root =>
+                root["expected"]![canonicalOwner]!["visible"] = false);
+            AssertDisclosurePairInvalid(policy, state, key, text, root =>
+            {
+                root["expected"]![canonicalOwner]!["disclosureExpanded"] = false;
+                root["expected"]![wrongOwner]!["disclosureExpanded"] = true;
+            });
+            AssertDisclosurePairInvalid(policy, state, key, text, root =>
+            {
+                root["expected"]!["model"]!["disclosureExpanded"] = true;
+                root["expected"]!["content"]!["disclosureExpanded"] = true;
+            });
+
+            if (state.EndsWith("Expanded", StringComparison.Ordinal))
+            {
+                AssertDisclosurePairInvalid(policy, state, key, text, root =>
+                {
+                    root["expected"]!["model"]!["disclosureExpanded"] = false;
+                    root["expected"]!["content"]!["disclosureExpanded"] = false;
+                });
+            }
+
+            string automationOwner = canonicalOwner == "model"
+                ? "inspection-details-disclosure"
+                : "findings-disclosure";
+            string wrongAutomationOwner = canonicalOwner == "model"
+                ? "findings-disclosure"
+                : "inspection-details-disclosure";
+            AssertDisclosurePairInvalid(policy, state, key, text, root =>
+                FindExpectedAutomationControl(root, automationOwner)["id"] =
+                    wrongAutomationOwner);
+        }
+    }
+
+    [TestMethod]
+    public void NonDisclosureStates_RejectEitherExpandedDisclosureOwner()
+    {
+        string[] states =
+        [
+            "inspectionProgress",
+            "incompletePackage",
+            "unsupported",
+            "cancelled",
+            "operationalFailure"
+        ];
+
+        foreach (string state in states)
+        {
+            string policy = FixtureContractDocuments.MutatePolicy(root =>
+                ConfigureNonDisclosurePolicy(root, state));
+            string valid = FixtureContractDocuments.MutateDescriptor(root =>
+                ConfigureNonDisclosureScreen(root, state));
+            LoadMany([FixtureContractDocuments.DescriptorSource(valid)], policy);
+
+            foreach (string owner in new[] { "model", "content" })
+            {
+                string invalid = FixtureContractDocuments.MutateDescriptor(root =>
+                {
+                    ConfigureNonDisclosureScreen(root, state);
+                    root["expected"]![owner]!["disclosureExpanded"] = true;
+                });
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    LoadMany(
+                        [FixtureContractDocuments.DescriptorSource(invalid)],
+                        policy));
             }
         }
     }
@@ -997,6 +1368,9 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 terminal["outcome"] = outcome;
                 terminal["evidenceProfile"] = evidence;
                 terminal["failureProfile"] = failure;
+                terminal["failureDetailProfile"] = failure is null
+                    ? null
+                    : "default";
                 root["input"]!["request"]!["evidenceProfile"] = evidence ?? "compatible";
                 root["coverage"]!["figmaStates"]![0] = figma;
                 root["coverage"]!["outcomes"] = outcome is null
@@ -1119,16 +1493,91 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
-    public void Privacy_RejectsEmbeddedEnvironmentIdentityAndScopesInternalUrisToTransitions()
+    public void FailureDetailProfile_IsRequiredClosedAndBoundToOperationalFailure()
     {
-        string[] environmentIdentities =
-            new[] { Environment.UserName, Environment.MachineName }
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        foreach (string identity in environmentIdentities)
+        string policy = FixtureContractDocuments.MutatePolicy(root =>
+            root["fixtures"]![0]!["canonicalFigmaState"] =
+                "operationalFailure");
+        string valid = FixtureContractDocuments.MutateDescriptor(root =>
+            ConfigureTerminalRecoveryScreen(
+                root,
+                "operationalFailure",
+                "operationalFailure",
+                "workerTimeout",
+                "interrupted"));
+        ModelInspectionFixtureCatalogue catalogue = LoadMany(
+            [FixtureContractDocuments.DescriptorSource(valid)],
+            policy);
+        ModelInspectionFixtureServiceEffectDescriptor effect = catalogue.Fixtures[0]
+            .Input.Attempts[0].ServiceSteps[0].Effect;
+        Assert.AreEqual(
+            ModelInspectionFixtureFailureDetailProfile.Default,
+            effect.FailureDetailProfile);
+
+        foreach (Action<JsonObject> mutation in new Action<JsonObject>[]
+                 {
+                     root => root["input"]!["attempts"]![0]!["serviceSteps"]![0]![
+                         "effect"]!.AsObject().Remove("failureDetailProfile"),
+                     root => root["input"]!["attempts"]![0]!["serviceSteps"]![0]![
+                         "effect"]!["failureDetailProfile"] = null,
+                     root => root["input"]!["attempts"]![0]!["serviceSteps"]![0]![
+                         "effect"]!["failureDetailProfile"] = "future"
+                 })
         {
-            AssertInvalid(root => root["title"] = $"Synthetic {identity} fixture");
+            string invalid = FixtureContractDocuments.MutateDescriptor(root =>
+            {
+                ConfigureTerminalRecoveryScreen(
+                    root,
+                    "operationalFailure",
+                    "operationalFailure",
+                    "workerTimeout",
+                    "interrupted");
+                mutation(root);
+            });
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadMany([FixtureContractDocuments.DescriptorSource(invalid)], policy));
+        }
+
+        string invalidCompleted = FixtureContractDocuments.MutateDescriptor(root =>
+            root["input"]!["attempts"]![0]!["serviceSteps"]![0]!["effect"]![
+                "failureDetailProfile"] = "default");
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany(
+                [FixtureContractDocuments.DescriptorSource(invalidCompleted)],
+                FixtureContractDocuments.PolicyJson));
+    }
+
+    [TestMethod]
+    public void Privacy_IsHostIndependentRejectsExplicitIdentityMarkersAndScopesInternalUris()
+    {
+        foreach (string ordinaryWord in new[] { "model", "ready", "MI" })
+        {
+            string json = FixtureContractDocuments.MutateDescriptor(
+                root => root["title"] = $"Synthetic {ordinaryWord} fixture");
+            ValidatedModelInspectionFixture fixture = Load(json).Fixtures.Single();
+            CollectionAssert.AreEqual(
+                System.Text.Encoding.UTF8.GetBytes(json),
+                fixture.RawUtf8.ToArray(),
+                ordinaryWord);
+        }
+
+        string[] explicitIdentityMarkers =
+        [
+            "userName=synthetic",
+            "machineName=synthetic",
+            "computerName=synthetic",
+            "runUser=synthetic",
+            "$env:USERNAME",
+            "%USERNAME%",
+            "{username}",
+            "${USER}",
+            "$HOME",
+            "$USERPROFILE",
+            "~"
+        ];
+        foreach (string marker in explicitIdentityMarkers)
+        {
+            AssertInvalid(root => root["title"] = $"Synthetic {marker} fixture");
         }
 
         foreach (string internalUri in new[]
@@ -1141,12 +1590,39 @@ public sealed class ModelInspectionFixtureValidationContractTests
             AssertInvalid(root => root["title"] = internalUri);
         }
 
-        string identityFileName = "username-" + FixtureContractDocuments.ValidFileName;
-        ModelInspectionFixtureValidationException exception =
-            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
-                Load(FixtureContractDocuments.ValidDescriptorJson, identityFileName));
-        Assert.AreEqual("<invalid-filename>", exception.FileName);
-        Assert.IsFalse(exception.Message.Contains(identityFileName, StringComparison.Ordinal));
+        foreach (string identityFileName in new[]
+                 {
+                     "MI-001-username.fixture.json",
+                     "MI-001-machine-name.fixture.json",
+                     "MI-001-computername.fixture.json",
+                     "MI-001-runuser.fixture.json"
+                 })
+        {
+            ModelInspectionFixtureValidationException exception =
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    Load(FixtureContractDocuments.ValidDescriptorJson, identityFileName));
+            Assert.AreEqual("<invalid-filename>", exception.FileName);
+            Assert.IsFalse(
+                exception.Message.Contains(identityFileName, StringComparison.Ordinal));
+        }
+
+        string fixtureSourceDirectory = Path.Combine(
+            ModelInspectionFixtureCatalogueContractTests.FindRepositoryRoot(),
+            "shared",
+            "GraniteEdgeAI.ModelInspection.Fixtures");
+        foreach (string sourcePath in Directory.GetFiles(
+                     fixtureSourceDirectory,
+                     "*.cs",
+                     SearchOption.TopDirectoryOnly))
+        {
+            string source = File.ReadAllText(sourcePath);
+            Assert.IsFalse(
+                source.Contains("Environment." + "UserName", StringComparison.Ordinal),
+                Path.GetFileName(sourcePath));
+            Assert.IsFalse(
+                source.Contains("Environment." + "MachineName", StringComparison.Ordinal),
+                Path.GetFileName(sourcePath));
+        }
     }
 
     [TestMethod]
@@ -1467,6 +1943,101 @@ public sealed class ModelInspectionFixtureValidationContractTests
         throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 
+    private static string CurrentScenarioDirectory() => Path.Combine(
+        FindRepositoryRoot(),
+        "tests",
+        "TestFixtures",
+        "ModelInspectionScenarios");
+
+    private static ModelInspectionFixtureCatalogue LoadCurrentDescriptors(
+        JsonObject policyDocument,
+        IReadOnlyList<ModelInspectionFixtureDocumentSource> descriptorSources)
+    {
+        JsonObject policy = policyDocument.DeepClone().AsObject();
+        HashSet<string> fileNames = descriptorSources
+            .Select(source => source.FileName)
+            .ToHashSet(StringComparer.Ordinal);
+        JsonArray fixtures = new(policy["fixtures"]!.AsArray()
+            .Where(entry => fileNames.Contains(
+                entry!["fileName"]!.GetValue<string>()))
+            .Select(entry => entry!.DeepClone())
+            .ToArray());
+        HashSet<string> fixtureIds = fixtures
+            .Select(entry => entry!["id"]!.GetValue<string>())
+            .ToHashSet(StringComparer.Ordinal);
+        policy["fixtures"] = fixtures;
+        policy["disclosurePairs"] = new JsonArray(policy["disclosurePairs"]!.AsArray()
+            .Where(pair =>
+                fixtureIds.Contains(pair!["collapsedId"]!.GetValue<string>()) &&
+                fixtureIds.Contains(pair["expandedId"]!.GetValue<string>()))
+            .Select(pair => pair!.DeepClone())
+            .ToArray());
+        policy["gallerySwitchPairs"] = new JsonArray(policy["gallerySwitchPairs"]!.AsArray()
+            .Where(pair =>
+                fixtureIds.Contains(pair!["sourceId"]!.GetValue<string>()) &&
+                fixtureIds.Contains(pair["destinationId"]!.GetValue<string>()))
+            .Select(pair => pair!.DeepClone())
+            .ToArray());
+        policy["externalEvidenceLinks"] = new JsonArray(
+            policy["externalEvidenceLinks"]!.AsArray()
+                .Where(link => fixtureIds.Contains(
+                    link!["fixtureId"]!.GetValue<string>()))
+                .Select(link => link!.DeepClone())
+                .ToArray());
+
+        string directory = CurrentScenarioDirectory();
+        VerifiedModelInspectionFixtureSchema schema =
+            ModelInspectionFixtureCatalogue.VerifySchema(new(
+                "model-inspection-fixture.schema.json",
+                File.ReadAllBytes(Path.Combine(
+                    directory,
+                    "model-inspection-fixture.schema.json"))));
+        ValidatedModelInspectionFixtureCoveragePolicy validatedPolicy =
+            ModelInspectionFixtureCatalogue.LoadPolicy(new(
+                "model-inspection-fixture-coverage-policy.json",
+                System.Text.Encoding.UTF8.GetBytes(policy.ToJsonString())),
+                schema);
+        return ModelInspectionFixtureCatalogue.LoadDescriptors(
+            descriptorSources,
+            validatedPolicy,
+            schema);
+    }
+
+    private static void AssertCurrentActionContractInvalid(
+        Action<JsonObject> descriptorMutation,
+        Action<JsonObject>? policyMutation = null)
+    {
+        const string fileName =
+            "MI-008-incomplete-package-missing-package-member.fixture.json";
+        string directory = CurrentScenarioDirectory();
+        JsonObject descriptor = JsonNode.Parse(File.ReadAllText(Path.Combine(
+            directory,
+            fileName)))!.AsObject();
+        JsonObject policy = JsonNode.Parse(File.ReadAllText(Path.Combine(
+            directory,
+            "model-inspection-fixture-coverage-policy.json")))!.AsObject();
+        descriptorMutation(descriptor);
+        policyMutation?.Invoke(policy);
+
+        ModelInspectionFixtureValidationException exception =
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadCurrentDescriptors(
+                    policy,
+                    [new ModelInspectionFixtureDocumentSource(
+                        fileName,
+                        System.Text.Encoding.UTF8.GetBytes(descriptor.ToJsonString()))]));
+        Assert.AreEqual("expected.action-automation-contract", exception.RuleCode);
+    }
+
+    private static void AssertComingLater(JsonNode? copy)
+    {
+        Assert.IsNotNull(copy);
+        Assert.AreEqual(
+            "fixture.action.coming-later",
+            copy["copyKey"]!.GetValue<string>());
+        Assert.AreEqual("Coming later", copy["defaultText"]!.GetValue<string>());
+    }
+
     private static void AssertInvalid(Action<JsonObject> mutation) =>
         ModelInspectionFixtureJsonContractTests.AssertInvalid(
             FixtureContractDocuments.MutateDescriptor(mutation));
@@ -1558,6 +2129,9 @@ public sealed class ModelInspectionFixtureValidationContractTests
         switch (kind)
         {
             case "expand":
+                root["expected"]!["model"]!["mode"] = "detailed";
+                root["expected"]!["model"]!["disclosureExpanded"] = false;
+                root["expected"]!["content"]!["disclosureExpanded"] = false;
                 AddExpectedAutomationControl(
                     root,
                     "inspection-details-disclosure",
@@ -1575,6 +2149,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 root["expected"]!["figma"]!["state"] = "readyExpanded";
                 root["expected"]!["model"]!["mode"] = "detailed";
                 root["expected"]!["model"]!["disclosureExpanded"] = true;
+                root["expected"]!["content"]!["disclosureExpanded"] = false;
                 AddExpectedAutomationControl(
                     root,
                     "inspection-details-disclosure",
@@ -1584,6 +2159,9 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 return;
 
             case "cancel":
+                root["expected"]!["model"]!["mode"] = "compact";
+                root["expected"]!["model"]!["disclosureExpanded"] = false;
+                root["expected"]!["content"]!["disclosureExpanded"] = false;
                 AddProgressStep(root, "readModelConfiguration", "active", 1, 0.5);
                 root["input"]!["setupSteps"]!.AsArray().RemoveAt(1);
                 root["coverage"]!["figmaStates"]![0] = "inspectionProgress";
@@ -1616,7 +2194,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 ConfigureExpectedActions(
                     root,
                     "result",
-                    ("choose-another", "fixture.action.choose", "Choose another model"),
+                    ("choose-another", "fixture.action.choose-another", "Choose another model"),
                     ("retry", "fixture.action.retry", "Retry inspection"));
                 return;
 
@@ -1630,7 +2208,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 ConfigureExpectedActions(
                     root,
                     "result",
-                    ("choose-another", "fixture.action.choose", "Choose another model"),
+                    ("choose-another", "fixture.action.choose-another", "Choose another model"),
                     ("restart", "fixture.action.restart", "Restart inspection"));
                 return;
 
@@ -1654,6 +2232,9 @@ public sealed class ModelInspectionFixtureValidationContractTests
         effect["outcome"] = null;
         effect["evidenceProfile"] = null;
         effect["failureProfile"] = failureProfile;
+        effect["failureDetailProfile"] = failureProfile is null
+            ? null
+            : "default";
         effect["deferredCheckpoint"] = null;
         root["coverage"]!["figmaStates"]![0] = figmaState;
         root["coverage"]!["outcomes"] = new JsonArray();
@@ -1663,7 +2244,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["figma"]!["state"] = figmaState;
         root["expected"]!["outcome"]!["kind"] = figmaState;
         root["expected"]!["outcome"]!["tone"] = figmaState == "cancelled" ? "neutral" : "error";
+        root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["disclosureExpanded"] = false;
         root["expected"]!["content"]!["mode"] = figmaState;
+        root["expected"]!["content"]!["disclosureExpanded"] = false;
         root["expected"]!["footer"]!["status"] = footerStatus;
         for (int index = 0; index < 5; index++)
         {
@@ -1698,8 +2282,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 ["id"] = id,
                 ["accessibleName"] = new JsonObject
                 {
-                    ["copyKey"] = copyKey,
-                    ["defaultText"] = text
+                    ["copyKey"] = CanonicalActionAutomationName(id).CopyKey,
+                    ["defaultText"] = CanonicalActionAutomationName(id).DefaultText
                 },
                 ["controlType"] = "button",
                 ["liveSetting"] = "off",
@@ -1772,6 +2356,61 @@ public sealed class ModelInspectionFixtureValidationContractTests
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 
+    private static (string CopyKey, string DefaultText)
+        CanonicalActionAutomationName(string actionId)
+    {
+        (string Id, string LabelKey, string LabelText, string AutomationKey,
+            string AutomationText, bool IsFuture) contract =
+            CanonicalActionContracts().SingleOrDefault(candidate =>
+                candidate.Id == actionId);
+        if (contract.Id is null)
+        {
+            throw new ArgumentOutOfRangeException(nameof(actionId), actionId, null);
+        }
+
+        return (contract.AutomationKey, contract.AutomationText);
+    }
+
+    private static (string CopyKey, string DefaultText)
+        CanonicalActionLabel(string actionId)
+    {
+        (string Id, string LabelKey, string LabelText, string AutomationKey,
+            string AutomationText, bool IsFuture) contract =
+            CanonicalActionContracts().SingleOrDefault(candidate =>
+                candidate.Id == actionId);
+        if (contract.Id is null)
+        {
+            throw new ArgumentOutOfRangeException(nameof(actionId), actionId, null);
+        }
+
+        return (contract.LabelKey, contract.LabelText);
+    }
+
+    private static (string Id, string LabelKey, string LabelText, string AutomationKey,
+        string AutomationText, bool IsFuture)[] CanonicalActionContracts() =>
+    [
+        ("cancel", "fixture.action.cancel", "Cancel inspection",
+            "fixture.automation.action.cancel", "Cancel model inspection", false),
+        ("choose-another", "fixture.action.choose-another", "Choose another model",
+            "fixture.automation.action.choose-another", "Choose another model", false),
+        ("technical-report", "fixture.action.technical-report", "View technical report",
+            "fixture.automation.action.technical-report",
+            "View technical inspection report", true),
+        ("hardware-fit", "fixture.action.hardware-fit", "Check hardware fit",
+            "fixture.automation.action.hardware-fit", "Check model hardware fit", true),
+        ("continue-hardware", "fixture.action.continue-hardware",
+            "Continue to hardware check", "fixture.automation.action.continue-hardware",
+            "Continue to model hardware check", true),
+        ("conversion-format", "fixture.action.conversion-format", "Choose conversion format",
+            "fixture.automation.action.conversion-format", "Choose model conversion format", true),
+        ("locate-missing", "fixture.action.locate-missing", "Locate missing file",
+            "fixture.automation.action.locate-missing", "Locate missing model file", false),
+        ("restart", "fixture.action.restart", "Restart inspection",
+            "fixture.automation.action.restart", "Restart model inspection", false),
+        ("retry", "fixture.action.retry", "Retry inspection",
+            "fixture.automation.action.retry", "Retry model inspection", false)
+    ];
+
     private static void ConfigureStateValidInteractionPolicy(JsonObject root, string kind)
     {
         string figmaState = kind switch
@@ -1788,7 +2427,22 @@ public sealed class ModelInspectionFixtureValidationContractTests
         registry["fixture.action.retry"] = "Retry inspection";
         registry["fixture.action.restart"] = "Restart inspection";
         registry[CancelInspectionAliasKey] = "Cancel inspection";
+        AddActionAutomationCopyRegistry(registry);
         AddAutomationCopyRegistry(registry);
+    }
+
+    private static void AddActionAutomationCopyRegistry(JsonObject registry)
+    {
+        foreach (string actionId in new[]
+                 {
+                     "cancel", "choose-another", "technical-report", "hardware-fit",
+                     "continue-hardware", "conversion-format", "locate-missing",
+                     "restart", "retry"
+                 })
+        {
+            (string copyKey, string defaultText) = CanonicalActionAutomationName(actionId);
+            registry[copyKey] = defaultText;
+        }
     }
 
     private static void ConfigureContentDisclosureInteraction(
@@ -1831,8 +2485,9 @@ public sealed class ModelInspectionFixtureValidationContractTests
         bool expanded = state.EndsWith("Expanded", StringComparison.Ordinal);
         root["coverage"]!["figmaStates"]![0] = state;
         root["expected"]!["figma"]!["state"] = state;
-        root["expected"]!["model"]!["mode"] = expanded ? "detailed" : "compact";
-        root["expected"]!["model"]!["disclosureExpanded"] = expanded;
+        root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["disclosureExpanded"] = false;
+        root["expected"]!["content"]!["disclosureExpanded"] = expanded;
 
         AddExpectedAutomationControl(
             root,
@@ -1847,6 +2502,138 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 "ready-observed",
                 "ready-observed"));
     }
+
+    private static void ConfigureDisclosurePairInteraction(
+        JsonObject root,
+        string state,
+        string copyKey,
+        string text)
+    {
+        if (state is "readyCollapsed" or "readyExpanded")
+        {
+            bool expanded = state == "readyExpanded";
+            root["coverage"]!["figmaStates"]![0] = state;
+            root["expected"]!["figma"]!["state"] = state;
+            root["expected"]!["model"]!["mode"] = "detailed";
+            root["expected"]!["model"]!["disclosureExpanded"] = expanded;
+            root["expected"]!["content"]!["disclosureExpanded"] = false;
+            AddExpectedAutomationControl(
+                root,
+                "inspection-details-disclosure",
+                "group",
+                copyKey,
+                text);
+            root["interactions"] = new JsonArray(
+                Interaction(
+                    expanded ? "collapse-details" : "expand-details",
+                    expanded ? "collapse" : "expand",
+                    "ready-observed",
+                    "ready-observed"));
+            return;
+        }
+
+        ConfigureContentDisclosureInteraction(root, state, copyKey, text);
+    }
+
+    private static void ConfigureDisclosurePairPolicy(JsonObject root, string state)
+    {
+        if (state is "readyCollapsed" or "readyExpanded")
+        {
+            root["fixtures"]![0]!["canonicalFigmaState"] = state;
+            AddAutomationCopyRegistry(root["copyRegistry"]!.AsObject());
+            return;
+        }
+
+        ConfigureContentDisclosurePolicy(root, state);
+    }
+
+    private static void ConfigureNonDisclosureScreen(JsonObject root, string state)
+    {
+        switch (state)
+        {
+            case "inspectionProgress":
+                ConfigureStateValidInteractionScreen(root, "cancel");
+                break;
+            case "incompletePackage":
+                ConfigureTerminalDisclosureScreen(
+                    root,
+                    state,
+                    state,
+                    "missingPackageMember",
+                    "warning",
+                    state);
+                break;
+            case "unsupported":
+                ConfigureTerminalDisclosureScreen(
+                    root,
+                    state,
+                    state,
+                    "unsupportedArchitecture",
+                    "information",
+                    state);
+                break;
+            case "cancelled":
+                ConfigureStateValidInteractionScreen(root, "restart");
+                break;
+            case "operationalFailure":
+                ConfigureStateValidInteractionScreen(root, "retry");
+                break;
+            default:
+                Assert.Fail($"Unknown non-disclosure state: {state}");
+                return;
+        }
+
+        root["expected"]!["model"]!["disclosureExpanded"] = false;
+        root["expected"]!["content"]!["disclosureExpanded"] = false;
+    }
+
+    private static void ConfigureNonDisclosurePolicy(JsonObject root, string state)
+    {
+        switch (state)
+        {
+            case "inspectionProgress":
+                ConfigureStateValidInteractionPolicy(root, "cancel");
+                return;
+            case "cancelled":
+                ConfigureStateValidInteractionPolicy(root, "restart");
+                return;
+            case "operationalFailure":
+                ConfigureStateValidInteractionPolicy(root, "retry");
+                return;
+            default:
+                root["fixtures"]![0]!["canonicalFigmaState"] = state;
+                return;
+        }
+    }
+
+    private static void AssertDisclosurePairInvalid(
+        string policy,
+        string state,
+        string copyKey,
+        string text,
+        Action<JsonObject> mutation)
+    {
+        string descriptor = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureDisclosurePairInteraction(root, state, copyKey, text);
+            mutation(root);
+        });
+        Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+            LoadMany([FixtureContractDocuments.DescriptorSource(descriptor)], policy));
+    }
+
+    private static (string State, string CopyKey, string Text)[]
+        DisclosurePairContracts() =>
+        [
+            ("readyCollapsed", ViewModelDetailsKey, ViewModelDetails),
+            ("readyExpanded", HideModelDetailsKey, HideModelDetails),
+            ("readyWithWarningsCollapsed", WarningDetailsKey, WarningDetails),
+            ("readyWithWarningsExpanded", WarningDetailsKey, WarningDetails),
+            ("conversionRequiredCollapsed", ConversionDetailsKey, ConversionDetails),
+            ("conversionRequiredExpanded", ConversionDetailsKey, ConversionDetails),
+            ("invalidCollapsed", InvalidDetailsKey, InvalidDetails),
+            ("invalidExpanded", InvalidDetailsKey, InvalidDetails)
+        ];
 
     private static void ConfigureTerminalDisclosureScreen(
         JsonObject root,
@@ -1863,7 +2650,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["figma"]!["state"] = figmaState;
         root["expected"]!["outcome"]!["kind"] = outcome;
         root["expected"]!["outcome"]!["tone"] = tone;
+        root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["disclosureExpanded"] = false;
         root["expected"]!["content"]!["mode"] = contentMode;
+        root["expected"]!["content"]!["disclosureExpanded"] = false;
     }
 
     private static void ConfigureContentDisclosurePolicy(JsonObject root, string state)
@@ -1916,6 +2706,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 ["outcome"] = null,
                 ["evidenceProfile"] = null,
                 ["failureProfile"] = null,
+                ["failureDetailProfile"] = null,
                 ["deferredCheckpoint"] = null
             }
         };
@@ -1995,7 +2786,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["figma"]!["state"] = "readyWithWarningsCollapsed";
         root["expected"]!["outcome"]!["kind"] = "readyWithWarnings";
         root["expected"]!["outcome"]!["tone"] = "warning";
+        root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["disclosureExpanded"] = false;
         root["expected"]!["content"]!["mode"] = "warnings";
+        root["expected"]!["content"]!["disclosureExpanded"] = false;
         AddApprovedWarningFinding(root);
     }
 
@@ -2103,6 +2897,9 @@ public sealed class ModelInspectionFixtureValidationContractTests
         effect["outcome"] = outcome;
         effect["evidenceProfile"] = evidenceProfile;
         effect["failureProfile"] = failureProfile;
+        effect["failureDetailProfile"] = failureProfile is null
+            ? null
+            : "default";
         effect["kind"] = failureProfile is null ? "completed" : "operationalFailure";
     }
 }

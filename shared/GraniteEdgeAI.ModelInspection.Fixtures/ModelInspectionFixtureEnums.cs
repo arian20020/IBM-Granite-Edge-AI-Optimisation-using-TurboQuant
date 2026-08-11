@@ -74,6 +74,12 @@ public enum ModelInspectionFixtureFailureProfile
     CancellationUnconfirmed
 }
 
+public enum ModelInspectionFixtureFailureDetailProfile
+{
+    Default,
+    Maximum
+}
+
 public enum ModelInspectionFixtureProgressDetailProfile
 {
     Default,

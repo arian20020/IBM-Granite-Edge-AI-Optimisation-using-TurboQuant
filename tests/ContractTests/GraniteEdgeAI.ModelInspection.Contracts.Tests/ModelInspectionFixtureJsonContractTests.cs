@@ -11,6 +11,11 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 [TestCategory("Contract")]
 public sealed class ModelInspectionFixtureJsonContractTests
 {
+    private const string SemanticBrushesOracle =
+        "semanticBrushesResolvedWithoutColorOnlyMeaning";
+    private const string NormalMotionEquivalenceOracle =
+        "finalGeometryAndSemanticsEquivalentToNormalMotion";
+
     [TestMethod]
     public void StrictJson_RejectsUnknownAndDuplicateProperties()
     {
@@ -40,6 +45,89 @@ public sealed class ModelInspectionFixtureJsonContractTests
 
         Assert.AreEqual(1, catalogue.Fixtures.Count);
         Assert.AreEqual("MI-001", catalogue.Fixtures[0].Id);
+    }
+
+    [TestMethod]
+    public void StrictJson_RequiresBoundedMotionExpectationMembers()
+    {
+        ModelInspectionFixtureCatalogue catalogue = Load(
+            FixtureContractDocuments.ValidDescriptorJson);
+        ModelInspectionPresetExpectation expectation =
+            catalogue.Fixtures[0].PresetExpectations["P01"];
+        Assert.AreEqual(1, expectation.MinimumAnimationStarts);
+        Assert.AreEqual(1, expectation.MaximumAnimationStarts);
+
+        Action<JsonObject>[] mutations =
+        [
+            root => root["presetExpectations"]!["P01"]!.AsObject()
+                .Remove("minimumAnimationStarts"),
+            root => root["presetExpectations"]!["P01"]![
+                "minimumAnimationStarts"] = null,
+            root => root["presetExpectations"]!["P01"]!.AsObject()
+                .Remove("maximumAnimationStarts"),
+            root => root["presetExpectations"]!["P01"]![
+                "maximumAnimationStarts"] = null,
+            root => root["presetExpectations"]!["P01"]![
+                "minimumAnimationStarts"] = -1,
+            root => root["presetExpectations"]!["P01"]![
+                "maximumAnimationStarts"] = 129,
+            root =>
+            {
+                root["presetExpectations"]!["P01"]![
+                    "minimumAnimationStarts"] = 2;
+                root["presetExpectations"]!["P01"]![
+                    "maximumAnimationStarts"] = 1;
+            },
+            root => root["presetExpectations"]!["P01"]![
+                "expectedAnimationStarts"] = 1
+        ];
+        foreach (Action<JsonObject> mutation in mutations)
+        {
+            AssertInvalid(FixtureContractDocuments.MutateDescriptor(mutation));
+        }
+    }
+
+    [TestMethod]
+    public void StrictJson_RequiresBooleanPresetSemanticAndMotionOracleMembers()
+    {
+        string valid = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            JsonObject expectation = root["presetExpectations"]!["P01"]!
+                .AsObject();
+            expectation[SemanticBrushesOracle] = true;
+            expectation[NormalMotionEquivalenceOracle] = true;
+        });
+
+        ModelInspectionFixtureCatalogue catalogue = Load(valid);
+        ModelInspectionPresetExpectation expectation =
+            catalogue.Fixtures[0].PresetExpectations["P01"];
+        Assert.IsNotNull(expectation);
+        Assert.IsNotNull(typeof(ModelInspectionPresetExpectation).GetProperty(
+            "SemanticBrushesResolvedWithoutColorOnlyMeaning"));
+        Assert.IsNotNull(typeof(ModelInspectionPresetExpectation).GetProperty(
+            "FinalGeometryAndSemanticsEquivalentToNormalMotion"));
+
+        foreach (string propertyName in new[]
+                 {
+                     SemanticBrushesOracle,
+                     NormalMotionEquivalenceOracle
+                 })
+        {
+            AssertInvalid(MutateJson(valid, root =>
+                root["presetExpectations"]!["P01"]!.AsObject()
+                    .Remove(propertyName)));
+            AssertInvalid(MutateJson(valid, root =>
+                root["presetExpectations"]!["P01"]![propertyName] = null));
+            AssertInvalid(MutateJson(valid, root =>
+                root["presetExpectations"]!["P01"]![propertyName] = "true"));
+
+            ModelInspectionFixtureValidationException exception =
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    Load(MutateJson(valid, root =>
+                        root["presetExpectations"]!["P01"]![propertyName] =
+                            false)));
+            Assert.AreEqual("fixture.preset-expectation", exception.RuleCode);
+        }
     }
 
     [TestMethod]
@@ -221,6 +309,14 @@ public sealed class ModelInspectionFixtureJsonContractTests
             root => root["presetExpectations"]!["P01"]!.AsObject()
                 .Remove("minimumContentColumnWidth"),
             root => root["presetExpectations"]!["P01"]!["minimumContentColumnWidth"] = null,
+            root => root["presetExpectations"]!["P01"]!.AsObject()
+                .Remove("minimumAnimationStarts"),
+            root => root["presetExpectations"]!["P01"]![
+                "minimumAnimationStarts"] = null,
+            root => root["presetExpectations"]!["P01"]!.AsObject()
+                .Remove("maximumAnimationStarts"),
+            root => root["presetExpectations"]!["P01"]![
+                "maximumAnimationStarts"] = null,
             root => root["expected"]!["rowsAndScroll"]!.AsObject().Remove("scrollOwner")
         ];
 
@@ -244,6 +340,99 @@ public sealed class ModelInspectionFixtureJsonContractTests
         foreach (Action<JsonObject> mutation in policyMutations)
         {
             AssertPolicyInvalid(FixtureContractDocuments.MutatePolicy(mutation));
+        }
+    }
+
+    [TestMethod]
+    public void StrictJson_RequiresBrandedBooleanContentDisclosureExpanded()
+    {
+        Action<JsonObject>[] mutations =
+        [
+            root => root["expected"]!["content"]!.AsObject()
+                .Remove("disclosureExpanded"),
+            root => root["expected"]!["content"]!["disclosureExpanded"] = null,
+            root => root["expected"]!["content"]!["disclosureExpanded"] = "false"
+        ];
+
+        foreach (Action<JsonObject> mutation in mutations)
+        {
+            string invalid = FixtureContractDocuments.MutateDescriptor(mutation);
+            ModelInspectionFixtureValidationException exception =
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    Load(invalid));
+            Assert.AreEqual(FixtureContractDocuments.ValidFileName, exception.FileName);
+            Assert.AreEqual("json.invalid", exception.RuleCode);
+            StringAssert.StartsWith(
+                exception.Message,
+                $"{FixtureContractDocuments.ValidFileName}|");
+        }
+    }
+
+    [TestMethod]
+    public void AuthoritativeSchema_RequiresBooleanContentDisclosureExpanded()
+    {
+        string repositoryRoot =
+            ModelInspectionFixtureCatalogueContractTests.FindRepositoryRoot();
+        string schemaPath = Path.Combine(
+            repositoryRoot,
+            "tests",
+            "TestFixtures",
+            "ModelInspectionScenarios",
+            "model-inspection-fixture.schema.json");
+        JsonObject schema = JsonNode.Parse(File.ReadAllText(schemaPath))!.AsObject();
+
+        AssertContentDisclosureSchema(schema);
+
+        foreach (Action<JsonObject> mutation in new Action<JsonObject>[]
+                 {
+                     root => RemoveArrayString(
+                         root["$defs"]!["content"]!["required"]!.AsArray(),
+                         "disclosureExpanded"),
+                     root => root["$defs"]!["content"]!["properties"]![
+                         "disclosureExpanded"]!["type"] = "string"
+                 })
+        {
+            JsonObject invalid = schema.DeepClone().AsObject();
+            mutation(invalid);
+            Assert.ThrowsExactly<AssertFailedException>(() =>
+                AssertContentDisclosureSchema(invalid));
+        }
+    }
+
+    [TestMethod]
+    public void AuthoritativeSchema_RequiresBooleanPresetSemanticAndMotionOracles()
+    {
+        string repositoryRoot =
+            ModelInspectionFixtureCatalogueContractTests.FindRepositoryRoot();
+        string schemaPath = Path.Combine(
+            repositoryRoot,
+            "tests",
+            "TestFixtures",
+            "ModelInspectionScenarios",
+            "model-inspection-fixture.schema.json");
+        JsonObject schema = JsonNode.Parse(File.ReadAllText(schemaPath))!.AsObject();
+
+        AssertPresetOracleSchema(schema);
+
+        foreach (string propertyName in new[]
+                 {
+                     SemanticBrushesOracle,
+                     NormalMotionEquivalenceOracle
+                 })
+        {
+            JsonObject missing = schema.DeepClone().AsObject();
+            RemoveArrayString(
+                missing["$defs"]!["presetExpectation"]!["required"]!
+                    .AsArray(),
+                propertyName);
+            Assert.ThrowsExactly<AssertFailedException>(() =>
+                AssertPresetOracleSchema(missing));
+
+            JsonObject wrongType = schema.DeepClone().AsObject();
+            wrongType["$defs"]!["presetExpectation"]!["properties"]![
+                propertyName]!["type"] = "string";
+            Assert.ThrowsExactly<AssertFailedException>(() =>
+                AssertPresetOracleSchema(wrongType));
         }
     }
 
@@ -530,6 +719,56 @@ public sealed class ModelInspectionFixtureJsonContractTests
         }
     }
 
+    private static void AssertContentDisclosureSchema(JsonObject schema)
+    {
+        JsonObject content = schema["$defs"]!["content"]!.AsObject();
+        CollectionAssert.Contains(
+            content["required"]!.AsArray()
+                .Select(node => node!.GetValue<string>())
+                .ToArray(),
+            "disclosureExpanded");
+        Assert.AreEqual(
+            "boolean",
+            content["properties"]!["disclosureExpanded"]!["type"]!
+                .GetValue<string>());
+    }
+
+    private static void AssertPresetOracleSchema(JsonObject schema)
+    {
+        JsonObject presetExpectation =
+            schema["$defs"]!["presetExpectation"]!.AsObject();
+        string[] required = presetExpectation["required"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .ToArray();
+        JsonObject properties = presetExpectation["properties"]!.AsObject();
+        foreach (string propertyName in new[]
+                 {
+                     SemanticBrushesOracle,
+                     NormalMotionEquivalenceOracle
+                 })
+        {
+            CollectionAssert.Contains(required, propertyName);
+            Assert.AreEqual(
+                "boolean",
+                properties[propertyName]!["type"]!.GetValue<string>());
+        }
+    }
+
+    private static string MutateJson(string json, Action<JsonObject> mutation)
+    {
+        JsonObject root = JsonNode.Parse(json)!.AsObject();
+        mutation(root);
+        return root.ToJsonString();
+    }
+
+    private static void RemoveArrayString(JsonArray values, string value)
+    {
+        int index = values.Select(node => node!.GetValue<string>()).ToList()
+            .FindIndex(candidate => candidate.Equals(value, StringComparison.Ordinal));
+        Assert.IsGreaterThanOrEqualTo(0, index);
+        values.RemoveAt(index);
+    }
+
     internal static void AssertInvalid(
         string descriptorJson,
         string fileName = FixtureContractDocuments.ValidFileName)
@@ -628,7 +867,8 @@ internal static class FixtureContractDocuments
             "fixture.model.name":"Synthetic Granite",
             "fixture.model.file":"synthetic-granite.gguf",
             "fixture.content.heading":"Inspection complete",
-            "fixture.action.choose":"Choose another model"
+            "fixture.action.choose-another":"Choose another model",
+            "fixture.automation.action.choose-another":"Choose another model"
           },
           "externalEvidenceLinks":[]
         }
@@ -670,6 +910,7 @@ internal static class FixtureContractDocuments
                   "outcome":"ready",
                   "evidenceProfile":"compatible",
                   "failureProfile":null,
+                  "failureDetailProfile":null,
                   "deferredCheckpoint":null
                 }
               }]
@@ -705,7 +946,7 @@ internal static class FixtureContractDocuments
             },
             "model":{
               "visible":true,
-              "mode":"compact",
+              "mode":"detailed",
               "badge":"inspected",
               "displayName":{"copyKey":"fixture.model.name","defaultText":"Synthetic Granite"},
               "displayFileName":{"copyKey":"fixture.model.file","defaultText":"synthetic-granite.gguf"},
@@ -717,14 +958,15 @@ internal static class FixtureContractDocuments
               "visible":true,
               "mode":"hidden",
               "heading":{"copyKey":"fixture.content.heading","defaultText":"Inspection complete"},
-              "rows":[]
+              "rows":[],
+              "disclosureExpanded":false
             },
             "actions":{
               "visible":true,
               "mode":"result",
               "items":[{
                 "id":"choose-another",
-                "label":{"copyKey":"fixture.action.choose","defaultText":"Choose another model"},
+                "label":{"copyKey":"fixture.action.choose-another","defaultText":"Choose another model"},
                 "visible":true,
                 "enabled":true,
                 "helpText":null
@@ -744,7 +986,7 @@ internal static class FixtureContractDocuments
             "automation":{
               "controls":[{
                 "id":"choose-another",
-                "accessibleName":{"copyKey":"fixture.action.choose","defaultText":"Choose another model"},
+                "accessibleName":{"copyKey":"fixture.automation.action.choose-another","defaultText":"Choose another model"},
                 "controlType":"button",
                 "liveSetting":"off",
                 "helpText":null
@@ -772,7 +1014,10 @@ internal static class FixtureContractDocuments
               "resources":"light",
               "textScale":"standard100",
               "motion":"normal",
-              "expectedAnimationStarts":0
+              "semanticBrushesResolvedWithoutColorOnlyMeaning":true,
+              "finalGeometryAndSemanticsEquivalentToNormalMotion":true,
+              "minimumAnimationStarts":1,
+              "maximumAnimationStarts":1
             }
           },
           "interactions":[],

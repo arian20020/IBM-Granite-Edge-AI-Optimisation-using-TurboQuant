@@ -21,6 +21,8 @@ internal static partial class ModelInspectionFixtureValidator
         "fixture.warning.chat-template-missing.detail";
     private const string MissingChatTemplateDetail =
         "The model does not report a chat template. Chat formatting may require manual configuration.";
+    private const string ActionAutomationCopyKeyPrefix =
+        "fixture.automation.action.";
 
     private static readonly ModelInspectionFixtureStage[] OrderedStages =
         Enum.GetValues<ModelInspectionFixtureStage>();
@@ -456,24 +458,28 @@ internal static partial class ModelInspectionFixtureValidator
                 effect.Outcome is null &&
                 effect.EvidenceProfile is null &&
                 effect.FailureProfile is null &&
+                effect.FailureDetailProfile is null &&
                 effect.DeferredCheckpoint is null,
             ModelInspectionFixtureServiceEffectKind.Completed =>
                 effect.Progress is null &&
                 effect.Outcome is not null &&
                 effect.EvidenceProfile is not null &&
                 effect.FailureProfile is null &&
+                effect.FailureDetailProfile is null &&
                 effect.DeferredCheckpoint is null,
             ModelInspectionFixtureServiceEffectKind.Cancelled =>
                 effect.Progress is null &&
                 effect.Outcome is null &&
                 effect.EvidenceProfile is null &&
                 effect.FailureProfile is null &&
+                effect.FailureDetailProfile is null &&
                 effect.DeferredCheckpoint is null,
             ModelInspectionFixtureServiceEffectKind.OperationalFailure =>
                 effect.Progress is null &&
                 effect.Outcome is null &&
                 effect.EvidenceProfile is null &&
                 effect.FailureProfile is not null &&
+                effect.FailureDetailProfile is not null &&
                 effect.DeferredCheckpoint is null,
             ModelInspectionFixtureServiceEffectKind.DeferStaleProgress or
             ModelInspectionFixtureServiceEffectKind.DeferStaleResultSnapshot or
@@ -483,6 +489,7 @@ internal static partial class ModelInspectionFixtureValidator
                 effect.Outcome is null &&
                 effect.EvidenceProfile is null &&
                 effect.FailureProfile is null &&
+                effect.FailureDetailProfile is null &&
                 effect.DeferredCheckpoint is not null,
             _ => false
         };
@@ -901,6 +908,7 @@ internal static partial class ModelInspectionFixtureValidator
             throw Failure(source, "$.expected.announcements", "expected.announcement-count");
         }
 
+        ValidateActionAutomationContract(source, expected.Actions, expected.Automation);
         foreach (ModelInspectionExpectedCopy copy in EnumerateExpectedCopies(expected))
         {
             Require(copy, source, "$.expected", "expected.copy-null");
@@ -911,7 +919,141 @@ internal static partial class ModelInspectionFixtureValidator
             }
         }
 
+        ValidateDisclosureContract(source, expected);
         ValidateWarningFinding(source, expected);
+    }
+
+    private static void ValidateActionAutomationContract(
+        ModelInspectionFixtureDocumentSource source,
+        ModelInspectionExpectedActionRegion actions,
+        ModelInspectionExpectedAutomation automation)
+    {
+        foreach (ModelInspectionExpectedAction? action in actions.Items)
+        {
+            Require(action, source, "$.expected.actions.items[]", "expected.action-automation-contract");
+            if (!action.Visible)
+            {
+                continue;
+            }
+
+            (string LabelCopyKey, string LabelDefaultText, string AutomationCopyKey,
+                string AutomationDefaultText, bool IsFutureAction)? contract =
+                GetActionAutomationContract(action.Id);
+            if (contract is not { } required ||
+                !string.Equals(
+                    action.Label.CopyKey,
+                    required.LabelCopyKey,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    action.Label.DefaultText,
+                    required.LabelDefaultText,
+                    StringComparison.Ordinal))
+            {
+                throw Failure(
+                    source,
+                    "$.expected.actions.items",
+                    "expected.action-automation-contract");
+            }
+
+            ModelInspectionExpectedAutomationControl[] controls = automation.Controls
+                .Where(control => control is not null && string.Equals(
+                    control.Id,
+                    action.Id,
+                    StringComparison.Ordinal))
+                .ToArray();
+            if (controls.Length != 1 ||
+                controls[0].ControlType != ModelInspectionExpectedControlType.Button ||
+                !string.Equals(
+                    controls[0].AccessibleName.CopyKey,
+                    required.AutomationCopyKey,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    controls[0].AccessibleName.DefaultText,
+                    required.AutomationDefaultText,
+                    StringComparison.Ordinal) ||
+                required.IsFutureAction &&
+                (action.Enabled ||
+                 !MatchesComingLater(action.HelpText) ||
+                 !MatchesComingLater(controls[0].HelpText)))
+            {
+                throw Failure(
+                    source,
+                    "$.expected.automation.controls",
+                    "expected.action-automation-contract");
+            }
+        }
+
+        foreach (ModelInspectionExpectedAutomationControl? control in automation.Controls)
+        {
+            Require(control, source, "$.expected.automation.controls[]", "expected.action-automation-contract");
+            bool hasCanonicalActionId = GetActionAutomationContract(control.Id) is not null;
+            if (!hasCanonicalActionId &&
+                control.ControlType != ModelInspectionExpectedControlType.Button)
+            {
+                continue;
+            }
+
+            if (actions.Items.Count(action =>
+                    action is not null &&
+                    action.Visible &&
+                    string.Equals(action.Id, control.Id, StringComparison.Ordinal)) != 1)
+            {
+                throw Failure(
+                    source,
+                    "$.expected.automation.controls",
+                    "expected.action-automation-contract");
+            }
+        }
+
+        static bool MatchesComingLater(ModelInspectionExpectedCopy? copy) =>
+            copy is not null &&
+            string.Equals(
+                copy.CopyKey,
+                "fixture.action.coming-later",
+                StringComparison.Ordinal) &&
+            string.Equals(copy.DefaultText, "Coming later", StringComparison.Ordinal);
+    }
+
+    private static void ValidateDisclosureContract(
+        ModelInspectionFixtureDocumentSource source,
+        ModelInspectionExpectedScreen expected)
+    {
+        bool modelExpanded = expected.Figma.State ==
+            ModelInspectionExpectedFigmaState.ReadyExpanded;
+        bool contentExpanded = expected.Figma.State is
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsExpanded or
+            ModelInspectionExpectedFigmaState.ConversionRequiredExpanded or
+            ModelInspectionExpectedFigmaState.InvalidExpanded;
+        if (expected.Model.DisclosureExpanded != modelExpanded ||
+            expected.Content.DisclosureExpanded != contentExpanded)
+        {
+            throw Failure(
+                source,
+                "$.expected",
+                "expected.disclosure-contract");
+        }
+
+        ModelInspectionExpectedModelMode? requiredMode = expected.Figma.State switch
+        {
+            ModelInspectionExpectedFigmaState.ReadyCollapsed or
+            ModelInspectionExpectedFigmaState.ReadyExpanded =>
+                ModelInspectionExpectedModelMode.Detailed,
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsExpanded or
+            ModelInspectionExpectedFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionExpectedFigmaState.ConversionRequiredExpanded or
+            ModelInspectionExpectedFigmaState.InvalidCollapsed or
+            ModelInspectionExpectedFigmaState.InvalidExpanded =>
+                ModelInspectionExpectedModelMode.Compact,
+            _ => null
+        };
+        if (requiredMode is { } mode && expected.Model.Mode != mode)
+        {
+            throw Failure(
+                source,
+                "$.expected.model.mode",
+                "expected.disclosure-contract");
+        }
     }
 
     private static void ValidateWarningFinding(
@@ -990,11 +1132,16 @@ internal static partial class ModelInspectionFixtureValidator
                 expectation.Resources != preset.Resources ||
                 expectation.TextScale != preset.Text ||
                 expectation.Motion != preset.Motion ||
+                !expectation.SemanticBrushesResolvedWithoutColorOnlyMeaning ||
+                !expectation.FinalGeometryAndSemanticsEquivalentToNormalMotion ||
                 expectation.MinimumContentColumnWidth < 0 ||
                 expectation.MaximumContentColumnWidth < expectation.MinimumContentColumnWidth ||
                 expectation.MinimumPointerTargetWidth < 44 ||
                 expectation.MinimumPointerTargetHeight < 44 ||
-                expectation.ExpectedAnimationStarts < 0)
+                expectation.MinimumAnimationStarts < 0 ||
+                expectation.MaximumAnimationStarts <
+                    expectation.MinimumAnimationStarts ||
+                expectation.MaximumAnimationStarts > 128)
             {
                 throw Failure(source, "$.presetExpectations{}", "fixture.preset-expectation");
             }
@@ -1070,22 +1217,20 @@ internal static partial class ModelInspectionFixtureValidator
         kind switch
         {
             ModelInspectionFixtureInteractionKind.Expand =>
-                expected.Model.Visible &&
-                !expected.Model.DisclosureExpanded &&
                 (expected.Figma.State is
                     ModelInspectionExpectedFigmaState.ReadyCollapsed or
                     ModelInspectionExpectedFigmaState.ReadyWithWarningsCollapsed or
                     ModelInspectionExpectedFigmaState.ConversionRequiredCollapsed or
                     ModelInspectionExpectedFigmaState.InvalidCollapsed) &&
+                HasAvailableDisclosureOwnerState(expected, expanded: false) &&
                 HasAvailableDisclosureAutomation(expected),
             ModelInspectionFixtureInteractionKind.Collapse =>
-                expected.Model.Visible &&
-                expected.Model.DisclosureExpanded &&
                 (expected.Figma.State is
                     ModelInspectionExpectedFigmaState.ReadyExpanded or
                     ModelInspectionExpectedFigmaState.ReadyWithWarningsExpanded or
                     ModelInspectionExpectedFigmaState.ConversionRequiredExpanded or
                     ModelInspectionExpectedFigmaState.InvalidExpanded) &&
+                HasAvailableDisclosureOwnerState(expected, expanded: true) &&
                 HasAvailableDisclosureAutomation(expected),
             ModelInspectionFixtureInteractionKind.Cancel =>
                 expected.Figma.State == ModelInspectionExpectedFigmaState.InspectionProgress &&
@@ -1116,6 +1261,26 @@ internal static partial class ModelInspectionFixtureValidator
                     ModelInspectionExpectedActionMode.Result,
                     "choose-another"),
             ModelInspectionFixtureInteractionKind.Reset => true,
+            _ => false
+        };
+
+    private static bool HasAvailableDisclosureOwnerState(
+        ModelInspectionExpectedScreen expected,
+        bool expanded) =>
+        expected.Figma.State switch
+        {
+            ModelInspectionExpectedFigmaState.ReadyCollapsed or
+            ModelInspectionExpectedFigmaState.ReadyExpanded =>
+                expected.Model.Visible &&
+                expected.Model.DisclosureExpanded == expanded,
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsExpanded or
+            ModelInspectionExpectedFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionExpectedFigmaState.ConversionRequiredExpanded or
+            ModelInspectionExpectedFigmaState.InvalidCollapsed or
+            ModelInspectionExpectedFigmaState.InvalidExpanded =>
+                expected.Content.Visible &&
+                expected.Content.DisclosureExpanded == expanded,
             _ => false
         };
 
@@ -1173,20 +1338,65 @@ internal static partial class ModelInspectionFixtureValidator
         ModelInspectionExpectedActionMode requiredMode,
         string requiredId)
     {
+        (string LabelCopyKey, string LabelDefaultText, string AutomationCopyKey,
+            string AutomationDefaultText, bool IsFutureAction)? contract =
+            GetActionAutomationContract(requiredId);
         ModelInspectionExpectedAction? matchingAction = actions.Items.FirstOrDefault(action =>
             action.Visible &&
             action.Enabled &&
             string.Equals(action.Id, requiredId, StringComparison.Ordinal));
         return actions.Visible &&
                actions.Mode == requiredMode &&
+               contract is { } required &&
                matchingAction is not null &&
                HasAutomationControl(
                    automation,
                    requiredId,
                    ModelInspectionExpectedControlType.Button,
-                   matchingAction.Label.CopyKey,
-                   matchingAction.Label.DefaultText);
+                   required.AutomationCopyKey,
+                   required.AutomationDefaultText);
     }
+
+    private static (string LabelCopyKey, string LabelDefaultText,
+        string AutomationCopyKey, string AutomationDefaultText, bool IsFutureAction)?
+        GetActionAutomationContract(string actionId) =>
+        actionId switch
+        {
+            "cancel" =>
+                ("fixture.action.cancel", "Cancel inspection",
+                 "fixture.automation.action.cancel", "Cancel model inspection", false),
+            "choose-another" =>
+                ("fixture.action.choose-another", "Choose another model",
+                 "fixture.automation.action.choose-another", "Choose another model", false),
+            "technical-report" =>
+                ("fixture.action.technical-report", "View technical report",
+                 "fixture.automation.action.technical-report",
+                 "View technical inspection report",
+                 true),
+            "hardware-fit" =>
+                ("fixture.action.hardware-fit", "Check hardware fit",
+                 "fixture.automation.action.hardware-fit", "Check model hardware fit", true),
+            "continue-hardware" =>
+                ("fixture.action.continue-hardware", "Continue to hardware check",
+                 "fixture.automation.action.continue-hardware",
+                 "Continue to model hardware check",
+                 true),
+            "conversion-format" =>
+                ("fixture.action.conversion-format", "Choose conversion format",
+                 "fixture.automation.action.conversion-format",
+                 "Choose model conversion format",
+                 true),
+            "locate-missing" =>
+                ("fixture.action.locate-missing", "Locate missing file",
+                 "fixture.automation.action.locate-missing", "Locate missing model file", false),
+            "restart" =>
+                ("fixture.action.restart", "Restart inspection",
+                 "fixture.automation.action.restart", "Restart model inspection", false),
+            "retry" =>
+                ("fixture.action.retry", "Retry inspection",
+                 "fixture.automation.action.retry", "Retry model inspection", false),
+            _ => null
+        };
 
     private static bool HasAutomationControl(
         ModelInspectionExpectedAutomation automation,
@@ -1396,6 +1606,29 @@ internal static partial class ModelInspectionFixtureValidator
             if (!CopyKeyRegex().IsMatch(key) || string.IsNullOrWhiteSpace(value))
             {
                 throw Failure(source, "$.copyRegistry{}", "policy.copy-registry-entry");
+            }
+
+            if (key.StartsWith(ActionAutomationCopyKeyPrefix, StringComparison.Ordinal))
+            {
+                string actionId = key[ActionAutomationCopyKeyPrefix.Length..];
+                (string LabelCopyKey, string LabelDefaultText, string AutomationCopyKey,
+                    string AutomationDefaultText, bool IsFutureAction)? contract =
+                    GetActionAutomationContract(actionId);
+                if (contract is not { } required ||
+                    !string.Equals(
+                        required.AutomationCopyKey,
+                        key,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        required.AutomationDefaultText,
+                        value,
+                        StringComparison.Ordinal))
+                {
+                    throw Failure(
+                        source,
+                        "$.copyRegistry{}",
+                        "policy.copy-registry-entry");
+                }
             }
         }
     }
@@ -1620,20 +1853,12 @@ internal static partial class ModelInspectionFixtureValidator
             }
         }
 
-        string userName = Environment.UserName;
-        string machineName = Environment.MachineName;
-        bool environmentIdentity =
-            (!string.IsNullOrEmpty(userName) &&
-             text.Contains(userName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(machineName) &&
-             text.Contains(machineName, StringComparison.OrdinalIgnoreCase));
         if (text.StartsWith('/') ||
             text.StartsWith('\\') ||
             (!allowRepositoryPath && text.IndexOfAny(['/', '\\']) >= 0) ||
             IsUnsafeUri(text, allowInternalTransitionReference) ||
             DriveTokenRegex().IsMatch(text) ||
-            IdentityTokenRegex().IsMatch(text) ||
-            environmentIdentity)
+            ModelInspectionFixturePrivacyRules.ContainsExplicitIdentityMarker(text))
         {
             throw Failure(source, path, "value.path-or-identity");
         }
@@ -1902,6 +2127,4 @@ internal static partial class ModelInspectionFixtureValidator
     [GeneratedRegex(@"^[A-Za-z]:", RegexOptions.CultureInvariant)]
     private static partial Regex DriveTokenRegex();
 
-    [GeneratedRegex(@"(%[^%]+%|\$\{[^}]+\}|\$env:|username|userprofile|computername|machine[_-]?name)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex IdentityTokenRegex();
 }

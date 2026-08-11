@@ -167,7 +167,7 @@ public static partial class StrictModelInspectionFixtureJson
     {
         if (string.IsNullOrEmpty(fileName) ||
             fileName.Length > MaximumDisplayFileNameLength ||
-            ContainsIdentity(fileName) ||
+            ModelInspectionFixturePrivacyRules.ContainsExplicitIdentityMarker(fileName) ||
             !(fileName.Equals(
                   "model-inspection-fixture.schema.json",
                   StringComparison.Ordinal) ||
@@ -180,30 +180,6 @@ public static partial class StrictModelInspectionFixtureJson
         }
 
         return fileName;
-    }
-
-    private static bool ContainsIdentity(string fileName)
-    {
-        string[] unsafeTokens =
-        [
-            "username",
-            "userprofile",
-            "computername",
-            "machine-name",
-            "machine_name"
-        ];
-        if (unsafeTokens.Any(token =>
-                fileName.Contains(token, StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        string userName = Environment.UserName;
-        string machineName = Environment.MachineName;
-        return (!string.IsNullOrEmpty(userName) &&
-                fileName.Contains(userName, StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrEmpty(machineName) &&
-                fileName.Contains(machineName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static void ValidateNullability<T>(
@@ -401,4 +377,15 @@ public static partial class StrictModelInspectionFixtureJson
             return JsonNamingPolicy.CamelCase.ConvertName(value.ToString());
         }
     }
+}
+
+internal static partial class ModelInspectionFixturePrivacyRules
+{
+    internal static bool ContainsExplicitIdentityMarker(string text) =>
+        ExplicitIdentityMarkerRegex().IsMatch(text);
+
+    [GeneratedRegex(
+        @"(?:%[^%\r\n]+%|\$\{[^}\r\n]+\}|\$env:[A-Za-z_][A-Za-z0-9_]*|\$(?:HOME|USER|USERNAME|USERPROFILE|COMPUTERNAME|MACHINENAME|HOSTNAME)\b|\{(?:user[ _-]?name|user[ _-]?profile|computer[ _-]?name|machine[ _-]?name|run[ _-]?user)\}|(?<![A-Za-z0-9])(?:user[ _-]?name|user[ _-]?profile|computer[ _-]?name|machine[ _-]?name|run[ _-]?user)(?![A-Za-z0-9])|(?<![A-Za-z0-9])~(?![A-Za-z0-9]))",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ExplicitIdentityMarkerRegex();
 }

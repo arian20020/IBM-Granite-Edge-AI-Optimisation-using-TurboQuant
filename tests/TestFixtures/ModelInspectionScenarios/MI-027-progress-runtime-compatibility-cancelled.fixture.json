@@ -1,0 +1,449 @@
+{
+  "$schema": "model-inspection-fixture.schema.json",
+  "schemaVersion": 1,
+  "id": "MI-027",
+  "targetCondition": "progress-runtime-compatibility-cancelled",
+  "variant": null,
+  "title": "MI-027 progress runtime compatibility cancelled",
+  "category": "progress",
+  "coverage": {
+    "figmaStates": [
+      "inspectionProgress"
+    ],
+    "stages": [
+      "confirmCoreRuntimeCompatibility"
+    ],
+    "stageStatuses": [
+      "cancelled"
+    ],
+    "outcomes": [],
+    "interactions": [
+      "cancel",
+      "reset"
+    ],
+    "lifecycleTags": [],
+    "failureProfiles": [],
+    "stressTags": []
+  },
+  "input": {
+    "request": {
+      "displayName": "Granite Fixture Model",
+      "displayFileName": "granite-fixture.gguf",
+      "evidenceProfile": "compatible"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "serviceSteps": [
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "cancelled-progress"
+            },
+            "effect": {
+              "kind": "progress",
+              "progress": {
+                "stage": "confirmCoreRuntimeCompatibility",
+                "status": "cancelled",
+                "completedStageCount": 4,
+                "fraction": null,
+                "detailProfile": "default"
+              },
+              "outcome": null,
+              "evidenceProfile": null,
+              "failureProfile": null,
+              "failureDetailProfile": null,
+              "deferredCheckpoint": null
+            }
+          },
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "terminal"
+            },
+            "effect": {
+              "kind": "cancelled",
+              "progress": null,
+              "outcome": null,
+              "evidenceProfile": null,
+              "failureProfile": null,
+              "failureDetailProfile": null,
+              "deferredCheckpoint": null
+            }
+          }
+        ]
+      }
+    ],
+    "setupSteps": [
+      {
+        "kind": "release-service-checkpoint",
+        "attempt": 1,
+        "checkpoint": "cancelled-progress",
+        "interactionId": null
+      },
+      {
+        "kind": "observe",
+        "attempt": null,
+        "checkpoint": "observed",
+        "interactionId": null
+      }
+    ],
+    "observationCheckpoint": "observed"
+  },
+  "expected": {
+    "figma": {
+      "state": "inspectionProgress",
+      "geometryProfile": "canonical"
+    },
+    "outcome": {
+      "visible": false,
+      "kind": "hidden",
+      "tone": "neutral",
+      "badge": null,
+      "title": null,
+      "supportingText": null
+    },
+    "model": {
+      "visible": true,
+      "mode": "compact",
+      "badge": "modelSelected",
+      "displayName": {
+        "copyKey": "fixture.model.name",
+        "defaultText": "Granite Fixture Model"
+      },
+      "displayFileName": {
+        "copyKey": "fixture.model.file",
+        "defaultText": "granite-fixture.gguf"
+      },
+      "metadata": [],
+      "checks": [],
+      "disclosureExpanded": false
+    },
+    "content": {
+      "visible": true,
+      "mode": "progress",
+      "disclosureExpanded": false,
+      "heading": {
+        "copyKey": "fixture.content.progress.heading",
+        "defaultText": "Inspection progress"
+      },
+      "rows": [
+        {
+          "id": "progress-1",
+          "primaryText": {
+            "copyKey": "fixture.progress.check-model-package.label",
+            "defaultText": "Check model package"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.progress.check-model-package.detail",
+            "defaultText": "Checking the model package."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "progress-2",
+          "primaryText": {
+            "copyKey": "fixture.progress.read-configuration.label",
+            "defaultText": "Read model configuration"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.progress.read-configuration.detail",
+            "defaultText": "Reading model configuration."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "progress-3",
+          "primaryText": {
+            "copyKey": "fixture.progress.validate-tokenizer.label",
+            "defaultText": "Validate tokenizer and chat setup"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.progress.validate-tokenizer.detail",
+            "defaultText": "Validating tokenizer and chat setup."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "progress-4",
+          "primaryText": {
+            "copyKey": "fixture.progress.validate-structure.label",
+            "defaultText": "Validate model structure"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.progress.validate-structure.detail",
+            "defaultText": "Validating model structure."
+          },
+          "status": "passed"
+        },
+        {
+          "id": "progress-5",
+          "primaryText": {
+            "copyKey": "fixture.progress.confirm-runtime.label",
+            "defaultText": "Confirm core runtime compatibility"
+          },
+          "secondaryText": {
+            "copyKey": "fixture.progress.confirm-runtime.detail",
+            "defaultText": "Confirming core runtime compatibility."
+          },
+          "status": "information"
+        }
+      ]
+    },
+    "actions": {
+      "visible": true,
+      "mode": "inspecting",
+      "items": [
+        {
+          "id": "cancel",
+          "label": {
+            "copyKey": "fixture.action.cancel",
+            "defaultText": "Cancel inspection"
+          },
+          "visible": true,
+          "enabled": true,
+          "helpText": null
+        }
+      ]
+    },
+    "footer": {
+      "rows": [
+        {
+          "stage": "checkModelPackage",
+          "status": "complete"
+        },
+        {
+          "stage": "readModelConfiguration",
+          "status": "complete"
+        },
+        {
+          "stage": "validateTokenizerAndChatSetup",
+          "status": "complete"
+        },
+        {
+          "stage": "validateModelStructure",
+          "status": "complete"
+        },
+        {
+          "stage": "confirmCoreRuntimeCompatibility",
+          "status": "notComplete"
+        }
+      ],
+      "status": "inProgress"
+    },
+    "focus": {
+      "target": "cancel"
+    },
+    "automation": {
+      "controls": [
+        {
+          "id": "model-card",
+          "accessibleName": {
+            "copyKey": "fixture.model.name",
+            "defaultText": "Granite Fixture Model"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "progress-list",
+          "accessibleName": {
+            "copyKey": "fixture.content.progress.heading",
+            "defaultText": "Inspection progress"
+          },
+          "controlType": "list",
+          "liveSetting": "polite",
+          "helpText": null
+        },
+        {
+          "id": "progress-1",
+          "accessibleName": {
+            "copyKey": "fixture.progress.check-model-package.label",
+            "defaultText": "Check model package"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.progress.check-model-package.detail",
+            "defaultText": "Checking the model package."
+          }
+        },
+        {
+          "id": "progress-2",
+          "accessibleName": {
+            "copyKey": "fixture.progress.read-configuration.label",
+            "defaultText": "Read model configuration"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.progress.read-configuration.detail",
+            "defaultText": "Reading model configuration."
+          }
+        },
+        {
+          "id": "progress-3",
+          "accessibleName": {
+            "copyKey": "fixture.progress.validate-tokenizer.label",
+            "defaultText": "Validate tokenizer and chat setup"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.progress.validate-tokenizer.detail",
+            "defaultText": "Validating tokenizer and chat setup."
+          }
+        },
+        {
+          "id": "progress-4",
+          "accessibleName": {
+            "copyKey": "fixture.progress.validate-structure.label",
+            "defaultText": "Validate model structure"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.progress.validate-structure.detail",
+            "defaultText": "Validating model structure."
+          }
+        },
+        {
+          "id": "progress-5",
+          "accessibleName": {
+            "copyKey": "fixture.progress.confirm-runtime.label",
+            "defaultText": "Confirm core runtime compatibility"
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.progress.confirm-runtime.detail",
+            "defaultText": "Confirming core runtime compatibility."
+          }
+        },
+        {
+          "id": "cancel",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.cancel",
+            "defaultText": "Cancel model inspection"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": null
+        }
+      ]
+    },
+    "announcements": {
+      "count": 1,
+      "items": [
+        {
+          "copyKey": "fixture.progress.confirm-runtime.detail",
+          "defaultText": "Confirming core runtime compatibility."
+        }
+      ]
+    },
+    "rowsAndScroll": {
+      "orderedRowIds": [
+        "progress-1",
+        "progress-2",
+        "progress-3",
+        "progress-4",
+        "progress-5"
+      ],
+      "scrollOwner": "progress-list"
+    },
+    "retainedIdentities": {
+      "ids": [
+        "model-card",
+        "progress-list",
+        "progress-1",
+        "progress-2",
+        "progress-3",
+        "progress-4",
+        "progress-5",
+        "cancel"
+      ]
+    }
+  },
+  "presetExpectations": {
+    "P01": {
+      "responsiveLayout": "desktop",
+      "minimumContentColumnWidth": 480,
+      "maximumContentColumnWidth": 960,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "progress-1",
+          "behavior": "wrap"
+        },
+        {
+          "id": "progress-2",
+          "behavior": "wrap"
+        },
+        {
+          "id": "progress-3",
+          "behavior": "wrap"
+        },
+        {
+          "id": "progress-4",
+          "behavior": "wrap"
+        },
+        {
+          "id": "progress-5",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "progress-list",
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "progress-list",
+        "progress-1",
+        "progress-2",
+        "progress-3",
+        "progress-4",
+        "progress-5",
+        "cancel"
+      ],
+      "tabOrder": [
+        "cancel"
+      ],
+      "focusTarget": "cancel",
+      "resources": "light",
+      "textScale": "standard100",
+      "motion": "normal",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 5,
+      "maximumAnimationStarts": 5
+    }
+  },
+  "interactions": [
+    {
+      "id": "cancel",
+      "kind": "cancel",
+      "sourceCheckpoint": "observed",
+      "target": "MI-012",
+      "expectedFocus": "cancel",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "inProgress",
+      "lifetimeEffect": "none"
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "sourceCheckpoint": "observed",
+      "target": "MI-027",
+      "expectedFocus": "cancel",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "inProgress",
+      "lifetimeEffect": "retirePage"
+    }
+  ],
+  "presets": [
+    "P01"
+  ]
+}
