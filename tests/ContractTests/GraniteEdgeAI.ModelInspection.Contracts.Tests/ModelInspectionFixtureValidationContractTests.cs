@@ -23,6 +23,21 @@ public sealed class ModelInspectionFixtureValidationContractTests
         "fixture.warning.chat-template-missing.detail";
     private const string MissingChatTemplateDetail =
         "The model does not report a chat template. Chat formatting may require manual configuration.";
+    private const string ViewModelDetailsKey =
+        "fixture.automation.model-disclosure.view";
+    private const string ViewModelDetails = "View model inspection details";
+    private const string HideModelDetailsKey =
+        "fixture.automation.model-disclosure.hide";
+    private const string HideModelDetails = "Hide model inspection details";
+    private const string WarningDetailsKey =
+        "fixture.automation.warning-disclosure";
+    private const string WarningDetails = "Inspection warning details";
+    private const string ConversionDetailsKey =
+        "fixture.automation.conversion-disclosure";
+    private const string ConversionDetails = "Expected conversion output";
+    private const string InvalidDetailsKey =
+        "fixture.automation.invalid-disclosure";
+    private const string InvalidDetails = "Model validation report";
 
     [TestMethod]
     public void Filename_RequiresExactIdTargetAndVariant()
@@ -493,8 +508,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 root,
                 "findings-disclosure",
                 "group",
-                "fixture.content.heading",
-                "Inspection complete");
+                WarningDetailsKey,
+                WarningDetails);
             root["interactions"] = new JsonArray(
                 Interaction(
                     "expand-findings",
@@ -521,8 +536,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     root,
                     "findings-disclosure",
                     "group",
-                    "fixture.content.heading",
-                    "Inspection complete");
+                    WarningDetailsKey,
+                    WarningDetails);
                 root["interactions"] = new JsonArray(
                     Interaction(
                         "expand-findings",
@@ -533,6 +548,90 @@ public sealed class ModelInspectionFixtureValidationContractTests
             });
             Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
                 LoadMany([FixtureContractDocuments.DescriptorSource(invalid)], contentPolicy));
+        }
+    }
+
+    [TestMethod]
+    public void ObservationInteractions_RequireCanonicalAutomationNames()
+    {
+        (string Kind, string WrongKey, string WrongText)[] actionMutations =
+        [
+            ("cancel", "fixture.action.retry", "Retry inspection"),
+            ("retry", "fixture.action.cancel", "Cancel inspection"),
+            ("restart", "fixture.action.cancel", "Cancel inspection"),
+            ("chooseAnother", "fixture.action.cancel", "Cancel inspection")
+        ];
+        foreach ((string kind, string wrongKey, string wrongText) in actionMutations)
+        {
+            AssertStateValidInteractionInvalid(kind, root =>
+                SetExpectedAutomationName(
+                    root,
+                    InteractionActionId(kind),
+                    wrongKey,
+                    wrongText));
+        }
+
+        AssertStateValidInteractionInvalid("expand", root =>
+            SetExpectedAutomationName(
+                root,
+                "inspection-details-disclosure",
+                HideModelDetailsKey,
+                HideModelDetails));
+        AssertStateValidInteractionInvalid("collapse", root =>
+            SetExpectedAutomationName(
+                root,
+                "inspection-details-disclosure",
+                ViewModelDetailsKey,
+                ViewModelDetails));
+        AssertStateValidInteractionInvalid("expand", root =>
+            SetExpectedAutomationName(
+                root,
+                "inspection-details-disclosure",
+                WarningDetailsKey,
+                WarningDetails));
+
+        (string State, string Key, string Text, string WrongKey, string WrongText)[] contentContracts =
+        [
+            ("readyWithWarningsCollapsed", WarningDetailsKey, WarningDetails,
+                ConversionDetailsKey, ConversionDetails),
+            ("readyWithWarningsExpanded", WarningDetailsKey, WarningDetails,
+                ConversionDetailsKey, ConversionDetails),
+            ("conversionRequiredCollapsed", ConversionDetailsKey, ConversionDetails,
+                InvalidDetailsKey, InvalidDetails),
+            ("conversionRequiredExpanded", ConversionDetailsKey, ConversionDetails,
+                InvalidDetailsKey, InvalidDetails),
+            ("invalidCollapsed", InvalidDetailsKey, InvalidDetails,
+                WarningDetailsKey, WarningDetails),
+            ("invalidExpanded", InvalidDetailsKey, InvalidDetails,
+                WarningDetailsKey, WarningDetails)
+        ];
+        foreach ((string state, string key, string text, string wrongKey, string wrongText)
+                 in contentContracts)
+        {
+            string policy = FixtureContractDocuments.MutatePolicy(root =>
+                ConfigureContentDisclosurePolicy(root, state));
+            string valid = FixtureContractDocuments.MutateDescriptor(root =>
+                ConfigureContentDisclosureInteraction(root, state, key, text));
+            LoadMany([FixtureContractDocuments.DescriptorSource(valid)], policy);
+
+            foreach ((string mismatchKey, string mismatchText) in new[]
+                     {
+                         (wrongKey, wrongText),
+                         (ViewModelDetailsKey, ViewModelDetails)
+                     })
+            {
+                string invalid = FixtureContractDocuments.MutateDescriptor(root =>
+                {
+                    ConfigureContentDisclosureInteraction(root, state, key, text);
+                    SetExpectedAutomationName(
+                        root,
+                        "findings-disclosure",
+                        mismatchKey,
+                        mismatchText);
+                });
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    LoadMany([FixtureContractDocuments.DescriptorSource(invalid)], policy));
+            }
         }
     }
 
@@ -1429,8 +1528,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     root,
                     "inspection-details-disclosure",
                     "group",
-                    "fixture.model.name",
-                    "Synthetic Granite");
+                    ViewModelDetailsKey,
+                    ViewModelDetails);
                 return;
 
             case "chooseAnother":
@@ -1446,8 +1545,8 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     root,
                     "inspection-details-disclosure",
                     "group",
-                    "fixture.model.name",
-                    "Synthetic Granite");
+                    HideModelDetailsKey,
+                    HideModelDetails);
                 return;
 
             case "cancel":
@@ -1600,6 +1699,17 @@ public sealed class ModelInspectionFixtureValidationContractTests
         controls.Remove(FindExpectedAutomationControl(root, id));
     }
 
+    private static void SetExpectedAutomationName(
+        JsonObject root,
+        string id,
+        string copyKey,
+        string text) =>
+        FindExpectedAutomationControl(root, id)["accessibleName"] = new JsonObject
+        {
+            ["copyKey"] = copyKey,
+            ["defaultText"] = text
+        };
+
     private static void AddExpectedAutomationControl(
         JsonObject root,
         string id,
@@ -1643,6 +1753,100 @@ public sealed class ModelInspectionFixtureValidationContractTests
         registry["fixture.action.cancel"] = "Cancel inspection";
         registry["fixture.action.retry"] = "Retry inspection";
         registry["fixture.action.restart"] = "Restart inspection";
+        AddAutomationCopyRegistry(registry);
+    }
+
+    private static void ConfigureContentDisclosureInteraction(
+        JsonObject root,
+        string state,
+        string copyKey,
+        string text)
+    {
+        switch (state)
+        {
+            case "readyWithWarningsCollapsed":
+            case "readyWithWarningsExpanded":
+                ConfigureReadyWithWarnings(root, warningOrdinal: 3);
+                break;
+            case "conversionRequiredCollapsed":
+            case "conversionRequiredExpanded":
+                ConfigureTerminalDisclosureScreen(
+                    root,
+                    state,
+                    "conversionRequired",
+                    "verifiedIncompatible",
+                    "information",
+                    "conversionRequired");
+                break;
+            case "invalidCollapsed":
+            case "invalidExpanded":
+                ConfigureTerminalDisclosureScreen(
+                    root,
+                    state,
+                    "invalid",
+                    "crossSourceContradiction",
+                    "error",
+                    "invalid");
+                break;
+            default:
+                Assert.Fail($"Unknown disclosure state: {state}");
+                return;
+        }
+
+        bool expanded = state.EndsWith("Expanded", StringComparison.Ordinal);
+        root["coverage"]!["figmaStates"]![0] = state;
+        root["expected"]!["figma"]!["state"] = state;
+        root["expected"]!["model"]!["mode"] = expanded ? "detailed" : "compact";
+        root["expected"]!["model"]!["disclosureExpanded"] = expanded;
+
+        AddExpectedAutomationControl(
+            root,
+            "findings-disclosure",
+            "group",
+            copyKey,
+            text);
+        root["interactions"] = new JsonArray(
+            Interaction(
+                expanded ? "collapse-findings" : "expand-findings",
+                expanded ? "collapse" : "expand",
+                "ready-observed",
+                "ready-observed"));
+    }
+
+    private static void ConfigureTerminalDisclosureScreen(
+        JsonObject root,
+        string figmaState,
+        string outcome,
+        string evidenceProfile,
+        string tone,
+        string contentMode)
+    {
+        root["input"]!["request"]!["evidenceProfile"] = evidenceProfile;
+        MutateTerminal(root, outcome, evidenceProfile, null);
+        root["coverage"]!["figmaStates"]![0] = figmaState;
+        root["coverage"]!["outcomes"]![0] = outcome;
+        root["expected"]!["figma"]!["state"] = figmaState;
+        root["expected"]!["outcome"]!["kind"] = outcome;
+        root["expected"]!["outcome"]!["tone"] = tone;
+        root["expected"]!["content"]!["mode"] = contentMode;
+    }
+
+    private static void ConfigureContentDisclosurePolicy(JsonObject root, string state)
+    {
+        root["fixtures"]![0]!["canonicalFigmaState"] = state;
+        JsonObject registry = root["copyRegistry"]!.AsObject();
+        registry[MissingChatTemplateTitleKey] = MissingChatTemplateTitle;
+        registry[MissingChatTemplateDetailKey] = MissingChatTemplateDetail;
+        AddAutomationCopyRegistry(registry);
+    }
+
+    private static void AddAutomationCopyRegistry(JsonObject registry)
+    {
+        registry[ViewModelDetailsKey] = ViewModelDetails;
+        registry[HideModelDetailsKey] = HideModelDetails;
+        registry[WarningDetailsKey] = WarningDetails;
+        registry[ConversionDetailsKey] = ConversionDetails;
+        registry[InvalidDetailsKey] = InvalidDetails;
     }
 
     private static JsonObject Progress(
@@ -1766,6 +1970,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
         JsonObject registry = root["copyRegistry"]!.AsObject();
         registry[MissingChatTemplateTitleKey] = MissingChatTemplateTitle;
         registry[MissingChatTemplateDetailKey] = MissingChatTemplateDetail;
+        AddAutomationCopyRegistry(registry);
     }
 
     private static void AddApprovedWarningFinding(JsonObject root)

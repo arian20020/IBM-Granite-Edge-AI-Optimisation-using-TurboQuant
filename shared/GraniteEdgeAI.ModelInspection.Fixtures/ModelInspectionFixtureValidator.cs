@@ -1089,35 +1089,32 @@ internal static partial class ModelInspectionFixtureValidator
                 HasAvailableDisclosureAutomation(expected),
             ModelInspectionFixtureInteractionKind.Cancel =>
                 expected.Figma.State == ModelInspectionExpectedFigmaState.InspectionProgress &&
-                HasAvailableAction(expected.Actions, ModelInspectionExpectedActionMode.Inspecting, "cancel") &&
-                HasAutomationControl(
+                HasAvailableAction(
+                    expected.Actions,
                     expected.Automation,
-                    "cancel",
-                    ModelInspectionExpectedControlType.Button),
+                    ModelInspectionExpectedActionMode.Inspecting,
+                    "cancel"),
             ModelInspectionFixtureInteractionKind.Retry =>
                 expected.Figma.State == ModelInspectionExpectedFigmaState.OperationalFailure &&
-                HasAvailableAction(expected.Actions, ModelInspectionExpectedActionMode.Result, "retry") &&
-                HasAutomationControl(
+                HasAvailableAction(
+                    expected.Actions,
                     expected.Automation,
-                    "retry",
-                    ModelInspectionExpectedControlType.Button),
+                    ModelInspectionExpectedActionMode.Result,
+                    "retry"),
             ModelInspectionFixtureInteractionKind.Restart =>
                 expected.Figma.State == ModelInspectionExpectedFigmaState.Cancelled &&
-                HasAvailableAction(expected.Actions, ModelInspectionExpectedActionMode.Result, "restart") &&
-                HasAutomationControl(
+                HasAvailableAction(
+                    expected.Actions,
                     expected.Automation,
-                    "restart",
-                    ModelInspectionExpectedControlType.Button),
+                    ModelInspectionExpectedActionMode.Result,
+                    "restart"),
             ModelInspectionFixtureInteractionKind.ChooseAnother =>
                 expected.Figma.State != ModelInspectionExpectedFigmaState.InspectionProgress &&
                 HasAvailableAction(
                     expected.Actions,
-                    ModelInspectionExpectedActionMode.Result,
-                    "choose-another") &&
-                HasAutomationControl(
                     expected.Automation,
-                    "choose-another",
-                    ModelInspectionExpectedControlType.Button),
+                    ModelInspectionExpectedActionMode.Result,
+                    "choose-another"),
             ModelInspectionFixtureInteractionKind.Reset => true,
             _ => false
         };
@@ -1125,37 +1122,91 @@ internal static partial class ModelInspectionFixtureValidator
     private static bool HasAvailableDisclosureAutomation(
         ModelInspectionExpectedScreen expected)
     {
-        string requiredId = expected.Figma.State is
-            ModelInspectionExpectedFigmaState.ReadyCollapsed or
-            ModelInspectionExpectedFigmaState.ReadyExpanded
-                ? "inspection-details-disclosure"
-                : "findings-disclosure";
+        (string Id, string CopyKey, string DefaultText)? contract =
+            GetDisclosureAutomationContract(expected.Figma.State);
+        if (contract is not { } required)
+        {
+            return false;
+        }
+
         return HasAutomationControl(
             expected.Automation,
-            requiredId,
-            ModelInspectionExpectedControlType.Group);
+            required.Id,
+            ModelInspectionExpectedControlType.Group,
+            required.CopyKey,
+            required.DefaultText);
     }
+
+    private static (string Id, string CopyKey, string DefaultText)?
+        GetDisclosureAutomationContract(ModelInspectionExpectedFigmaState state) =>
+        state switch
+        {
+            ModelInspectionExpectedFigmaState.ReadyCollapsed =>
+                ("inspection-details-disclosure",
+                 "fixture.automation.model-disclosure.view",
+                 "View model inspection details"),
+            ModelInspectionExpectedFigmaState.ReadyExpanded =>
+                ("inspection-details-disclosure",
+                 "fixture.automation.model-disclosure.hide",
+                 "Hide model inspection details"),
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionExpectedFigmaState.ReadyWithWarningsExpanded =>
+                ("findings-disclosure",
+                 "fixture.automation.warning-disclosure",
+                 "Inspection warning details"),
+            ModelInspectionExpectedFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionExpectedFigmaState.ConversionRequiredExpanded =>
+                ("findings-disclosure",
+                 "fixture.automation.conversion-disclosure",
+                 "Expected conversion output"),
+            ModelInspectionExpectedFigmaState.InvalidCollapsed or
+            ModelInspectionExpectedFigmaState.InvalidExpanded =>
+                ("findings-disclosure",
+                 "fixture.automation.invalid-disclosure",
+                 "Model validation report"),
+            _ => null
+        };
 
     private static bool HasAvailableAction(
         ModelInspectionExpectedActionRegion actions,
+        ModelInspectionExpectedAutomation automation,
         ModelInspectionExpectedActionMode requiredMode,
-        string requiredId) =>
-        actions.Visible &&
-        actions.Mode == requiredMode &&
-        actions.Items.Any(action =>
+        string requiredId)
+    {
+        ModelInspectionExpectedAction? matchingAction = actions.Items.FirstOrDefault(action =>
             action.Visible &&
             action.Enabled &&
             string.Equals(action.Id, requiredId, StringComparison.Ordinal));
+        return actions.Visible &&
+               actions.Mode == requiredMode &&
+               matchingAction is not null &&
+               HasAutomationControl(
+                   automation,
+                   requiredId,
+                   ModelInspectionExpectedControlType.Button,
+                   matchingAction.Label.CopyKey,
+                   matchingAction.Label.DefaultText);
+    }
 
     private static bool HasAutomationControl(
         ModelInspectionExpectedAutomation automation,
         string requiredId,
-        ModelInspectionExpectedControlType requiredType) =>
+        ModelInspectionExpectedControlType requiredType,
+        string requiredCopyKey,
+        string requiredDefaultText) =>
         automation.Controls.Count(control =>
             string.Equals(control.Id, requiredId, StringComparison.Ordinal)) == 1 &&
         automation.Controls.Any(control =>
             string.Equals(control.Id, requiredId, StringComparison.Ordinal) &&
-            control.ControlType == requiredType);
+            control.ControlType == requiredType &&
+            string.Equals(
+                control.AccessibleName.CopyKey,
+                requiredCopyKey,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                control.AccessibleName.DefaultText,
+                requiredDefaultText,
+                StringComparison.Ordinal));
 
     private static bool HasValidLifetimeEffect(
         ModelInspectionFixtureInteraction interaction) =>
