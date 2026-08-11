@@ -40,6 +40,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Fixtures\GraniteEdgeAI.ModelInspection.Fixtures.csproj" />
     <Compile Include="Features\ModelInspection\DebugFixtures\**\*.cs" />
     <Page Include="Features\ModelInspection\DebugFixtures\**\*.xaml">
       <Generator>MSBuild:Compile</Generator>

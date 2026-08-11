@@ -55,6 +55,11 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/Inspection
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/DebugModelInspectionService.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureAdapter.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureExecutionPlan.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureSession.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureSessionEvidence.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/README.md
@@ -442,6 +447,9 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/Inspec
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionOutcomeCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/ModelInspectionDisclosureTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/DebugModelInspectionServiceTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureAdapterTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureViewModelIntegrationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Infrastructure/ModelInspectionWorkerCompositionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionContractTests.cs

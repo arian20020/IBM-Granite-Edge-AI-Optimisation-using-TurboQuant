@@ -162,6 +162,23 @@ public sealed class ModelInspectionFixtureValidationContractTests
             XDocument project = XDocument.Load(projectPath);
             AssertDebugFixtureBoundary(project, "Features\\ModelInspection\\DebugFixtures");
             AssertDebugFixtureBoundary(project, "Features\\Onboarding\\DebugFixtures");
+            Assert.IsTrue(
+                HasExactDebugFixtureProjectReference(project),
+                $"Fixture reference is not confined to {DebugX64Condition} in {projectPath}.");
+
+            XDocument missingReference = new(project);
+            missingReference.Descendants("ProjectReference")
+                .Where(IsFixtureProjectReference)
+                .Remove();
+            Assert.IsFalse(HasExactDebugFixtureProjectReference(missingReference));
+
+            XDocument releaseLeak = new(project);
+            XElement leakedReference = releaseLeak.Descendants("ProjectReference")
+                .Single(IsFixtureProjectReference);
+            leakedReference.Parent!.SetAttributeValue(
+                "Condition",
+                "'$(Configuration)|$(Platform)' == 'Release|x64'");
+            Assert.IsFalse(HasExactDebugFixtureProjectReference(releaseLeak));
             AssertSentinelEvaluation(projectPath);
         }
     }
@@ -1827,6 +1844,13 @@ public sealed class ModelInspectionFixtureValidationContractTests
                     bool intended = configuration == "Debug" && platform == "x64";
                     Assert.AreEqual(
                         intended ? 1 : 0,
+                        CountItem(
+                            items,
+                            "ProjectReference",
+                            "GraniteEdgeAI.ModelInspection.Fixtures.csproj"),
+                        $"Fixture project reference for {configuration}|{platform} in {projectPath}");
+                    Assert.AreEqual(
+                        intended ? 1 : 0,
                         CountItem(items, "Compile", csharpSentinel),
                         $"Compile ownership for {configuration}|{platform} in {projectPath}");
                     Assert.AreEqual(
@@ -1889,7 +1913,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
         startInfo.ArgumentList.Add($"-p:Configuration={configuration}");
         startInfo.ArgumentList.Add($"-p:Platform={platform}");
         startInfo.ArgumentList.Add(
-            "-getItem:Compile,Page,None,Content,EmbeddedResource,PRIResource");
+            "-getItem:Compile,Page,None,Content,EmbeddedResource,PRIResource,ProjectReference");
 
         using Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Could not start dotnet msbuild.");
@@ -1924,6 +1948,24 @@ public sealed class ModelInspectionFixtureValidationContractTests
             Path.GetFileName(item!["Identity"]!.GetValue<string>()),
             fileName,
             StringComparison.Ordinal));
+
+    private static bool HasExactDebugFixtureProjectReference(XDocument project)
+    {
+        XElement[] references = project.Descendants("ProjectReference")
+            .Where(IsFixtureProjectReference)
+            .ToArray();
+        return references.Length == 1 &&
+            string.Equals(
+                references[0].Parent?.Attribute("Condition")?.Value,
+                DebugX64Condition,
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsFixtureProjectReference(XElement element) =>
+        string.Equals(
+            Path.GetFileName(element.Attribute("Include")?.Value),
+            "GraniteEdgeAI.ModelInspection.Fixtures.csproj",
+            StringComparison.Ordinal);
 
     private static string FindRepositoryRoot()
     {
