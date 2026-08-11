@@ -15,6 +15,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,6 +30,7 @@ public sealed partial class ModelInspectionPage : Page
     private readonly Func<IModelInspectionRenderDispatcher> _dispatcherFactory;
     private readonly Func<IModelInspectionAnimationDriver> _animationDriverFactory;
     private readonly Func<IModelInspectionMotionSettings> _motionSettingsFactory;
+    private readonly bool _startInspectionOnLoaded;
     private readonly HashSet<(long AttemptGeneration, ModelInspectionFigmaState Outcome)>
         _announcedTerminalOutcomes = [];
 
@@ -40,6 +42,8 @@ public sealed partial class ModelInspectionPage : Page
     private ModelInspectionRenderCoordinator? _coordinator;
     private long _navigationLifetime;
     private bool _isApplyingMotionSettingsChange;
+    private bool _hasActiveLifetime;
+    private bool _retirementInProgress;
 
     /// <summary>
     /// Creates the production page with the approved x64 Model Inspection
@@ -68,6 +72,23 @@ public sealed partial class ModelInspectionPage : Page
         Func<IModelInspectionRenderDispatcher> dispatcherFactory,
         Func<IModelInspectionAnimationDriver> animationDriverFactory,
         Func<IModelInspectionMotionSettings> motionSettingsFactory)
+        : this(
+            service,
+            dispatcherFactory,
+            animationDriverFactory,
+            motionSettingsFactory,
+            startInspectionOnLoaded: true,
+            configureResourcesBeforeInitialize: null)
+    {
+    }
+
+    private ModelInspectionPage(
+        IModelInspectionService service,
+        Func<IModelInspectionRenderDispatcher> dispatcherFactory,
+        Func<IModelInspectionAnimationDriver> animationDriverFactory,
+        Func<IModelInspectionMotionSettings> motionSettingsFactory,
+        bool startInspectionOnLoaded,
+        Action<ResourceDictionary>? configureResourcesBeforeInitialize)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _dispatcherFactory = dispatcherFactory ??
@@ -76,7 +97,9 @@ public sealed partial class ModelInspectionPage : Page
             throw new ArgumentNullException(nameof(animationDriverFactory));
         _motionSettingsFactory = motionSettingsFactory ??
             throw new ArgumentNullException(nameof(motionSettingsFactory));
+        _startInspectionOnLoaded = startInspectionOnLoaded;
 
+        configureResourcesBeforeInitialize?.Invoke(Resources);
         InitializeComponent();
         InspectionModelCardControl.IsDisclosureStateExternallyOwned = true;
         InspectionContentCardControl.IsDisclosureStateExternallyOwned = true;
@@ -123,59 +146,113 @@ public sealed partial class ModelInspectionPage : Page
                 nameof(eventArguments));
         }
 
-        RetireNavigationLifetime();
+        ActivateRequest(request);
+    }
 
-        IModelInspectionRenderDispatcher dispatcher =
-            _dispatcherFactory() ?? throw new InvalidOperationException(
-                "The Model Inspection dispatcher factory returned null.");
-        IModelInspectionAnimationDriver animationDriver =
-            _animationDriverFactory() ?? throw new InvalidOperationException(
-                "The Model Inspection animation factory returned null.");
-        IModelInspectionMotionSettings motionSettings =
-            _motionSettingsFactory() ?? throw new InvalidOperationException(
-                "The Model Inspection motion-settings factory returned null.");
-        var viewModel = new ModelInspectionViewModel(_service, request);
-        var commands = new ModelInspectionPresentationCommands(
-            viewModel.CancelCommand,
-            viewModel.RetryCommand,
-            viewModel.ChooseAnotherCommand);
+    private void ActivateRequest(ModelInspectionRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (_retirementInProgress)
+        {
+            throw new InvalidOperationException(
+                "A Model Inspection page cannot activate while its prior lifetime is retiring.");
+        }
 
-        _navigationLifetime = checked(_navigationLifetime + 1);
-        _announcedTerminalOutcomes.Clear();
-        Request = request;
-        ViewModel = viewModel;
-        CurrentPresentation = null;
-        _renderDispatcher = dispatcher;
-        _animationDriver = animationDriver;
-        _motionSettings = motionSettings;
-        var motionSettingsRegistration = new MotionSettingsChangeRegistration(
-            _navigationLifetime,
-            motionSettings,
-            dispatcher,
-            MotionSettings_AnimationsEnabledChanged);
-        Volatile.Write(
-            ref _motionSettingsRegistration,
-            motionSettingsRegistration);
-        _coordinator = new ModelInspectionRenderCoordinator(
-            dispatcher,
-            (snapshot, isExpanded, progressRows) =>
-                ModelInspectionPresentationFactory.Create(
-                    request,
-                    snapshot,
-                    commands,
-                    isExpanded,
-                    progressRows),
-            ApplyDelta);
+        RetirePageLifetime();
 
-        Subscribe(viewModel);
-        motionSettings.AnimationsEnabledChanged +=
-            motionSettingsRegistration.ChangedHandler;
-        _coordinator.ApplyInitial(viewModel.Snapshot);
+        IModelInspectionAnimationDriver? animationDriver = null;
+        IModelInspectionMotionSettings? motionSettings = null;
+        ModelInspectionViewModel? viewModel = null;
+        ModelInspectionRenderCoordinator? coordinator = null;
+        bool ownershipPublished = false;
+        try
+        {
+            IModelInspectionRenderDispatcher dispatcher =
+                _dispatcherFactory() ?? throw new InvalidOperationException(
+                    "The Model Inspection dispatcher factory returned null.");
+            animationDriver =
+                _animationDriverFactory() ?? throw new InvalidOperationException(
+                    "The Model Inspection animation factory returned null.");
+            motionSettings =
+                _motionSettingsFactory() ?? throw new InvalidOperationException(
+                    "The Model Inspection motion-settings factory returned null.");
+            viewModel = new ModelInspectionViewModel(_service, request);
+            var commands = new ModelInspectionPresentationCommands(
+                viewModel.CancelCommand,
+                viewModel.RetryCommand,
+                viewModel.ChooseAnotherCommand);
+
+            long lifetime = checked(_navigationLifetime + 1);
+            var motionSettingsRegistration = new MotionSettingsChangeRegistration(
+                lifetime,
+                motionSettings,
+                dispatcher,
+                MotionSettings_AnimationsEnabledChanged);
+            coordinator = new ModelInspectionRenderCoordinator(
+                dispatcher,
+                (snapshot, isExpanded, progressRows) =>
+                    ModelInspectionPresentationFactory.Create(
+                        request,
+                        snapshot,
+                        commands,
+                        isExpanded,
+                        progressRows),
+                ApplyDelta);
+
+            _navigationLifetime = lifetime;
+            _announcedTerminalOutcomes.Clear();
+            Request = request;
+            ViewModel = viewModel;
+            CurrentPresentation = null;
+            _renderDispatcher = dispatcher;
+            _animationDriver = animationDriver;
+            _motionSettings = motionSettings;
+            Volatile.Write(
+                ref _motionSettingsRegistration,
+                motionSettingsRegistration);
+            _coordinator = coordinator;
+            _hasActiveLifetime = true;
+            ownershipPublished = true;
+
+            Subscribe(viewModel);
+            motionSettings.AnimationsEnabledChanged +=
+                motionSettingsRegistration.ChangedHandler;
+            coordinator.ApplyInitial(viewModel.Snapshot);
+        }
+        catch (Exception activationError)
+        {
+            ExceptionDispatchInfo capturedActivation =
+                ExceptionDispatchInfo.Capture(activationError);
+            if (ownershipPublished)
+            {
+                try
+                {
+                    RetirePageLifetime();
+                }
+                catch
+                {
+                    // The activation failure remains the primary error. The shared
+                    // retirement path has already attempted every owned cleanup.
+                }
+            }
+            else
+            {
+                ExceptionDispatchInfo? ignoredCleanupError = null;
+                AttemptCleanup(() => coordinator?.Dispose(), ref ignoredCleanupError);
+                AttemptCleanup(() => animationDriver?.CancelAll(), ref ignoredCleanupError);
+                AttemptCleanup(() => animationDriver?.Dispose(), ref ignoredCleanupError);
+                AttemptCleanup(() => motionSettings?.Dispose(), ref ignoredCleanupError);
+                AttemptCleanup(() => viewModel?.Dispose(), ref ignoredCleanupError);
+            }
+
+            capturedActivation.Throw();
+            throw;
+        }
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs eventArguments)
     {
-        RetireNavigationLifetime();
+        RetirePageLifetime();
         base.OnNavigatedFrom(eventArguments);
     }
 
@@ -211,7 +288,10 @@ public sealed partial class ModelInspectionPage : Page
         object sender,
         RoutedEventArgs eventArguments)
     {
-        _ = StartInspectionIfReadyAsync();
+        if (_startInspectionOnLoaded)
+        {
+            _ = StartInspectionIfReadyAsync();
+        }
     }
 
     private void Subscribe(ModelInspectionViewModel viewModel)
@@ -237,7 +317,13 @@ public sealed partial class ModelInspectionPage : Page
             return;
         }
 
-        _coordinator?.RequestRender(viewModel.Snapshot);
+        ModelInspectionRenderCoordinator? coordinator = _coordinator;
+        if (coordinator is null)
+        {
+            return;
+        }
+
+        coordinator.RequestRender(viewModel.Snapshot);
     }
 
     private void ViewModel_ChooseAnotherRequested(
@@ -420,21 +506,27 @@ public sealed partial class ModelInspectionPage : Page
                 !IsMotionSettingsChangePending)
             {
                 long terminalLifetime = _navigationLifetime;
-                animationDriver.StartTerminal(
-                    OutgoingProgressContentCard,
-                    InspectionOutcomeCardControl,
-                    delta.VisualOperationKey,
+                Action<ModelInspectionVisualOperationKey> completed =
                     completedKey =>
                     {
                         // Terminal retirement belongs to the semantic render.
                         // Disclosure interactions for that same render must not
                         // strand the inert outgoing progress layer.
                         if (terminalLifetime == _navigationLifetime &&
+                            ReferenceEquals(_coordinator, coordinator) &&
                             coordinator.IsCurrent(completedKey.RenderKey))
                         {
                             RetireOutgoingProgressLayer();
                         }
-                    });
+                    };
+                CaptureStaleMotionCallbackForFixture(
+                    delta.VisualOperationKey,
+                    completed);
+                animationDriver.StartTerminal(
+                    OutgoingProgressContentCard,
+                    InspectionOutcomeCardControl,
+                    delta.VisualOperationKey,
+                    completed);
             }
             else
             {
@@ -616,10 +708,26 @@ public sealed partial class ModelInspectionPage : Page
             return;
         }
 
-        if (coordinator.IsCurrent(delta.RenderKey))
+        long announcementLifetime = _navigationLifetime;
+        ModelInspectionRenderKey announcementKey = delta.RenderKey;
+        string announcement = presentation.OutcomeAnnouncement;
+        Action announceIfCurrent = () =>
         {
-            InspectionOutcomeCardControl.AnnounceOutcome(
-                presentation.OutcomeAnnouncement);
+            if (announcementLifetime == _navigationLifetime &&
+                ReferenceEquals(_coordinator, coordinator) &&
+                coordinator.IsCurrent(announcementKey))
+            {
+                InspectionOutcomeCardControl.AnnounceOutcome(announcement);
+            }
+        };
+        CaptureStaleAnnouncementCallbackForFixture(
+            announcementKey,
+            announceIfCurrent);
+        if (announcementLifetime == _navigationLifetime &&
+            ReferenceEquals(_coordinator, coordinator) &&
+            coordinator.IsCurrent(announcementKey))
+        {
+            announceIfCurrent();
         }
         else
         {
@@ -888,8 +996,16 @@ public sealed partial class ModelInspectionPage : Page
             InspectionContentCardPresentation.Hidden;
     }
 
-    private void RetireNavigationLifetime()
+    private bool RetirePageLifetime()
     {
+        if (_retirementInProgress || !_hasActiveLifetime)
+        {
+            return false;
+        }
+
+        long retiredLifetime = checked(_navigationLifetime + 1);
+        _retirementInProgress = true;
+        _hasActiveLifetime = false;
         ModelInspectionViewModel? retiredViewModel = ViewModel;
         ModelInspectionRenderCoordinator? retiredCoordinator = _coordinator;
         IModelInspectionAnimationDriver? retiredDriver = _animationDriver;
@@ -897,27 +1013,8 @@ public sealed partial class ModelInspectionPage : Page
         MotionSettingsChangeRegistration? retiredSettingsRegistration =
             Interlocked.Exchange(ref _motionSettingsRegistration, null);
 
-        _navigationLifetime = checked(_navigationLifetime + 1);
-        if (retiredSettings is not null &&
-            retiredSettingsRegistration is not null)
-        {
-            retiredSettings.AnimationsEnabledChanged -=
-                retiredSettingsRegistration.ChangedHandler;
-        }
-
+        _navigationLifetime = retiredLifetime;
         FooterStatusChanged = null;
-        if (retiredViewModel is not null)
-        {
-            Unsubscribe(retiredViewModel);
-        }
-
-        retiredCoordinator?.InvalidateInteractions();
-        InspectionContentCardControl.CancelProgressMotion();
-        retiredDriver?.CancelAll();
-        retiredDriver?.Dispose();
-        retiredSettings?.Dispose();
-        retiredCoordinator?.Dispose();
-
         Request = null;
         ViewModel = null;
         _startedViewModel = null;
@@ -926,16 +1023,72 @@ public sealed partial class ModelInspectionPage : Page
         _animationDriver = null;
         _motionSettings = null;
         _coordinator = null;
-        RetireOutgoingProgressLayer();
-
-        if (retiredViewModel is null)
+        ExceptionDispatchInfo? error = null;
+        try
         {
-            return;
+            if (retiredSettings is not null &&
+                retiredSettingsRegistration is not null)
+            {
+                AttemptCleanup(
+                    () => retiredSettings.AnimationsEnabledChanged -=
+                        retiredSettingsRegistration.ChangedHandler,
+                    ref error);
+            }
+
+            if (retiredViewModel is not null)
+            {
+                AttemptCleanup(() => Unsubscribe(retiredViewModel), ref error);
+            }
+
+            // Invalidation must precede every callback-producing cancellation.
+            AttemptCleanup(
+                () => retiredCoordinator?.InvalidateInteractions(),
+                ref error);
+            AttemptCleanup(
+                InspectionContentCardControl.CancelProgressMotion,
+                ref error);
+            AttemptCleanup(() => retiredDriver?.CancelAll(), ref error);
+            AttemptCleanup(() => retiredDriver?.Dispose(), ref error);
+            AttemptCleanup(() => retiredSettings?.Dispose(), ref error);
+            AttemptCleanup(() => retiredCoordinator?.Dispose(), ref error);
+            AttemptCleanup(RetireOutgoingProgressLayer, ref error);
+
+            if (retiredViewModel is not null)
+            {
+                AttemptCleanup(retiredViewModel.Deactivate, ref error);
+                AttemptCleanup(retiredViewModel.Dispose, ref error);
+            }
+        }
+        finally
+        {
+            _retirementInProgress = false;
         }
 
-        retiredViewModel.Deactivate();
-        retiredViewModel.Dispose();
+        error?.Throw();
+        return true;
     }
+
+    private static void AttemptCleanup(
+        Action cleanup,
+        ref ExceptionDispatchInfo? error)
+    {
+        try
+        {
+            cleanup();
+        }
+        catch (Exception exception)
+        {
+            error ??= ExceptionDispatchInfo.Capture(exception);
+        }
+    }
+
+    partial void CaptureStaleMotionCallbackForFixture(
+        ModelInspectionVisualOperationKey operationKey,
+        Action<ModelInspectionVisualOperationKey> completed);
+
+    partial void CaptureStaleAnnouncementCallbackForFixture(
+        ModelInspectionRenderKey renderKey,
+        Action callback);
 
     private static bool TryGetDisclosureTransition(
         ModelInspectionFigmaState previous,

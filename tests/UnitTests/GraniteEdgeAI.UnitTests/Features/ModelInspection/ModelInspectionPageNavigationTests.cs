@@ -629,6 +629,214 @@ public sealed class ModelInspectionPageNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void OnNavigatedFrom_ReentrantDriverRetirementClaimsLifetimeBeforeCallbacks()
+    {
+        var service = new ControlledInspectionService();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        ModelInspectionPage page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            new ManualRenderDispatcher(),
+            driver,
+            settings);
+        int reentrantCalls = 0;
+        driver.CancelAllCallback = () =>
+        {
+            reentrantCalls++;
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        };
+
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+
+        Assert.AreEqual(1, reentrantCalls);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+        Assert.IsNull(page.Request);
+        Assert.IsNull(page.ViewModel);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OnNavigatedFrom_ReentrantActivationIsRejectedDuringCleanup()
+    {
+        var service = new ControlledInspectionService();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        int dispatcherFactoryCalls = 0;
+        int driverFactoryCalls = 0;
+        int settingsFactoryCalls = 0;
+        var page = new ModelInspectionPage(
+            service,
+            () =>
+            {
+                dispatcherFactoryCalls++;
+                return new ManualRenderDispatcher();
+            },
+            () =>
+            {
+                driverFactoryCalls++;
+                return driver;
+            },
+            () =>
+            {
+                settingsFactoryCalls++;
+                return settings;
+            });
+        InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
+        Exception? reentrantError = null;
+        driver.CancelAllCallback = () =>
+        {
+            try
+            {
+                InvokeNavigation(
+                    page,
+                    "OnNavigatedTo",
+                    CreateRequest(@"C:\Models\reentrant.gguf"));
+            }
+            catch (Exception error)
+            {
+                reentrantError = error;
+                throw;
+            }
+        };
+
+        InvalidOperationException thrown =
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                InvokeNavigation(page, "OnNavigatedFrom", parameter: null));
+
+        Assert.AreSame(reentrantError, thrown);
+        Assert.AreEqual(1, dispatcherFactoryCalls);
+        Assert.AreEqual(1, driverFactoryCalls);
+        Assert.AreEqual(1, settingsFactoryCalls);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+        Assert.IsNull(page.Request);
+        Assert.IsNull(page.ViewModel);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OnNavigatedFrom_AttemptsEveryOwnerAndRethrowsFirstCleanupError()
+    {
+        var service = new ControlledInspectionService();
+        ControlledCall call = service.QueueCall();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        ModelInspectionPage page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            new ManualRenderDispatcher(),
+            driver,
+            settings);
+        _ = page.StartInspectionIfReadyAsync();
+        ModelInspectionRenderCoordinator coordinator = GetCoordinator(page);
+        ModelInspectionRenderKey acceptedKey =
+            page.CurrentPresentation!.RenderKey;
+        ModelInspectionViewModel retiredViewModel = page.ViewModel!;
+        var first = new InvalidOperationException("settings-remove-first");
+        var second = new InvalidOperationException("cancel-all-second");
+        var third = new InvalidOperationException("driver-dispose-third");
+        var fourth = new InvalidOperationException("settings-dispose-fourth");
+        int cancellationCallbacks = 0;
+        using CancellationTokenRegistration registration =
+            call.CancellationToken.Register(() => cancellationCallbacks++);
+        settings.RemoveHandlerError = first;
+        driver.CancelAllCallback = () => throw second;
+        driver.DisposeCallback = () => throw third;
+        settings.DisposeCallback = () => throw fourth;
+
+        InvalidOperationException thrown =
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                InvokeNavigation(page, "OnNavigatedFrom", parameter: null));
+
+        Assert.AreSame(first, thrown);
+        Assert.AreEqual(1, settings.RemoveHandlerCount);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+        Assert.AreEqual(1, cancellationCallbacks);
+        Assert.IsFalse(coordinator.IsCurrent(acceptedKey));
+        Assert.IsFalse(retiredViewModel.ChooseAnotherCommand.CanExecute(null));
+        Assert.IsNull(page.Request);
+        Assert.IsNull(page.ViewModel);
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+        Assert.AreEqual(1, settings.RemoveHandlerCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OnNavigatedTo_ApplyInitialFailureRollsBackPublishedOwnershipExactlyOnce()
+    {
+        var service = new ControlledInspectionService();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true)
+        {
+            AnimationsEnabledError = new InvalidOperationException(
+                "apply-initial")
+        };
+        var page = new ModelInspectionPage(
+            service,
+            () => new ManualRenderDispatcher(),
+            () => driver,
+            () => settings);
+
+        InvalidOperationException error =
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                InvokeNavigation(page, "OnNavigatedTo", CreateRequest()));
+
+        Assert.AreSame(settings.AnimationsEnabledError, error);
+        Assert.IsNull(page.Request);
+        Assert.IsNull(page.ViewModel);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void RetirePageLifetime_LifetimeOverflowLeavesOwnershipActive()
+    {
+        var service = new ControlledInspectionService();
+        var driver = new RecordingPageAnimationDriver();
+        var settings = new RecordingMotionSettings(animationsEnabled: true);
+        ModelInspectionPage page = CreateInjectedPage(
+            service,
+            CreateRequest(),
+            new ManualRenderDispatcher(),
+            driver,
+            settings);
+        FieldInfo? lifetime = typeof(ModelInspectionPage).GetField(
+            "_navigationLifetime",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(lifetime);
+        lifetime.SetValue(page, long.MaxValue);
+
+        Assert.ThrowsExactly<OverflowException>(() =>
+            InvokeNavigation(page, "OnNavigatedFrom", parameter: null));
+
+        Assert.IsNotNull(page.ViewModel);
+        Assert.AreEqual(0, driver.CancelAllCount);
+        Assert.AreEqual(0, driver.DisposeCount);
+        Assert.AreEqual(0, settings.DisposeCount);
+        lifetime.SetValue(page, 41L);
+        InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(1, driver.DisposeCount);
+        Assert.AreEqual(1, settings.DisposeCount);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task OnNavigatedFrom_RejectsTerminalCompletionDuringDriverCancellation()
     {
         var service = new ControlledInspectionService();
@@ -732,10 +940,16 @@ public sealed class ModelInspectionPageNavigationTests
                 retainedPresentation.RenderKey;
             bool cancellationObserved = false;
             bool retiredBeforeCallback = false;
+            int reentrantRetirementCount = 0;
             using CancellationTokenRegistration registration =
                 call.CancellationToken.Register(() =>
                 {
                     cancellationObserved = true;
+                    InvokeNavigation(
+                        page,
+                        "OnNavigatedFrom",
+                        parameter: null);
+                    reentrantRetirementCount++;
                     retiredBeforeCallback =
                         !coordinator.IsCurrent(visibleKey) &&
                         driver.IsDisposed &&
@@ -756,6 +970,7 @@ public sealed class ModelInspectionPageNavigationTests
             dispatcher.RunAll();
 
             Assert.IsTrue(cancellationObserved);
+            Assert.AreEqual(1, reentrantRetirementCount);
             Assert.IsTrue(
                 retiredBeforeCallback,
                 "Coordinator, animation, settings, and page ownership must be retired before service cancellation callbacks run.");
@@ -2683,30 +2898,57 @@ public sealed class ModelInspectionPageNavigationTests
 
     private sealed class RecordingMotionSettings : IModelInspectionMotionSettings
     {
+        private bool animationsEnabled;
+        private EventHandler? animationsEnabledChanged;
+
         internal RecordingMotionSettings(bool animationsEnabled)
         {
-            AnimationsEnabled = animationsEnabled;
+            this.animationsEnabled = animationsEnabled;
         }
 
-        public bool AnimationsEnabled { get; private set; }
+        public bool AnimationsEnabled => AnimationsEnabledError is Exception error
+            ? throw error
+            : animationsEnabled;
 
-        public event EventHandler? AnimationsEnabledChanged;
+        public event EventHandler? AnimationsEnabledChanged
+        {
+            add => animationsEnabledChanged += value;
+            remove
+            {
+                RemoveHandlerCount++;
+                if (RemoveHandlerError is Exception error)
+                {
+                    throw error;
+                }
+
+                animationsEnabledChanged -= value;
+            }
+        }
+
+        internal Exception? AnimationsEnabledError { get; init; }
 
         internal Action? DisposeCallback { get; set; }
 
+        internal Exception? RemoveHandlerError { get; set; }
+
+        internal int RemoveHandlerCount { get; private set; }
+
         internal bool IsDisposed { get; private set; }
+
+        internal int DisposeCount { get; private set; }
 
         internal void SetAnimationsEnabled(bool value)
         {
-            AnimationsEnabled = value;
+            animationsEnabled = value;
             RaiseChanged();
         }
 
         internal void RaiseChanged() =>
-            AnimationsEnabledChanged?.Invoke(this, EventArgs.Empty);
+            animationsEnabledChanged?.Invoke(this, EventArgs.Empty);
 
         public void Dispose()
         {
+            DisposeCount++;
             IsDisposed = true;
             DisposeCallback?.Invoke();
         }
@@ -2733,6 +2975,8 @@ public sealed class ModelInspectionPageNavigationTests
         internal int CancelAllCount { get; private set; }
 
         internal bool IsDisposed { get; private set; }
+
+        internal int DisposeCount { get; private set; }
 
         internal int StageStatusStartCount { get; private set; }
 
@@ -2830,6 +3074,7 @@ public sealed class ModelInspectionPageNavigationTests
 
         public void Dispose()
         {
+            DisposeCount++;
             IsDisposed = true;
             DisposeCallback?.Invoke();
         }

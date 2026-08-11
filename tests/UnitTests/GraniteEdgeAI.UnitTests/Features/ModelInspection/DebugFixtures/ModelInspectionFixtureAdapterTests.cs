@@ -626,11 +626,20 @@ public sealed class ModelInspectionFixtureAdapterTests
             .Concat(SelfAndNestedTypes(typeof(ModelInspectionPage)))
             .Distinct()
             .ToArray();
+        (MethodBase Owner, ConstructorInfo Constructor)[] pageConstructions =
+            NewObjectConstructors(constructionRoots)
+                .Where(value => value.Constructor.DeclaringType ==
+                    typeof(ModelInspectionPage))
+                .ToArray();
+        Assert.AreEqual(
+            1,
+            pageConstructions.Length,
+            "The Debug closure must construct ModelInspectionPage exactly once through CreateForFixture.");
         foreach ((MethodBase owner, ConstructorInfo constructor) in
-                 NewObjectConstructors(constructionRoots)
-                     .Where(value => value.Constructor.DeclaringType ==
-                         typeof(ModelInspectionPage)))
+                 pageConstructions)
         {
+            Assert.AreEqual("CreateForFixture", owner.Name);
+            Assert.AreEqual(typeof(ModelInspectionPage), owner.DeclaringType);
             Assert.IsTrue(
                 IsApprovedModelInspectionPageConstructor(constructor),
                 $"{owner.DeclaringType?.FullName}.{owner.Name} creates " +
