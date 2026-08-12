@@ -160,8 +160,14 @@ public sealed class ModelInspectionFixtureValidationContractTests
         foreach (string projectPath in projectPaths)
         {
             XDocument project = XDocument.Load(projectPath);
-            AssertDebugFixtureBoundary(project, "Features\\ModelInspection\\DebugFixtures");
-            AssertDebugFixtureBoundary(project, "Features\\Onboarding\\DebugFixtures");
+            AssertDebugFixtureBoundary(
+                project,
+                projectPath,
+                "Features\\ModelInspection\\DebugFixtures");
+            AssertDebugFixtureBoundary(
+                project,
+                projectPath,
+                "Features\\Onboarding\\DebugFixtures");
             Assert.IsTrue(
                 HasExactDebugFixtureProjectReference(project),
                 $"Fixture reference is not confined to {DebugX64Condition} in {projectPath}.");
@@ -179,7 +185,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 "Condition",
                 "'$(Configuration)|$(Platform)' == 'Release|x64'");
             Assert.IsFalse(HasExactDebugFixtureProjectReference(releaseLeak));
-            AssertSentinelEvaluation(projectPath);
+            AssertPhysicalFixtureEvaluation(projectPath);
         }
     }
 
@@ -1777,7 +1783,10 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 pairedPolicy).Fixtures.Count);
     }
 
-    private static void AssertDebugFixtureBoundary(XDocument project, string subtree)
+    private static void AssertDebugFixtureBoundary(
+        XDocument project,
+        string projectPath,
+        string subtree)
     {
         string remove = subtree + "\\**";
         foreach (string itemType in new[]
@@ -1796,100 +1805,130 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 $"{itemType} must unconditionally remove {remove} exactly once.");
         }
 
-        XElement compile = project.Descendants("Compile").Single(item => string.Equals(
-            item.Attribute("Include")?.Value,
-            subtree + "\\**\\*.cs",
-            StringComparison.Ordinal));
-        XElement page = project.Descendants("Page").Single(item => string.Equals(
-            item.Attribute("Include")?.Value,
-            subtree + "\\**\\*.xaml",
-            StringComparison.Ordinal));
-        Assert.AreEqual(DebugX64Condition, compile.Parent?.Attribute("Condition")?.Value);
-        Assert.AreEqual(DebugX64Condition, page.Parent?.Attribute("Condition")?.Value);
-        Assert.AreEqual("MSBuild:Compile", page.Element("Generator")?.Value);
+        string projectDirectory = Path.GetDirectoryName(projectPath)!;
+        string physicalRoot = Path.Combine(projectDirectory, subtree);
+        string[] expectedCompile = EnumeratePhysicalFixtureItems(
+            projectDirectory,
+            physicalRoot,
+            ".cs");
+        string[] expectedPage = EnumeratePhysicalFixtureItems(
+            projectDirectory,
+            physicalRoot,
+            ".xaml");
+        string[] actualCompile = ExactConditionalFixtureIncludes(
+            project,
+            "Compile",
+            subtree,
+            requireGenerator: false);
+        string[] actualPage = ExactConditionalFixtureIncludes(
+            project,
+            "Page",
+            subtree,
+            requireGenerator: true);
+        CollectionAssert.AreEqual(expectedCompile, actualCompile);
+        CollectionAssert.AreEqual(expectedPage, actualPage);
     }
 
-    private static void AssertSentinelEvaluation(string projectPath)
-    {
-        const string csharpSentinel = "OnboardingShellPage.FixtureBoundarySentinel.cs";
-        const string xamlSentinel = "OnboardingShellPage.FixtureBoundarySentinel.xaml";
-        string projectDirectory = Path.GetDirectoryName(projectPath)!;
-        string sentinelDirectory = Path.Combine(
-            projectDirectory,
-            "Features",
-            "Onboarding",
-            "DebugFixtures");
-        string csharpPath = Path.Combine(sentinelDirectory, csharpSentinel);
-        string xamlPath = Path.Combine(sentinelDirectory, xamlSentinel);
-        Assert.IsFalse(File.Exists(csharpPath), $"Unexpected sentinel collision: {csharpPath}");
-        Assert.IsFalse(File.Exists(xamlPath), $"Unexpected sentinel collision: {xamlPath}");
-        try
-        {
-            Directory.CreateDirectory(sentinelDirectory);
-            File.WriteAllText(
-                csharpPath,
-                "internal sealed class OnboardingFixtureSentinel { }");
-            File.WriteAllText(
-                xamlPath,
-                "<Page xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" />");
+    private static string[] EnumeratePhysicalFixtureItems(
+        string projectDirectory,
+        string physicalRoot,
+        string extension) =>
+        Directory.Exists(physicalRoot)
+            ? Directory.EnumerateFiles(
+                    physicalRoot,
+                    "*" + extension,
+                    SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(projectDirectory, path).Replace('/', '\\'))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToArray()
+            : [];
 
-            foreach (string configuration in new[] { "Debug", "Release" })
+    private static string[] ExactConditionalFixtureIncludes(
+        XDocument project,
+        string itemType,
+        string subtree,
+        bool requireGenerator) =>
+        project.Descendants(itemType)
+            .Where(item => item.Attribute("Include")?.Value.StartsWith(
+                subtree + "\\",
+                StringComparison.Ordinal) == true)
+            .Select(item =>
             {
-                foreach (string platform in new[] { "x86", "x64", "ARM64" })
+                string include = item.Attribute("Include")!.Value;
+                Assert.IsFalse(include.Contains('*') || include.Contains('?'));
+                Assert.IsNull(item.Attribute("Condition"));
+                Assert.AreEqual(
+                    DebugX64Condition,
+                    item.Parent?.Attribute("Condition")?.Value);
+                if (requireGenerator)
                 {
-                    JsonObject items = EvaluateProjectItems(
-                        projectPath,
-                        configuration,
-                        platform);
-                    bool intended = configuration == "Debug" && platform == "x64";
-                    Assert.AreEqual(
-                        intended ? 1 : 0,
-                        CountItem(
-                            items,
-                            "ProjectReference",
-                            "GraniteEdgeAI.ModelInspection.Fixtures.csproj"),
-                        $"Fixture project reference for {configuration}|{platform} in {projectPath}");
-                    Assert.AreEqual(
-                        intended ? 1 : 0,
-                        CountItem(items, "Compile", csharpSentinel),
-                        $"Compile ownership for {configuration}|{platform} in {projectPath}");
-                    Assert.AreEqual(
-                        intended ? 1 : 0,
-                        CountItem(items, "Page", xamlSentinel),
-                        $"Page ownership for {configuration}|{platform} in {projectPath}");
-
-                    foreach (string itemType in new[]
-                             {
-                                 "Page", "None", "Content", "EmbeddedResource", "PRIResource"
-                             })
-                    {
-                        Assert.AreEqual(
-                            0,
-                            CountItem(items, itemType, csharpSentinel),
-                            $"C# sentinel leaked to {itemType} for {configuration}|{platform}.");
-                    }
-
-                    foreach (string itemType in new[]
-                             {
-                                 "Compile", "None", "Content", "EmbeddedResource", "PRIResource"
-                             })
-                    {
-                        Assert.AreEqual(
-                            0,
-                            CountItem(items, itemType, xamlSentinel),
-                            $"XAML sentinel leaked to {itemType} for {configuration}|{platform}.");
-                    }
+                    Assert.AreEqual("MSBuild:Compile", item.Element("Generator")?.Value);
                 }
-            }
-        }
-        finally
+                else
+                {
+                    Assert.AreEqual(0, item.Elements().Count());
+                }
+
+                return include;
+            })
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+    private static void AssertPhysicalFixtureEvaluation(string projectPath)
+    {
+        string projectDirectory = Path.GetDirectoryName(projectPath)!;
+        int expectedCompile = new[]
         {
-            File.Delete(csharpPath);
-            File.Delete(xamlPath);
-            if (Directory.Exists(sentinelDirectory) &&
-                !Directory.EnumerateFileSystemEntries(sentinelDirectory).Any())
+            "Features\\ModelInspection\\DebugFixtures",
+            "Features\\Onboarding\\DebugFixtures"
+        }.Sum(subtree => EnumeratePhysicalFixtureItems(
+            projectDirectory,
+            Path.Combine(projectDirectory, subtree),
+            ".cs").Length);
+        int expectedPage = new[]
+        {
+            "Features\\ModelInspection\\DebugFixtures",
+            "Features\\Onboarding\\DebugFixtures"
+        }.Sum(subtree => EnumeratePhysicalFixtureItems(
+            projectDirectory,
+            Path.Combine(projectDirectory, subtree),
+            ".xaml").Length);
+
+        foreach (string configuration in new[] { "Debug", "Release" })
+        {
+            foreach (string platform in new[] { "x86", "x64", "ARM64" })
             {
-                Directory.Delete(sentinelDirectory);
+                JsonObject items = EvaluateProjectItems(
+                    projectPath,
+                    configuration,
+                    platform);
+                bool intended = configuration == "Debug" && platform == "x64";
+                Assert.AreEqual(
+                    intended ? 1 : 0,
+                    CountItem(
+                        items,
+                        "ProjectReference",
+                        "GraniteEdgeAI.ModelInspection.Fixtures.csproj"),
+                    $"Fixture project reference for {configuration}|{platform} in {projectPath}");
+                Assert.AreEqual(
+                    intended ? expectedCompile : 0,
+                    CountFixtureItems(items, "Compile"),
+                    $"Compile ownership for {configuration}|{platform} in {projectPath}");
+                Assert.AreEqual(
+                    intended ? expectedPage : 0,
+                    CountFixtureItems(items, "Page"),
+                    $"Page ownership for {configuration}|{platform} in {projectPath}");
+
+                foreach (string itemType in new[]
+                         {
+                             "None", "Content", "EmbeddedResource", "PRIResource"
+                         })
+                {
+                    Assert.AreEqual(
+                        0,
+                        CountFixtureItems(items, itemType),
+                        $"Fixture source leaked to {itemType} for {configuration}|{platform}.");
+                }
             }
         }
     }
@@ -1948,6 +1987,12 @@ public sealed class ModelInspectionFixtureValidationContractTests
             Path.GetFileName(item!["Identity"]!.GetValue<string>()),
             fileName,
             StringComparison.Ordinal));
+
+    private static int CountFixtureItems(JsonObject items, string itemType) =>
+        items[itemType]!.AsArray().Count(item =>
+            item!["Identity"]!.GetValue<string>()
+                .Replace('/', '\\')
+                .Contains("\\DebugFixtures\\", StringComparison.Ordinal));
 
     private static bool HasExactDebugFixtureProjectReference(XDocument project)
     {

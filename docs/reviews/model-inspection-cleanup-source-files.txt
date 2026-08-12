@@ -252,6 +252,7 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/README.md
 runtime/README.md
 scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
+scripts/model-inspection/Test-ModelInspectionFixtureReleaseIsolation.ps1
 scripts/model-inspection/Test-ModelInspectionVisualArtifactPrivacy.ps1
 scripts/model-inspection/Test-ModelInspectionWorkerManifest.ps1
 scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
@@ -308,6 +309,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGr
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4PackagingContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate5ApplicationBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureBuildBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureCatalogueContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureJsonContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureLifecycleBatchContractTests.cs
