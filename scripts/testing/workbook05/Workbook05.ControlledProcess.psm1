@@ -117,10 +117,11 @@ function Stop-Wb05ControlledProcessTree {
         [int[]]$ProcessIds
     )
 
-    # Descendants are terminated before their parent to avoid orphaned
-    # compiler, linker, or MSBuild processes.
-    foreach ($processId in @($ProcessIds | Sort-Object -Descending)) {
-        Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+    # Get-Wb05ControlledProcessTreeIds records every parent before its known
+    # descendants. Walking that recorded order backwards therefore terminates
+    # compiler and linker children before their MSBuild or CMake parent.
+    for ($index = $ProcessIds.Count - 1; $index -ge 0; $index--) {
+        Stop-Process -Id $ProcessIds[$index] -Force -ErrorAction SilentlyContinue
     }
 }
 
