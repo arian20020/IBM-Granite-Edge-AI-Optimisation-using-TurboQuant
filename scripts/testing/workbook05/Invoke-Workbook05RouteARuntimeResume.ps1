@@ -310,6 +310,24 @@ $gitPath = (
 if ($ResumeExpectedArtifactDigest -ne $ResumeActualArtifactDigest) {
     throw 'Recorded and independently verified resume artifact digests differ.'
 }
+
+# Assert-Wb05SafePath can only enforce containment after its trusted root has
+# been established. Reject a missing, non-directory, or reparse-point C:\w5a
+# root before any resumable source, build, or install path is evaluated.
+if (-not (Test-Path -LiteralPath $WorkspaceRoot -PathType Container)) {
+    throw "Resume workspace root is missing or is not a directory: $WorkspaceRoot"
+}
+$workspaceRootItem = Get-Item `
+    -LiteralPath $WorkspaceRoot `
+    -Force `
+    -ErrorAction Stop
+if (
+    ($workspaceRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
+) {
+    throw "Resume workspace root must not be a reparse point: $WorkspaceRoot"
+}
+$WorkspaceRoot = $workspaceRootItem.FullName.TrimEnd('\')
+
 if (Test-Path -LiteralPath $OutputDirectory) {
     throw "Evidence directory already exists and will not be reused: $OutputDirectory"
 }
