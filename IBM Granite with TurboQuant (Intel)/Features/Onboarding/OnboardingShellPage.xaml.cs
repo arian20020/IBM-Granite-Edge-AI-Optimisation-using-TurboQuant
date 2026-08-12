@@ -41,6 +41,7 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             // Create all controls declared in OnboardingShellPage.xaml.
             InitializeComponent();
+            InitializeFixtureGalleryEntry();
 
             // Record that onboarding starts on the model-import stage.
             CurrentStage = OnboardingStage.ImportModel;
@@ -51,6 +52,8 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Display ModelImportPage and subscribe to its navigation request.
             ShowInitialStage();
         }
+
+        partial void InitializeFixtureGalleryEntry();
 
         /// <summary>
         /// Gets the onboarding stage currently displayed by the shell.
@@ -259,6 +262,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             // and its request from the Frame journal before exposing the new
             // active stage.
             StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
 
             // Transfer event ownership only after the new page exists.
             AttachModelImportPage(modelImportPage);

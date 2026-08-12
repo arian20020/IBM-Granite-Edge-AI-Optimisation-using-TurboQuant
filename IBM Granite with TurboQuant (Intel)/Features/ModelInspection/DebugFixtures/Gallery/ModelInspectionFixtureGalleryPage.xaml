@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Gallery.ModelInspectionFixtureGalleryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid
+        Padding="24"
+        ColumnSpacing="24"
+        Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock
+                Text="Fixture gallery"
+                Style="{ThemeResource TitleTextBlockStyle}" />
+
+            <TextBox
+                x:Name="FixtureSearchBox"
+                Grid.Row="1"
+                Header="Search fixtures"
+                PlaceholderText="ID, filename, or target"
+                AutomationProperties.Name="Search model inspection fixtures" />
+
+            <ComboBox
+                x:Name="FixtureCategoryFilter"
+                Grid.Row="2"
+                Header="Category"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.Name="Filter fixtures by category" />
+
+            <ListView
+                x:Name="FixtureList"
+                Grid.Row="3"
+                Margin="0,4,0,0"
+                SelectionMode="Single"
+                AutomationProperties.Name="Model inspection fixtures" />
+
+            <TextBlock
+                x:Name="FixtureValidationStatus"
+                Grid.Row="4"
+                Margin="0,8,0,0"
+                TextWrapping="Wrap"
+                AutomationProperties.LiveSetting="Polite" />
+        </Grid>
+
+        <Grid Grid.Column="1" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2">
+                    <TextBlock
+                        x:Name="FixtureIdText"
+                        Style="{ThemeResource SubtitleTextBlockStyle}" />
+                    <TextBlock
+                        x:Name="FixtureFileNameText"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="FixtureTargetText"
+                        TextWrapping="Wrap" />
+                    <TextBlock x:Name="FixtureCategoryText" />
+                    <TextBlock x:Name="FixtureRealWorkerCoverageText" />
+                </StackPanel>
+                <TextBlock
+                    x:Name="SyntheticFixtureBadge"
+                    Grid.Column="1"
+                    Padding="10,4"
+                    Text="Synthetic fixture"
+                    VerticalAlignment="Top" />
+            </Grid>
+
+            <StackPanel
+                x:Name="FixturePresetControls"
+                Grid.Row="1"
+                Orientation="Horizontal"
+                Spacing="12"
+                AutomationProperties.Name="Fixture presentation preset" />
+
+            <StackPanel
+                x:Name="FixtureInteractionPanel"
+                Grid.Row="2"
+                Spacing="4"
+                AutomationProperties.Name="Fixture interactions" />
+
+            <Frame
+                x:Name="FixtureHostFrame"
+                Grid.Row="3"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch" />
+
+            <StackPanel
+                Grid.Row="4"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8">
+                <Button
+                    x:Name="ResetFixtureButton"
+                    Content="Reset fixture"
+                    AutomationProperties.Name="Reset selected fixture" />
+                <Button
+                    x:Name="CloseFixtureGalleryButton"
+                    Content="Close"
+                    AutomationProperties.Name="Close fixture gallery" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

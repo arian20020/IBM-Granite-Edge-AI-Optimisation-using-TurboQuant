@@ -55,7 +55,17 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/Inspection
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/IModelInspectionFixturePackageResourceReader.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureGalleryPage.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureGalleryPage.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureGalleryViewModel.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureHostPage.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureHostPage.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureListItem.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixturePackageLoader.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureScenarioRunner.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/ModelInspectionPage.DebugFixtures.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/ModelInspectionFixturePreset.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/DebugModelInspectionService.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureAdapter.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureExecutionPlan.cs
@@ -124,6 +134,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/README.m
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/README.md
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/DebugFixtures/OnboardingShellPage.FixtureGallery.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingStage.cs
@@ -452,6 +463,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/Inspec
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/ModelInspectionDisclosureTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/DebugModelInspectionServiceTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureAdapterTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureGalleryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixturePageLifecycleTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureViewModelIntegrationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Infrastructure/ModelInspectionWorkerCompositionTests.cs

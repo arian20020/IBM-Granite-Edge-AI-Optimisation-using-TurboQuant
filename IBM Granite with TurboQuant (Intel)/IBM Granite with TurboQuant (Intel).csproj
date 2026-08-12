@@ -34,7 +34,22 @@
     <PRIResource Remove="Features\Onboarding\DebugFixtures\**" />
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Compile Include="Features\Onboarding\DebugFixtures\OnboardingShellPage.FixtureGallery.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionPage.DebugFixtures.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\IModelInspectionFixturePackageResourceReader.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureGalleryViewModel.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureGalleryPage.xaml.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureHostPage.xaml.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureListItem.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixturePackageLoader.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureScenarioRunner.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Presets\ModelInspectionFixturePreset.cs" />
+    <Page Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureGalleryPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureHostPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Compile Include="Features\ModelInspection\DebugFixtures\Runtime\DebugModelInspectionService.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Runtime\ModelInspectionFixtureAdapter.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Runtime\ModelInspectionFixtureExecutionPlan.cs" />
