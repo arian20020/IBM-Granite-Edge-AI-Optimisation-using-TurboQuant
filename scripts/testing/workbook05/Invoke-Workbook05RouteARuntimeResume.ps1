@@ -394,8 +394,7 @@ try {
         -FilePath $PythonPath `
         -Arguments @(
             '-m',
-            'scripts.testing.workbook05.' +
-                'route_a_runtime_resume_bundle_validation',
+            'scripts.testing.workbook05.route_a_runtime_resume_bundle_validation',
             '--bundle-root',
             $ResumeBundleDirectory,
             '--expected-run-id',
