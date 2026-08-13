@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "record_type": "build-decision",
+  "route_id": "route-a-merged-openvino",
+  "component": "route",
+  "source_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+  "status": "BuildCandidate",
+  "reasons": [
+    "The exact accepted Route A OpenVINO Runtime and source-matched OpenVINO GenAI components both completed configure, build, and install with zero command errors, no resource safety stop, retained binary hashes, and independent hosted artifact validation.",
+    "This decision closes only the Phase 2 documented-build boundary. Granite execution, TurboQuant activation, packed storage, performance, and quality remain unproven and unauthorised until their later conformance and measured-run checkpoints pass."
+  ],
+  "required_components": [
+    {
+      "component": "runtime",
+      "status": "Passed",
+      "evidence_path": "docs/testing/workbook05/2026-08-13-route-a-phase-2-closure.md"
+    },
+    {
+      "component": "genai",
+      "status": "Passed",
+      "evidence_path": "docs/testing/workbook05/2026-08-13-route-a-phase-2-closure.md"
+    }
+  ],
+  "granite_model_test_authorised": false,
+  "activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false
+}
