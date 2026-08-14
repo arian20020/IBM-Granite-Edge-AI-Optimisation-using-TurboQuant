@@ -1,4 +1,4 @@
-name: Temporary HPLT English-Albanian model fetch
+name: Temporary anatomical terminology fetch
 
 on:
   push:
@@ -9,33 +9,60 @@ permissions:
   contents: read
 
 jobs:
-  fetch-model:
+  fetch-terminology:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
-      - name: Download HPLT v2 English to Albanian Marian model
+      - name: Fetch Wikidata TA2 and TA98 English-Albanian terminology
         shell: bash
         run: |
           set -euo pipefail
-          base="https://huggingface.co/HPLT/translate-en-sq-v2.0-hplt_opus/resolve/main"
-          for name in model.npz.best-chrf.npz model.en-sq.spm model.en-sq.vocab README.md; do
-            curl --fail --location --retry 5 --retry-delay 2 --connect-timeout 30 \
-              "$base/$name?download=true" -o "$name"
-            test -s "$name"
-          done
-          sha256sum model.npz.best-chrf.npz model.en-sq.spm model.en-sq.vocab README.md | tee SHA256SUMS.txt
-          ls -lh model.npz.best-chrf.npz model.en-sq.spm model.en-sq.vocab README.md SHA256SUMS.txt
+          cat > ta2.rq <<'EOF'
+          SELECT ?item ?ta2 ?en ?sq ?enAlt ?sqAlt WHERE {
+            ?item wdt:P7173 ?ta2 .
+            ?item rdfs:label ?en . FILTER(LANG(?en) = "en")
+            OPTIONAL { ?item rdfs:label ?sq . FILTER(LANG(?sq) = "sq") }
+            OPTIONAL { ?item skos:altLabel ?enAlt . FILTER(LANG(?enAlt) = "en") }
+            OPTIONAL { ?item skos:altLabel ?sqAlt . FILTER(LANG(?sqAlt) = "sq") }
+          }
+          ORDER BY xsd:integer(?ta2)
+          EOF
+          cat > ta98.rq <<'EOF'
+          SELECT ?item ?ta98 ?latin ?en ?sq ?enAlt ?sqAlt WHERE {
+            ?item wdt:P1323 ?ta98 .
+            OPTIONAL { ?item wdt:P3982 ?latin }
+            ?item rdfs:label ?en . FILTER(LANG(?en) = "en")
+            OPTIONAL { ?item rdfs:label ?sq . FILTER(LANG(?sq) = "sq") }
+            OPTIONAL { ?item skos:altLabel ?enAlt . FILTER(LANG(?enAlt) = "en") }
+            OPTIONAL { ?item skos:altLabel ?sqAlt . FILTER(LANG(?sqAlt) = "sq") }
+          }
+          ORDER BY ?ta98
+          EOF
+          endpoint="https://query.wikidata.org/sparql"
+          agent="Netter-Albanian-terminology-QA/1.0 (personal translation project)"
+          curl --fail --location --retry 5 --retry-delay 5 \
+            -A "$agent" -G "$endpoint" \
+            --data-urlencode query@ta2.rq \
+            -H 'Accept: text/tab-separated-values' \
+            -o wikidata-ta2-en-sq.tsv
+          curl --fail --location --retry 5 --retry-delay 5 \
+            -A "$agent" -G "$endpoint" \
+            --data-urlencode query@ta98.rq \
+            -H 'Accept: text/tab-separated-values' \
+            -o wikidata-ta98-en-sq.tsv
+          test -s wikidata-ta2-en-sq.tsv
+          test -s wikidata-ta98-en-sq.tsv
+          wc -l wikidata-ta2-en-sq.tsv wikidata-ta98-en-sq.tsv
+          sha256sum wikidata-ta2-en-sq.tsv wikidata-ta98-en-sq.tsv > SHA256SUMS.txt
 
-      - name: Upload HPLT translation model
+      - name: Upload terminology tables
         uses: actions/upload-artifact@v4
         with:
-          name: en-sq-hplt-v2-marian-model
+          name: anatomical-terminology-en-sq
           path: |
-            model.npz.best-chrf.npz
-            model.en-sq.spm
-            model.en-sq.vocab
-            README.md
+            wikidata-ta2-en-sq.tsv
+            wikidata-ta98-en-sq.tsv
             SHA256SUMS.txt
-          compression-level: 0
+          compression-level: 9
           retention-days: 1
           if-no-files-found: error
