@@ -1,0 +1,38 @@
+name: Temporary English-Albanian model fetch
+
+on:
+  push:
+    branches:
+      - automation/temp-en-sq-model-fetch-20260815
+
+permissions:
+  contents: read
+
+jobs:
+  fetch-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download Argos English to Albanian model
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://data.argosopentech.com/argospm/v1/translate-en_sq-1_9.argosmodel"
+          curl --fail --location --retry 5 --retry-delay 2 --connect-timeout 30 \
+            "$url" -o translate-en_sq-1_9.argosmodel
+          test -s translate-en_sq-1_9.argosmodel
+          file translate-en_sq-1_9.argosmodel
+          unzip -t translate-en_sq-1_9.argosmodel
+          sha256sum translate-en_sq-1_9.argosmodel | tee SHA256SUMS.txt
+          ls -lh translate-en_sq-1_9.argosmodel SHA256SUMS.txt
+
+      - name: Upload translation model
+        uses: actions/upload-artifact@v4
+        with:
+          name: en-sq-argos-model
+          path: |
+            translate-en_sq-1_9.argosmodel
+            SHA256SUMS.txt
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
