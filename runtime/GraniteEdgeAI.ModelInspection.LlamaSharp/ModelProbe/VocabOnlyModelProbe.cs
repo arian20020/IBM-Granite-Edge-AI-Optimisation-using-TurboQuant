@@ -224,26 +224,34 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                     UseMemoryLock = false
                                 };
                                 var loadStopwatch = Stopwatch.StartNew();
-                                using var nativeLoadCancellation =
+                                var nativeLoadCancellation =
                                     CancellationTokenSource
                                         .CreateLinkedTokenSource(
                                             operationCancellation.Token);
 
-                                if (cancelNativeAfterMilliseconds.HasValue)
-                                {
-                                    nativeLoadCancellation.CancelAfter(
-                                        cancelNativeAfterMilliseconds.Value);
-                                }
-
                                 try
                                 {
-                                    weights = await LLamaWeights
-                                        .LoadFromFileAsync(
-                                            modelParameters,
-                                            nativeLoadCancellation.Token,
-                                            progressRecorder)
-                                        .ConfigureAwait(false);
-                                    nativeLoadCancellation.Token.ThrowIfCancellationRequested();
+                                    try
+                                    {
+                                        if (cancelNativeAfterMilliseconds.HasValue)
+                                        {
+                                            nativeLoadCancellation.CancelAfter(
+                                                cancelNativeAfterMilliseconds.Value);
+                                        }
+
+                                        weights = await LLamaWeights
+                                            .LoadFromFileAsync(
+                                                modelParameters,
+                                                nativeLoadCancellation.Token,
+                                                progressRecorder)
+                                            .ConfigureAwait(false);
+                                    }
+                                    finally
+                                    {
+                                        nativeLoadCancellation.Dispose();
+                                    }
+
+                                    operationCancellation.Token.ThrowIfCancellationRequested();
 
                                     loadStopwatch.Stop();
                                     loadDurationMilliseconds =
@@ -256,7 +264,7 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                     VocabOnlyConfigurationProjection projection =
                                         VocabOnlyEvidenceCollector
                                             .CollectConfiguration(weights);
-                                    nativeLoadCancellation.Token.ThrowIfCancellationRequested();
+                                    operationCancellation.Token.ThrowIfCancellationRequested();
                                     return projection;
                                 }
                                 finally

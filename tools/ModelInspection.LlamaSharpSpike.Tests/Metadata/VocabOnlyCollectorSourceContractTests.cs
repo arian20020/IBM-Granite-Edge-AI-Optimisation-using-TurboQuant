@@ -175,13 +175,14 @@ public sealed class VocabOnlyCollectorSourceContractTests
             structurePhase);
 
         Assert.AreEqual(
-            3,
+            5,
             CountOccurrences(
                 probe[probe.IndexOf(
                     "VocabOnlyProbePhase.ReadModelConfiguration",
                     StringComparison.Ordinal)..tokenizerPhase],
                 "operationCancellation.Token.ThrowIfCancellationRequested();"),
-            "Stage 2 must check before native work, after selection, and after completion.");
+            "Stage 2 must check before native work, after selection, after load, " +
+            "after configuration, and after completion.");
         Assert.AreEqual(
             3,
             CountOccurrences(
@@ -212,11 +213,44 @@ public sealed class VocabOnlyCollectorSourceContractTests
             ".CollectConfiguration(",
             nativeLoad,
             StringComparison.Ordinal);
+        int nativeLoadCompletion = probe.IndexOf(
+            ".ConfigureAwait(false);",
+            nativeLoad,
+            StringComparison.Ordinal);
+        int nativeTimeoutDisposal = probe.IndexOf(
+            "nativeLoadCancellation.Dispose();",
+            nativeLoadCompletion,
+            StringComparison.Ordinal);
+        int postLoadStopwatch = probe.IndexOf(
+            "loadStopwatch.Stop();",
+            nativeLoadCompletion,
+            StringComparison.Ordinal);
+
         AssertBetween(
             probe,
-            "nativeLoadCancellation.Token.ThrowIfCancellationRequested();",
+            "nativeLoadCancellation.Token,",
             nativeLoad,
+            nativeLoadCompletion);
+        AssertBetween(
+            probe,
+            "finally",
+            nativeLoadCompletion,
+            nativeTimeoutDisposal);
+        Assert.IsTrue(
+            nativeTimeoutDisposal > nativeLoadCompletion &&
+            nativeTimeoutDisposal < postLoadStopwatch,
+            "The native-only timeout must be disposed immediately after the load await.");
+        AssertBetween(
+            probe,
+            "operationCancellation.Token.ThrowIfCancellationRequested();",
+            nativeTimeoutDisposal,
             configurationCollection);
+        Assert.AreEqual(
+            0,
+            CountOccurrences(
+                probe[nativeLoadCompletion..configurationCollection],
+                "nativeLoadCancellation.Token.ThrowIfCancellationRequested();"),
+            "Post-load work must observe only caller/post-preflight cancellation.");
     }
 
     private static void AssertBetween(
