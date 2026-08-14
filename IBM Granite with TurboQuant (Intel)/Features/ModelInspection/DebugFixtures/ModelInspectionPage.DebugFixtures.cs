@@ -24,6 +24,7 @@ public sealed partial class ModelInspectionPage
         var page = new ModelInspectionPage(
             session.Service,
             session.CreateRenderDispatcher,
+            session.CreateStartupPresentationBarrier,
             session.CreateAnimationDriver,
             session.CreateMotionSettings,
             startInspectionOnLoaded,

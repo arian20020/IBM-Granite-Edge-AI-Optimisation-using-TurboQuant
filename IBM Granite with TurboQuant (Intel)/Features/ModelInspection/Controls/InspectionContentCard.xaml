@@ -276,6 +276,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid ColumnSpacing="20">
                         <Grid.ColumnDefinitions>
@@ -292,9 +293,44 @@
                             Foreground="{ThemeResource InspectionTextSecondaryBrush}"
                             Text="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}" />
                     </Grid>
+                    <Grid
+                        x:Name="StartupStatusRow"
+                        Grid.Row="1"
+                        Margin="0,12,0,0"
+                        ColumnSpacing="10"
+                        AutomationProperties.AccessibilityView="Content"
+                        AutomationProperties.Name="{x:Bind Presentation.Startup.AutomationName, Mode=OneWay}"
+                        Visibility="{x:Bind Presentation.Startup.Visibility, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid
+                            x:Name="StartupActiveIndicatorHost"
+                            Width="30"
+                            Height="30"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            AutomationProperties.AccessibilityView="Raw">
+                            <ProgressRing
+                                Width="22"
+                                Height="22"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
+                                IsActive="True"
+                                IsIndeterminate="True" />
+                        </Grid>
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind Presentation.Startup.Summary, Mode=OneWay}" />
+                    </Grid>
                     <ItemsRepeater
                         x:Name="ProgressItemsRepeater"
-                        Grid.Row="1"
+                        Grid.Row="2"
                         Margin="0"
                         AutomationProperties.AccessibilityView="Content"
                         AutomationProperties.AutomationControlType="List"

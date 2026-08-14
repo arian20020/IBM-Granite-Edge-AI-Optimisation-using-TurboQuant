@@ -20,6 +20,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
 
     private readonly object stateLock = new();
     private readonly IModelInspectionService service;
+    private readonly IModelInspectionStartupPresentationBarrier startupBarrier;
     private readonly SynchronizationContext? notificationContext;
     private readonly DelegateCommand cancelCommand;
     private readonly DelegateCommand retryCommand;
@@ -34,9 +35,21 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
 
     internal ModelInspectionViewModel(
         IModelInspectionService service,
-        ModelInspectionRequest request)
+        ModelInspectionRequest request) : this(
+            service,
+            request,
+            ImmediateStartupPresentationBarrier.Instance)
+    {
+    }
+
+    internal ModelInspectionViewModel(
+        IModelInspectionService service,
+        ModelInspectionRequest request,
+        IModelInspectionStartupPresentationBarrier startupBarrier)
     {
         this.service = service ?? throw new ArgumentNullException(nameof(service));
+        this.startupBarrier = startupBarrier ??
+            throw new ArgumentNullException(nameof(startupBarrier));
         Request = request ?? throw new ArgumentNullException(nameof(request));
         notificationContext = SynchronizationContext.Current;
 
@@ -123,6 +136,7 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         ModelInspectionExecutionResult execution;
         try
         {
+            await startupBarrier.WaitForPresentationAsync();
             execution = await service.InspectAsync(
                 Request,
                 attemptProgress,
@@ -523,6 +537,15 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 cancellation.Dispose();
             }
         }
+    }
+
+    private sealed class ImmediateStartupPresentationBarrier :
+        IModelInspectionStartupPresentationBarrier
+    {
+        internal static ImmediateStartupPresentationBarrier Instance { get; } =
+            new();
+
+        public ValueTask WaitForPresentationAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class ContextProgress<T> : IProgress<T>

@@ -140,9 +140,9 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.IsNotNull(first);
         Assert.AreSame(first, reloaded);
         Assert.AreSame(first, page.CurrentInspectionTask);
+        await DrainDispatcherAsync(page);
         Assert.AreEqual(1, service.CallCount);
         Assert.IsTrue(page.ViewModel!.IsRunActive);
-        await DrainDispatcherAsync(page);
         Assert.IsTrue(
             AssertCompleteSnapshotApplied(page)
                 .ActionCard.CancelAction.IsEnabled);
@@ -159,6 +159,7 @@ public sealed class ModelInspectionPageNavigationTests
 
         Assert.IsNotNull(replacementTask);
         Assert.AreNotSame(first, replacementTask);
+        await DrainDispatcherAsync(page);
         Assert.AreEqual(2, service.CallCount);
         Assert.AreSame(replacement, replacementCall.Request);
         replacementCall.Complete(CreateFailureResult("replacement"));
@@ -184,11 +185,25 @@ public sealed class ModelInspectionPageNavigationTests
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await DrainDispatcherAsync(page);
 
             Assert.AreEqual(1, service.CallCount);
             Task? currentInspectionTask = page.CurrentInspectionTask;
             Assert.IsNotNull(currentInspectionTask);
             Assert.IsTrue(page.ViewModel!.IsRunActive);
+            ModelInspectionPagePresentation startup =
+                AssertCompleteSnapshotApplied(page);
+            AssertStartupPresentation(startup.ContentCard);
+            Assert.IsTrue(startup.ActionCard.CancelAction.IsEnabled);
+            Assert.HasCount(5, startup.ContentCard.Items);
+            Assert.IsTrue(startup.ContentCard.Items.All(row =>
+                row.Status == InspectionContentStatus.Waiting && !row.IsActive));
+            var modelHeading = (InspectionModelCard)page.FindName(
+                "InspectionModelCardControl");
+            Assert.AreSame(
+                modelHeading,
+                FocusManager.GetFocusedElement(page.XamlRoot),
+                "Rendering startup must retain the selected-model heading focus.");
 
             // A subsequent layout pass must not create a second attempt.
             page.InvalidateMeasure();
@@ -235,12 +250,20 @@ public sealed class ModelInspectionPageNavigationTests
                 contentControl.Presentation.ProgressRows;
             object[] retainedRows = progressRows.Items.Cast<object>().ToArray();
             Task run = page.StartInspectionIfReadyAsync()!;
-            Assert.AreEqual(1, dispatcher.PendingCount);
-            dispatcher.RunAll();
+            Assert.AreEqual(0, service.CallCount);
+            Assert.AreEqual(2, dispatcher.PendingCount);
+            dispatcher.RunNext();
             ModelInspectionPagePresentation active =
                 AssertCompleteSnapshotApplied(page);
+            AssertStartupPresentation(active.ContentCard);
+            Assert.IsTrue(active.ActionCard.CancelAction.IsEnabled);
+            Assert.AreEqual(0, service.CallCount);
+            dispatcher.RunNext();
+            await service.FirstCallStarted.Task.WaitAsync(
+                TimeSpan.FromSeconds(10));
+            Assert.AreEqual(1, service.CallCount);
             InspectionModelCardPresentation retainedModel = modelControl.Presentation;
-            InspectionContentCardPresentation retainedContent =
+            InspectionContentCardPresentation startupContent =
                 contentControl.Presentation;
             InspectionOutcomePresentation retainedOutcome =
                 outcomeControl.Presentation;
@@ -266,6 +289,9 @@ public sealed class ModelInspectionPageNavigationTests
 
             ModelInspectionPagePresentation latest =
                 AssertCompleteSnapshotApplied(page);
+            Assert.AreNotSame(startupContent, contentControl.Presentation);
+            InspectionContentCardPresentation retainedContent =
+                contentControl.Presentation;
             Assert.AreEqual(
                 "2 of 5 checks complete",
                 latest.ContentCard.ProgressSummary);
@@ -376,6 +402,38 @@ public sealed class ModelInspectionPageNavigationTests
         {
             InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
         }
+
+        var rejectedService = new ControlledInspectionService();
+        rejectedService.QueueCall();
+        var rejectedDispatcher = new ManualRenderDispatcher
+        {
+            SuccessfulEnqueueLimit = 1
+        };
+        var rejectedPage = CreateInjectedPage(
+            rejectedService,
+            CreateRequest(),
+            rejectedDispatcher,
+            new RecordingPageAnimationDriver(),
+            new RecordingMotionSettings(animationsEnabled: false));
+        try
+        {
+            Task rejectedRun = rejectedPage.StartInspectionIfReadyAsync()!;
+
+            Assert.AreEqual(0, rejectedService.CallCount);
+            await rejectedRun;
+            rejectedDispatcher.RunAll();
+            Assert.AreEqual(0, rejectedService.CallCount);
+            Assert.AreEqual(
+                ModelInspectionExecutionStatus.OperationalFailure,
+                rejectedPage.ViewModel!.Result?.Status);
+            Assert.AreEqual(
+                "MI-OP-SERVICE-UNEXPECTED",
+                rejectedPage.ViewModel.Result?.Failure?.Code);
+        }
+        finally
+        {
+            InvokeNavigation(rejectedPage, "OnNavigatedFrom", parameter: null);
+        }
     }
 
     [UITestMethod]
@@ -453,6 +511,7 @@ public sealed class ModelInspectionPageNavigationTests
         int eventCount = 0;
         page.ChooseAnotherModelRequested += (_, _) => eventCount++;
         Task run = page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
 
         page.ViewModel!.ChooseAnotherCommand.Execute(null);
 
@@ -474,6 +533,7 @@ public sealed class ModelInspectionPageNavigationTests
         var page = CreatePage(service, oldRequest);
         ModelInspectionViewModel oldViewModel = page.ViewModel!;
         Task oldRun = page.StartInspectionIfReadyAsync()!;
+        await DrainDispatcherAsync(page);
         oldCall.Report(CreateProgress(
             ModelInspectionStage.ReadModelConfiguration,
             completedStageCount: 1));
@@ -725,13 +785,15 @@ public sealed class ModelInspectionPageNavigationTests
         ControlledCall call = service.QueueCall();
         var driver = new RecordingPageAnimationDriver();
         var settings = new RecordingMotionSettings(animationsEnabled: true);
+        var dispatcher = new ManualRenderDispatcher();
         ModelInspectionPage page = CreateInjectedPage(
             service,
             CreateRequest(),
-            new ManualRenderDispatcher(),
+            dispatcher,
             driver,
             settings);
         _ = page.StartInspectionIfReadyAsync();
+        dispatcher.RunAll();
         ModelInspectionRenderCoordinator coordinator = GetCoordinator(page);
         ModelInspectionRenderKey acceptedKey =
             page.CurrentPresentation!.RenderKey;
@@ -754,7 +816,10 @@ public sealed class ModelInspectionPageNavigationTests
 
         Assert.AreSame(first, thrown);
         Assert.AreEqual(1, settings.RemoveHandlerCount);
-        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(
+            2,
+            driver.CancelAllCount,
+            "Startup generation replacement and retirement each cancel owned motion once.");
         Assert.AreEqual(1, driver.DisposeCount);
         Assert.AreEqual(1, settings.DisposeCount);
         Assert.AreEqual(1, cancellationCallbacks);
@@ -763,7 +828,7 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.IsNull(page.Request);
         Assert.IsNull(page.ViewModel);
         InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
-        Assert.AreEqual(1, driver.CancelAllCount);
+        Assert.AreEqual(2, driver.CancelAllCount);
         Assert.AreEqual(1, driver.DisposeCount);
         Assert.AreEqual(1, settings.DisposeCount);
         Assert.AreEqual(1, settings.RemoveHandlerCount);
@@ -853,7 +918,9 @@ public sealed class ModelInspectionPageNavigationTests
 
         try
         {
-            await page.StartInspectionIfReadyAsync()!;
+            Task run = page.StartInspectionIfReadyAsync()!;
+            dispatcher.RunAll();
+            await run;
             dispatcher.RunAll();
             Assert.HasCount(1, driver.TerminalStarts);
             var outgoing = (InspectionContentCard)page.FindName(
@@ -1100,7 +1167,9 @@ public sealed class ModelInspectionPageNavigationTests
                 GetMotionSettingsChangePending(page),
                 "A retired off-thread handler must not poison the new lifetime.");
 
-            await page.StartInspectionIfReadyAsync()!;
+            Task run = page.StartInspectionIfReadyAsync()!;
+            newDispatcher.RunAll();
+            await run;
             newDispatcher.RunAll();
             Assert.HasCount(
                 1,
@@ -1171,7 +1240,9 @@ public sealed class ModelInspectionPageNavigationTests
                 GetMotionSettingsChangePending(page),
                 "A stale revision-one callback must not reassert pending work.");
 
-            await page.StartInspectionIfReadyAsync()!;
+            Task run = page.StartInspectionIfReadyAsync()!;
+            dispatcher.RunAll();
+            await run;
             dispatcher.RunAll();
             Assert.HasCount(
                 1,
@@ -1215,8 +1286,9 @@ public sealed class ModelInspectionPageNavigationTests
             completedStageCount: 0));
         dispatcher.RunAll();
 
-        Assert.AreSame(progressPresentation, content.Presentation,
-            "A progress-only delta must not replace the stable content card DTO.");
+        Assert.AreNotSame(progressPresentation, content.Presentation,
+            "The first counted stage must retire the dedicated startup DTO.");
+        progressPresentation = content.Presentation;
         CollectionAssert.AreEqual(
             rowReferences,
             owner.Items.Cast<object>().ToArray());
@@ -1407,7 +1479,9 @@ public sealed class ModelInspectionPageNavigationTests
             driver,
             new RecordingMotionSettings(animationsEnabled: true));
 
-        await page.StartInspectionIfReadyAsync()!;
+        Task firstRun = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        await firstRun;
         dispatcher.RunAll();
         Assert.HasCount(1, driver.TerminalStarts);
 
@@ -1459,7 +1533,9 @@ public sealed class ModelInspectionPageNavigationTests
             () => new RecordingMotionSettings(animationsEnabled: true));
 
         InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
-        await page.StartInspectionIfReadyAsync()!;
+        Task retiredRun = page.StartInspectionIfReadyAsync()!;
+        oldDispatcher.RunAll();
+        await retiredRun;
         oldDispatcher.RunAll();
         Assert.HasCount(1, oldDriver.TerminalStarts);
 
@@ -1467,7 +1543,9 @@ public sealed class ModelInspectionPageNavigationTests
             page,
             "OnNavigatedTo",
             CreateRequest(@"C:\Models\replacement-terminal.gguf"));
-        await page.StartInspectionIfReadyAsync()!;
+        Task currentRun = page.StartInspectionIfReadyAsync()!;
+        currentDispatcher.RunAll();
+        await currentRun;
         currentDispatcher.RunAll();
         Assert.HasCount(1, currentDriver.TerminalStarts);
         var outgoing = (InspectionContentCard)page.FindName(
@@ -1592,7 +1670,9 @@ public sealed class ModelInspectionPageNavigationTests
             driver,
             new RecordingMotionSettings(animationsEnabled: false));
 
-        await page.StartInspectionIfReadyAsync()!;
+        Task firstRun = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        await firstRun;
         dispatcher.RunAll();
         var outcome = (InspectionOutcomeCard)page.FindName(
             "InspectionOutcomeCardControl");
@@ -1672,7 +1752,7 @@ public sealed class ModelInspectionPageNavigationTests
                 outcome.LiveRegionChangeNotificationCount;
             ControlledCall retry = fixture.Service.QueueCall();
             fixture.Page.ViewModel!.RetryCommand.Execute(null);
-            Assert.AreEqual(1, fixture.Dispatcher.PendingCount);
+            Assert.AreEqual(2, fixture.Dispatcher.PendingCount);
             fixture.Dispatcher.RunAll();
             ModelInspectionPagePresentation retryProgress =
                 fixture.Page.CurrentPresentation!;
@@ -2015,7 +2095,9 @@ public sealed class ModelInspectionPageNavigationTests
             dispatcher,
             driver,
             settings);
-        await page.StartInspectionIfReadyAsync()!;
+        Task run = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        await run;
         dispatcher.RunAll();
         InspectionDisclosure disclosure = ((InspectionModelCard)page.FindName(
             "InspectionModelCardControl")).ActiveDisclosure!;
@@ -2054,6 +2136,8 @@ public sealed class ModelInspectionPageNavigationTests
         var frame = new Frame();
         ModelInspectionPage? page = null;
         Window? window = null;
+        InspectionContentCard? observedContentControl = null;
+        long startupToken = 0;
 
         try
         {
@@ -2062,6 +2146,34 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.IsNotNull(page);
             Assert.AreSame(request, page.Request);
             Assert.IsNotNull(page.ViewModel);
+            observedContentControl = (InspectionContentCard)page.FindName(
+                "InspectionContentCardControl");
+            List<(
+                string Summary,
+                int WaitingCount,
+                int ActiveCount)> observedStartupPresentations = [];
+            List<string> observedSemanticOrder = [];
+            startupToken = observedContentControl.RegisterPropertyChangedCallback(
+                InspectionContentCard.PresentationProperty,
+                (_, _) =>
+                {
+                    InspectionContentCardPresentation candidate =
+                        observedContentControl.Presentation;
+                    if (!TryReadStartupPresentation(
+                            candidate,
+                            out var startup) ||
+                        startup.Visibility != Visibility.Visible)
+                    {
+                        return;
+                    }
+
+                    observedStartupPresentations.Add((
+                        startup.Summary,
+                        candidate.Items.Count(row =>
+                            row.Status == InspectionContentStatus.Waiting),
+                        candidate.Items.Count(row => row.IsActive)));
+                    observedSemanticOrder.Add("Startup");
+                });
             List<(
                 ModelInspectionStage Stage,
                 ModelInspectionStageStatus Status,
@@ -2079,6 +2191,11 @@ public sealed class ModelInspectionPageNavigationTests
                 RecordCoreProgressObservation(
                     observedTransitions,
                     progress);
+                if (progress.StageFraction is null)
+                {
+                    observedSemanticOrder.Add(
+                        $"{progress.Stage}:{progress.StageStatus}");
+                }
             };
             var loaded = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -2097,6 +2214,14 @@ public sealed class ModelInspectionPageNavigationTests
 
             await run.WaitAsync(TimeSpan.FromSeconds(30));
             await DrainDispatcherAsync(page);
+
+            Assert.HasCount(1, observedStartupPresentations);
+            Assert.AreEqual(
+                "Starting secure inspection…",
+                observedStartupPresentations[0].Summary);
+            Assert.AreEqual(5, observedStartupPresentations[0].WaitingCount);
+            Assert.AreEqual(0, observedStartupPresentations[0].ActiveCount);
+            Assert.AreEqual("Startup", observedSemanticOrder[0]);
 
             Assert.IsNull(page.ViewModel.Progress,
                 "Terminal snapshots retire mutable progress evidence.");
@@ -2177,6 +2302,12 @@ public sealed class ModelInspectionPageNavigationTests
         {
             if (page is not null)
             {
+                if (observedContentControl is not null && startupToken != 0)
+                {
+                    observedContentControl.UnregisterPropertyChangedCallback(
+                        InspectionContentCard.PresentationProperty,
+                        startupToken);
+                }
                 InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
             }
 
@@ -2338,6 +2469,54 @@ public sealed class ModelInspectionPageNavigationTests
         AssertOutcomePresentation(snapshot.OutcomeCard, outcome.Presentation);
         AssertActionPresentation(snapshot.ActionCard, actions.Presentation);
         return snapshot;
+    }
+
+    private static void AssertStartupPresentation(
+        InspectionContentCardPresentation content)
+    {
+        (Visibility Visibility, string Summary, string AutomationName) startup =
+            ReadStartupPresentation(content);
+        Assert.AreEqual(Visibility.Visible, startup.Visibility);
+        Assert.AreEqual("Starting secure inspection…", startup.Summary);
+        Assert.AreEqual(
+            "Model inspection is starting.",
+            startup.AutomationName);
+    }
+
+    private static (
+        Visibility Visibility,
+        string Summary,
+        string AutomationName) ReadStartupPresentation(
+            InspectionContentCardPresentation content)
+    {
+        Assert.IsTrue(
+            TryReadStartupPresentation(content, out var startup),
+            "The content presentation must expose a dedicated startup model.");
+        return startup;
+    }
+
+    private static bool TryReadStartupPresentation(
+        InspectionContentCardPresentation content,
+        out (
+            Visibility Visibility,
+            string Summary,
+            string AutomationName) startup)
+    {
+        PropertyInfo? startupProperty = typeof(InspectionContentCardPresentation)
+            .GetProperty("Startup", BindingFlags.Instance | BindingFlags.Public);
+        object? value = startupProperty?.GetValue(content);
+        if (value is null)
+        {
+            startup = default;
+            return false;
+        }
+
+        Type startupType = value.GetType();
+        startup = (
+            (Visibility)startupType.GetProperty("Visibility")!.GetValue(value)!,
+            (string)startupType.GetProperty("Summary")!.GetValue(value)!,
+            (string)startupType.GetProperty("AutomationName")!.GetValue(value)!);
+        return true;
     }
 
     private static async Task DrainDispatcherAsync(FrameworkElement element)
@@ -2557,7 +2736,9 @@ public sealed class ModelInspectionPageNavigationTests
             dispatcher,
             driver,
             new RecordingMotionSettings(animationsEnabled: true));
-        await page.StartInspectionIfReadyAsync()!;
+        Task run = page.StartInspectionIfReadyAsync()!;
+        dispatcher.RunAll();
+        await run;
         dispatcher.RunAll();
         driver.CompleteLastTerminal();
 
@@ -2811,6 +2992,9 @@ public sealed class ModelInspectionPageNavigationTests
 
         internal int CallCount { get; private set; }
 
+        internal TaskCompletionSource<bool> FirstCallStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         internal ControlledCall QueueCall(
             ModelInspectionExecutionResult? completedResult = null)
         {
@@ -2838,6 +3022,7 @@ public sealed class ModelInspectionPageNavigationTests
             ControlledCall call = calls.Dequeue();
             call.Bind(request, progress, cancellationToken);
             CallCount++;
+            FirstCallStarted.TrySetResult(true);
             return call.Completion.Task;
         }
     }
@@ -2878,12 +3063,22 @@ public sealed class ModelInspectionPageNavigationTests
     private sealed class ManualRenderDispatcher : IModelInspectionRenderDispatcher
     {
         private readonly Queue<Action> callbacks = new();
+        private int successfulEnqueueCount;
 
         internal int PendingCount => callbacks.Count;
 
+        internal int? SuccessfulEnqueueLimit { get; init; }
+
         public bool TryEnqueue(Action callback)
         {
+            if (SuccessfulEnqueueLimit is int limit &&
+                successfulEnqueueCount >= limit)
+            {
+                return false;
+            }
+
             callbacks.Enqueue(callback);
+            successfulEnqueueCount++;
             return true;
         }
 
@@ -2893,6 +3088,17 @@ public sealed class ModelInspectionPageNavigationTests
             {
                 callbacks.Dequeue()();
             }
+        }
+
+        internal void RunNext()
+        {
+            if (callbacks.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "No queued dispatcher callback is available.");
+            }
+
+            callbacks.Dequeue()();
         }
     }
 

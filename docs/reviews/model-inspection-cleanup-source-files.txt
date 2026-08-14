@@ -100,7 +100,9 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionMo
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomePresentation.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomePresentationKind.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomeTone.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionStartupPresentation.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherModelInspectionStartupPresentationBarrier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherQueueModelInspectionRenderDispatcher.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionAnimationDriver.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionMotionSettings.cs
@@ -136,6 +138,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspe
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionServiceComposition.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/DelegateCommand.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/IModelInspectionStartupPresentationBarrier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewModel.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewSnapshot.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/README.md

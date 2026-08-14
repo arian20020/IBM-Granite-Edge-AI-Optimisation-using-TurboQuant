@@ -33,6 +33,12 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public string SectionTitle { get; init; } = string.Empty;
 
         /// <summary>
+        /// Gets the status displayed before the first counted worker stage.
+        /// </summary>
+        public InspectionStartupPresentation Startup { get; init; } =
+            InspectionStartupPresentation.Hidden;
+
+        /// <summary>
         /// Gets the progress summary, for example “3 of 5 checks complete”.
         /// </summary>
         public string ProgressSummary

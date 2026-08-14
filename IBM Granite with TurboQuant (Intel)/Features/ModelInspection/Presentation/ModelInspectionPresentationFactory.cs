@@ -71,6 +71,7 @@ internal static class ModelInspectionPresentationFactory
         InspectionProgressRows progressRows)
     {
         ModelInspectionProgress? progress = snapshot.Progress;
+        bool isStarting = snapshot.IsRunActive && progress is null;
         bool cancelEnabled = snapshot.IsRunActive &&
             !snapshot.IsCancellationRequested &&
             commands.Cancel.CanExecute(parameter: null);
@@ -88,10 +89,23 @@ internal static class ModelInspectionPresentationFactory
             : InspectionProgressPresentationFactory.Create(
                 progress,
                 snapshot.RenderKey);
-        string progressAnnouncement = progressRowsUpdate.Key.Detail;
-        string statusSummary = progress is null
-            ? "Awaiting inspection"
-            : "Inspection in progress";
+        string progressAnnouncement = isStarting &&
+            snapshot.RenderKey.PresentationRevision == 0
+                ? "Model inspection is starting."
+                : progressRowsUpdate.Key.Detail;
+        string statusSummary = isStarting
+            ? "Starting secure inspection…"
+            : progress is null
+                ? "Awaiting inspection"
+                : "Inspection in progress";
+        InspectionStartupPresentation startup = isStarting
+            ? new InspectionStartupPresentation
+            {
+                Visibility = Visibility.Visible,
+                Summary = "Starting secure inspection…",
+                AutomationName = "Model inspection is starting."
+            }
+            : InspectionStartupPresentation.Hidden;
         InspectionModelCardPresentation modelCard = CreateModelCard(
             request,
             result: null,
@@ -100,7 +114,9 @@ internal static class ModelInspectionPresentationFactory
             detailed: false,
             expanded: false);
         InspectionContentCardPresentation contentCard =
-            InitialInspectionProgressPresentationFactory.Create(progressRows);
+            InitialInspectionProgressPresentationFactory.Create(
+                progressRows,
+                startup);
         InspectionActionCardPresentation actionCard = new()
         {
             Mode = InspectionActionCardMode.Inspecting,
@@ -892,7 +908,10 @@ internal static class ModelInspectionPresentationFactory
         [
             outcomeIdentity,
             EnumIdentity(content.Mode),
-            content.SectionTitle
+            content.SectionTitle,
+            EnumIdentity(content.Startup.Visibility),
+            content.Startup.Summary,
+            content.Startup.AutomationName
         ];
         if (content.Mode != InspectionContentCardMode.Progress)
         {

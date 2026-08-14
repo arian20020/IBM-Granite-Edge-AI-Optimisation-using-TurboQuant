@@ -23,13 +23,24 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation
         /// Creates the progress card without replacing or mutating its owner.
         /// </summary>
         internal static InspectionContentCardPresentation Create(
-            InspectionProgressRows progressRows)
+            InspectionProgressRows progressRows) => Create(
+                progressRows,
+                InspectionStartupPresentation.Hidden);
+
+        /// <summary>
+        /// Creates the progress card with an explicit pre-stage startup state.
+        /// </summary>
+        internal static InspectionContentCardPresentation Create(
+            InspectionProgressRows progressRows,
+            InspectionStartupPresentation startup)
         {
             ArgumentNullException.ThrowIfNull(progressRows);
+            ArgumentNullException.ThrowIfNull(startup);
             return new InspectionContentCardPresentation
             {
                 Mode = InspectionContentCardMode.Progress,
                 SectionTitle = "Inspection progress",
+                Startup = startup,
                 ProgressRows = progressRows
             };
         }

@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -66,6 +67,24 @@ public sealed class InitialInspectionProgressPresentationTests
                 "Waiting",
                 waitingStage.StatusText);
         }
+
+        PropertyInfo? startupProperty = typeof(InspectionContentCardPresentation)
+            .GetProperty("Startup", BindingFlags.Instance | BindingFlags.Public);
+        Assert.IsNotNull(
+            startupProperty,
+            "The initial card must expose an explicitly hidden startup model.");
+        object? startup = startupProperty.GetValue(presentation);
+        Assert.IsNotNull(startup);
+        Type startupType = startup.GetType();
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            startupType.GetProperty("Visibility")!.GetValue(startup));
+        Assert.AreEqual(
+            string.Empty,
+            startupType.GetProperty("Summary")!.GetValue(startup));
+        Assert.AreEqual(
+            string.Empty,
+            startupType.GetProperty("AutomationName")!.GetValue(startup));
     }
 
     /// <summary>

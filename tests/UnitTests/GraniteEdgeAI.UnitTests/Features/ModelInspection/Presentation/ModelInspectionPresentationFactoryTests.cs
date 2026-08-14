@@ -51,6 +51,11 @@ public sealed class ModelInspectionPresentationFactoryTests
             Visibility.Visible,
             presentation.ActionCard.CancelAction.Visibility);
         Assert.IsFalse(presentation.ActionCard.CancelAction.IsEnabled);
+        AssertStartupPresentation(
+            presentation.ContentCard,
+            Visibility.Collapsed,
+            expectedSummary: string.Empty,
+            expectedAutomationName: string.Empty);
     }
 
     [UITestMethod]
@@ -75,6 +80,64 @@ public sealed class ModelInspectionPresentationFactoryTests
             isCancellationRequested: false,
             progress,
             terminalResult: null);
+        var startingRows = new InspectionProgressRows();
+        startingRows.Reset(new ModelInspectionRenderKey(1, 0));
+        ModelInspectionViewSnapshot starting = new(
+            new ModelInspectionRenderKey(1, 0),
+            isRunActive: true,
+            isCancellationRequested: false,
+            progress: null,
+            terminalResult: null);
+
+        ModelInspectionPagePresentation startingPresentation =
+            ModelInspectionPresentationFactory.Create(
+                request,
+                starting,
+                new ModelInspectionPresentationCommands(
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                startingRows);
+        startingRows.Apply(startingPresentation.ProgressRowsUpdate);
+
+        Assert.AreEqual(
+            "Starting secure inspection…",
+            startingPresentation.ModelCard.InspectionChecksSummary);
+        AssertStartupPresentation(
+            startingPresentation.ContentCard,
+            Visibility.Visible,
+            "Starting secure inspection…",
+            "Model inspection is starting.");
+        Assert.AreEqual(
+            "Model inspection is starting.",
+            startingPresentation.ProgressAnnouncement);
+        Assert.AreEqual(
+            "0 of 5 checks complete",
+            startingPresentation.ContentCard.ProgressSummary);
+        Assert.HasCount(5, startingPresentation.ContentCard.Items);
+        Assert.IsTrue(startingPresentation.ContentCard.Items.All(row =>
+            row.Status == InspectionContentStatus.Waiting && !row.IsActive));
+
+        ModelInspectionPagePresentation laterStartingPresentation =
+            ModelInspectionPresentationFactory.Create(
+                request,
+                new ModelInspectionViewSnapshot(
+                    new ModelInspectionRenderKey(1, 1),
+                    isRunActive: true,
+                    isCancellationRequested: true,
+                    progress: null,
+                    terminalResult: null),
+                new ModelInspectionPresentationCommands(
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand(),
+                    PresentationTestData.CreateCommand()),
+                isDisclosureExpanded: false,
+                startingRows);
+        Assert.AreEqual(
+            string.Empty,
+            laterStartingPresentation.ProgressAnnouncement,
+            "Startup must announce only the first active null-progress revision.");
 
         ModelInspectionPagePresentation presentation =
             ModelInspectionPresentationFactory.Create(
@@ -355,6 +418,31 @@ public sealed class ModelInspectionPresentationFactoryTests
             expectedFutureCount,
             future.Count(action => action.Command is null &&
                 action.Visibility == Visibility.Visible));
+    }
+
+    private static void AssertStartupPresentation(
+        InspectionContentCardPresentation content,
+        Visibility expectedVisibility,
+        string expectedSummary,
+        string expectedAutomationName)
+    {
+        PropertyInfo? startupProperty = typeof(InspectionContentCardPresentation)
+            .GetProperty("Startup", BindingFlags.Instance | BindingFlags.Public);
+        Assert.IsNotNull(
+            startupProperty,
+            "The content presentation must expose a dedicated startup model.");
+        object? startup = startupProperty.GetValue(content);
+        Assert.IsNotNull(startup);
+        Type startupType = startup.GetType();
+        Assert.AreEqual(
+            expectedVisibility,
+            startupType.GetProperty("Visibility")!.GetValue(startup));
+        Assert.AreEqual(
+            expectedSummary,
+            startupType.GetProperty("Summary")!.GetValue(startup));
+        Assert.AreEqual(
+            expectedAutomationName,
+            startupType.GetProperty("AutomationName")!.GetValue(startup));
     }
 
     private static string FlattenVisibleText(

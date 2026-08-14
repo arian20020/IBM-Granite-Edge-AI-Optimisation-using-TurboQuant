@@ -28,6 +28,9 @@ public sealed partial class ModelInspectionPage : Page
 {
     private readonly IModelInspectionService _service;
     private readonly Func<IModelInspectionRenderDispatcher> _dispatcherFactory;
+    private readonly Func<
+        IModelInspectionRenderDispatcher,
+        IModelInspectionStartupPresentationBarrier> _startupBarrierFactory;
     private readonly Func<IModelInspectionAnimationDriver> _animationDriverFactory;
     private readonly Func<IModelInspectionMotionSettings> _motionSettingsFactory;
     private readonly bool _startInspectionOnLoaded;
@@ -64,9 +67,12 @@ public sealed partial class ModelInspectionPage : Page
         : this(
             service,
             CreateProductionDispatcher,
+            CreateProductionStartupBarrier,
             () => new WinUiModelInspectionAnimationDriver(
                 ModelInspectionMotionSpec.Approved),
-            () => new UiSettingsModelInspectionMotionSettings())
+            () => new UiSettingsModelInspectionMotionSettings(),
+            startInspectionOnLoaded: true,
+            configureResourcesBeforeInitialize: null)
     {
     }
 
@@ -78,6 +84,7 @@ public sealed partial class ModelInspectionPage : Page
         : this(
             service,
             dispatcherFactory,
+            CreateProductionStartupBarrier,
             animationDriverFactory,
             motionSettingsFactory,
             startInspectionOnLoaded: true,
@@ -88,6 +95,9 @@ public sealed partial class ModelInspectionPage : Page
     private ModelInspectionPage(
         IModelInspectionService service,
         Func<IModelInspectionRenderDispatcher> dispatcherFactory,
+        Func<
+            IModelInspectionRenderDispatcher,
+            IModelInspectionStartupPresentationBarrier> startupBarrierFactory,
         Func<IModelInspectionAnimationDriver> animationDriverFactory,
         Func<IModelInspectionMotionSettings> motionSettingsFactory,
         bool startInspectionOnLoaded,
@@ -96,6 +106,8 @@ public sealed partial class ModelInspectionPage : Page
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _dispatcherFactory = dispatcherFactory ??
             throw new ArgumentNullException(nameof(dispatcherFactory));
+        _startupBarrierFactory = startupBarrierFactory ??
+            throw new ArgumentNullException(nameof(startupBarrierFactory));
         _animationDriverFactory = animationDriverFactory ??
             throw new ArgumentNullException(nameof(animationDriverFactory));
         _motionSettingsFactory = motionSettingsFactory ??
@@ -173,13 +185,20 @@ public sealed partial class ModelInspectionPage : Page
             IModelInspectionRenderDispatcher dispatcher =
                 _dispatcherFactory() ?? throw new InvalidOperationException(
                     "The Model Inspection dispatcher factory returned null.");
+            IModelInspectionStartupPresentationBarrier startupBarrier =
+                _startupBarrierFactory(dispatcher) ??
+                throw new InvalidOperationException(
+                    "The Model Inspection startup barrier factory returned null.");
             animationDriver =
                 _animationDriverFactory() ?? throw new InvalidOperationException(
                     "The Model Inspection animation factory returned null.");
             motionSettings =
                 _motionSettingsFactory() ?? throw new InvalidOperationException(
                     "The Model Inspection motion-settings factory returned null.");
-            viewModel = new ModelInspectionViewModel(_service, request);
+            viewModel = new ModelInspectionViewModel(
+                _service,
+                request,
+                startupBarrier);
             var commands = new ModelInspectionPresentationCommands(
                 viewModel.CancelCommand,
                 viewModel.RetryCommand,
@@ -287,10 +306,20 @@ public sealed partial class ModelInspectionPage : Page
             dispatcherQueue);
     }
 
+    private static IModelInspectionStartupPresentationBarrier
+        CreateProductionStartupBarrier(
+            IModelInspectionRenderDispatcher dispatcher) =>
+        new DispatcherModelInspectionStartupPresentationBarrier(dispatcher);
+
     private void ModelInspectionPage_Loaded(
         object sender,
         RoutedEventArgs eventArguments)
     {
+        if (_startInspectionOnLoaded)
+        {
+            _ = StartInspectionIfReadyAsync();
+        }
+
         ModelInspectionPagePresentation? presentation = CurrentPresentation;
         if (_hasActiveLifetime && presentation is not null)
         {
@@ -328,10 +357,6 @@ public sealed partial class ModelInspectionPage : Page
             }
         }
 
-        if (_startInspectionOnLoaded)
-        {
-            _ = StartInspectionIfReadyAsync();
-        }
     }
 
     private void Subscribe(ModelInspectionViewModel viewModel)
@@ -997,6 +1022,13 @@ public sealed partial class ModelInspectionPage : Page
     {
         if (presentation.State == ModelInspectionFigmaState.InspectionProgress)
         {
+            if (presentation.ContentCard.Startup.Visibility ==
+                Visibility.Visible)
+            {
+                return focused as FrameworkElement ??
+                    InspectionModelCardControl;
+            }
+
             Button cancel = (Button)InspectionActionCardControl.FindName(
                 "CancelActionButton");
             return cancel.IsEnabled || ReferenceEquals(focused, cancel)

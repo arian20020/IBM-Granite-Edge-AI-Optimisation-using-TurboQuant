@@ -27,6 +27,21 @@ public sealed class ModelInspectionViewModelTests
             CreateRequest());
 
         Assert.AreSame(ModelInspectionViewSnapshot.Initial, viewModel.Snapshot);
+        Type? barrierType = typeof(ModelInspectionViewModel).Assembly.GetType(
+            "GraniteEdgeAI.Features.ModelInspection.ViewModels." +
+            "IModelInspectionStartupPresentationBarrier");
+        Assert.IsNotNull(
+            barrierType,
+            "Startup must have an explicit presentation-barrier seam.");
+        Assert.IsNotNull(typeof(ModelInspectionViewModel).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            [
+                typeof(IModelInspectionService),
+                typeof(ModelInspectionRequest),
+                barrierType!
+            ],
+            modifiers: null));
     }
 
     [TestMethod]
@@ -766,7 +781,10 @@ public sealed class ModelInspectionViewModelTests
         try
         {
             SynchronizationContext.SetSynchronizationContext(null);
-            return new ModelInspectionViewModel(service, request);
+            return new ModelInspectionViewModel(
+                service,
+                request,
+                ImmediateStartupPresentationBarrier.Instance);
         }
         finally
         {
@@ -941,5 +959,14 @@ public sealed class ModelInspectionViewModelTests
             : base(message)
         {
         }
+    }
+
+    private sealed class ImmediateStartupPresentationBarrier :
+        IModelInspectionStartupPresentationBarrier
+    {
+        internal static ImmediateStartupPresentationBarrier Instance { get; } =
+            new();
+
+        public ValueTask WaitForPresentationAsync() => ValueTask.CompletedTask;
     }
 }

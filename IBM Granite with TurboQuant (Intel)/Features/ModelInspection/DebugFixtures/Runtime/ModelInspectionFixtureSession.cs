@@ -1,6 +1,7 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
+using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -230,6 +231,25 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
                 Evidence);
             renderDispatcherClaimed = true;
             return renderDispatcher;
+        }
+    }
+
+    internal IModelInspectionStartupPresentationBarrier
+        CreateStartupPresentationBarrier(
+            IModelInspectionRenderDispatcher dispatcher)
+    {
+        ArgumentNullException.ThrowIfNull(dispatcher);
+        lock (gate)
+        {
+            ThrowIfUnavailable();
+            if (!ReferenceEquals(dispatcher, renderDispatcher))
+            {
+                throw new InvalidOperationException(
+                    "The fixture startup barrier requires its owned render dispatcher.");
+            }
+
+            return new DispatcherModelInspectionStartupPresentationBarrier(
+                dispatcher);
         }
     }
 
