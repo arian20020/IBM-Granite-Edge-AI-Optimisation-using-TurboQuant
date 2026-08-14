@@ -1,4 +1,4 @@
-name: Temporary split NLLB translation model fetch
+name: Temporary split NLLB 1.3B model fetch
 
 on:
   push:
@@ -11,31 +11,28 @@ permissions:
 jobs:
   fetch-model:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
-      - name: Download and split NLLB-200 distilled 600M CTranslate2 INT8 model
+      - name: Download and split NLLB-200 distilled 1.3B CTranslate2 INT8 model
         shell: bash
         run: |
           set -euo pipefail
-          base="https://huggingface.co/mijuanlo/nllb-200-distilled-600M-ct2-int8/resolve/main"
-          for name in model.bin sentencepiece.bpe.model config.json shared_vocabulary.json; do
-            curl --fail --location --retry 5 --retry-delay 3 --connect-timeout 30 \
-              "$base/$name?download=true" -o "$name"
-            test -s "$name"
-          done
-          sha256sum model.bin sentencepiece.bpe.model config.json shared_vocabulary.json > SHA256SUMS.txt
-          split -b 300M -d -a 2 model.bin model.bin.part-
-          test "$(find . -maxdepth 1 -name 'model.bin.part-*' | wc -l)" -eq 2
-          cat model.bin.part-00 model.bin.part-01 > model.bin.reassembled
-          cmp model.bin model.bin.reassembled
-          sha256sum model.bin.part-00 model.bin.part-01 > PART-SHA256SUMS.txt
-          ls -lh model.bin.part-00 model.bin.part-01 sentencepiece.bpe.model config.json shared_vocabulary.json SHA256SUMS.txt PART-SHA256SUMS.txt
+          url="https://huggingface.co/OpenNMT/nllb-200-distilled-1.3B-ct2-int8/resolve/main/model.bin?download=true"
+          curl --fail --location --retry 5 --retry-delay 3 --connect-timeout 30 "$url" -o model.bin
+          test -s model.bin
+          echo "89dc4b9eb7f4dcd3ff36023c9b1c55fcecb47ddc0df97ab31b068ef9cf194940  model.bin" | sha256sum -c -
+          split -b 400M -d -a 2 model.bin model13.bin.part-
+          test "$(find . -maxdepth 1 -name 'model13.bin.part-*' | wc -l)" -eq 4
+          cat model13.bin.part-00 model13.bin.part-01 model13.bin.part-02 model13.bin.part-03 > model13.bin.reassembled
+          cmp model.bin model13.bin.reassembled
+          sha256sum model13.bin.part-00 model13.bin.part-01 model13.bin.part-02 model13.bin.part-03 > PART-SHA256SUMS.txt
+          ls -lh model13.bin.part-* PART-SHA256SUMS.txt
 
       - name: Upload model part 00
         uses: actions/upload-artifact@v4
         with:
-          name: nllb-model-part-00
-          path: model.bin.part-00
+          name: nllb13-model-part-00
+          path: model13.bin.part-00
           compression-level: 0
           retention-days: 1
           if-no-files-found: error
@@ -43,21 +40,27 @@ jobs:
       - name: Upload model part 01
         uses: actions/upload-artifact@v4
         with:
-          name: nllb-model-part-01
-          path: model.bin.part-01
+          name: nllb13-model-part-01
+          path: model13.bin.part-01
           compression-level: 0
           retention-days: 1
           if-no-files-found: error
 
-      - name: Upload tokenizer and verification metadata
+      - name: Upload model part 02
         uses: actions/upload-artifact@v4
         with:
-          name: nllb-model-metadata
+          name: nllb13-model-part-02
+          path: model13.bin.part-02
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload model part 03 and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: nllb13-model-part-03
           path: |
-            sentencepiece.bpe.model
-            config.json
-            shared_vocabulary.json
-            SHA256SUMS.txt
+            model13.bin.part-03
             PART-SHA256SUMS.txt
           compression-level: 0
           retention-days: 1
