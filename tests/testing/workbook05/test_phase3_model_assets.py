@@ -7,6 +7,9 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import Any
 
+from scripts.testing.workbook05.phase3.conversion import (
+    REVIEWED_DIRECT_REQUIREMENTS,
+)
 from scripts.testing.workbook05.phase3.model_assets import (
     FORMAL_GRANITE_REPOSITORY,
     download_snapshot,
@@ -14,8 +17,8 @@ from scripts.testing.workbook05.phase3.model_assets import (
 )
 
 
-# Resolve the repository fixture from this test file so local and hosted runs
-# consume the same committed fake Hub response.
+# Resolve repository-controlled fixtures from this test file so local and
+# GitHub-hosted runs consume exactly the same fake Hub response.
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 FIXTURE_PATH = (
     Path(__file__).resolve().parent
@@ -34,7 +37,7 @@ REQUIREMENTS_PATH = (
 
 
 class FakeHubApi:
-    """Small injected adapter that performs no network access."""
+    """Small injected Hub boundary that performs no network access."""
 
     def __init__(
         self,
@@ -45,7 +48,9 @@ class FakeHubApi:
         unexpected_files: tuple[str, ...] = (),
         omitted_files: tuple[str, ...] = (),
     ) -> None:
-        # Store the fake response and later call evidence for assertions.
+        # Retain the fake response and every call so assertions can verify that
+        # validation happens before acquisition and that immutable values cross
+        # the adapter boundary unchanged.
         self.resolved_revision = resolved_revision
         self.siblings = siblings
         self.returned_directory = returned_directory
@@ -55,11 +60,15 @@ class FakeHubApi:
         self.snapshot_download_calls: list[dict[str, Any]] = []
 
     def model_info(self, repo_id: str, revision: str) -> Any:
-        # Record the exact moving reference that was resolved by the caller.
+        """Return the small metadata shape used by the production adapter."""
+
         self.model_info_calls.append((repo_id, revision))
         return SimpleNamespace(
             sha=self.resolved_revision,
-            siblings=[SimpleNamespace(rfilename=name) for name in self.siblings],
+            siblings=[
+                SimpleNamespace(rfilename=name)
+                for name in self.siblings
+            ],
         )
 
     def snapshot_download(
@@ -70,16 +79,17 @@ class FakeHubApi:
         local_dir: str,
         allow_patterns: list[str],
     ) -> str:
-        # Record the immutable acquisition request without contacting the Hub.
-        call = {
-            "repo_id": repo_id,
-            "revision": revision,
-            "local_dir": local_dir,
-            "allow_patterns": list(allow_patterns),
-        }
-        self.snapshot_download_calls.append(call)
+        """Materialise deterministic fixture bytes beneath the new folder."""
 
-        # Materialise only deterministic fixture bytes beneath the new folder.
+        self.snapshot_download_calls.append(
+            {
+                "repo_id": repo_id,
+                "revision": revision,
+                "local_dir": local_dir,
+                "allow_patterns": list(allow_patterns),
+            }
+        )
+
         destination = Path(local_dir)
         destination.mkdir(parents=False, exist_ok=False)
         for relative_path in allow_patterns:
@@ -92,14 +102,17 @@ class FakeHubApi:
                 encoding="utf-8",
             )
 
-        # Reproduce the documented local-dir metadata subtree. It is not a model
-        # payload and must not be mistaken for an unexpected repository file.
+        # Hugging Face local-directory mode creates downloader metadata. It is
+        # not part of the model payload catalogue and must be inspected safely.
         metadata = destination / ".cache" / "huggingface" / "download"
         metadata.mkdir(parents=True, exist_ok=True)
-        (metadata / "fixture.metadata").write_text("metadata\n", encoding="utf-8")
+        (metadata / "fixture.metadata").write_text(
+            "metadata\n",
+            encoding="utf-8",
+        )
 
-        # Optional extra files let tests prove the post-download inventory fails
-        # closed without deleting the retained partial snapshot.
+        # Adversarial mutations prove that the post-download inventory fails
+        # closed and preserves the partial directory for later investigation.
         for relative_path in self.unexpected_files:
             target = destination.joinpath(*relative_path.split("/"))
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -113,19 +126,24 @@ class Phase3ModelAssetTests(unittest.TestCase):
 
     @staticmethod
     def _fixture() -> dict[str, Any]:
-        # Load one committed fake response so tests remain network-free.
+        """Load a new fixture object so mutations cannot leak between tests."""
+
         return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
     @classmethod
     def _valid_api(cls, **overrides: Any) -> FakeHubApi:
-        # Build a valid fake by default and permit one adversarial mutation.
+        """Build a valid fake by default and permit one explicit mutation."""
+
         fixture = cls._fixture()
         return FakeHubApi(
             resolved_revision=overrides.pop(
                 "resolved_revision",
                 fixture["resolved_revision"],
             ),
-            siblings=overrides.pop("siblings", list(fixture["siblings"])),
+            siblings=overrides.pop(
+                "siblings",
+                list(fixture["siblings"]),
+            ),
             **overrides,
         )
 
@@ -141,7 +159,10 @@ class Phase3ModelAssetTests(unittest.TestCase):
             fixture["requested_revision"],
         )
 
-        self.assertEqual(fixture["resolved_revision"], result.resolved_revision)
+        self.assertEqual(
+            fixture["resolved_revision"],
+            result.resolved_revision,
+        )
         self.assertRegex(result.resolved_revision, r"^[0-9a-f]{40}$")
         self.assertEqual(
             [(fixture["repository"], fixture["requested_revision"])],
@@ -165,20 +186,17 @@ class Phase3ModelAssetTests(unittest.TestCase):
     def test_explicit_diagnostic_repository_can_be_separately_scoped(self) -> None:
         """A diagnostic repository is allowed only when supplied explicitly."""
 
-        api = self._valid_api()
+        diagnostic_repository = (
+            "openvino-internal-testing/tiny-random-model"
+        )
         result = resolve_model(
-            api,
-            "openvino-internal-testing/tiny-random-model",
+            self._valid_api(),
+            diagnostic_repository,
             "main",
-            diagnostic_repository=(
-                "openvino-internal-testing/tiny-random-model"
-            ),
+            diagnostic_repository=diagnostic_repository,
         )
 
-        self.assertEqual(
-            "openvino-internal-testing/tiny-random-model",
-            result.repository,
-        )
+        self.assertEqual(diagnostic_repository, result.repository)
 
     def test_short_or_uppercase_resolved_revision_is_rejected(self) -> None:
         """Only an exact lowercase forty-character commit can lock an asset."""
@@ -188,45 +206,59 @@ class Phase3ModelAssetTests(unittest.TestCase):
             "BEF400F943F2FCF440CF1D4C38C6F844E2D4A387",
         ):
             with self.subTest(revision=invalid_revision):
-                api = self._valid_api(resolved_revision=invalid_revision)
+                api = self._valid_api(
+                    resolved_revision=invalid_revision,
+                )
                 with self.assertRaisesRegex(ValueError, "full lowercase"):
-                    resolve_model(api, FORMAL_GRANITE_REPOSITORY, "main")
+                    resolve_model(
+                        api,
+                        FORMAL_GRANITE_REPOSITORY,
+                        "main",
+                    )
 
     def test_empty_or_duplicate_sibling_catalogue_is_rejected(self) -> None:
         """The resolver cannot invent files or collapse Windows path aliases."""
 
-        invalid_catalogues = (
+        for siblings in (
             [],
             ["config.json", "CONFIG.JSON"],
-        )
-        for siblings in invalid_catalogues:
+        ):
             with self.subTest(siblings=siblings):
-                api = self._valid_api(siblings=siblings)
                 with self.assertRaises(ValueError):
-                    resolve_model(api, FORMAL_GRANITE_REPOSITORY, "main")
+                    resolve_model(
+                        self._valid_api(siblings=siblings),
+                        FORMAL_GRANITE_REPOSITORY,
+                        "main",
+                    )
 
     def test_unsafe_hub_filename_is_rejected(self) -> None:
         """Hub names must remain portable relative POSIX file paths."""
 
-        invalid_names = (
+        for invalid_name in (
             "../outside.json",
             "/absolute.json",
             r"folder\windows.json",
             "folder/./file.json",
             "C:/drive.json",
             "folder//empty.json",
-        )
-        for invalid_name in invalid_names:
+        ):
             with self.subTest(path=invalid_name):
-                api = self._valid_api(siblings=[invalid_name])
                 with self.assertRaisesRegex(ValueError, "Hub file path"):
-                    resolve_model(api, FORMAL_GRANITE_REPOSITORY, "main")
+                    resolve_model(
+                        self._valid_api(siblings=[invalid_name]),
+                        FORMAL_GRANITE_REPOSITORY,
+                        "main",
+                    )
 
     def test_download_uses_resolved_sha_and_exact_allow_patterns(self) -> None:
-        """Snapshot acquisition must use the immutable SHA, not `main`."""
+        """Snapshot acquisition must use the immutable SHA, not ``main``."""
 
         api = self._valid_api()
-        model = resolve_model(api, FORMAL_GRANITE_REPOSITORY, "main")
+        model = resolve_model(
+            api,
+            FORMAL_GRANITE_REPOSITORY,
+            "main",
+        )
 
         with TemporaryDirectory() as directory:
             destination = Path(directory) / "granite41-3b-bef400f9"
@@ -236,6 +268,10 @@ class Phase3ModelAssetTests(unittest.TestCase):
             self.assertTrue(
                 (destination / ".cache" / "huggingface").is_dir()
             )
+            downloaded_relative_paths = [
+                path.relative_to(destination).as_posix()
+                for path in downloaded
+            ]
 
         self.assertEqual(1, len(api.snapshot_download_calls))
         call = api.snapshot_download_calls[0]
@@ -247,59 +283,115 @@ class Phase3ModelAssetTests(unittest.TestCase):
         )
         self.assertEqual(
             [item.relative_path for item in model.siblings],
-            [path.relative_to(destination).as_posix() for path in downloaded],
+            downloaded_relative_paths,
         )
 
     def test_existing_destination_is_rejected_before_download(self) -> None:
         """C1 never overwrites, repairs, or silently reuses an asset folder."""
 
         api = self._valid_api()
-        model = resolve_model(api, FORMAL_GRANITE_REPOSITORY, "main")
+        model = resolve_model(
+            api,
+            FORMAL_GRANITE_REPOSITORY,
+            "main",
+        )
 
         with TemporaryDirectory() as directory:
             destination = Path(directory) / "existing"
-            destination.mkdiŠ
-BˆÚ]Ù[‹˜\ÜÙ\˜Z\Ù\Ô™YÙ^
-˜[YQ\œ›Ü‹›]\Ý›Ý[™XYH^\ÝŠN‚ˆÝÛ›ØYÜÛ˜\ÚÝ
-\K[Ù[\Ý[˜][ÛŠB‚ˆÙ[‹˜\ÜÙ\\]X[
-×K\KœÛ˜\ÚÝÙÝÛ›ØYØØ[ÊB‚ˆYˆ\ÝÛZ\ÜÚ[™×ÛÜ—Ý[™^XÝYÜ^[ØYÙš[WÚ\×Ü™Z™XÝYØ[™Ü™\Ù\™Y
-Ù[ŠHOˆ›Û™N‚ˆˆˆ”ÜÝYÝÛ›ØYšY˜Z[ÈÛÜÙYÚ[H™]Z[š[™È›Ü™[œÚXÈ]šY[˜ÙKˆˆˆ‚‚ˆš^\™HHÙ[‹—Ùš^\™J
-BˆØ\Ù\ÈH
-ˆÂˆ›ÛZ]YÙš[\ÈŽˆ
-š^\™VÈœÚX›[™ÜÈ—VÌK
-Kˆ[™^XÝYÙš[\ÈŽˆ
+            destination.mkdir()
 
-Kˆ›Y\ÜØYÙHŽˆ›Z\ÜÚ[™È^XÝYš[\È‹ˆKˆÂˆ›ÛZ]YÙš[\ÈŽˆ
+            with self.assertRaisesRegex(
+                ValueError,
+                "must not already exist",
+            ):
+                download_snapshot(api, model, destination)
 
-Kˆ[™^XÝYÙš[\ÈŽˆ
-[™^XÝY˜š[ˆ‹
-Kˆ›Y\ÜØYÙHŽˆ[™^XÝYš[\È‹ˆKˆ
-B‚ˆ›ÜˆØ\ÙH[ˆØ\Ù\Î‚ˆÚ]Ù[‹œÝX•\Ý
-Y\ÜØYÙOXØ\ÙVÈ›Y\ÜØYÙH—JN‚ˆ\HHÙ[‹—Ý˜[YØ\JˆÛZ]YÙš[\ÏXØ\ÙVÈ›ÛZ]YÙš[\È—Kˆ[™^XÝYÙš[\ÏXØ\ÙVÈ[™^XÝYÙš[\È—Kˆ
-Bˆ[Ù[H™\ÛÛ™WÛ[Ù[
-\K“Ô“PSÑÔS’UWÔ‘TÔÒUÔ–K›XZ[ˆŠB‚ˆÚ][\Ü˜\žQ\™XÝÜžJ
-H\È\™XÝÜžN‚ˆ\Ý[˜][ÛˆH]
-\™XÝÜžJHÈœ™]Z[™YY˜Z[\™H‚ˆÚ]Ù[‹˜\ÜÙ\˜Z\Ù\Ô™YÙ^
-˜[YQ\œ›Ü‹Ø\ÙVÈ›Y\ÜØYÙH—JN‚ˆÝÛ›ØYÜÛ˜\ÚÝ
-\K[Ù[\Ý[˜][ÛŠB‚ˆÙ[‹˜\ÜÙ\YJ\Ý[˜][Û‹š\×Ù\Š
-JBˆÙ[‹˜\ÜÙ\YJ[žJ\Ý[˜][Û‹œ™ÛØŠŠˆŠJJB‚ˆYˆ\ÝØ\WÜ™]\›š[™×Ø[›Ý\—Ù\™XÝÜžWÚ\×Ü™Z™XÝY
-Ù[ŠHOˆ›Û™N‚ˆˆˆ•HY\\ˆ]\Ýš[™H™\ÜÛœÙHÈHØ[\‹X\›Ý™Y›Û\‹ˆˆˆ‚‚ˆÚ][\Ü˜\žQ\™XÝÜžJ
-H\È\™XÝÜžN‚ˆ›ÛÝH]
-\™XÝÜžJBˆ\Ý[˜][ÛˆH›ÛÝÈ˜\›Ý™Y‚ˆÝ\ˆH›ÛÝÈ›Ý\ˆ‚ˆÝ\‹›ZÙ\Š
-Bˆ\HHÙ[‹—Ý˜[YØ\J™]\›™YÙ\™XÝÜžO[Ý\ŠBˆ[Ù[H™\ÛÛ™WÛ[Ù[
-\K“Ô“PSÑÔS’UWÔ‘TÔÒUÔ–K›XZ[ˆŠB‚ˆÚ]Ù[‹˜\ÜÙ\˜Z\Ù\Ô™YÙ^
-˜[YQ\œ›Ü‹[™^XÝY\™XÝÜžHŠN‚ˆÝÛ›ØYÜÛ˜\ÚÝ
-\K[Ù[\Ý[˜][ÛŠB‚ˆÙ[‹˜\ÜÙ\YJ\Ý[˜][Û‹š\×Ù\Š
-JB‚ˆYˆ\ÝÙ\™XÝÙ\[™[˜ÞWÚ\×Ù^XÝWÜ[›™Y
-Ù[ŠHOˆ›Û™N‚ˆˆˆ•\ÚÈH\Ù\ÈH™]šY]ÙYXˆ™\œÚ[Ûˆ[™›È[Ýš[™È™\]Z\™[Y[ˆˆˆ‚‚ˆ[™\ÈHÂˆ[™KœÝš\
+        self.assertEqual([], api.snapshot_download_calls)
 
-Bˆ›Üˆ[™H[ˆ‘TURT‘SQS•×ÔUœ™XYÝ^
-[˜ÛÙ[™ÏH]‹NŠKœÜ][™\Ê
-BˆYˆ[™KœÝš\
+    def test_missing_downloaded_file_is_rejected_and_retained(self) -> None:
+        """A partial snapshot is evidence, never an accepted model asset."""
 
-H[™›Ý[™K›Ýš\
+        fixture = self._fixture()
+        missing = fixture["siblings"][0]
+        api = self._valid_api(omitted_files=(missing,))
+        model = resolve_model(
+            api,
+            FORMAL_GRANITE_REPOSITORY,
+            "main",
+        )
 
-KœÝ\ÝÚ]
-ˆÈŠBˆBˆÙ[‹˜\ÜÙ\\]X[
-ÈšYÙÚ[™Ù˜XÙKZXOLKŒŒKŒ—K[™\ÊB‚‚šYˆ×Û˜[YW×ÈOH—×ÛXZ[—×ÈŽ‚ˆ[š]\Ý›XZ[Š
-B
+        with TemporaryDirectory() as directory:
+            destination = Path(directory) / "missing-file"
+            with self.assertRaisesRegex(
+                ValueError,
+                "missing expected files",
+            ):
+                download_snapshot(api, model, destination)
+
+            self.assertTrue(destination.is_dir())
+            self.assertFalse(
+                destination.joinpath(*missing.split("/")).exists()
+            )
+
+    def test_unexpected_downloaded_file_is_rejected_and_retained(self) -> None:
+        """An extra payload cannot be silently admitted to the model lock."""
+
+        api = self._valid_api(unexpected_files=("rogue.txt",))
+        model = resolve_model(
+            api,
+            FORMAL_GRANITE_REPOSITORY,
+            "main",
+        )
+
+        with TemporaryDirectory() as directory:
+            destination = Path(directory) / "unexpected-file"
+            with self.assertRaisesRegex(
+                ValueError,
+                "unexpected files",
+            ):
+                download_snapshot(api, model, destination)
+
+            self.assertTrue((destination / "rogue.txt").is_file())
+
+    def test_unexpected_adapter_directory_is_rejected(self) -> None:
+        """The Hub adapter cannot redirect acquisition outside the destination."""
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            returned_directory = root / "other"
+            returned_directory.mkdir()
+            api = self._valid_api(
+                returned_directory=returned_directory,
+            )
+            model = resolve_model(
+                api,
+                FORMAL_GRANITE_REPOSITORY,
+                "main",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "unexpected directory",
+            ):
+                download_snapshot(
+                    api,
+                    model,
+                    root / "intended",
+                )
+
+    def test_direct_dependency_input_matches_the_reviewed_candidate(self) -> None:
+        """Acquisition and conversion share one exact reviewed direct set."""
+
+        observed = tuple(
+            line.strip()
+            for line in REQUIREMENTS_PATH.read_text(
+                encoding="utf-8",
+            ).splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        )
+
+        self.assertEqual(REVIEWED_DIRECT_REQUIREMENTS, observed)
+
+
+if __name__ == "__main__":
+    unittest.main()
