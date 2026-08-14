@@ -1,0 +1,4 @@
+# Direct acquisition dependency reviewed for C1.
+# The complete hash-locked environment is generated only by the later
+# dependency-preflight task; this file must never be installed unbounded.
+huggingface-hub==1.21.0
