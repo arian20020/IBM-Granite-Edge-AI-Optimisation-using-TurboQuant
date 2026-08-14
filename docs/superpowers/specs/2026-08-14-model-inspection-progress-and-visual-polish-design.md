@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |---|---|
-| Status | Approved conversationally; pending written-spec review |
+| Status | Approved for implementation on 2026-08-14 |
 | Date | 2026-08-14 |
 | Branch | `refactor/model-inspection-cleanup` |
 | Design base | `aecdf32bdae99ad49feb5086b01f7b8ed0e33d29` |
@@ -184,8 +184,8 @@ It:
 
 - is keyed by page lifetime and attempt generation;
 - uses an injected deterministic scheduler;
-- gives each genuinely reached Active stage a minimum visible duration of
-  exactly 550 ms;
+- gives each genuinely reached Active stage a configured minimum visible
+  duration of 550 ms;
 - applies Completed only after that stage's minimum has elapsed;
 - queues the next genuine stage in order;
 - coalesces fraction-only updates within the current stage;
@@ -242,6 +242,7 @@ One reusable status-glyph control owns custom vector geometry for:
 - error: a centred cross;
 - information: a centred information mark;
 - waiting: a stable stage number;
+- not complete: a centred pair of pause bars for the onboarding footer;
 - active: Precision Orbit.
 
 The same geometries are reused at row, summary, banner, and onboarding-footer
