@@ -190,6 +190,7 @@
                     <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Rectangle
                     Grid.Column="0"
@@ -244,33 +245,27 @@
                         Text="{x:Bind Detail, Mode=OneWay}"
                         Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
                 </StackPanel>
-                <Grid
+                <TextBlock
                     Grid.Column="2"
                     Margin="18,2,0,0"
-                    ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock
-                        FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                        FontSize="{ThemeResource InspectionHelperFontSize}"
-                        FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
-                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
-                        Text="{x:Bind StatusText, Mode=OneWay}"
-                        TextWrapping="NoWrap" />
-                    <TextBlock
-                        Grid.Column="1"
-                        MinWidth="36"
-                        HorizontalAlignment="Right"
-                        AutomationProperties.AccessibilityView="Raw"
-                        FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                        FontSize="{ThemeResource InspectionHelperFontSize}"
-                        FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
-                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
-                        Text="{x:Bind StageFractionText, Mode=OneWay}"
-                        TextWrapping="NoWrap" />
-                </Grid>
+                    FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                    FontSize="{ThemeResource InspectionHelperFontSize}"
+                    FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                    Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                    Text="{x:Bind StatusText, Mode=OneWay}"
+                    TextWrapping="NoWrap" />
+                <TextBlock
+                    Grid.Column="3"
+                    MinWidth="36"
+                    Margin="8,2,0,0"
+                    HorizontalAlignment="Right"
+                    AutomationProperties.AccessibilityView="Raw"
+                    FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                    FontSize="{ThemeResource InspectionHelperFontSize}"
+                    FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                    Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                    Text="{x:Bind StageFractionText, Mode=OneWay}"
+                    TextWrapping="NoWrap" />
             </Grid>
         </DataTemplate>
     </UserControl.Resources>

@@ -527,6 +527,45 @@ public sealed class InspectionContentCardTests
                 .OfType<TextBlock>()
                 .Any(text => text.Text == "25%"));
 
+            Grid activeRow = EnumerateDescendants(control)
+                .OfType<Grid>()
+                .Single(grid =>
+                    string.Equals(
+                        grid.Tag as string,
+                        "InspectionProgressRow",
+                        StringComparison.Ordinal) &&
+                    EnumerateDescendants(grid)
+                        .OfType<TextBlock>()
+                        .Any(text => text.Text ==
+                            "Read model configuration"));
+            TextBlock[] directStatusText = EnumerateDescendants(activeRow)
+                .OfType<TextBlock>()
+                .Where(text =>
+                    Grid.GetColumn(text) == 2 &&
+                    ReferenceEquals(
+                        VisualTreeHelper.GetParent(text),
+                        activeRow))
+                .ToArray();
+            Assert.AreEqual(
+                1,
+                directStatusText.Length,
+                "The fixture observer requires one direct status TextBlock " +
+                "at progress-row column 2.");
+            Assert.AreEqual("Checking", directStatusText[0].Text);
+            TextBlock[] directFractionText = EnumerateDescendants(activeRow)
+                .OfType<TextBlock>()
+                .Where(text =>
+                    Grid.GetColumn(text) == 3 &&
+                    ReferenceEquals(
+                        VisualTreeHelper.GetParent(text),
+                        activeRow))
+                .ToArray();
+            Assert.AreEqual(
+                1,
+                directFractionText.Length,
+                "Native fraction text must occupy its own trailing column.");
+            Assert.AreEqual("25%", directFractionText[0].Text);
+
             InspectionProgressRowsApplyResult threeQuarters = rows.Apply(
                 new InspectionProgressRowsUpdate(
                     new ModelInspectionProgressRegionKey(
