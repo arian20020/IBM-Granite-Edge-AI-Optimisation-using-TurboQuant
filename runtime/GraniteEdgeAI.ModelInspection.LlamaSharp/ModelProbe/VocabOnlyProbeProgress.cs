@@ -35,14 +35,20 @@ public sealed record VocabOnlyProbeProgress
             throw new ArgumentOutOfRangeException(nameof(Status));
         }
 
-        bool isFraction =
-            Phase == VocabOnlyProbePhase.ReadModelConfiguration &&
-            Status == VocabOnlyProbePhaseStatus.Fraction;
-
-        if (isFraction != NativeFraction.HasValue)
+        if (Status == VocabOnlyProbePhaseStatus.Fraction &&
+            (Phase != VocabOnlyProbePhase.ReadModelConfiguration ||
+             !NativeFraction.HasValue))
         {
             throw new ArgumentException(
-                "Only a configuration fraction fact may carry a value.",
+                "A configuration fraction fact must carry a value.",
+                nameof(NativeFraction));
+        }
+
+        if (Status != VocabOnlyProbePhaseStatus.Fraction &&
+            NativeFraction.HasValue)
+        {
+            throw new ArgumentException(
+                "Active and completed facts must not carry a fraction.",
                 nameof(NativeFraction));
         }
 

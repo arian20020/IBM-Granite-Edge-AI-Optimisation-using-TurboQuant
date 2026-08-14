@@ -177,7 +177,16 @@ public sealed class VocabOnlyProbeStageBoundaryTests
                 VocabOnlyProbePhaseStatus.Fraction,
                 0.5f),
             () => _ = new VocabOnlyProbeProgress(
+                VocabOnlyProbePhase.CheckModelPackage,
+                VocabOnlyProbePhaseStatus.Fraction),
+            () => _ = new VocabOnlyProbeProgress(
                 VocabOnlyProbePhase.ReadModelConfiguration,
+                VocabOnlyProbePhaseStatus.Fraction),
+            () => _ = new VocabOnlyProbeProgress(
+                VocabOnlyProbePhase.ValidateTokenizerAndChatSetup,
+                VocabOnlyProbePhaseStatus.Fraction),
+            () => _ = new VocabOnlyProbeProgress(
+                VocabOnlyProbePhase.ValidateModelStructure,
                 VocabOnlyProbePhaseStatus.Fraction),
             () => _ = new VocabOnlyProbeProgress(
                 VocabOnlyProbePhase.ReadModelConfiguration,
