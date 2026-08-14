@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$RepositoryRoot,
+    [Parameter(Mandatory = $false)]
+    [string]$RepositoryRoot = '',
 
     [Parameter(Mandatory = $false)]
     [string]$PythonPath = 'python'
@@ -9,6 +9,22 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# The repository gate executes every *.Tests.ps1 file without arguments. Resolve
+# the root from this file in that mode, while preserving explicit injection for
+# the Python behavior test and developer troubleshooting.
+if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+    $RepositoryRoot = (
+        Resolve-Path `
+            -LiteralPath (Join-Path $PSScriptRoot '..\..\..') `
+            -ErrorAction Stop
+    ).Path
+}
+else {
+    $RepositoryRoot = (
+        Resolve-Path -LiteralPath $RepositoryRoot -ErrorAction Stop
+    ).Path
+}
 
 $Wrapper = Join-Path $RepositoryRoot 'scripts\testing\workbook05\Assert-Workbook05Phase3Prerequisites.ps1'
 if (-not (Test-Path -LiteralPath $Wrapper -PathType Leaf)) {
@@ -61,7 +77,7 @@ try {
         -RuntimeDecision $RuntimeDecision `
         -GenAIInstall $GenAIInstall `
         -GenAIDecision $GenAIDecision `
-         -OutputPath $OutputPath `
+        -OutputPath $OutputPath `
         -PythonPath $PythonPath > $null
 
     if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) {
@@ -100,6 +116,10 @@ try {
         throw 'The failed verification left its temporary output behind.'
     }
 
+    # The failure above is deliberate and leaves LASTEXITCODE nonzero. Reset it
+    # only after every assertion passes so the repository gate receives a
+    # truthful success result instead of the expected child-process failure.
+    $global:LASTEXITCODE = 0
     Write-Host 'Workbook 05 Phase 3 prerequisite PowerShell tests passed.'
 }
 finally {
