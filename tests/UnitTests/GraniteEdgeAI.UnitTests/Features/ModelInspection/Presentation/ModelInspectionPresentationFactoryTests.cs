@@ -83,7 +83,7 @@ public sealed class ModelInspectionPresentationFactoryTests
         var startingRows = new InspectionProgressRows();
         startingRows.Reset(new ModelInspectionRenderKey(1, 0));
         ModelInspectionViewSnapshot starting = new(
-            new ModelInspectionRenderKey(1, 0),
+            new ModelInspectionRenderKey(1, 1),
             isRunActive: true,
             isCancellationRequested: false,
             progress: null,
@@ -118,26 +118,6 @@ public sealed class ModelInspectionPresentationFactoryTests
         Assert.HasCount(5, startingPresentation.ContentCard.Items);
         Assert.IsTrue(startingPresentation.ContentCard.Items.All(row =>
             row.Status == InspectionContentStatus.Waiting && !row.IsActive));
-
-        ModelInspectionPagePresentation laterStartingPresentation =
-            ModelInspectionPresentationFactory.Create(
-                request,
-                new ModelInspectionViewSnapshot(
-                    new ModelInspectionRenderKey(1, 1),
-                    isRunActive: true,
-                    isCancellationRequested: true,
-                    progress: null,
-                    terminalResult: null),
-                new ModelInspectionPresentationCommands(
-                    PresentationTestData.CreateCommand(),
-                    PresentationTestData.CreateCommand(),
-                    PresentationTestData.CreateCommand()),
-                isDisclosureExpanded: false,
-                startingRows);
-        Assert.AreEqual(
-            string.Empty,
-            laterStartingPresentation.ProgressAnnouncement,
-            "Startup must announce only the first active null-progress revision.");
 
         ModelInspectionPagePresentation presentation =
             ModelInspectionPresentationFactory.Create(

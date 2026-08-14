@@ -89,10 +89,9 @@ internal static class ModelInspectionPresentationFactory
             : InspectionProgressPresentationFactory.Create(
                 progress,
                 snapshot.RenderKey);
-        string progressAnnouncement = isStarting &&
-            snapshot.RenderKey.PresentationRevision == 0
-                ? "Model inspection is starting."
-                : progressRowsUpdate.Key.Detail;
+        string progressAnnouncement = isStarting
+            ? "Model inspection is starting."
+            : progressRowsUpdate.Key.Detail;
         string statusSummary = isStarting
             ? "Starting secure inspection…"
             : progress is null
