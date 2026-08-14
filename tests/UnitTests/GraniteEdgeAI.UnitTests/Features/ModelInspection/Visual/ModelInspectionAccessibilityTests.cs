@@ -249,7 +249,7 @@ public sealed class ModelInspectionAccessibilityTests
         try
         {
             dispatcher.RunAll();
-            call.Report(ActiveProgress(stageFraction: 0.1));
+            call.Report(ActiveProgress(stageFraction: 0.25));
             dispatcher.RunAll();
 
             InspectionContentCard content = Element<InspectionContentCard>(
@@ -260,13 +260,21 @@ public sealed class ModelInspectionAccessibilityTests
             string meaningfulAnnouncement = AutomationProperties.GetName(content);
             var initialProgressRegionKey =
                 page.CurrentPresentation!.RegionKeys.Progress;
+            InspectionContentItemPresentation rowBefore =
+                page.CurrentPresentation.ContentCard.Items[1];
+            string rowAutomationName = rowBefore.AutomationName;
+            int statusAnimationCount = driver.StageStatusStartCount;
+            int detailAnimationCount = driver.ActiveDetailStartCount;
             Assert.AreEqual(
                 AutomationLiveSetting.Polite,
                 AutomationProperties.GetLiveSetting(content));
-            Assert.AreEqual(1, meaningfulAnnouncementCount);
+            Assert.AreEqual(
+                2,
+                meaningfulAnnouncementCount,
+                "Startup and the first genuine stage each announce once.");
             Assert.IsFalse(string.IsNullOrWhiteSpace(meaningfulAnnouncement));
 
-            call.Report(ActiveProgress(stageFraction: 0.2));
+            call.Report(ActiveProgress(stageFraction: 0.75));
             dispatcher.RunAll();
 
             Assert.AreEqual(
@@ -280,6 +288,24 @@ public sealed class ModelInspectionAccessibilityTests
                 initialProgressRegionKey,
                 page.CurrentPresentation!.RegionKeys.Progress,
                 "Fraction-only progress must still update the visual progress region.");
+            Assert.AreSame(
+                rowBefore,
+                page.CurrentPresentation.ContentCard.Items[1]);
+            Assert.AreEqual(
+                0.75d,
+                page.CurrentPresentation.ContentCard.Items[1].StageFraction);
+            Assert.AreEqual(
+                rowAutomationName,
+                page.CurrentPresentation.ContentCard.Items[1].AutomationName,
+                "A fraction-only update must not change accessible row text.");
+            Assert.AreEqual(
+                statusAnimationCount,
+                driver.StageStatusStartCount,
+                "A fraction-only update must not start marker motion.");
+            Assert.AreEqual(
+                detailAnimationCount,
+                driver.ActiveDetailStartCount,
+                "A fraction-only update must not start detail motion.");
 
             const string ChangedDetail =
                 "Validated the current model configuration evidence.";
@@ -341,7 +367,9 @@ public sealed class ModelInspectionAccessibilityTests
 
         try
         {
-            await page.StartInspectionIfReadyAsync()!;
+            Task initialRun = page.StartInspectionIfReadyAsync()!;
+            dispatcher.RunAll();
+            await initialRun.WaitAsync(UiTimeout);
             dispatcher.RunAll();
             await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
                 page,

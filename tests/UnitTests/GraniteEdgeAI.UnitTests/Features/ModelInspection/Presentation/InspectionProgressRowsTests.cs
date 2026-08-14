@@ -76,6 +76,35 @@ public sealed class InspectionProgressRowsTests
         CollectionAssert.AreEqual(
             new[] { 0, 1 },
             result.RowChanges.Select(change => change.RowIndex).ToArray());
+
+        InspectionContentItemPresentation rowBefore = rows.Items[1];
+        List<string?> notifications = [];
+        rowBefore.PropertyChanged += (_, args) =>
+            notifications.Add(args.PropertyName);
+
+        InspectionProgressRowsApplyResult fractionUpdate = rows.Apply(
+            CreateUpdate(
+                ModelInspectionStage.ReadModelConfiguration,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 1,
+                revision: 2,
+                detail: "Reading validated configuration.",
+                stageFraction: 0.75));
+
+        InspectionProgressRowChange fractionChange =
+            fractionUpdate.RowChanges.Single();
+        Assert.IsFalse(fractionChange.StatusChanged);
+        Assert.IsTrue(fractionChange.FractionChanged);
+        Assert.AreSame(rowBefore, rows.Items[1]);
+        Assert.AreEqual(0.75, rows.Items[1].StageFraction);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                nameof(InspectionContentItemPresentation.StageFraction),
+                nameof(InspectionContentItemPresentation.StageFractionText)
+            },
+            notifications.ToArray());
+        Assert.AreEqual("75%", rows.Items[1].StageFractionText);
     }
 
     [TestMethod]
@@ -421,7 +450,8 @@ public sealed class InspectionProgressRowsTests
             new InspectionProgressRowChange(
                 rowIndex: 2,
                 statusChanged: true,
-                detailChanged: false)
+                detailChanged: false,
+                fractionChanged: false)
         ];
 
         InspectionProgressRowsApplyResult result = new(
@@ -436,7 +466,8 @@ public sealed class InspectionProgressRowsTests
             new InspectionProgressRowChange(
                 rowIndex: 5,
                 statusChanged: true,
-                detailChanged: true));
+                detailChanged: true,
+                fractionChanged: false));
         Assert.ThrowsExactly<ArgumentNullException>(() =>
             new InspectionProgressRowsApplyResult(
                 null!,

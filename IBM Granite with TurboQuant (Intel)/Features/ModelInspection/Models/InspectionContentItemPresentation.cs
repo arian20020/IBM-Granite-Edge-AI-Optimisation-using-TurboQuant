@@ -111,8 +111,31 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public double? StageFraction
         {
             get => _stageFraction;
-            internal set => SetProperty(ref _stageFraction, value);
+            internal set
+            {
+                if (EqualityComparer<double?>.Default.Equals(
+                        _stageFraction,
+                        value))
+                {
+                    return;
+                }
+
+                _stageFraction = value;
+                PropertyChanged?.Invoke(
+                    this,
+                    new PropertyChangedEventArgs(nameof(StageFraction)));
+                PropertyChanged?.Invoke(
+                    this,
+                    new PropertyChangedEventArgs(nameof(StageFractionText)));
+            }
         }
+
+        /// <summary>
+        /// Gets the rounded native stage percentage for restrained visual display.
+        /// </summary>
+        public string StageFractionText => StageFraction is double value
+            ? $"{Math.Round(value * 100d, MidpointRounding.AwayFromZero):0}%"
+            : string.Empty;
 
         /// <summary>
         /// Gets whether the connector below this stage is displayed.

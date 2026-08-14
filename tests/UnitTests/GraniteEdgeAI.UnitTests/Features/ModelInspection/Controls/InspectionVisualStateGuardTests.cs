@@ -10,6 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
 using System.Linq;
+using System.Reflection;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -108,13 +109,29 @@ public sealed class InspectionVisualStateGuardTests
     [TestMethod]
     public void ProgressFractionHelpers_PreserveMeasuredAndIndeterminateStates()
     {
-        Assert.IsTrue(InspectionContentCard.IsProgressIndeterminate(null));
-        Assert.AreEqual(0d, InspectionContentCard.GetProgressPercent(null));
+        const BindingFlags PublicStatic =
+            BindingFlags.Public | BindingFlags.Static;
+        Assert.IsNull(typeof(InspectionContentCard).GetMethod(
+            "IsProgressIndeterminate",
+            PublicStatic));
+        Assert.IsNull(typeof(InspectionContentCard).GetMethod(
+            "GetProgressPercent",
+            PublicStatic));
 
-        Assert.IsFalse(InspectionContentCard.IsProgressIndeterminate(0.625d));
-        Assert.AreEqual(
-            62.5d,
-            InspectionContentCard.GetProgressPercent(0.625d));
+        var item = new InspectionContentItemPresentation();
+        (double? Fraction, string Text)[] cases =
+        [
+            (null, string.Empty),
+            (0.25d, "25%"),
+            (0.625d, "63%"),
+            (0.75d, "75%"),
+            (1d, "100%")
+        ];
+        foreach ((double? fraction, string expected) in cases)
+        {
+            item.StageFraction = fraction;
+            Assert.AreEqual(expected, item.StageFractionText);
+        }
     }
 
     [UITestMethod]

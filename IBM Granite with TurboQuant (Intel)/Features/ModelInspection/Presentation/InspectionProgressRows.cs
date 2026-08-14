@@ -154,7 +154,8 @@ public sealed class InspectionProgressRows : INotifyPropertyChanged
                     row.StatusText,
                     values.StatusText,
                     StringComparison.Ordinal) ||
-                row.IsActive != values.IsActive ||
+                row.IsActive != values.IsActive;
+            bool fractionChanged =
                 row.StageFraction != values.StageFraction;
             bool detailChanged = !string.Equals(
                     row.Detail,
@@ -176,12 +177,13 @@ public sealed class InspectionProgressRows : INotifyPropertyChanged
                 detailChanged = true;
             }
 
-            if (statusChanged || detailChanged)
+            if (statusChanged || detailChanged || fractionChanged)
             {
                 changes.Add(new InspectionProgressRowChange(
                     index,
                     statusChanged,
-                    detailChanged));
+                    detailChanged,
+                    fractionChanged));
             }
 
             ApplyRowValues(
@@ -397,7 +399,8 @@ internal readonly record struct InspectionProgressRowChange
     internal InspectionProgressRowChange(
         int rowIndex,
         bool statusChanged,
-        bool detailChanged)
+        bool detailChanged,
+        bool fractionChanged)
     {
         if (rowIndex is < 0 or >= 5)
         {
@@ -407,6 +410,7 @@ internal readonly record struct InspectionProgressRowChange
         RowIndex = rowIndex;
         StatusChanged = statusChanged;
         DetailChanged = detailChanged;
+        FractionChanged = fractionChanged;
     }
 
     internal int RowIndex { get; }
@@ -414,6 +418,8 @@ internal readonly record struct InspectionProgressRowChange
     internal bool StatusChanged { get; }
 
     internal bool DetailChanged { get; }
+
+    internal bool FractionChanged { get; }
 }
 
 internal sealed class InspectionProgressRowsApplyResult

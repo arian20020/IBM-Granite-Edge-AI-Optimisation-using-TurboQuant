@@ -384,6 +384,26 @@ public sealed class ModelInspectionFixtureAdapterTests
                     actual.UserMessage,
                     presentation.RegionKeys.Progress.Detail,
                     fixture.Id);
+                InspectionProgressRowsApplyResult applied =
+                    presentation.ContentCard.ProgressRows.Apply(
+                        presentation.ProgressRowsUpdate);
+                Assert.IsFalse(applied.IsEmpty, fixture.Id);
+                var currentRow = presentation.ContentCard.Items[
+                    (int)actual.Stage - 1];
+                string expectedFractionText =
+                    actual.StageFraction is double fraction
+                        ? $"{Math.Round(
+                            fraction * 100d,
+                            MidpointRounding.AwayFromZero):0}%"
+                        : string.Empty;
+                Assert.AreEqual(
+                    actual.StageFraction,
+                    currentRow.StageFraction,
+                    fixture.Id);
+                Assert.AreEqual(
+                    expectedFractionText,
+                    currentRow.StageFractionText,
+                    fixture.Id);
 
                 stages.Add(actual.Stage);
                 statuses.Add(actual.StageStatus);
@@ -695,6 +715,8 @@ public sealed class ModelInspectionFixtureAdapterTests
         ModelInspectionProgress progress)
     {
         DelegateCommand command = new(_ => { }, _ => true);
+        var progressRows = new InspectionProgressRows();
+        progressRows.Reset(new ModelInspectionRenderKey(1, 0));
         return ModelInspectionPresentationFactory.Create(
             request,
             new ModelInspectionViewSnapshot(
@@ -705,7 +727,7 @@ public sealed class ModelInspectionFixtureAdapterTests
                 terminalResult: null),
             new ModelInspectionPresentationCommands(command, command, command),
             isDisclosureExpanded: false,
-            new InspectionProgressRows());
+            progressRows);
     }
 
     private static ModelInspectionPagePresentation CreateInitialPresentation(

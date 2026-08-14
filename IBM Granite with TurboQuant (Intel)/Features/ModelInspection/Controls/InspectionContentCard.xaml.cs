@@ -214,12 +214,6 @@ public sealed partial class InspectionContentCard : UserControl
                 ? Visibility.Visible
                 : Visibility.Collapsed;
 
-    public static bool IsProgressIndeterminate(double? stageFraction) =>
-        !stageFraction.HasValue;
-
-    public static double GetProgressPercent(double? stageFraction) =>
-        stageFraction.GetValueOrDefault() * 100d;
-
     public static string GetDisclosureText(
         string collapsedText,
         string expandedText,

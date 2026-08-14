@@ -434,6 +434,7 @@ public sealed class InspectionContentCardTests
         rows.Reset(new ModelInspectionRenderKey(1, 0));
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create(rows);
+        var driver = new RecordingProgressAnimationDriver();
         var control = new InspectionContentCard
         {
             Presentation = presentation
@@ -450,16 +451,165 @@ public sealed class InspectionContentCardTests
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            InspectionContentItemPresentation rowBefore = rows.Items[1];
+            InspectionProgressRowsApplyResult active = rows.Apply(
+                new InspectionProgressRowsUpdate(
+                    new ModelInspectionProgressRegionKey(
+                        ModelInspectionStage.ReadModelConfiguration,
+                        ModelInspectionStageStatus.Active,
+                        completedStageCount: 1,
+                        stageCount: 5,
+                        stageFraction: null,
+                        detail: "Reading validated configuration."),
+                    new ModelInspectionRenderKey(1, 1),
+                    "1 of 5 checks complete"));
+            await Task.Yield();
+            control.UpdateLayout();
+            control.AnimateProgressChanges(
+                active,
+                driver,
+                new ModelInspectionVisualOperationKey(
+                    new ModelInspectionRenderKey(1, 1),
+                    interactionRevision: 0),
+                _ => true);
+            ProgressRing activeGlyph = EnumerateDescendants(control)
+                .OfType<ProgressRing>()
+                .Single(ring =>
+                    ring.Visibility == Visibility.Visible &&
+                    ring.ActualHeight > 0d);
+            Assert.IsTrue(activeGlyph.IsIndeterminate);
+            Assert.AreSame(rowBefore, rows.Items[1]);
+            Assert.IsFalse(EnumerateDescendants(control)
+                .OfType<TextBlock>()
+                .Any(text => text.Text.EndsWith('%')));
+
+            control.AnnounceProgress(
+                "Inspection progress. 1 of 5 checks complete. " +
+                "Read model configuration. Checking.");
+            int announcementCount =
+                control.LiveRegionChangeNotificationCount;
+            int statusAnimationCount = driver.StageStatusStartCount;
+            int detailAnimationCount = driver.ActiveDetailStartCount;
+
+            InspectionProgressRowsApplyResult quarter = rows.Apply(
+                new InspectionProgressRowsUpdate(
+                    new ModelInspectionProgressRegionKey(
+                        ModelInspectionStage.ReadModelConfiguration,
+                        ModelInspectionStageStatus.Active,
+                        completedStageCount: 1,
+                        stageCount: 5,
+                        stageFraction: 0.25,
+                        detail: "Reading validated configuration."),
+                    new ModelInspectionRenderKey(1, 2),
+                    "1 of 5 checks complete"));
+            await Task.Yield();
+            control.UpdateLayout();
+            control.AnimateProgressChanges(
+                quarter,
+                driver,
+                new ModelInspectionVisualOperationKey(
+                    new ModelInspectionRenderKey(1, 2),
+                    interactionRevision: 0),
+                _ => true);
+            ProgressRing quarterGlyph = EnumerateDescendants(control)
+                .OfType<ProgressRing>()
+                .Single(ring =>
+                    ring.Visibility == Visibility.Visible &&
+                    ring.ActualHeight > 0d);
+            Assert.AreEqual(statusAnimationCount, driver.StageStatusStartCount);
+            Assert.AreEqual(detailAnimationCount, driver.ActiveDetailStartCount);
+            Assert.AreEqual(
+                announcementCount,
+                control.LiveRegionChangeNotificationCount);
+            Assert.AreSame(activeGlyph, quarterGlyph);
+            Assert.IsTrue(quarterGlyph.IsIndeterminate);
+            Assert.IsTrue(EnumerateDescendants(control)
+                .OfType<TextBlock>()
+                .Any(text => text.Text == "25%"));
+
+            InspectionProgressRowsApplyResult threeQuarters = rows.Apply(
+                new InspectionProgressRowsUpdate(
+                    new ModelInspectionProgressRegionKey(
+                        ModelInspectionStage.ReadModelConfiguration,
+                        ModelInspectionStageStatus.Active,
+                        completedStageCount: 1,
+                        stageCount: 5,
+                        stageFraction: 0.75,
+                        detail: "Reading validated configuration."),
+                    new ModelInspectionRenderKey(1, 3),
+                    "1 of 5 checks complete"));
+            await Task.Yield();
+            control.UpdateLayout();
+            control.AnimateProgressChanges(
+                threeQuarters,
+                driver,
+                new ModelInspectionVisualOperationKey(
+                    new ModelInspectionRenderKey(1, 3),
+                    interactionRevision: 0),
+                _ => true);
+            ProgressRing threeQuarterGlyph = EnumerateDescendants(control)
+                .OfType<ProgressRing>()
+                .Single(ring =>
+                    ring.Visibility == Visibility.Visible &&
+                    ring.ActualHeight > 0d);
+            Assert.AreEqual(statusAnimationCount, driver.StageStatusStartCount);
+            Assert.AreEqual(detailAnimationCount, driver.ActiveDetailStartCount);
+            Assert.AreEqual(
+                announcementCount,
+                control.LiveRegionChangeNotificationCount);
+            Assert.AreSame(activeGlyph, threeQuarterGlyph);
+            Assert.AreSame(rowBefore, rows.Items[1]);
+            Assert.IsTrue(threeQuarterGlyph.IsIndeterminate);
+            Assert.IsTrue(EnumerateDescendants(control)
+                .OfType<TextBlock>()
+                .Any(text => text.Text == "75%"));
+
+            InspectionProgressRowsApplyResult completeFraction = rows.Apply(
+                new InspectionProgressRowsUpdate(
+                    new ModelInspectionProgressRegionKey(
+                        ModelInspectionStage.ReadModelConfiguration,
+                        ModelInspectionStageStatus.Active,
+                        completedStageCount: 1,
+                        stageCount: 5,
+                        stageFraction: 1d,
+                        detail: "Reading validated configuration."),
+                    new ModelInspectionRenderKey(1, 4),
+                    "1 of 5 checks complete"));
+            await Task.Yield();
+            control.UpdateLayout();
+            control.AnimateProgressChanges(
+                completeFraction,
+                driver,
+                new ModelInspectionVisualOperationKey(
+                    new ModelInspectionRenderKey(1, 4),
+                    interactionRevision: 0),
+                _ => true);
+            ProgressRing completeFractionGlyph = EnumerateDescendants(control)
+                .OfType<ProgressRing>()
+                .Single(ring =>
+                    ring.Visibility == Visibility.Visible &&
+                    ring.ActualHeight > 0d);
+            Assert.AreEqual(statusAnimationCount, driver.StageStatusStartCount);
+            Assert.AreEqual(detailAnimationCount, driver.ActiveDetailStartCount);
+            Assert.AreEqual(
+                announcementCount,
+                control.LiveRegionChangeNotificationCount);
+            Assert.AreSame(activeGlyph, completeFractionGlyph);
+            Assert.IsTrue(completeFractionGlyph.IsIndeterminate);
+            Assert.IsTrue(EnumerateDescendants(control)
+                .OfType<TextBlock>()
+                .Any(text => text.Text == "100%"));
+
             rows.Apply(new InspectionProgressRowsUpdate(
                 new ModelInspectionProgressRegionKey(
-                    ModelInspectionStage.CheckModelPackage,
+                    ModelInspectionStage.ReadModelConfiguration,
                     ModelInspectionStageStatus.Warning,
-                    completedStageCount: 1,
+                    completedStageCount: 2,
                     stageCount: 5,
                     stageFraction: null,
-                    detail: "Package check completed with a warning."),
-                new ModelInspectionRenderKey(1, 1),
-                "1 of 5 checks complete"));
+                    detail: "Configuration completed with a warning."),
+                new ModelInspectionRenderKey(1, 5),
+                "2 of 5 checks complete"));
             await Task.Yield();
             control.UpdateLayout();
 
@@ -476,12 +626,14 @@ public sealed class InspectionContentCardTests
                 .ToArray();
 
             Assert.AreSame(presentation, control.Presentation);
-            CollectionAssert.Contains(visibleText, "1 of 5 checks complete");
+            CollectionAssert.Contains(visibleText, "2 of 5 checks complete");
             CollectionAssert.Contains(visibleText, "Warning");
             Assert.IsTrue(visibleSymbols.Any(icon => icon.Symbol == Symbol.Important));
             Assert.IsFalse(descendants
                 .OfType<ProgressRing>()
-                .Any(ring => ring.Visibility == Visibility.Visible));
+                .Any(ring =>
+                    ring.Visibility == Visibility.Visible &&
+                    ring.ActualHeight > 0d));
         }
         finally
         {
@@ -611,6 +763,53 @@ public sealed class InspectionContentCardTests
                 ModelInspectionFigmaState.ConversionRequiredExpanded or
                 ModelInspectionFigmaState.InvalidExpanded,
             rows);
+    }
+
+    private sealed class RecordingProgressAnimationDriver :
+        IModelInspectionAnimationDriver
+    {
+        internal int StageStatusStartCount { get; private set; }
+
+        internal int ActiveDetailStartCount { get; private set; }
+
+        public void StartStageStatus(
+            UIElement target,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed) =>
+            StageStatusStartCount++;
+
+        public void StartActiveDetail(
+            UIElement target,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed) =>
+            ActiveDetailStartCount++;
+
+        public void StartDisclosure(
+            UIElement chevron,
+            FrameworkElement viewport,
+            IReadOnlyList<UIElement> followingElements,
+            bool isExpanded,
+            IReadOnlyList<double> previousTopOffsets,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+        }
+
+        public void StartTerminal(
+            UIElement outgoing,
+            UIElement incoming,
+            ModelInspectionVisualOperationKey key,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+        }
+
+        public void CancelAll()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
     }
 
     private static InspectionContentItemPresentation CreateFinding(string title) =>
