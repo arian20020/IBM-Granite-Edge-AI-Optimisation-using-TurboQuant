@@ -1,4 +1,4 @@
-name: Temporary split NLLB 1.3B model fetch
+name: Temporary CTranslate2 Python wheel fetch
 
 on:
   push:
@@ -9,59 +9,26 @@ permissions:
   contents: read
 
 jobs:
-  fetch-model:
+  fetch-wheel:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
-      - name: Download and split NLLB-200 distilled 1.3B CTranslate2 INT8 model
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Download Linux CPython 3.13 CTranslate2 wheel
         shell: bash
         run: |
           set -euo pipefail
-          url="https://huggingface.co/OpenNMT/nllb-200-distilled-1.3B-ct2-int8/resolve/main/model.bin?download=true"
-          curl --fail --location --retry 5 --retry-delay 3 --connect-timeout 30 "$url" -o model.bin
-          test -s model.bin
-          echo "89dc4b9eb7f4dcd3ff36023c9b1c55fcecb47ddc0df97ab31b068ef9cf194940  model.bin" | sha256sum -c -
-          split -b 400M -d -a 2 model.bin model13.bin.part-
-          test "$(find . -maxdepth 1 -name 'model13.bin.part-*' | wc -l)" -eq 4
-          cat model13.bin.part-00 model13.bin.part-01 model13.bin.part-02 model13.bin.part-03 > model13.bin.reassembled
-          cmp model.bin model13.bin.reassembled
-          sha256sum model13.bin.part-00 model13.bin.part-01 model13.bin.part-02 model13.bin.part-03 > PART-SHA256SUMS.txt
-          ls -lh model13.bin.part-* PART-SHA256SUMS.txt
-
-      - name: Upload model part 00
+          python -m pip download --only-binary=:all: --no-deps 'ctranslate2==4.8.1' -d wheel
+          test "$(find wheel -maxdepth 1 -name '*.whl' | wc -l)" -eq 1
+          sha256sum wheel/*.whl > wheel/SHA256SUMS.txt
+          ls -lh wheel
+      - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: nllb13-model-part-00
-          path: model13.bin.part-00
-          compression-level: 0
-          retention-days: 1
-          if-no-files-found: error
-
-      - name: Upload model part 01
-        uses: actions/upload-artifact@v4
-        with:
-          name: nllb13-model-part-01
-          path: model13.bin.part-01
-          compression-level: 0
-          retention-days: 1
-          if-no-files-found: error
-
-      - name: Upload model part 02
-        uses: actions/upload-artifact@v4
-        with:
-          name: nllb13-model-part-02
-          path: model13.bin.part-02
-          compression-level: 0
-          retention-days: 1
-          if-no-files-found: error
-
-      - name: Upload model part 03 and checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: nllb13-model-part-03
-          path: |
-            model13.bin.part-03
-            PART-SHA256SUMS.txt
+          name: ctranslate2-cp313-linux-wheel
+          path: wheel
           compression-level: 0
           retention-days: 1
           if-no-files-found: error
