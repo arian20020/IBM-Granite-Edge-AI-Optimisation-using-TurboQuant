@@ -1,4 +1,5 @@
 using GraniteEdgeAI.ModelInspection.LlamaSharp.ModelProbe;
+using GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
@@ -114,19 +115,40 @@ public sealed class NativeLoadProgressRecorderTests
     public void Report_ForwardsOnlyStoredGenuineFractionsSynchronously()
     {
         var progress = new CapturingProgress();
-        var recorder = new NativeLoadProgressRecorder(progress);
+        var phases = new VocabOnlyProbePhaseSequence(progress);
+        var recorder = new NativeLoadProgressRecorder(phases);
 
-        recorder.Report(0.25f);
-        Assert.HasCount(1, progress.Values);
-        recorder.Report(0.25f);
-        recorder.Report(float.NaN);
-        recorder.Report(0.50f);
+        phases.Run(
+            VocabOnlyProbePhase.ReadModelConfiguration,
+            () =>
+            {
+                recorder.Report(0.25f);
+                Assert.HasCount(2, progress.Values);
+                recorder.Report(0.25f);
+                recorder.Report(float.NaN);
+                recorder.Report(0.50f);
+                return true;
+            });
 
-        Assert.HasCount(2, progress.Values);
-        Assert.IsFalse(progress.Values[0].PackageValidated);
-        Assert.AreEqual(0.25f, progress.Values[0].NativeFraction);
-        Assert.IsFalse(progress.Values[1].PackageValidated);
-        Assert.AreEqual(0.50f, progress.Values[1].NativeFraction);
+        Assert.HasCount(4, progress.Values);
+        Assert.AreEqual(
+            VocabOnlyProbePhaseStatus.Active,
+            progress.Values[0].Status);
+        Assert.AreEqual(
+            VocabOnlyProbePhaseStatus.Fraction,
+            progress.Values[1].Status);
+        Assert.AreEqual(0.25f, progress.Values[1].NativeFraction);
+        Assert.AreEqual(
+            VocabOnlyProbePhaseStatus.Fraction,
+            progress.Values[2].Status);
+        Assert.AreEqual(0.50f, progress.Values[2].NativeFraction);
+        Assert.AreEqual(
+            VocabOnlyProbePhaseStatus.Completed,
+            progress.Values[3].Status);
+        Assert.IsTrue(
+            progress.Values.All(
+                value => value.Phase ==
+                    VocabOnlyProbePhase.ReadModelConfiguration));
     }
 
     [TestMethod]
@@ -171,6 +193,52 @@ public sealed class NativeLoadProgressRecorderTests
                 samples[index].ElapsedMilliseconds >=
                 samples[index - 1].ElapsedMilliseconds);
         }
+
+        string source = File.ReadAllText(
+            Path.Combine(
+                RepositoryPaths.FindRoot(),
+                "runtime",
+                "GraniteEdgeAI.ModelInspection.LlamaSharp",
+                "ModelProbe",
+                "NativeLoadProgressRecorder.cs"));
+        int reportLock = source.IndexOf(
+            "lock (_sync)",
+            source.IndexOf("public void Report(float value)",
+                StringComparison.Ordinal),
+            StringComparison.Ordinal);
+        int forwarding = source.IndexOf(
+            "_phaseSequence?.ReportNativeFraction(fraction);",
+            reportLock,
+            StringComparison.Ordinal);
+        int reportLockEnd = FindMatchingBrace(
+            source,
+            source.IndexOf('{', reportLock));
+
+        Assert.IsTrue(reportLock >= 0);
+        Assert.IsTrue(
+            forwarding > reportLock && forwarding < reportLockEnd,
+            "Stored native samples and emitted phase facts must be atomic.");
+    }
+
+    private static int FindMatchingBrace(string source, int openingBrace)
+    {
+        Assert.IsTrue(openingBrace >= 0);
+        int depth = 0;
+
+        for (int index = openingBrace; index < source.Length; index++)
+        {
+            if (source[index] == '{')
+            {
+                depth++;
+            }
+            else if (source[index] == '}' && --depth == 0)
+            {
+                return index;
+            }
+        }
+
+        Assert.Fail("The recorder lock has no matching closing brace.");
+        return -1;
     }
 
     private sealed class CapturingProgress : IProgress<VocabOnlyProbeProgress>

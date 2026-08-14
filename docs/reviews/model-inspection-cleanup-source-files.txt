@@ -268,6 +268,7 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyEvidenceCol
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyMetadataProjection.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyModelProbe.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyModelProbeResult.cs
+runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyProbePhaseSequence.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyProbeProgress.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyProbeRequest.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/NativeBackendSmokeProbe.cs
@@ -582,6 +583,7 @@ tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/VocabOnlyCollectorSourceCon
 tools/ModelInspection.LlamaSharpSpike.Tests/Metadata/VocabOnlyMetadataProjectionTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/ModelInspection.LlamaSharpSpike.Tests.csproj
 tools/ModelInspection.LlamaSharpSpike.Tests/Progress/NativeLoadProgressRecorderTests.cs
+tools/ModelInspection.LlamaSharpSpike.Tests/Progress/VocabOnlyProbeStageBoundaryTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/README.md
 tools/ModelInspection.LlamaSharpSpike.Tests/Support/ArtifactPrivacyScannerTests.cs
 tools/ModelInspection.LlamaSharpSpike.Tests/Support/BlockingModelFileHasher.cs

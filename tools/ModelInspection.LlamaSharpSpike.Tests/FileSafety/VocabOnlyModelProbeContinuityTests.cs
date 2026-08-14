@@ -6,15 +6,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace GraniteEdgeAI.Tools.ModelInspection.LlamaSharpSpike.Tests;
 
 /// <summary>
-/// Proves request continuity is checked before hashing, progress, or native
-/// runtime configuration.
+/// Proves request continuity is checked during the Stage 1 bracket before
+/// native runtime configuration.
 /// </summary>
 [TestClass]
 [TestCategory("Deterministic")]
 public sealed class VocabOnlyModelProbeContinuityTests
 {
     [TestMethod]
-    public async Task RunAsyncWithLengthMismatchFailsBeforeHashOrProgress()
+    public async Task RunAsyncWithLengthMismatchFailsAfterActiveBeforeHash()
     {
         using var directory = new TemporaryDirectory("continuity-length");
         string modelPath = await TestFileBuilder.WriteTextAsync(
@@ -38,7 +38,7 @@ public sealed class VocabOnlyModelProbeContinuityTests
     }
 
     [TestMethod]
-    public async Task RunAsyncWithTimestampMismatchFailsBeforeHashOrProgress()
+    public async Task RunAsyncWithTimestampMismatchFailsAfterActiveBeforeHash()
     {
         using var directory = new TemporaryDirectory("continuity-time");
         string modelPath = await TestFileBuilder.WriteTextAsync(
@@ -62,7 +62,7 @@ public sealed class VocabOnlyModelProbeContinuityTests
     }
 
     [TestMethod]
-    public async Task RunAsyncWithMatchingIdentityReachesHashBeforeProgressOrNative()
+    public async Task RunAsyncWithMatchingIdentityReportsActiveBeforeHashCompletes()
     {
         using var directory = new TemporaryDirectory("continuity-match");
         string modelPath = await TestFileBuilder.WriteTextAsync(
@@ -83,11 +83,22 @@ public sealed class VocabOnlyModelProbeContinuityTests
             progress,
             cancellation.Token);
 
-        await hasher.Started.WaitAsync(TimeSpan.FromSeconds(2));
-        Assert.HasCount(0, progress.Values);
-        cancellation.Cancel();
-        _ = await pending.WaitAsync(TimeSpan.FromSeconds(2));
-        Assert.HasCount(0, progress.Values);
+        try
+        {
+            await hasher.Started.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.HasCount(1, progress.Values);
+            AssertProgress(
+                progress.Values[0],
+                VocabOnlyProbePhase.CheckModelPackage,
+                VocabOnlyProbePhaseStatus.Active);
+        }
+        finally
+        {
+            cancellation.Cancel();
+            _ = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+
+        Assert.HasCount(1, progress.Values);
     }
 
     [TestMethod]
@@ -102,7 +113,15 @@ public sealed class VocabOnlyModelProbeContinuityTests
         var hasher = new TrackingHasher();
         IVocabOnlyModelProbe probe = CreateProbe(hasher);
         using var cancellation = new CancellationTokenSource();
-        var progress = new CapturingProgress(_ => cancellation.Cancel());
+        var progress = new CapturingProgress(
+            value =>
+            {
+                if (value.Phase == VocabOnlyProbePhase.CheckModelPackage &&
+                    value.Status == VocabOnlyProbePhaseStatus.Completed)
+                {
+                    cancellation.Cancel();
+                }
+            });
 
         VocabOnlyModelProbeResult result = await probe.RunAsync(
             new VocabOnlyProbeRequest(
@@ -113,15 +132,53 @@ public sealed class VocabOnlyModelProbeContinuityTests
             cancellation.Token);
 
         Assert.AreEqual(2, hasher.CallCount);
-        Assert.HasCount(1, progress.Values);
-        Assert.IsTrue(progress.Values[0].PackageValidated);
-        Assert.IsNull(progress.Values[0].NativeFraction);
+        Assert.HasCount(2, progress.Values);
+        AssertProgress(
+            progress.Values[0],
+            VocabOnlyProbePhase.CheckModelPackage,
+            VocabOnlyProbePhaseStatus.Active);
+        AssertProgress(
+            progress.Values[1],
+            VocabOnlyProbePhase.CheckModelPackage,
+            VocabOnlyProbePhaseStatus.Completed);
         Assert.IsNull(result.SelectedBackend);
         Assert.AreEqual(
             VocabOnlyProbeCompletionStatus.Cancelled,
             result.CompletionStatus);
         Assert.IsNotNull(result.Integrity);
         Assert.IsTrue(result.Integrity.IsPreserved);
+
+        var throwingHasher = new TrackingHasher();
+        IVocabOnlyModelProbe throwingProbe = CreateProbe(throwingHasher);
+        var throwingProgress = new CapturingProgress(
+            value =>
+            {
+                if (value.Phase == VocabOnlyProbePhase.CheckModelPackage &&
+                    value.Status == VocabOnlyProbePhaseStatus.Completed)
+                {
+                    throw new InvalidOperationException(
+                        "Expected completed-callback failure.");
+                }
+            });
+
+        VocabOnlyModelProbeResult callbackFailure =
+            await throwingProbe.RunAsync(
+                new VocabOnlyProbeRequest(
+                    modelPath,
+                    file.Length,
+                    ToUtcOffset(file.LastWriteTimeUtc)),
+                throwingProgress,
+                CancellationToken.None);
+
+        Assert.AreEqual(2, throwingHasher.CallCount);
+        Assert.AreEqual(
+            VocabOnlyProbeCompletionStatus.Failed,
+            callbackFailure.CompletionStatus);
+        Assert.IsNotNull(callbackFailure.BeforeSnapshot);
+        Assert.IsNotNull(callbackFailure.AfterSnapshot);
+        Assert.IsNotNull(callbackFailure.Integrity);
+        Assert.IsTrue(callbackFailure.Integrity.IsPreserved);
+        Assert.IsNull(callbackFailure.SelectedBackend);
     }
 
     private static IVocabOnlyModelProbe CreateProbe(IModelFileHasher hasher) =>
@@ -153,7 +210,21 @@ public sealed class VocabOnlyModelProbeContinuityTests
         Assert.IsNull(result.SelectedBackend);
         Assert.IsNull(result.ModelEvidence);
         Assert.HasCount(0, result.ProgressSamples);
-        Assert.HasCount(0, progress.Values);
+        Assert.HasCount(1, progress.Values);
+        AssertProgress(
+            progress.Values[0],
+            VocabOnlyProbePhase.CheckModelPackage,
+            VocabOnlyProbePhaseStatus.Active);
+    }
+
+    private static void AssertProgress(
+        VocabOnlyProbeProgress actual,
+        VocabOnlyProbePhase phase,
+        VocabOnlyProbePhaseStatus status)
+    {
+        Assert.AreEqual(phase, actual.Phase);
+        Assert.AreEqual(status, actual.Status);
+        Assert.IsNull(actual.NativeFraction);
     }
 
     private sealed class CapturingProgress : IProgress<VocabOnlyProbeProgress>

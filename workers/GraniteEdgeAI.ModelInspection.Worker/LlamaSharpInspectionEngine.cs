@@ -32,7 +32,6 @@ internal sealed class LlamaSharpInspectionEngine(
     {
         ArgumentNullException.ThrowIfNull(command);
         var state = new InspectionProgressState(command.RequestId, progress);
-        state.Begin();
 
         try
         {
@@ -42,8 +41,14 @@ internal sealed class LlamaSharpInspectionEngine(
                         command.ExpectedFileIdentity.LengthBytes,
                         command.ExpectedFileIdentity.LastWriteTimeUtc),
                     new RuntimeProgressAdapter(state),
-                    cancellationToken)
+                cancellationToken)
                 .ConfigureAwait(false);
+
+            if (state.HasInvalidProbeTransition)
+            {
+                throw new InvalidOperationException(
+                    "The runtime reported an invalid probe phase transition.");
+            }
 
             if (runtimeResult is null)
             {
@@ -70,11 +75,6 @@ internal sealed class LlamaSharpInspectionEngine(
                     return MapFailure(runtimeResult.FailureCode);
 
                 case VocabOnlyProbeCompletionStatus.Succeeded:
-                    state.CompleteReadStage();
-                    state.CompleteSimpleStage(
-                        WorkerStage.ValidateTokenizerAndChatSetup);
-                    state.CompleteSimpleStage(
-                        WorkerStage.ValidateModelStructure);
                     state.BeginRuntimeStage();
 
                     WorkerInspectionEvidence evidence =
@@ -180,117 +180,158 @@ internal sealed class LlamaSharpInspectionEngine(
         IProgress<VocabOnlyProbeProgress>
     {
         public void Report(VocabOnlyProbeProgress value) =>
-            state.ReportRuntimeProgress(value);
+            state.AcceptProbeFact(value);
     }
 
     private sealed class InspectionProgressState(
         Guid requestId,
         IProgress<WorkerProgressMessage>? progress)
     {
+        private static readonly (
+            VocabOnlyProbePhase Phase,
+            VocabOnlyProbePhaseStatus Status,
+            WorkerStage Stage)[] ProbeTransitions =
+        [
+            (
+                VocabOnlyProbePhase.CheckModelPackage,
+                VocabOnlyProbePhaseStatus.Active,
+                WorkerStage.CheckModelPackage),
+            (
+                VocabOnlyProbePhase.CheckModelPackage,
+                VocabOnlyProbePhaseStatus.Completed,
+                WorkerStage.CheckModelPackage),
+            (
+                VocabOnlyProbePhase.ReadModelConfiguration,
+                VocabOnlyProbePhaseStatus.Active,
+                WorkerStage.ReadModelConfiguration),
+            (
+                VocabOnlyProbePhase.ReadModelConfiguration,
+                VocabOnlyProbePhaseStatus.Completed,
+                WorkerStage.ReadModelConfiguration),
+            (
+                VocabOnlyProbePhase.ValidateTokenizerAndChatSetup,
+                VocabOnlyProbePhaseStatus.Active,
+                WorkerStage.ValidateTokenizerAndChatSetup),
+            (
+                VocabOnlyProbePhase.ValidateTokenizerAndChatSetup,
+                VocabOnlyProbePhaseStatus.Completed,
+                WorkerStage.ValidateTokenizerAndChatSetup),
+            (
+                VocabOnlyProbePhase.ValidateModelStructure,
+                VocabOnlyProbePhaseStatus.Active,
+                WorkerStage.ValidateModelStructure),
+            (
+                VocabOnlyProbePhase.ValidateModelStructure,
+                VocabOnlyProbePhaseStatus.Completed,
+                WorkerStage.ValidateModelStructure)
+        ];
+
         private readonly object _sync = new();
-        private WorkerStage _stage = WorkerStage.CheckModelPackage;
+        private int _nextTransitionIndex;
         private int _completedStageCount;
-        private bool _packageValidated;
+        private bool _invalid;
+        private bool _runtimeStageActive;
         private bool _finished;
 
-        internal void Begin()
+        internal bool HasInvalidProbeTransition
         {
-            lock (_sync)
+            get
             {
-                Report(WorkerStageStatus.Active, stageFraction: null);
+                lock (_sync)
+                {
+                    return _invalid;
+                }
             }
         }
 
-        internal void ReportRuntimeProgress(VocabOnlyProbeProgress value)
+        internal void AcceptProbeFact(VocabOnlyProbeProgress value)
         {
             ArgumentNullException.ThrowIfNull(value);
 
             lock (_sync)
             {
-                ReportRuntimeProgressCore(value);
+                AcceptProbeFactCore(value);
             }
         }
 
-        private void ReportRuntimeProgressCore(VocabOnlyProbeProgress value)
+        private void AcceptProbeFactCore(VocabOnlyProbeProgress value)
         {
-            bool isPackageCheckpoint =
-                value.PackageValidated && value.NativeFraction is null;
-            bool isNativeFraction =
-                !value.PackageValidated &&
-                value.NativeFraction is float fraction &&
-                float.IsFinite(fraction) &&
-                fraction >= 0f &&
-                fraction <= 1f;
-
-            if (isPackageCheckpoint)
+            if (_invalid || _finished)
             {
-                if (_packageValidated ||
-                    _stage != WorkerStage.CheckModelPackage)
-                {
-                    throw new InvalidDataException(
-                        "The runtime reported an invalid package checkpoint.");
-                }
-
-                _packageValidated = true;
-                _completedStageCount = 1;
-                Report(WorkerStageStatus.Completed, stageFraction: null);
-                _stage = WorkerStage.ReadModelConfiguration;
-                Report(WorkerStageStatus.Active, stageFraction: null);
-                return;
+                RejectProbeFact();
             }
 
-            if (isNativeFraction)
+            if (value.Status == VocabOnlyProbePhaseStatus.Fraction)
             {
-                if (!_packageValidated ||
-                    _stage != WorkerStage.ReadModelConfiguration)
+                float fraction = value.NativeFraction ?? float.NaN;
+
+                if (_nextTransitionIndex != 3 ||
+                    value.Phase !=
+                        VocabOnlyProbePhase.ReadModelConfiguration ||
+                    !float.IsFinite(fraction) ||
+                    fraction < 0f ||
+                    fraction > 1f)
                 {
-                    throw new InvalidDataException(
-                        "The runtime reported native progress before package validation.");
+                    RejectProbeFact();
                 }
 
                 Report(
+                    WorkerStage.ReadModelConfiguration,
                     WorkerStageStatus.Active,
-                    value.NativeFraction!.Value);
+                    fraction);
                 return;
             }
 
-            throw new InvalidDataException(
-                "The runtime reported an impossible progress fact.");
-        }
-
-        internal void CompleteReadStage()
-        {
-            lock (_sync)
+            if (_nextTransitionIndex >= ProbeTransitions.Length)
             {
-                if (!_packageValidated ||
-                    _stage != WorkerStage.ReadModelConfiguration)
-                {
-                    throw new InvalidDataException(
-                        "The runtime completed without its package checkpoint.");
-                }
-
-                _completedStageCount = 2;
-                Report(WorkerStageStatus.Completed, stageFraction: null);
+                RejectProbeFact();
             }
-        }
 
-        internal void CompleteSimpleStage(WorkerStage stage)
-        {
-            lock (_sync)
+            (
+                VocabOnlyProbePhase expectedPhase,
+                VocabOnlyProbePhaseStatus expectedStatus,
+                WorkerStage stage) =
+                ProbeTransitions[_nextTransitionIndex];
+
+            if (value.Phase != expectedPhase ||
+                value.Status != expectedStatus ||
+                value.NativeFraction is not null)
             {
-                _stage = stage;
-                Report(WorkerStageStatus.Active, stageFraction: null);
+                RejectProbeFact();
+            }
+
+            if (expectedStatus == VocabOnlyProbePhaseStatus.Completed)
+            {
                 _completedStageCount++;
-                Report(WorkerStageStatus.Completed, stageFraction: null);
             }
+
+            Report(
+                stage,
+                expectedStatus == VocabOnlyProbePhaseStatus.Active
+                    ? WorkerStageStatus.Active
+                    : WorkerStageStatus.Completed,
+                stageFraction: null);
+            _nextTransitionIndex++;
         }
 
         internal void BeginRuntimeStage()
         {
             lock (_sync)
             {
-                _stage = WorkerStage.ConfirmCoreRuntimeCompatibility;
-                Report(WorkerStageStatus.Active, stageFraction: null);
+                if (_invalid ||
+                    _finished ||
+                    _runtimeStageActive ||
+                    _nextTransitionIndex != ProbeTransitions.Length ||
+                    _completedStageCount != 4)
+                {
+                    RejectProbeFact();
+                }
+
+                _runtimeStageActive = true;
+                Report(
+                    WorkerStage.ConfirmCoreRuntimeCompatibility,
+                    WorkerStageStatus.Active,
+                    stageFraction: null);
             }
         }
 
@@ -298,8 +339,20 @@ internal sealed class LlamaSharpInspectionEngine(
         {
             lock (_sync)
             {
+                if (_invalid ||
+                    _finished ||
+                    !_runtimeStageActive ||
+                    _completedStageCount != 4)
+                {
+                    RejectProbeFact();
+                }
+
                 _completedStageCount = 5;
-                Report(WorkerStageStatus.Completed, stageFraction: null);
+                Report(
+                    WorkerStage.ConfirmCoreRuntimeCompatibility,
+                    WorkerStageStatus.Completed,
+                    stageFraction: null);
+                _runtimeStageActive = false;
                 _finished = true;
             }
         }
@@ -313,12 +366,29 @@ internal sealed class LlamaSharpInspectionEngine(
                     return;
                 }
 
-                Report(status, stageFraction: null);
+                int stageNumber = Math.Clamp(
+                    _completedStageCount + 1,
+                    (int)WorkerStage.CheckModelPackage,
+                    (int)WorkerStage.ConfirmCoreRuntimeCompatibility);
+                Report(
+                    (WorkerStage)stageNumber,
+                    status,
+                    stageFraction: null);
+                _runtimeStageActive = false;
                 _finished = true;
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.DoesNotReturn]
+        private void RejectProbeFact()
+        {
+            _invalid = true;
+            throw new InvalidDataException(
+                "The runtime reported an invalid probe phase transition.");
+        }
+
         private void Report(
+            WorkerStage stage,
             WorkerStageStatus status,
             double? stageFraction)
         {
@@ -327,7 +397,7 @@ internal sealed class LlamaSharpInspectionEngine(
                 ProtocolVersion = WorkerProtocol.Version,
                 MessageType = WorkerMessageKind.Progress,
                 RequestId = requestId,
-                Stage = _stage,
+                Stage = stage,
                 StageStatus = status,
                 CompletedStageCount = _completedStageCount,
                 TotalStageCount = 5,

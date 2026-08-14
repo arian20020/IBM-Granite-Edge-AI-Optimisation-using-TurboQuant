@@ -39,6 +39,7 @@ public sealed class ProductionRuntimeArchitectureTests
         "ModelProbe/VocabOnlyMetadataProjection.cs",
         "ModelProbe/VocabOnlyModelProbe.cs",
         "ModelProbe/VocabOnlyModelProbeResult.cs",
+        "ModelProbe/VocabOnlyProbePhaseSequence.cs",
         "ModelProbe/VocabOnlyProbeProgress.cs",
         "ModelProbe/VocabOnlyProbeRequest.cs"
     ];

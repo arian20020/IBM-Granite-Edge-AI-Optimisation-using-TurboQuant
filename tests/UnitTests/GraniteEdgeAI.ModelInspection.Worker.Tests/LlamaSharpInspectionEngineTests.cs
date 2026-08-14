@@ -29,9 +29,7 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (progress, _) =>
             {
-                progress?.Report(new VocabOnlyProbeProgress(true, null));
-                progress?.Report(new VocabOnlyProbeProgress(false, 0.25f));
-                progress?.Report(new VocabOnlyProbeProgress(false, 0.75f));
+                ReportSuccessfulProbeProgress(progress, 0.25f, 0.75f);
                 return Task.FromResult(runtimeResult);
             });
         var progress = new CapturingProgress();
@@ -87,7 +85,7 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (progress, _) =>
             {
-                progress?.Report(new VocabOnlyProbeProgress(true, null));
+                ReportSuccessfulProbeProgress(progress);
                 return Task.FromResult(runtimeResult);
             });
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
@@ -184,7 +182,13 @@ public sealed class LlamaSharpInspectionEngineTests
     {
         WorkerStartInspectionCommand command = CreateStart();
         VocabOnlyModelProbeResult failed = CreateFailedRuntimeResult(command, code);
-        var probe = new FakeProbe((_, _) => Task.FromResult(failed));
+        var probe = new FakeProbe(
+            (runtimeProgress, _) =>
+            {
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.CheckModelPackage));
+                return Task.FromResult(failed);
+            });
         var progress = new CapturingProgress();
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
 
@@ -259,8 +263,13 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (runtimeProgress, _) =>
             {
-                runtimeProgress?.Report(new VocabOnlyProbeProgress(true, null));
-                runtimeProgress?.Report(new VocabOnlyProbeProgress(false, 0.5f));
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.CheckModelPackage));
+                runtimeProgress?.Report(
+                    Completed(VocabOnlyProbePhase.CheckModelPackage));
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.ReadModelConfiguration));
+                runtimeProgress?.Report(Fraction(0.5f));
                 return Task.FromResult(cancelled);
             });
         var progress = new CapturingProgress();
@@ -363,8 +372,23 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (runtimeProgress, _) =>
             {
-                runtimeProgress?.Report(new VocabOnlyProbeProgress(true, null));
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.CheckModelPackage));
+                runtimeProgress?.Report(
+                    Completed(VocabOnlyProbePhase.CheckModelPackage));
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.ReadModelConfiguration));
                 progress.StartCompetingCallbacks(runtimeProgress!);
+                runtimeProgress?.Report(
+                    Completed(VocabOnlyProbePhase.ReadModelConfiguration));
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup));
+                runtimeProgress?.Report(
+                    Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup));
+                runtimeProgress?.Report(
+                    Active(VocabOnlyProbePhase.ValidateModelStructure));
+                runtimeProgress?.Report(
+                    Completed(VocabOnlyProbePhase.ValidateModelStructure));
                 return Task.FromResult(runtimeResult);
             });
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
@@ -388,18 +412,106 @@ public sealed class LlamaSharpInspectionEngineTests
     public async Task InspectAsyncRejectsImpossibleRuntimeProgressFacts()
     {
         WorkerStartInspectionCommand command = CreateStart();
-        VocabOnlyProbeProgress[] impossibleFacts =
+        (string Name, VocabOnlyProbeProgress[] Facts)[] impossibleSequences =
         [
-            new VocabOnlyProbeProgress(true, 0.5f),
-            new VocabOnlyProbeProgress(false, null)
+            ("duplicate",
+            [
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Completed(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Completed(VocabOnlyProbePhase.ReadModelConfiguration),
+                Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Active(VocabOnlyProbePhase.ValidateModelStructure),
+                Completed(VocabOnlyProbePhase.ValidateModelStructure)
+            ]),
+            ("skipped",
+            [
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Completed(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Completed(VocabOnlyProbePhase.ReadModelConfiguration),
+                Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Active(VocabOnlyProbePhase.ValidateModelStructure),
+                Completed(VocabOnlyProbePhase.ValidateModelStructure)
+            ]),
+            ("regressed",
+            [
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Completed(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Completed(VocabOnlyProbePhase.ReadModelConfiguration),
+                Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Active(VocabOnlyProbePhase.ValidateModelStructure),
+                Completed(VocabOnlyProbePhase.ValidateModelStructure)
+            ]),
+            ("fraction-before-active",
+            [
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Completed(VocabOnlyProbePhase.CheckModelPackage),
+                Fraction(0.5f),
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Completed(VocabOnlyProbePhase.ReadModelConfiguration),
+                Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Active(VocabOnlyProbePhase.ValidateModelStructure),
+                Completed(VocabOnlyProbePhase.ValidateModelStructure)
+            ]),
+            ("fraction-after-complete",
+            [
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Completed(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Completed(VocabOnlyProbePhase.ReadModelConfiguration),
+                Fraction(0.5f),
+                Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Active(VocabOnlyProbePhase.ValidateModelStructure),
+                Completed(VocabOnlyProbePhase.ValidateModelStructure)
+            ]),
+            ("phase-after-finish",
+            [
+                Active(VocabOnlyProbePhase.CheckModelPackage),
+                Completed(VocabOnlyProbePhase.CheckModelPackage),
+                Active(VocabOnlyProbePhase.ReadModelConfiguration),
+                Completed(VocabOnlyProbePhase.ReadModelConfiguration),
+                Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup),
+                Active(VocabOnlyProbePhase.ValidateModelStructure),
+                Completed(VocabOnlyProbePhase.ValidateModelStructure),
+                Active(VocabOnlyProbePhase.CheckModelPackage)
+            ])
         ];
 
-        foreach (VocabOnlyProbeProgress impossible in impossibleFacts)
+        foreach ((string name, VocabOnlyProbeProgress[] facts) in
+                 impossibleSequences)
         {
             var probe = new FakeProbe(
                 (runtimeProgress, _) =>
                 {
-                    runtimeProgress?.Report(impossible);
+                    try
+                    {
+                        foreach (VocabOnlyProbeProgress fact in facts)
+                        {
+                            runtimeProgress?.Report(fact);
+                        }
+                    }
+                    catch (InvalidDataException)
+                    {
+                        return Task.FromResult(
+                            CreateValidRuntimeResult(command) with
+                            {
+                                CompletionStatus =
+                                    VocabOnlyProbeCompletionStatus.Failed,
+                                FailureCode = "MI-OP-MODEL-FILE-IO"
+                            });
+                    }
+
                     return Task.FromResult(CreateValidRuntimeResult(command));
                 });
             var progress = new CapturingProgress();
@@ -414,13 +526,21 @@ public sealed class LlamaSharpInspectionEngineTests
                 result,
                 "MI-OP-RUNTIME-INSPECTION-FAILED",
                 "The model inspection runtime could not produce reliable evidence.");
-            AssertProgress(
+            Assert.IsNotEmpty(
                 progress.Values,
-                command.RequestId,
-                [
-                    (WorkerStage.CheckModelPackage, WorkerStageStatus.Active, 0, null),
-                    (WorkerStage.CheckModelPackage, WorkerStageStatus.Failed, 0, null)
-                ]);
+                $"The {name} sequence produced no terminal progress.");
+            WorkerProgressMessage terminal = progress.Values[^1];
+            terminal.Validate();
+            Assert.AreEqual(
+                WorkerStageStatus.Failed,
+                terminal.StageStatus,
+                $"The {name} sequence was not rejected.");
+            Assert.IsFalse(
+                progress.Values.Any(
+                    value => value.Stage ==
+                            WorkerStage.ConfirmCoreRuntimeCompatibility &&
+                        value.StageStatus == WorkerStageStatus.Completed),
+                $"The {name} sequence reached a completed worker runtime stage.");
         }
     }
 
@@ -476,14 +596,15 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (runtimeProgress, _) =>
             {
-                runtimeProgress?.Report(new VocabOnlyProbeProgress(true, null));
+                ReportSuccessfulProbeProgress(runtimeProgress);
                 return Task.FromResult(runtimeResult);
             });
+        var progress = new CapturingProgress();
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
 
         WorkerEngineResult result = await engine.InspectAsync(
             command,
-            progress: null,
+            progress,
             CancellationToken.None);
 
         AssertControlledFailure(
@@ -491,6 +612,18 @@ public sealed class LlamaSharpInspectionEngineTests
             "MI-OP-RUNTIME-INSPECTION-FAILED",
             "The model inspection runtime could not produce reliable evidence.");
         AssertNoSecret(result, command.ModelPath);
+        Assert.AreEqual(
+            WorkerStage.ConfirmCoreRuntimeCompatibility,
+            progress.Values[^2].Stage);
+        Assert.AreEqual(
+            WorkerStageStatus.Active,
+            progress.Values[^2].StageStatus);
+        Assert.AreEqual(
+            WorkerStage.ConfirmCoreRuntimeCompatibility,
+            progress.Values[^1].Stage);
+        Assert.AreEqual(
+            WorkerStageStatus.Failed,
+            progress.Values[^1].StageStatus);
     }
 
     [TestMethod]
@@ -527,7 +660,7 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (runtimeProgress, _) =>
             {
-                runtimeProgress?.Report(new VocabOnlyProbeProgress(true, null));
+                ReportSuccessfulProbeProgress(runtimeProgress);
                 return Task.FromResult(runtimeResult);
             });
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
@@ -571,7 +704,7 @@ public sealed class LlamaSharpInspectionEngineTests
         var probe = new FakeProbe(
             (runtimeProgress, _) =>
             {
-                runtimeProgress?.Report(new VocabOnlyProbeProgress(true, null));
+                ReportSuccessfulProbeProgress(runtimeProgress);
                 return Task.FromResult(runtimeResult);
             });
         var engine = new LlamaSharpInspectionEngine(probe, WorkerVersion);
@@ -894,6 +1027,41 @@ public sealed class LlamaSharpInspectionEngineTests
         _ => throw new AssertFailedException($"Unknown mutation: {mutation}")
     };
 
+    private static void ReportSuccessfulProbeProgress(
+        IProgress<VocabOnlyProbeProgress>? progress,
+        params float[] nativeFractions)
+    {
+        progress?.Report(Active(VocabOnlyProbePhase.CheckModelPackage));
+        progress?.Report(Completed(VocabOnlyProbePhase.CheckModelPackage));
+        progress?.Report(Active(VocabOnlyProbePhase.ReadModelConfiguration));
+
+        foreach (float nativeFraction in nativeFractions)
+        {
+            progress?.Report(Fraction(nativeFraction));
+        }
+
+        progress?.Report(Completed(VocabOnlyProbePhase.ReadModelConfiguration));
+        progress?.Report(
+            Active(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup));
+        progress?.Report(
+            Completed(VocabOnlyProbePhase.ValidateTokenizerAndChatSetup));
+        progress?.Report(Active(VocabOnlyProbePhase.ValidateModelStructure));
+        progress?.Report(Completed(VocabOnlyProbePhase.ValidateModelStructure));
+    }
+
+    private static VocabOnlyProbeProgress Active(VocabOnlyProbePhase phase) =>
+        new(phase, VocabOnlyProbePhaseStatus.Active);
+
+    private static VocabOnlyProbeProgress Completed(
+        VocabOnlyProbePhase phase) =>
+        new(phase, VocabOnlyProbePhaseStatus.Completed);
+
+    private static VocabOnlyProbeProgress Fraction(float fraction) =>
+        new(
+            VocabOnlyProbePhase.ReadModelConfiguration,
+            VocabOnlyProbePhaseStatus.Fraction,
+            fraction);
+
     private static void AssertControlledFailure(
         WorkerEngineResult result,
         string code,
@@ -982,7 +1150,7 @@ public sealed class LlamaSharpInspectionEngineTests
             var firstThread = new Thread(
                 () => CaptureException(
                     () => runtimeProgress.Report(
-                        new VocabOnlyProbeProgress(false, 0.25f)),
+                        Fraction(0.25f)),
                     exception => firstException = exception))
             {
                 IsBackground = true,
@@ -994,7 +1162,7 @@ public sealed class LlamaSharpInspectionEngineTests
                     _secondCallbackAboutToReport.Set();
                     CaptureException(
                         () => runtimeProgress.Report(
-                            new VocabOnlyProbeProgress(false, 0.75f)),
+                            Fraction(0.75f)),
                         exception => secondException = exception);
                     _secondCallbackReturned.Set();
                 })

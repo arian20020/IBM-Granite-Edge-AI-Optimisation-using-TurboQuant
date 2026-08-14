@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using GraniteEdgeAI.ModelInspection.LlamaSharp;
 using LLama;
@@ -118,7 +119,8 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
         DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow;
         var totalStopwatch = Stopwatch.StartNew();
         var logs = new ConcurrentQueue<NativeBackendLogEntry>();
-        var progressRecorder = new NativeLoadProgressRecorder(progress);
+        var phaseSequence = new VocabOnlyProbePhaseSequence(progress);
+        var progressRecorder = new NativeLoadProgressRecorder(phaseSequence);
         using Process process = Process.GetCurrentProcess();
 
         process.Refresh();
@@ -139,6 +141,8 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
         VocabOnlyProbeCompletionStatus completionStatus =
             VocabOnlyProbeCompletionStatus.Failed;
         ProbeFailure? failure = null;
+        LLamaWeights? weights = null;
+        bool integrityAttempted = false;
 
         try
         {
@@ -148,20 +152,28 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
             // Caller cancellation is honored during hashing. Timed diagnostic
             // cancellation starts only after this baseline exists so the final
             // result can still prove model preservation.
-            beforeSnapshot = expectedIdentity is null
-                ? await _snapshotService.CaptureAsync(
-                        fullModelPath,
-                        cancellationToken)
-                    .ConfigureAwait(false)
-                : await _snapshotService.CaptureAsync(
-                        expectedIdentity with { ModelPath = fullModelPath },
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-            progress?.Report(
-                new VocabOnlyProbeProgress(
-                    PackageValidated: true,
-                    NativeFraction: null));
+            await phaseSequence.RunAsync(
+                    VocabOnlyProbePhase.CheckModelPackage,
+                    async () =>
+                    {
+                        beforeSnapshot = expectedIdentity is null
+                            ? await _snapshotService.CaptureAsync(
+                                    fullModelPath,
+                                    cancellationToken)
+                                .ConfigureAwait(false)
+                            : await _snapshotService.CaptureAsync(
+                                    expectedIdentity with
+                                    {
+                                        ModelPath = fullModelPath
+                                    },
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                        return true;
+                    })
+                .ConfigureAwait(false);
+            ModelFileSnapshot initialSnapshot = beforeSnapshot ??
+                throw new InvalidDataException(
+                    "The runtime returned no initial model snapshot.");
 
             using var operationCancellation =
                 CancellationTokenSource.CreateLinkedTokenSource(
@@ -174,81 +186,219 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
             }
 
             operationCancellation.Token.ThrowIfCancellationRequested();
-            CpuNativeRuntimeConfiguration.Configure(logs);
 
-            bool nativeBackendAvailable =
-                NativeLibraryConfig.LLama.DryRun(
-                    out INativeLibrary? selectedLibrary);
-
-            operationCancellation.Token.ThrowIfCancellationRequested();
-
-            selectedBackend =
-                CpuNativeRuntimeConfiguration.Describe(selectedLibrary);
-
-            if (!nativeBackendAvailable)
+            try
             {
-                failure = new ProbeFailure(
-                    "MI-OP-RUNTIME-UNAVAILABLE",
-                    null,
-                    "LLamaSharp could not load a published CPU backend.");
+                VocabOnlyConfigurationProjection configuration =
+                    await phaseSequence.RunAsync(
+                            VocabOnlyProbePhase.ReadModelConfiguration,
+                            async () =>
+                            {
+                                operationCancellation.Token
+                                    .ThrowIfCancellationRequested();
+                                CpuNativeRuntimeConfiguration.Configure(logs);
+
+                                bool nativeBackendAvailable =
+                                    NativeLibraryConfig.LLama.DryRun(
+                                        out INativeLibrary? selectedLibrary);
+
+                                operationCancellation.Token
+                                    .ThrowIfCancellationRequested();
+                                selectedBackend =
+                                    CpuNativeRuntimeConfiguration.Describe(
+                                        selectedLibrary);
+
+                                if (!nativeBackendAvailable)
+                                {
+                                    failure = new ProbeFailure(
+                                        "MI-OP-RUNTIME-UNAVAILABLE",
+                                        null,
+                                        "LLamaSharp could not load a published CPU backend.");
+                                    throw new NativeBackendUnavailableException();
+                                }
+
+                                var modelParameters = new ModelParams(
+                                    fullModelPath)
+                                {
+                                    VocabOnly = true,
+                                    GpuLayerCount = 0,
+                                    UseMemorymap = true,
+                                    UseMemoryLock = false
+                                };
+                                var loadStopwatch = Stopwatch.StartNew();
+                                using var nativeLoadCancellation =
+                                    CancellationTokenSource
+                                        .CreateLinkedTokenSource(
+                                            operationCancellation.Token);
+
+                                if (cancelNativeAfterMilliseconds.HasValue)
+                                {
+                                    nativeLoadCancellation.CancelAfter(
+                                        cancelNativeAfterMilliseconds.Value);
+                                }
+
+                                try
+                                {
+                                    weights = await LLamaWeights
+                                        .LoadFromFileAsync(
+                                            modelParameters,
+                                            nativeLoadCancellation.Token,
+                                            progressRecorder)
+                                        .ConfigureAwait(false);
+
+                                    loadStopwatch.Stop();
+                                    loadDurationMilliseconds =
+                                        loadStopwatch.ElapsedMilliseconds;
+
+                                    process.Refresh();
+                                    workingSetAfterLoadBytes =
+                                        process.WorkingSet64;
+
+                                    return VocabOnlyEvidenceCollector
+                                        .CollectConfiguration(weights);
+                                }
+                                finally
+                                {
+                                    loadStopwatch.Stop();
+                                }
+                            })
+                        .ConfigureAwait(false);
+
+                LLamaWeights loadedWeights = weights ??
+                    throw new InvalidDataException(
+                        "The runtime returned no loaded model handle.");
+                VocabOnlyTokenizerProjection tokenizer =
+                    phaseSequence.Run(
+                        VocabOnlyProbePhase.ValidateTokenizerAndChatSetup,
+                        () => VocabOnlyEvidenceCollector.CollectTokenizerAndChat(
+                            loadedWeights));
+
+                await phaseSequence.RunAsync(
+                        VocabOnlyProbePhase.ValidateModelStructure,
+                        async () =>
+                        {
+                            ExceptionDispatchInfo? stageFailure = null;
+                            bool integrityVerified = false;
+
+                            try
+                            {
+                                try
+                                {
+                                    VocabOnlyStructureProjection structure =
+                                        VocabOnlyEvidenceCollector.CollectStructure(
+                                            loadedWeights);
+                                    modelEvidence =
+                                        VocabOnlyEvidenceCollector.Compose(
+                                            configuration,
+                                            tokenizer,
+                                            structure);
+                                }
+                                catch (Exception exception)
+                                {
+                                    stageFailure =
+                                        ExceptionDispatchInfo.Capture(exception);
+                                }
+                            }
+                            finally
+                            {
+                                try
+                                {
+                                    loadedWeights.Dispose();
+                                    weights = null;
+                                    nativeHandleClosedAfterDispose =
+                                        loadedWeights.NativeHandle.IsClosed;
+                                }
+                                catch (Exception exception)
+                                {
+                                    stageFailure ??=
+                                        ExceptionDispatchInfo.Capture(exception);
+                                }
+
+                                integrityAttempted = true;
+
+                                if (!File.Exists(fullModelPath))
+                                {
+                                    integrityErrorType =
+                                        typeof(FileNotFoundException).FullName;
+                                    integrityErrorMessage =
+                                        "The selected model no longer exists after inspection.";
+                                }
+                                else
+                                {
+                                    try
+                                    {
+                                        afterSnapshot = await _snapshotService.CaptureAsync(
+                                                fullModelPath,
+                                                CancellationToken.None)
+                                            .ConfigureAwait(false);
+                                        integrity =
+                                            ModelFileIntegrityComparison.Compare(
+                                                initialSnapshot,
+                                                afterSnapshot);
+                                        integrityVerified = true;
+                                    }
+                                    catch (Exception exception)
+                                    {
+                                        integrityErrorType =
+                                            exception.GetType().FullName;
+                                        integrityErrorMessage =
+                                            exception.Message;
+                                    }
+                                }
+                            }
+
+                            try
+                            {
+                                process.Refresh();
+                                workingSetAfterDisposeBytes =
+                                    process.WorkingSet64;
+                            }
+                            catch (Exception exception)
+                            {
+                                stageFailure ??=
+                                    ExceptionDispatchInfo.Capture(exception);
+                            }
+
+                            if (stageFailure is not null)
+                            {
+                                stageFailure.Throw();
+                            }
+
+                            if (!integrityVerified ||
+                                integrity is null ||
+                                !integrity.IsPreserved)
+                            {
+                                throw new FinalIntegrityVerificationException();
+                            }
+
+                            return true;
+                        })
+                    .ConfigureAwait(false);
+
+                completionStatus = VocabOnlyProbeCompletionStatus.Succeeded;
             }
-            else
+            finally
             {
-                var modelParameters = new ModelParams(fullModelPath)
+                if (weights is not null)
                 {
-                    VocabOnly = true,
-                    GpuLayerCount = 0,
-                    UseMemorymap = true,
-                    UseMemoryLock = false
-                };
-
-                LLamaWeights? weights = null;
-                var loadStopwatch = Stopwatch.StartNew();
-                using var nativeLoadCancellation =
-                    CancellationTokenSource.CreateLinkedTokenSource(
-                        operationCancellation.Token);
-
-                if (cancelNativeAfterMilliseconds.HasValue)
-                {
-                    nativeLoadCancellation.CancelAfter(
-                        cancelNativeAfterMilliseconds.Value);
+                    LLamaWeights abandonedWeights = weights;
+                    abandonedWeights.Dispose();
+                    weights = null;
+                    nativeHandleClosedAfterDispose =
+                        abandonedWeights.NativeHandle.IsClosed;
                 }
 
-                try
-                {
-                    weights = await LLamaWeights.LoadFromFileAsync(
-                        modelParameters,
-                        nativeLoadCancellation.Token,
-                        progressRecorder);
-
-                    loadStopwatch.Stop();
-                    loadDurationMilliseconds =
-                        loadStopwatch.ElapsedMilliseconds;
-
-                    process.Refresh();
-                    workingSetAfterLoadBytes = process.WorkingSet64;
-
-                    modelEvidence =
-                        VocabOnlyEvidenceCollector.Collect(weights);
-
-                    completionStatus =
-                        VocabOnlyProbeCompletionStatus.Succeeded;
-                }
-                finally
-                {
-                    loadStopwatch.Stop();
-
-                    if (weights is not null)
-                    {
-                        weights.Dispose();
-                        nativeHandleClosedAfterDispose =
-                            weights.NativeHandle.IsClosed;
-                    }
-
-                    process.Refresh();
-                    workingSetAfterDisposeBytes = process.WorkingSet64;
-                }
+                process.Refresh();
+                workingSetAfterDisposeBytes = process.WorkingSet64;
             }
+        }
+        catch (NativeBackendUnavailableException)
+        {
+            completionStatus = VocabOnlyProbeCompletionStatus.Failed;
+        }
+        catch (FinalIntegrityVerificationException)
+        {
+            completionStatus = VocabOnlyProbeCompletionStatus.Succeeded;
         }
         catch (OperationCanceledException exception)
         {
@@ -266,22 +416,21 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
         }
         finally
         {
-            if (beforeSnapshot is not null &&
+            if (!integrityAttempted &&
+                beforeSnapshot is not null &&
                 !string.IsNullOrWhiteSpace(fullModelPath) &&
                 File.Exists(fullModelPath))
             {
+                integrityAttempted = true;
+
                 try
                 {
                     afterSnapshot = await _snapshotService.CaptureAsync(
                         fullModelPath,
                         CancellationToken.None);
-
-                    if (beforeSnapshot is not null)
-                    {
-                        integrity = ModelFileIntegrityComparison.Compare(
-                            beforeSnapshot,
-                            afterSnapshot);
-                    }
+                    integrity = ModelFileIntegrityComparison.Compare(
+                        beforeSnapshot,
+                        afterSnapshot);
                 }
                 catch (Exception exception)
                 {
@@ -369,5 +518,13 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                 parameterName,
                 "Cancellation delay must be positive.");
         }
+    }
+
+    private sealed class NativeBackendUnavailableException : Exception
+    {
+    }
+
+    private sealed class FinalIntegrityVerificationException : Exception
+    {
     }
 }

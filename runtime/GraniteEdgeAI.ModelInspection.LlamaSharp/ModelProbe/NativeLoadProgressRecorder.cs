@@ -20,16 +20,17 @@ public sealed class NativeLoadProgressRecorder : IProgress<float>
     private readonly object _sync = new();
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly List<NativeLoadProgressSample> _samples = new();
-    private readonly IProgress<VocabOnlyProbeProgress>? _probeProgress;
+    private readonly VocabOnlyProbePhaseSequence? _phaseSequence;
 
     public NativeLoadProgressRecorder()
     {
     }
 
     internal NativeLoadProgressRecorder(
-        IProgress<VocabOnlyProbeProgress>? probeProgress)
+        VocabOnlyProbePhaseSequence phaseSequence)
     {
-        _probeProgress = probeProgress;
+        _phaseSequence = phaseSequence ??
+            throw new ArgumentNullException(nameof(phaseSequence));
     }
 
     /// <summary>
@@ -62,13 +63,9 @@ public sealed class NativeLoadProgressRecorder : IProgress<float>
                 new NativeLoadProgressSample(
                     _stopwatch.ElapsedMilliseconds,
                     fraction));
+
+            _phaseSequence?.ReportNativeFraction(fraction);
         }
-
-        _probeProgress?.Report(
-            new VocabOnlyProbeProgress(
-                PackageValidated: false,
-                NativeFraction: fraction));
-
     }
 
     /// <summary>
