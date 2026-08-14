@@ -257,7 +257,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         # Ensure no caller-controlled path replacement occurred during writing.
         if args.output.parent.resolve(strict=True) != output_parent:
-            raise ValueError,"Prequisite proof output parent changed during writing.")
+            raise ValueError("Prerequisite proof output parent changed during writing.")
     except (OSError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
