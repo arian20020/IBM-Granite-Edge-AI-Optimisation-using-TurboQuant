@@ -19,6 +19,22 @@ from scripts.testing.workbook05.phase3.prerequisites import verify_prerequisites
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
+
+def _fixture_directory():
+    """Create a normal test workspace directly beneath the checked-out repository.
+
+    Windows runner temp directories can be junction-backed. Production prerequisite
+    validation correctly rejects those paths, so fixture workspaces live under the
+    normal repository checkout instead. TemporaryDirectory still removes only the
+    unique directory created for the current test.
+    """
+
+    return TemporaryDirectory(
+        prefix=".phase3-prerequisite-",
+        dir=REPOSITORY_ROOT,
+    )
+
+
 RUNTIME_DECISION_BASE64 = (
     "ew0KICAgICJzY2hlbWFfdmVyc2lvbiI6ICAiMS4wIiwNCiAgICAiY2FtcGFpZ25faWQiOiAgIkdUUS1XQjA1LU1GLXYxIiwNCiAgICAicmVjb3JkX3R5cGUiOiAgImJ1aWxkLWRlY2lzaW9uIiwNCiAgICAicm91dGVfaWQiOiAgInJvdXRlLWEtbWVyZ2VkLW9wZW52aW5vIiwNCiAgICAiY29tcG9uZW50IjogICJydW50aW1lIiwNCiAgICAic291cmNlX2NvbW1pdCI6ICAiYjlhMWYyMDFjMTA5ZTBiZWQ3NDc2MzkzNGY3OTQ4M2NmNmM0Y2JmNCIsDQogICAgInN0YXR1cyI6ICAiUGFzc2VkIiwNCiAgICAicmVhc29ucyI6ICBbDQogICAgICAgICAgICAgICAgICAgICJUaGUgZXhhY3QgcGlubmVkIFJvdXRlIEEgT3BlblZJTk8gUnVudGltZSByZXN1bWVkIGZyb20gdGhlIGluZGVwZW5kZW50bHkgdmFsaWRhdGVkIHRpbWVvdXQgd29ya3NwYWNlLCBjb21wbGV0ZWQgaXRzIGluY3JlbWVudGFsIGJ1aWxkIGFuZCBpbnN0YWxsLCByZXRhaW5lZCBib3RoIHJlcXVpcmVkIEdlbkFJIGZyb250ZW5kIGhlYWRlcnMsIGFuZCBwcm9kdWNlZCBoYXNoYWJsZSBvdXRwdXRzLiBObyBtb2RlbCBvciBzY2llbnRpZmljIGNsYWltIGlzIGF1dGhvcmlzZWQuIg0KICAgICAgICAgICAgICAgIF0sDQogICAgInJlcXVpcmVkX2NvbXBvbmVudHMiOiAgWw0KDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgXSwNCiAgICAiZ3Jhbml0ZV9tb2RlbF90ZXN0X2F1dGhvcmlzZWQiOiAgZmFsc2UsDQogICAgImFjdGl2YXRpb25fY2xhaW1fYXV0aG9yaXNlZCI6ICBmYWxzZSwNCiAgICAicGFja2VkX3N0b3JhZ2VfY2xhaW1fYXV0aG9yaXNlZCI6ICBmYWxzZSwNCiAgICAicGVyZm9ybWFuY2VfY2xhaW1fYXV0aG9yaXNlZCI6ICBmYWxzZSwNCiAgICAicXVhbGl0eV9jbGFpbV9hdXRob3Jpc2VkIjogIGZhbHNlDQp9Cg=="
 )
@@ -82,7 +98,7 @@ def _rewrite_decision(path: Path, mutate) -> str:
 
 class Phase3PrerequisiteTests(unittest.TestCase):
     def test_exact_prerequisites_produce_schema_valid_proof(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             proof = verify_prerequisites(**fixture.as_kwargs())
 
@@ -95,21 +111,21 @@ class Phase3PrerequisiteTests(unittest.TestCase):
             )
 
     def test_changed_runtime_decision_is_integrity_failure(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             fixture.runtime_decision.write_text("{}", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Runtime decision SHA-256 mismatch"):
                 verify_prerequisites(**fixture.as_kwargs())
 
     def test_changed_genai_decision_is_integrity_failure(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             fixture.genai_decision.write_text("{}", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "GenAI decision SHA-256 mismatch"):
                 verify_prerequisites(**fixture.as_kwargs())
 
     def test_wrong_runtime_source_commit_is_rejected_after_hash_check(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             digest = _rewrite_decision(
                 fixture.runtime_decision,
@@ -120,7 +136,7 @@ class Phase3PrerequisiteTests(unittest.TestCase):
                     verify_prerequisites(**fixture.as_kwargs())
 
     def test_wrong_genai_source_commit_is_rejected_after_hash_check(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             digest = _rewrite_decision(
                 fixture.genai_decision,
@@ -131,7 +147,7 @@ class Phase3PrerequisiteTests(unittest.TestCase):
                     verify_prerequisites(**fixture.as_kwargs())
 
     def test_later_claim_authorisation_is_rejected_after_hash_check(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             digest = _rewrite_decision(
                 fixture.runtime_decision,
@@ -142,21 +158,21 @@ class Phase3PrerequisiteTests(unittest.TestCase):
                     verify_prerequisites(**fixture.as_kwargs())
 
     def test_missing_openvino_config_is_rejected(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             (fixture.runtime_install / "runtime" / "cmake" / "OpenVINOConfig.cmake").unlink()
             with self.assertRaisesRegex(ValueError, "Required Runtime file is missing"):
                 verify_prerequisites(**fixture.as_kwargs())
 
     def test_missing_genai_dll_is_rejected(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             (fixture.genai_install / "runtime" / "bin" / "intel64" / "Release" / "openvino_genai.dll").unlink()
             with self.assertRaisesRegex(ValueError, "Required GenAI file is missing"):
                 verify_prerequisites(**fixture.as_kwargs())
 
     def test_reparse_point_install_is_rejected(self) -> None:
-        with TemporaryDirectory() as directory:
+        with _fixture_directory() as directory:
             fixture = make_valid_prerequisite_fixture(directory)
             link = Path(directory) / "runtime-link"
             try:
