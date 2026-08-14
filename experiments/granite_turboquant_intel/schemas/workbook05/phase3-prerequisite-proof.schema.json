@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/workbook05/phase3-prerequisite-proof.schema.json",
+  "title": "Workbook 05 Phase 3 prerequisite proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "record_type",
+    "route_id",
+    "generated_at_utc",
+    "status",
+    "reasons",
+    "runtime",
+    "genai",
+    "granite_model_test_authorised",
+    "activation_claim_authorised",
+    "packed_storage_claim_authorised",
+    "performance_claim_authorised",
+    "quality_claim_authorised"
+  ],
+  "$defs": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_path",
+        "size_bytes",
+        "sha256"
+      ],
+      "properties": {
+        "relative_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "campaign_id": {
+      "const": "GTQ-WB05-MF-v1"
+    },
+    "record_type": {
+      "const": "prerequisite-proof"
+    },
+    "route_id": {
+      "const": "route-a-merged-openvino"
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 20
+    },
+    "status": {
+      "const": "Passed"
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "install_path",
+        "decision_path",
+        "decision_sha256",
+        "source_commit",
+        "decision_status",
+        "required_files"
+      ],
+      "properties": {
+        "component": {
+          "const": "runtime"
+        },
+        "install_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
+        },
+        "decision_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
+        },
+        "decision_sha256": {
+          "const": "5dae00b38edb9a20f2d82a99dcf4cd1e2d4e7aeaaf6984873ccc55abccf3ae38"
+        },
+        "source_commit": {
+          "const": "b9a1f201c109e0bed74763934f79483cf6c4cbf4"
+        },
+        "decision_status": {
+          "const": "Passed"
+        },
+        "required_files": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/fileRecord"
+          }
+        }
+      }
+    },
+    "genai": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "install_path",
+        "decision_path",
+        "decision_sha256",
+        "source_commit",
+        "decision_status",
+        "required_files"
+      ],
+      "properties": {
+        "component": {
+          "const": "genai"
+        },
+        "install_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
+        },
+        "decision_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
+        },
+        "decision_sha256": {
+          "const": "0f273e1f345e1512e8e159af9b83f9ad521a26aa5e0ae813f2599161a5cb4a79"
+        },
+        "source_commit": {
+          "const": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0"
+        },
+        "decision_status": {
+          "const": "Passed"
+        },
+        "required_files": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/fileRecord"
+          }
+        }
+      }
+    },
+    "granite_model_test_authorised": {
+      "const": false
+    },
+    "activation_claim_authorised": {
+      "const": false
+    },
+    "packed_storage_claim_authorised": {
+      "const": false
+    },
+    "performance_claim_authorised": {
+      "const": false
+    },
+    "quality_claim_authorised": {
+      "const": false
+    }
+  }
+}

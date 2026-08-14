@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "record_type": "prerequisite-proof",
+  "route_id": "route-a-merged-openvino",
+  "generated_at_utc": "2026-08-13T00:00:00Z",
+  "status": "Passed",
+  "reasons": [
+    "Template record; not live evidence."
+  ],
+  "runtime": {
+    "component": "runtime",
+    "install_path": "C:\\w5a\\phase2-31391119557-4\\i-ov",
+    "decision_path": "C:\\w5a\\accepted-route-a-runtime-31656417607-1\\decision.json",
+    "decision_sha256": "5dae00b38edb9a20f2d82a99dcf4cd1e2d4e7aeaaf6984873ccc55abccf3ae38",
+    "source_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+    "decision_status": "Passed",
+    "required_files": [
+      {
+        "relative_path": "runtime/cmake/OpenVINOConfig.cmake",
+        "size_bytes": 1,
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "relative_path": "runtime/include/openvino/frontend/onnx/extension/conversion.hpp",
+        "size_bytes": 1,
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      {
+        "relative_path": "runtime/include/openvino/frontend/tensorflow/extension/conversion.hpp",
+        "size_bytes": 1,
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+      }
+    ]
+  },
+  "genai": {
+    "component": "genai",
+    "install_path": "C:\\w5a\\phase2-31661571860-1\\i-genai",
+    "decision_path": "C:\\w5a\\accepted-route-a-genai-31661571860-1\\decision.json",
+    "decision_sha256": "0f273e1f345e1512e8e159af9b83f9ad521a26aa5e0ae813f2599161a5cb4a79",
+    "source_commit": "bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0",
+    "decision_status": "Passed",
+    "required_files": [
+      {
+        "relative_path": "runtime/bin/intel64/Release/openvino_genai.dll",
+        "size_bytes": 1,
+        "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      {
+        "relative_path": "runtime/bin/intel64/Release/openvino_genai_c.dll",
+        "size_bytes": 1,
+        "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      {
+        "relative_path": "runtime/bin/intel64/Release/openvino_tokenizers.dll",
+        "size_bytes": 1,
+        "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      {
+        "relative_path": "python/openvino_genai/py_openvino_genai.cp312-win_amd64.pyd",
+        "size_bytes": 1,
+        "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      }
+    ]
+  },
+  "granite_model_test_authorised": false,
+  "activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false
+}

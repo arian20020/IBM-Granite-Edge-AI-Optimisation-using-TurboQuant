@@ -2,7 +2,7 @@
 
 **Status:** Authoritative C1 correction  
 **Date:** 13 August 2026  
-**Implementation status:** Not started
+**Implementation status:** In progress — offline command construction and conversion-record validation are implemented; the clean Windows dependency preflight remains pending
 
 This decision replaces the illustrative C1 conversion dependency versions. The earlier example combined `optimum-intel==2.0.0` with versions that its own dependency constraints cannot resolve. Implementation must not copy that example into a live environment.
 

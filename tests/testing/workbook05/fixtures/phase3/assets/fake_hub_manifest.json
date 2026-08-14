@@ -1,0 +1,17 @@
+{
+  "repository": "ibm-granite/granite-4.1-3b",
+  "requested_revision": "main",
+  "resolved_revision": "bef400f943f2fcf440cf1d4c38c6f844e2d4a387",
+  "siblings": [
+    ".gitattributes",
+    "README.md",
+    "config.json",
+    "generation_config.json",
+    "model.safetensors.index.json",
+    "model-00001-of-00002.safetensors",
+    "model-00002-of-00002.safetensors",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "tokenizer_config.json"
+  ]
+}

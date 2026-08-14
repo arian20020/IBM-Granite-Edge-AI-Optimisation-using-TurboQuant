@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/workbook05/model-asset-lock.schema.json",
+  "title": "Workbook 05 immutable model asset lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "record_type",
+    "route_id",
+    "asset_id",
+    "asset_role",
+    "source",
+    "declared_model_metadata",
+    "source_directory",
+    "converted_directory",
+    "source_files",
+    "tokenizer_files",
+    "conversion_record_path",
+    "converted_files",
+    "aggregate_model_sha256",
+    "aggregate_tokenizer_sha256",
+    "status",
+    "reasons",
+    "granite_model_test_authorised",
+    "activation_claim_authorised",
+    "packed_storage_claim_authorised",
+    "performance_claim_authorised",
+    "quality_claim_authorised"
+  ],
+  "$defs": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relative_path",
+        "size_bytes",
+        "sha256"
+      ],
+      "properties": {
+        "relative_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "campaign_id": {
+      "const": "GTQ-WB05-MF-v1"
+    },
+    "record_type": {
+      "const": "model-asset-lock"
+    },
+    "route_id": {
+      "const": "route-a-merged-openvino"
+    },
+    "asset_id": {
+      "type": "string",
+      "pattern": "^MODEL-WB05-[A-Z0-9-]+$"
+    },
+    "asset_role": {
+      "enum": [
+        "diagnostic",
+        "granite-3b",
+        "granite-8b-metadata"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "requested_revision",
+        "resolved_revision",
+        "license"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "requested_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40,64}$"
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "declared_model_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_family",
+        "layers",
+        "kv_heads",
+        "declared_sequence_length",
+        "observed_runtime_capability"
+      ],
+      "properties": {
+        "parameter_family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layers": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kv_heads": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "declared_sequence_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_runtime_capability": {
+          "const": false
+        }
+      }
+    },
+    "source_directory": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[A-Za-z]:\\\\"
+    },
+    "converted_directory": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[A-Za-z]:\\\\"
+    },
+    "source_files": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/fileRecord"
+      }
+    },
+    "tokenizer_files": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/fileRecord"
+      }
+    },
+    "conversion_record_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+    },
+    "converted_files": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/fileRecord"
+      }
+    },
+    "aggregate_model_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "aggregate_tokenizer_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "Candidate",
+        "Accepted",
+        "Failed",
+        "Blocked",
+        "IntegrityFailure",
+        "Deferred"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "granite_model_test_authorised": {
+      "const": false
+    },
+    "activation_claim_authorised": {
+      "const": false
+    },
+    "packed_storage_claim_authorised": {
+      "const": false
+    },
+    "performance_claim_authorised": {
+      "const": false
+    },
+    "quality_claim_authorised": {
+      "const": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "asset_role": {
+            "const": "granite-3b"
+          }
+        },
+        "required": [
+          "asset_role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "asset_id": {
+            "const": "MODEL-WB05-GRANITE41-3B-INT4A-G128-R100"
+          },
+          "source": {
+            "properties": {
+              "repository": {
+                "const": "ibm-granite/granite-4.1-3b"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "Accepted"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source_files": {
+            "minItems": 1
+          },
+          "tokenizer_files": {
+            "minItems": 1
+          },
+          "converted_files": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}
