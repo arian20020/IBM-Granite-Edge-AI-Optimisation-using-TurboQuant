@@ -776,6 +776,10 @@ public sealed class ModelInspectionFixtureScreenContractTests
                    fractionless.Page))
         {
             await fractionless.RunAsync();
+            Assert.AreEqual(
+                string.Empty,
+                DirectStageFractionText(fractionless.Page, 0).Text,
+                "MI-014 progress row 0 must display no percentage.");
             ModelInspectionObservedScreen observed =
                 await observation.CaptureAsync(CancellationToken.None);
             Assert.IsNull(observed.Content.Rows[0].StageFraction,
@@ -787,6 +791,10 @@ public sealed class ModelInspectionFixtureScreenContractTests
                new ModelInspectionFixtureScreenObserver().Begin(bounded.Page))
         {
             await bounded.RunAsync();
+            Assert.AreEqual(
+                "75%",
+                DirectStageFractionText(bounded.Page, 1).Text,
+                "MI-028 progress row 1 must display its bounded percentage.");
             ModelInspectionObservedScreen observed =
                 await observation.CaptureAsync(CancellationToken.None);
             Assert.IsNotNull(observed.Content.Rows[1].StageFraction);
@@ -795,6 +803,27 @@ public sealed class ModelInspectionFixtureScreenContractTests
                 observed.Content.Rows[1].StageFraction!.Value,
                 0d,
                 "MI-028 progress row 1 must expose its exact bounded fraction.");
+
+            TextBlock fractionText = DirectStageFractionText(
+                bounded.Page,
+                1);
+            fractionText.Text = "75\0%";
+            observed = await observation.CaptureAsync(CancellationToken.None);
+            Assert.IsNull(
+                observed.Content.Rows[1].StageFraction,
+                "Malformed percentage text must not project a fraction.");
+
+            fractionText.Text = "101%";
+            observed = await observation.CaptureAsync(CancellationToken.None);
+            Assert.IsNull(
+                observed.Content.Rows[1].StageFraction,
+                "Out-of-range percentage text must not project a fraction.");
+
+            DirectStageFractionText(bounded.Page, 0).Text = "75%";
+            observed = await observation.CaptureAsync(CancellationToken.None);
+            Assert.IsNull(
+                observed.Content.Rows[0].StageFraction,
+                "A non-Active row must not project percentage text.");
         }
     }
 
@@ -1787,8 +1816,7 @@ public sealed class ModelInspectionFixtureScreenContractTests
             screen.Content.Rows[1].StageFraction?.ToString(
                 "R",
                 CultureInfo.InvariantCulture) ?? "<null>", page =>
-            Find<ProgressRing>(FirstProgressRow(page, 1),
-                ring => ring.Visibility == Visibility.Visible).Value = 10d),
+            DirectStageFractionText(page, 1).Text = "10%"),
         new("MI-002", "action-mode", screen => screen.Actions.Mode, page =>
         {
             FindNamed<Border>(page, "ResultView").Visibility =
@@ -1835,6 +1863,16 @@ public sealed class ModelInspectionFixtureScreenContractTests
             .TryGetElement(index) as FrameworkElement ??
         throw new InvalidOperationException(
             $"Progress row {index} was not realized.");
+
+    private static TextBlock DirectStageFractionText(
+        ModelInspectionPage page,
+        int index)
+    {
+        FrameworkElement row = FirstProgressRow(page, index);
+        return Find<TextBlock>(row, text =>
+            Grid.GetColumn(text) == 3 &&
+            ReferenceEquals(VisualTreeHelper.GetParent(text), row));
+    }
 
     private static IEnumerable<T> DescendantsForMutation<T>(
         DependencyObject root)

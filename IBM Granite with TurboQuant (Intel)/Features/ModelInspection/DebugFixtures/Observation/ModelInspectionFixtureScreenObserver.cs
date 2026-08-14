@@ -14,6 +14,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -828,11 +829,39 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 return null;
             }
 
-            ProgressRing? ring = Descendants<ProgressRing>(element)
-                .SingleOrDefault(value => value.Visibility == Visibility.Visible);
-            return ring is null || ring.IsIndeterminate
-                ? null
-                : ring.Value / 100d;
+            TextBlock? fractionText = Descendants<TextBlock>(element)
+                .SingleOrDefault(text =>
+                    Grid.GetColumn(text) == 3 &&
+                    ReferenceEquals(
+                        VisualTreeHelper.GetParent(text),
+                        element) &&
+                    IsVisible(text));
+            string text = fractionText?.Text ?? string.Empty;
+            if (text.Length < 2 || text[^1] != '%')
+            {
+                return null;
+            }
+
+            ReadOnlySpan<char> digits = text.AsSpan(0, text.Length - 1);
+            for (int index = 0; index < digits.Length; index++)
+            {
+                if (digits[index] is < '0' or > '9')
+                {
+                    return null;
+                }
+            }
+
+            if (!int.TryParse(
+                    digits,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out int percent) ||
+                percent is < 0 or > 100)
+            {
+                return null;
+            }
+
+            return percent / 100d;
         }
 
         private ModelInspectionObservedActions ObserveActions()
