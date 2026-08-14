@@ -1,4 +1,8 @@
-# Direct acquisition dependency reviewed for C1.
-# The complete hash-locked environment is generated only by the later
-# dependency-preflight task; this file must never be installed unbounded.
+# Reviewed direct candidate. Do not install without the generated hash lock and accepted preflight.
+optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@a3b6012a4c02f4147260da4d4601bb6a3c0d2bb0
+optimum @ git+https://github.com/huggingface/optimum.git@982e495540364f95da1e4b6f62d2d4e5907d08fd
+transformers==5.5.0
 huggingface-hub==1.21.0
+nncf==3.2.0
+openvino==2026.2.1
+openvino-tokenizers==2026.2.1.0
