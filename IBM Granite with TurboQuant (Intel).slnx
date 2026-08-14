@@ -6,6 +6,7 @@
   </Configurations>
 
   <Folder Name="/shared/">
+    <Project Path="shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Fixtures/GraniteEdgeAI.ModelInspection.Fixtures.csproj" />
     <Project Path="shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj" />
   </Folder>

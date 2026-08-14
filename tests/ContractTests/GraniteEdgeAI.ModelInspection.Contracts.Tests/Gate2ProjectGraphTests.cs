@@ -39,6 +39,15 @@ public sealed class Gate2ProjectGraphTests
         "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj"
     ];
 
+    private static readonly string[] RequiredApplicationProjectPaths =
+    [
+        "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj",
+        "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj",
+        "shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj",
+        "shared/GraniteEdgeAI.ModelInspection.Fixtures/GraniteEdgeAI.ModelInspection.Fixtures.csproj",
+        "shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj"
+    ];
+
     private static readonly string[] ForbiddenPackageNames =
     [
         "LLamaSharp",
@@ -62,20 +71,24 @@ public sealed class Gate2ProjectGraphTests
     }
 
     /// <summary>
-    /// Requires the solution to expose every Gate 2 project explicitly. This
-    /// prevents a project from building only through an ad-hoc CI path while
-    /// remaining invisible to Visual Studio and normal solution-level review.
+    /// Requires the solution to expose every Gate 2 project and its shared
+    /// contracts dependency explicitly. This prevents a project from building
+    /// only through an ad-hoc CI path while remaining invisible to Visual
+    /// Studio and normal solution-level review.
     /// </summary>
     [TestMethod]
     public void SolutionRegistersEveryApprovedGate2Project()
     {
         XDocument solution = XDocument.Load(Path.Combine(Root, SolutionPath));
 
-        string[] registeredGate2Projects = solution
+        string[] registeredProjects = solution
             .Descendants("Project")
             .Select(project => project.Attribute("Path")?.Value)
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Select(path => NormalizeSeparators(path!))
+            .ToArray();
+
+        string[] registeredGate2Projects = registeredProjects
             .Where(path => ApprovedGate2ProjectPaths.Contains(
                 path,
                 StringComparer.Ordinal))
@@ -90,6 +103,17 @@ public sealed class Gate2ProjectGraphTests
             expectedProjects,
             registeredGate2Projects,
             "The solution must register every approved Gate 2 project exactly once.");
+
+        foreach (string requiredPath in RequiredApplicationProjectPaths)
+        {
+            Assert.AreEqual(
+                1,
+                registeredProjects.Count(path => string.Equals(
+                    path,
+                    requiredPath,
+                    StringComparison.Ordinal)),
+                $"The solution must register application dependency {requiredPath} exactly once.");
+        }
     }
 
     /// <summary>
