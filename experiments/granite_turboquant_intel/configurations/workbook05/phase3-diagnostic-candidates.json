@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "route_id": "route-a-merged-openvino",
+  "candidate_order": [
+    "project-generated-stateful-ir",
+    "source-matched-cpu-sdpa-target",
+    "small-official-text-generation-model"
+  ],
+  "required_runtime_source_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+  "required_backend": "OpenVINO CPU stateful SDPA KV-cache path",
+  "path_equivalent_requirements": [
+    "exact accepted Runtime source identity",
+    "stateful execution observed",
+    "CPU SDPA path observed",
+    "KV-cache use observed",
+    "fallback absence observed",
+    "digest-bound trace evidence"
+  ],
+  "model_execution_authorised": false,
+  "codec_activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false,
+  "notes": [
+    "Successful text generation alone is HarnessOnly.",
+    "PathEquivalent does not itself prove scalar or TurboQuant codec activation."
+  ]
+}
