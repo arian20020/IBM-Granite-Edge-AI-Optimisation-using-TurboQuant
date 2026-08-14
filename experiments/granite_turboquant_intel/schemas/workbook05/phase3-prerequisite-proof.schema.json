@@ -92,10 +92,14 @@
           "const": "runtime"
         },
         "install_path": {
-          "const": "C:\\w5a\\phase2-31391119557-4\\i-ov"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
         },
         "decision_path": {
-          "const": "C:\\w5a\\accepted-route-a-runtime-31656417607-1\\decision.json"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
         },
         "decision_sha256": {
           "const": "5dae00b38edb9a20f2d82a99dcf4cd1e2d4e7aeaaf6984873ccc55abccf3ae38"
@@ -133,10 +137,14 @@
           "const": "genai"
         },
         "install_path": {
-          "const": "C:\\w5a\\phase2-31661571860-1\\i-genai"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
         },
         "decision_path": {
-          "const": "C:\\w5a\\accepted-route-a-genai-31661571860-1\\decision.json"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:[A-Za-z]:\\\\|/)"
         },
         "decision_sha256": {
           "const": "0f273e1f345e1512e8e159af9b83f9ad521a26aa5e0ae813f2599161a5cb4a79"
