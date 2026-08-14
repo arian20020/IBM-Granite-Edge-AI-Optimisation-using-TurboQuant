@@ -1,0 +1,26 @@
+# Normal distributions required by the two immutable VCS packages and the C1
+# conversion/evidence tools. This file is compiled only on clean Windows Python
+# 3.12.10. The resulting requirements.phase3-assets.txt must use exact versions
+# and SHA-256 hashes for every ordinary artifact.
+#
+# The two VCS projects are intentionally absent. They are installed separately
+# with --no-deps from their reviewed full Git commits and source-tree manifests.
+
+# Exact reviewed direct normal packages.
+transformers==5.5.0
+huggingface-hub==1.21.0
+nncf==3.2.0
+openvino==2026.2.1
+openvino-tokenizers==2026.2.1.0
+
+# Combined requirements declared by the pinned Optimum and Optimum Intel source.
+torch>=2.1
+safetensors<0.8.0
+requests>=2.33,<3.0
+packaging
+numpy
+setuptools
+wheel
+
+# Repository-controlled evidence validation dependency.
+jsonschema==4.25.1
