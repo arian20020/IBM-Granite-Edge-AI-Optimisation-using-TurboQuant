@@ -60,18 +60,33 @@ internal sealed class LlamaSharpInspectionEngine(
                 ResolveIntegrityPrecedence(runtimeResult);
             if (integrityFailure is not null)
             {
-                state.Finish(WorkerStageStatus.Failed);
+                if (!state.Finish(WorkerStageStatus.Failed))
+                {
+                    throw new InvalidOperationException(
+                        "The progress observer rejected a terminal update.");
+                }
+
                 return integrityFailure;
             }
 
             switch (runtimeResult.CompletionStatus)
             {
                 case VocabOnlyProbeCompletionStatus.Cancelled:
-                    state.Finish(WorkerStageStatus.Cancelled);
+                    if (!state.Finish(WorkerStageStatus.Cancelled))
+                    {
+                        throw new InvalidOperationException(
+                            "The progress observer rejected a terminal update.");
+                    }
+
                     return WorkerEngineResult.Cancelled();
 
                 case VocabOnlyProbeCompletionStatus.Failed:
-                    state.Finish(WorkerStageStatus.Failed);
+                    if (!state.Finish(WorkerStageStatus.Failed))
+                    {
+                        throw new InvalidOperationException(
+                            "The progress observer rejected a terminal update.");
+                    }
+
                     return MapFailure(runtimeResult.FailureCode);
 
                 case VocabOnlyProbeCompletionStatus.Succeeded:
@@ -230,6 +245,7 @@ internal sealed class LlamaSharpInspectionEngine(
         private int _nextTransitionIndex;
         private int _completedStageCount;
         private bool _invalid;
+        private bool _progressObserverFailed;
         private bool _runtimeStageActive;
         private bool _finished;
 
@@ -275,10 +291,15 @@ internal sealed class LlamaSharpInspectionEngine(
                     RejectProbeFact();
                 }
 
-                Report(
-                    WorkerStage.ReadModelConfiguration,
-                    WorkerStageStatus.Active,
-                    fraction);
+                if (!TryReport(
+                        WorkerStage.ReadModelConfiguration,
+                        WorkerStageStatus.Active,
+                        fraction,
+                        _completedStageCount))
+                {
+                    RejectProbeFact();
+                }
+
                 return;
             }
 
@@ -300,17 +321,24 @@ internal sealed class LlamaSharpInspectionEngine(
                 RejectProbeFact();
             }
 
+            int nextCompletedStageCount = _completedStageCount;
             if (expectedStatus == VocabOnlyProbePhaseStatus.Completed)
             {
-                _completedStageCount++;
+                nextCompletedStageCount++;
             }
 
-            Report(
-                stage,
-                expectedStatus == VocabOnlyProbePhaseStatus.Active
-                    ? WorkerStageStatus.Active
-                    : WorkerStageStatus.Completed,
-                stageFraction: null);
+            if (!TryReport(
+                    stage,
+                    expectedStatus == VocabOnlyProbePhaseStatus.Active
+                        ? WorkerStageStatus.Active
+                        : WorkerStageStatus.Completed,
+                    stageFraction: null,
+                    nextCompletedStageCount))
+            {
+                RejectProbeFact();
+            }
+
+            _completedStageCount = nextCompletedStageCount;
             _nextTransitionIndex++;
         }
 
@@ -327,11 +355,16 @@ internal sealed class LlamaSharpInspectionEngine(
                     RejectProbeFact();
                 }
 
+                if (!TryReport(
+                        WorkerStage.ConfirmCoreRuntimeCompatibility,
+                        WorkerStageStatus.Active,
+                        stageFraction: null,
+                        _completedStageCount))
+                {
+                    RejectProbeFact();
+                }
+
                 _runtimeStageActive = true;
-                Report(
-                    WorkerStage.ConfirmCoreRuntimeCompatibility,
-                    WorkerStageStatus.Active,
-                    stageFraction: null);
             }
         }
 
@@ -347,35 +380,51 @@ internal sealed class LlamaSharpInspectionEngine(
                     RejectProbeFact();
                 }
 
+                if (!TryReport(
+                        WorkerStage.ConfirmCoreRuntimeCompatibility,
+                        WorkerStageStatus.Completed,
+                        stageFraction: null,
+                        completedStageCount: 5))
+                {
+                    RejectProbeFact();
+                }
+
                 _completedStageCount = 5;
-                Report(
-                    WorkerStage.ConfirmCoreRuntimeCompatibility,
-                    WorkerStageStatus.Completed,
-                    stageFraction: null);
                 _runtimeStageActive = false;
                 _finished = true;
             }
         }
 
-        internal void Finish(WorkerStageStatus status)
+        internal bool Finish(WorkerStageStatus status)
         {
             lock (_sync)
             {
                 if (_finished)
                 {
-                    return;
+                    return !_progressObserverFailed;
                 }
 
                 int stageNumber = Math.Clamp(
                     _completedStageCount + 1,
                     (int)WorkerStage.CheckModelPackage,
                     (int)WorkerStage.ConfirmCoreRuntimeCompatibility);
-                Report(
-                    (WorkerStage)stageNumber,
-                    status,
-                    stageFraction: null);
-                _runtimeStageActive = false;
-                _finished = true;
+                bool reported;
+
+                try
+                {
+                    reported = TryReport(
+                        (WorkerStage)stageNumber,
+                        status,
+                        stageFraction: null,
+                        _completedStageCount);
+                }
+                finally
+                {
+                    _runtimeStageActive = false;
+                    _finished = true;
+                }
+
+                return reported && !_progressObserverFailed;
             }
         }
 
@@ -387,10 +436,11 @@ internal sealed class LlamaSharpInspectionEngine(
                 "The runtime reported an invalid probe phase transition.");
         }
 
-        private void Report(
+        private bool TryReport(
             WorkerStage stage,
             WorkerStageStatus status,
-            double? stageFraction)
+            double? stageFraction,
+            int completedStageCount)
         {
             var message = new WorkerProgressMessage
             {
@@ -399,12 +449,23 @@ internal sealed class LlamaSharpInspectionEngine(
                 RequestId = requestId,
                 Stage = stage,
                 StageStatus = status,
-                CompletedStageCount = _completedStageCount,
+                CompletedStageCount = completedStageCount,
                 TotalStageCount = 5,
                 StageFraction = stageFraction
             };
             message.Validate();
-            progress?.Report(message);
+
+            try
+            {
+                progress?.Report(message);
+                return true;
+            }
+            catch
+            {
+                _progressObserverFailed = true;
+                _invalid = true;
+                return false;
+            }
         }
     }
 }

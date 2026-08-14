@@ -194,16 +194,14 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                             VocabOnlyProbePhase.ReadModelConfiguration,
                             async () =>
                             {
-                                operationCancellation.Token
-                                    .ThrowIfCancellationRequested();
+                                operationCancellation.Token.ThrowIfCancellationRequested();
                                 CpuNativeRuntimeConfiguration.Configure(logs);
 
                                 bool nativeBackendAvailable =
                                     NativeLibraryConfig.LLama.DryRun(
                                         out INativeLibrary? selectedLibrary);
 
-                                operationCancellation.Token
-                                    .ThrowIfCancellationRequested();
+                                operationCancellation.Token.ThrowIfCancellationRequested();
                                 selectedBackend =
                                     CpuNativeRuntimeConfiguration.Describe(
                                         selectedLibrary);
@@ -245,6 +243,7 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                             nativeLoadCancellation.Token,
                                             progressRecorder)
                                         .ConfigureAwait(false);
+                                    nativeLoadCancellation.Token.ThrowIfCancellationRequested();
 
                                     loadStopwatch.Stop();
                                     loadDurationMilliseconds =
@@ -254,8 +253,11 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                     workingSetAfterLoadBytes =
                                         process.WorkingSet64;
 
-                                    return VocabOnlyEvidenceCollector
-                                        .CollectConfiguration(weights);
+                                    VocabOnlyConfigurationProjection projection =
+                                        VocabOnlyEvidenceCollector
+                                            .CollectConfiguration(weights);
+                                    nativeLoadCancellation.Token.ThrowIfCancellationRequested();
+                                    return projection;
                                 }
                                 finally
                                 {
@@ -263,6 +265,7 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                 }
                             })
                         .ConfigureAwait(false);
+                operationCancellation.Token.ThrowIfCancellationRequested();
 
                 LLamaWeights loadedWeights = weights ??
                     throw new InvalidDataException(
@@ -270,8 +273,16 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                 VocabOnlyTokenizerProjection tokenizer =
                     phaseSequence.Run(
                         VocabOnlyProbePhase.ValidateTokenizerAndChatSetup,
-                        () => VocabOnlyEvidenceCollector.CollectTokenizerAndChat(
-                            loadedWeights));
+                        () =>
+                        {
+                            operationCancellation.Token.ThrowIfCancellationRequested();
+                            VocabOnlyTokenizerProjection projection =
+                                VocabOnlyEvidenceCollector.CollectTokenizerAndChat(
+                                    loadedWeights);
+                            operationCancellation.Token.ThrowIfCancellationRequested();
+                            return projection;
+                        });
+                operationCancellation.Token.ThrowIfCancellationRequested();
 
                 await phaseSequence.RunAsync(
                         VocabOnlyProbePhase.ValidateModelStructure,
@@ -284,6 +295,7 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                             {
                                 try
                                 {
+                                    operationCancellation.Token.ThrowIfCancellationRequested();
                                     VocabOnlyStructureProjection structure =
                                         VocabOnlyEvidenceCollector.CollectStructure(
                                             loadedWeights);
@@ -292,6 +304,7 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                             configuration,
                                             tokenizer,
                                             structure);
+                                    operationCancellation.Token.ThrowIfCancellationRequested();
                                 }
                                 catch (Exception exception)
                                 {
@@ -364,6 +377,8 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                                 stageFailure.Throw();
                             }
 
+                            operationCancellation.Token.ThrowIfCancellationRequested();
+
                             if (!integrityVerified ||
                                 integrity is null ||
                                 !integrity.IsPreserved)
@@ -374,6 +389,7 @@ public sealed class VocabOnlyModelProbe : IVocabOnlyModelProbe
                             return true;
                         })
                     .ConfigureAwait(false);
+                operationCancellation.Token.ThrowIfCancellationRequested();
 
                 completionStatus = VocabOnlyProbeCompletionStatus.Succeeded;
             }

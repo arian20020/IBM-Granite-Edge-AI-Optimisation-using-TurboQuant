@@ -173,6 +173,50 @@ public sealed class VocabOnlyCollectorSourceContractTests
             "throw new NativeBackendUnavailableException();",
             unavailableCheck,
             structurePhase);
+
+        Assert.AreEqual(
+            3,
+            CountOccurrences(
+                probe[probe.IndexOf(
+                    "VocabOnlyProbePhase.ReadModelConfiguration",
+                    StringComparison.Ordinal)..tokenizerPhase],
+                "operationCancellation.Token.ThrowIfCancellationRequested();"),
+            "Stage 2 must check before native work, after selection, and after completion.");
+        Assert.AreEqual(
+            3,
+            CountOccurrences(
+                probe[tokenizerPhase..structurePhase],
+                "operationCancellation.Token.ThrowIfCancellationRequested();"),
+            "Stage 3 must check before/after tokenizer work and after completion.");
+        Assert.AreEqual(
+            3,
+            CountOccurrences(
+                probe[stageFourBodyStart..stageFourBodyEnd],
+                "operationCancellation.Token.ThrowIfCancellationRequested();"),
+            "Stage 4 must check before/after structure work and after cleanup.");
+
+        int successfulCompletion = probe.IndexOf(
+            "completionStatus = VocabOnlyProbeCompletionStatus.Succeeded;",
+            stageFourBodyEnd,
+            StringComparison.Ordinal);
+        AssertBetween(
+            probe,
+            "operationCancellation.Token.ThrowIfCancellationRequested();",
+            stageFourBodyEnd,
+            successfulCompletion);
+
+        int nativeLoad = probe.IndexOf(
+            ".LoadFromFileAsync(",
+            StringComparison.Ordinal);
+        int configurationCollection = probe.IndexOf(
+            ".CollectConfiguration(",
+            nativeLoad,
+            StringComparison.Ordinal);
+        AssertBetween(
+            probe,
+            "nativeLoadCancellation.Token.ThrowIfCancellationRequested();",
+            nativeLoad,
+            configurationCollection);
     }
 
     private static void AssertBetween(
@@ -209,5 +253,22 @@ public sealed class VocabOnlyCollectorSourceContractTests
 
         Assert.Fail("The Stage 4 delegate has no matching closing brace.");
         return -1;
+    }
+
+    private static int CountOccurrences(string source, string expression)
+    {
+        int count = 0;
+        int startIndex = 0;
+
+        while ((startIndex = source.IndexOf(
+                   expression,
+                   startIndex,
+                   StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            startIndex += expression.Length;
+        }
+
+        return count;
     }
 }

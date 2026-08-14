@@ -244,6 +244,135 @@ public sealed class LlamaSharpInspectionEngineTests
                 "The model inspection runtime could not produce reliable evidence.");
             AssertNoSecret(result, command.ModelPath);
         }
+
+        var progressProbe = new FakeProbe(
+            (runtimeProgress, _) =>
+            {
+                ReportSuccessfulProbeProgress(runtimeProgress);
+                return Task.FromResult(CreateValidRuntimeResult(command));
+            });
+        var alwaysThrowingProgress = new ThrowingProgress(
+            throwOnCall: null,
+            alwaysThrow: true,
+            command.ModelPath + ":" + Secret);
+        var progressEngine = new LlamaSharpInspectionEngine(
+            progressProbe,
+            WorkerVersion);
+
+        WorkerEngineResult observerFailure = await progressEngine.InspectAsync(
+            command,
+            alwaysThrowingProgress,
+            CancellationToken.None);
+
+        AssertControlledFailure(
+            observerFailure,
+            "MI-OP-RUNTIME-INSPECTION-FAILED",
+            "The model inspection runtime could not produce reliable evidence.");
+        Assert.AreEqual(2, alwaysThrowingProgress.CallCount);
+        Assert.HasCount(0, alwaysThrowingProgress.Values);
+        AssertNoSecret(observerFailure, command.ModelPath);
+
+        var partialTransitionProbe = new FakeProbe(
+            (runtimeProgress, _) =>
+            {
+                Assert.IsNotNull(runtimeProgress);
+
+                try
+                {
+                    runtimeProgress.Report(
+                        Active(VocabOnlyProbePhase.CheckModelPackage));
+                    runtimeProgress.Report(
+                        Completed(VocabOnlyProbePhase.CheckModelPackage));
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (InvalidDataException)
+                {
+                }
+
+                try
+                {
+                    runtimeProgress.Report(
+                        Active(VocabOnlyProbePhase.ReadModelConfiguration));
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (InvalidDataException)
+                {
+                }
+
+                return Task.FromResult(CreateValidRuntimeResult(command));
+            });
+        var oneShotProgress = new ThrowingProgress(
+            throwOnCall: 2,
+            alwaysThrow: false,
+            command.ModelPath + ":" + Secret);
+        var partialTransitionEngine = new LlamaSharpInspectionEngine(
+            partialTransitionProbe,
+            WorkerVersion);
+
+        WorkerEngineResult partialTransitionFailure =
+            await partialTransitionEngine.InspectAsync(
+                command,
+                oneShotProgress,
+                CancellationToken.None);
+
+        AssertControlledFailure(
+            partialTransitionFailure,
+            "MI-OP-RUNTIME-INSPECTION-FAILED",
+            "The model inspection runtime could not produce reliable evidence.");
+        Assert.AreEqual(3, oneShotProgress.CallCount);
+        AssertProgress(
+            oneShotProgress.Values,
+            command.RequestId,
+            [
+                (WorkerStage.CheckModelPackage,
+                    WorkerStageStatus.Active, 0, null),
+                (WorkerStage.CheckModelPackage,
+                    WorkerStageStatus.Failed, 0, null)
+            ]);
+        AssertNoSecret(partialTransitionFailure, command.ModelPath);
+
+        var terminalFailureProbe = new FakeProbe(
+            (runtimeProgress, _) =>
+            {
+                Assert.IsNotNull(runtimeProgress);
+                runtimeProgress.Report(
+                    Active(VocabOnlyProbePhase.CheckModelPackage));
+                return Task.FromResult(
+                    CreateFailedRuntimeResult(
+                        command,
+                        "MI-OP-MODEL-FILE-IO"));
+            });
+        var terminalOneShotProgress = new ThrowingProgress(
+            throwOnCall: 2,
+            alwaysThrow: false,
+            command.ModelPath + ":" + Secret);
+        var terminalFailureEngine = new LlamaSharpInspectionEngine(
+            terminalFailureProbe,
+            WorkerVersion);
+
+        WorkerEngineResult terminalObserverFailure =
+            await terminalFailureEngine.InspectAsync(
+                command,
+                terminalOneShotProgress,
+                CancellationToken.None);
+
+        AssertControlledFailure(
+            terminalObserverFailure,
+            "MI-OP-RUNTIME-INSPECTION-FAILED",
+            "The model inspection runtime could not produce reliable evidence.");
+        Assert.AreEqual(2, terminalOneShotProgress.CallCount);
+        AssertProgress(
+            terminalOneShotProgress.Values,
+            command.RequestId,
+            [
+                (WorkerStage.CheckModelPackage,
+                    WorkerStageStatus.Active, 0, null)
+            ]);
+        AssertNoSecret(terminalObserverFailure, command.ModelPath);
     }
 
     [TestMethod]
@@ -1120,6 +1249,29 @@ public sealed class LlamaSharpInspectionEngineTests
         internal List<WorkerProgressMessage> Values { get; } = [];
 
         public void Report(WorkerProgressMessage value) => Values.Add(value);
+    }
+
+    private sealed class ThrowingProgress(
+        int? throwOnCall,
+        bool alwaysThrow,
+        string message) : IProgress<WorkerProgressMessage>
+    {
+        internal int CallCount { get; private set; }
+
+        internal List<WorkerProgressMessage> Values { get; } = [];
+
+        public void Report(WorkerProgressMessage value)
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            CallCount++;
+
+            if (alwaysThrow || CallCount == throwOnCall)
+            {
+                throw new InvalidOperationException(message);
+            }
+
+            Values.Add(value);
+        }
     }
 
     private sealed class EventCoordinatedProgress :

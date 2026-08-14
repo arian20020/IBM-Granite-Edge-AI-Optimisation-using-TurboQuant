@@ -179,6 +179,96 @@ public sealed class VocabOnlyModelProbeContinuityTests
         Assert.IsNotNull(callbackFailure.Integrity);
         Assert.IsTrue(callbackFailure.Integrity.IsPreserved);
         Assert.IsNull(callbackFailure.SelectedBackend);
+
+        string fixtureSource = Path.Combine(
+            RepositoryPaths.FindRoot(),
+            "tests",
+            "TestFixtures",
+            "GGUF",
+            "N-001-vocab-only-spm.gguf");
+        string nativeModelPath = directory.Combine("n001-cancellation.gguf");
+        File.Copy(fixtureSource, nativeModelPath);
+        FileInfo nativeFile = GetCurrentFileInfo(nativeModelPath);
+        var nativeRequest = new VocabOnlyProbeRequest(
+            nativeModelPath,
+            nativeFile.Length,
+            ToUtcOffset(nativeFile.LastWriteTimeUtc));
+
+        using var stageTwoCancellation = new CancellationTokenSource();
+        var stageTwoHasher = new TrackingHasher();
+        var stageTwoProgress = new CapturingProgress(
+            value =>
+            {
+                if (value.Phase ==
+                        VocabOnlyProbePhase.ReadModelConfiguration &&
+                    value.Status == VocabOnlyProbePhaseStatus.Active)
+                {
+                    stageTwoCancellation.Cancel();
+                }
+            });
+
+        VocabOnlyModelProbeResult stageTwoCancelled =
+            await CreateProbe(stageTwoHasher).RunAsync(
+                nativeRequest,
+                stageTwoProgress,
+                stageTwoCancellation.Token);
+
+        AssertCancelledWithPreservedIntegrity(
+            stageTwoCancelled,
+            stageTwoHasher);
+        Assert.IsNull(stageTwoCancelled.SelectedBackend);
+        Assert.IsNull(stageTwoCancelled.NativeHandleClosedAfterDispose);
+        AssertCoreProgress(
+            stageTwoProgress.Values,
+            [
+                (VocabOnlyProbePhase.CheckModelPackage,
+                    VocabOnlyProbePhaseStatus.Active),
+                (VocabOnlyProbePhase.CheckModelPackage,
+                    VocabOnlyProbePhaseStatus.Completed),
+                (VocabOnlyProbePhase.ReadModelConfiguration,
+                    VocabOnlyProbePhaseStatus.Active)
+            ]);
+
+        using var stageThreeCancellation = new CancellationTokenSource();
+        var stageThreeHasher = new TrackingHasher();
+        var stageThreeProgress = new CapturingProgress(
+            value =>
+            {
+                if (value.Phase ==
+                        VocabOnlyProbePhase.ValidateTokenizerAndChatSetup &&
+                    value.Status == VocabOnlyProbePhaseStatus.Active)
+                {
+                    stageThreeCancellation.Cancel();
+                }
+            });
+
+        VocabOnlyModelProbeResult stageThreeCancelled =
+            await CreateProbe(stageThreeHasher).RunAsync(
+                nativeRequest,
+                stageThreeProgress,
+                stageThreeCancellation.Token);
+
+        AssertCancelledWithPreservedIntegrity(
+            stageThreeCancelled,
+            stageThreeHasher);
+        Assert.IsNotNull(stageThreeCancelled.SelectedBackend);
+        Assert.IsNotNull(stageThreeCancelled.LoadDurationMilliseconds);
+        Assert.IsTrue(stageThreeCancelled.NativeHandleClosedAfterDispose);
+        Assert.IsNull(stageThreeCancelled.ModelEvidence);
+        AssertCoreProgress(
+            stageThreeProgress.Values,
+            [
+                (VocabOnlyProbePhase.CheckModelPackage,
+                    VocabOnlyProbePhaseStatus.Active),
+                (VocabOnlyProbePhase.CheckModelPackage,
+                    VocabOnlyProbePhaseStatus.Completed),
+                (VocabOnlyProbePhase.ReadModelConfiguration,
+                    VocabOnlyProbePhaseStatus.Active),
+                (VocabOnlyProbePhase.ReadModelConfiguration,
+                    VocabOnlyProbePhaseStatus.Completed),
+                (VocabOnlyProbePhase.ValidateTokenizerAndChatSetup,
+                    VocabOnlyProbePhaseStatus.Active)
+            ]);
     }
 
     private static IVocabOnlyModelProbe CreateProbe(IModelFileHasher hasher) =>
@@ -225,6 +315,42 @@ public sealed class VocabOnlyModelProbeContinuityTests
         Assert.AreEqual(phase, actual.Phase);
         Assert.AreEqual(status, actual.Status);
         Assert.IsNull(actual.NativeFraction);
+    }
+
+    private static void AssertCancelledWithPreservedIntegrity(
+        VocabOnlyModelProbeResult result,
+        TrackingHasher hasher)
+    {
+        Assert.AreEqual(2, hasher.CallCount);
+        Assert.AreEqual(
+            VocabOnlyProbeCompletionStatus.Cancelled,
+            result.CompletionStatus);
+        Assert.AreEqual("MI-PROBE-CANCELLED", result.FailureCode);
+        Assert.IsNotNull(result.BeforeSnapshot);
+        Assert.IsNotNull(result.AfterSnapshot);
+        Assert.IsNotNull(result.Integrity);
+        Assert.IsTrue(result.Integrity.IsPreserved);
+    }
+
+    private static void AssertCoreProgress(
+        IReadOnlyList<VocabOnlyProbeProgress> values,
+        IReadOnlyList<(
+            VocabOnlyProbePhase Phase,
+            VocabOnlyProbePhaseStatus Status)> expected)
+    {
+        VocabOnlyProbeProgress[] actual = values
+            .Where(value =>
+                value.Status != VocabOnlyProbePhaseStatus.Fraction)
+            .ToArray();
+        Assert.AreEqual(expected.Count, actual.Length);
+
+        for (int index = 0; index < expected.Count; index++)
+        {
+            AssertProgress(
+                actual[index],
+                expected[index].Phase,
+                expected[index].Status);
+        }
     }
 
     private sealed class CapturingProgress : IProgress<VocabOnlyProbeProgress>
