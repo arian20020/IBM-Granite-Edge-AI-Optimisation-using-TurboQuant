@@ -1,4 +1,4 @@
-name: Temporary NLLB translation model fetch
+name: Temporary split NLLB translation model fetch
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Download NLLB-200 distilled 600M CTranslate2 INT8 model
+      - name: Download and split NLLB-200 distilled 600M CTranslate2 INT8 model
         shell: bash
         run: |
           set -euo pipefail
@@ -24,18 +24,41 @@ jobs:
             test -s "$name"
           done
           sha256sum model.bin sentencepiece.bpe.model config.json shared_vocabulary.json > SHA256SUMS.txt
-          ls -lh model.bin sentencepiece.bpe.model config.json shared_vocabulary.json SHA256SUMS.txt
+          split -b 300M -d -a 2 model.bin model.bin.part-
+          test "$(find . -maxdepth 1 -name 'model.bin.part-*' | wc -l)" -eq 2
+          cat model.bin.part-00 model.bin.part-01 > model.bin.reassembled
+          cmp model.bin model.bin.reassembled
+          sha256sum model.bin.part-00 model.bin.part-01 > PART-SHA256SUMS.txt
+          ls -lh model.bin.part-00 model.bin.part-01 sentencepiece.bpe.model config.json shared_vocabulary.json SHA256SUMS.txt PART-SHA256SUMS.txt
 
-      - name: Upload NLLB model
+      - name: Upload model part 00
         uses: actions/upload-artifact@v4
         with:
-          name: nllb-200-distilled-600m-ct2-int8
+          name: nllb-model-part-00
+          path: model.bin.part-00
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload model part 01
+        uses: actions/upload-artifact@v4
+        with:
+          name: nllb-model-part-01
+          path: model.bin.part-01
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload tokenizer and verification metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: nllb-model-metadata
           path: |
-            model.bin
             sentencepiece.bpe.model
             config.json
             shared_vocabulary.json
             SHA256SUMS.txt
+            PART-SHA256SUMS.txt
           compression-level: 0
           retention-days: 1
           if-no-files-found: error
