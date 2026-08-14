@@ -10,12 +10,14 @@ from scripts.testing.workbook05.phase3.conversion import (
     OPTIMUM_COMMIT,
     OPTIMUM_INTEL_COMMIT,
     REVIEWED_DIRECT_REQUIREMENTS,
+    REVIEWED_OPTIMUM_INTEL_CONSTRAINTS,
     ConversionFile,
     ConversionPackage,
     ConversionRequest,
     build_optimum_argument_list,
     collect_conversion_record,
     validate_dependency_candidate,
+    validate_optimum_intel_constraints,
 )
 
 
@@ -71,27 +73,27 @@ def _packages() -> tuple[ConversionPackage, ...]:
         ConversionPackage(
             name="transformers",
             version="5.5.0",
-            source_identity="pypi:transformers==5.5.0",
+            source_identity="sha256:" + "1" * 64,
         ),
         ConversionPackage(
             name="huggingface-hub",
             version="1.21.0",
-            source_identity="pypi:huggingface-hub==1.21.0",
+            source_identity="sha256:" + "2" * 64,
         ),
         ConversionPackage(
             name="nncf",
             version="3.2.0",
-            source_identity="pypi:nncf==3.2.0",
+            source_identity="sha256:" + "3" * 64,
         ),
         ConversionPackage(
             name="openvino",
             version="2026.2.1",
-            source_identity="pypi:openvino==2026.2.1",
+            source_identity="sha256:" + "4" * 64,
         ),
         ConversionPackage(
             name="openvino-tokenizers",
             version="2026.2.1.0",
-            source_identity="pypi:openvino-tokenizers==2026.2.1.0",
+            source_identity="sha256:" + "5" * 64,
         ),
     )
 
@@ -135,6 +137,7 @@ def _record(**overrides: object) -> dict[str, object]:
         "resolved_revision": "a" * 40,
         "aggregate_model_sha256": "b" * 64,
         "aggregate_tokenizer_sha256": "c" * 64,
+        "dependency_preflight_status": "Passed",
         "dependency_preflight_record_path": (
             "records/conversion-dependency-preflight.json"
         ),
@@ -173,6 +176,17 @@ class Phase3ConversionTests(unittest.TestCase):
         )
         self.assertEqual(REVIEWED_DIRECT_REQUIREMENTS, lines)
         validate_dependency_candidate(lines)
+
+    def test_pinned_optimum_intel_constraints_match_reviewed_source(self) -> None:
+        validate_optimum_intel_constraints(REVIEWED_OPTIMUM_INTEL_CONSTRAINTS)
+        drifted = tuple(
+            "transformers>=4.51,<6.0"
+            if value == "transformers>=4.51,<5.6"
+            else value
+            for value in REVIEWED_OPTIMUM_INTEL_CONSTRAINTS
+        )
+        with self.assertRaisesRegex(ValueError, "declared constraints"):
+            validate_optimum_intel_constraints(drifted)
 
     def test_superseded_dependency_combination_is_rejected(self) -> None:
         superseded = (
@@ -290,6 +304,23 @@ class Phase3ConversionTests(unittest.TestCase):
             _record(packages=_packages() + (_packages()[0],))
         with self.assertRaisesRegex(ValueError, "duplicate output"):
             _record(output_files=_files() + (_files()[0],))
+
+    def test_conversion_record_requires_passed_dependency_preflight(self) -> None:
+        with self.assertRaisesRegex(ValueError, "dependency preflight"):
+            _record(dependency_preflight_status="Blocked")
+
+    def test_normal_package_source_identity_must_be_a_wheel_digest(self) -> None:
+        packages = list(_packages())
+        packages[2] = ConversionPackage(
+            name="transformers",
+            version="5.5.0",
+            source_identity="pypi:transformers==5.5.0",
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "wheel or source-distribution digest",
+        ):
+            _record(packages=tuple(packages))
 
     def test_dependency_preflight_path_must_be_portable(self) -> None:
         for value in (
