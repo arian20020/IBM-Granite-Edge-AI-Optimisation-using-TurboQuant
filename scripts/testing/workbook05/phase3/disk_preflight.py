@@ -247,7 +247,7 @@ def collect_disk_preflight(
 
     The function inventories four controlled roots and identifies directories
     that look like prior workflow workspaces. It never creates, repairs, reuses,
-    or deletes any filesystem object.
+    deletes, or independently authorises model acquisition.
     """
 
     if isinstance(free_bytes, bool) or not isinstance(free_bytes, int):
@@ -327,6 +327,5 @@ def collect_disk_preflight(
         "candidate_stale_workspaces": candidates,
         "deletion_authorised": False,
         "deletion_performed": False,
-        "granite_3b_download_authorised": status == "Passed",
         "granite_8b_download_authorised": False,
     }
