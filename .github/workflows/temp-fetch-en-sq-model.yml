@@ -1,4 +1,4 @@
-name: Temporary anatomical terminology fetch
+name: Temporary NLLB translation model fetch
 
 on:
   push:
@@ -9,60 +9,33 @@ permissions:
   contents: read
 
 jobs:
-  fetch-terminology:
+  fetch-model:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Fetch Wikidata TA2 and TA98 English-Albanian terminology
+      - name: Download NLLB-200 distilled 600M CTranslate2 INT8 model
         shell: bash
         run: |
           set -euo pipefail
-          cat > ta2.rq <<'EOF'
-          SELECT ?item ?ta2 ?en ?sq ?enAlt ?sqAlt WHERE {
-            ?item wdt:P7173 ?ta2 .
-            ?item rdfs:label ?en . FILTER(LANG(?en) = "en")
-            OPTIONAL { ?item rdfs:label ?sq . FILTER(LANG(?sq) = "sq") }
-            OPTIONAL { ?item skos:altLabel ?enAlt . FILTER(LANG(?enAlt) = "en") }
-            OPTIONAL { ?item skos:altLabel ?sqAlt . FILTER(LANG(?sqAlt) = "sq") }
-          }
-          ORDER BY xsd:integer(?ta2)
-          EOF
-          cat > ta98.rq <<'EOF'
-          SELECT ?item ?ta98 ?latin ?en ?sq ?enAlt ?sqAlt WHERE {
-            ?item wdt:P1323 ?ta98 .
-            OPTIONAL { ?item wdt:P3982 ?latin }
-            ?item rdfs:label ?en . FILTER(LANG(?en) = "en")
-            OPTIONAL { ?item rdfs:label ?sq . FILTER(LANG(?sq) = "sq") }
-            OPTIONAL { ?item skos:altLabel ?enAlt . FILTER(LANG(?enAlt) = "en") }
-            OPTIONAL { ?item skos:altLabel ?sqAlt . FILTER(LANG(?sqAlt) = "sq") }
-          }
-          ORDER BY ?ta98
-          EOF
-          endpoint="https://query.wikidata.org/sparql"
-          agent="Netter-Albanian-terminology-QA/1.0 (personal translation project)"
-          curl --fail --location --retry 5 --retry-delay 5 \
-            -A "$agent" -G "$endpoint" \
-            --data-urlencode query@ta2.rq \
-            -H 'Accept: text/tab-separated-values' \
-            -o wikidata-ta2-en-sq.tsv
-          curl --fail --location --retry 5 --retry-delay 5 \
-            -A "$agent" -G "$endpoint" \
-            --data-urlencode query@ta98.rq \
-            -H 'Accept: text/tab-separated-values' \
-            -o wikidata-ta98-en-sq.tsv
-          test -s wikidata-ta2-en-sq.tsv
-          test -s wikidata-ta98-en-sq.tsv
-          wc -l wikidata-ta2-en-sq.tsv wikidata-ta98-en-sq.tsv
-          sha256sum wikidata-ta2-en-sq.tsv wikidata-ta98-en-sq.tsv > SHA256SUMS.txt
+          base="https://huggingface.co/mijuanlo/nllb-200-distilled-600M-ct2-int8/resolve/main"
+          for name in model.bin sentencepiece.bpe.model config.json shared_vocabulary.json; do
+            curl --fail --location --retry 5 --retry-delay 3 --connect-timeout 30 \
+              "$base/$name?download=true" -o "$name"
+            test -s "$name"
+          done
+          sha256sum model.bin sentencepiece.bpe.model config.json shared_vocabulary.json > SHA256SUMS.txt
+          ls -lh model.bin sentencepiece.bpe.model config.json shared_vocabulary.json SHA256SUMS.txt
 
-      - name: Upload terminology tables
+      - name: Upload NLLB model
         uses: actions/upload-artifact@v4
         with:
-          name: anatomical-terminology-en-sq
+          name: nllb-200-distilled-600m-ct2-int8
           path: |
-            wikidata-ta2-en-sq.tsv
-            wikidata-ta98-en-sq.tsv
+            model.bin
+            sentencepiece.bpe.model
+            config.json
+            shared_vocabulary.json
             SHA256SUMS.txt
-          compression-level: 9
+          compression-level: 0
           retention-days: 1
           if-no-files-found: error
