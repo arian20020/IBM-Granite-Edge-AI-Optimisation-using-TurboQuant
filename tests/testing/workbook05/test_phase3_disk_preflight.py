@@ -51,7 +51,6 @@ class Phase3DiskPreflightTests(unittest.TestCase):
 
         self.assertEqual("Blocked", result["status"])
         self.assertIn("DISK_BELOW_50_GIB", result["failure_ids"])
-        self.assertFalse(result["granite_3b_download_authorised"])
 
     def test_exact_threshold_passes_without_authorising_deletion(self) -> None:
         """Exactly 50 GiB is sufficient, but cleanup remains forbidden."""
@@ -67,9 +66,23 @@ class Phase3DiskPreflightTests(unittest.TestCase):
 
         self.assertEqual("Passed", result["status"])
         self.assertEqual([], result["failure_ids"])
-        self.assertTrue(result["granite_3b_download_authorised"])
         self.assertFalse(result["deletion_authorised"])
         self.assertFalse(result["deletion_performed"])
+
+    def test_disk_preflight_does_not_authorise_model_download(self) -> None:
+        """Passing one preflight must not authorise the multi-gate acquisition."""
+
+        with TemporaryDirectory() as directory:
+            _, model_root, probe_root, run_root = self._make_roots(Path(directory))
+            result = collect_disk_preflight(
+                model_root=model_root,
+                probe_root=probe_root,
+                run_root=run_root,
+                free_bytes=MINIMUM_FREE_BYTES_BEFORE_GRANITE_3B,
+            )
+
+        self.assertNotIn("granite_3b_download_authorised", result)
+        self.assertFalse(result["granite_8b_download_authorised"])
 
     def test_inventory_records_file_counts_and_total_bytes_for_all_four_roots(self) -> None:
         """The evidence must inventory accepted, model, probe and run storage."""
