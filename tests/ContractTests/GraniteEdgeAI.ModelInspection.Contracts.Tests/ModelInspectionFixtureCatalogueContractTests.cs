@@ -724,11 +724,19 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
                 oracle.CancelRequested ? "model-card" : "cancel",
                 expected.Focus.Target,
                 oracle.Id);
-            Assert.AreEqual(1, expected.Announcements.Count, oracle.Id);
-            Assert.HasCount(1, expected.Announcements.Items, oracle.Id);
+            Assert.AreEqual(2, expected.Announcements.Count, oracle.Id);
+            Assert.HasCount(2, expected.Announcements.Items, oracle.Id);
+            Assert.AreEqual(
+                "fixture.announcement.starting",
+                expected.Announcements.Items[0].CopyKey,
+                oracle.Id);
+            Assert.AreEqual(
+                "Model inspection is starting.",
+                expected.Announcements.Items[0].DefaultText,
+                oracle.Id);
             (string detailKey, string detailText) = ProgressDetail(oracle.Stage);
-            Assert.AreEqual(detailKey, expected.Announcements.Items[0].CopyKey, oracle.Id);
-            Assert.AreEqual(detailText, expected.Announcements.Items[0].DefaultText, oracle.Id);
+            Assert.AreEqual(detailKey, expected.Announcements.Items[1].CopyKey, oracle.Id);
+            Assert.AreEqual(detailText, expected.Announcements.Items[1].DefaultText, oracle.Id);
             CollectionAssert.AreEqual(rowIds,
                 expected.RowsAndScroll.OrderedRowIds.ToArray(), oracle.Id);
             Assert.AreEqual("progress-list", expected.RowsAndScroll.ScrollOwner, oracle.Id);
@@ -786,7 +794,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
         Assert.AreEqual(2, fractional.Input.Attempts[0].ServiceSteps.Count(step =>
             step.Effect.Progress?.Stage ==
                 ModelInspectionFixtureStage.ReadModelConfiguration));
-        Assert.AreEqual(1, fractional.Expected.Announcements.Count);
+        Assert.AreEqual(2, fractional.Expected.Announcements.Count);
     }
 
     [TestMethod]
@@ -1440,7 +1448,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             (0, 0), (1, 1), (2, 2), (6, 7), (7, 8), (1, 1), (2, 2),
             (1, 1), (1, 1), (1, 1), (2, 2), (3, 3), (1, 1), (2, 2),
             (1, 1), (3, 3), (2, 2), (4, 4), (3, 3), (5, 5), (4, 4),
-            (6, 6), (5, 5), (2, 2), (3, 3), (4, 4), (5, 5), (4, 4),
+            (6, 6), (5, 5), (2, 2), (3, 3), (4, 4), (5, 5), (3, 3),
             (3, 3), (3, 3), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2),
             (2, 2), (1, 1), (1, 1), (1, 1), (1, 1), (1, 1), (1, 1),
             (1, 1), (1, 1), (2, 2), (7, 8), (2, 2), (3, 3), (1, 1)

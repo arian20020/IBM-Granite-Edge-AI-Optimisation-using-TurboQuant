@@ -13,6 +13,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls;
 
 public sealed partial class InspectionContentCard : UserControl
 {
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+    private readonly List<string> _liveRegionAnnouncementHistory = [];
+#endif
     private bool _isInitialized;
     private bool _isDisclosureAttached;
     private readonly Dictionary<
@@ -100,6 +103,11 @@ public sealed partial class InspectionContentCard : UserControl
 
     internal int LiveRegionChangeNotificationCount { get; private set; }
 
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+    internal IReadOnlyList<string> LiveRegionAnnouncementHistory =>
+        _liveRegionAnnouncementHistory;
+#endif
+
     internal void AnnounceProgress(string automationName)
     {
         ValidateAnnouncement(automationName, nameof(automationName));
@@ -110,7 +118,7 @@ public sealed partial class InspectionContentCard : UserControl
         }
 
         AutomationProperties.SetName(this, automationName);
-        RaiseLiveRegionChanged();
+        RaiseLiveRegionChanged(automationName);
     }
 
     internal void AnimateProgressChanges(
@@ -577,13 +585,16 @@ public sealed partial class InspectionContentCard : UserControl
         _isDisclosureAttached = false;
     }
 
-    private void RaiseLiveRegionChanged()
+    private void RaiseLiveRegionChanged(string automationName)
     {
         AutomationPeer peer =
             FrameworkElementAutomationPeer.FromElement(this) ??
             FrameworkElementAutomationPeer.CreatePeerForElement(this);
         peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
         LiveRegionChangeNotificationCount++;
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+        _liveRegionAnnouncementHistory.Add(automationName);
+#endif
     }
 
     private void LayoutRoot_SizeChanged(

@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Collections.Generic;
 
 namespace GraniteEdgeAI.Features.ModelInspection.Controls
 {
@@ -13,6 +14,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
     /// </summary>
     public sealed partial class InspectionOutcomeCard : UserControl
     {
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+        private readonly List<string> _liveRegionAnnouncementHistory = [];
+#endif
         // visual states are unavailable until InitializeComponent builds the xaml tree
         private bool _isInitialized;
 
@@ -70,6 +74,11 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         internal int LiveRegionChangeNotificationCount { get; private set; }
 
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+        internal IReadOnlyList<string> LiveRegionAnnouncementHistory =>
+            _liveRegionAnnouncementHistory;
+#endif
+
         internal FrameworkElement FocusTarget => OutcomeFocusTarget;
 
         internal bool FocusOutcome()
@@ -90,7 +99,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         {
             ValidateAnnouncement(automationName, nameof(automationName));
             AutomationProperties.SetName(this, automationName);
-            RaiseLiveRegionChanged();
+            RaiseLiveRegionChanged(automationName);
         }
 
         /// <summary>
@@ -181,13 +190,16 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             }
         }
 
-        private void RaiseLiveRegionChanged()
+        private void RaiseLiveRegionChanged(string automationName)
         {
             AutomationPeer peer =
                 FrameworkElementAutomationPeer.FromElement(this) ??
                 FrameworkElementAutomationPeer.CreatePeerForElement(this);
             peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
             LiveRegionChangeNotificationCount++;
+#if MODEL_INSPECTION_FIXTURE_GALLERY
+            _liveRegionAnnouncementHistory.Add(automationName);
+#endif
         }
     }
 }

@@ -225,11 +225,21 @@ public sealed class ModelInspectionFixtureLifetimeTests
                 ModelInspectionObservedScreen observed =
                     await ObserveCumulativeAsync(gallery.ActiveHost!
                         .ModelInspectionPage!);
+                CollectionAssert.AreEqual(
+                    new[]
+                    {
+                        "Model inspection is starting.",
+                        ModelInspectionFixtureTestCatalogue.Get(route.Target)
+                            .Expected.Announcements.Items.Single().DefaultText
+                    },
+                    observed.Announcements.Items.ToArray(),
+                    route.Route);
                 ModelInspectionFixtureGalleryTestHarness.AssertExactScreen(
                     gallery,
                     ModelInspectionFixtureTestCatalogue.Get(route.Target),
                     observed,
-                    route.Route);
+                    route.Route,
+                    journeyRelativeAnnouncements: true);
                 await WaitForPendingZeroAsync(replacementSession.Evidence);
                 AssertAllPendingZero(
                     replacementSession.Evidence,

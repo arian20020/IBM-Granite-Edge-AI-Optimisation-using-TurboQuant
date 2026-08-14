@@ -124,6 +124,9 @@ public sealed class ModelInspectionFixturePageLifecycleTests
             session,
             startInspectionOnLoaded: false);
         Task first = page.StartInspectionIfReadyAsync()!;
+        await session.Evidence
+            .WaitForNextServiceCallAsync(previousCount: 0)
+            .WaitAsync(TimeSpan.FromSeconds(5));
 
         try
         {
@@ -379,6 +382,9 @@ public sealed class ModelInspectionFixturePageLifecycleTests
         Action? afterFirstTerminal = null)
     {
         Task first = page.StartInspectionIfReadyAsync()!;
+        await session.Evidence
+            .WaitForNextServiceCallAsync(previousCount: 0)
+            .WaitAsync(TimeSpan.FromSeconds(5));
         session.Service.ReleaseServiceCheckpoint(
             attempt: 1,
             captureCheckpoint);
@@ -403,7 +409,11 @@ public sealed class ModelInspectionFixturePageLifecycleTests
         viewModel.PropertyChanged += changed;
         try
         {
+            int previousCallCount = session.Evidence.ServiceCallCount;
             viewModel.RetryCommand.Execute(null);
+            await session.Evidence
+                .WaitForNextServiceCallAsync(previousCallCount)
+                .WaitAsync(TimeSpan.FromSeconds(5));
             session.Service.ReleaseServiceCheckpoint(attempt: 2, "ready");
             await terminal.Task.WaitAsync(TimeSpan.FromSeconds(10));
         }

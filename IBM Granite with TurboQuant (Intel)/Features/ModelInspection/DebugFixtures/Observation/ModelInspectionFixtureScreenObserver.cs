@@ -53,9 +53,9 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             InspectionContentCard content = ContentCard;
             InspectionOutcomeCard outcome = OutcomeCard;
             progressAnnouncementBaseline =
-                content.LiveRegionChangeNotificationCount;
+                content.LiveRegionAnnouncementHistory.Count;
             outcomeAnnouncementBaseline =
-                outcome.LiveRegionChangeNotificationCount;
+                outcome.LiveRegionAnnouncementHistory.Count;
             if (viewModel is not null)
             {
                 viewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -169,9 +169,9 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             {
                 attemptGeneration = currentAttempt;
                 progressAnnouncementBaseline =
-                    ContentCard.LiveRegionChangeNotificationCount;
+                    ContentCard.LiveRegionAnnouncementHistory.Count;
                 outcomeAnnouncementBaseline =
-                    OutcomeCard.LiveRegionChangeNotificationCount;
+                    OutcomeCard.LiveRegionAnnouncementHistory.Count;
                 disclosureItemsSource = null;
                 disclosureScrollOwner = null;
                 disclosureContainers = Array.Empty<object>();
@@ -181,7 +181,7 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             if (owner.Snapshot.TerminalResult is not null)
             {
                 progressAnnouncementBaseline =
-                    ContentCard.LiveRegionChangeNotificationCount;
+                    ContentCard.LiveRegionAnnouncementHistory.Count;
             }
 
             QueuePreDisclosureSample();
@@ -1101,24 +1101,26 @@ internal sealed class ModelInspectionFixtureScreenObserver :
 
         private ModelInspectionObservedAnnouncements ObserveAnnouncements()
         {
-            int progress = Math.Max(
-                0,
-                ContentCard.LiveRegionChangeNotificationCount -
-                    progressAnnouncementBaseline);
-            int outcome = Math.Max(
-                0,
-                OutcomeCard.LiveRegionChangeNotificationCount -
-                    outcomeAnnouncementBaseline);
-            List<string> items = [];
-            items.AddRange(Enumerable.Repeat(
-                AutomationProperties.GetName(ContentCard),
-                progress));
-            items.AddRange(Enumerable.Repeat(
-                AutomationProperties.GetName(OutcomeCard),
-                outcome));
+            IReadOnlyList<string> progressHistory =
+                ContentCard.LiveRegionAnnouncementHistory;
+            IReadOnlyList<string> outcomeHistory =
+                OutcomeCard.LiveRegionAnnouncementHistory;
+            int progressStart = viewModel?.Snapshot.TerminalResult is not null
+                ? progressHistory.Count
+                : Math.Clamp(
+                    progressAnnouncementBaseline,
+                    0,
+                    progressHistory.Count);
+            string[] items = progressHistory
+                .Skip(progressStart)
+                .Concat(outcomeHistory.Skip(Math.Clamp(
+                    outcomeAnnouncementBaseline,
+                    0,
+                    outcomeHistory.Count)))
+                .ToArray();
             return new ModelInspectionObservedAnnouncements
             {
-                Count = progress + outcome,
+                Count = items.Length,
                 Items = items
             };
         }

@@ -414,7 +414,7 @@
                              "kind":  "retry",
                              "sourceCheckpoint":  "failure",
                              "target":  "ready",
-                             "expectedFocus":  "cancel",
+                             "expectedFocus":  "model-card",
                              "expectedAnnouncementCount":  0,
                              "expectedFooterStatus":  "inProgress",
                              "lifetimeEffect":  "none"

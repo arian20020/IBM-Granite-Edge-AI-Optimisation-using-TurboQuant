@@ -1124,6 +1124,7 @@
     "fixture.announcement.incomplete": "Model package is incomplete.",
     "fixture.announcement.invalid": "Model is invalid.",
     "fixture.announcement.ready": "Model inspection complete.",
+    "fixture.announcement.starting": "Model inspection is starting.",
     "fixture.announcement.unsupported": "Model is not supported.",
     "fixture.announcement.warning": "Model inspected with warnings.",
     "fixture.automation.action.cancel": "Cancel model inspection",

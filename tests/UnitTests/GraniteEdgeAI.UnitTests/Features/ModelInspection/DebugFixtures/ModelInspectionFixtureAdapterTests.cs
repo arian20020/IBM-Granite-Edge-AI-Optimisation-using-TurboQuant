@@ -1291,8 +1291,7 @@ internal static class ModelInspectionFixtureTestCatalogue
     {
         string root = Path.Combine(
             AppContext.BaseDirectory,
-            "TestFixtures",
-            "ModelInspectionScenarios");
+            "Fixtures");
         ModelInspectionFixtureDocumentSource schemaSource = Read(
             root,
             "model-inspection-fixture.schema.json");

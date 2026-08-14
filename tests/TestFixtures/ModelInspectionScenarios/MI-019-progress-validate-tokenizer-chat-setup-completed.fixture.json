@@ -312,8 +312,12 @@
       ]
     },
     "announcements": {
-      "count": 1,
+      "count": 2,
       "items": [
+        {
+          "copyKey": "fixture.announcement.starting",
+          "defaultText": "Model inspection is starting."
+        },
         {
           "copyKey": "fixture.progress.validate-tokenizer.detail",
           "defaultText": "Validating tokenizer and chat setup."

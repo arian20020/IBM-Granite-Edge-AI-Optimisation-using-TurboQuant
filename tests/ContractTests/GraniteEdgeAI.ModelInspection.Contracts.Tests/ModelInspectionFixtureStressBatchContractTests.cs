@@ -1252,8 +1252,22 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         ModelInspectionExpectedAnnouncements announcements,
         StressOracle oracle)
     {
-        Assert.AreEqual(1, announcements.Count, oracle.Id);
-        Assert.HasCount(1, announcements.Items, oracle.Id);
+        int expectedCount = oracle.Screen == StressScreen.MaximumProgressDetail
+            ? 2
+            : 1;
+        Assert.AreEqual(expectedCount, announcements.Count, oracle.Id);
+        Assert.HasCount(expectedCount, announcements.Items, oracle.Id);
+        int detailIndex = 0;
+        if (oracle.Screen == StressScreen.MaximumProgressDetail)
+        {
+            AssertCopy(
+                announcements.Items[0],
+                "fixture.announcement.starting",
+                "Model inspection is starting.",
+                oracle.Id);
+            detailIndex = 1;
+        }
+
         (string Key, string Text) expected = oracle.Screen switch
         {
             StressScreen.MaximumModelName or
@@ -1271,7 +1285,11 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
                     "Model inspection could not be completed."),
             _ => throw new ArgumentOutOfRangeException(nameof(oracle))
         };
-        AssertCopy(announcements.Items[0], expected.Key, expected.Text, oracle.Id);
+        AssertCopy(
+            announcements.Items[detailIndex],
+            expected.Key,
+            expected.Text,
+            oracle.Id);
     }
 
     private static void AssertPreset(

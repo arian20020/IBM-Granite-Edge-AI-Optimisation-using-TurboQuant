@@ -2571,8 +2571,7 @@ public sealed class ModelInspectionFixturePresetTests
     {
         string root = Path.Combine(
             AppContext.BaseDirectory,
-            "TestFixtures",
-            "ModelInspectionScenarios");
+            "Fixtures");
         ModelInspectionFixtureDocumentSource Read(string fileName) => new(
             fileName,
             File.ReadAllBytes(Path.Combine(root, fileName)));

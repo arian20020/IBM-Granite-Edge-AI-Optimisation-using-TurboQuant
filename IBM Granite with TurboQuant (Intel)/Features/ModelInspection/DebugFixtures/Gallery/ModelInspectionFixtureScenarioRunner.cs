@@ -82,10 +82,10 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
         }
         else
         {
-            // Every fixture except MI-001 uses the real page Loaded path. The
-            // deterministic service records its call synchronously before that
-            // handler returns, so reaching this boundary must expose exactly
-            // one call without starting the page a second time.
+            await session.Evidence
+                .WaitForNextServiceCallAsync(previousCount: 0)
+                .WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            await DrainDispatcherAsync(page, cancellationToken);
             RequireServiceCallCount(session, expectedCount: 1);
         }
 
@@ -131,7 +131,8 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                     break;
                 case ModelInspectionFixtureSetupStepKind.InvokeRetry:
                 case ModelInspectionFixtureSetupStepKind.InvokeRestart:
-                    int nextCall = checked(session.Evidence.ServiceCallCount + 1);
+                    int previousCallCount = session.Evidence.ServiceCallCount;
+                    int nextCall = checked(previousCallCount + 1);
                     ExecuteRequiredCommand(
                         RequireViewModel(page).RetryCommand,
                         step.Kind == ModelInspectionFixtureSetupStepKind
@@ -139,8 +140,13 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                                 ? "Restart"
                                 : "Retry");
                     invokedInteraction = true;
-                    RequireServiceCallCount(session, nextCall);
+                    await session.Evidence
+                        .WaitForNextServiceCallAsync(previousCallCount)
+                        .WaitAsync(
+                            TimeSpan.FromSeconds(5),
+                            cancellationToken);
                     await DrainDispatcherAsync(page, cancellationToken);
+                    RequireServiceCallCount(session, nextCall);
                     break;
                 case ModelInspectionFixtureSetupStepKind.InvokeChooseAnother:
                     ExecuteRequiredCommand(

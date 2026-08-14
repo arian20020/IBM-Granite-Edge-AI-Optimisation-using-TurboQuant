@@ -314,8 +314,12 @@
       ]
     },
     "announcements": {
-      "count": 1,
+      "count": 2,
       "items": [
+        {
+          "copyKey": "fixture.announcement.starting",
+          "defaultText": "Model inspection is starting."
+        },
         {
           "copyKey": "fixture.progress.detail.maximum",
           "defaultText": "Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validati"

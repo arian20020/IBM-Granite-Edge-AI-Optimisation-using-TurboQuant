@@ -158,7 +158,8 @@ public sealed class ModelInspectionFixtureInteractionTests
                                     page.CurrentFooterStatus,
                                 diagnostic);
                             Assert.AreEqual(
-                                live + interaction.ExpectedAnnouncementCount,
+                                live + ExpectedJourneyAnnouncementDelta(
+                                    interaction),
                                 ModelInspectionFixtureGalleryTestHarness
                                     .LiveNotificationCount(page),
                                 diagnostic);
@@ -247,7 +248,9 @@ public sealed class ModelInspectionFixtureInteractionTests
                             Assert.AreEqual(interaction.ExpectedFooterStatus,
                                 (ModelInspectionExpectedFooterStatus)page.CurrentFooterStatus,
                                 diagnostic);
-                            Assert.AreEqual(live + interaction.ExpectedAnnouncementCount,
+                            Assert.AreEqual(
+                                live + ExpectedJourneyAnnouncementDelta(
+                                    interaction),
                                 ModelInspectionFixtureGalleryTestHarness.LiveNotificationCount(page),
                                 diagnostic);
                             Assert.AreEqual(1, session.Evidence.PageRetirementCount, diagnostic);
@@ -296,7 +299,8 @@ public sealed class ModelInspectionFixtureInteractionTests
                         Assert.AreEqual(interaction.ExpectedFooterStatus,
                             (ModelInspectionExpectedFooterStatus)loaded.CurrentFooterStatus,
                             diagnostic);
-                        Assert.AreEqual(live + interaction.ExpectedAnnouncementCount,
+                        Assert.AreEqual(
+                            live + ExpectedJourneyAnnouncementDelta(interaction),
                             ModelInspectionFixtureGalleryTestHarness.LiveNotificationCount(loaded), diagnostic);
 
                         if (interaction.LifetimeEffect == ModelInspectionFixtureInteractionLifetimeEffect.None)
@@ -586,6 +590,14 @@ public sealed class ModelInspectionFixtureInteractionTests
             ModelInspectionFixtureInteractionKind.Restart &&
          !interaction.Target.StartsWith(
              "MI-", System.StringComparison.Ordinal));
+
+    private static int ExpectedJourneyAnnouncementDelta(
+        ModelInspectionFixtureInteraction interaction) =>
+        interaction.ExpectedAnnouncementCount +
+        (interaction.Kind is ModelInspectionFixtureInteractionKind.Retry or
+            ModelInspectionFixtureInteractionKind.Restart
+                ? 1
+                : 0);
 
     private static void AssertImmediateTargetCheckpoint(
         ModelInspectionFixtureSession session,
@@ -1114,22 +1126,16 @@ internal static class ModelInspectionFixtureGalleryTestHarness
             "InspectionContentCardControl");
         var outcome = (InspectionOutcomeCard)page.FindName(
             "InspectionOutcomeCardControl");
-        int progress = content.LiveRegionChangeNotificationCount;
-        int terminal = outcome.LiveRegionChangeNotificationCount;
+        IReadOnlyList<string> progress =
+            content.LiveRegionAnnouncementHistory;
+        IReadOnlyList<string> terminal =
+            outcome.LiveRegionAnnouncementHistory;
         return observed with
         {
             Announcements = new ModelInspectionObservedAnnouncements
             {
-                Count = progress + terminal,
-                Items = Enumerable.Repeat(
-                        Microsoft.UI.Xaml.Automation.AutomationProperties
-                            .GetName(content),
-                        progress)
-                    .Concat(Enumerable.Repeat(
-                        Microsoft.UI.Xaml.Automation.AutomationProperties
-                            .GetName(outcome),
-                        terminal))
-                    .ToArray()
+                Count = progress.Count + terminal.Count,
+                Items = progress.Concat(terminal).ToArray()
             }
         };
     }

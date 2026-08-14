@@ -1315,7 +1315,7 @@ public sealed class ModelInspectionFixtureScreenContractTests
             mi028.Input.Attempts[0].ServiceSteps
                 .Where(step => step.Effect.Progress is not null)
                 .Select(step => step.Effect.Progress!.Fraction).ToArray());
-        Assert.AreEqual(1, mi028.Expected.Announcements.Count,
+        Assert.AreEqual(2, mi028.Expected.Announcements.Count,
             "A fraction-only update must not repeat its announcement.");
         Assert.AreEqual(5, catalogue.Fixtures.Single(fixture =>
             fixture.Id == "MI-045").Expected.Model.Checks.Count);
@@ -1406,9 +1406,14 @@ public sealed class ModelInspectionFixtureScreenContractTests
         ModelInspectionObservedScreen observed =
             await observation.CaptureAsync(CancellationToken.None);
 
-        Assert.AreEqual(
-            fixture.Descriptor.Expected.Announcements.Count,
-            observed.Announcements.Count);
+        Assert.AreEqual(2, observed.Announcements.Count);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Model inspection is starting.",
+                "Checking the model package."
+            },
+            observed.Announcements.Items.ToArray());
         Assert.IsTrue(observed.RenderBarrier.DispatcherDrained);
         Assert.IsTrue(observed.RenderBarrier.LayoutUpdated);
         Assert.IsTrue(observed.RenderBarrier.CompositionCommitted);
@@ -1446,7 +1451,14 @@ public sealed class ModelInspectionFixtureScreenContractTests
         Assert.AreEqual("progress-2", quarterRow.Id);
         Assert.IsNotNull(quarterRow.StageFraction);
         Assert.AreEqual(0.25d, quarterRow.StageFraction.Value, 0d);
-        Assert.AreEqual(1, quarter.Announcements.Count);
+        Assert.AreEqual(2, quarter.Announcements.Count);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Model inspection is starting.",
+                "Reading model configuration."
+            },
+            quarter.Announcements.Items.ToArray());
 
         await ModelInspectionFixtureScenarioRunner
             .ReleaseAndWaitForSnapshotAsync(
@@ -1471,6 +1483,9 @@ public sealed class ModelInspectionFixtureScreenContractTests
             threeQuarters.Announcements.Count,
             "A fraction-only update must not repeat the active-stage " +
             "announcement.");
+        CollectionAssert.AreEqual(
+            quarter.Announcements.Items.ToArray(),
+            threeQuarters.Announcements.Items.ToArray());
     }
 
     [UITestMethod]
@@ -1954,8 +1969,7 @@ public sealed class ModelInspectionFixtureScreenContractTests
     {
         string root = Path.Combine(
             AppContext.BaseDirectory,
-            "TestFixtures",
-            "ModelInspectionScenarios");
+            "Fixtures");
         ModelInspectionFixtureDocumentSource Read(string fileName) => new(
             fileName,
             File.ReadAllBytes(Path.Combine(root, fileName)));
