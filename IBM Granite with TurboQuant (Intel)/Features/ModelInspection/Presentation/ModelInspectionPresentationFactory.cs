@@ -107,6 +107,7 @@ internal static class ModelInspectionPresentationFactory
             Message = "You can safely return to model selection at any time.",
             AutomationName = "Actions available while inspecting the model",
             CancelAction = CreateActiveAction(
+                "cancel",
                 "Cancel inspection",
                 "Cancel model inspection",
                 commands.Cancel,
@@ -271,10 +272,12 @@ internal static class ModelInspectionPresentationFactory
             Message = "Restart when you are ready, or choose another model.",
             AutomationName = "Model inspection recovery actions",
             SecondaryActionOne = CreateActiveAction(
+                "choose-another",
                 "Choose another model",
                 "Choose another model",
                 commands.ChooseAnother),
             PrimaryAction = CreateActiveAction(
+                "restart",
                 "Restart inspection",
                 "Restart model inspection",
                 commands.Retry)
@@ -394,13 +397,16 @@ internal static class ModelInspectionPresentationFactory
             Message = "Retry the inspection, or choose another model.",
             AutomationName = "Model inspection recovery actions",
             SecondaryActionOne = CreateActiveAction(
+                "choose-another",
                 "Choose another model",
                 "Choose another model",
                 commands.ChooseAnother),
             SecondaryActionTwo = CreateFutureAction(
+                "technical-report",
                 "View technical report",
                 "View technical inspection report"),
             PrimaryAction = CreateActiveAction(
+                "retry",
                 "Retry inspection",
                 "Retry model inspection",
                 commands.Retry)
@@ -541,11 +547,8 @@ internal static class ModelInspectionPresentationFactory
                 evidence.Runtime.ProcessArchitecture);
         string inspectionMode = ModelInspectionDisplayTextPolicy.ProjectOptionalLabel(
             evidence.Runtime.InspectionMode);
-        string runtimeProfile = ModelInspectionDisplayTextPolicy.ProjectOptionalLabel(
-            evidence.Runtime.RuntimeProfile);
         string library = ModelInspectionDisplayTextPolicy.ProjectOptionalLabel(
             evidence.Runtime.NativeLibraryName);
-        double seconds = (result.CompletedAtUtc - result.StartedAtUtc).TotalSeconds;
 
         return
         [
@@ -557,7 +560,7 @@ internal static class ModelInspectionPresentationFactory
                 "Model configuration",
                 $"Architecture {architecture}; " +
                 $"{FormatNullable(evidence.Configuration.LayerCount)} layers; " +
-                $"quantisation {quantisation}; {parameters}."),
+                $"quantisation {quantisation}; {WithParameterNoun(parameters)}."),
             CreateCheck(
                 "Tokenizer and chat setup",
                 $"Tokenizer {tokenizer}; smoke check " +
@@ -570,8 +573,7 @@ internal static class ModelInspectionPresentationFactory
             CreateCheck(
                 "Core runtime support",
                 $"CPU {runtimeArchitecture} {inspectionMode} inspection completed " +
-                $"with {library} using profile {runtimeProfile} in " +
-                $"{seconds.ToString("0.###", CultureInfo.CurrentCulture)} seconds.")
+                $"with {library} using the approved profile.")
         ];
     }
 
@@ -664,10 +666,12 @@ internal static class ModelInspectionPresentationFactory
         ModelInspectionPresentationCommands commands)
     {
         InspectionActionPresentation choose = CreateActiveAction(
+            "choose-another",
             "Choose another model",
             "Choose another model",
             commands.ChooseAnother);
         InspectionActionPresentation report = CreateFutureAction(
+            "technical-report",
             "View technical report",
             "View technical inspection report");
 
@@ -682,6 +686,7 @@ internal static class ModelInspectionPresentationFactory
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
                 PrimaryAction = CreateFutureAction(
+                    "hardware-fit",
                     "Check hardware fit",
                     "Check model hardware fit")
             },
@@ -694,6 +699,7 @@ internal static class ModelInspectionPresentationFactory
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
                 PrimaryAction = CreateFutureAction(
+                    "continue-hardware",
                     "Continue to hardware check",
                     "Continue to model hardware check")
             },
@@ -706,6 +712,7 @@ internal static class ModelInspectionPresentationFactory
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
                 PrimaryAction = CreateFutureAction(
+                    "conversion-format",
                     "Choose conversion format",
                     "Choose model conversion format")
             },
@@ -718,6 +725,7 @@ internal static class ModelInspectionPresentationFactory
                 SecondaryActionOne = choose,
                 SecondaryActionTwo = report,
                 PrimaryAction = CreateActiveAction(
+                    "locate-missing",
                     "Locate missing file",
                     "Locate missing model file",
                     commands.ChooseAnother)
@@ -762,6 +770,7 @@ internal static class ModelInspectionPresentationFactory
     }
 
     private static InspectionActionPresentation CreateActiveAction(
+        string actionId,
         string text,
         string automationName,
         ICommand command,
@@ -776,11 +785,13 @@ internal static class ModelInspectionPresentationFactory
             IsEnabled = canExecute,
             Visibility = Visibility.Visible,
             AutomationName = automationName,
+            ActionId = actionId,
             MinimumWidth = minimumWidth
         };
     }
 
     private static InspectionActionPresentation CreateFutureAction(
+        string actionId,
         string text,
         string automationName)
     {
@@ -791,6 +802,7 @@ internal static class ModelInspectionPresentationFactory
             IsEnabled = false,
             Visibility = Visibility.Visible,
             AutomationName = automationName,
+            ActionId = actionId,
             AutomationHelpText = ComingLater
         };
     }
@@ -936,6 +948,7 @@ internal static class ModelInspectionPresentationFactory
         List<string> values,
         InspectionActionPresentation action)
     {
+        values.Add(action.ActionId);
         values.Add(action.Text);
         values.Add(BooleanIdentity(action.Command is not null));
         values.Add(BooleanIdentity(
@@ -1167,9 +1180,14 @@ internal static class ModelInspectionPresentationFactory
             unit++;
         }
 
-        string format = decimal.Truncate(value) == value ? "N0" : "N1";
+        string format = decimal.Truncate(value) == value ? "N0" : "N2";
         return $"{value.ToString(format, CultureInfo.CurrentCulture)} {units[unit]}";
     }
+
+    private static string WithParameterNoun(string parameters) =>
+        parameters.EndsWith("parameters", StringComparison.OrdinalIgnoreCase)
+            ? parameters
+            : $"{parameters} parameters";
 
     private static string FormatNullable<T>(T? value)
         where T : struct, IFormattable => value.HasValue

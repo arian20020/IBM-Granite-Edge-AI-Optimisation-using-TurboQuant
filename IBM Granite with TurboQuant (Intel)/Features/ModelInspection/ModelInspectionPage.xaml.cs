@@ -44,6 +44,9 @@ public sealed partial class ModelInspectionPage : Page
     private bool _isApplyingMotionSettingsChange;
     private bool _hasActiveLifetime;
     private bool _retirementInProgress;
+    private DependencyObject? _semanticFocusOwner;
+    private PendingSemanticFocusReclaim? _pendingSemanticFocusReclaim;
+    private IDisposable? _activeDisclosureOperationAudit;
 
     /// <summary>
     /// Creates the production page with the approved x64 Model Inspection
@@ -288,6 +291,43 @@ public sealed partial class ModelInspectionPage : Page
         object sender,
         RoutedEventArgs eventArguments)
     {
+        ModelInspectionPagePresentation? presentation = CurrentPresentation;
+        if (_hasActiveLifetime && presentation is not null)
+        {
+            long lifetime = _navigationLifetime;
+            ModelInspectionRenderKey renderKey = presentation.RenderKey;
+            ApplySemanticDefaultFocus(
+                presentation,
+                claimWhenFocusIsOutsidePage: _semanticFocusOwner is null,
+                reclaimEffectivePageFallback: false);
+            bool stillNeedsInitialClaim = _semanticFocusOwner is null;
+            IDisposable? dispatcherAudit = null;
+            BeginDispatcherAuditForFixture(ref dispatcherAudit);
+            bool enqueued = DispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    if (_hasActiveLifetime &&
+                        lifetime == _navigationLifetime &&
+                        CurrentPresentation?.RenderKey == renderKey)
+                    {
+                        ApplySemanticDefaultFocus(
+                            CurrentPresentation,
+                            claimWhenFocusIsOutsidePage: stillNeedsInitialClaim,
+                            reclaimEffectivePageFallback: false);
+                    }
+                }
+                finally
+                {
+                    dispatcherAudit?.Dispose();
+                }
+            });
+            if (!enqueued)
+            {
+                dispatcherAudit?.Dispose();
+            }
+        }
+
         if (_startInspectionOnLoaded)
         {
             _ = StartInspectionIfReadyAsync();
@@ -348,26 +388,52 @@ public sealed partial class ModelInspectionPage : Page
             return;
         }
 
-        bool fromModel = ReferenceEquals(sender, InspectionModelCardControl);
-        bool fromContent = ReferenceEquals(sender, InspectionContentCardControl);
-        if ((!fromModel && !fromContent) ||
-            !coordinator.TryRequestDisclosure(
-                presentation.RenderKey,
-                eventArguments.IsExpanded,
-                out _))
+        IDisposable? disclosureAudit = null;
+        BeginDisclosureAuditForFixture(ref disclosureAudit);
+        try
         {
-            return;
-        }
+            bool fromModel = ReferenceEquals(sender, InspectionModelCardControl);
+            bool fromContent = ReferenceEquals(sender, InspectionContentCardControl);
+            if ((!fromModel && !fromContent) ||
+                !coordinator.TryRequestDisclosure(
+                    presentation.RenderKey,
+                    eventArguments.IsExpanded,
+                    out _))
+            {
+                return;
+            }
 
-        if (fromModel)
-        {
-            InspectionModelCardControl.ClaimDisclosureTarget(
-                eventArguments.IsExpanded);
+            InspectionDisclosure? activeDisclosure = fromModel
+                ? InspectionModelCardControl.ActiveDisclosure
+                : InspectionContentCardControl.ActiveDisclosure;
+            DependencyObject? focusedElement = XamlRoot is null
+                ? null
+                : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+            if (activeDisclosure is not null &&
+                ReferenceEquals(focusedElement, activeDisclosure))
+            {
+                _semanticFocusOwner = activeDisclosure;
+            }
+
+            if (fromModel)
+            {
+                InspectionModelCardControl.ClaimDisclosureTarget(
+                    eventArguments.IsExpanded);
+            }
+            else
+            {
+                InspectionContentCardControl.ClaimDisclosureTarget(
+                    eventArguments.IsExpanded);
+            }
+
+            Interlocked.Exchange(
+                ref _activeDisclosureOperationAudit,
+                disclosureAudit)?.Dispose();
+            disclosureAudit = null;
         }
-        else
+        finally
         {
-            InspectionContentCardControl.ClaimDisclosureTarget(
-                eventArguments.IsExpanded);
+            disclosureAudit?.Dispose();
         }
     }
 
@@ -386,6 +452,7 @@ public sealed partial class ModelInspectionPage : Page
 
         ModelInspectionPagePresentation? previous = CurrentPresentation;
         ModelInspectionPagePresentation current = delta.Presentation;
+        Interlocked.Exchange(ref _pendingSemanticFocusReclaim, null);
         bool retiresProgress = previous?.State ==
                 ModelInspectionFigmaState.InspectionProgress &&
             current.State != ModelInspectionFigmaState.InspectionProgress;
@@ -397,6 +464,13 @@ public sealed partial class ModelInspectionPage : Page
         DependencyObject? focusedElement = XamlRoot is null
             ? null
             : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        bool initialAutomaticModelFallback = previous is null &&
+            _semanticFocusOwner is null &&
+            focusedElement is not null &&
+            IsDescendantOrSelf(focusedElement, InspectionModelCardControl);
+        bool semanticFocusWasOwned = initialAutomaticModelFallback ||
+            (_semanticFocusOwner is not null &&
+             ReferenceEquals(focusedElement, _semanticFocusOwner));
         bool focusedRetiredProgress = retiresProgress &&
             focusedElement is not null &&
             IsDescendantOrSelf(focusedElement, InspectionContentCardControl);
@@ -490,6 +564,15 @@ public sealed partial class ModelInspectionPage : Page
                 coordinator.IsCurrent);
         }
 
+        bool disclosureCompleted = false;
+        void CompleteDisclosureBoundary()
+        {
+            disclosureCompleted = true;
+            TryCompletePendingSemanticFocusReclaim(
+                coordinator,
+                current.RenderKey);
+        }
+
         StartOrCompleteDisclosure(
             transition,
             delta.VisualOperationKey,
@@ -497,7 +580,8 @@ public sealed partial class ModelInspectionPage : Page
             animationDriver,
             motionSettings.AnimationsEnabled &&
                 !_isApplyingMotionSettingsChange &&
-                !IsMotionSettingsChangePending);
+                !IsMotionSettingsChangePending,
+            CompleteDisclosureBoundary);
 
         if (retiresProgress)
         {
@@ -535,6 +619,35 @@ public sealed partial class ModelInspectionPage : Page
         }
 
         ApplyTerminalFocus(current, focusedRetiredProgress);
+        ApplySemanticDefaultFocus(
+            current,
+            claimWhenFocusIsOutsidePage: semanticFocusWasOwned,
+            reclaimEffectivePageFallback: semanticFocusWasOwned);
+        DependencyObject? semanticFocusedElement = XamlRoot is null
+            ? null
+            : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        FrameworkElement? semanticTarget = FindSemanticDefaultFocusTarget(
+            current,
+            semanticFocusedElement);
+        if (semanticFocusWasOwned &&
+            semanticFocusedElement is not null &&
+            semanticTarget is not null &&
+            !ReferenceEquals(semanticFocusedElement, semanticTarget))
+        {
+            _pendingSemanticFocusReclaim = new PendingSemanticFocusReclaim(
+                _navigationLifetime,
+                current.RenderKey,
+                coordinator,
+                semanticFocusedElement);
+        }
+
+        if (disclosureCompleted)
+        {
+            TryCompletePendingSemanticFocusReclaim(
+                coordinator,
+                current.RenderKey);
+        }
+
         ApplyAnnouncements(delta, coordinator);
     }
 
@@ -604,11 +717,14 @@ public sealed partial class ModelInspectionPage : Page
         ModelInspectionVisualOperationKey operationKey,
         ModelInspectionRenderCoordinator coordinator,
         IModelInspectionAnimationDriver animationDriver,
-        bool animate)
+        bool animate,
+        Action disclosureCompleted)
     {
         if (!transition.IsActive)
         {
             CompleteSelectedDisclosureImmediately();
+            disclosureCompleted();
+            CompleteDisclosureOperationAudit();
             return;
         }
 
@@ -617,12 +733,22 @@ public sealed partial class ModelInspectionPage : Page
             : InspectionContentCardControl.ActiveDisclosure;
         if (disclosure is null)
         {
+            disclosureCompleted();
+            CompleteDisclosureOperationAudit();
             return;
         }
 
         if (!animate)
         {
-            disclosure.CompleteTargetState(transition.IsExpanded);
+            try
+            {
+                disclosure.CompleteTargetState(transition.IsExpanded);
+                disclosureCompleted();
+            }
+            finally
+            {
+                CompleteDisclosureOperationAudit();
+            }
             return;
         }
 
@@ -635,9 +761,17 @@ public sealed partial class ModelInspectionPage : Page
             operationKey,
             completedKey =>
             {
-                if (coordinator.IsCurrent(completedKey))
+                try
                 {
-                    disclosure.CompleteTargetState(transition.IsExpanded);
+                    if (coordinator.IsCurrent(completedKey))
+                    {
+                        disclosure.CompleteTargetState(transition.IsExpanded);
+                        disclosureCompleted();
+                    }
+                }
+                finally
+                {
+                    CompleteDisclosureOperationAudit();
                 }
             });
     }
@@ -691,8 +825,13 @@ public sealed partial class ModelInspectionPage : Page
         if (presentation.ProgressAnnouncement.Length > 0 &&
             coordinator.IsCurrent(delta.RenderKey))
         {
-            InspectionContentCardControl.AnnounceProgress(
-                presentation.ProgressAnnouncement);
+            IDisposable? liveAudit = null;
+            BeginLiveNotificationAuditForFixture(ref liveAudit);
+            using (liveAudit)
+            {
+                InspectionContentCardControl.AnnounceProgress(
+                    presentation.ProgressAnnouncement);
+            }
         }
 
         if (presentation.OutcomeAnnouncement.Length == 0)
@@ -717,7 +856,12 @@ public sealed partial class ModelInspectionPage : Page
                 ReferenceEquals(_coordinator, coordinator) &&
                 coordinator.IsCurrent(announcementKey))
             {
-                InspectionOutcomeCardControl.AnnounceOutcome(announcement);
+                IDisposable? liveAudit = null;
+                BeginLiveNotificationAuditForFixture(ref liveAudit);
+                using (liveAudit)
+                {
+                    InspectionOutcomeCardControl.AnnounceOutcome(announcement);
+                }
             }
         };
         CaptureStaleAnnouncementCallbackForFixture(
@@ -782,8 +926,175 @@ public sealed partial class ModelInspectionPage : Page
             }
 
             UpdateLayout();
-            InspectionOutcomeCardControl.FocusOutcome();
+            IDisposable? focusAudit = null;
+            BeginFocusAuditForFixture(ref focusAudit);
+            using (focusAudit)
+            {
+                InspectionOutcomeCardControl.FocusOutcome();
+            }
         });
+    }
+
+    private void ApplySemanticDefaultFocus(
+        ModelInspectionPagePresentation? presentation,
+        bool claimWhenFocusIsOutsidePage,
+        bool reclaimEffectivePageFallback)
+    {
+        if (!_hasActiveLifetime ||
+            presentation is null ||
+            !ReferenceEquals(presentation, CurrentPresentation) ||
+            XamlRoot is null)
+        {
+            return;
+        }
+
+        DependencyObject? focused =
+            FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        if (focused is not null &&
+            !ReferenceEquals(focused, _semanticFocusOwner))
+        {
+            bool isInsidePage = IsDescendantOrSelf(focused, this);
+            if ((isInsidePage &&
+                    IsEffectivePageFocus(focused) &&
+                    !reclaimEffectivePageFallback) ||
+                (!isInsidePage && !claimWhenFocusIsOutsidePage))
+            {
+                return;
+            }
+        }
+
+        FrameworkElement? target = FindSemanticDefaultFocusTarget(
+            presentation,
+            focused);
+        if (target is null || ReferenceEquals(focused, target))
+        {
+            return;
+        }
+
+        bool wasTabStop = target.IsTabStop;
+        target.IsTabStop = true;
+        try
+        {
+            IDisposable? focusAudit = null;
+            BeginFocusAuditForFixture(ref focusAudit);
+            using (focusAudit)
+            {
+                if (target.Focus(FocusState.Programmatic))
+                {
+                    _semanticFocusOwner = target;
+                }
+            }
+        }
+        finally
+        {
+            target.IsTabStop = wasTabStop;
+        }
+    }
+
+    private FrameworkElement? FindSemanticDefaultFocusTarget(
+        ModelInspectionPagePresentation presentation,
+        DependencyObject? focused)
+    {
+        if (presentation.State == ModelInspectionFigmaState.InspectionProgress)
+        {
+            Button cancel = (Button)InspectionActionCardControl.FindName(
+                "CancelActionButton");
+            return cancel.IsEnabled || ReferenceEquals(focused, cancel)
+                ? cancel
+                : InspectionModelCardControl;
+        }
+
+        return FindChooseAnotherAction();
+    }
+
+    private void TryCompletePendingSemanticFocusReclaim(
+        ModelInspectionRenderCoordinator coordinator,
+        ModelInspectionRenderKey renderKey)
+    {
+        PendingSemanticFocusReclaim? pending =
+            Volatile.Read(ref _pendingSemanticFocusReclaim);
+        if (pending is null ||
+            pending.RenderKey != renderKey ||
+            !ReferenceEquals(pending.Coordinator, coordinator) ||
+            !ReferenceEquals(
+                Interlocked.CompareExchange(
+                    ref _pendingSemanticFocusReclaim,
+                    null,
+                    pending),
+                pending))
+        {
+            return;
+        }
+
+        if (!_hasActiveLifetime ||
+            pending.Lifetime != _navigationLifetime ||
+            !ReferenceEquals(_coordinator, coordinator) ||
+            !coordinator.IsCurrent(renderKey) ||
+            CurrentPresentation?.RenderKey != renderKey ||
+            XamlRoot is null ||
+            !ReferenceEquals(
+                FocusManager.GetFocusedElement(XamlRoot),
+                pending.AutomaticFocusFallback))
+        {
+            return;
+        }
+
+        UpdateLayout();
+        ApplySemanticDefaultFocus(
+            CurrentPresentation,
+            claimWhenFocusIsOutsidePage: false,
+            reclaimEffectivePageFallback: true);
+    }
+
+    private Button? FindChooseAnotherAction()
+    {
+        foreach (string name in new[]
+                 {
+                     "SecondaryActionOneButton",
+                     "SecondaryActionTwoButton",
+                     "PrimaryActionButton"
+                 })
+        {
+            var button = (Button)InspectionActionCardControl.FindName(name);
+            if (button.Visibility == Visibility.Visible &&
+                button.IsEnabled &&
+                string.Equals(
+                    button.Tag as string,
+                    "choose-another",
+                    StringComparison.Ordinal))
+            {
+                return button;
+            }
+        }
+
+        return null;
+    }
+
+    private bool IsEffectivePageFocus(DependencyObject focused)
+    {
+        DependencyObject? current = focused;
+        while (current is not null)
+        {
+            if (current is UIElement element &&
+                element.Visibility != Visibility.Visible)
+            {
+                return false;
+            }
+
+            if (current is Control control && !control.IsEnabled)
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(current, this))
+            {
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
     }
 
     private void MotionSettings_AnimationsEnabledChanged(
@@ -849,6 +1160,13 @@ public sealed partial class ModelInspectionPage : Page
             InspectionContentCardControl.CancelProgressMotion();
             coordinator.FlushPendingRender();
             CompleteSelectedDisclosureImmediately();
+            ModelInspectionPagePresentation? presentation = CurrentPresentation;
+            if (presentation is not null)
+            {
+                TryCompletePendingSemanticFocusReclaim(
+                    coordinator,
+                    presentation.RenderKey);
+            }
             RetireOutgoingProgressLayer();
         }
         finally
@@ -1023,6 +1341,8 @@ public sealed partial class ModelInspectionPage : Page
         _animationDriver = null;
         _motionSettings = null;
         _coordinator = null;
+        _semanticFocusOwner = null;
+        Interlocked.Exchange(ref _pendingSemanticFocusReclaim, null);
         ExceptionDispatchInfo? error = null;
         try
         {
@@ -1044,6 +1364,10 @@ public sealed partial class ModelInspectionPage : Page
             AttemptCleanup(
                 () => retiredCoordinator?.InvalidateInteractions(),
                 ref error);
+            AttemptCleanup(
+                () => CompleteDispatcherAuditsForFixture(),
+                ref error);
+            AttemptCleanup(CompleteDisclosureOperationAudit, ref error);
             AttemptCleanup(
                 InspectionContentCardControl.CancelProgressMotion,
                 ref error);
@@ -1089,6 +1413,21 @@ public sealed partial class ModelInspectionPage : Page
     partial void CaptureStaleAnnouncementCallbackForFixture(
         ModelInspectionRenderKey renderKey,
         Action callback);
+
+    partial void BeginDispatcherAuditForFixture(ref IDisposable? audit);
+
+    partial void BeginFocusAuditForFixture(ref IDisposable? audit);
+
+    partial void BeginDisclosureAuditForFixture(ref IDisposable? audit);
+
+    partial void BeginLiveNotificationAuditForFixture(ref IDisposable? audit);
+
+    partial void CompleteDispatcherAuditsForFixture();
+
+    private void CompleteDisclosureOperationAudit() =>
+        Interlocked.Exchange(
+            ref _activeDisclosureOperationAudit,
+            null)?.Dispose();
 
     private static bool TryGetDisclosureTransition(
         ModelInspectionFigmaState previous,
@@ -1198,6 +1537,12 @@ public sealed partial class ModelInspectionPage : Page
 
         internal long AppliedRevision;
     }
+
+    private sealed record PendingSemanticFocusReclaim(
+        long Lifetime,
+        ModelInspectionRenderKey RenderKey,
+        ModelInspectionRenderCoordinator Coordinator,
+        DependencyObject AutomaticFocusFallback);
 
     private sealed record DisclosureTransition(
         bool IsModelDisclosure,

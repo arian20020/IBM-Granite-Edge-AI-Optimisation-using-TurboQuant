@@ -49,7 +49,7 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
             ScreenProfile.Cancelled,
             null,
             [new("cancel-request", ModelInspectionFixtureInteractionKind.Cancel,
-                    "progress", "cancelled", "cancel", 0,
+                    "progress", "cancelled", "model-card", 0,
                     ModelInspectionExpectedFooterStatus.InProgress,
                     ModelInspectionFixtureInteractionLifetimeEffect.None),
                 Choose(ModelInspectionExpectedFooterStatus.NotComplete),
@@ -82,7 +82,7 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
             new("fixture.failure.cancellation-unconfirmed",
                 "Cancellation could not be confirmed safely."),
             [new("cancel-request", ModelInspectionFixtureInteractionKind.Cancel,
-                    "progress", "cancellation-unconfirmed", "cancel", 0,
+                    "progress", "cancellation-unconfirmed", "model-card", 0,
                     ModelInspectionExpectedFooterStatus.InProgress,
                     ModelInspectionFixtureInteractionLifetimeEffect.None),
                 Choose(ModelInspectionExpectedFooterStatus.Interrupted),
@@ -532,25 +532,36 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
             model.Mode, id);
         Assert.AreEqual(profile switch
         {
-            ScreenProfile.Ready => ModelInspectionExpectedModelBadge.Inspected,
+            ScreenProfile.Ready => null,
             ScreenProfile.Cancelled => ModelInspectionExpectedModelBadge.NotInspected,
             _ => ModelInspectionExpectedModelBadge.ResultUnknown
         }, model.Badge, id);
         AssertCopy(model.DisplayName, "fixture.model.name", "Granite Fixture Model", id);
         AssertCopy(model.DisplayFileName, "fixture.model.file", "granite-fixture.gguf", id);
 
+        if (profile != ScreenProfile.Ready)
+        {
+            Assert.HasCount(0, model.Metadata, id);
+            Assert.HasCount(0, model.Checks, id);
+            return;
+        }
+
         (string Id, string LabelKey, string Label, string ValueKey, string Value)[] metadata =
         [
-            ("metadata-format", "fixture.metadata.format.label", "Format",
+            ("metadata-publisher", "fixture.metadata.publisher.label", "PUBLISHER",
+                "fixture.not-reported", "Not reported"),
+            ("metadata-format", "fixture.metadata.format.label", "FORMAT",
                 "fixture.metadata.format.value", "GGUF"),
-            ("metadata-file-size", "fixture.metadata.file-size.label", "File size",
-                "fixture.metadata.file-size.value", "1.50 GB"),
-            ("metadata-quantisation", "fixture.metadata.quantisation.label", "Quantisation",
+            ("metadata-quantisation", "fixture.metadata.quantisation.label", "QUANTISATION",
                 "fixture.metadata.quantisation.value", "Q4_K_M"),
-            ("metadata-parameters", "fixture.metadata.parameters.label", "Parameters",
+            ("metadata-parameters", "fixture.metadata.parameters.label", "PARAMETERS",
                 "fixture.metadata.parameters.value", "8 billion"),
-            ("metadata-context", "fixture.metadata.context.label", "Context",
-                "fixture.metadata.context.value", "8,192 tokens")
+            ("metadata-model-type", "fixture.metadata.model-type.label", "MODEL TYPE",
+                "fixture.not-reported", "Not reported"),
+            ("metadata-context", "fixture.metadata.context.label", "DECLARED MAX CONTEXT",
+                "fixture.metadata.context.value", "8,192 tokens"),
+            ("metadata-file-size", "fixture.metadata.file-size.label", "FILE SIZE",
+                "fixture.metadata.file-size.value", "1.50 GB")
         ];
         Assert.AreEqual(metadata.Length, model.Metadata.Count, id);
         for (int index = 0; index < metadata.Length; index++)
@@ -562,28 +573,7 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
                 metadata[index].Value, id);
         }
 
-        (string Id, string Key, string Text)[] checks =
-        [
-            ("check-package", "fixture.check.package",
-                "GGUF version 3; package boundaries validated and source integrity preserved."),
-            ("check-configuration", "fixture.check.configuration",
-                "Architecture llama; 32 layers; quantisation Q4_K_M; 8 billion parameters."),
-            ("check-tokenizer", "fixture.check.tokenizer",
-                "Tokenizer sentencepiece; smoke check passed with 4 tokens; chat template present."),
-            ("check-structure", "fixture.check.structure",
-                "Model structure validation completed using reported configuration evidence."),
-            ("check-runtime", "fixture.check.runtime",
-                "CPU X64 VocabOnly inspection completed with llama.dll using the approved profile.")
-        ];
-        Assert.AreEqual(checks.Length, model.Checks.Count, id);
-        for (int index = 0; index < checks.Length; index++)
-        {
-            Assert.AreEqual(checks[index].Id, model.Checks[index].Id, id);
-            AssertCopy(model.Checks[index].Text, checks[index].Key,
-                checks[index].Text, id);
-            Assert.AreEqual(ModelInspectionExpectedRowStatus.Passed,
-                model.Checks[index].Status, id);
-        }
+        Assert.HasCount(0, model.Checks, id);
     }
 
     private static void AssertOutcome(
@@ -670,10 +660,6 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
         string id)
     {
         Assert.AreEqual(status, footer.Status, id);
-        CollectionAssert.AreEqual(Enum.GetValues<ModelInspectionExpectedStage>(),
-            footer.Rows.Select(row => row.Stage).ToArray(), id);
-        CollectionAssert.AreEqual(Enumerable.Repeat(status, 5).ToArray(),
-            footer.Rows.Select(row => row.Status).ToArray(), id);
     }
 
     private static void AssertAnnouncements(
@@ -1190,29 +1176,22 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
 
     private static readonly string[] ReadyRetained =
     [
-        "model-card", "metadata-format", "metadata-file-size",
-        "metadata-quantisation", "metadata-parameters", "metadata-context",
-        "check-package", "check-configuration", "check-tokenizer",
-        "check-structure", "check-runtime", "choose-another",
+        "model-card", "metadata-publisher", "metadata-format",
+        "metadata-quantisation", "metadata-parameters", "metadata-model-type",
+        "metadata-context", "metadata-file-size", "choose-another",
         "technical-report", "hardware-fit", "inspection-details-disclosure"
     ];
 
     private static readonly string[] CancelledRetained =
     [
-        "model-card", "metadata-format", "metadata-file-size",
-        "metadata-quantisation", "metadata-parameters", "metadata-context",
-        "check-package", "check-configuration", "check-tokenizer",
-        "check-structure", "check-runtime", "content-list", "cancelled-row",
-        "choose-another", "restart"
+        "model-card", "content-list", "cancelled-row", "choose-another",
+        "restart"
     ];
 
     private static readonly string[] FailureRetained =
     [
-        "model-card", "metadata-format", "metadata-file-size",
-        "metadata-quantisation", "metadata-parameters", "metadata-context",
-        "check-package", "check-configuration", "check-tokenizer",
-        "check-structure", "check-runtime", "content-list",
-        "operational-failure-row", "choose-another", "technical-report", "retry"
+        "model-card", "content-list", "operational-failure-row",
+        "choose-another", "technical-report", "retry"
     ];
 
     private static readonly string[] ReadyReadingOrder =

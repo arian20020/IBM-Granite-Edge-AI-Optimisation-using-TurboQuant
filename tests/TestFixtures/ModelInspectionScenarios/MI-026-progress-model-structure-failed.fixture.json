@@ -209,28 +209,6 @@
       ]
     },
     "footer": {
-      "rows": [
-        {
-          "stage": "checkModelPackage",
-          "status": "complete"
-        },
-        {
-          "stage": "readModelConfiguration",
-          "status": "complete"
-        },
-        {
-          "stage": "validateTokenizerAndChatSetup",
-          "status": "complete"
-        },
-        {
-          "stage": "validateModelStructure",
-          "status": "notComplete"
-        },
-        {
-          "stage": "confirmCoreRuntimeCompatibility",
-          "status": "notComplete"
-        }
-      ],
       "status": "inProgress"
     },
     "focus": {
@@ -429,7 +407,7 @@
       "kind": "cancel",
       "sourceCheckpoint": "observed",
       "target": "MI-012",
-      "expectedFocus": "cancel",
+      "expectedFocus": "model-card",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "inProgress",
       "lifetimeEffect": "none"

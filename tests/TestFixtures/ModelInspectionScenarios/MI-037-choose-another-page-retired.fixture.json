@@ -100,7 +100,7 @@
                      "model":  {
                                    "visible":  true,
                                    "mode":  "detailed",
-                                   "badge":  "inspected",
+                                   "badge":  null,
                                    "displayName":  {
                                                        "copyKey":  "fixture.model.name",
                                                        "defaultText":  "Granite Fixture Model"
@@ -110,104 +110,85 @@
                                                            "defaultText":  "granite-fixture.gguf"
                                                        },
                                    "metadata":  [
-                                                    {
-                                                        "id":  "metadata-format",
-                                                        "label":  {
-                                                                      "copyKey":  "fixture.metadata.format.label",
-                                                                      "defaultText":  "Format"
-                                                                  },
-                                                        "value":  {
-                                                                      "copyKey":  "fixture.metadata.format.value",
-                                                                      "defaultText":  "GGUF"
-                                                                  }
-                                                    },
-                                                    {
-                                                        "id":  "metadata-file-size",
-                                                        "label":  {
-                                                                      "copyKey":  "fixture.metadata.file-size.label",
-                                                                      "defaultText":  "File size"
-                                                                  },
-                                                        "value":  {
-                                                                      "copyKey":  "fixture.metadata.file-size.value",
-                                                                      "defaultText":  "1.50 GB"
-                                                                  }
-                                                    },
-                                                    {
-                                                        "id":  "metadata-quantisation",
-                                                        "label":  {
-                                                                      "copyKey":  "fixture.metadata.quantisation.label",
-                                                                      "defaultText":  "Quantisation"
-                                                                  },
-                                                        "value":  {
-                                                                      "copyKey":  "fixture.metadata.quantisation.value",
-                                                                      "defaultText":  "Q4_K_M"
-                                                                  }
-                                                    },
-                                                    {
-                                                        "id":  "metadata-parameters",
-                                                        "label":  {
-                                                                      "copyKey":  "fixture.metadata.parameters.label",
-                                                                      "defaultText":  "Parameters"
-                                                                  },
-                                                        "value":  {
-                                                                      "copyKey":  "fixture.metadata.parameters.value",
-                                                                      "defaultText":  "8 billion"
-                                                                  }
-                                                    },
-                                                    {
-                                                        "id":  "metadata-context",
-                                                        "label":  {
-                                                                      "copyKey":  "fixture.metadata.context.label",
-                                                                      "defaultText":  "Context"
-                                                                  },
-                                                        "value":  {
-                                                                      "copyKey":  "fixture.metadata.context.value",
-                                                                      "defaultText":  "8,192 tokens"
-                                                                  }
-                                                    }
-                                                ],
-                                   "checks":  [
-                                                  {
-                                                      "id":  "check-package",
-                                                      "text":  {
-                                                                   "copyKey":  "fixture.check.package",
-                                                                   "defaultText":  "GGUF version 3; package boundaries validated and source integrity preserved."
-                                                               },
-                                                      "status":  "passed"
-                                                  },
-                                                  {
-                                                      "id":  "check-configuration",
-                                                      "text":  {
-                                                                   "copyKey":  "fixture.check.configuration",
-                                                                   "defaultText":  "Architecture llama; 32 layers; quantisation Q4_K_M; 8 billion parameters."
-                                                               },
-                                                      "status":  "passed"
-                                                  },
-                                                  {
-                                                      "id":  "check-tokenizer",
-                                                      "text":  {
-                                                                   "copyKey":  "fixture.check.tokenizer",
-                                                                   "defaultText":  "Tokenizer sentencepiece; smoke check passed with 4 tokens; chat template present."
-                                                               },
-                                                      "status":  "passed"
-                                                  },
-                                                  {
-                                                      "id":  "check-structure",
-                                                      "text":  {
-                                                                   "copyKey":  "fixture.check.structure",
-                                                                   "defaultText":  "Model structure validation completed using reported configuration evidence."
-                                                               },
-                                                      "status":  "passed"
-                                                  },
-                                                  {
-                                                      "id":  "check-runtime",
-                                                      "text":  {
-                                                                   "copyKey":  "fixture.check.runtime",
-                                                                   "defaultText":  "CPU X64 VocabOnly inspection completed with llama.dll using the approved profile."
-                                                               },
-                                                      "status":  "passed"
-                                                  }
-                                              ],
+          {
+              "id":  "metadata-publisher",
+              "label":  {
+                            "copyKey":  "fixture.metadata.publisher.label",
+                            "defaultText":  "PUBLISHER"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.not-reported",
+                            "defaultText":  "Not reported"
+                        }
+          },
+          {
+              "id":  "metadata-format",
+              "label":  {
+                            "copyKey":  "fixture.metadata.format.label",
+                            "defaultText":  "FORMAT"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.format.value",
+                            "defaultText":  "GGUF"
+                        }
+          },
+          {
+              "id":  "metadata-quantisation",
+              "label":  {
+                            "copyKey":  "fixture.metadata.quantisation.label",
+                            "defaultText":  "QUANTISATION"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.quantisation.value",
+                            "defaultText":  "Q4_K_M"
+                        }
+          },
+          {
+              "id":  "metadata-parameters",
+              "label":  {
+                            "copyKey":  "fixture.metadata.parameters.label",
+                            "defaultText":  "PARAMETERS"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.parameters.value",
+                            "defaultText":  "8 billion"
+                        }
+          },
+          {
+              "id":  "metadata-model-type",
+              "label":  {
+                            "copyKey":  "fixture.metadata.model-type.label",
+                            "defaultText":  "MODEL TYPE"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.not-reported",
+                            "defaultText":  "Not reported"
+                        }
+          },
+          {
+              "id":  "metadata-context",
+              "label":  {
+                            "copyKey":  "fixture.metadata.context.label",
+                            "defaultText":  "DECLARED MAX CONTEXT"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.context.value",
+                            "defaultText":  "8,192 tokens"
+                        }
+          },
+          {
+              "id":  "metadata-file-size",
+              "label":  {
+                            "copyKey":  "fixture.metadata.file-size.label",
+                            "defaultText":  "FILE SIZE"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.file-size.value",
+                            "defaultText":  "1.50 GB"
+                        }
+          }
+      ],
+                                   "checks":  [],
                                    "disclosureExpanded":  false
                                },
                      "content":  {
@@ -262,28 +243,6 @@
                                                ]
                                  },
                      "footer":  {
-                                    "rows":  [
-                                                 {
-                                                     "stage":  "checkModelPackage",
-                                                     "status":  "complete"
-                                                 },
-                                                 {
-                                                     "stage":  "readModelConfiguration",
-                                                     "status":  "complete"
-                                                 },
-                                                 {
-                                                     "stage":  "validateTokenizerAndChatSetup",
-                                                     "status":  "complete"
-                                                 },
-                                                 {
-                                                     "stage":  "validateModelStructure",
-                                                     "status":  "complete"
-                                                 },
-                                                 {
-                                                     "stage":  "confirmCoreRuntimeCompatibility",
-                                                     "status":  "complete"
-                                                 }
-                                             ],
                                     "status":  "complete"
                                 },
                      "focus":  {
@@ -366,22 +325,19 @@
                                        },
                      "retainedIdentities":  {
                                                 "ids":  [
-                                                            "model-card",
-                                                            "metadata-format",
-                                                            "metadata-file-size",
-                                                            "metadata-quantisation",
-                                                            "metadata-parameters",
-                                                            "metadata-context",
-                                                            "check-package",
-                                                            "check-configuration",
-                                                            "check-tokenizer",
-                                                            "check-structure",
-                                                            "check-runtime",
-                                                            "choose-another",
-                                                            "technical-report",
-                                                            "hardware-fit",
-                                                            "inspection-details-disclosure"
-                                                        ]
+          "model-card",
+          "metadata-publisher",
+          "metadata-format",
+          "metadata-quantisation",
+          "metadata-parameters",
+          "metadata-model-type",
+          "metadata-context",
+          "metadata-file-size",
+          "choose-another",
+          "technical-report",
+          "hardware-fit",
+          "inspection-details-disclosure"
+      ]
                                             }
                  },
     "presetExpectations":  {

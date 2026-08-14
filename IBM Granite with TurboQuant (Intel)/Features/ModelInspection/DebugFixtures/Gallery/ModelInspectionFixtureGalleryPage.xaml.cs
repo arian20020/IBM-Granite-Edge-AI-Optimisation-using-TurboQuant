@@ -1,12 +1,14 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
+using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Observation;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.ExceptionServices;
@@ -15,6 +17,11 @@ using System.Threading.Tasks;
 using DebugFixturePreset = GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets.ModelInspectionFixturePreset;
 
 namespace GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Gallery;
+
+internal sealed record ModelInspectionFixtureActionDispatchResult(
+    string ActionId,
+    bool IsDispatched,
+    string RuleCode);
 
 internal sealed class ModelInspectionFixtureGalleryActivation
 {
@@ -30,6 +37,8 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
 {
     private readonly ModelInspectionFixturePackageLoader loader;
     private readonly IModelInspectionFixtureScenarioRunner runner;
+    private readonly IModelInspectionFixtureScreenObserver screenObserver;
+    private readonly IModelInspectionFixtureScreenComparer screenComparer;
     private Action? beforeHostNavigationConfirmation;
     private readonly TaskCompletionSource<bool> catalogueLoaded = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -45,12 +54,18 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
     private int activationStarted;
     private int closeStarted;
     private int retired;
+    private bool updatingPresetControls;
+    private Func<ReadOnlyMemory<byte>>? nextListSelectionRawFactory;
+    private string? declaredActionCheckpointForTesting;
 
     public ModelInspectionFixtureGalleryPage()
         : this(
             new ModelInspectionFixturePackageLoader(),
             static () => true,
-            new ModelInspectionFixtureScenarioRunner())
+            new ModelInspectionFixtureScenarioRunner(),
+            beforeHostNavigationConfirmation: null,
+            screenObserver: null,
+            screenComparer: null)
     {
     }
 
@@ -58,12 +73,16 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         ModelInspectionFixturePackageLoader loader,
         Action closeRequested,
         IModelInspectionFixtureScenarioRunner? runner = null,
-        Action? beforeHostNavigationConfirmation = null)
+        Action? beforeHostNavigationConfirmation = null,
+        IModelInspectionFixtureScreenObserver? screenObserver = null,
+        IModelInspectionFixtureScreenComparer? screenComparer = null)
         : this(
             loader,
             WrapCloseRequested(closeRequested),
             runner,
-            beforeHostNavigationConfirmation)
+            beforeHostNavigationConfirmation,
+            screenObserver,
+            screenComparer)
     {
     }
 
@@ -71,12 +90,18 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         ModelInspectionFixturePackageLoader loader,
         Func<bool> closeRequested,
         IModelInspectionFixtureScenarioRunner? runner,
-        Action? beforeHostNavigationConfirmation = null)
+        Action? beforeHostNavigationConfirmation,
+        IModelInspectionFixtureScreenObserver? screenObserver,
+        IModelInspectionFixtureScreenComparer? screenComparer)
     {
         this.loader = loader ?? throw new ArgumentNullException(nameof(loader));
         this.closeRequested = closeRequested ??
             throw new ArgumentNullException(nameof(closeRequested));
         this.runner = runner ?? new ModelInspectionFixtureScenarioRunner();
+        this.screenObserver = screenObserver ??
+            new ModelInspectionFixtureScreenObserver();
+        this.screenComparer = screenComparer ??
+            new ModelInspectionFixtureScreenComparer();
         this.beforeHostNavigationConfirmation =
             beforeHostNavigationConfirmation;
         ViewModel = new ModelInspectionFixtureGalleryViewModel();
@@ -87,6 +112,8 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         FixtureSearchBox.TextChanged += FixtureSearchBox_TextChanged;
         FixtureCategoryFilter.SelectionChanged +=
             FixtureCategoryFilter_SelectionChanged;
+        FixturePresetSelector.SelectionChanged +=
+            FixturePresetSelector_SelectionChanged;
         FixtureList.SelectionChanged += FixtureList_SelectionChanged;
         ResetFixtureButton.Click += ResetFixtureButton_Click;
         CloseFixtureGalleryButton.Click += CloseFixtureGalleryButton_Click;
@@ -102,6 +129,14 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
     internal Frame HostFrame => FixtureHostFrame;
 
     internal ModelInspectionFixtureHostPage? ActiveHost => activeHost;
+
+    internal ValidatedModelInspectionFixtureCoverageCatalogue
+        CoverageCatalogueForTesting => loader.CoverageCatalogue ??
+            throw new InvalidOperationException(
+                "The fixture coverage catalogue is not loaded.");
+
+    internal DebugFixturePreset CurrentPreset =>
+        Volatile.Read(ref activeHost)?.Preset ?? DebugFixturePreset.Canonical;
 
     internal ModelInspectionFixtureHostActivation? PendingActivationForTesting =>
         Volatile.Read(ref pendingActivation);
@@ -150,12 +185,24 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         RetireGallery();
     }
 
-    internal async Task SelectFixtureForTestingAsync(string id)
+    internal Task SelectFixtureForTestingAsync(string id) =>
+        SelectFixtureForTestingAsync(id, DebugFixturePreset.Canonical);
+
+    internal async Task SelectFixtureForTestingAsync(
+        string id,
+        DebugFixturePreset preset)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(preset);
         ModelInspectionFixtureListItem item = ViewModel.Items.Single(candidate =>
             string.Equals(candidate.Id, id, StringComparison.Ordinal));
-        Task selection = SelectAsync(item, () => item.RawUtf8);
+        DebugFixturePreset validatedPreset = ValidateRequestedPreset(
+            item,
+            preset);
+        Task selection = SelectAsync(
+            item,
+            () => item.RawUtf8,
+            validatedPreset);
         Volatile.Write(ref selectionCompleted, selection);
         await selection;
     }
@@ -168,7 +215,13 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         ArgumentNullException.ThrowIfNull(rawUtf8Factory);
         ModelInspectionFixtureListItem item = ViewModel.Items.Single(candidate =>
             string.Equals(candidate.FileName, fileName, StringComparison.Ordinal));
-        Task selection = SelectAsync(item, () => rawUtf8Factory());
+        DebugFixturePreset preset = ValidateRequestedPreset(
+            item,
+            DebugFixturePreset.Canonical);
+        Task selection = SelectAsync(
+            item,
+            () => rawUtf8Factory(),
+            preset);
         Volatile.Write(ref selectionCompleted, selection);
         await selection;
     }
@@ -178,21 +231,270 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         ModelInspectionFixtureListItem item = ViewModel.SelectedItem ??
             throw new InvalidOperationException(
                 "No fixture is selected for reset.");
-        Task selection = SelectAsync(item, () => item.RawUtf8);
+        DebugFixturePreset preset = ValidateRequestedPreset(
+            item,
+            CurrentPreset);
+        Task selection = SelectAsync(item, () => item.RawUtf8, preset);
         Volatile.Write(ref selectionCompleted, selection);
         return selection;
     }
 
     internal void CloseForTesting() => CloseGallery();
 
+    internal async Task<ModelInspectionFixtureActionDispatchResult>
+        DispatchDeclaredActionForTestingAsync(string actionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionId);
+        ModelInspectionPage? page = activeHost?.ModelInspectionPage;
+        ModelInspectionFixtureListItem? item = ViewModel.SelectedItem;
+        if (page is null || item is null ||
+            !IsSupportedActionRequest(item, actionId))
+        {
+            return new(actionId, false, "fixture.action.unsupported");
+        }
+
+        Button? control = FindRenderedActionButtonOrNull(actionId);
+        if (control is null)
+        {
+            return new(actionId, false, "fixture.action.unsupported");
+        }
+
+        if (!control.IsEnabled)
+        {
+            return new(actionId, false, "fixture.action.disabled");
+        }
+
+        string? checkpoint = Volatile.Read(
+            ref declaredActionCheckpointForTesting);
+        ModelInspectionFixtureInteraction? declaredInteraction =
+            item.Fixture.Interactions.SingleOrDefault(interaction =>
+                string.Equals(
+                    interaction.Id,
+                    actionId,
+                    StringComparison.Ordinal) &&
+                (checkpoint is null || string.Equals(
+                    interaction.SourceCheckpoint,
+                    checkpoint,
+                    StringComparison.Ordinal)));
+        ModelInspectionFixtureSession session = activeHost!.Session;
+        int serviceCallCountBefore = session.Evidence.ServiceCallCount;
+        InvokeRenderedButton(control);
+        await DrainDispatcherAsync(this);
+        if (string.Equals(actionId, "reset", StringComparison.Ordinal))
+        {
+            await SelectionCompletedForTesting;
+        }
+        else if ((actionId is "retry" or "retry-attempt" or
+                  "restart" or "restart-attempt") &&
+                 declaredInteraction is not null &&
+                 declaredInteraction.Target.StartsWith(
+                     "MI-",
+                     StringComparison.Ordinal))
+        {
+            ModelInspectionFixtureServiceCallEvidence nextCall = await session
+                .Evidence
+                .WaitForNextServiceCallAsync(serviceCallCountBefore)
+                .WaitAsync(TimeSpan.FromSeconds(5));
+            await CompleteAttemptAsync(session, nextCall);
+        }
+
+        await DrainDispatcherAsync(this);
+        return new(actionId, true, "fixture.action.dispatched");
+    }
+
+    internal async Task<Button> FindRenderedActionButtonForTestingAsync(
+        string actionId)
+    {
+        await DrainDispatcherAsync(this);
+        return FindRenderedActionButtonOrNull(actionId) ??
+            throw new InvalidOperationException(
+                $"The rendered fixture action '{actionId}' was not found for " +
+                $"fixture '{ViewModel.SelectedItem?.Id ?? "<none>"}'.");
+    }
+
+    internal async Task<Button?> FindRenderedActionButtonOrNullForTestingAsync(
+        string actionId)
+    {
+        await DrainDispatcherAsync(this);
+        return FindRenderedActionButtonOrNull(actionId);
+    }
+
+    internal Task PositionAtDeclaredInteractionCheckpointThroughScenarioAsync(
+        string fixtureId,
+        string checkpoint) => SelectFixtureAtCheckpointAsync(
+            fixtureId,
+            checkpoint,
+            continueUntilNextInteraction: false,
+            captureStaleResultSnapshots: true);
+
+    internal Task SelectFixtureForStaleEventCheckpointThroughLoadedRunnerAsync(
+        string fixtureId,
+        string checkpoint) => SelectFixtureAtCheckpointAsync(
+            fixtureId,
+            checkpoint,
+            continueUntilNextInteraction: true,
+            captureStaleResultSnapshots: !string.Equals(
+                fixtureId, "MI-034", StringComparison.Ordinal));
+
+    internal async Task InvokeRetryThroughRenderedControlAsync()
+    {
+        ModelInspectionFixtureSession session = activeHost?.Session ??
+            throw new InvalidOperationException("No fixture session is active.");
+        Button retry = FindRenderedPageActionButton("retry") ??
+            FindRenderedPageActionButton("restart") ??
+            throw new InvalidOperationException(
+                "The loaded fixture has no rendered Retry control.");
+        int serviceCallCountBefore = session.Evidence.ServiceCallCount;
+        InvokeRenderedButton(retry);
+        await DrainDispatcherAsync(this);
+        ModelInspectionFixtureServiceCallEvidence nextCall = await session
+            .Evidence
+            .WaitForNextServiceCallAsync(serviceCallCountBefore)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        await CompleteAttemptAsync(session, nextCall);
+        await DrainDispatcherAsync(this);
+    }
+
+    internal async Task SelectFixtureThroughRealListForTestingAsync(string id)
+    {
+        ModelInspectionFixtureListItem item = ViewModel.Items.Single(candidate =>
+            string.Equals(candidate.Id, id, StringComparison.Ordinal));
+        FixtureList.SelectedItem = null;
+        await DrainDispatcherAsync(this);
+        FixtureList.SelectedItem = item;
+        await SelectionCompletedForTesting;
+    }
+
+    internal async Task SelectInvalidRawFixtureThroughRealListForTestingAsync()
+    {
+        ModelInspectionFixtureListItem item = ViewModel.SelectedItem ??
+            throw new InvalidOperationException("No fixture is selected.");
+        nextListSelectionRawFactory = static () => new byte[] { (byte)'{' };
+        FixtureList.SelectedItem = null;
+        await DrainDispatcherAsync(this);
+        FixtureList.SelectedItem = item;
+        await SelectionCompletedForTesting;
+    }
+
+    internal async Task NavigateThroughOwningFrameAwayAndBackForTestingAsync(
+        Window window)
+    {
+        string fixtureId = ViewModel.SelectedItem?.Id ??
+            throw new InvalidOperationException("No fixture is selected.");
+        FixtureHostFrame.Content = new Page();
+        RetireActiveHost();
+        await DrainDispatcherAsync(this);
+        await SelectFixtureThroughRealListForTestingAsync(fixtureId);
+    }
+
+    internal async Task NavigateThroughOwningFrameAndUnloadForTestingAsync(
+        Window window)
+    {
+        FixtureHostFrame.Content = new Page();
+        RetireActiveHost();
+        await DrainDispatcherAsync(this);
+    }
+
+    internal async Task PrimeEveryAuditedProducerThroughRealControlsAsync(
+        string fixtureId)
+    {
+        await SelectFixtureThroughRealListForTestingAsync(fixtureId);
+        Button? collapse = FindRenderedActionButtonOrNull("collapse");
+        if (collapse is not null && collapse.IsEnabled)
+        {
+            InvokeRenderedButton(collapse);
+            await DrainDispatcherAsync(this);
+        }
+
+        Button? expand = FindRenderedActionButtonOrNull("expand");
+        if (expand is not null && expand.IsEnabled)
+        {
+            InvokeRenderedButton(expand);
+            await DrainDispatcherAsync(this);
+        }
+    }
+
     internal bool RaiseUnloadedForTesting() => RetireGallery();
+
+    private async Task SelectFixtureAtCheckpointAsync(
+        string fixtureId,
+        string checkpoint,
+        bool continueUntilNextInteraction,
+        bool captureStaleResultSnapshots)
+    {
+        ModelInspectionFixtureListItem item = ViewModel.Items.Single(candidate =>
+            string.Equals(candidate.Id, fixtureId, StringComparison.Ordinal));
+        Task selection = SelectAsync(
+            item,
+            () => item.RawUtf8,
+            DebugFixturePreset.Canonical,
+            checkpoint,
+            continueUntilNextInteraction,
+            captureStaleResultSnapshots);
+        Volatile.Write(ref selectionCompleted, selection);
+        await selection;
+        if (activeHost is not null &&
+            string.Equals(
+                ViewModel.SelectedItem?.Id,
+                fixtureId,
+                StringComparison.Ordinal))
+        {
+            Volatile.Write(
+                ref declaredActionCheckpointForTesting,
+                checkpoint);
+        }
+    }
+
+    private DebugFixturePreset ValidateRequestedPreset(
+        ModelInspectionFixtureListItem item,
+        DebugFixturePreset requested)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(requested);
+        ModelInspectionFixtureCatalogue catalogue = loader.CoverageCatalogue?
+            .Catalogue ?? throw new InvalidOperationException(
+                "The validated fixture preset policy is unavailable.");
+        if (!item.Fixture.Presets.Contains(
+                requested.Id,
+                StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Fixture '{item.Id}' does not require preset " +
+                $"'{requested.Id}'.");
+        }
+
+        GraniteEdgeAI.ModelInspection.Fixtures.ModelInspectionFixturePreset?
+            policyPreset = catalogue.Policy.Value.Presets.SingleOrDefault(
+                candidate => string.Equals(
+                    candidate.Id,
+                    requested.Id,
+                    StringComparison.Ordinal));
+        if (policyPreset is null ||
+            policyPreset.Width != requested.Width ||
+            policyPreset.Resources != requested.Resources ||
+            policyPreset.Text != requested.Text ||
+            policyPreset.Motion != requested.Motion)
+        {
+            throw new InvalidOperationException(
+                $"Preset '{requested.Id}' does not match the validated " +
+                "coverage-policy identity.");
+        }
+
+        return requested;
+    }
 
     private async Task SelectAsync(
         ModelInspectionFixtureListItem item,
-        Func<ReadOnlyMemory<byte>> rawUtf8Factory)
+        Func<ReadOnlyMemory<byte>> rawUtf8Factory,
+        DebugFixturePreset preset,
+        string? stopCheckpoint = null,
+        bool continueUntilNextInteraction = false,
+        bool captureStaleResultSnapshots = true)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(rawUtf8Factory);
+        ArgumentNullException.ThrowIfNull(preset);
+        Volatile.Write(ref declaredActionCheckpointForTesting, null);
         long epoch = Interlocked.Increment(ref selectionEpoch);
         CancellationTokenSource cancellation = new();
         CancellationTokenSource? previous = Interlocked.Exchange(
@@ -218,7 +520,6 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
                 return;
             }
 
-            DebugFixturePreset preset = DebugFixturePreset.Canonical;
             bool animationsEnabled =
                 preset.Motion ==
                 ModelInspectionFixtureMotionProfile.Normal;
@@ -304,14 +605,51 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
             activation.Dispose();
             activation = null;
 
+            await candidate.ApplyPresetAsync(cancellation.Token);
+            if (!IsCurrent(epoch, cancellation) ||
+                !ReferenceEquals(activeHost, candidate))
+            {
+                return;
+            }
+
             string checkpoint;
+            ModelInspectionObservedScreen observed;
+            using IModelInspectionFixtureObservationSession observation =
+                screenObserver.Begin(candidate.ModelInspectionPage!);
             try
             {
-                checkpoint = await runner.RunAsync(
-                    fixture.Input,
-                    candidate.ModelInspectionPage!,
-                    session,
-                    cancellation.Token);
+                if (stopCheckpoint is null)
+                {
+                    checkpoint = await runner.RunAsync(
+                        fixture.Input,
+                        candidate.ModelInspectionPage!,
+                        session,
+                        cancellation.Token);
+                }
+                else if (runner is ModelInspectionFixtureScenarioRunner
+                         checkpointRunner)
+                {
+                    checkpoint = await checkpointRunner.RunToCheckpointAsync(
+                        fixture.Input,
+                        candidate.ModelInspectionPage!,
+                        session,
+                        stopCheckpoint,
+                        continueUntilNextInteraction,
+                        captureStaleResultSnapshots,
+                        cancellation.Token);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "Checkpoint positioning requires the loaded fixture scenario runner.");
+                }
+                if (!IsCurrent(epoch, cancellation) ||
+                    !ReferenceEquals(activeHost, candidate))
+                {
+                    return;
+                }
+
+                observed = await observation.CaptureAsync(cancellation.Token);
             }
             catch (OperationCanceledException) when (!IsCurrent(
                 epoch,
@@ -340,7 +678,24 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
                 return;
             }
 
-            ViewModel.ValidationStatus = $"Reached checkpoint: {checkpoint}.";
+            IReadOnlyList<ModelInspectionFixtureScreenDifference> differences =
+                stopCheckpoint is null
+                    ? screenComparer.Compare(
+                        fixture,
+                        observed,
+                        loader.CoverageCatalogue?.Catalogue.Policy.Value.CopyRegistry ??
+                            throw new InvalidOperationException(
+                                "The validated fixture copy registry is unavailable."))
+                    : [];
+            if (!IsCurrent(epoch, cancellation) ||
+                !ReferenceEquals(activeHost, candidate))
+            {
+                return;
+            }
+
+            ViewModel.ValidationStatus = differences.Count == 0
+                ? $"Screen contract passed: {checkpoint}."
+                : $"Screen contract failed: {differences[0].Diagnostic}";
         }
         catch (ModelInspectionFixtureGalleryLoadException error)
         {
@@ -764,13 +1119,82 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
                 : null;
     }
 
+    private async void FixturePresetSelector_SelectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArguments)
+    {
+        if (updatingPresetControls ||
+            FixturePresetSelector.SelectedItem is not string presetId ||
+            ViewModel.SelectedItem is not ModelInspectionFixtureListItem item)
+        {
+            return;
+        }
+
+        long requestEpoch = Volatile.Read(ref selectionEpoch);
+        try
+        {
+            ModelInspectionFixtureCatalogue catalogue = loader.CoverageCatalogue?
+                .Catalogue ?? throw new InvalidOperationException(
+                    "The validated fixture preset policy is unavailable.");
+            GraniteEdgeAI.ModelInspection.Fixtures.ModelInspectionFixturePreset
+                policyPreset = catalogue.Policy.Value.Presets.Single(candidate =>
+                    string.Equals(
+                        candidate.Id,
+                        presetId,
+                        StringComparison.Ordinal));
+            DebugFixturePreset requested = ValidateRequestedPreset(
+                item,
+                DebugFixturePreset.FromPolicy(policyPreset));
+            if (requested == CurrentPreset)
+            {
+                return;
+            }
+
+            Task selection = SelectAsync(
+                item,
+                () => item.RawUtf8,
+                requested);
+            Volatile.Write(ref selectionCompleted, selection);
+            await selection;
+        }
+        catch (Exception)
+        {
+            if (Volatile.Read(ref retired) != 0 ||
+                Volatile.Read(ref selectionEpoch) != requestEpoch ||
+                !ReferenceEquals(ViewModel.SelectedItem, item) ||
+                FixturePresetSelector.SelectedItem is not string selectedPresetId ||
+                !string.Equals(
+                    selectedPresetId,
+                    presetId,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            RefreshPresetControls(
+                item,
+                CurrentPreset);
+            ViewModel.ValidationStatus =
+                "Fixture preset unavailable: preset.selection";
+        }
+    }
+
     private async void FixtureList_SelectionChanged(
         object sender,
         SelectionChangedEventArgs eventArguments)
     {
         if (FixtureList.SelectedItem is ModelInspectionFixtureListItem item)
         {
-            Task selection = SelectAsync(item, () => item.RawUtf8);
+            DebugFixturePreset preset = ValidateRequestedPreset(
+                item,
+                DebugFixturePreset.Canonical);
+            Func<ReadOnlyMemory<byte>>? injected = Interlocked.Exchange(
+                ref nextListSelectionRawFactory,
+                null);
+            Task selection = SelectAsync(
+                item,
+                injected ?? (() => item.RawUtf8),
+                preset);
             Volatile.Write(ref selectionCompleted, selection);
             await selection;
         }
@@ -819,23 +1243,7 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         }
 
         FixtureCategoryFilter.SelectedIndex = 0;
-        DebugFixturePreset preset = DebugFixturePreset.Canonical;
-        FixturePresetControls.Children.Add(new TextBlock
-        {
-            Text = $"Width: {preset.Width}"
-        });
-        FixturePresetControls.Children.Add(new TextBlock
-        {
-            Text = $"Resources: {preset.Resources}"
-        });
-        FixturePresetControls.Children.Add(new TextBlock
-        {
-            Text = $"Text: {preset.Text}"
-        });
-        FixturePresetControls.Children.Add(new TextBlock
-        {
-            Text = $"Motion: {preset.Motion}"
-        });
+        RefreshPresetControls(item: null, DebugFixturePreset.Canonical);
     }
 
     private void RefreshView()
@@ -855,19 +1263,8 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
             item.HasN001RealWorkerCoverage
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+        RefreshPresetControls(item, CurrentPreset);
         FixtureInteractionPanel.Children.Clear();
-        foreach (ModelInspectionFixtureInteraction interaction in
-                 item.VisibleInteractions)
-        {
-            var button = new Button
-            {
-                Content = InteractionLabel(interaction.Kind),
-                Tag = interaction.Id
-            };
-            button.CommandParameter = interaction.Kind;
-            button.Click += FixtureInteractionButton_Click;
-            FixtureInteractionPanel.Children.Add(button);
-        }
     }
 
     private void ClearFixtureHeader()
@@ -878,47 +1275,51 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         FixtureCategoryText.Text = string.Empty;
         FixtureRealWorkerCoverageText.Text = string.Empty;
         FixtureRealWorkerCoverageText.Visibility = Visibility.Collapsed;
+        RefreshPresetControls(item: null, DebugFixturePreset.Canonical);
         FixtureInteractionPanel.Children.Clear();
     }
 
-    private async void FixtureInteractionButton_Click(
-        object sender,
-        RoutedEventArgs eventArguments)
+    private void RefreshPresetControls(
+        ModelInspectionFixtureListItem? item,
+        DebugFixturePreset preset)
     {
-        if (sender is not Button button ||
-            button.CommandParameter is not
-                ModelInspectionFixtureInteractionKind kind ||
-            activeHost?.ModelInspectionPage is not ModelInspectionPage page)
+        updatingPresetControls = true;
+        try
         {
-            return;
-        }
+            FixturePresetSelector.Items.Clear();
+            if (item is not null)
+            {
+                foreach (string id in item.Fixture.Presets)
+                {
+                    FixturePresetSelector.Items.Add(id);
+                }
 
-        switch (kind)
+                FixturePresetSelector.SelectedItem = preset.Id;
+            }
+
+            FixturePresetSelector.IsEnabled = item?.Fixture.Presets.Count > 1;
+            FixturePresetWidthText.Text = $"Width: {WidthLabel(preset.Width)}";
+            FixturePresetResourcesText.Text =
+                $"Resources: {ModelInspectionFixturePreviewResources.ResourceLabel(preset.Resources)}";
+            FixturePresetTextScaleText.Text =
+                $"Text: {ModelInspectionFixturePreviewResources.TextLabel(preset.Text)}";
+            FixturePresetMotionText.Text = $"Motion: {preset.Motion}";
+        }
+        finally
         {
-            case ModelInspectionFixtureInteractionKind.Expand:
-                RequireActiveDisclosure(page).RequestTargetState(true);
-                break;
-            case ModelInspectionFixtureInteractionKind.Collapse:
-                RequireActiveDisclosure(page).RequestTargetState(false);
-                break;
-            case ModelInspectionFixtureInteractionKind.Cancel:
-                ExecuteIfAvailable(page.ViewModel?.CancelCommand);
-                break;
-            case ModelInspectionFixtureInteractionKind.Retry:
-            case ModelInspectionFixtureInteractionKind.Restart:
-                ExecuteIfAvailable(page.ViewModel?.RetryCommand);
-                break;
-            case ModelInspectionFixtureInteractionKind.ChooseAnother:
-                ExecuteIfAvailable(page.ViewModel?.ChooseAnotherCommand);
-                break;
-            case ModelInspectionFixtureInteractionKind.Reset:
-                await ResetForTestingAsync();
-                break;
-            default:
-                throw new InvalidOperationException(
-                    "The fixture interaction kind has no UI route.");
+            updatingPresetControls = false;
         }
     }
+
+    private static string WidthLabel(
+        ModelInspectionFixtureWidthProfile width) => width switch
+        {
+            ModelInspectionFixtureWidthProfile.Desktop1440 => "Desktop 1440",
+            ModelInspectionFixtureWidthProfile.Medium600 => "Medium 600",
+            ModelInspectionFixtureWidthProfile.Narrow360 => "Narrow 360",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(width), width, "Unknown fixture width profile.")
+        };
 
     private static InspectionDisclosure RequireActiveDisclosure(
         ModelInspectionPage page)
@@ -935,28 +1336,166 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
         return active.Length == 1
             ? active[0]
             : throw new InvalidOperationException(
-                "The fixture interaction has no unique disclosure target.");
+            "The fixture interaction has no unique disclosure target.");
     }
 
-    private static void ExecuteIfAvailable(
-        System.Windows.Input.ICommand? command)
+    private Button? FindRenderedActionButtonOrNull(string actionId)
     {
-        if (command is null || !command.CanExecute(null))
+        ModelInspectionFixtureListItem? item = ViewModel.SelectedItem;
+        ModelInspectionPage? page = activeHost?.ModelInspectionPage;
+        if (item is null || page is null ||
+            !IsSupportedActionRequest(item, actionId))
         {
-            throw new InvalidOperationException(
-                "The fixture interaction command is unavailable.");
+            return null;
         }
 
-        command.Execute(null);
+        return actionId switch
+        {
+            "reset" => ResetFixtureButton,
+            "expand" => FindDisclosureToggle(page, expanded: false),
+            "collapse" => FindDisclosureToggle(page, expanded: true),
+            "cancel-request" => FindRenderedPageActionButton("cancel"),
+            "retry-attempt" => FindRenderedPageActionButton("retry"),
+            "restart-attempt" => FindRenderedPageActionButton("restart"),
+            _ => FindRenderedPageActionButton(actionId)
+        };
     }
 
-    private static string InteractionLabel(
-        ModelInspectionFixtureInteractionKind kind) => kind switch
+    private Button? FindRenderedPageActionButton(string actionId)
+    {
+        ModelInspectionPage? page = activeHost?.ModelInspectionPage;
+        if (page is null)
         {
-            ModelInspectionFixtureInteractionKind.ChooseAnother =>
-                "Choose another",
-            _ => kind.ToString()
-        };
+            return null;
+        }
+
+        var card = (InspectionActionCard)page.FindName(
+            "InspectionActionCardControl");
+        foreach (string name in new[]
+                 {
+                     "CancelActionButton", "SecondaryActionOneButton",
+                     "SecondaryActionTwoButton", "PrimaryActionButton"
+                 })
+        {
+            var button = (Button)card.FindName(name);
+            if (button.Visibility == Visibility.Visible && string.Equals(
+                    button.Tag as string,
+                    actionId,
+                    StringComparison.Ordinal))
+            {
+                return button;
+            }
+        }
+
+        return null;
+    }
+
+    private static Button? FindDisclosureToggle(
+        ModelInspectionPage page,
+        bool expanded)
+    {
+        InspectionDisclosure disclosure;
+        try
+        {
+            disclosure = RequireActiveDisclosure(page);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+
+        return disclosure.IsExpanded == expanded
+            ? (Button)disclosure.FindName("DisclosureToggleButton")
+            : null;
+    }
+
+    private bool IsSupportedActionRequest(
+        ModelInspectionFixtureListItem item,
+        string actionId)
+    {
+        if (!IsCanonicalInteractionActionId(actionId))
+        {
+            return true;
+        }
+
+        string? checkpoint = Volatile.Read(
+            ref declaredActionCheckpointForTesting);
+        return item.Fixture.Interactions.Any(interaction =>
+            string.Equals(interaction.Id, actionId, StringComparison.Ordinal) &&
+            (checkpoint is null || string.Equals(
+                interaction.SourceCheckpoint,
+                checkpoint,
+                StringComparison.Ordinal)));
+    }
+
+    private static bool IsCanonicalInteractionActionId(string actionId) =>
+        actionId is "cancel" or "cancel-request" or "choose-another" or
+            "collapse" or "expand" or "locate-missing" or "reset" or
+            "restart" or "restart-attempt" or "retry" or "retry-attempt";
+
+    private static async Task CompleteAttemptAsync(
+        ModelInspectionFixtureSession session,
+        ModelInspectionFixtureServiceCallEvidence serviceCall)
+    {
+        ModelInspectionFixtureAttemptPlan attempt = session.Plan.Attempts
+            .Single(candidate => candidate.Attempt == serviceCall.Attempt);
+        foreach (ModelInspectionFixtureServiceStepPlan step in
+                 attempt.ServiceSteps)
+        {
+            if (step.TriggerKind !=
+                    ModelInspectionFixtureServiceTriggerKind.Checkpoint ||
+                session.Evidence.ReleasedServiceCheckpoints.Any(released =>
+                    released.Attempt == serviceCall.Attempt && string.Equals(
+                        released.Checkpoint,
+                        step.Checkpoint,
+                        StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            session.Service.ReleaseServiceCheckpoint(
+                serviceCall.Attempt,
+                step.Checkpoint ?? throw new InvalidOperationException(
+                    "The fixture checkpoint-triggered service step has no name."));
+            await DrainDispatcherAsync(session);
+        }
+    }
+
+    private static async Task DrainDispatcherAsync(object owner)
+    {
+        Microsoft.UI.Dispatching.DispatcherQueue queue = owner switch
+        {
+            FrameworkElement element => element.DispatcherQueue,
+            ModelInspectionFixtureSession =>
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread(),
+            _ => throw new ArgumentOutOfRangeException(nameof(owner))
+        } ?? throw new InvalidOperationException(
+            "The fixture UI dispatcher is unavailable.");
+        var drained = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!queue.TryEnqueue(() => drained.TrySetResult(true)))
+        {
+            throw new InvalidOperationException(
+                "The fixture UI dispatcher rejected its drain callback.");
+        }
+
+        await drained.Task;
+    }
+
+    private static void InvokeRenderedButton(Button button)
+    {
+        var peer = new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(
+            button);
+        if (peer.GetPattern(
+                Microsoft.UI.Xaml.Automation.Peers.PatternInterface.Invoke) is not
+            Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider invoke)
+        {
+            throw new InvalidOperationException(
+                "The declared fixture action has no invokable rendered control.");
+        }
+
+        invoke.Invoke();
+    }
 
     private static Func<bool> WrapCloseRequested(Action closeRequested)
     {

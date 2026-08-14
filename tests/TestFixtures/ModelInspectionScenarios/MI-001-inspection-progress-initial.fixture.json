@@ -154,28 +154,6 @@
       ]
     },
     "footer": {
-      "rows": [
-        {
-          "stage": "checkModelPackage",
-          "status": "notComplete"
-        },
-        {
-          "stage": "readModelConfiguration",
-          "status": "notComplete"
-        },
-        {
-          "stage": "validateTokenizerAndChatSetup",
-          "status": "notComplete"
-        },
-        {
-          "stage": "validateModelStructure",
-          "status": "notComplete"
-        },
-        {
-          "stage": "confirmCoreRuntimeCompatibility",
-          "status": "notComplete"
-        }
-      ],
       "status": "inProgress"
     },
     "focus": {

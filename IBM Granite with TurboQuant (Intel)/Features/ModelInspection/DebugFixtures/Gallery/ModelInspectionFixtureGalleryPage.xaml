@@ -93,9 +93,18 @@
             <StackPanel
                 x:Name="FixturePresetControls"
                 Grid.Row="1"
-                Orientation="Horizontal"
                 Spacing="12"
-                AutomationProperties.Name="Fixture presentation preset" />
+                AutomationProperties.Name="Fixture presentation preset">
+                <ComboBox
+                    x:Name="FixturePresetSelector"
+                    Header="Preview preset"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Select fixture preview preset" />
+                <TextBlock x:Name="FixturePresetWidthText" />
+                <TextBlock x:Name="FixturePresetResourcesText" />
+                <TextBlock x:Name="FixturePresetTextScaleText" />
+                <TextBlock x:Name="FixturePresetMotionText" />
+            </StackPanel>
 
             <StackPanel
                 x:Name="FixtureInteractionPanel"

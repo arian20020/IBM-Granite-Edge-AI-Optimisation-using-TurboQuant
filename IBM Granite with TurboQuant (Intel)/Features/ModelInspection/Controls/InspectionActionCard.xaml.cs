@@ -198,12 +198,15 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         private void ApplyResponsiveLayout(double width)
         {
+            OverrideResponsiveWidthForFixture(ref width);
             ApplyResponsiveState(width >= 888d
                 ? "WideActionState"
                 : width >= 600d
                     ? "MediumActionState"
                     : "NarrowActionState");
         }
+
+        partial void OverrideResponsiveWidthForFixture(ref double width);
 
         private void ApplyResponsiveState(string stateName)
         {

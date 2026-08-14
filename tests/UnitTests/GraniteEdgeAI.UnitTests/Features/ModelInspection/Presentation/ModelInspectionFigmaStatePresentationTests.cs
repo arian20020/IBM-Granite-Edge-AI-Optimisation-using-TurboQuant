@@ -285,10 +285,10 @@ public sealed class ModelInspectionFigmaStatePresentationTests
             Assert.IsTrue(model.InspectionChecks.All(
                 check => check.Status == InspectionCheckStatus.Passed &&
                     check.StatusText == "Passed"));
-            StringAssert.Contains(
-                model.InspectionChecks[4].Detail,
-                $"in {2.5.ToString("0.###", culture)} seconds.",
-                StringComparison.Ordinal);
+            Assert.AreEqual(
+                "CPU X64 VocabOnly inspection completed with llama.dll " +
+                "using the approved profile.",
+                model.InspectionChecks[4].Detail);
             Assert.IsTrue(model.IsInspectionDetailsExpanded);
         }
         finally

@@ -36,6 +36,9 @@
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <Compile Include="Features\Onboarding\DebugFixtures\OnboardingShellPage.FixtureGallery.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionPage.DebugFixtures.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Observation\ModelInspectionObservedScreen.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Observation\ModelInspectionFixtureScreenObserver.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Observation\ModelInspectionFixtureScreenComparer.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\IModelInspectionFixturePackageResourceReader.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureGalleryViewModel.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureGalleryPage.xaml.cs" />
@@ -43,7 +46,12 @@
     <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureListItem.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixturePackageLoader.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureScenarioRunner.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Presets\InspectionActionCard.FixtureResponsive.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Presets\InspectionContentCard.FixtureResponsive.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Presets\InspectionModelCard.FixtureResponsive.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Presets\ModelInspectionFixturePresetApplier.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\Presets\ModelInspectionFixturePreset.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\Presets\ModelInspectionFixturePreviewResources.cs" />
     <Page Include="Features\ModelInspection\DebugFixtures\Gallery\ModelInspectionFixtureGalleryPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

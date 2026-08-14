@@ -266,15 +266,6 @@ public enum ModelInspectionExpectedRowStatus
     Information
 }
 
-public enum ModelInspectionExpectedStage
-{
-    CheckModelPackage = 1,
-    ReadModelConfiguration = 2,
-    ValidateTokenizerAndChatSetup = 3,
-    ValidateModelStructure = 4,
-    ConfirmCoreRuntimeCompatibility = 5
-}
-
 public enum ModelInspectionExpectedControlType
 {
     Button,

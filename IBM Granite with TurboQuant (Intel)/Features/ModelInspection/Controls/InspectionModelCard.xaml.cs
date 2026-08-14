@@ -345,6 +345,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             }
 
             Bindings.Update();
+            AutomationProperties.SetName(this, presentation.ModelName);
             if (!IsDisclosureStateExternallyOwned)
             {
                 InspectionDetailsDisclosure.PrepareTargetState(
@@ -475,6 +476,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
 
         private void ApplyResponsiveLayout(double width)
         {
+            OverrideResponsiveWidthForFixture(ref width);
             string stateName = width >= 888
                 ? "WideModelState"
                 : width >= 600
@@ -497,6 +499,8 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
             ApplyVisualState(stateName);
             _responsiveStateName = stateName;
         }
+
+        partial void OverrideResponsiveWidthForFixture(ref double width);
 
         private void ApplyVisualState(string stateName)
         {

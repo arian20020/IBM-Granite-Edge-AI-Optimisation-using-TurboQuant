@@ -114,7 +114,7 @@ public sealed record ModelInspectionExpectedOutcomeRegion(
 public sealed record ModelInspectionExpectedModelRegion(
     bool Visible,
     ModelInspectionExpectedModelMode Mode,
-    ModelInspectionExpectedModelBadge Badge,
+    ModelInspectionExpectedModelBadge? Badge,
     ModelInspectionExpectedCopy DisplayName,
     ModelInspectionExpectedCopy DisplayFileName,
     IReadOnlyList<ModelInspectionExpectedMetadataField> Metadata,
@@ -157,11 +157,6 @@ public sealed record ModelInspectionExpectedAction(
     ModelInspectionExpectedCopy? HelpText);
 
 public sealed record ModelInspectionExpectedFooter(
-    IReadOnlyList<ModelInspectionExpectedFooterRow> Rows,
-    ModelInspectionExpectedFooterStatus Status);
-
-public sealed record ModelInspectionExpectedFooterRow(
-    ModelInspectionExpectedStage Stage,
     ModelInspectionExpectedFooterStatus Status);
 
 public sealed record ModelInspectionExpectedFocus(string Target);

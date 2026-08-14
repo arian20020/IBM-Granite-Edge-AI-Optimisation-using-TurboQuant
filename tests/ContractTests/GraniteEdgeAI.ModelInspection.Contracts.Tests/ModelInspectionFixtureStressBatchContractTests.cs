@@ -146,6 +146,23 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
     }
 
     [TestMethod]
+    public void ExpectedFooterRetainsOnlyAggregateStatus()
+    {
+        foreach (string path in Directory.GetFiles(
+                     ScenarioDirectory(),
+                     "*.fixture.json",
+                     SearchOption.TopDirectoryOnly))
+        {
+            JsonObject document = JsonNode.Parse(File.ReadAllText(path))!
+                .AsObject();
+            string id = document["id"]!.GetValue<string>();
+            JsonObject footer = document["expected"]!["footer"]!.AsObject();
+
+            AssertExactProperties(footer, ["status"], id);
+        }
+    }
+
+    [TestMethod]
     public void StressBatchDescriptorsMatchIndependentPerIdOracle()
     {
         StressBatch batch = LoadStressBatch();
@@ -721,9 +738,11 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
                     ModelInspectionExpectedModelBadge.ModelSelected,
                 StressScreen.MaximumFailureDetail =>
                     ModelInspectionExpectedModelBadge.ResultUnknown,
+                StressScreen.MaximumFindingRows =>
+                    ModelInspectionExpectedModelBadge.Inspected,
                 StressScreen.MaximumReportRows =>
                     ModelInspectionExpectedModelBadge.Invalid,
-                _ => ModelInspectionExpectedModelBadge.Inspected
+                _ => null
             },
             model.Badge,
             oracle.Id);
@@ -741,7 +760,11 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         AssertCopy(model.DisplayFileName, "fixture.model.file",
             ModelFileName, oracle.Id);
 
-        if (oracle.Screen == StressScreen.MaximumProgressDetail)
+        if (oracle.Screen is
+            StressScreen.MaximumFindingRows or
+            StressScreen.MaximumReportRows or
+            StressScreen.MaximumProgressDetail or
+            StressScreen.MaximumFailureDetail)
         {
             Assert.HasCount(0, model.Metadata, oracle.Id);
             Assert.HasCount(0, model.Checks, oracle.Id);
@@ -749,7 +772,14 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         }
 
         AssertMetadata(model.Metadata, oracle);
-        AssertChecks(model.Checks, oracle.Id);
+        if (oracle.Screen == StressScreen.MaximumCheckRows)
+        {
+            AssertChecks(model.Checks, oracle.Id);
+        }
+        else
+        {
+            Assert.HasCount(0, model.Checks, oracle.Id);
+        }
     }
 
     private static void AssertMetadata(
@@ -759,31 +789,26 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         var expected = new List<(string Id, string LabelKey, string Label,
             string ValueKey, string Value)>
         {
-            ("metadata-format", "fixture.metadata.format.label", "Format",
+            ("metadata-publisher", "fixture.metadata.publisher.label", "PUBLISHER",
+                "fixture.not-reported", "Not reported"),
+            ("metadata-format", "fixture.metadata.format.label", "FORMAT",
                 "fixture.metadata.format.value", "GGUF"),
-            ("metadata-file-size", "fixture.metadata.file-size.label", "File size",
-                "fixture.metadata.file-size.value", "1.50 GB"),
             ("metadata-quantisation", "fixture.metadata.quantisation.label",
-                "Quantisation", "fixture.metadata.quantisation.value", "Q4_K_M"),
-            ("metadata-parameters", "fixture.metadata.parameters.label", "Parameters",
+                "QUANTISATION", "fixture.metadata.quantisation.value", "Q4_K_M"),
+            ("metadata-parameters", "fixture.metadata.parameters.label", "PARAMETERS",
                 "fixture.metadata.parameters.value", "8 billion"),
-            ("metadata-context", "fixture.metadata.context.label", "Context",
+            ("metadata-model-type", "fixture.metadata.model-type.label", "MODEL TYPE",
+                "fixture.not-reported", "Not reported"),
+            ("metadata-context", "fixture.metadata.context.label", "DECLARED MAX CONTEXT",
                 oracle.Screen == StressScreen.MissingOptionalMetadata
                     ? "fixture.not-reported"
                     : "fixture.metadata.context.value",
                 oracle.Screen == StressScreen.MissingOptionalMetadata
                     ? "Not reported"
-                    : "8,192 tokens")
+                    : "8,192 tokens"),
+            ("metadata-file-size", "fixture.metadata.file-size.label", "FILE SIZE",
+                "fixture.metadata.file-size.value", "1.50 GB")
         };
-        if (oracle.Screen == StressScreen.MissingOptionalMetadata)
-        {
-            expected.Add(("metadata-publisher",
-                "fixture.metadata.publisher.label", "Publisher",
-                "fixture.not-reported", "Not reported"));
-            expected.Add(("metadata-model-type",
-                "fixture.metadata.model-type.label", "Model type",
-                "fixture.not-reported", "Not reported"));
-        }
 
         Assert.AreEqual(expected.Count, metadata.Count, oracle.Id);
         for (int index = 0; index < expected.Count; index++)
@@ -1028,11 +1053,11 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             ],
             StressScreen.MaximumReportRows =>
             [
-                new("choose-another", "fixture.action.choose-another",
-                    "Choose another model", true, null, null),
                 new("technical-report", "fixture.action.technical-report",
                     "View technical report", false,
-                    "fixture.action.coming-later", "Coming later")
+                    "fixture.action.coming-later", "Coming later"),
+                new("choose-another", "fixture.action.choose-another",
+                    "Choose another model", true, null, null)
             ],
             StressScreen.MaximumProgressDetail =>
             [
@@ -1130,8 +1155,8 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             StressScreen.MaximumReportRows =>
             [
                 model,
-                choose,
                 report,
+                choose,
                 new("findings-disclosure",
                     "fixture.automation.invalid-disclosure",
                     "Model validation report",
@@ -1221,35 +1246,6 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             _ => ModelInspectionExpectedFooterStatus.Complete
         };
         Assert.AreEqual(overall, footer.Status, oracle.Id);
-        CollectionAssert.AreEqual(new[]
-            {
-                ModelInspectionExpectedStage.CheckModelPackage,
-                ModelInspectionExpectedStage.ReadModelConfiguration,
-                ModelInspectionExpectedStage.ValidateTokenizerAndChatSetup,
-                ModelInspectionExpectedStage.ValidateModelStructure,
-                ModelInspectionExpectedStage.ConfirmCoreRuntimeCompatibility
-            },
-            footer.Rows.Select(row => row.Stage).ToArray(), oracle.Id);
-
-        ModelInspectionExpectedFooterStatus[] statuses = oracle.Screen switch
-        {
-            StressScreen.MaximumProgressDetail =>
-            [
-                ModelInspectionExpectedFooterStatus.Complete,
-                ModelInspectionExpectedFooterStatus.InProgress,
-                ModelInspectionExpectedFooterStatus.NotComplete,
-                ModelInspectionExpectedFooterStatus.NotComplete,
-                ModelInspectionExpectedFooterStatus.NotComplete
-            ],
-            StressScreen.MaximumFailureDetail => Enumerable.Repeat(
-                ModelInspectionExpectedFooterStatus.Interrupted, 5).ToArray(),
-            StressScreen.MaximumReportRows => Enumerable.Repeat(
-                ModelInspectionExpectedFooterStatus.NotComplete, 5).ToArray(),
-            _ => Enumerable.Repeat(
-                ModelInspectionExpectedFooterStatus.Complete, 5).ToArray()
-        };
-        CollectionAssert.AreEqual(statuses,
-            footer.Rows.Select(row => row.Status).ToArray(), oracle.Id);
     }
 
     private static void AssertAnnouncements(
@@ -1367,7 +1363,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         ValidatedModelInspectionFixture missingMetadata = batch.Catalogue.Fixtures
             .Single(fixture => fixture.Id == "MI-044");
         string[] missingMetadataIds =
-            ["metadata-context", "metadata-publisher", "metadata-model-type"];
+            ["metadata-publisher", "metadata-model-type", "metadata-context"];
         CollectionAssert.AreEqual(
             missingMetadataIds,
             missingMetadata.Expected.Model.Metadata
@@ -1608,7 +1604,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
                     "continue-hardware", "findings-disclosure", "content-list",
                     WarningRowId],
             "MI-047" =>
-                ["model-card", "choose-another", "technical-report",
+                ["model-card", "technical-report", "choose-another",
                     "findings-disclosure", "content-list", InvalidRowId],
             "MI-048" =>
                 ["model-card", "progress-list", "progress-1", "progress-2",
@@ -1634,20 +1630,28 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
     private static string[] ExpectedRetainedIds(StressOracle oracle) =>
         oracle.Id switch
         {
-            "MI-043" or "MI-045" =>
+            "MI-043" =>
             [
-                "model-card", "metadata-format", "metadata-file-size",
+                "model-card", "metadata-publisher", "metadata-format",
                 "metadata-quantisation", "metadata-parameters",
-                "metadata-context", "check-package", "check-configuration",
-                "check-tokenizer", "check-structure", "check-runtime",
+                "metadata-model-type", "metadata-context", "metadata-file-size",
                 "choose-another", "technical-report", "hardware-fit",
                 "inspection-details-disclosure"
             ],
             "MI-044" =>
             [
-                "model-card", "metadata-format", "metadata-file-size",
+                "model-card", "metadata-publisher", "metadata-format",
                 "metadata-quantisation", "metadata-parameters",
-                "metadata-context", "metadata-publisher", "metadata-model-type",
+                "metadata-model-type", "metadata-context", "metadata-file-size",
+                "choose-another",
+                "technical-report", "hardware-fit",
+                "inspection-details-disclosure"
+            ],
+            "MI-045" =>
+            [
+                "model-card", "metadata-publisher", "metadata-format",
+                "metadata-quantisation", "metadata-parameters",
+                "metadata-model-type", "metadata-context", "metadata-file-size",
                 "check-package", "check-configuration", "check-tokenizer",
                 "check-structure", "check-runtime", "choose-another",
                 "technical-report", "hardware-fit",
@@ -1655,32 +1659,20 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             ],
             "MI-046" =>
             [
-                "model-card", "metadata-format", "metadata-file-size",
-                "metadata-quantisation", "metadata-parameters",
-                "metadata-context", "check-package", "check-configuration",
-                "check-tokenizer", "check-structure", "check-runtime",
-                "content-list", WarningRowId, "choose-another",
+                "model-card", "content-list", WarningRowId, "choose-another",
                 "technical-report", "continue-hardware", "findings-disclosure"
             ],
             "MI-047" =>
             [
-                "model-card", "metadata-format", "metadata-file-size",
-                "metadata-quantisation", "metadata-parameters",
-                "metadata-context", "check-package", "check-configuration",
-                "check-tokenizer", "check-structure", "check-runtime",
-                "content-list", InvalidRowId, "choose-another",
-                "technical-report", "findings-disclosure"
+                "model-card", "content-list", InvalidRowId, "technical-report",
+                "choose-another", "findings-disclosure"
             ],
             "MI-048" =>
                 ["model-card", "progress-list", "progress-1", "progress-2",
                     "progress-3", "progress-4", "progress-5", "cancel"],
             "MI-049" =>
             [
-                "model-card", "metadata-format", "metadata-file-size",
-                "metadata-quantisation", "metadata-parameters",
-                "metadata-context", "check-package", "check-configuration",
-                "check-tokenizer", "check-structure", "check-runtime",
-                "content-list", FailureRowId, "choose-another",
+                "model-card", "content-list", FailureRowId, "choose-another",
                 "technical-report", "retry"
             ],
             _ => throw new ArgumentOutOfRangeException(nameof(oracle))
@@ -1755,7 +1747,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             "MI-048" =>
             [
                 new("cancel", ModelInspectionFixtureInteractionKind.Cancel,
-                    "observed", "MI-012", "cancel", 0,
+                    "observed", "MI-012", "model-card", 0,
                     ModelInspectionExpectedFooterStatus.InProgress,
                     ModelInspectionFixtureInteractionLifetimeEffect.None),
                 new("reset", ModelInspectionFixtureInteractionKind.Reset,
@@ -1959,12 +1951,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         }
 
         JsonObject footer = expected["footer"]!.AsObject();
-        AssertExactProperties(footer, ["rows", "status"], oracle.Id);
-        foreach (JsonNode? rowNode in footer["rows"]!.AsArray())
-        {
-            AssertExactProperties(rowNode!.AsObject(), ["stage", "status"],
-                oracle.Id);
-        }
+        AssertExactProperties(footer, ["status"], oracle.Id);
 
         AssertExactProperties(expected["focus"]!.AsObject(), ["target"],
             oracle.Id);

@@ -65,7 +65,15 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Galle
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixturePackageLoader.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureScenarioRunner.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/ModelInspectionPage.DebugFixtures.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Observation/ModelInspectionFixtureScreenComparer.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Observation/ModelInspectionFixtureScreenObserver.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Observation/ModelInspectionObservedScreen.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/InspectionActionCard.FixtureResponsive.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/InspectionContentCard.FixtureResponsive.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/InspectionModelCard.FixtureResponsive.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/ModelInspectionFixturePreset.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/ModelInspectionFixturePresetApplier.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Presets/ModelInspectionFixturePreviewResources.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/DebugModelInspectionService.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureAdapter.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureExecutionPlan.cs
@@ -329,6 +337,7 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectio
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureRetryRestartContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureStressBatchContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureValidationContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureWorkflowContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionVisualSourceContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerEvidenceValidationTests.cs
@@ -417,6 +426,7 @@ tests/TestFixtures/ModelInspectionScenarios/MI-049-operational-failure-detail-co
 tests/TestFixtures/ModelInspectionScenarios/README.md
 tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture-coverage-policy.json
 tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture.schema.json
+tests/TestFixtures/README.md
 tests/TestFixtures/fixture-manifest.json
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineConcurrencyTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineTests.cs
@@ -464,7 +474,11 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/ModelI
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/DebugModelInspectionServiceTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureAdapterTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureGalleryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureInteractionTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureLifetimeTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixturePageLifecycleTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixturePresetTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureScreenContractTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/ModelInspectionFixtureViewModelIntegrationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Infrastructure/ModelInspectionWorkerCompositionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/InitialInspectionProgressPresentationTests.cs

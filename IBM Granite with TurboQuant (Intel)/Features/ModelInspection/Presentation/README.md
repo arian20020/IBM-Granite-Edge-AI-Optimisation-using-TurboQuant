@@ -1,7 +1,7 @@
 # Model Inspection presentation construction
 
 **Status:** Thirteen-state mapping, stable rendering, motion, and privacy-safe display projection implemented
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-13
 
 [Back to Model Inspection architecture](../README.md)
 
@@ -128,6 +128,33 @@ real nullable fractions, all outcome/execution mappings, stable identity and
 delta behavior, stale-operation rejection, reduced-motion endpoints, action
 policy, accessibility text, and privacy-sensitive exclusions. Exact Figma PNG
 comparison and controlled OS execution remain open.
+
+### Fixture preview boundary
+
+The Debug x64 fixture gallery drives these production presentation controls
+with the exact synthetic `MI-001` through `MI-049` catalogue. Declared Cancel,
+Retry, Restart, Choose another, disclosure expand/collapse, and Reset routes
+exercise real controls or commands; unavailable actions are omitted, and
+future report, conversion, and Hardware Fit actions remain disabled with
+`Coming later` and do not dispatch. The gallery can also switch fixtures and
+close while retiring the previous synthetic session.
+
+Gallery width, High Contrast, 200% text-scale, and reduced-motion presets are
+controlled preview inputs to the existing presentation. They help inspect
+layout, resources, reflow, focus, and motion deterministically, but they do not
+claim strict comparison with approved Figma PNGs, actual OS High Contrast,
+actual OS 200% text scale, or Narrator behavior. Synthetic terminal and failure
+presentations do not claim real-worker outcome coverage; only the catalogue's
+separate N-001 join covers the bounded real-worker Ready route.
+
+The fresh local Debug/x64 campaign passed all 220 fixture-category executions,
+including the 6 interaction and 13 lifetime cases that drive the rendered
+controls and audit retirement. The final local hosted-equivalent Release gate
+passed 691/691, including all 39 protected page-navigation executions; the
+focused real packaged N-001 journey passed 1/1, and Release isolation passed
+with zero forbidden fixture/gallery path, token, or metadata hits. Strict Figma
+pixels, controlled-OS/manual Narrator evidence, and hosted exact-head closure
+remain open.
 
 ## Change hazards
 

@@ -422,17 +422,6 @@
       ],
       "maxLength": 96
     },
-    "expectedStage": {
-      "type": "string",
-      "enum": [
-        "checkModelPackage",
-        "readModelConfiguration",
-        "validateTokenizerAndChatSetup",
-        "validateModelStructure",
-        "confirmCoreRuntimeCompatibility"
-      ],
-      "maxLength": 96
-    },
     "controlType": {
       "type": "string",
       "enum": [
@@ -1074,7 +1063,14 @@
           "$ref": "#/$defs/modelMode"
         },
         "badge": {
-          "$ref": "#/$defs/modelBadge"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/modelBadge"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "displayName": {
           "$ref": "#/$defs/copy"
@@ -1242,39 +1238,13 @@
         }
       }
     },
-    "footerRow": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "stage",
-        "status"
-      ],
-      "properties": {
-        "stage": {
-          "$ref": "#/$defs/expectedStage"
-        },
-        "status": {
-          "$ref": "#/$defs/footerStatus"
-        }
-      }
-    },
     "footer": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "rows",
         "status"
       ],
       "properties": {
-        "rows": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/footerRow"
-          },
-          "minItems": 5,
-          "maxItems": 5,
-          "uniqueItems": true
-        },
         "status": {
           "$ref": "#/$defs/footerStatus"
         }

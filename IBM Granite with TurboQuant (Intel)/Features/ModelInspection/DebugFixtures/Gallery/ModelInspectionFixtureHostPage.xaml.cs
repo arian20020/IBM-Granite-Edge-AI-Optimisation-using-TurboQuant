@@ -1,5 +1,6 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
+using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -7,6 +8,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Threading.Tasks;
 using DebugFixturePreset = GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets.ModelInspectionFixturePreset;
 
 namespace GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Gallery;
@@ -186,9 +188,12 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
     private ModelInspectionFixtureHostLifetime? lifetime;
     private ModelInspectionFixtureSession? session;
     private ModelInspectionPage? modelInspectionPage;
+    private ModelInspectionFixturePresetApplier? presetApplier;
     private object? activationIdentity;
     private DebugFixturePreset? preset;
     private int activationStarted;
+    private int presetApplierDetachCount;
+    private int resourcesConfiguredBeforeInitialize;
 
     public ModelInspectionFixtureHostPage()
     {
@@ -203,6 +208,12 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
     internal ModelInspectionPage? ModelInspectionPage => modelInspectionPage;
 
     internal DebugFixturePreset? Preset => preset;
+
+    internal int PresetApplierDetachCount =>
+        Volatile.Read(ref presetApplierDetachCount);
+
+    internal bool ResourcesConfiguredBeforeInitializeForTesting =>
+        Volatile.Read(ref resourcesConfiguredBeforeInitialize) != 0;
 
     internal bool IsActivatedWith(object activation) =>
         ReferenceEquals(activationIdentity, activation) &&
@@ -237,6 +248,23 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
 
     internal bool RaiseNavigatedFromForTesting() => RetireHost();
 
+    internal Task ApplyPresetAsync(CancellationToken cancellationToken) =>
+        (presetApplier ?? throw new InvalidOperationException(
+            "The fixture host has no active preset applier."))
+        .ApplyAsync(cancellationToken);
+
+    internal Task<ModelInspectionFixturePresetObservation>
+        ObservePresetForTestingAsync(CancellationToken cancellationToken) =>
+        (presetApplier ?? throw new InvalidOperationException(
+            "The fixture host has no active preset applier."))
+        .ObserveAsync(cancellationToken);
+
+    internal Task WaitForPresetReapplicationForTestingAsync(
+        CancellationToken cancellationToken) =>
+        (presetApplier ?? throw new InvalidOperationException(
+            "The fixture host has no active preset applier."))
+        .WaitForReapplicationAsync(cancellationToken);
+
     private void Activate(ModelInspectionFixtureHostActivation activation)
     {
         ArgumentNullException.ThrowIfNull(activation);
@@ -247,7 +275,9 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
         }
 
         ModelInspectionFixtureSession claimed = activation.ClaimSession(this);
+        claimed.Evidence.RecordHostActivation();
         ModelInspectionPage? createdPage = null;
+        ModelInspectionFixturePresetApplier? createdApplier = null;
         session = claimed;
         activationIdentity = activation;
         preset = activation.Preset;
@@ -255,16 +285,56 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
         lifetime = new ModelInspectionFixtureHostLifetime(
             detach: () =>
             {
-                if (createdPage is not null &&
-                    chooseAnotherHandler is not null)
+                Exception? first = null;
+                try
                 {
-                    createdPage.ChooseAnotherModelRequested -=
-                        chooseAnotherHandler;
+                    if (createdPage is not null &&
+                        chooseAnotherHandler is not null)
+                    {
+                        createdPage.ChooseAnotherModelRequested -=
+                            chooseAnotherHandler;
+                    }
+                }
+                catch (Exception error)
+                {
+                    first = error;
                 }
 
                 chooseAnotherHandler = null;
+                ModelInspectionFixturePresetApplier? retiredApplier =
+                    createdApplier;
+                createdApplier = null;
+                presetApplier = null;
+                if (retiredApplier is not null)
+                {
+                    try
+                    {
+                        retiredApplier.Dispose();
+                    }
+                    catch (Exception error)
+                    {
+                        first ??= error;
+                    }
+                    finally
+                    {
+                        Interlocked.Increment(
+                            ref presetApplierDetachCount);
+                    }
+                }
+
+                if (first is not null)
+                {
+                    ExceptionDispatchInfo.Capture(first).Throw();
+                }
             },
-            retirePage: () => createdPage?.RetireForFixture(),
+            retirePage: () =>
+            {
+                if (createdPage is not null)
+                {
+                    createdPage.RetireForFixture();
+                    claimed.Evidence.RecordPageRetirement();
+                }
+            },
             retireSession: claimed.Dispose,
             clear: () =>
             {
@@ -273,6 +343,7 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
                 session = null;
                 activationIdentity = null;
                 preset = null;
+                FixturePreviewSurface.Width = double.NaN;
                 createdPage = null;
             });
 
@@ -280,7 +351,24 @@ public sealed partial class ModelInspectionFixtureHostPage : Page
         {
             createdPage = ModelInspectionPage.CreateForFixture(
                 claimed,
-                activation.StartInspectionOnLoaded);
+                activation.StartInspectionOnLoaded,
+                resources =>
+                {
+                    ModelInspectionFixturePreviewResources.Configure(
+                        resources,
+                        activation.Preset);
+                    Volatile.Write(
+                        ref resourcesConfiguredBeforeInitialize,
+                        1);
+                });
+            createdPage.RequestedTheme =
+                ModelInspectionFixturePreviewResources.RequestedTheme(
+                    activation.Preset.Resources);
+            createdApplier = new ModelInspectionFixturePresetApplier(
+                createdPage,
+                activation.Preset);
+            presetApplier = createdApplier;
+            FixturePreviewSurface.Width = createdApplier.HostWidth;
             chooseAnotherHandler = (_, _) =>
                 activation.RequestChooseAnother(this);
             createdPage.ChooseAnotherModelRequested += chooseAnotherHandler;

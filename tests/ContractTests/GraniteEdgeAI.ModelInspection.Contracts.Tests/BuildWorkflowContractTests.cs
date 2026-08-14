@@ -18,7 +18,7 @@ public sealed class BuildWorkflowContractTests
         "/TestCaseFilter:\"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs\"";
 
     private const string HostedPackagedStepSha256 =
-        "03BD1FD8D34B8B6CEDB457951C7E2BC2F08214845FA63C3E018800246B40A502";
+        "785FD6A8A33CD7C2A7F5C2687595FD4F58FA8FFC5B48602E6ECF64BFD647F584";
 
     private const string ControlledWorkflowSha256 =
         "5A58BE19B9B7F0A6E56ECF6DA136AE138AC1F74A7FDEFAA72BEFC58B353CFEC7";
@@ -39,7 +39,7 @@ public sealed class BuildWorkflowContractTests
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests", 13),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests", 18),
             ("GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests", 13),
-            ("GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests", 34),
+            ("GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests", 39),
             ("GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests", 14),
             ("GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests", 13),
             ("GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests", 3),
@@ -85,7 +85,7 @@ public sealed class BuildWorkflowContractTests
         StringAssert.Contains(workflow, "tests/ContractTests");
         StringAssert.Contains(workflow, "CONTRACT_TEST_PROJECT");
         StringAssert.Contains(workflow, "Run Model Inspection contract tests");
-        StringAssert.Contains(workflow, "--minimum-expected-tests 167");
+        StringAssert.Contains(workflow, "--minimum-expected-tests 357");
     }
 
     [TestMethod]
@@ -101,7 +101,7 @@ public sealed class BuildWorkflowContractTests
             "The dedicated contract project must run as a complete suite without a redundant category filter.");
         StringAssert.Contains(
             contractStep,
-            "--minimum-expected-tests 167",
+            "--minimum-expected-tests 357",
             "The contract floor must remain aligned with the mandatory contract suite.");
     }
 
@@ -169,10 +169,27 @@ public sealed class BuildWorkflowContractTests
     public void BuildWorkflowChecksOutCleanupInventoryInputs()
     {
         string workflow = ReadWorkflow();
+        string checkout = ExtractWorkflowStep(
+            workflow,
+            "Check out required build inputs");
 
-        StringAssert.Contains(workflow, "            docs");
-        StringAssert.Contains(workflow, "            scripts");
-        StringAssert.Contains(workflow, "            tools");
+        StringAssert.Contains(
+            checkout,
+            "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0");
+        foreach (string partialCheckoutToken in new[]
+                 {
+                     "sparse-checkout:",
+                     "sparse-checkout-cone-mode:",
+                     "filter:"
+                 })
+        {
+            Assert.IsFalse(
+                checkout.Contains(
+                    partialCheckoutToken,
+                    StringComparison.OrdinalIgnoreCase),
+                "Cleanup and Release-isolation inputs require the full " +
+                $"physical repository checkout: {partialCheckoutToken}");
+        }
     }
 
     [TestMethod]
@@ -311,7 +328,7 @@ public sealed class BuildWorkflowContractTests
             "InspectionProgressPresentationFactoryTests' = 13",
             "ModelInspectionPresentationFactoryTests' = 18",
             "InspectionVisualStateGuardTests' = 13",
-            "ModelInspectionPageNavigationTests' = 34",
+            "ModelInspectionPageNavigationTests' = 39",
             "OnboardingModelInspectionNavigationTests' = 14",
             "ModelInspectionWorkerCompositionTests' = 13",
             "ModelInspectionAssetContractTests' = 3",

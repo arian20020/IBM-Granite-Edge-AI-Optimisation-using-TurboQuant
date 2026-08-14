@@ -83,6 +83,33 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                 $"Fixture boundary differs in {project.RelativePath}:{Environment.NewLine}" +
                 string.Join(Environment.NewLine, errors));
         }
+
+        AssertReleasePageAuditHookBoundary();
+    }
+
+    private static void AssertReleasePageAuditHookBoundary()
+    {
+        string source = File.ReadAllText(Absolute(
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/" +
+            "ModelInspectionPage.xaml.cs"));
+
+        StringAssert.Contains(
+            source,
+            "() => CompleteDispatcherAuditsForFixture()");
+        Assert.IsFalse(
+            source.Contains(
+                "AttemptCleanup(CompleteDispatcherAuditsForFixture, ref error)",
+                StringComparison.Ordinal),
+            "An optional Debug-only partial method cannot be converted to a " +
+            "delegate in the Release build.");
+        Assert.IsFalse(
+            source.Contains("_fixtureDisclosureAudit", StringComparison.Ordinal),
+            "The Release page must not retain fixture-named audit metadata.");
+        Assert.IsFalse(
+            source.Contains(
+                "CompleteDisclosureAuditForFixture",
+                StringComparison.Ordinal),
+            "The Release page must keep disclosure-audit ownership production-neutral.");
     }
 
     [TestMethod]

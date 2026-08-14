@@ -1,7 +1,7 @@
 # Onboarding architecture
 
 **Status:** Exact Model Import-to-Inspection handoff, live footer status, and Choose-another reset lifecycle implemented
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-13
 
 [Back to application feature architecture](../README.md)
 
@@ -75,6 +75,25 @@ inspection page cannot alter the persistent footer. These values describe the
 current Model Inspection result; they do not advance to Hardware Fit or claim
 that any downstream action executed.
 
+## Debug fixture gallery entry
+
+In a packaged `Debug`/`x64` build, the onboarding shell adds a
+`Fixture gallery` button. Clicking it replaces the active stage-frame content
+with the synthetic Model Inspection gallery, clears frame history, and retires
+the previous inspection page when present. Only the gallery's Close command
+returns through the shell-owned fresh Model Import route. Choosing another
+retires the nested inspection page and session, clears the active fixture
+selection, and leaves the gallery open at `gallery:no-active-fixture`. This
+entry is compiled out of non-Debug product builds and does not advance the
+onboarding stage model or provide a production feature path.
+
+The gallery owns only deterministic packaged fixtures and safe declared
+interactions. It cannot start the production worker or convert synthetic
+outcomes into real-worker evidence. The separately verified N-001 page journey
+remains external evidence for its linked Ready screens; strict Figma PNG,
+actual OS High Contrast/200% text scale, and manual Narrator evidence remain
+open controlled gates.
+
 ## Ownership boundary
 
 The onboarding shell owns frame navigation, stage synchronization, and active
@@ -101,11 +120,12 @@ Import constructs/validates the request; it does not own stage navigation.
 `ModelInspectionPageNavigationTests` covers inspection-page ownership and
 stale-callback suppression when the shell navigates away.
 
-The local ordinary hosted-equivalent packaged candidate executed 14
-`OnboardingModelInspectionNavigationTests` and 34
-`ModelInspectionPageNavigationTests`. Actual controlled High Contrast/200%
-text scale, manual Narrator, strict Figma pixels, and hosted exact-head evidence
-remain open.
+The final local hosted-equivalent packaged candidate passed all 14
+`OnboardingModelInspectionNavigationTests` and all 39 protected
+`ModelInspectionPageNavigationTests` within the 691/691 Release campaign. The
+separately filtered packaged N-001 page journey passed 1/1. Actual controlled
+High Contrast/200% text scale, manual Narrator, strict Figma pixels, and hosted
+exact-head evidence remain open.
 
 ## Scope and non-claims
 
@@ -118,4 +138,5 @@ inference, conversion, and benchmarking remain downstream.
 
 - [Model Import architecture](../ModelImport/README.md)
 - [Model Inspection architecture](../ModelInspection/README.md)
+- [Synthetic fixture catalogue](../../../docs/evidence/testing/Model-Inspection-Fixture-Catalog.md)
 - [Onboarding controls](./Controls/README.md)

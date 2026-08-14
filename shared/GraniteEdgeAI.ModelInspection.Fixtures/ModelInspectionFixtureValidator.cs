@@ -887,14 +887,6 @@ internal static partial class ModelInspectionFixtureValidator
             throw Failure(source, "$.expected.figma.state", "expected.canonical-state");
         }
 
-        Require(expected.Footer.Rows, source, "$.expected.footer.rows", "expected.footer-required");
-        if (expected.Footer.Rows.Count != OrderedStages.Length ||
-            !expected.Footer.Rows.Select(row => (int)row.Stage)
-                .SequenceEqual(Enumerable.Range(1, OrderedStages.Length)))
-        {
-            throw Failure(source, "$.expected.footer.rows", "expected.footer-five-stages");
-        }
-
         Require(expected.Model.Metadata, source, "$.expected.model.metadata", "expected.rows-required");
         Require(expected.Model.Checks, source, "$.expected.model.checks", "expected.rows-required");
         Require(expected.Content.Rows, source, "$.expected.content.rows", "expected.rows-required");
@@ -1053,6 +1045,16 @@ internal static partial class ModelInspectionFixtureValidator
                 source,
                 "$.expected.model.mode",
                 "expected.disclosure-contract");
+        }
+
+        if (expected.Model.Mode == ModelInspectionExpectedModelMode.Detailed
+                ? expected.Model.Badge is not null
+                : expected.Model.Badge is null)
+        {
+            throw Failure(
+                source,
+                "$.expected.model.badge",
+                "expected.model-badge-visibility");
         }
     }
 
@@ -1442,12 +1444,6 @@ internal static partial class ModelInspectionFixtureValidator
         ModelInspectionFixtureDescriptor descriptor,
         ModelInspectionFixtureReplayState replay)
     {
-        if (descriptor.Expected.Footer.Rows.Count(row =>
-                row.Status == ModelInspectionExpectedFooterStatus.InProgress) > 1)
-        {
-            throw Failure(source, "$.expected.footer.rows", "expected.multiple-active-stages");
-        }
-
         ModelInspectionFixtureServiceEffectDescriptor? effect = replay.CurrentEffect;
         if (effect is null || effect.Kind == ModelInspectionFixtureServiceEffectKind.Progress)
         {
@@ -1463,9 +1459,7 @@ internal static partial class ModelInspectionFixtureValidator
             return;
         }
 
-        if (descriptor.Expected.Footer.Status == ModelInspectionExpectedFooterStatus.InProgress ||
-            descriptor.Expected.Footer.Rows.Any(row =>
-                row.Status == ModelInspectionExpectedFooterStatus.InProgress))
+        if (descriptor.Expected.Footer.Status == ModelInspectionExpectedFooterStatus.InProgress)
         {
             throw Failure(source, "$.expected.footer", "fixture.current-terminal-footer");
         }
@@ -2082,7 +2076,6 @@ internal static partial class ModelInspectionFixtureValidator
             },
             Content = expected.Content with { Rows = expected.Content.Rows.ToImmutableArray() },
             Actions = expected.Actions with { Items = expected.Actions.Items.ToImmutableArray() },
-            Footer = expected.Footer with { Rows = expected.Footer.Rows.ToImmutableArray() },
             Automation = expected.Automation with { Controls = expected.Automation.Controls.ToImmutableArray() },
             Announcements = expected.Announcements with { Items = expected.Announcements.Items.ToImmutableArray() },
             RowsAndScroll = expected.RowsAndScroll with

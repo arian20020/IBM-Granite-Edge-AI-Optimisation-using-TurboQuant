@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Gallery;
+using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Observation;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
@@ -653,9 +654,12 @@ public sealed class ModelInspectionFixtureGalleryTests
                 $"{reference.DeclaringType?.FullName}.{reference.Name}";
             bool exactPackageResourceSite = IsPackageResourceApi(reference) &&
                 IsExactPackageReaderOwner(owner);
+            bool exactScreenComparerExpectedSite =
+                IsExactScreenComparerExpectedSite(owner, reference);
             Assert.IsFalse(
                 IsForbiddenDebugIlReference(reference) &&
-                    !exactPackageResourceSite,
+                    !exactPackageResourceSite &&
+                    !exactScreenComparerExpectedSite,
                 identity);
             Assert.IsFalse(
                 IsForbiddenPackageResourceCallSite(owner, reference),
@@ -1341,7 +1345,7 @@ public sealed class ModelInspectionFixtureGalleryTests
             Assert.IsNotNull(first.ModelInspectionPage);
             Assert.AreSame(first.Session.Request,
                 first.ModelInspectionPage.Request);
-            Assert.AreEqual("Reached checkpoint: observed.",
+            Assert.AreEqual("Screen contract passed: observed.",
                 gallery.ViewModel.ValidationStatus);
             Assert.AreEqual(0, gallery.HostFrame.BackStack.Count);
             Assert.AreEqual(0, gallery.HostFrame.ForwardStack.Count);
@@ -1370,8 +1374,7 @@ public sealed class ModelInspectionFixtureGalleryTests
     {
         var gallery = new ModelInspectionFixtureGalleryPage(
             new ModelInspectionFixturePackageLoader(CountingReader.Valid()),
-            () => { },
-            new ImmediateScenarioRunner());
+            () => { });
         Window window = await ShowAndLoadAsync(gallery);
         try
         {
@@ -1380,32 +1383,48 @@ public sealed class ModelInspectionFixtureGalleryTests
             var n001 = (TextBlock)gallery.FindName(
                 "FixtureRealWorkerCoverageText");
 
-            await gallery.SelectFixtureForTestingAsync("MI-003");
+            await gallery.SelectFixtureThroughRealListForTestingAsync("MI-003");
             ModelInspectionFixtureListItem expanded =
                 gallery.ViewModel.SelectedItem!;
+            ModelInspectionPage page = gallery.ActiveHost!.ModelInspectionPage!;
+            Assert.AreEqual(0, panel.Children.Count,
+                "The gallery must not create descriptor proxy buttons.");
             CollectionAssert.AreEqual(
+                new[] { "collapse", "choose-another", "reset" },
                 expanded.Fixture.VisibleInteractions
                     .Select(interaction => interaction.Id)
-                    .ToArray(),
-                panel.Children.Cast<FrameworkElement>()
-                    .Select(child => child.Tag as string)
                     .ToArray());
-            CollectionAssert.DoesNotContain(
-                panel.Children.Cast<FrameworkElement>()
-                    .Select(child => child.Tag as string)
-                    .ToArray(),
-                "expand",
-                "Setup-history actions must not leak into the panel.");
+            foreach (ModelInspectionFixtureInteraction interaction in
+                     expanded.Fixture.VisibleInteractions)
+            {
+                Button rendered = await gallery
+                    .FindRenderedActionButtonForTestingAsync(interaction.Id);
+                Assert.IsTrue(rendered.IsEnabled, interaction.Id);
+                ModelInspectionFixtureGalleryTestHarness
+                    .AssertActualRenderedControl(
+                        gallery,
+                        page,
+                        interaction.Id,
+                        rendered,
+                        interaction.Id);
+            }
+            Assert.IsNull(
+                await gallery.FindRenderedActionButtonOrNullForTestingAsync(
+                    "expand"),
+                "Setup-history actions must not leak into the rendered surface.");
             Assert.AreEqual("Real-worker coverage: N-001", n001.Text);
+            Assert.AreEqual(Visibility.Visible, n001.Visibility);
             Assert.IsInstanceOfType<TextBlock>(n001,
                 "The external evidence marker must remain read-only text.");
 
-            await gallery.SelectFixtureForTestingAsync("MI-002");
+            await gallery.SelectFixtureThroughRealListForTestingAsync("MI-002");
             Assert.AreEqual("Real-worker coverage: N-001", n001.Text);
+            Assert.AreEqual(Visibility.Visible, n001.Visibility);
 
-            await gallery.SelectFixtureForTestingAsync("MI-004");
+            await gallery.SelectFixtureThroughRealListForTestingAsync("MI-004");
             Assert.AreEqual(string.Empty, n001.Text,
                 "N-001 is linked only to MI-002 and MI-003.");
+            Assert.AreEqual(Visibility.Collapsed, n001.Visibility);
         }
         finally
         {
@@ -1431,13 +1450,14 @@ public sealed class ModelInspectionFixtureGalleryTests
             ModelInspectionFixtureHostPage retiredHost = gallery.ActiveHost!;
             ModelInspectionPage retiredPage = retiredHost.ModelInspectionPage!;
             ModelInspectionFixtureSession retiredSession = retiredHost.Session;
-            var panel = (StackPanel)gallery.FindName(
-                "FixtureInteractionPanel");
-            Button chooseAnother = panel.Children.OfType<Button>().Single(
-                button => string.Equals(
-                    button.Tag as string,
-                    "choose-another",
-                    StringComparison.Ordinal));
+            Button chooseAnother = await gallery
+                .FindRenderedActionButtonForTestingAsync("choose-another");
+            ModelInspectionFixtureGalleryTestHarness.AssertActualRenderedControl(
+                gallery,
+                retiredPage,
+                "choose-another",
+                chooseAnother,
+                "MI-037 choose-another");
             FieldInfo chooseAnotherEvent = typeof(ModelInspectionPage).GetField(
                 "ChooseAnotherModelRequested",
                 BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -1517,6 +1537,88 @@ public sealed class ModelInspectionFixtureGalleryTests
             Assert.AreEqual(1, firstSession.Evidence.SessionRetirementCount);
             Assert.AreEqual(1, firstSession.Evidence.SessionDisposalCount);
             Assert.IsNull(first.ModelInspectionPage);
+            Assert.AreEqual(0, gallery.HostFrame.BackStack.Count);
+            Assert.AreEqual(0, gallery.HostFrame.ForwardStack.Count);
+        }
+        finally
+        {
+            gallery.CloseForTesting();
+            CloseWindow(window);
+        }
+    }
+
+    [UITestMethod]
+    public async Task GallerySwitch_RealMi038RouteRetiresExactLifetimeAndOwnsMi039Successor()
+    {
+        var gallery = new ModelInspectionFixtureGalleryPage(
+            new ModelInspectionFixturePackageLoader(CountingReader.Valid()),
+            () => { });
+        Window window = await ShowAndLoadAsync(gallery);
+        try
+        {
+            var list = (ListView)gallery.FindName("FixtureList");
+            ModelInspectionFixtureListItem source = gallery.ViewModel.Items
+                .Single(item => item.Id == "MI-038");
+            ModelInspectionFixtureListItem successor = gallery.ViewModel.Items
+                .Single(item => item.Id == "MI-039");
+
+            list.SelectedItem = source;
+            await gallery.SelectionCompletedForTesting;
+            ModelInspectionFixtureHostPage retiredHost = gallery.ActiveHost!;
+            ModelInspectionPage retiredPage =
+                retiredHost.ModelInspectionPage!;
+            ModelInspectionFixtureSession retiredSession =
+                retiredHost.Session;
+
+            Assert.AreSame(retiredHost, gallery.HostFrame.Content);
+            Assert.AreSame(retiredSession.Request, retiredPage.Request);
+            Assert.AreSame(source, gallery.ViewModel.SelectedItem);
+            Assert.AreEqual("Screen contract passed: observed.",
+                gallery.ViewModel.ValidationStatus);
+            Assert.AreEqual(0,
+                retiredSession.Evidence.SessionRetirementCount);
+            Assert.AreEqual(0,
+                retiredSession.Evidence.SessionDisposalCount);
+
+            list.SelectedItem = successor;
+            await gallery.SelectionCompletedForTesting;
+            ModelInspectionFixtureHostPage successorHost =
+                gallery.ActiveHost!;
+            ModelInspectionPage successorPage =
+                successorHost.ModelInspectionPage!;
+            ModelInspectionFixtureSession successorSession =
+                successorHost.Session;
+
+            Assert.AreNotSame(retiredHost, successorHost);
+            Assert.AreNotSame(retiredPage, successorPage);
+            Assert.AreNotSame(retiredSession, successorSession);
+            Assert.IsNull(retiredHost.ModelInspectionPage);
+            Assert.IsNull(retiredPage.Request);
+            Assert.IsNull(retiredPage.ViewModel);
+            Assert.AreEqual(1,
+                retiredSession.Evidence.SessionRetirementCount);
+            Assert.AreEqual(1,
+                retiredSession.Evidence.SessionDisposalCount);
+            Assert.IsFalse(retiredHost.RetireForTesting());
+            Assert.IsFalse(retiredPage.RetireForFixture());
+            Assert.AreEqual(1,
+                retiredSession.Evidence.SessionRetirementCount);
+            Assert.AreEqual(1,
+                retiredSession.Evidence.SessionDisposalCount);
+
+            Assert.AreSame(successor, list.SelectedItem);
+            Assert.AreSame(successor, gallery.ViewModel.SelectedItem);
+            Assert.AreSame(successorHost, gallery.ActiveHost);
+            Assert.AreSame(successorHost, gallery.HostFrame.Content);
+            Assert.AreSame(successorPage,
+                successorHost.ModelInspectionPage);
+            Assert.AreSame(successorSession.Request, successorPage.Request);
+            Assert.AreEqual("Screen contract passed: observed.",
+                gallery.ViewModel.ValidationStatus);
+            Assert.AreEqual(0,
+                successorSession.Evidence.SessionRetirementCount);
+            Assert.AreEqual(0,
+                successorSession.Evidence.SessionDisposalCount);
             Assert.AreEqual(0, gallery.HostFrame.BackStack.Count);
             Assert.AreEqual(0, gallery.HostFrame.ForwardStack.Count);
         }
@@ -2400,7 +2502,7 @@ public sealed class ModelInspectionFixtureGalleryTests
         LoadCatalogue() => new ModelInspectionFixturePackageLoader(
             CountingReader.Valid()).LoadAsync().GetAwaiter().GetResult();
 
-    private static string[] ExpectedPackageUris()
+    internal static string[] ExpectedPackageUris()
     {
         string root = FixtureRoot();
         string policy = "model-inspection-fixture-coverage-policy.json";
@@ -2840,6 +2942,32 @@ public sealed class ModelInspectionFixtureGalleryTests
             reference is MethodBase method
                 ? method.GetParameters().Length
                 : 0);
+    }
+
+    private static bool IsExactScreenComparerExpectedSite(
+        MethodBase owner,
+        MemberInfo reference)
+    {
+        Type? referencedType = reference as Type ?? reference.DeclaringType;
+        if (referencedType is null ||
+            !(referencedType.FullName ?? referencedType.Name).Contains(
+                "ModelInspectionExpected",
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        for (Type? candidate = owner.DeclaringType;
+             candidate is not null;
+             candidate = candidate.DeclaringType)
+        {
+            if (candidate == typeof(ModelInspectionFixtureScreenComparer))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsForbiddenDebugIlReference(
@@ -3311,7 +3439,7 @@ public sealed class ModelInspectionFixtureGalleryTests
         }
     }
 
-    private sealed class CountingReader :
+    internal sealed class CountingReader :
         IModelInspectionFixturePackageResourceReader
     {
         private readonly Dictionary<string, byte[]> documents;

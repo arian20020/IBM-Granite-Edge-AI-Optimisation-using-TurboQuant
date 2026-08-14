@@ -12,6 +12,11 @@
 
 ## Source of truth
 
+> **Execution status (2026-08-14):** Tasks 1 through 10 are implemented and
+> locally verified. The checkboxes below preserve the original test-driven
+> execution sequence; they are not the current completion ledger. The final
+> commit remains deliberately user-owned and was not created automatically.
+
 - Approved design: `docs/superpowers/specs/2026-08-10-model-inspection-fixture-catalog-and-debug-gallery-design.md`.
 - Implementation base: `8d22319328590c4371c94cdf3cf21e762c6d589a`.
 - Existing production page: `IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml.cs`.
@@ -167,7 +172,7 @@ public sealed record ModelInspectionFixtureAttemptDescriptor(
 
 `ModelInspectionFixtureServiceStepDescriptor` is a closed trigger/effect union with optional progress/evidence/failure/checkpoint payloads. `ModelInspectionFixtureSetupStepDescriptor` is a closed sequence of `release-service-checkpoint`, `invoke-disclosure`, `invoke-cancel`, `invoke-retry`, `invoke-restart`, `invoke-choose-another`, `release-stale-progress`, `submit-stale-result-snapshot`, `release-stale-motion`, `release-stale-announcement`, and `observe`. Service/stale setup steps must reference declared attempt/deferred checkpoints; command/disclosure setup steps must reference a step-scoped declared interaction; exactly one final named observation checkpoint is required. The gallery exposes only interactions whose `sourceCheckpoint` is the current observation checkpoint, never setup-history actions.
 
-`ModelInspectionExpectedScreen` owns nested exact records for Figma/geometry identity, outcome/model/content/action regions, five footer rows/status, focus, automation/control/live-region values, announcements, rows/scroll owner, and required retained identities. No input/evidence profile type is reused inside an expected record.
+`ModelInspectionExpectedScreen` owns nested exact records for Figma/geometry identity, outcome/model/content/action regions, the five inspection-stage content rows, aggregate shell-bound footer status, focus, automation/control/live-region values, announcements, rows/scroll owner, and required retained identities. The page-only observer must not fabricate the separate shell-owned onboarding footer rows. No input/evidence profile type is reused inside an expected record.
 
 The strict document boundaries are:
 
@@ -570,7 +575,7 @@ feat(model-inspection): add debug fixture gallery shell
 
 - [ ] **Step 1: Write the all-descriptor observed-screen RED**
 
-For each descriptor, create a fresh page/session, run its validated setup steps through `ModelInspectionFixtureScenarioRunner`, stop at its observation checkpoint, load the real controls, drain dispatcher/composition boundaries, observe without passing `expected`, then compare every expected field. Include one mutation per region, Figma state, copy, action, footer, focus, accessible name/control type/live setting, announcement count, row count/order, and retained identity. Expanded/cancel-requested/retry/lifecycle fixtures must prove the real action ran before observation. Expected RED: no independent observer/comparer.
+For each descriptor, create a fresh page/session, run its validated setup steps through `ModelInspectionFixtureScenarioRunner`, stop at its observation checkpoint, load the real controls, drain dispatcher/composition boundaries, observe without passing `expected`, then compare every expected field. Include one mutation per region, Figma state, copy, action, aggregate footer status, focus, accessible name/control type/live setting, announcement count, row count/order, and retained identity. The five inspection stages are content rows; the five onboarding footer rows remain shell-owned and outside this page-only observer. Expanded/cancel-requested/retry/lifecycle fixtures must prove the real action ran before observation. Expected RED: no independent observer/comparer.
 
 - [ ] **Step 2: Implement the observer over real UI state**
 
@@ -612,19 +617,19 @@ test(model-inspection): verify every fixture screen contract
 - Modify: `docs/reviews/model-inspection-cleanup-source-files.txt`
 - Modify: `docs/reviews/model-inspection-cleanup-inventory.md`
 
-- [ ] **Step 1: Write preset-expectation RED tests**
+- [x] **Step 1: Write preset-expectation RED tests**
 
 Enumerate policy-required descriptor/preset pairs and require exact responsive profile/content bounds, no clipped/overlapping/unreachable required content, declared wrapping/truncation, bounded scroll owner and retained rows, interactive targets at least 44x44 effective pixels, unchanged logical reading/tab order, valid focus, resolved semantic brushes without color-only meaning, 200% natural reflow, and reduced-motion final-state equivalence with zero animation starts. Expected RED: preset applier/observations absent.
 
-- [ ] **Step 2: Apply width presets through real layout**
+- [x] **Step 2: Apply width presets through real layout**
 
 Set exact approved desktop/medium/narrow host widths and wait LayoutUpdated/dispatcher/render boundaries; never scale a bitmap or use `Viewbox`. Because AdaptiveTriggers read XamlRoot width, add Debug-only partial methods that call the real named states on the page (`DesktopPageState`, `MediumPageState`, `NarrowPageState`) and on the model/content/action controls' corresponding production visual-state groups. The host subscribes to SizeChanged/LayoutUpdated/render boundaries, reapplies the selected exact 1440/600/360 state after each relevant change, and detaches every handler on retirement. Tests mutate each control override independently. Compare the existing responsive geometry profiles with ±1 effective-pixel tolerance only where approved layout tests already do.
 
-- [ ] **Step 3: Apply resource and text previews locally**
+- [x] **Step 3: Apply resource and text previews locally**
 
 Light/Dark use scoped `RequestedTheme`. High-Contrast preview materializes the existing Model Inspection HighContrast semantic dictionary into a Debug host scope. The preset applier supplies those resources and 200% doubled typography values through `CreateForFixture(..., configureResourcesBeforeInitialize)` before `InitializeComponent`, so later-realized rows also reflow. Labels must include `Preview`; no compliance badge or OS claim.
 
-- [ ] **Step 4: Apply motion through injected settings**
+- [x] **Step 4: Apply motion through injected settings**
 
 Normal and reduced motion are selected before session/page construction. Normal uses the approved production driver with an audit decorator in the gallery; test construction may inject the controllable driver. Reduced uses injected disabled settings, must start zero animations, and reaches byte-equivalent observed semantics plus identical final geometry after normal motion completes.
 
@@ -692,6 +697,8 @@ test(model-inspection): close fixture interaction lifetimes
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/README.md`
 - Modify: `IBM Granite with TurboQuant (Intel)/Features/Onboarding/README.md`
 - Modify: `docs/testing/Model-Inspection-Test-Completeness-Matrix.md`
+- Modify: `shared/GraniteEdgeAI.ModelInspection.Fixtures/ModelInspectionFixtureReportGenerator.cs`
+- Modify: `tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureReportContractTests.cs`
 - Modify: `docs/evidence/testing/Model-Inspection-Fixture-Catalog.md`
 - Modify: `docs/reviews/model-inspection-cleanup-source-files.txt`
 - Modify: `docs/reviews/model-inspection-cleanup-inventory.md`

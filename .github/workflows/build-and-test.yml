@@ -51,18 +51,6 @@ jobs:
       # Pinned immutable commit for actions/checkout v7.0.0.
       - name: Check out required build inputs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          sparse-checkout: |
-            .github
-            docs
-            IBM Granite with TurboQuant (Intel)
-            infrastructure
-            runtime
-            scripts
-            shared
-            tests
-            tools
-            workers
 
       # Every script-owned GGUF fixture must be reproducible before any build
       # result can be trusted.
@@ -144,7 +132,7 @@ jobs:
           dotnet test "$env:CONTRACT_TEST_PROJECT" `
             --configuration Release `
             --no-restore `
-            --minimum-expected-tests 167 `
+            --minimum-expected-tests 357 `
             --results-directory "$env:GATE2_RESULTS_DIRECTORY/Contracts" `
             --report-trx `
             --report-trx-filename "GraniteEdgeAI.ModelInspection.Contracts.Tests.trx"
@@ -482,6 +470,58 @@ jobs:
             --runtime win-x64 `
             -p:Platform=x64
 
+      - name: Run serialized Debug x64 Model Inspection fixture gallery
+        run: |
+          $fixtureGalleryConfiguration = 'Debug'
+          $fixtureGalleryPlatform = 'x64'
+          msbuild "$env:APP_PROJECT" /target:Restore,Build /property:Configuration=$fixtureGalleryConfiguration /property:Platform=$fixtureGalleryPlatform
+          if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery app build failed.' }
+          dotnet build "$env:TEST_PROJECT" --configuration $fixtureGalleryConfiguration --runtime win-x64 -p:Platform=$fixtureGalleryPlatform
+          if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery test build failed.' }
+          $fixtureGalleryRecipe = 'D:/s/tests/UnitTests/GraniteEdgeAI.UnitTests/bin/x64/Debug/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.UnitTests.build.appxrecipe'
+          $fixtureGalleryTrxPath = 'D:/s/TestResults/ModelInspectionFixtures/ModelInspectionFixtureGallery.trx'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vstest = & $vswhere -latest -products * -find '**\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe' | Select-Object -First 1
+          if (-not $vstest) { throw 'Visual Studio app-container test runner was not found.' }
+          try {
+            & $vstest $fixtureGalleryRecipe /Platform:x64 /Logger:"trx;LogFileName=ModelInspectionFixtureGallery.trx" /ResultsDirectory:"D:/s/TestResults/ModelInspectionFixtures" /TestCaseFilter:"TestCategory=ModelInspectionFixtureGallery"
+            if ($LASTEXITCODE -ne 0) { throw 'Debug fixture-gallery VSTest failed.' }
+            if (-not (Test-Path -LiteralPath $fixtureGalleryTrxPath -PathType Leaf)) { throw 'Fixture-gallery TRX was not created.' }
+            [xml]$trx = Get-Content -LiteralPath $fixtureGalleryTrxPath -Raw
+            $fixtureGalleryExpectedTotal = 220
+            $fixtureGalleryExpectedClassCounts = [ordered]@{
+            'GraniteEdgeAI.UnitTests.DebugModelInspectionServiceTests' = 41
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixtureAdapterTests' = 12
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixtureGalleryTests' = 73
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixtureInteractionTests' = 6
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixtureLifetimeTests' = 13
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixturePageLifecycleTests' = 7
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixturePresetTests' = 25
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixtureScreenContractTests' = 37
+            'GraniteEdgeAI.UnitTests.ModelInspectionFixtureViewModelIntegrationTests' = 6
+            }
+            $fixtureGalleryExpectedClassTotal = [int](($fixtureGalleryExpectedClassCounts.Values | Measure-Object -Sum).Sum)
+            if ($fixtureGalleryExpectedClassTotal -ne $fixtureGalleryExpectedTotal) { throw 'Fixture-gallery expected class counts do not sum to the expected total.' }
+            $counters = $trx.TestRun.ResultSummary.Counters
+            if ([int]$counters.total -ne $fixtureGalleryExpectedTotal -or [int]$counters.executed -ne $fixtureGalleryExpectedTotal -or [int]$counters.passed -ne $fixtureGalleryExpectedTotal) { throw 'Fixture-gallery total drifted.' }
+            $definitions = @($trx.TestRun.TestDefinitions.UnitTest)
+            $results = @($trx.TestRun.Results.UnitTestResult)
+            $actualClassNames = @($definitions | ForEach-Object { [string]$_.TestMethod.className } | Sort-Object -Unique)
+            $expectedClassNames = @($fixtureGalleryExpectedClassCounts.Keys | Sort-Object)
+            $classSetDifference = @(Compare-Object -ReferenceObject $expectedClassNames -DifferenceObject $actualClassNames)
+            if ($classSetDifference.Count -ne 0) { throw 'Fixture-gallery class set drifted.' }
+            foreach ($entry in $fixtureGalleryExpectedClassCounts.GetEnumerator()) {
+              $classIds = @($definitions | Where-Object { $_.TestMethod.className -eq $entry.Key } | ForEach-Object { $_.id })
+              $passedClassResults = @($results | Where-Object { $_.testId -in $classIds -and $_.outcome -eq 'Passed' })
+              if ($classIds.Count -ne [int]$entry.Value -or $passedClassResults.Count -ne [int]$entry.Value) { throw 'Fixture-gallery class count drifted.' }
+            }
+          } finally {
+            if (Test-Path -LiteralPath $fixtureGalleryTrxPath -PathType Leaf) {
+              Remove-Item -LiteralPath $fixtureGalleryTrxPath -Force
+            }
+          }
+          if (Test-Path -LiteralPath $fixtureGalleryTrxPath -PathType Leaf) { throw 'Raw fixture-gallery TRX was retained.' }
+
       - name: Run unit and WinUI UI-thread tests
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -544,7 +584,7 @@ jobs:
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.InspectionProgressPresentationFactoryTests' = 13
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionPresentationFactoryTests' = 18
             'GraniteEdgeAI.UnitTests.InspectionVisualStateGuardTests' = 13
-            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 34
+            'GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests' = 39
             'GraniteEdgeAI.UnitTests.OnboardingModelInspectionNavigationTests' = 14
             'GraniteEdgeAI.UnitTests.ModelInspectionWorkerCompositionTests' = 13
             'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3
@@ -573,6 +613,14 @@ jobs:
 
       # This check always runs. It records a failure before cleaning the runner,
       # so process leakage cannot be hidden by successful test assertions.
+      - name: Verify Model Inspection fixture Release isolation
+        working-directory: ${{ github.workspace }}
+        run: |
+          $evidencePath = Join-Path $env:GITHUB_WORKSPACE 'TestResults\ModelInspectionFixtures\ReleaseIsolation\release-isolation-evidence.json'
+          & '.\scripts\model-inspection\Test-ModelInspectionFixtureReleaseIsolation.ps1' -EvidencePath $evidencePath
+          $isolationEvidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+          if ($isolationEvidence.status -ne 'passed') { throw 'Release isolation did not pass.' }
+
       - name: Check for orphaned Gate 2 processes
         if: ${{ always() }}
         run: |

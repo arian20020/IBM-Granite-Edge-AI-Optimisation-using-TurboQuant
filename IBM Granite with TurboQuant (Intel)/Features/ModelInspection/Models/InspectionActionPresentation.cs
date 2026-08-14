@@ -44,6 +44,11 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public string AutomationName { get; init; } = string.Empty;
 
         /// <summary>
+        /// Gets the stable fixture/action identity rendered by the control.
+        /// </summary>
+        public string ActionId { get; init; } = string.Empty;
+
+        /// <summary>
         /// Gets the accessible explanation for an unavailable action.
         /// </summary>
         public string AutomationHelpText { get; init; } = string.Empty;

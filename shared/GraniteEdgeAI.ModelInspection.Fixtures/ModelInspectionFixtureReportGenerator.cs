@@ -16,6 +16,8 @@ public static class ModelInspectionFixtureReportGenerator
         "synthetic deterministic fixture";
     private const string RealWorkerProvenance =
         "N-001 real-worker coverage";
+    private const string SemanticRenderStatus = "Verified(Task7)";
+    private const string LifetimeStatus = "Verified(Task9)";
 
     private static readonly Encoding Utf8WithoutBom =
         new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
@@ -48,7 +50,12 @@ public static class ModelInspectionFixtureReportGenerator
         AppendLine(
             report,
             "All gallery rows describe synthetic data; separately verified " +
-            "real-worker evidence is identified only in the final column.");
+            "real-worker evidence is identified only in the final column. " +
+            "Verified(Task7) means Debug/x64 loaded-tree semantic/render " +
+            "coverage, not strict approved-Figma-PNG, actual OS High " +
+            "Contrast/200% text-scale, or Narrator evidence. Verified(Task9) " +
+            "means declared synthetic interaction/lifetime coverage, not " +
+            "real-worker execution.");
         AppendLine(report, string.Empty);
         AppendLine(
             report,
@@ -88,7 +95,8 @@ public static class ModelInspectionFixtureReportGenerator
                 $"{string.Join("; ", policy.RequiredCoverageTags)} | " +
                 $"InspectionProgress | {fixture.Expected.Figma.State} | " +
                 $"{interactions} | {string.Join("; ", fixture.Presets)} | " +
-                $"Pending(Task7) | Pending(Task9) | {SyntheticProvenance} | " +
+                $"{SemanticRenderStatus} | {LifetimeStatus} | " +
+                $"{SyntheticProvenance} | " +
                 $"{realWorkerEvidence} |");
         }
 

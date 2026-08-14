@@ -1,7 +1,7 @@
 # Model Inspection architecture
 
 **Status:** Ordinary packaged implementation verified locally; strict pixel, controlled OS, manual Narrator, and hosted exact-head evidence remain open
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-13
 
 [Back to application feature architecture](../README.md)
 
@@ -179,9 +179,55 @@ local and untracked. This is ordinary packaged candidate evidence, not strict
 Figma-pixel, actual High Contrast/200% text-scale, manual Narrator,
 extracted-MSIX, or hosted exact-head closure.
 
+The final Task 10 local hosted-equivalent candidate retained the same filter
+and 686 minimum and passed 691/691. Its exact protected map contains 31 classes
+and 497 executions, including 39 page-navigation executions; the Release TRX
+SHA-256 was
+`E6C1EF3B00A238ED14BE33AE513A8D7E3AC06382F07AAF62A0404EC73B5F255F`.
+The focused N-001 page journey then passed 1/1 with TRX SHA-256
+`19257734B69EFDA98AC84FCAFB5C18E76C907ECB0B25B9800C24FFFA10D20422`.
+These local results do not claim a hosted GitHub exact-head run.
+
 N-001 is a controlled zero-tensor tokenizer fixture. It proves the lightweight
 VocabOnly journey and native closure, not trusted Granite inference, quality,
 or performance.
+
+### Debug fixture gallery
+
+For deterministic inspection of the presentation and lifecycle routes, build
+and launch the packaged application as `Debug`/`x64`, then click
+`Fixture gallery` on the onboarding shell. The gallery exposes the exact
+`MI-001` through `MI-049` synthetic catalogue. Its stable filename contract is
+`MI-NNN-<target-condition>[-<variant>].fixture.json`, with lowercase
+hyphenated slugs and an ID prefix that matches the descriptor.
+
+Search, category filtering, fixture selection/switching, declared Cancel,
+Retry, Restart, Choose another, disclosure expand/collapse, Reset fixture, and
+Close are safe gallery interactions. Actions that are not declared for the
+selected state are absent; future report, conversion, and Hardware Fit actions
+stay disabled with `Coming later` and do not dispatch.
+
+The gallery reads its allowlisted schema, policy, and descriptors only from
+the fixed packaged `ms-appx:///TestFixtures/ModelInspectionScenarios/` root. It
+does not open a model, start the production worker, use network or
+current-directory fallbacks, or treat synthetic results as worker evidence.
+Preview presets for High Contrast, 200% text, width, and reduced motion are
+deterministic in-app projections, not strict Figma PNG, actual OS High
+Contrast/200%, or Narrator evidence. Those controlled gates and real-worker
+coverage of synthetic outcome variants remain open. The catalogue links
+MI-002/MI-003 to the separate N-001 production-worker/page journey; that
+external join is the only real-worker link and proves only the bounded N-001
+Ready route.
+
+The fresh local Debug/x64 interaction/lifetime pair passed 19/19 (6 interaction
+and 13 lifetime), and the complete closed fixture category passed 220/220
+across its exact nine classes. The Debug build completed with zero errors and
+14 known warnings, with zero crash-report or test-process residue. Final local
+closure also passed Contracts 357/357 and Release isolation: the latter proved
+a ReadyToRun main assembly across 112 scanned package files, zero forbidden
+fixture/gallery path, token, or metadata hits, and zero surviving relevant
+processes, isolation children, or scoped crash events. Hosted exact-head
+evidence remains pending.
 
 ## Strict scope and non-claims
 
@@ -215,5 +261,6 @@ meaning of Model Inspection completion.
 - [Controls](./Controls/README.md)
 - [Infrastructure](./Infrastructure/README.md)
 - [Completeness matrix](../../../docs/testing/Model-Inspection-Test-Completeness-Matrix.md)
+- [Synthetic fixture catalogue](../../../docs/evidence/testing/Model-Inspection-Fixture-Catalog.md)
 - [Visual Studio Debug guide](../../../docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md)
 - [Figma visual verification evidence](../../../docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md)

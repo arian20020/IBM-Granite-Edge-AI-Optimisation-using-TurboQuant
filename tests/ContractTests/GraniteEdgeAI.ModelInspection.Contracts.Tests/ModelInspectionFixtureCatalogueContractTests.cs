@@ -79,11 +79,6 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
         {
             JsonObject footer = Expected(fixture)["footer"]!.AsObject();
             Assert.AreEqual("notComplete", footer["status"]!.GetValue<string>());
-            CollectionAssert.AreEqual(
-                Enumerable.Repeat("notComplete", 5).ToArray(),
-                footer["rows"]!.AsArray()
-                    .Select(row => row!["status"]!.GetValue<string>())
-                    .ToArray());
         }
 
         static void AssertActions(
@@ -418,8 +413,6 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
                 ["$defs", "content", "properties", "rows"]),
             ("$.expected.actions.items",
                 ["$defs", "actions", "properties", "items"]),
-            ("$.expected.footer.rows",
-                ["$defs", "footer", "properties", "rows"]),
             ("$.expected.automation.controls",
                 ["$defs", "automation", "properties", "controls"]),
             ("$.expected.rowsAndScroll.orderedRowIds",
@@ -725,15 +718,12 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             Assert.AreEqual(ModelInspectionExpectedControlType.Button,
                 cancelAutomation.ControlType, oracle.Id);
 
-            CollectionAssert.AreEqual(
-                Enum.GetValues<ModelInspectionExpectedStage>(),
-                expected.Footer.Rows.Select(row => row.Stage).ToArray(), oracle.Id);
-            CollectionAssert.AreEqual(
-                ExpectedProgressFooterStatuses(oracle).ToArray(),
-                expected.Footer.Rows.Select(row => row.Status).ToArray(), oracle.Id);
             Assert.AreEqual(ModelInspectionExpectedFooterStatus.InProgress,
                 expected.Footer.Status, oracle.Id);
-            Assert.AreEqual("cancel", expected.Focus.Target, oracle.Id);
+            Assert.AreEqual(
+                oracle.CancelRequested ? "model-card" : "cancel",
+                expected.Focus.Target,
+                oracle.Id);
             Assert.AreEqual(1, expected.Announcements.Count, oracle.Id);
             Assert.HasCount(1, expected.Announcements.Items, oracle.Id);
             (string detailKey, string detailText) = ProgressDetail(oracle.Stage);
@@ -758,7 +748,10 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             CollectionAssert.AreEqual(
                 oracle.CancelRequested ? Array.Empty<string>() : new[] { "cancel" },
                 p01.TabOrder.ToArray(), oracle.Id);
-            Assert.AreEqual("cancel", p01.FocusTarget, oracle.Id);
+            Assert.AreEqual(
+                oracle.CancelRequested ? "model-card" : "cancel",
+                p01.FocusTarget,
+                oracle.Id);
 
             Assert.HasCount(2, fixture.Interactions, oracle.Id);
             ModelInspectionFixtureInteraction cancelInteraction = fixture.Interactions
@@ -1019,6 +1012,43 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             .Any(copy => copy.DefaultText.Length == 512));
         Assert.IsTrue(AllCopies(Fixture(catalogue, "MI-049").Expected)
             .Any(copy => copy.DefaultText.Length == 512));
+    }
+
+    [TestMethod]
+    public void ExpandedReadyCheckTextRolesMatchRenderedRowsInEveryRequiredPreset()
+    {
+        string[] expectedIds =
+        [
+            "check-package",
+            "check-configuration",
+            "check-tokenizer",
+            "check-structure",
+            "check-runtime"
+        ];
+        ModelInspectionFixtureCatalogue catalogue = LoadCatalogue();
+        ValidatedModelInspectionFixture expanded = Fixture(catalogue, "MI-003");
+
+        foreach (string presetId in new[] { "P01", "P09" })
+        {
+            ModelInspectionPresetExpectation preset =
+                expanded.PresetExpectations[presetId];
+            CollectionAssert.AreEqual(
+                expectedIds,
+                preset.TextRoles.Select(role => role.Id).ToArray(),
+                $"MI-003/{presetId}");
+            Assert.IsTrue(
+                preset.TextRoles.All(role =>
+                    role.Behavior == ModelInspectionFixtureTextBehavior.Wrap),
+                $"MI-003/{presetId}");
+        }
+
+        CollectionAssert.AreEqual(
+            Fixture(catalogue, "MI-045").PresetExpectations["P01"].TextRoles
+                .Select(role => $"{role.Id}:{role.Behavior}")
+                .ToArray(),
+            expanded.PresetExpectations["P01"].TextRoles
+                .Select(role => $"{role.Id}:{role.Behavior}")
+                .ToArray());
     }
 
     [TestMethod]
@@ -1886,31 +1916,6 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
                         ModelInspectionExpectedRowStatus.Information,
                     _ => throw new ArgumentOutOfRangeException()
                 };
-            }
-        }
-    }
-
-    private static IEnumerable<ModelInspectionExpectedFooterStatus>
-        ExpectedProgressFooterStatuses(ProgressBatchExpectation oracle)
-    {
-        int current = (int)oracle.Stage - 1;
-        for (int index = 0; index < 5; index++)
-        {
-            bool currentIsComplete = oracle.Status is
-                ModelInspectionFixtureStageStatus.Completed or
-                ModelInspectionFixtureStageStatus.Warning;
-            if (index < current || index == current && currentIsComplete)
-            {
-                yield return ModelInspectionExpectedFooterStatus.Complete;
-            }
-            else if (index == current &&
-                     oracle.Status == ModelInspectionFixtureStageStatus.Active)
-            {
-                yield return ModelInspectionExpectedFooterStatus.InProgress;
-            }
-            else
-            {
-                yield return ModelInspectionExpectedFooterStatus.NotComplete;
             }
         }
     }

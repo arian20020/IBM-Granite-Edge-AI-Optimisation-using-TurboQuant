@@ -78,6 +78,17 @@ internal sealed class DebugModelInspectionService :
         }
     }
 
+    internal int PendingCallCount
+    {
+        get
+        {
+            lock (gate)
+            {
+                return calls.Count;
+            }
+        }
+    }
+
     public Task<ModelInspectionExecutionResult> InspectAsync(
         ModelInspectionRequest request,
         IProgress<ModelInspectionProgress>? progress,

@@ -28,16 +28,30 @@ public sealed class InspectionProgressRows : INotifyPropertyChanged
     {
         _items = Array.AsReadOnly(
         [
-            CreateStage("1", "Check model package", showConnector: true),
-            CreateStage("2", "Read model configuration", showConnector: true),
+            CreateStage(
+                "1",
+                "Check model package",
+                "Checking the model package.",
+                showConnector: true),
+            CreateStage(
+                "2",
+                "Read model configuration",
+                "Reading model configuration.",
+                showConnector: true),
             CreateStage(
                 "3",
                 "Validate tokenizer and chat setup",
+                "Validating tokenizer and chat setup.",
                 showConnector: true),
-            CreateStage("4", "Validate model structure", showConnector: true),
+            CreateStage(
+                "4",
+                "Validate model structure",
+                "Validating model structure.",
+                showConnector: true),
             CreateStage(
                 "5",
                 "Confirm core runtime compatibility",
+                "Confirming core runtime compatibility.",
                 showConnector: false)
         ]);
     }
@@ -196,12 +210,14 @@ public sealed class InspectionProgressRows : INotifyPropertyChanged
     private static InspectionContentItemPresentation CreateStage(
         string stageNumber,
         string title,
+        string defaultDetail,
         bool showConnector)
     {
         return new InspectionContentItemPresentation
         {
             StageNumber = stageNumber,
             Title = title,
+            DefaultDetail = defaultDetail,
             Detail = string.Empty,
             DetailVisibility = Visibility.Collapsed,
             Status = InspectionContentStatus.Waiting,

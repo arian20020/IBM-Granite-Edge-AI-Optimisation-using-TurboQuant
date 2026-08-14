@@ -46,6 +46,10 @@
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixturePageLifecycleTests.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureViewModelIntegrationTests.cs" />
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureGalleryTests.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureScreenContractTests.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixturePresetTests.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureInteractionTests.cs" />
+    <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureLifetimeTests.cs" />
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-001-inspection-progress-initial.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-001-inspection-progress-initial.fixture.json</Link>
       <TargetPath>TestFixtures\ModelInspectionScenarios\MI-001-inspection-progress-initial.fixture.json</TargetPath>

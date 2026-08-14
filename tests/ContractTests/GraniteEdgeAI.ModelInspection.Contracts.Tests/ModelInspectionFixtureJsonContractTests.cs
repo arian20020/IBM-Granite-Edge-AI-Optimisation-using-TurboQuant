@@ -193,8 +193,6 @@ public sealed class ModelInspectionFixtureJsonContractTests
             root => root["expected"]!["actions"]!["items"]![0]!
                 .AsObject()["unexpected"] = true,
             root => root["expected"]!["footer"]!.AsObject()["unexpected"] = true,
-            root => root["expected"]!["footer"]!["rows"]![0]!
-                .AsObject()["unexpected"] = true,
             root => root["expected"]!["focus"]!.AsObject()["unexpected"] = true,
             root => root["expected"]!["automation"]!.AsObject()["unexpected"] = true,
             root => root["expected"]!["automation"]!["controls"]![0]!
@@ -947,7 +945,7 @@ internal static class FixtureContractDocuments
             "model":{
               "visible":true,
               "mode":"detailed",
-              "badge":"inspected",
+              "badge":null,
               "displayName":{"copyKey":"fixture.model.name","defaultText":"Synthetic Granite"},
               "displayFileName":{"copyKey":"fixture.model.file","defaultText":"synthetic-granite.gguf"},
               "metadata":[],
@@ -973,13 +971,6 @@ internal static class FixtureContractDocuments
               }]
             },
             "footer":{
-              "rows":[
-                {"stage":"checkModelPackage","status":"complete"},
-                {"stage":"readModelConfiguration","status":"complete"},
-                {"stage":"validateTokenizerAndChatSetup","status":"complete"},
-                {"stage":"validateModelStructure","status":"complete"},
-                {"stage":"confirmCoreRuntimeCompatibility","status":"complete"}
-              ],
               "status":"complete"
             },
             "focus":{"target":"choose-another"},

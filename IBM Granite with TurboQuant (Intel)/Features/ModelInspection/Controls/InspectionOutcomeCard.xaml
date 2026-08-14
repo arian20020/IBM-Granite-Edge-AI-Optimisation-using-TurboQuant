@@ -15,7 +15,7 @@
             x:Key="InspectionOutcomeTitleStyle"
             TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionBodyFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
             <Setter Property="TextAlignment" Value="Center" />
@@ -25,7 +25,7 @@
             x:Key="InspectionOutcomeMessageStyle"
             TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionHelperFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryBrush}" />
             <Setter Property="TextAlignment" Value="Center" />

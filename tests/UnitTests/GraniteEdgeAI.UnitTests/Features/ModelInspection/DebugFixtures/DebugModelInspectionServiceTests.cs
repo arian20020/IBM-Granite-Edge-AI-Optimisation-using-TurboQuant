@@ -1844,13 +1844,22 @@ public sealed class DebugModelInspectionServiceTests
         Assert.AreEqual(2, innerDriver.CancelAllCount);
         Assert.AreEqual(2, session.Evidence.AnimationCancellationCount);
         Assert.IsTrue(session.Retire());
+        Assert.AreEqual(
+            session.Evidence.AnimationCancellationCount +
+                session.Evidence.AnimationDriverDisposalCount,
+            innerDriver.CancelAllCount,
+            "Retirement must cancel the owned driver once before disposal.");
         Assert.IsFalse(session.Retire());
         session.Dispose();
         session.Dispose();
         await Assert.ThrowsExactlyAsync<TaskCanceledException>(async () =>
             await pending);
 
-        Assert.AreEqual(2, innerDriver.CancelAllCount);
+        Assert.AreEqual(
+            session.Evidence.AnimationCancellationCount +
+                session.Evidence.AnimationDriverDisposalCount,
+            innerDriver.CancelAllCount,
+            "Repeated retirement and disposal must not cancel the driver again.");
         Assert.AreEqual(1, innerDriver.DisposeCount);
         Assert.AreEqual(1, session.Evidence.AnimationDriverDisposalCount);
         Assert.AreEqual(1, session.Evidence.MotionSettingsDisposalCount);

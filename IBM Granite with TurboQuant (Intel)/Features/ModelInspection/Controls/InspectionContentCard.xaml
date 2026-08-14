@@ -15,21 +15,21 @@
     <UserControl.Resources>
         <Style x:Key="ContentHeadingStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionSectionTitleFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionSectionTitleFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionSectionTitleFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionSectionTitleFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
         <Style x:Key="ContentPrimaryTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionBodyFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="ContentSecondaryTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
@@ -42,7 +42,7 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
         </Style>
 
@@ -74,9 +74,13 @@
 
         <DataTemplate x:Key="FindingRowTemplate" x:DataType="models:InspectionContentItemPresentation">
             <Border
+                Tag="InspectionFindingRow"
                 MinHeight="72"
                 Padding="0,10"
-                AutomationProperties.AccessibilityView="Raw"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.AutomationControlType="ListItem"
+                AutomationProperties.HelpText="{x:Bind AutomationHelpText}"
+                AutomationProperties.Name="{x:Bind Title}"
                 BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                 BorderThickness="0,0,0,1">
                 <Grid ColumnSpacing="12">
@@ -92,8 +96,7 @@
                         ContentTemplate="{StaticResource StatusMarkerTemplate}" />
                     <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center" Spacing="3">
                         <TextBlock
-                            AutomationProperties.AccessibilityView="Content"
-                            AutomationProperties.Name="{x:Bind AutomationName}"
+                            AutomationProperties.AccessibilityView="Raw"
                             Style="{StaticResource ContentPrimaryTextStyle}"
                             Text="{x:Bind Title}" />
                         <TextBlock
@@ -118,7 +121,7 @@
                             HorizontalAlignment="Center"
                             AutomationProperties.AccessibilityView="Raw"
                             FontFamily="{StaticResource InspectionLabelFontFamily}"
-                            FontSize="{StaticResource InspectionLabelFontSize}"
+                            FontSize="{ThemeResource InspectionLabelFontSize}"
                             FontWeight="{StaticResource InspectionLabelFontWeight}"
                             Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             Text="{x:Bind StatusText}"
@@ -131,6 +134,7 @@
 
         <DataTemplate x:Key="ReportRowTemplate" x:DataType="models:InspectionContentItemPresentation">
             <Border
+                Tag="InspectionReportRow"
                 MinHeight="58"
                 Padding="0,9"
                 AutomationProperties.AccessibilityView="Raw"
@@ -165,7 +169,7 @@
                         VerticalAlignment="Center"
                         AutomationProperties.AccessibilityView="Raw"
                         FontFamily="{StaticResource InspectionLabelFontFamily}"
-                        FontSize="{StaticResource InspectionLabelFontSize}"
+                        FontSize="{ThemeResource InspectionLabelFontSize}"
                         FontWeight="{StaticResource InspectionLabelFontWeight}"
                         Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                         Text="{x:Bind StatusText}"
@@ -175,7 +179,13 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ProgressStageTemplate" x:DataType="models:InspectionContentItemPresentation">
-            <Grid MinHeight="60" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
+            <Grid
+                Tag="InspectionProgressRow"
+                MinHeight="60"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.AutomationControlType="ListItem"
+                AutomationProperties.HelpText="{x:Bind AutomationHelpText, Mode=OneWay}"
+                AutomationProperties.Name="{x:Bind Title}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="*" />
@@ -220,7 +230,7 @@
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource InspectionLabelFontFamily}"
-                            FontSize="{StaticResource InspectionHelperFontSize}"
+                            FontSize="{ThemeResource InspectionHelperFontSize}"
                             FontWeight="{StaticResource InspectionLabelFontWeight}"
                             Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
                             Text="{x:Bind StageNumber}"
@@ -239,7 +249,7 @@
                     Grid.Column="2"
                     Margin="18,2,0,0"
                     FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                    FontSize="{StaticResource InspectionHelperFontSize}"
+                    FontSize="{ThemeResource InspectionHelperFontSize}"
                     FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                     Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                     Text="{x:Bind StatusText, Mode=OneWay}"
@@ -277,7 +287,7 @@
                             Grid.Column="1"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                            FontSize="{StaticResource InspectionHelperFontSize}"
+                            FontSize="{ThemeResource InspectionHelperFontSize}"
                             FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                             Foreground="{ThemeResource InspectionTextSecondaryBrush}"
                             Text="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}" />
@@ -286,6 +296,10 @@
                         x:Name="ProgressItemsRepeater"
                         Grid.Row="1"
                         Margin="0"
+                        AutomationProperties.AccessibilityView="Content"
+                        AutomationProperties.AutomationControlType="List"
+                        AutomationProperties.LiveSetting="Polite"
+                        AutomationProperties.Name="{x:Bind Presentation.SectionTitle, Mode=OneWay}"
                         ElementClearing="ProgressItemsRepeater_ElementClearing"
                         ElementPrepared="ProgressItemsRepeater_ElementPrepared"
                         ItemTemplate="{StaticResource ProgressStageTemplate}"
@@ -314,6 +328,11 @@
                         x:Name="FindingsItemsRepeater"
                         Grid.Row="1"
                         Margin="23,12,23,0"
+                        AutomationProperties.AccessibilityView="Content"
+                        AutomationProperties.AutomationControlType="List"
+                        AutomationProperties.LiveSetting="Polite"
+                        AutomationProperties.Name="{x:Bind Presentation.SectionTitle, Mode=OneWay}"
+                        IsTabStop="False"
                         ItemTemplate="{StaticResource FindingRowTemplate}"
                         ItemsSource="{x:Bind Presentation.Items, Mode=OneWay}">
                         <ItemsControl.ItemsPanel>
@@ -334,7 +353,7 @@
                         Grid.Row="3"
                         Margin="23,10,23,0"
                         FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                        FontSize="{StaticResource InspectionHelperFontSize}"
+                        FontSize="{ThemeResource InspectionHelperFontSize}"
                         FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                         Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                         Text="{x:Bind Presentation.TertiaryText, Mode=OneWay}"
@@ -352,7 +371,7 @@
                         Visibility="{x:Bind Presentation.DiagnosticCodeVisibility, Mode=OneWay}">
                         <TextBlock
                             FontFamily="Cascadia Mono"
-                            FontSize="{StaticResource InspectionHelperFontSize}"
+                            FontSize="{ThemeResource InspectionHelperFontSize}"
                             FontWeight="SemiBold"
                             Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             Text="{x:Bind Presentation.DiagnosticCode, Mode=OneWay}"
@@ -425,6 +444,7 @@
                                         ZoomMode="Disabled">
                                         <ItemsControl
                                             x:Name="ExpandedReportItemsControl"
+                                            IsTabStop="False"
                                             ItemTemplate="{StaticResource ReportRowTemplate}"
                                             ItemsSource="{x:Bind ExpandedItems, Mode=OneWay}">
                                             <ItemsControl.ItemsPanel>
@@ -450,7 +470,7 @@
                                         Grid.Row="1"
                                         HorizontalAlignment="Right"
                                         FontFamily="{StaticResource InspectionLabelFontFamily}"
-                                        FontSize="{StaticResource InspectionLabelFontSize}"
+                                        FontSize="{ThemeResource InspectionLabelFontSize}"
                                         FontWeight="{StaticResource InspectionLabelFontWeight}"
                                         Foreground="{ThemeResource InspectionTextMutedBrush}"
                                         AutomationProperties.AccessibilityView="Raw"

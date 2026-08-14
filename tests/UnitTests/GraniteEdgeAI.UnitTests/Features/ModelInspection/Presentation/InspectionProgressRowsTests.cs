@@ -214,6 +214,7 @@ public sealed class InspectionProgressRowsTests
             nameof(InspectionContentItemPresentation.StatusText),
             nameof(InspectionContentItemPresentation.IsActive),
             nameof(InspectionContentItemPresentation.Detail),
+            nameof(InspectionContentItemPresentation.AutomationHelpText),
             nameof(InspectionContentItemPresentation.DetailVisibility),
             nameof(InspectionContentItemPresentation.AutomationName)
         ];

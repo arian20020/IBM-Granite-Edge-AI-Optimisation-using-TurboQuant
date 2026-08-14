@@ -35,6 +35,33 @@ byte length and SHA-256 of every current GGUF fixture. Expected successful
 scanner results remain in `ExpectedMetadata` and are not derived from
 production code.
 
+## Model Inspection scenario catalogue
+
+[ModelInspectionScenarios](ModelInspectionScenarios/README.md) contains the
+authoritative synthetic catalogue used by the Debug x64 fixture gallery. It is
+the exact contiguous `MI-001` through `MI-049` set. Descriptor filenames follow
+`MI-NNN-<target-condition>[-<variant>].fixture.json`, where the target and
+optional variant are lowercase hyphenated slugs and the prefix exactly matches
+the descriptor ID. IDs and filenames are stable review contracts, not values
+to renumber or infer from production output.
+
+The packaged gallery reads only the allowlisted schema, coverage policy, and
+descriptor names below the fixed
+`ms-appx:///TestFixtures/ModelInspectionScenarios/` root. These fixtures contain
+synthetic requests, progress, terminal results, failures, and lifecycle events;
+they contain no model bytes and do not invoke the worker or external I/O. The
+[generated catalogue report](../../docs/evidence/testing/Model-Inspection-Fixture-Catalog.md)
+is the exact inventory and records the only approved external linkage: N-001
+real-worker/page evidence for the matching Ready collapsed/expanded screens.
+That linkage does not turn either gallery row into real-worker output.
+
+The final local Task 10 gate passed the synthetic Debug fixture category
+220/220 and the separately filtered real packaged N-001 journey 1/1. Release
+isolation then scanned 112 files, confirmed a ReadyToRun main assembly, and
+found zero forbidden fixture/gallery path, token, or metadata hits. These are
+local hosted-equivalent results; hosted GitHub exact-head evidence is still
+pending.
+
 ## Source
 
 Repository evidence structure

@@ -8,6 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:GraniteEdgeAI.Features.ModelInspection.Models"
     x:Name="Root"
+    AutomationProperties.AutomationControlType="Group"
     d:DesignHeight="470"
     d:DesignWidth="840"
     mc:Ignorable="d">
@@ -17,7 +18,7 @@
             x:Key="MetadataLabelStyle"
             TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionLabelFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionLabelFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionLabelFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionLabelFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
             <Setter Property="CharacterSpacing" Value="40" />
@@ -28,7 +29,7 @@
             TargetType="TextBlock">
             <Setter Property="Margin" Value="0,7,0,0" />
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionBodyFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
@@ -40,7 +41,7 @@
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="AutomationProperties.AccessibilityView" Value="Raw" />
             <Setter Property="FontFamily" Value="{StaticResource InspectionLabelFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionLabelFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionLabelFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionLabelFontWeight}" />
             <Setter Property="TextWrapping" Value="NoWrap" />
         </Style>
@@ -121,7 +122,7 @@
                             AutomationProperties.AccessibilityView="Content"
                             AutomationProperties.Name="{x:Bind AutomationName}"
                             FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                            FontSize="{StaticResource InspectionBodyFontSize}"
+                            FontSize="{ThemeResource InspectionBodyFontSize}"
                             FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                             Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                             Text="{x:Bind Title}"
@@ -129,7 +130,7 @@
                         <TextBlock
                             AutomationProperties.AccessibilityView="Raw"
                             FontFamily="{StaticResource InspectionHelperFontFamily}"
-                            FontSize="{StaticResource InspectionHelperFontSize}"
+                            FontSize="{ThemeResource InspectionHelperFontSize}"
                             FontWeight="{StaticResource InspectionHelperFontWeight}"
                             Foreground="{ThemeResource InspectionTextMutedBrush}"
                             Text="{x:Bind Detail}"
@@ -207,7 +208,7 @@
                         VerticalAlignment="Center"
                         d:Text="GGUF"
                         FontFamily="{StaticResource InspectionLabelFontFamily}"
-                        FontSize="{StaticResource InspectionLabelFontSize}"
+                        FontSize="{ThemeResource InspectionLabelFontSize}"
                         FontWeight="{StaticResource InspectionLabelFontWeight}"
                         Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
                         Text="{x:Bind FormatShortName}"
@@ -224,7 +225,7 @@
                     <TextBlock
                         d:Text="Selected model"
                         FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
-                        FontSize="{StaticResource InspectionSectionTitleFontSize}"
+                        FontSize="{ThemeResource InspectionSectionTitleFontSize}"
                         FontWeight="{StaticResource InspectionSectionTitleFontWeight}"
                         Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                         Text="{x:Bind ModelName}"
@@ -232,7 +233,7 @@
                     <TextBlock
                         d:Text="GGUF · Not reported · 2.08 GB"
                         FontFamily="{StaticResource InspectionBodyFontFamily}"
-                        FontSize="{StaticResource InspectionBodyFontSize}"
+                        FontSize="{ThemeResource InspectionBodyFontSize}"
                         FontWeight="{StaticResource InspectionBodyFontWeight}"
                         Foreground="{ThemeResource InspectionTextSecondaryBrush}"
                         Text="{x:Bind CompactSummary}"
@@ -273,7 +274,7 @@
                             Grid.Column="1"
                             d:Text="MODEL SELECTED"
                             FontFamily="{StaticResource InspectionLabelFontFamily}"
-                            FontSize="{StaticResource InspectionLabelFontSize}"
+                            FontSize="{ThemeResource InspectionLabelFontSize}"
                             FontWeight="{StaticResource InspectionLabelFontWeight}"
                             Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
                             Text="{x:Bind GetBadgeText(BadgeState)}"
@@ -319,7 +320,7 @@
                         Grid.Column="0"
                         VerticalAlignment="Center"
                         FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
-                        FontSize="{StaticResource InspectionSectionTitleFontSize}"
+                        FontSize="{ThemeResource InspectionSectionTitleFontSize}"
                         FontWeight="{StaticResource InspectionSectionTitleFontWeight}"
                         Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                         Text="Model overview"
@@ -342,7 +343,7 @@
                             VerticalAlignment="Center"
                             d:Text="GGUF MODEL"
                             FontFamily="{StaticResource InspectionLabelFontFamily}"
-                            FontSize="{StaticResource InspectionLabelFontSize}"
+                            FontSize="{ThemeResource InspectionLabelFontSize}"
                             FontWeight="{StaticResource InspectionLabelFontWeight}"
                             Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
                             Text="{x:Bind OverviewFormatBadgeText}"
@@ -394,7 +395,7 @@
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,1">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="PUBLISHER" />
+                            <TextBlock AutomationProperties.Name="Publisher" Style="{StaticResource MetadataLabelStyle}" Text="PUBLISHER" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind Publisher}" />
                         </StackPanel>
                     </Border>
@@ -407,7 +408,7 @@
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,1">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="FORMAT" />
+                            <TextBlock AutomationProperties.Name="Format" Style="{StaticResource MetadataLabelStyle}" Text="FORMAT" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind FormatName}" />
                         </StackPanel>
                     </Border>
@@ -420,7 +421,7 @@
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,0,1">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="QUANTISATION" />
+                            <TextBlock AutomationProperties.Name="Quantisation" Style="{StaticResource MetadataLabelStyle}" Text="QUANTISATION" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind Quantisation}" />
                         </StackPanel>
                     </Border>
@@ -433,7 +434,7 @@
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,0">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="PARAMETERS" />
+                            <TextBlock AutomationProperties.Name="Parameters" Style="{StaticResource MetadataLabelStyle}" Text="PARAMETERS" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ParameterCount}" />
                         </StackPanel>
                     </Border>
@@ -446,7 +447,7 @@
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,0">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="MODEL TYPE" />
+                            <TextBlock AutomationProperties.Name="Model type" Style="{StaticResource MetadataLabelStyle}" Text="MODEL TYPE" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ModelType}" />
                         </StackPanel>
                     </Border>
@@ -459,7 +460,7 @@
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,0">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="DECLARED MAX CONTEXT" />
+                            <TextBlock AutomationProperties.Name="Context" Style="{StaticResource MetadataLabelStyle}" Text="DECLARED MAX CONTEXT" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind DeclaredContext}" />
                         </StackPanel>
                     </Border>
@@ -470,7 +471,7 @@
                         MinHeight="78"
                         Padding="20,10,0,10">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource MetadataLabelStyle}" Text="FILE SIZE" />
+                            <TextBlock AutomationProperties.Name="File size" Style="{StaticResource MetadataLabelStyle}" Text="FILE SIZE" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind FileSize}" />
                         </StackPanel>
                     </Border>
@@ -511,7 +512,7 @@
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
                                 FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                                FontSize="{StaticResource InspectionBodyFontSize}"
+                                FontSize="{ThemeResource InspectionBodyFontSize}"
                                 FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                                 Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                                 Text="{x:Bind InspectionChecksSummary}"
@@ -522,7 +523,7 @@
                                 Margin="12,0,6,0"
                                 VerticalAlignment="Center"
                                 FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                                FontSize="{StaticResource InspectionBodyFontSize}"
+                                FontSize="{ThemeResource InspectionBodyFontSize}"
                                 FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                                 Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                                 Text="{x:Bind GetInspectionDetailsActionText(Presentation.IsInspectionDetailsExpanded), Mode=OneWay}"
@@ -560,6 +561,7 @@
                                     ZoomMode="Disabled">
                                     <ItemsControl
                                         x:Name="InspectionChecksItemsControl"
+                                        IsTabStop="False"
                                         ItemTemplate="{StaticResource InspectionCheckTemplate}"
                                         ItemsSource="{x:Bind InspectionChecks}">
                                         <ItemsControl.ItemsPanel>
@@ -585,7 +587,7 @@
                                     Margin="0,7,8,0"
                                     HorizontalAlignment="Right"
                                     FontFamily="{StaticResource InspectionLabelFontFamily}"
-                                    FontSize="{StaticResource InspectionLabelFontSize}"
+                                    FontSize="{ThemeResource InspectionLabelFontSize}"
                                     FontWeight="{StaticResource InspectionLabelFontWeight}"
                                     Foreground="{ThemeResource InspectionTextMutedBrush}"
                                     AutomationProperties.AccessibilityView="Raw"

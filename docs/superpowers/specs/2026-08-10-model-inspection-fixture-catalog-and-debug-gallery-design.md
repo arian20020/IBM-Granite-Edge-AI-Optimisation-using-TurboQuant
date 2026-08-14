@@ -322,7 +322,7 @@ by the user.
 - model fields, status chip, checks and disclosure state;
 - content mode, findings/report/progress rows and scroll ownership;
 - action order, label, visibility, enabled state and accessible help;
-- five footer steps and current footer status;
+- five inspection-stage content rows and current aggregate shell-bound footer status;
 - expected focus target;
 - accessible names, control types and live-region settings;
 - announcement text and exact announcement count;

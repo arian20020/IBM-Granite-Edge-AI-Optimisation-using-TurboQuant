@@ -2,6 +2,7 @@
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.ModelInspection.Fixtures;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
@@ -19,12 +20,15 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
     private readonly ModelInspectionFixtureDeferredEventRegistry deferredEvents;
     private readonly ModelInspectionFixtureOperationDomain lifetimeDomain;
     private readonly ModelInspectionFixtureOperationDrain deliveries;
+    private readonly HashSet<PageDispatcherAudit> pageDispatcherAudits = [];
 
     private AuditedAnimationDriver? animationDriver;
+    private AuditedRenderDispatcher? renderDispatcher;
     private FixedMotionSettings? motionSettings;
     private bool animationDriverClaimed;
     private bool animationDriverCreationInProgress;
     private bool motionSettingsClaimed;
+    private bool renderDispatcherClaimed;
     private bool retired;
     private bool disposed;
     private bool disposalStarted;
@@ -81,6 +85,8 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
     internal IReadOnlyList<ModelInspectionFixtureStaleMotionCallbackHandle>
         StaleMotionCallbackHandles =>
             deferredEvents.StaleMotionCallbackHandles;
+
+    internal bool AnimationsEnabled => animationsEnabled;
 
     internal IReadOnlyList<ModelInspectionFixtureStaleAnnouncementCallbackHandle>
         StaleAnnouncementCallbackHandles =>
@@ -202,6 +208,60 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
                 ownerAttempt,
                 releaseCheckpoint,
                 Service.StartedAttemptCount);
+        }
+    }
+
+    internal IModelInspectionRenderDispatcher CreateRenderDispatcher()
+    {
+        lock (gate)
+        {
+            ThrowIfUnavailable();
+            if (renderDispatcherClaimed)
+            {
+                throw new InvalidOperationException(
+                    "The fixture render dispatcher has already been transferred.");
+            }
+
+            DispatcherQueue queue = DispatcherQueue.GetForCurrentThread() ??
+                throw new InvalidOperationException(
+                    "The fixture render dispatcher requires a UI thread.");
+            renderDispatcher = new AuditedRenderDispatcher(
+                new DispatcherQueueModelInspectionRenderDispatcher(queue),
+                Evidence);
+            renderDispatcherClaimed = true;
+            return renderDispatcher;
+        }
+    }
+
+    internal IDisposable? BeginPageDispatcherCallback()
+    {
+        lock (gate)
+        {
+            if (retired || disposed)
+            {
+                return null;
+            }
+
+            var registration = new PageDispatcherAudit(
+                this,
+                Evidence.BeginDispatcherCallback());
+            pageDispatcherAudits.Add(registration);
+            return registration;
+        }
+    }
+
+    internal void ClosePageDispatcherCallbacks()
+    {
+        PageDispatcherAudit[] abandoned;
+        lock (gate)
+        {
+            abandoned = [.. pageDispatcherAudits];
+            pageDispatcherAudits.Clear();
+        }
+
+        foreach (PageDispatcherAudit registration in abandoned)
+        {
+            registration.CompleteEvidence();
         }
     }
 
@@ -346,11 +406,13 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
     private void FinalizeRetirement()
     {
         AuditedAnimationDriver? driver;
+        AuditedRenderDispatcher? dispatcher;
         FixedMotionSettings? settings;
         bool disposeRequested;
         lock (gate)
         {
             driver = animationDriver;
+            dispatcher = renderDispatcher;
             settings = motionSettings;
             disposeRequested = disposed;
         }
@@ -358,6 +420,11 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         ExceptionDispatchInfo? error = null;
         AttemptCleanup(() => Service.Retire(), ref error);
         AttemptCleanup(deferredEvents.Retire, ref error);
+        AttemptCleanup(ClosePageDispatcherCallbacks, ref error);
+        if (dispatcher is not null)
+        {
+            AttemptCleanup(dispatcher.Retire, ref error);
+        }
         if (driver is not null)
         {
             AttemptCleanup(driver.Dispose, ref error);
@@ -437,6 +504,42 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         ObjectDisposedException.ThrowIf(retired || disposed, this);
     }
 
+    private void CompletePageDispatcherCallback(
+        PageDispatcherAudit registration)
+    {
+        lock (gate)
+        {
+            pageDispatcherAudits.Remove(registration);
+        }
+
+        registration.CompleteEvidence();
+    }
+
+    private sealed class PageDispatcherAudit : IDisposable
+    {
+        private readonly ModelInspectionFixtureSession owner;
+        private readonly IDisposable evidenceAudit;
+        private int completed;
+
+        internal PageDispatcherAudit(
+            ModelInspectionFixtureSession owner,
+            IDisposable evidenceAudit)
+        {
+            this.owner = owner;
+            this.evidenceAudit = evidenceAudit;
+        }
+
+        public void Dispose() => owner.CompletePageDispatcherCallback(this);
+
+        internal void CompleteEvidence()
+        {
+            if (Interlocked.Exchange(ref completed, 1) == 0)
+            {
+                evidenceAudit.Dispose();
+            }
+        }
+    }
+
     private sealed class FixedMotionSettings : IModelInspectionMotionSettings
     {
         private readonly ModelInspectionFixtureSessionEvidence evidence;
@@ -487,6 +590,8 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
     {
         private readonly IModelInspectionAnimationDriver inner;
         private readonly ModelInspectionFixtureSessionEvidence evidence;
+        private readonly object auditGate = new();
+        private readonly HashSet<PendingMotionAudit> pendingAudits = [];
         private bool disposed;
 
         internal AuditedAnimationDriver(
@@ -504,7 +609,12 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         {
             ThrowIfDisposed();
             evidence.RecordAnimationStart();
-            inner.StartStageStatus(target, key, completed);
+            StartAudited(
+                [new MotionSlot(
+                    target,
+                    ModelInspectionAnimatedProperty.Opacity)],
+                callback => inner.StartStageStatus(target, key, callback),
+                completed);
         }
 
         public void StartActiveDetail(
@@ -514,7 +624,17 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         {
             ThrowIfDisposed();
             evidence.RecordAnimationStart();
-            inner.StartActiveDetail(target, key, completed);
+            StartAudited(
+                [
+                    new MotionSlot(
+                        target,
+                        ModelInspectionAnimatedProperty.Opacity),
+                    new MotionSlot(
+                        target,
+                        ModelInspectionAnimatedProperty.TranslationY)
+                ],
+                callback => inner.StartActiveDetail(target, key, callback),
+                completed);
         }
 
         public void StartDisclosure(
@@ -528,13 +648,29 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         {
             ThrowIfDisposed();
             evidence.RecordAnimationStart();
-            inner.StartDisclosure(
-                chevron,
-                viewport,
-                followingElements,
-                isExpanded,
-                previousTopOffsets,
-                key,
+            var slots = new List<MotionSlot>
+            {
+                new(
+                    chevron,
+                    ModelInspectionAnimatedProperty.RotationInDegrees),
+                new(viewport, ModelInspectionAnimatedProperty.Opacity),
+                new(viewport, ModelInspectionAnimatedProperty.RevealProgress)
+            };
+            foreach (UIElement followingElement in followingElements)
+            {
+                slots.Add(new MotionSlot(
+                    followingElement,
+                    ModelInspectionAnimatedProperty.TranslationY));
+            }
+
+            StartAudited(slots, callback => inner.StartDisclosure(
+                    chevron,
+                    viewport,
+                    followingElements,
+                    isExpanded,
+                    previousTopOffsets,
+                    key,
+                    callback),
                 completed);
         }
 
@@ -546,7 +682,18 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         {
             ThrowIfDisposed();
             evidence.RecordAnimationStart();
-            inner.StartTerminal(outgoing, incoming, key, completed);
+            StartAudited(
+                [
+                    new MotionSlot(
+                        outgoing,
+                        ModelInspectionAnimatedProperty.Opacity),
+                    new MotionSlot(
+                        incoming,
+                        ModelInspectionAnimatedProperty.Opacity)
+                ],
+                callback => inner.StartTerminal(
+                    outgoing, incoming, key, callback),
+                completed);
         }
 
         public void CancelAll()
@@ -556,31 +703,276 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
                 return;
             }
 
-            inner.CancelAll();
-            evidence.RecordAnimationCancellation();
+            ExceptionDispatchInfo? error = null;
+            try
+            {
+                AttemptCleanup(inner.CancelAll, ref error);
+            }
+            finally
+            {
+                AttemptCleanup(CompletePendingAudits, ref error);
+                AttemptCleanup(
+                    evidence.RecordAnimationCancellation,
+                    ref error);
+            }
+
+            error?.Throw();
         }
 
         public void Dispose()
         {
             if (disposed)
             {
+                CompletePendingAudits();
                 return;
             }
 
             disposed = true;
+            ExceptionDispatchInfo? error = null;
             try
             {
-                inner.Dispose();
+                AttemptCleanup(inner.CancelAll, ref error);
+                AttemptCleanup(inner.Dispose, ref error);
             }
             finally
             {
-                evidence.RecordAnimationDriverDisposal();
+                AttemptCleanup(CompletePendingAudits, ref error);
+                AttemptCleanup(
+                    evidence.RecordAnimationDriverDisposal,
+                    ref error);
             }
+
+            error?.Throw();
         }
 
         private void ThrowIfDisposed()
         {
             ObjectDisposedException.ThrowIf(disposed, this);
+        }
+
+        private void StartAudited(
+            IReadOnlyList<MotionSlot> slots,
+            Action<Action<ModelInspectionVisualOperationKey>> start,
+            Action<ModelInspectionVisualOperationKey> completed)
+        {
+            var audit = new PendingMotionAudit(
+                evidence.BeginMotionBatch(),
+                slots);
+            PendingMotionAudit[] superseded;
+            lock (auditGate)
+            {
+                var matches = new List<PendingMotionAudit>();
+                foreach (PendingMotionAudit pending in pendingAudits)
+                {
+                    if (pending.Overlaps(slots))
+                    {
+                        matches.Add(pending);
+                    }
+                }
+
+                superseded = [.. matches];
+                foreach (PendingMotionAudit pending in superseded)
+                {
+                    pendingAudits.Remove(pending);
+                }
+
+                pendingAudits.Add(audit);
+            }
+
+            foreach (PendingMotionAudit pending in superseded)
+            {
+                pending.Dispose();
+            }
+
+            int completionClaimed = 0;
+            void Complete(ModelInspectionVisualOperationKey completedKey)
+            {
+                try
+                {
+                    completed(completedKey);
+                }
+                finally
+                {
+                    if (Interlocked.Exchange(ref completionClaimed, 1) == 0)
+                    {
+                        lock (auditGate)
+                        {
+                            pendingAudits.Remove(audit);
+                        }
+
+                        audit.Dispose();
+                    }
+                }
+            }
+
+            try
+            {
+                start(Complete);
+            }
+            catch
+            {
+                if (Interlocked.Exchange(ref completionClaimed, 1) == 0)
+                {
+                    lock (auditGate)
+                    {
+                        pendingAudits.Remove(audit);
+                    }
+
+                    audit.Dispose();
+                }
+
+                throw;
+            }
+        }
+
+        private void CompletePendingAudits()
+        {
+            PendingMotionAudit[] pending;
+            ExceptionDispatchInfo? error = null;
+            lock (auditGate)
+            {
+                pending = [.. pendingAudits];
+                pendingAudits.Clear();
+            }
+
+            foreach (PendingMotionAudit audit in pending)
+            {
+                AttemptCleanup(audit.Dispose, ref error);
+            }
+
+            error?.Throw();
+        }
+
+        private readonly record struct MotionSlot(
+            UIElement Target,
+            ModelInspectionAnimatedProperty Property);
+
+        private sealed class PendingMotionAudit : IDisposable
+        {
+            private readonly IDisposable evidenceAudit;
+            private readonly IReadOnlyList<MotionSlot> slots;
+            private int completed;
+
+            internal PendingMotionAudit(
+                IDisposable evidenceAudit,
+                IReadOnlyList<MotionSlot> slots)
+            {
+                this.evidenceAudit = evidenceAudit;
+                this.slots = slots;
+            }
+
+            internal bool Overlaps(IReadOnlyList<MotionSlot> candidate)
+            {
+                foreach (MotionSlot current in slots)
+                {
+                    foreach (MotionSlot replacement in candidate)
+                    {
+                        if (ReferenceEquals(current.Target, replacement.Target) &&
+                            current.Property == replacement.Property)
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref completed, 1) == 0)
+                {
+                    evidenceAudit.Dispose();
+                }
+            }
+        }
+    }
+
+    private sealed class AuditedRenderDispatcher :
+        IModelInspectionRenderDispatcher
+    {
+        private readonly IModelInspectionRenderDispatcher inner;
+        private readonly ModelInspectionFixtureSessionEvidence evidence;
+        private readonly object gate = new();
+        private readonly HashSet<IDisposable> pending = [];
+        private bool retired;
+
+        internal AuditedRenderDispatcher(
+            IModelInspectionRenderDispatcher inner,
+            ModelInspectionFixtureSessionEvidence evidence)
+        {
+            this.inner = inner;
+            this.evidence = evidence;
+        }
+
+        public bool TryEnqueue(Action callback)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+            IDisposable audit;
+            lock (gate)
+            {
+                if (retired)
+                {
+                    return false;
+                }
+
+                audit = evidence.BeginDispatcherCallback();
+                pending.Add(audit);
+            }
+
+            bool enqueued;
+            try
+            {
+                enqueued = inner.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        callback();
+                    }
+                    finally
+                    {
+                        Complete(audit);
+                    }
+                });
+            }
+            catch
+            {
+                Complete(audit);
+                throw;
+            }
+
+            if (!enqueued)
+            {
+                Complete(audit);
+            }
+
+            return enqueued;
+        }
+
+        internal void Retire()
+        {
+            IDisposable[] abandoned;
+            lock (gate)
+            {
+                retired = true;
+                abandoned = [.. pending];
+                pending.Clear();
+            }
+
+            foreach (IDisposable audit in abandoned)
+            {
+                audit.Dispose();
+            }
+        }
+
+        private void Complete(IDisposable audit)
+        {
+            lock (gate)
+            {
+                pending.Remove(audit);
+            }
+
+            audit.Dispose();
         }
     }
 }

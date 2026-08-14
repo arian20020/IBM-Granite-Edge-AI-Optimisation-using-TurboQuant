@@ -3,10 +3,10 @@
 | Metadata | Value |
 |---|---|
 | Document ID | `TEST-COV-MODEL-INSPECTION-001` |
-| Status | Ordinary packaged implementation verified in a local hosted-equivalent candidate; strict pixels, controlled OS/manual accessibility, and hosted exact-head closure remain open |
+| Status | Local Task 10 Contracts, Debug fixture, Release/N-001, and isolation gates verified; strict pixels, controlled OS/manual accessibility, and hosted exact-head closure remain open |
 | Audit date | 2026-08-08 |
-| Current evidence date | 2026-08-10 |
-| Audited commit | `5f90a5d9299363214f11454f548ff8571d98b1a5` plus the uncommitted Task 12 candidate described below |
+| Current evidence date | 2026-08-13 |
+| Audited commit | historical baseline `5f90a5d9299363214f11454f548ff8571d98b1a5` plus the uncommitted Task 10 candidate described below |
 | Audit branch | `test/model-inspection-completeness-gate` |
 | Stacked base | `refactor/model-inspection-cleanup` |
 | Related roadmap | [Model Inspection completion roadmap](../superpowers/specs/2026-08-08-model-inspection-completion-roadmap-design.md) |
@@ -123,11 +123,11 @@ gaps below.
 | MI-TC-015 | `WF-INS-001`, `WF-OVR-*` | Content template selection | every mode/status, item vs wrapper, `ContentControl`, `ContentPresenter`, null, missing template, invalid enum | warning route and selected wrapper paths covered | Partial | IMPLEMENTED - TEST NOW | Add table-driven selector coverage and controlled invalid configuration failure |
 | MI-TC-016 | `WF-INS-001`, `WF-OVR-*` | Hidden outcome independence and required visual-state guards | repeated hidden use, shared mutable state, missing visual state | direct packaged tests | Adequate | IMPLEMENTED - TEST NOW | Preserve immutable hidden state and guard tests |
 | MI-TC-017 | `WF-INS-001`, `WF-OVR-*` | Model/content card modes, badges, icons, status maps and bindings | every implemented enum value, binding refresh, disclosure state | `ModelInspectionFigmaStatePresentationTests` executes 77 mappings, `ModelInspectionRenderedStateTests` renders all 13 ordinary states plus all four disclosure pairs, all four controls have direct packaged suites, and the coordinator preserves four-control/five-row identity while applying changed regions; exact Figma PNG comparison remains blocked | Partial | PARTIALLY IMPLEMENTED | Preserve truthful runtime-fed presentations and stable identity; close strict reference/pixel evidence only with exact node exports |
-| MI-TC-018 | `WF-OVR-*` | Outcome/action tones, disclosure, buttons, enabled and visible state | every model/execution presentation, hidden/disabled independence, invalid combination | ordinary packaged coverage includes Action 4, Content 25, Model 9, Outcome 7 and disclosure 5 executions plus the 13-state rendered matrix; Cancel, Retry, Choose another and visible disabled `Coming later` actions are direct-tested, while controlled OS rendering and strict pixels remain open | Partial | PARTIALLY IMPLEMENTED | Preserve exact control/action/disclosure contracts; retain future actions as non-executing and complete controlled evidence separately |
+| MI-TC-018 | `WF-OVR-*` | Outcome/action tones, disclosure, buttons, enabled and visible state | every model/execution presentation, hidden/disabled independence, invalid combination | ordinary packaged coverage includes Action 4, Content 25, Model 9, Outcome 7 and disclosure 5 executions plus the 13-state rendered matrix. The fresh Debug fixture campaign passed 220/220, including 6 interaction cases that drive every declared action through the rendered control and reject unavailable/future actions without mutation; controlled OS rendering and strict pixels remain open | Partial | PARTIALLY IMPLEMENTED | Preserve exact control/action/disclosure contracts; retain future actions as non-executing and complete controlled evidence separately |
 | MI-TC-019 | `WF-OVR-READY-001` | Hardware Fit eligibility contract | Ready, ReadyWithWarnings, ConversionRequired, Unsupported, IncompletePackage, Invalid, Cancelled, OperationalFailure | contracts lock exact eligibility; the live classifier produces Ready/ReadyWithWarnings from reliable GGUF evidence and rejects unknown evidence. This slice deliberately exposes no Hardware Fit navigation action | Partial | PARTIALLY IMPLEMENTED | Preserve eligibility/classifier rules; implement Hardware Fit navigation only in its downstream slice |
 | MI-TC-020 | `WF-INS-001`, `WF-OVR-*`, `TS` | Accessible names, semantic status text and non-color communication | every card/action/outcome, error/recovery state, icon/brush changes | `ModelInspectionAccessibilityTests` executes 9 automation/non-color/live-region checks and the 21 rendered-state executions assert semantic tone, icons/text, action help and theme resources across the ordinary state matrix; actual High Contrast and manual Narrator remain open | Partial | PARTIALLY IMPLEMENTED | Preserve packaged semantic/non-color assertions and complete actual High Contrast plus Narrator acceptance separately |
 | MI-TC-021 | `WF-INS-001`, `TS` | Observable stage live-region announcement | stage change, repeated value, peer creation, actual `LiveRegionChanged` event | packaged control/page tests create automation peers and observe `LiveRegionChanged` for content progress and terminal outcome updates; duplicate-equivalent snapshots do not invent a change | Adequate | IMPLEMENTED - TEST NOW | Preserve peer/event assertions and complete manual Narrator acceptance separately |
-| MI-TC-022 | `WF-INS-001`, `WF-OVR-*`, `TS` | Keyboard, focus, tab order, 200% text scaling, resize and reduced-motion-safe behavior | keyboard-only use, visible focus, long names, expanded details, small window, high contrast | ordinary packaged tests cover Enter/Space disclosure, focus continuity, long/wrapped text, responsive widths, 200%-equivalent layout simulation, High-Contrast resource selection and animations-disabled endpoints; no actual Windows 200%/High Contrast campaign or retained manual keyboard/Narrator pass exists | Partial | PARTIALLY IMPLEMENTED | Preserve automated behavior and complete the separately pinned controlled OS plus manual acceptance record |
+| MI-TC-022 | `WF-INS-001`, `WF-OVR-*`, `TS` | Keyboard, focus, tab order, 200% text scaling, resize and reduced-motion-safe behavior | keyboard-only use, visible focus, long names, expanded details, small window, high contrast | ordinary packaged tests cover Enter/Space disclosure, focus continuity, long/wrapped text, responsive widths, 200%-equivalent layout simulation, High-Contrast resource selection and animations-disabled endpoints. The fresh Debug fixture campaign passed 220/220, including exact rendered-control focus and the 13-case lifetime/producer-drain suite; no actual Windows 200%/High Contrast campaign or retained manual keyboard/Narrator pass exists | Partial | PARTIALLY IMPLEMENTED | Preserve automated behavior and complete the separately pinned controlled OS plus manual acceptance record |
 | MI-TC-023 | `WF-INS-001` | Application request/progress/result/evidence invariants and enums | null/default/invalid combinations, immutability, execution/model outcome separation | packaged `ModelInspectionContractTests` and execution-result tests | Adequate | IMPLEMENTED - TEST NOW | Preserve constructor/validation and exact outcome meaning |
 | MI-TC-024 | `WF-OVR-*`, `WF-DIAG-SCR-001` | Application result-to-presentation and privacy-safe operational failure mapping | every outcome, finding severity, safe details, absent runtime data | production worker result mapper, classifier, service and presentation factory are direct-tested; operational failures expose only stable code/user message and path/raw template/stderr/exception/request identity are excluded | Adequate | IMPLEMENTED - TEST NOW | Preserve fail-closed evidence mapping and privacy-negative presentation assertions |
 
@@ -182,18 +182,18 @@ gaps below.
 
 | ID | Source | Behavior and owner | Inputs, boundaries and realistic failures | Correct layer and existing evidence | Coverage | Implementation class | Required action |
 |---|---|---|---|---|---|---|---|
-| MI-TC-052 | `CI/EVIDENCE`, `TS` | Every executable test project is discovered, reachable and protected by a meaningful floor/trigger | project omitted from solution/workflow, filter loses class, dependency change does not trigger, zero tests | Permanent Contracts uses the externally discovered current 167 floor. Worker is 77 with the exact 67 engine identities, WorkerClient is 91 with five fixed-layout identities, process is 32 with exact production classes, and deterministic LLama is 181 with six architecture identities. Ordinary packaged WinUI uses the exact two-category exclusion and 686 floor with 31 exact protected class counts, including the 15 new presentation/view/render/motion/control/accessibility classes and real N-001 route; raw packaged-unit and Gate 2 TRX are runner-ephemeral and not uploaded. The local Contracts rediscovery passed 167/167 and filtered packaged candidate passed 686/686 with zero non-passing results; hosted exact-head reconciliation remains pending | Partial | IMPLEMENTED - TEST NOW | Preserve exact filters/floors/identities, privacy-safe retention and complete hosted exact-head evidence |
+| MI-TC-052 | `CI/EVIDENCE`, `TS` | Every executable test project is discovered, reachable and protected by a meaningful floor/trigger | project omitted from solution/workflow, filter loses class, dependency change does not trigger, zero tests | Final local Contracts passed 357/357. Worker is 77, WorkerClient 91, process 32, and deterministic LLama 181. The permanent packaged gate separates the exact Debug/x64 `ModelInspectionFixtureGallery` campaign (220/220 across 41/12/73/6/13/7/25/37/6) from the ordinary Release/x64 two-category exclusion and unchanged 686 minimum. The final local hosted-equivalent Release candidate passed 691/691 against 31 protected classes totalling 497, including 39 navigation executions; raw Debug, packaged-unit and Gate 2 TRX remain runner-ephemeral and are not uploaded. Hosted exact-head reconciliation remains pending | Partial | IMPLEMENTED - TEST NOW | Preserve exact filters, floors, identities and privacy-safe ephemeral results; complete hosted exact-head evidence |
 | MI-TC-053 | `CI/EVIDENCE`, `TS` | Privacy scan gates every retained artifact | scan failure followed by `always()` upload, path text in TRX/evidence, non-GGUF model copy, test failure still uploads | permanent `build-and-test` retains no packaged-unit or Gate 2 test artifact: identity-bearing raw TRX stays runner-ephemeral. The controlled preflight has no artifact production/upload and the Task 11 scanner still rejects raw TRX; a sanitized controlled schema and gated upload remain open | Partial | IMPLEMENTED - TEST NOW | Do not add a test-result upload until its exact sanitized publish directory is finalized, scanned successfully, and the upload is gated on that scan; audit other retained workflow artifacts separately |
 | MI-TC-054 | `CI/EVIDENCE`, `ADR-003/G2` | Always-run orphan checks cover production worker, fixture and descendants | prior step failure, fixture-only scan, native helper/child survives | permanent and focused process workflows now always check both production worker and fixture; process tests retain descendant Job-empty assertions, while dedicated LLama native-helper workflow checks remain incomplete | Partial | IMPLEMENTED - TEST NOW | Add exact always-run orphan verification to relevant native workflows and preserve descendant Job evidence |
 | MI-TC-055 | `CI/EVIDENCE`, `TS` | Line/branch coverage and selective mutation evidence | unexecuted branch hidden by green test count, weak assertion survives mutation | no coverage collector/config/report exists | None | IMPLEMENTED - TEST NOW | Add coverage collection and matrix mapping; mutation-test highest-risk invariants without arbitrary percentage target |
 | MI-TC-056 | `CI/EVIDENCE`, `TS` | Exact-head raw artifacts, test totals, skips, digests and reproducibility | historical source SHA confused with final head, badge without TRX parsing, real-model evidence stale | exact-head permanent run exists; evidence documents split `401259...` source and `8f00a64...` closure; trusted run historical | Partial | IMPLEMENTED - TEST NOW | Produce one exact final-head evidence record and independently parse retained artifacts |
-| MI-TC-057 | `CI/EVIDENCE` | Documentation, ledger, source and commit traceability agree | stale count/status/runner/gate claim, invalid ledger disposition, missing root, historical design read as current | cleanup inventory and evidence exist but contain identified contradictions | Partial | IMPLEMENTED - TEST NOW | Correct current docs, add supersession notes and preserve historical records |
+| MI-TC-057 | `CI/EVIDENCE` | Documentation, ledger, source and commit traceability agree | stale count/status/runner/gate claim, invalid ledger disposition, missing root, historical design read as current | current fixture documentation and cleanup ownership reconcile at 607/607, the cleanup verifier passed 3/3, and historical evidence remains labelled separately. Final local Contracts, Release, N-001 and isolation identities are recorded below; hosted GitHub exact-head evidence is not claimed | Partial | IMPLEMENTED - TEST NOW | Preserve the reconciled ledger, historical records, and local/hosted evidence distinction; add hosted exact-head results only after they execute |
 
 ## Matrix H - future, downstream and superseded work
 
 | ID | Source | Behavior and owner | Inputs, boundaries and realistic failures | Correct layer and existing evidence | Coverage | Implementation class | Required action |
 |---|---|---|---|---|---|---|---|
-| MI-TC-058 | `WF-INS-001`, roadmap production Gates 5–6 | Async application service/ViewModel runtime, real progress and functional Cancel | run identity, auto-start, progress, cooperative/forced cancel, stale callback | service, ViewModel and page tests directly cover exact request forwarding, one auto-start per navigation, all five progress stages, replacement identity, immediate Cancel disable, cooperative versus unconfirmed cancellation, retry, deactivation/disposal and stale callback suppression; the real packaged N-001 page journey reaches `Ready` | Adequate | IMPLEMENTED - TEST NOW | Preserve attempt identity, trusted cancellation semantics and page lifecycle coverage |
+| MI-TC-058 | `WF-INS-001`, roadmap production Gates 5–6 | Async application service/ViewModel runtime, real progress and functional Cancel | run identity, auto-start, progress, cooperative/forced cancel, stale callback | service, ViewModel and page tests directly cover exact request forwarding, one auto-start per navigation, all five progress stages, replacement identity, immediate Cancel disable, cooperative versus unconfirmed cancellation, retry, deactivation/disposal and stale callback suppression. The fresh synthetic interaction/lifetime pair passed 19/19, the full Debug fixture category passed 220/220, and the final Task 10 real packaged N-001 journey passed 1/1 through all five stages to `Ready` | Adequate | IMPLEMENTED - TEST NOW | Preserve attempt identity, trusted cancellation semantics and page lifecycle coverage |
 | MI-TC-059 | `WF-OVR-*`, `WF-DIAG-SCR-001` | Live classifier, runtime-driven outcome routes, technical details and handoff actions | six model outcomes, two execution outcomes, precedence, recovery, route eligibility | the live classifier produces Ready/ReadyWithWarnings from trusted evidence; presentation maps all six model outcomes plus cancellation/failure and exposes only choose/retry actions. Other live classifier outcomes, technical-details UI, Hardware Fit and conversion handoffs remain downstream | Partial | PARTIALLY IMPLEMENTED | Preserve the two justified live outcomes and safe recovery; implement other evidence policies and downstream actions only with their own gates |
 | MI-TC-060 | `ADR-003/G2`, roadmap production Gate 3 | Production LLamaSharp worker engine and application mappers | exact CPU runtime, native lifetime, factual evidence, no duplicate implementation | the single extracted CPU/VocabOnly runtime is composed through `LlamaSharpInspectionEngine`; application request/result mappers enforce request, file, runtime, tokenizer and privacy invariants; the fixed manifest-verified worker reaches all five stages and `Ready` through both default service and packaged N-001 page tests | Adequate | IMPLEMENTED - TEST NOW | Preserve the single runtime, fixed package boundary, fail-closed mapper, and real packaged application journey |
 | MI-TC-061 | downstream programme boundary | OpenVINO/Hugging Face conversion/optimisation/TurboQuant execution | backend/package/model routes and performance evidence | not part of current Model Inspection production boundary | Deferred | NOT YET IMPLEMENTED | Keep downstream; Model Inspection owns only extension/handoff contracts |
@@ -307,8 +307,8 @@ protocol design and compatibility assessment.
 
 | ID | Current inconsistency | Required disposition |
 |---|---|---|
-| MI-DOC-001 | `tests/README.md` describes one executable project and 108 executions | update current test-project/count description without rewriting history |
-| MI-DOC-002 | CI documentation says packaged WinUI uses MTP and omits protected-worker Gate 2 | document app-container VSTest and the full permanent boundary |
+| MI-DOC-001 | Resolved: `tests/README.md` now separates the 220-case Debug fixture campaign from the ordinary 686-floor Release campaign | preserve current counts without rewriting historical evidence |
+| MI-DOC-002 | Resolved: CI documentation names app-container VSTest, protected-worker Gate 2, separate Debug/Release filters and runner-ephemeral TRX | preserve the full permanent boundary and raw-result policy |
 | MI-DOC-003 | Resolved for the worker/runtime boundary: the worker README previously described the unavailable engine as production | README now records production LLamaSharp composition, the retained test-only unavailable seam, and the approval-required `WorkerId` schema gap |
 | MI-DOC-004 | root solution omits Contracts production/tests and five LLama projects | either include them or clearly stop treating the solution as complete discovery |
 | MI-DOC-005 | Protected-worker Gate 2 evidence contains an older exact-head-pending statement | preserve history and link later closure evidence |
@@ -316,6 +316,90 @@ protocol design and compatibility assessment.
 | MI-DOC-007 | cleanup design allows qualified final dispositions but all ledger rows say bare `reviewed` | enforce and migrate to approved disposition vocabulary |
 | MI-DOC-008 | cleanup `CompleteRoots` omits four LLama sibling test/support roots | enumerate those roots dynamically or add them explicitly |
 | MI-DOC-009 | `401259...` source evidence and `8f00a64...` cleanup Phase 1 closure can be conflated | retain both identities and explain their different evidence roles |
+
+## Debug fixture-gallery evidence boundary
+
+The packaged Debug x64 gallery is a deterministic verification aid for the
+exact synthetic `MI-001` through `MI-049` catalogue. The
+[generated catalogue](../evidence/testing/Model-Inspection-Fixture-Catalog.md)
+is the authoritative ID, filename, target, interaction, preset, provenance,
+and external-evidence inventory. Filenames follow
+`MI-NNN-<target-condition>[-<variant>].fixture.json`; the lowercase hyphenated
+slugs and ID prefix are validated identities.
+
+The gallery exercises real presentation controls/commands for declared Cancel,
+Retry, Restart, Choose another, disclosure expand/collapse, and Reset routes,
+plus fixture replacement and gallery close. Unavailable actions are omitted;
+disabled `Coming later` report, conversion, and Hardware Fit actions do not
+dispatch. Its loader is closed to the allowlisted schema, policy, and
+descriptors at the fixed packaged
+`ms-appx:///TestFixtures/ModelInspectionScenarios/` root. It does not read a
+model, start the production worker, use network or current-directory
+fallbacks, or serve as external-I/O evidence.
+
+Preset previews do not close strict approved-Figma-PNG, actual OS High
+Contrast, actual OS 200% text-scale, or manual Narrator coverage. Synthetic
+outcomes do not close real-worker coverage either. The catalogue's MI-002 and
+MI-003 joins point to the separate N-001 production-worker/page journey; they
+prove only that bounded Ready route and do not change the synthetic provenance
+of the gallery rows.
+
+### Current local Task 10 evidence
+
+The fresh local Debug/x64 interaction and lifetime prerequisite passed 19/19:
+Interaction 6 and Lifetime 13. Its ephemeral TRX SHA-256 was
+`741DAD14EA1C5935DF07BC1128FEAE3AF3627C3EA67A4E23B27FABD3228E69A0`.
+
+The subsequent exact `ModelInspectionFixtureGallery` category passed 220/220
+with this closed class map:
+
+| Debug fixture class | Passed |
+|---|---:|
+| `DebugModelInspectionServiceTests` | 41 |
+| `ModelInspectionFixtureAdapterTests` | 12 |
+| `ModelInspectionFixtureGalleryTests` | 73 |
+| `ModelInspectionFixtureInteractionTests` | 6 |
+| `ModelInspectionFixtureLifetimeTests` | 13 |
+| `ModelInspectionFixturePageLifecycleTests` | 7 |
+| `ModelInspectionFixturePresetTests` | 25 |
+| `ModelInspectionFixtureScreenContractTests` | 37 |
+| `ModelInspectionFixtureViewModelIntegrationTests` | 6 |
+| **Total** | **220** |
+
+The category TRX SHA-256 was
+`847D8EEC40AE653FF61BC3D45C557D599E14CDEE09E805C569022FB036BD51E3`.
+The shared Debug build completed with zero errors and 14 known warnings; the
+campaign observed zero crash-report delta and zero surviving test processes.
+
+Fresh Contracts discovery is 357. The first structural run passed 356/357 and
+correctly exposed one missing `DoNotParallelize` declaration; it remains useful
+failure evidence. After the source correction, the final full Contracts rerun
+passed 357/357 with zero adverse counters and TRX SHA-256
+`184106CA8DAC97CC206D6D9C292E2AF83CA812610566F3D92633034B37489D21`.
+Cleanup reconciled at 607/607 and its verifier passed 3/3. Cleanup removed 36
+generated `.task9` directories containing 2,687 files and confirmed zero
+remain.
+
+The final local hosted-equivalent Release/x64 candidate retained the exact
+two-category exclusion and unchanged 686 minimum while passing 691/691. All 31
+protected classes matched their exact 497-execution map, including 39
+`ModelInspectionPageNavigationTests`; its TRX SHA-256 was
+`E6C1EF3B00A238ED14BE33AE513A8D7E3AC06382F07AAF62A0404EC73B5F255F`.
+The separately filtered real packaged N-001 journey passed 1/1 with TRX
+SHA-256
+`19257734B69EFDA98AC84FCAFB5C18E76C907ECB0B25B9800C24FFFA10D20422`.
+
+Release isolation passed with a ReadyToRun main assembly, 112 scanned files,
+and zero forbidden path, token, or metadata hits. It also ended with zero
+relevant processes, zero isolation-root children, and zero scoped WER/crash
+events. The privacy-safe isolation evidence SHA-256 was
+`E9851004429FEFAF28F35228D8F8001E9F674ED30864B9742A84CFEA696D09B8`;
+the final local summary and artifact-manifest SHA-256 values were respectively
+`B5337A5047A6669D0B535926CCB481CAFD36AA793856399FAC35BDB19F9FE1CE`
+and
+`040E89E7793C0D563BC7A76B2639F0A80D17D45F1414838BAC49FCB25AB99C86`.
+Raw identity-bearing TRX/log artifacts remain local and untracked. No hosted
+GitHub exact-head run is claimed; that evidence remains pending.
 
 ## Historical evidence baseline
 
@@ -340,19 +424,20 @@ evidence. It is not fresh gap-closing evidence.
 | LLama hosted native retained executions | 4 |
 | LLama trusted controlled-model retained executions | 20 |
 
-The following is the current scoped local snapshot, not hosted exact-head
-closure evidence:
+The following is the current scoped executable count and local evidence state.
+It is not hosted exact-head closure evidence:
 
-| Current executable project | Passed |
-|---|---:|
-| Contracts | 167 |
-| Transport | 27 |
-| Worker | 77 |
-| WorkerClient | 91 |
-| Worker process | 32 |
-| Packaged WinUI ordinary filtered | 686 |
-| **Current permanent-project total** | **1080** |
-| Deterministic LLama specialist suite (separate) | 181 |
+| Current executable project | Current count | Evidence state |
+|---|---:|---|
+| Contracts | 357 | final local 357/357 |
+| Transport | 27 | prior current local snapshot |
+| Worker | 77 | prior current local snapshot |
+| WorkerClient | 91 | prior current local snapshot |
+| Worker process | 32 | prior current local snapshot |
+| Packaged WinUI ordinary Release filtered | 691 | final local 691/691; permanent minimum remains 686 |
+| Packaged WinUI Debug fixture category | 220 | fresh 220/220 |
+| **Current executable total** | **1495** | `357 + 27 + 77 + 91 + 32 + 691 + 220` |
+| Deterministic LLama specialist suite (separate) | 181 | prior current local snapshot |
 
 ## Original gap-closing order and current state
 

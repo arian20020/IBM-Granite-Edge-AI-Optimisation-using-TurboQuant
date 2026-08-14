@@ -648,12 +648,15 @@ public sealed partial class InspectionContentCard : UserControl
 
     private void ApplyResponsiveLayout(double width)
     {
+        OverrideResponsiveWidthForFixture(ref width);
         ApplyResponsiveState(width >= 888d
             ? "WideContentState"
             : width >= 600d
                 ? "MediumContentState"
                 : "NarrowContentState");
     }
+
+    partial void OverrideResponsiveWidthForFixture(ref double width);
 
     private void ApplyResponsiveState(string stateName)
     {

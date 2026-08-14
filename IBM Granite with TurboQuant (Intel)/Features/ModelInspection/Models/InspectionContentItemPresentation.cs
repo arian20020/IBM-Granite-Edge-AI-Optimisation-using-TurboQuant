@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -31,13 +32,41 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
         public string Title { get; init; } = string.Empty;
 
         /// <summary>
+        /// Gets the stable accessible explanation used when the visual detail is
+        /// intentionally collapsed for a waiting or completed progress row.
+        /// </summary>
+        public string DefaultDetail { get; init; } = string.Empty;
+
+        /// <summary>
         /// Gets the optional explanation shown beneath the row label.
         /// </summary>
         public string Detail
         {
             get => _detail;
-            internal set => SetProperty(ref _detail, value);
+            internal set
+            {
+                if (string.Equals(_detail, value, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                _detail = value;
+                PropertyChanged?.Invoke(
+                    this,
+                    new PropertyChangedEventArgs(nameof(Detail)));
+                PropertyChanged?.Invoke(
+                    this,
+                    new PropertyChangedEventArgs(nameof(AutomationHelpText)));
+            }
         }
+
+        /// <summary>
+        /// Gets the row's current accessible explanation without making a
+        /// collapsed visual detail visible.
+        /// </summary>
+        public string AutomationHelpText => string.IsNullOrWhiteSpace(Detail)
+            ? DefaultDetail
+            : Detail;
 
         /// <summary>
         /// Gets whether the optional explanation is displayed.

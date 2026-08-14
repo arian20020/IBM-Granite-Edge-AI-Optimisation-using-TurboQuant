@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -31,6 +32,43 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
         ModelInspectionPage page,
         ModelInspectionFixtureSession session,
         CancellationToken cancellationToken)
+        => await RunCoreAsync(
+            input,
+            page,
+            session,
+            stopCheckpoint: null,
+            continueUntilNextInteraction: false,
+            captureStaleResultSnapshots: true,
+            cancellationToken);
+
+    internal Task<string> RunToCheckpointAsync(
+        ValidatedModelInspectionFixtureInput input,
+        ModelInspectionPage page,
+        ModelInspectionFixtureSession session,
+        string stopCheckpoint,
+        bool continueUntilNextInteraction,
+        bool captureStaleResultSnapshots,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stopCheckpoint);
+        return RunCoreAsync(
+            input,
+            page,
+            session,
+            stopCheckpoint,
+            continueUntilNextInteraction,
+            captureStaleResultSnapshots,
+            cancellationToken);
+    }
+
+    private async Task<string> RunCoreAsync(
+        ValidatedModelInspectionFixtureInput input,
+        ModelInspectionPage page,
+        ModelInspectionFixtureSession session,
+        string? stopCheckpoint,
+        bool continueUntilNextInteraction,
+        bool captureStaleResultSnapshots,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(page);
@@ -52,10 +90,18 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
         }
 
         var pendingResultCaptures = new Dictionary<int, string>();
+        bool stopReached = false;
         foreach (ModelInspectionFixtureSetupStepDescriptor step in
                  input.SetupSteps)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (stopReached && continueUntilNextInteraction &&
+                !string.IsNullOrWhiteSpace(step.InteractionId))
+            {
+                return stopCheckpoint!;
+            }
+
+            bool invokedInteraction = false;
             switch (step.Kind)
             {
                 case ModelInspectionFixtureSetupStepKind
@@ -65,16 +111,22 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                         session,
                         step,
                         pendingResultCaptures,
+                        captureStaleResultSnapshots,
                         cancellationToken);
                     break;
                 case ModelInspectionFixtureSetupStepKind.InvokeDisclosure:
                     InvokeDisclosure(page);
+                    invokedInteraction = true;
+                    await session.Evidence.WaitForPendingZeroAsync(
+                            cancellationToken)
+                        .WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
                     await DrainDispatcherAsync(page, cancellationToken);
                     break;
                 case ModelInspectionFixtureSetupStepKind.InvokeCancel:
                     ExecuteRequiredCommand(
                         RequireViewModel(page).CancelCommand,
                         "Cancel");
+                    invokedInteraction = true;
                     await DrainDispatcherAsync(page, cancellationToken);
                     break;
                 case ModelInspectionFixtureSetupStepKind.InvokeRetry:
@@ -86,6 +138,7 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                             .InvokeRestart
                                 ? "Restart"
                                 : "Retry");
+                    invokedInteraction = true;
                     RequireServiceCallCount(session, nextCall);
                     await DrainDispatcherAsync(page, cancellationToken);
                     break;
@@ -93,6 +146,7 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                     ExecuteRequiredCommand(
                         RequireViewModel(page).ChooseAnotherCommand,
                         "Choose another");
+                    invokedInteraction = true;
                     await DrainDispatcherAsync(page, cancellationToken);
                     break;
                 case ModelInspectionFixtureSetupStepKind.ReleaseStaleProgress:
@@ -122,6 +176,12 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                     break;
                 case ModelInspectionFixtureSetupStepKind.ReleaseStaleMotion:
                     RequireIdentity(step);
+                    if (!session.AnimationsEnabled)
+                    {
+                        await DrainDispatcherAsync(page, cancellationToken);
+                        break;
+                    }
+
                     if (!page.ReleaseStaleMotionForFixture(
                             step.Attempt!.Value,
                             step.Checkpoint!))
@@ -158,6 +218,25 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                     throw new InvalidOperationException(
                         "The fixture setup step has no runner route.");
             }
+
+            if (invokedInteraction && step.InteractionId is not null)
+            {
+                session.Evidence.RecordInvokedSetupInteraction(
+                    step.InteractionId);
+            }
+
+            if (stopCheckpoint is not null && string.Equals(
+                    step.Checkpoint,
+                    stopCheckpoint,
+                    StringComparison.Ordinal))
+            {
+                if (!continueUntilNextInteraction)
+                {
+                    return stopCheckpoint;
+                }
+
+                stopReached = true;
+            }
         }
 
         throw new InvalidOperationException(
@@ -169,6 +248,7 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
         ModelInspectionFixtureSession session,
         ModelInspectionFixtureSetupStepDescriptor step,
         IDictionary<int, string> pendingResultCaptures,
+        bool captureStaleResultSnapshots,
         CancellationToken cancellationToken)
     {
         RequireIdentity(step);
@@ -221,7 +301,8 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                     "The fixture render did not reach the released checkpoint.");
             }
 
-            if (changed.TerminalResult is not null &&
+            if (captureStaleResultSnapshots &&
+                changed.TerminalResult is not null &&
                 pendingResultCaptures.Remove(
                     attempt,
                     out string? captureCheckpoint))
@@ -294,7 +375,18 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                 "The fixture disclosure route is not uniquely active.");
         }
 
-        active[0].RequestTargetState(!active[0].IsExpanded);
+        var toggle = (Button)active[0].FindName("DisclosureToggleButton");
+        var peer = new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(
+            toggle);
+        if (peer.GetPattern(
+                Microsoft.UI.Xaml.Automation.Peers.PatternInterface.Invoke) is not
+            Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider invoke)
+        {
+            throw new InvalidOperationException(
+                "The fixture disclosure control is not invokable.");
+        }
+
+        invoke.Invoke();
     }
 
     private static ModelInspectionViewModel RequireViewModel(

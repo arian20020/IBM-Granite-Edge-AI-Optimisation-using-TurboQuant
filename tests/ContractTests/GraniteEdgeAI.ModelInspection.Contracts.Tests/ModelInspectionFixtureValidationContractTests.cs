@@ -972,6 +972,42 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
+    public void ModelBadge_RequiresAnEffectivelyVisibleCompactOwner()
+    {
+        string detailed = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureStateValidInteractionScreen(root, "expand");
+            root["expected"]!["model"]!["badge"] = "inspected";
+        });
+        ModelInspectionFixtureValidationException detailedException =
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadMany(
+                    [FixtureContractDocuments.DescriptorSource(detailed)],
+                    FixtureContractDocuments.MutatePolicy(root =>
+                        ConfigureStateValidInteractionPolicy(root, "expand"))));
+        Assert.AreEqual("$.expected.model.badge", detailedException.JsonPath);
+        Assert.AreEqual(
+            "expected.model-badge-visibility",
+            detailedException.RuleCode);
+
+        string compact = FixtureContractDocuments.MutateDescriptor(root =>
+        {
+            ConfigureStateValidInteractionScreen(root, "cancel");
+            root["expected"]!["model"]!["badge"] = null;
+        });
+        ModelInspectionFixtureValidationException compactException =
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadMany(
+                    [FixtureContractDocuments.DescriptorSource(compact)],
+                    FixtureContractDocuments.MutatePolicy(root =>
+                        ConfigureStateValidInteractionPolicy(root, "cancel"))));
+        Assert.AreEqual("$.expected.model.badge", compactException.JsonPath);
+        Assert.AreEqual(
+            "expected.model-badge-visibility",
+            compactException.RuleCode);
+    }
+
+    [TestMethod]
     public void DisclosurePairs_RejectWrongOwnerAmbiguousStateModeAndAutomationOwner()
     {
         foreach ((string state, string key, string text) in DisclosurePairContracts())
@@ -988,6 +1024,12 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 root["expected"]!["model"]!["mode"] =
                     expectedMode == "detailed" ? "compact" : "detailed";
             });
+
+            bool detailed = state.StartsWith("ready", StringComparison.Ordinal) &&
+                !state.StartsWith("readyWithWarnings", StringComparison.Ordinal);
+            AssertDisclosurePairInvalid(policy, state, key, text, root =>
+                root["expected"]!["model"]!["badge"] =
+                    detailed ? "inspected" : null);
 
             string canonicalOwner = state.StartsWith("ready", StringComparison.Ordinal) &&
                 !state.StartsWith("readyWithWarnings", StringComparison.Ordinal)
@@ -1164,13 +1206,11 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
-    public void Progress_RequiresFiveStagesTruthfulCountAndActiveOnlyFraction()
+    public void Progress_RequiresTruthfulCountAndActiveOnlyFraction()
     {
         Load(FixtureContractDocuments.MutateDescriptor(root =>
             AddProgressStep(root, "readModelConfiguration", "active", 1, 0.5)));
 
-        AssertInvalid(root =>
-            root["expected"]!["footer"]!["rows"]!.AsArray().RemoveAt(4));
         AssertInvalid(root =>
             AddProgressStep(root, "readModelConfiguration", "active", 2, null));
         AssertInvalid(root =>
@@ -1367,7 +1407,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
     }
 
     [TestMethod]
-    public void TerminalScreens_JoinEveryReleasedTerminalAndAllowAtMostOneActiveFooterRow()
+    public void TerminalScreens_JoinEveryReleasedTerminal()
     {
         (string Effect, string? Outcome, string? Evidence, string? Failure, string Figma)[] terminals =
         [
@@ -1408,12 +1448,6 @@ public sealed class ModelInspectionFixtureValidationContractTests
             Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
                 LoadMany([FixtureContractDocuments.DescriptorSource(descriptor)], policy));
         }
-
-        AssertInvalid(root =>
-        {
-            root["expected"]!["footer"]!["rows"]![0]!["status"] = "inProgress";
-            root["expected"]!["footer"]!["rows"]![1]!["status"] = "inProgress";
-        });
     }
 
     [TestMethod]
@@ -1426,11 +1460,6 @@ public sealed class ModelInspectionFixtureValidationContractTests
             root["coverage"]!["figmaStates"]![0] = "inspectionProgress";
             root["expected"]!["figma"]!["state"] = "inspectionProgress";
             root["expected"]!["footer"]!["status"] = "inProgress";
-            root["expected"]!["footer"]!["rows"]![0]!["status"] = "complete";
-            root["expected"]!["footer"]!["rows"]![1]!["status"] = "inProgress";
-            root["expected"]!["footer"]!["rows"]![2]!["status"] = "notComplete";
-            root["expected"]!["footer"]!["rows"]![3]!["status"] = "notComplete";
-            root["expected"]!["footer"]!["rows"]![4]!["status"] = "notComplete";
         });
         string progressPolicy = FixtureContractDocuments.MutatePolicy(
             root => root["fixtures"]![0]!["canonicalFigmaState"] = "inspectionProgress");
@@ -1445,7 +1474,6 @@ public sealed class ModelInspectionFixtureValidationContractTests
             root["input"]!["setupSteps"]!.AsArray().RemoveAt(0);
         });
         AssertInvalid(root => root["expected"]!["footer"]!["status"] = "inProgress");
-        AssertInvalid(root => root["expected"]!["footer"]!["rows"]![0]!["status"] = "inProgress");
 
         string initialWaiting = FixtureContractDocuments.MutateDescriptor(root =>
         {
@@ -1457,10 +1485,6 @@ public sealed class ModelInspectionFixtureValidationContractTests
             root["expected"]!["outcome"]!["visible"] = false;
             root["expected"]!["outcome"]!["kind"] = "hidden";
             root["expected"]!["footer"]!["status"] = "inProgress";
-            foreach (JsonNode? row in root["expected"]!["footer"]!["rows"]!.AsArray())
-            {
-                row!["status"] = "notComplete";
-            }
         });
         LoadMany(
             [FixtureContractDocuments.DescriptorSource(initialWaiting)],
@@ -1479,7 +1503,6 @@ public sealed class ModelInspectionFixtureValidationContractTests
             root => root["expected"]!["model"]!["checks"]!.AsArray().Add(null),
             root => root["expected"]!["content"]!["rows"]!.AsArray().Add(null),
             root => root["expected"]!["actions"]!["items"]!.AsArray().Add(null),
-            root => root["expected"]!["footer"]!["rows"]!.AsArray().Add(null),
             root => root["expected"]!["automation"]!["controls"]!.AsArray().Add(null),
             root => root["expected"]!["announcements"]!["items"]!.AsArray().Add(null),
             root => root["presetExpectations"]!["P01"]!["textRoles"]!.AsArray().Add(null),
@@ -2217,6 +2240,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
         {
             case "expand":
                 root["expected"]!["model"]!["mode"] = "detailed";
+                root["expected"]!["model"]!["badge"] = null;
                 root["expected"]!["model"]!["disclosureExpanded"] = false;
                 root["expected"]!["content"]!["disclosureExpanded"] = false;
                 AddExpectedAutomationControl(
@@ -2235,6 +2259,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 root["coverage"]!["figmaStates"]![0] = "readyExpanded";
                 root["expected"]!["figma"]!["state"] = "readyExpanded";
                 root["expected"]!["model"]!["mode"] = "detailed";
+                root["expected"]!["model"]!["badge"] = null;
                 root["expected"]!["model"]!["disclosureExpanded"] = true;
                 root["expected"]!["content"]!["disclosureExpanded"] = false;
                 AddExpectedAutomationControl(
@@ -2247,6 +2272,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
 
             case "cancel":
                 root["expected"]!["model"]!["mode"] = "compact";
+                root["expected"]!["model"]!["badge"] = "modelSelected";
                 root["expected"]!["model"]!["disclosureExpanded"] = false;
                 root["expected"]!["content"]!["disclosureExpanded"] = false;
                 AddProgressStep(root, "readModelConfiguration", "active", 1, 0.5);
@@ -2258,12 +2284,6 @@ public sealed class ModelInspectionFixtureValidationContractTests
                 root["expected"]!["outcome"]!["kind"] = "hidden";
                 root["expected"]!["content"]!["mode"] = "progress";
                 root["expected"]!["footer"]!["status"] = "inProgress";
-                root["expected"]!["footer"]!["rows"]![0]!["status"] = "complete";
-                root["expected"]!["footer"]!["rows"]![1]!["status"] = "inProgress";
-                for (int index = 2; index < 5; index++)
-                {
-                    root["expected"]!["footer"]!["rows"]![index]!["status"] = "notComplete";
-                }
 
                 ConfigureExpectedActions(
                     root,
@@ -2332,14 +2352,12 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["outcome"]!["kind"] = figmaState;
         root["expected"]!["outcome"]!["tone"] = figmaState == "cancelled" ? "neutral" : "error";
         root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["badge"] =
+            figmaState == "cancelled" ? "notInspected" : "resultUnknown";
         root["expected"]!["model"]!["disclosureExpanded"] = false;
         root["expected"]!["content"]!["mode"] = figmaState;
         root["expected"]!["content"]!["disclosureExpanded"] = false;
         root["expected"]!["footer"]!["status"] = footerStatus;
-        for (int index = 0; index < 5; index++)
-        {
-            root["expected"]!["footer"]!["rows"]![index]!["status"] = "notComplete";
-        }
     }
 
     private static void ConfigureExpectedActions(
@@ -2602,6 +2620,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
             root["coverage"]!["figmaStates"]![0] = state;
             root["expected"]!["figma"]!["state"] = state;
             root["expected"]!["model"]!["mode"] = "detailed";
+            root["expected"]!["model"]!["badge"] = null;
             root["expected"]!["model"]!["disclosureExpanded"] = expanded;
             root["expected"]!["content"]!["disclosureExpanded"] = false;
             AddExpectedAutomationControl(
@@ -2738,6 +2757,15 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["outcome"]!["kind"] = outcome;
         root["expected"]!["outcome"]!["tone"] = tone;
         root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["badge"] = outcome switch
+        {
+            "readyWithWarnings" => "inspected",
+            "conversionRequired" => "sourceModel",
+            "incompletePackage" => "incomplete",
+            "unsupported" => "unsupported",
+            "invalid" => "invalid",
+            _ => throw new InvalidOperationException(outcome)
+        };
         root["expected"]!["model"]!["disclosureExpanded"] = false;
         root["expected"]!["content"]!["mode"] = contentMode;
         root["expected"]!["content"]!["disclosureExpanded"] = false;
@@ -2874,6 +2902,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
         root["expected"]!["outcome"]!["kind"] = "readyWithWarnings";
         root["expected"]!["outcome"]!["tone"] = "warning";
         root["expected"]!["model"]!["mode"] = "compact";
+        root["expected"]!["model"]!["badge"] = "inspected";
         root["expected"]!["model"]!["disclosureExpanded"] = false;
         root["expected"]!["content"]!["mode"] = "warnings";
         root["expected"]!["content"]!["disclosureExpanded"] = false;

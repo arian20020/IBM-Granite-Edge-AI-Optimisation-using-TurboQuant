@@ -22,7 +22,12 @@ public sealed class ModelInspectionFixtureReportContractTests
         "joins.";
     private const string ReportScope =
         "All gallery rows describe synthetic data; separately verified " +
-        "real-worker evidence is identified only in the final column.";
+        "real-worker evidence is identified only in the final column. " +
+        "Verified(Task7) means Debug/x64 loaded-tree semantic/render " +
+        "coverage, not strict approved-Figma-PNG, actual OS High " +
+        "Contrast/200% text-scale, or Narrator evidence. Verified(Task9) " +
+        "means declared synthetic interaction/lifetime coverage, not " +
+        "real-worker execution.";
     private const string Nonclaim =
         "ReadyWithWarnings, ConversionRequired, IncompletePackage, Unsupported, " +
         "Invalid, and operational-failure variants are not " +
@@ -37,6 +42,8 @@ public sealed class ModelInspectionFixtureReportContractTests
         "synthetic deterministic fixture";
     private const string RealWorkerProvenance =
         "N-001 real-worker coverage";
+    private const string SemanticRenderStatus = "Verified(Task7)";
+    private const string LifetimeStatus = "Verified(Task9)";
     private const string N001Source =
         "tests/TestFixtures/GGUF/N-001-vocab-only-spm.gguf";
     private const string N001Journey =
@@ -139,8 +146,8 @@ public sealed class ModelInspectionFixtureReportContractTests
                 string.Join("; ", fixture.Presets),
                 row[8],
                 fixture.Id);
-            Assert.AreEqual("Pending(Task7)", row[9], fixture.Id);
-            Assert.AreEqual("Pending(Task9)", row[10], fixture.Id);
+            Assert.AreEqual(SemanticRenderStatus, row[9], fixture.Id);
+            Assert.AreEqual(LifetimeStatus, row[10], fixture.Id);
             Assert.AreEqual(SyntheticProvenance, row[11], fixture.Id);
             Assert.AreEqual(
                 fixture.Id is "MI-002" or "MI-003"
@@ -168,6 +175,9 @@ public sealed class ModelInspectionFixtureReportContractTests
         Assert.AreEqual(2, Count(report, N001Source));
         Assert.AreEqual(2, Count(report, N001Journey));
         Assert.AreEqual(1, Count(report, Nonclaim));
+        Assert.IsFalse(report.Contains(
+            "Pending(Task",
+            StringComparison.Ordinal));
         Assert.IsFalse(withoutApprovedSource.Contains("tests/", StringComparison.Ordinal));
         for (int index = 1; index <= 49; index++)
         {

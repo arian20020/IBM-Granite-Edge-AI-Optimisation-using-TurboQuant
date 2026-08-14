@@ -97,7 +97,7 @@
     "model": {
       "visible": true,
       "mode": "detailed",
-      "badge": "inspected",
+      "badge": null,
       "displayName": {
         "copyKey": "fixture.model.name",
         "defaultText": "Granite Fixture Model"
@@ -107,61 +107,83 @@
         "defaultText": "granite-fixture.gguf"
       },
       "metadata": [
-        {
-          "id": "metadata-format",
-          "label": {
-            "copyKey": "fixture.metadata.format.label",
-            "defaultText": "Format"
+          {
+              "id":  "metadata-publisher",
+              "label":  {
+                            "copyKey":  "fixture.metadata.publisher.label",
+                            "defaultText":  "PUBLISHER"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.not-reported",
+                            "defaultText":  "Not reported"
+                        }
           },
-          "value": {
-            "copyKey": "fixture.metadata.format.value",
-            "defaultText": "GGUF"
-          }
-        },
-        {
-          "id": "metadata-file-size",
-          "label": {
-            "copyKey": "fixture.metadata.file-size.label",
-            "defaultText": "File size"
+          {
+              "id":  "metadata-format",
+              "label":  {
+                            "copyKey":  "fixture.metadata.format.label",
+                            "defaultText":  "FORMAT"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.format.value",
+                            "defaultText":  "GGUF"
+                        }
           },
-          "value": {
-            "copyKey": "fixture.metadata.file-size.value",
-            "defaultText": "1.50 GB"
-          }
-        },
-        {
-          "id": "metadata-quantisation",
-          "label": {
-            "copyKey": "fixture.metadata.quantisation.label",
-            "defaultText": "Quantisation"
+          {
+              "id":  "metadata-quantisation",
+              "label":  {
+                            "copyKey":  "fixture.metadata.quantisation.label",
+                            "defaultText":  "QUANTISATION"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.quantisation.value",
+                            "defaultText":  "Q4_K_M"
+                        }
           },
-          "value": {
-            "copyKey": "fixture.metadata.quantisation.value",
-            "defaultText": "Q4_K_M"
-          }
-        },
-        {
-          "id": "metadata-parameters",
-          "label": {
-            "copyKey": "fixture.metadata.parameters.label",
-            "defaultText": "Parameters"
+          {
+              "id":  "metadata-parameters",
+              "label":  {
+                            "copyKey":  "fixture.metadata.parameters.label",
+                            "defaultText":  "PARAMETERS"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.parameters.value",
+                            "defaultText":  "8 billion"
+                        }
           },
-          "value": {
-            "copyKey": "fixture.metadata.parameters.value",
-            "defaultText": "8 billion"
-          }
-        },
-        {
-          "id": "metadata-context",
-          "label": {
-            "copyKey": "fixture.metadata.context.label",
-            "defaultText": "Context"
+          {
+              "id":  "metadata-model-type",
+              "label":  {
+                            "copyKey":  "fixture.metadata.model-type.label",
+                            "defaultText":  "MODEL TYPE"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.not-reported",
+                            "defaultText":  "Not reported"
+                        }
           },
-          "value": {
-            "copyKey": "fixture.metadata.context.value",
-            "defaultText": "8,192 tokens"
+          {
+              "id":  "metadata-context",
+              "label":  {
+                            "copyKey":  "fixture.metadata.context.label",
+                            "defaultText":  "DECLARED MAX CONTEXT"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.context.value",
+                            "defaultText":  "8,192 tokens"
+                        }
+          },
+          {
+              "id":  "metadata-file-size",
+              "label":  {
+                            "copyKey":  "fixture.metadata.file-size.label",
+                            "defaultText":  "FILE SIZE"
+                        },
+              "value":  {
+                            "copyKey":  "fixture.metadata.file-size.value",
+                            "defaultText":  "1.50 GB"
+                        }
           }
-        }
       ],
       "checks": [
         {
@@ -257,28 +279,6 @@
       ]
     },
     "footer": {
-      "rows": [
-        {
-          "stage": "checkModelPackage",
-          "status": "complete"
-        },
-        {
-          "stage": "readModelConfiguration",
-          "status": "complete"
-        },
-        {
-          "stage": "validateTokenizerAndChatSetup",
-          "status": "complete"
-        },
-        {
-          "stage": "validateModelStructure",
-          "status": "complete"
-        },
-        {
-          "stage": "confirmCoreRuntimeCompatibility",
-          "status": "complete"
-        }
-      ],
       "status": "complete"
     },
     "focus": {
@@ -354,26 +354,34 @@
       ]
     },
     "rowsAndScroll": {
-      "orderedRowIds": [],
-      "scrollOwner": null
-    },
-    "retainedIdentities": {
-      "ids": [
-        "model-card",
-        "metadata-format",
-        "metadata-file-size",
-        "metadata-quantisation",
-        "metadata-parameters",
-        "metadata-context",
+      "orderedRowIds": [
         "check-package",
         "check-configuration",
         "check-tokenizer",
         "check-structure",
-        "check-runtime",
-        "choose-another",
-        "technical-report",
-        "hardware-fit",
-        "inspection-details-disclosure"
+        "check-runtime"
+      ],
+      "scrollOwner": "model-card"
+    },
+    "retainedIdentities": {
+      "ids": [
+          "model-card",
+          "metadata-publisher",
+          "metadata-format",
+          "metadata-quantisation",
+          "metadata-parameters",
+          "metadata-model-type",
+          "metadata-context",
+          "metadata-file-size",
+          "check-package",
+          "check-configuration",
+          "check-tokenizer",
+          "check-structure",
+          "check-runtime",
+          "choose-another",
+          "technical-report",
+          "hardware-fit",
+          "inspection-details-disclosure"
       ]
     }
   },
@@ -385,8 +393,29 @@
       "noClipping": true,
       "noOverlap": true,
       "allRequiredContentReachable": true,
-      "textRoles": [],
-      "scrollOwner": null,
+      "textRoles": [
+        {
+          "id": "check-package",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-configuration",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-tokenizer",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-structure",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-runtime",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "model-card",
       "minimumPointerTargetWidth": 44,
       "minimumPointerTargetHeight": 44,
       "logicalReadingOrder": [
@@ -416,8 +445,29 @@
       "noClipping": true,
       "noOverlap": true,
       "allRequiredContentReachable": true,
-      "textRoles": [],
-      "scrollOwner": null,
+      "textRoles": [
+        {
+          "id": "check-package",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-configuration",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-tokenizer",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-structure",
+          "behavior": "wrap"
+        },
+        {
+          "id": "check-runtime",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "model-card",
       "minimumPointerTargetWidth": 44,
       "minimumPointerTargetHeight": 44,
       "logicalReadingOrder": [

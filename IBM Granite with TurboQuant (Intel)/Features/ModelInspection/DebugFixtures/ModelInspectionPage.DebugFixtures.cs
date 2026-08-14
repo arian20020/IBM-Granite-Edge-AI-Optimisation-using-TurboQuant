@@ -2,6 +2,7 @@
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.UI.Xaml;
 using System;
 
@@ -10,6 +11,7 @@ namespace GraniteEdgeAI.Features.ModelInspection;
 public sealed partial class ModelInspectionPage
 {
     private ModelInspectionFixtureSession? _fixtureSession;
+    private bool _fixtureResponsiveTriggersSuppressed;
     private bool _staleMotionCallbackCaptured;
     private bool _staleAnnouncementCallbackCaptured;
 
@@ -21,7 +23,7 @@ public sealed partial class ModelInspectionPage
         ArgumentNullException.ThrowIfNull(session);
         var page = new ModelInspectionPage(
             session.Service,
-            CreateProductionDispatcher,
+            session.CreateRenderDispatcher,
             session.CreateAnimationDriver,
             session.CreateMotionSettings,
             startInspectionOnLoaded,
@@ -29,6 +31,100 @@ public sealed partial class ModelInspectionPage
         page._fixtureSession = session;
         page.ActivateRequest(session.Request);
         return page;
+    }
+
+    internal string? FixturePageResponsiveStateName =>
+        CurrentFixturePageResponsiveStateName();
+
+    internal string? FixtureModelResponsiveStateName =>
+        InspectionModelCardControl.FixtureResponsiveStateName;
+
+    internal string? FixtureContentResponsiveStateName =>
+        InspectionContentCardControl.FixtureResponsiveStateName;
+
+    internal string? FixtureOutgoingContentResponsiveStateName =>
+        OutgoingProgressContentCard.FixtureResponsiveStateName;
+
+    internal string? FixtureActionResponsiveStateName =>
+        InspectionActionCardControl.FixtureResponsiveStateName;
+
+    internal void ApplyFixtureResponsiveState(
+        ModelInspectionFixtureWidthProfile width)
+    {
+        string pageState = width switch
+        {
+            ModelInspectionFixtureWidthProfile.Desktop1440 =>
+                "DesktopPageState",
+            ModelInspectionFixtureWidthProfile.Medium600 => "MediumPageState",
+            ModelInspectionFixtureWidthProfile.Narrow360 => "NarrowPageState",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(width), width, "Unknown fixture width profile.")
+        };
+
+        SuppressFixtureResponsiveTriggers();
+        if (!string.Equals(
+                CurrentFixturePageResponsiveStateName(),
+                pageState,
+                StringComparison.Ordinal) &&
+            !VisualStateManager.GoToState(this, pageState, false))
+        {
+            throw new InvalidOperationException(
+                $"The page visual state '{pageState}' was not found.");
+        }
+
+        InspectionModelCardControl.ApplyFixtureResponsiveState(width);
+        InspectionContentCardControl.ApplyFixtureResponsiveState(width);
+        OutgoingProgressContentCard.ApplyFixtureResponsiveState(width);
+        InspectionActionCardControl.ApplyFixtureResponsiveState(width);
+    }
+
+    private void SuppressFixtureResponsiveTriggers()
+    {
+        if (_fixtureResponsiveTriggersSuppressed)
+        {
+            return;
+        }
+
+        foreach (VisualStateGroup group in
+                 VisualStateManager.GetVisualStateGroups(LayoutRoot))
+        {
+            if (!string.Equals(
+                    group.Name,
+                    "ResponsivePageStates",
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (VisualState state in group.States)
+            {
+                state.StateTriggers.Clear();
+            }
+
+            _fixtureResponsiveTriggersSuppressed = true;
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "The page responsive visual-state group was not found.");
+    }
+
+    private string? CurrentFixturePageResponsiveStateName()
+    {
+        foreach (VisualStateGroup group in
+                 VisualStateManager.GetVisualStateGroups(LayoutRoot))
+        {
+            if (string.Equals(
+                    group.Name,
+                    "ResponsivePageStates",
+                    StringComparison.Ordinal))
+            {
+                return group.CurrentState?.Name;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "The page responsive visual-state group was not found.");
     }
 
     internal bool RetireForFixture() => RetirePageLifetime();
@@ -94,6 +190,28 @@ public sealed partial class ModelInspectionPage
         _fixtureSession is ModelInspectionFixtureSession session &&
         session.ReleaseStaleAnnouncementCallback(ownerAttempt, releaseCheckpoint);
 
+    internal bool ReleaseTypedStaleEventForFixture(
+        string fixtureId,
+        int ownerAttempt,
+        string releaseCheckpoint)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fixtureId);
+        return fixtureId switch
+        {
+            "MI-033" => _hasActiveLifetime &&
+                _fixtureSession is ModelInspectionFixtureSession progress &&
+                progress.ReleaseStaleProgress(ownerAttempt, releaseCheckpoint),
+            "MI-034" => SubmitStaleResultSnapshotForFixture(
+                ownerAttempt, releaseCheckpoint),
+            "MI-035" => ReleaseStaleMotionForFixture(
+                ownerAttempt, releaseCheckpoint),
+            "MI-036" => ReleaseStaleAnnouncementForFixture(
+                ownerAttempt, releaseCheckpoint),
+            _ => throw new ArgumentOutOfRangeException(nameof(fixtureId),
+                fixtureId, "Unknown typed stale fixture route.")
+        };
+    }
+
     partial void CaptureStaleMotionCallbackForFixture(
         ModelInspectionVisualOperationKey operationKey,
         Action<ModelInspectionVisualOperationKey> completed)
@@ -149,5 +267,20 @@ public sealed partial class ModelInspectionPage
             return;
         }
     }
+
+    partial void BeginDispatcherAuditForFixture(ref IDisposable? audit) =>
+        audit = _fixtureSession?.BeginPageDispatcherCallback();
+
+    partial void BeginFocusAuditForFixture(ref IDisposable? audit) =>
+        audit = _fixtureSession?.Evidence.BeginFocusRequest();
+
+    partial void BeginDisclosureAuditForFixture(ref IDisposable? audit) =>
+        audit = _fixtureSession?.Evidence.BeginDisclosureOperation();
+
+    partial void BeginLiveNotificationAuditForFixture(ref IDisposable? audit) =>
+        audit = _fixtureSession?.Evidence.BeginLiveNotification();
+
+    partial void CompleteDispatcherAuditsForFixture() =>
+        _fixtureSession?.ClosePageDispatcherCallbacks();
 }
 #endif

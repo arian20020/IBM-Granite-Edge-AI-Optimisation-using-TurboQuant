@@ -14,7 +14,7 @@
     <UserControl.Resources>
         <Style x:Key="InspectionActionHeadingStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionBodyFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
             <Setter Property="TextAlignment" Value="Center" />
@@ -22,14 +22,14 @@
         </Style>
         <Style x:Key="InspectionActionMessageStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
         <Style x:Key="InspectionActionButtonTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionHelperFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="MaxLines" Value="0" />
             <Setter Property="TextAlignment" Value="Center" />
@@ -38,7 +38,7 @@
         <Style x:Key="InspectionFutureHelpStyle" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
-            <Setter Property="FontSize" Value="{StaticResource InspectionLabelFontSize}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionLabelFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="TextAlignment" Value="Center" />
@@ -77,6 +77,7 @@
                 CornerRadius="12"
                 Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                 IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
+                Tag="{x:Bind Presentation.CancelAction.ActionId, Mode=OneWay}"
                 TabIndex="0"
                 Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
                 <TextBlock
@@ -145,6 +146,7 @@
                             CornerRadius="12"
                             Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             IsEnabled="{x:Bind Presentation.SecondaryActionOne.IsEnabled, Mode=OneWay}"
+                            Tag="{x:Bind Presentation.SecondaryActionOne.ActionId, Mode=OneWay}"
                             TabIndex="0"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
                             Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
@@ -178,6 +180,7 @@
                             CornerRadius="12"
                             Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             IsEnabled="{x:Bind Presentation.SecondaryActionTwo.IsEnabled, Mode=OneWay}"
+                            Tag="{x:Bind Presentation.SecondaryActionTwo.ActionId, Mode=OneWay}"
                             TabIndex="1"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
                             Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
@@ -211,6 +214,7 @@
                             CornerRadius="12"
                             Foreground="{ThemeResource InspectionSurfaceBrush}"
                             IsEnabled="{x:Bind Presentation.PrimaryAction.IsEnabled, Mode=OneWay}"
+                            Tag="{x:Bind Presentation.PrimaryAction.ActionId, Mode=OneWay}"
                             TabIndex="2"
                             ToolTipService.ToolTip="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
                             Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
