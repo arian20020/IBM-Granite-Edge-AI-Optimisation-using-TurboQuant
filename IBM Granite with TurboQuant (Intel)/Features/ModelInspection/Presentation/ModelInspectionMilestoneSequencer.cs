@@ -291,17 +291,25 @@ internal sealed class ModelInspectionMilestoneSequencer : IDisposable
         for (int stage = 0; stage < stages.Length; stage++)
         {
             StageSlot slot = stages[stage];
-            if (slot.Active is null)
+            if (slot.Active is not null)
             {
-                continue;
+                currentStage = stage;
+                currentActive = slot.Active;
+                currentCompletion = slot.Completion;
+                phase = PlaybackPhase.ActiveAwaitingPresentation;
+                applySnapshot(currentActive);
+                return;
             }
 
-            currentStage = stage;
-            currentActive = slot.Active;
-            currentCompletion = slot.Completion;
-            phase = PlaybackPhase.ActiveAwaitingPresentation;
-            applySnapshot(currentActive);
-            return;
+            if (slot.Completion is not null)
+            {
+                currentStage = stage;
+                currentActive = null;
+                currentCompletion = slot.Completion;
+                phase = PlaybackPhase.CompletionAwaitingPresentation;
+                applySnapshot(currentCompletion);
+                return;
+            }
         }
 
         if (normalTerminal is ModelInspectionViewSnapshot terminal)

@@ -105,6 +105,39 @@ public sealed class ModelInspectionMilestoneSequencerTests
 
         CollectionAssert.AreEqual(expected, applied);
         Assert.IsFalse(sequencer.HasPendingPlayback);
+
+        var completionScheduler = new ManualMilestoneScheduler();
+        List<ModelInspectionViewSnapshot> completionApplied = [];
+        using var completionSequencer = new ModelInspectionMilestoneSequencer(
+            completionScheduler,
+            completionApplied.Add,
+            animationsEnabled: true);
+        ModelInspectionViewSnapshot warning = Progress(
+            2,
+            1,
+            stage: 3,
+            ModelInspectionStageStatus.Warning,
+            fraction: null);
+        ModelInspectionViewSnapshot stage4Completed = Completed(2, 2, 4);
+        ModelInspectionViewSnapshot stage5Completed = Completed(2, 3, 5);
+        ModelInspectionViewSnapshot terminal = NormalTerminal(2, 4);
+
+        completionSequencer.Accept(warning);
+        completionSequencer.Accept(stage4Completed);
+        completionSequencer.Accept(stage5Completed);
+
+        CollectionAssert.AreEqual(new[] { warning }, completionApplied);
+        completionSequencer.NotifyPresented(warning.RenderKey);
+        CollectionAssert.AreEqual(
+            new[] { warning, stage4Completed },
+            completionApplied);
+        completionSequencer.Accept(terminal);
+        completionSequencer.NotifyPresented(stage4Completed.RenderKey);
+        completionSequencer.NotifyPresented(stage5Completed.RenderKey);
+        CollectionAssert.AreEqual(
+            new[] { warning, stage4Completed, stage5Completed, terminal },
+            completionApplied);
+        Assert.IsFalse(completionSequencer.HasPendingPlayback);
     }
 
     [TestMethod]
