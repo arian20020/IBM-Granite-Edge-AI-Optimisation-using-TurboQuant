@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "record_type": "model-conversion-record",
+  "route_id": "route-a-merged-openvino",
+  "conversion_id": "CONV-WB05-GRANITE41-3B-INT4A-G128-R100-ATTEMPT-1",
+  "asset_id": "MODEL-WB05-GRANITE41-3B-INT4A-G128-R100",
+  "source": {
+    "repository": "ibm-granite/granite-4.1-3b",
+    "resolved_revision": "0123456789abcdef0123456789abcdef01234567",
+    "source_directory": "C:\\w5m\\sources\\granite41-3b-01234567",
+    "aggregate_model_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "aggregate_tokenizer_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "dependency_preflight": {
+    "status": "Passed",
+    "record_path": "records/conversion-dependency-preflight.json",
+    "record_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "toolchain": {
+    "python_version": "3.12.10",
+    "executable_path": "C:\\w5c\\tools\\Scripts\\optimum-cli.exe",
+    "executable_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "packages": [
+      {
+        "name": "optimum-intel",
+        "version": "2.3.0.dev0",
+        "source_identity": "a3b6012a4c02f4147260da4d4601bb6a3c0d2bb0"
+      }
+    ]
+  },
+  "conversion": {
+    "task": "text-generation-with-past",
+    "weight_format": "int4",
+    "symmetric": false,
+    "group_size": 128,
+    "ratio": 1.0,
+    "data_free": true,
+    "trust_remote_code": false,
+    "arguments": [
+      "export",
+      "openvino",
+      "--model",
+      "C:\\w5m\\sources\\granite41-3b-01234567"
+    ]
+  },
+  "output": {
+    "directory": "C:\\w5m\\converted\\granite41-3b-int4a-g128-r100-01234567",
+    "files": [
+      {
+        "relative_path": "openvino_model.xml",
+        "size_bytes": 1,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "aggregate_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "process": {
+    "started_at_utc": "2026-08-13T00:00:00Z",
+    "completed_at_utc": "2026-08-13T00:01:00Z",
+    "exit_code": 0,
+    "stdout_path": "logs/conversion.stdout.log",
+    "stderr_path": "logs/conversion.stderr.log"
+  },
+  "status": "Candidate",
+  "reasons": [
+    "Template record; not live evidence."
+  ],
+  "granite_model_test_authorised": false,
+  "activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false
+}

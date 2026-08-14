@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "record_type": "model-asset-lock",
+  "route_id": "route-a-merged-openvino",
+  "asset_id": "MODEL-WB05-GRANITE41-3B-INT4A-G128-R100",
+  "asset_role": "granite-3b",
+  "source": {
+    "repository": "ibm-granite/granite-4.1-3b",
+    "requested_revision": "main",
+    "resolved_revision": "0123456789abcdef0123456789abcdef01234567",
+    "license": "apache-2.0"
+  },
+  "declared_model_metadata": {
+    "parameter_family": "3B",
+    "layers": 40,
+    "kv_heads": 8,
+    "declared_sequence_length": 131072,
+    "observed_runtime_capability": false
+  },
+  "source_directory": "C:\\w5m\\sources\\granite41-3b-01234567",
+  "converted_directory": "C:\\w5m\\converted\\granite41-3b-int4a-g128-r100-01234567",
+  "source_files": [],
+  "tokenizer_files": [],
+  "conversion_record_path": "records/model-conversion-record.json",
+  "converted_files": [],
+  "aggregate_model_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "aggregate_tokenizer_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "status": "Candidate",
+  "reasons": [
+    "Template record; not live evidence."
+  ],
+  "granite_model_test_authorised": false,
+  "activation_claim_authorised": false,
+  "packed_storage_claim_authorised": false,
+  "performance_claim_authorised": false,
+  "quality_claim_authorised": false
+}

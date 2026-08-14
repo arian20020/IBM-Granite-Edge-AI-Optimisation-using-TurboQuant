@@ -51,6 +51,16 @@ class Phase3ContractTests(unittest.TestCase):
                     ),
                 )
 
+    def test_asset_template_keeps_unobserved_file_sets_empty(self) -> None:
+        payload = load_template("model-asset-lock-template.json")
+
+        self.assertEqual([], payload["source_files"])
+        self.assertEqual([], payload["tokenizer_files"])
+        self.assertEqual([], payload["converted_files"])
+        self.assertFalse(
+            payload["declared_model_metadata"]["observed_runtime_capability"]  # type: ignore[index]
+        )
+
     def test_asset_lock_rejects_moving_revision(self) -> None:
         payload = load_template("model-asset-lock-template.json")
         payload["source"]["resolved_revision"] = "main"  # type: ignore[index]
