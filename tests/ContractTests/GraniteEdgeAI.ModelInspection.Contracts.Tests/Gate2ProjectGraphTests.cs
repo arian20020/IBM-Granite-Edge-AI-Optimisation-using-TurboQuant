@@ -48,6 +48,17 @@ public sealed class Gate2ProjectGraphTests
         "shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj"
     ];
 
+    private static readonly string[] X64SolutionAnyCpuProjectPaths =
+    [
+        "workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj",
+        "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj",
+        "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj",
+        "tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj",
+        "tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj",
+        "tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj",
+        "tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj"
+    ];
+
     private static readonly string[] ForbiddenPackageNames =
     [
         "LLamaSharp",
@@ -113,6 +124,30 @@ public sealed class Gate2ProjectGraphTests
                     requiredPath,
                     StringComparison.Ordinal)),
                 $"The solution must register application dependency {requiredPath} exactly once.");
+        }
+
+        foreach (string projectPath in X64SolutionAnyCpuProjectPaths)
+        {
+            XElement project = solution.Descendants("Project").Single(element =>
+                string.Equals(
+                    NormalizeSeparators(element.Attribute("Path")?.Value ?? string.Empty),
+                    projectPath,
+                    StringComparison.Ordinal));
+            XElement[] mappings = project.Elements("Platform")
+                .Where(mapping => string.Equals(
+                    mapping.Attribute("Solution")?.Value,
+                    "*|x64",
+                    StringComparison.Ordinal))
+                .ToArray();
+
+            Assert.AreEqual(
+                1,
+                mappings.Length,
+                $"The solution must define one x64 mapping for {projectPath}.");
+            Assert.AreEqual(
+                "AnyCPU",
+                mappings[0].Attribute("Project")?.Value,
+                $"The x64 solution configuration must use the declared AnyCPU project platform for {projectPath}.");
         }
     }
 

@@ -83,7 +83,7 @@ separate N-001 evidence joins.
 
 The gallery is synthetic and deterministic. It reads only the allowlisted
 schema, policy, and descriptors from the fixed packaged
-`ms-appx:///TestFixtures/ModelInspectionScenarios/` root, and it does not start
+`ms-appx:///Fixtures/` root, and it does not start
 the worker, open a model, use a current-directory fallback, or perform network
 or arbitrary filesystem I/O. High Contrast, 200% text scale, width, and motion
 presets are in-app previews; they are not evidence of actual OS High Contrast,

@@ -31,7 +31,7 @@ namespace GraniteEdgeAI.UnitTests;
 public sealed class ModelInspectionFixtureGalleryTests
 {
     private const string PackageRoot =
-        "ms-appx:///TestFixtures/ModelInspectionScenarios/";
+        "ms-appx:///Fixtures/";
 
     [TestMethod]
     public async Task PackageLoader_ReadsFixedCatalogueOnceAndPublishesCoverage()
@@ -168,12 +168,12 @@ public sealed class ModelInspectionFixtureGalleryTests
     }
 
     [DataTestMethod]
-    [DataRow("ms-appx:///TestFixtures/ModelInspectionScenarios/MI-001-inspection-progress-initial.fixture.json?x=1")]
-    [DataRow("ms-appx:///TestFixtures/ModelInspectionScenarios/MI-001-inspection-progress-initial.fixture.json#x")]
-    [DataRow("ms-appx:///testfixtures/ModelInspectionScenarios/MI-001-inspection-progress-initial.fixture.json")]
-    [DataRow("ms-appx:///TestFixtures\\ModelInspectionScenarios\\MI-001-inspection-progress-initial.fixture.json")]
-    [DataRow("ms-appx:///TestFixtures/ModelInspectionScenarios/%4dI-001-inspection-progress-initial.fixture.json")]
-    [DataRow("ms-appx:///TestFixtures/ModelInspectionScenarios/not-listed.fixture.json")]
+    [DataRow("ms-appx:///Fixtures/MI-001-inspection-progress-initial.fixture.json?x=1")]
+    [DataRow("ms-appx:///Fixtures/MI-001-inspection-progress-initial.fixture.json#x")]
+    [DataRow("ms-appx:///fixtures/MI-001-inspection-progress-initial.fixture.json")]
+    [DataRow("ms-appx:///Fixtures\\MI-001-inspection-progress-initial.fixture.json")]
+    [DataRow("ms-appx:///Fixtures/%4dI-001-inspection-progress-initial.fixture.json")]
+    [DataRow("ms-appx:///Fixtures/not-listed.fixture.json")]
     public async Task PackageReader_RejectsEveryNonCanonicalUri(string value)
     {
         var reader = new ModelInspectionFixturePackageResourceReader();

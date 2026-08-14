@@ -333,7 +333,7 @@ plus fixture replacement and gallery close. Unavailable actions are omitted;
 disabled `Coming later` report, conversion, and Hardware Fit actions do not
 dispatch. Its loader is closed to the allowlisted schema, policy, and
 descriptors at the fixed packaged
-`ms-appx:///TestFixtures/ModelInspectionScenarios/` root. It does not read a
+`ms-appx:///Fixtures/` root. It does not read a
 model, start the production worker, use network or current-directory
 fallbacks, or serve as external-I/O evidence.
 

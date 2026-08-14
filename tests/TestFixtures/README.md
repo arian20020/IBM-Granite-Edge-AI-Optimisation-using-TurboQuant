@@ -47,7 +47,7 @@ to renumber or infer from production output.
 
 The packaged gallery reads only the allowlisted schema, coverage policy, and
 descriptor names below the fixed
-`ms-appx:///TestFixtures/ModelInspectionScenarios/` root. These fixtures contain
+`ms-appx:///Fixtures/` root. These fixtures contain
 synthetic requests, progress, terminal results, failures, and lifecycle events;
 they contain no model bytes and do not invoke the worker or external I/O. The
 [generated catalogue report](../../docs/evidence/testing/Model-Inspection-Fixture-Catalog.md)

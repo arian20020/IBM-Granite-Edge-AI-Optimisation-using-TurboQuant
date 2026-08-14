@@ -30,8 +30,9 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         "$(DefineConstants);MODEL_INSPECTION_FIXTURE_GALLERY";
     private const string FixtureProjectFileName =
         "GraniteEdgeAI.ModelInspection.Fixtures.csproj";
-    private const string ScenarioPackageRoot =
+    private const string ScenarioLinkRoot =
         "TestFixtures\\ModelInspectionScenarios\\";
+    private const string ScenarioPackageRoot = "Fixtures\\";
 
     private static readonly string Root = FindRepositoryRoot();
 
@@ -76,12 +77,19 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
     {
         foreach (ProjectSpec project in Projects)
         {
-            string[] errors = ValidateProject(project, Load(project));
+            XDocument document = Load(project);
+            string[] errors = ValidateProject(project, document);
             Assert.AreEqual(
                 0,
                 errors.Length,
                 $"Fixture boundary differs in {project.RelativePath}:{Environment.NewLine}" +
                 string.Join(Environment.NewLine, errors));
+
+            ApplyMutation(document, project, "long-package-target");
+            Assert.IsGreaterThan(
+                0,
+                ValidateProject(project, document).Length,
+                $"A deployment-unsafe package target escaped {project.RelativePath}.");
         }
 
         AssertReleasePageAuditHookBoundary();
@@ -1318,13 +1326,14 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         foreach (string fileName in scenarioFiles)
         {
             string include = project.ScenarioIncludePrefix + fileName;
+            string linkPath = ScenarioLinkRoot + fileName;
             string packagePath = ScenarioPackageRoot + fileName;
             XElement[] exact = document.Descendants("Content")
                 .Where(item =>
                     string.Equals(item.Attribute("Include")?.Value, include, StringComparison.Ordinal) &&
                     item.Attribute("Update") is null &&
                     HasExactParentCondition(item, "ItemGroup") &&
-                    string.Equals(item.Element("Link")?.Value, packagePath, StringComparison.Ordinal) &&
+                    string.Equals(item.Element("Link")?.Value, linkPath, StringComparison.Ordinal) &&
                     string.Equals(item.Element("TargetPath")?.Value, packagePath, StringComparison.Ordinal) &&
                     string.Equals(
                         item.Element("CopyToOutputDirectory")?.Value,
@@ -1511,7 +1520,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                 item.SetAttributeValue(
                     "Include",
                     project.ScenarioIncludePrefix + replacement);
-                item.Element("Link")!.Value = ScenarioPackageRoot + replacement;
+                item.Element("Link")!.Value = ScenarioLinkRoot + replacement;
                 item.Element("TargetPath")!.Value = ScenarioPackageRoot + replacement;
                 break;
             }
@@ -1558,7 +1567,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                     new XAttribute("Include", "Assets\\ordinary.json"),
                     new XElement(
                         "Link",
-                        ScenarioPackageRoot + "metadata-leak.fixture.json")));
+                        ScenarioLinkRoot + "metadata-leak.fixture.json")));
                 break;
             case "extra-fixture-item":
                 FirstFixtureCompile().Parent!.Add(new XElement(
@@ -1567,6 +1576,12 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                         "Include",
                         FixtureRoots[0] + "\\unexpected-fixture.txt")));
                 break;
+            case "long-package-target":
+            {
+                XElement item = FirstScenarioContent();
+                item.Element("TargetPath")!.Value = item.Element("Link")!.Value;
+                break;
+            }
             default:
                 Assert.Fail($"Unknown mutation {mutation} for {project.RelativePath}.");
                 break;
@@ -1637,8 +1652,9 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         foreach (JsonNode? content in relatedByType["Content"])
         {
             string fileName = Path.GetFileName(content!["FullPath"]!.GetValue<string>());
+            string expectedLinkPath = ScenarioLinkRoot + fileName;
             string expectedPackagePath = ScenarioPackageRoot + fileName;
-            Assert.AreEqual(expectedPackagePath, content["Link"]?.GetValue<string>());
+            Assert.AreEqual(expectedLinkPath, content["Link"]?.GetValue<string>());
             Assert.AreEqual(expectedPackagePath, content["TargetPath"]?.GetValue<string>());
             Assert.AreEqual("PreserveNewest", content["CopyToOutputDirectory"]?.GetValue<string>());
             Assert.AreEqual("PreserveNewest", content["CopyToPublishDirectory"]?.GetValue<string>());

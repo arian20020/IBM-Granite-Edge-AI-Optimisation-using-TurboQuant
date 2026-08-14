@@ -208,7 +208,7 @@ selected state are absent; future report, conversion, and Hardware Fit actions
 stay disabled with `Coming later` and do not dispatch.
 
 The gallery reads its allowlisted schema, policy, and descriptors only from
-the fixed packaged `ms-appx:///TestFixtures/ModelInspectionScenarios/` root. It
+the fixed, deployment-safe packaged `ms-appx:///Fixtures/` root. It
 does not open a model, start the production worker, use network or
 current-directory fallbacks, or treat synthetic results as worker evidence.
 Preview presets for High Contrast, 200% text, width, and reduced motion are

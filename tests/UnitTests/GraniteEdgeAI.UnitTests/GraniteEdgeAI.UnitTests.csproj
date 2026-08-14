@@ -52,307 +52,307 @@
     <Compile Include="Features\ModelInspection\DebugFixtures\ModelInspectionFixtureLifetimeTests.cs" />
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-001-inspection-progress-initial.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-001-inspection-progress-initial.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-001-inspection-progress-initial.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-001-inspection-progress-initial.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-002-ready-clean-compatible-model-collapsed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-002-ready-clean-compatible-model-collapsed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-002-ready-clean-compatible-model-collapsed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-002-ready-clean-compatible-model-collapsed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-003-ready-clean-compatible-model-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-003-ready-clean-compatible-model-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-003-ready-clean-compatible-model-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-003-ready-clean-compatible-model-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-004-ready-with-warnings-chat-template-missing-collapsed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-004-ready-with-warnings-chat-template-missing-collapsed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-004-ready-with-warnings-chat-template-missing-collapsed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-004-ready-with-warnings-chat-template-missing-collapsed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-005-ready-with-warnings-chat-template-missing-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-005-ready-with-warnings-chat-template-missing-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-005-ready-with-warnings-chat-template-missing-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-005-ready-with-warnings-chat-template-missing-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-006-conversion-required-verified-incompatible-route-collapsed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-006-conversion-required-verified-incompatible-route-collapsed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-006-conversion-required-verified-incompatible-route-collapsed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-006-conversion-required-verified-incompatible-route-collapsed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-007-conversion-required-verified-incompatible-route-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-007-conversion-required-verified-incompatible-route-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-007-conversion-required-verified-incompatible-route-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-007-conversion-required-verified-incompatible-route-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-008-incomplete-package-missing-package-member.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-008-incomplete-package-missing-package-member.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-008-incomplete-package-missing-package-member.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-008-incomplete-package-missing-package-member.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-009-unsupported-model-architecture.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-009-unsupported-model-architecture.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-009-unsupported-model-architecture.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-009-unsupported-model-architecture.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-010-invalid-cross-source-evidence-contradiction-collapsed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-010-invalid-cross-source-evidence-contradiction-collapsed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-010-invalid-cross-source-evidence-contradiction-collapsed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-010-invalid-cross-source-evidence-contradiction-collapsed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-011-invalid-cross-source-evidence-contradiction-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-011-invalid-cross-source-evidence-contradiction-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-011-invalid-cross-source-evidence-contradiction-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-011-invalid-cross-source-evidence-contradiction-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-012-cancelled-cooperative-user-cancellation.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-012-cancelled-cooperative-user-cancellation.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-012-cancelled-cooperative-user-cancellation.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-012-cancelled-cooperative-user-cancellation.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-013-operational-failure-worker-start-failure.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-013-operational-failure-worker-start-failure.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-013-operational-failure-worker-start-failure.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-013-operational-failure-worker-start-failure.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-014-progress-check-model-package-active-fractionless.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-014-progress-check-model-package-active-fractionless.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-014-progress-check-model-package-active-fractionless.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-014-progress-check-model-package-active-fractionless.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-015-progress-check-model-package-completed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-015-progress-check-model-package-completed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-015-progress-check-model-package-completed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-015-progress-check-model-package-completed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-016-progress-read-model-configuration-active.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-016-progress-read-model-configuration-active.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-016-progress-read-model-configuration-active.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-016-progress-read-model-configuration-active.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-017-progress-read-model-configuration-completed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-017-progress-read-model-configuration-completed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-017-progress-read-model-configuration-completed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-017-progress-read-model-configuration-completed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-018-progress-validate-tokenizer-chat-setup-active.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-018-progress-validate-tokenizer-chat-setup-active.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-018-progress-validate-tokenizer-chat-setup-active.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-018-progress-validate-tokenizer-chat-setup-active.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-019-progress-validate-tokenizer-chat-setup-completed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-019-progress-validate-tokenizer-chat-setup-completed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-019-progress-validate-tokenizer-chat-setup-completed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-019-progress-validate-tokenizer-chat-setup-completed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-020-progress-validate-model-structure-active.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-020-progress-validate-model-structure-active.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-020-progress-validate-model-structure-active.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-020-progress-validate-model-structure-active.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-021-progress-validate-model-structure-completed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-021-progress-validate-model-structure-completed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-021-progress-validate-model-structure-completed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-021-progress-validate-model-structure-completed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-022-progress-confirm-runtime-compatibility-active.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-022-progress-confirm-runtime-compatibility-active.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-022-progress-confirm-runtime-compatibility-active.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-022-progress-confirm-runtime-compatibility-active.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-023-progress-confirm-runtime-compatibility-completed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-023-progress-confirm-runtime-compatibility-completed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-023-progress-confirm-runtime-compatibility-completed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-023-progress-confirm-runtime-compatibility-completed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-024-progress-cancel-requested.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-024-progress-cancel-requested.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-024-progress-cancel-requested.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-024-progress-cancel-requested.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-025-progress-chat-setup-warning.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-025-progress-chat-setup-warning.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-025-progress-chat-setup-warning.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-025-progress-chat-setup-warning.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-026-progress-model-structure-failed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-026-progress-model-structure-failed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-026-progress-model-structure-failed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-026-progress-model-structure-failed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-027-progress-runtime-compatibility-cancelled.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-027-progress-runtime-compatibility-cancelled.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-027-progress-runtime-compatibility-cancelled.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-027-progress-runtime-compatibility-cancelled.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-028-progress-read-model-configuration-active-bounded-fraction.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-028-progress-read-model-configuration-active-bounded-fraction.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-028-progress-read-model-configuration-active-bounded-fraction.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-028-progress-read-model-configuration-active-bounded-fraction.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-029-cancellation-requested-cooperative-cancelled.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-029-cancellation-requested-cooperative-cancelled.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-029-cancellation-requested-cooperative-cancelled.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-029-cancellation-requested-cooperative-cancelled.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-030-cancellation-forced-operational-failure.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-030-cancellation-forced-operational-failure.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-030-cancellation-forced-operational-failure.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-030-cancellation-forced-operational-failure.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-031-retry-after-cancellation.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-031-retry-after-cancellation.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-031-retry-after-cancellation.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-031-retry-after-cancellation.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-032-retry-after-operational-failure.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-032-retry-after-operational-failure.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-032-retry-after-operational-failure.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-032-retry-after-operational-failure.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-033-retry-stale-progress-rejected.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-033-retry-stale-progress-rejected.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-033-retry-stale-progress-rejected.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-033-retry-stale-progress-rejected.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-034-retry-stale-result-rejected.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-034-retry-stale-result-rejected.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-034-retry-stale-result-rejected.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-034-retry-stale-result-rejected.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-035-retry-stale-motion-completion-rejected.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-035-retry-stale-motion-completion-rejected.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-035-retry-stale-motion-completion-rejected.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-035-retry-stale-motion-completion-rejected.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-036-retry-stale-announcement-rejected.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-036-retry-stale-announcement-rejected.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-036-retry-stale-announcement-rejected.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-036-retry-stale-announcement-rejected.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-037-choose-another-page-retired.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-037-choose-another-page-retired.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-037-choose-another-page-retired.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-037-choose-another-page-retired.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-038-gallery-switch-old-session-retired.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-038-gallery-switch-old-session-retired.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-038-gallery-switch-old-session-retired.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-038-gallery-switch-old-session-retired.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-039-operational-failure-worker-timeout.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-039-operational-failure-worker-timeout.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-039-operational-failure-worker-timeout.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-039-operational-failure-worker-timeout.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-040-operational-failure-worker-crash-early-exit.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-040-operational-failure-worker-crash-early-exit.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-040-operational-failure-worker-crash-early-exit.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-040-operational-failure-worker-crash-early-exit.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-041-operational-failure-malformed-worker-response.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-041-operational-failure-malformed-worker-response.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-041-operational-failure-malformed-worker-response.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-041-operational-failure-malformed-worker-response.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-042-operational-failure-cancellation-unconfirmed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-042-operational-failure-cancellation-unconfirmed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-042-operational-failure-cancellation-unconfirmed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-042-operational-failure-cancellation-unconfirmed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-043-ready-model-name-maximum-collapsed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-043-ready-model-name-maximum-collapsed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-043-ready-model-name-maximum-collapsed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-043-ready-model-name-maximum-collapsed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-044-ready-missing-optional-metadata-not-reported-collapsed.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-044-ready-missing-optional-metadata-not-reported-collapsed.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-044-ready-missing-optional-metadata-not-reported-collapsed.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-044-ready-missing-optional-metadata-not-reported-collapsed.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-045-ready-check-rows-current-maximum-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-045-ready-check-rows-current-maximum-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-045-ready-check-rows-current-maximum-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-045-ready-check-rows-current-maximum-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-047-invalid-report-rows-current-maximum-expanded.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-047-invalid-report-rows-current-maximum-expanded.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-047-invalid-report-rows-current-maximum-expanded.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-047-invalid-report-rows-current-maximum-expanded.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-048-progress-detail-copy-maximum.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-048-progress-detail-copy-maximum.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-048-progress-detail-copy-maximum.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-048-progress-detail-copy-maximum.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\MI-049-operational-failure-detail-copy-maximum.fixture.json">
       <Link>TestFixtures\ModelInspectionScenarios\MI-049-operational-failure-detail-copy-maximum.fixture.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\MI-049-operational-failure-detail-copy-maximum.fixture.json</TargetPath>
+      <TargetPath>Fixtures\MI-049-operational-failure-detail-copy-maximum.fixture.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\model-inspection-fixture-coverage-policy.json">
       <Link>TestFixtures\ModelInspectionScenarios\model-inspection-fixture-coverage-policy.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\model-inspection-fixture-coverage-policy.json</TargetPath>
+      <TargetPath>Fixtures\model-inspection-fixture-coverage-policy.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\TestFixtures\ModelInspectionScenarios\model-inspection-fixture.schema.json">
       <Link>TestFixtures\ModelInspectionScenarios\model-inspection-fixture.schema.json</Link>
-      <TargetPath>TestFixtures\ModelInspectionScenarios\model-inspection-fixture.schema.json</TargetPath>
+      <TargetPath>Fixtures\model-inspection-fixture.schema.json</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

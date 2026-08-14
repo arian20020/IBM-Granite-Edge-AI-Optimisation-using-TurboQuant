@@ -28,7 +28,7 @@ internal sealed class ModelInspectionFixturePackageResourceReader :
     IModelInspectionFixturePackageResourceReader
 {
     internal const string PackageRoot =
-        "ms-appx:///TestFixtures/ModelInspectionScenarios/";
+        "ms-appx:///Fixtures/";
     internal const int MaximumDocumentBytes = 256 * 1024;
 
     private static readonly HashSet<string> AllowedUris = new(

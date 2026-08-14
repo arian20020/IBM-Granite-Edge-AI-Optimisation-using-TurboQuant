@@ -13,19 +13,19 @@
 
   <Folder Name="/workers/">
     <Project Path="workers/GraniteEdgeAI.ModelInspection.Worker/GraniteEdgeAI.ModelInspection.Worker.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
 
   <Folder Name="/infrastructure/">
     <Project Path="infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
 
   <Folder Name="/runtime/">
     <Project Path="runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/GraniteEdgeAI.ModelInspection.LlamaSharp.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
 
@@ -46,13 +46,13 @@
     <File Path="tests/IntegrationTests/README.md" />
 
     <Project Path="tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
 
   <Folder Name="/tests/ProcessFixtures/">
     <Project Path="tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
   </Folder>
 
@@ -150,11 +150,11 @@
     <Project Path="tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj" />
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.ModelInspection.Worker.Tests/GraniteEdgeAI.ModelInspection.Worker.Tests.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests.csproj">
-      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x64" Project="AnyCPU" />
     </Project>
 
     <Project Path="tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj">
