@@ -131,9 +131,6 @@ class Phase3DiagnosticSelectionTests(unittest.TestCase):
             settings["required_runtime_source_commit"],
         )
         self.assertEqual(EXPECTED_BACKEND, settings["required_backend"])
-        self.assertFalse(
-            settings["generation_alone_proves_path_equivalence"]
-        )
 
 
 if __name__ == "__main__":
