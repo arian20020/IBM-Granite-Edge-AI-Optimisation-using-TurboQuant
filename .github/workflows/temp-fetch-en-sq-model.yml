@@ -1,4 +1,4 @@
-name: Temporary English-Albanian model fetch
+name: Temporary HPLT English-Albanian model fetch
 
 on:
   push:
@@ -11,27 +11,30 @@ permissions:
 jobs:
   fetch-model:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
-      - name: Download Argos English to Albanian model
+      - name: Download HPLT v2 English to Albanian Marian model
         shell: bash
         run: |
           set -euo pipefail
-          url="https://data.argosopentech.com/argospm/v1/translate-en_sq-1_9.argosmodel"
-          curl --fail --location --retry 5 --retry-delay 2 --connect-timeout 30 \
-            "$url" -o translate-en_sq-1_9.argosmodel
-          test -s translate-en_sq-1_9.argosmodel
-          file translate-en_sq-1_9.argosmodel
-          unzip -t translate-en_sq-1_9.argosmodel
-          sha256sum translate-en_sq-1_9.argosmodel | tee SHA256SUMS.txt
-          ls -lh translate-en_sq-1_9.argosmodel SHA256SUMS.txt
+          base="https://huggingface.co/HPLT/translate-en-sq-v2.0-hplt_opus/resolve/main"
+          for name in model.npz.best-chrf.npz model.en-sq.spm model.en-sq.vocab README.md; do
+            curl --fail --location --retry 5 --retry-delay 2 --connect-timeout 30 \
+              "$base/$name?download=true" -o "$name"
+            test -s "$name"
+          done
+          sha256sum model.npz.best-chrf.npz model.en-sq.spm model.en-sq.vocab README.md | tee SHA256SUMS.txt
+          ls -lh model.npz.best-chrf.npz model.en-sq.spm model.en-sq.vocab README.md SHA256SUMS.txt
 
-      - name: Upload translation model
+      - name: Upload HPLT translation model
         uses: actions/upload-artifact@v4
         with:
-          name: en-sq-argos-model
+          name: en-sq-hplt-v2-marian-model
           path: |
-            translate-en_sq-1_9.argosmodel
+            model.npz.best-chrf.npz
+            model.en-sq.spm
+            model.en-sq.vocab
+            README.md
             SHA256SUMS.txt
           compression-level: 0
           retention-days: 1
