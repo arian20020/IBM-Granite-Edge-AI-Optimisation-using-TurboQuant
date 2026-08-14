@@ -103,8 +103,10 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOu
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionStartupPresentation.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherModelInspectionStartupPresentationBarrier.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherQueueModelInspectionMilestoneScheduler.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherQueueModelInspectionRenderDispatcher.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionAnimationDriver.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionMilestoneScheduler.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionMotionSettings.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/IModelInspectionRenderDispatcher.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InitialInspectionProgressPresentationFactory.cs
@@ -114,6 +116,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/Inspec
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/InspectionProgressRowsUpdate.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionDisplayTextPolicy.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionFigmaState.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionMilestoneSequencer.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionMotion.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPagePresentation.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionPresentationCommands.cs
@@ -498,6 +501,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/In
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionAssetContractTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionDisplayTextPolicyTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionFigmaStatePresentationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionMilestoneSequencerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionMotionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionPresentationFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Presentation/ModelInspectionRenderCoordinatorTests.cs

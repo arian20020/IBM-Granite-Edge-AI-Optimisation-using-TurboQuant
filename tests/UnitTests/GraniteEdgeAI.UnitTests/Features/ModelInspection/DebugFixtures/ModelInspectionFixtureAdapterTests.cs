@@ -609,6 +609,7 @@ public sealed class ModelInspectionFixtureAdapterTests
             "HttpClient",
             "Socket",
             "Task.Delay",
+            "DispatcherQueueModelInspectionMilestoneScheduler",
             "ModelInspectionWorkerComposition",
             "ModelInspectionServiceComposition",
             "Task.Delay"
@@ -673,8 +674,12 @@ public sealed class ModelInspectionFixtureAdapterTests
             [
                 typeof(IModelInspectionService),
                 typeof(Func<IModelInspectionRenderDispatcher>),
+                typeof(Func<
+                    IModelInspectionRenderDispatcher,
+                    IModelInspectionStartupPresentationBarrier>),
                 typeof(Func<IModelInspectionAnimationDriver>),
                 typeof(Func<IModelInspectionMotionSettings>),
+                typeof(Func<IModelInspectionMilestoneScheduler>),
                 typeof(bool),
                 typeof(Action<ResourceDictionary>)
             ]));
@@ -855,8 +860,12 @@ public sealed class ModelInspectionFixtureAdapterTests
         [
             typeof(IModelInspectionService),
             typeof(Func<IModelInspectionRenderDispatcher>),
+            typeof(Func<
+                IModelInspectionRenderDispatcher,
+                IModelInspectionStartupPresentationBarrier>),
             typeof(Func<IModelInspectionAnimationDriver>),
             typeof(Func<IModelInspectionMotionSettings>),
+            typeof(Func<IModelInspectionMilestoneScheduler>),
             typeof(bool),
             typeof(Action<ResourceDictionary>)
         ];
@@ -1208,6 +1217,9 @@ public sealed class ModelInspectionFixtureAdapterTests
             StringComparison.Ordinal) ||
         identity.Contains("FileOpenPicker", StringComparison.Ordinal) ||
         identity.Contains("FolderPicker", StringComparison.Ordinal) ||
+        identity.Contains(
+            "DispatcherQueueModelInspectionMilestoneScheduler",
+            StringComparison.Ordinal) ||
         identity.Contains("ModelInspectionWorkerComposition", StringComparison.Ordinal) ||
         identity.Contains("ModelInspectionServiceComposition", StringComparison.Ordinal);
 

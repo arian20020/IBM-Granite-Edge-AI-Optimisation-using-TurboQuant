@@ -644,7 +644,8 @@ public sealed class ModelInspectionAccessibilityTests
             service,
             () => dispatcher,
             () => driver,
-            () => settings)
+            () => settings,
+            () => new ImmediateMilestoneScheduler())
         {
             RequestedTheme = ElementTheme.Light
         };
@@ -794,6 +795,41 @@ public sealed class ModelInspectionAccessibilityTests
 
         internal void TryComplete(ModelInspectionExecutionResult result) =>
             Completion.TrySetResult(result);
+    }
+
+    private sealed class ImmediateMilestoneScheduler :
+        IModelInspectionMilestoneScheduler
+    {
+        private bool disposed;
+
+        public TimeSpan Elapsed => TimeSpan.Zero;
+
+        public IDisposable Schedule(TimeSpan delay, Action callback)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+            if (delay <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(delay));
+            }
+
+            ObjectDisposedException.ThrowIf(disposed, this);
+            callback();
+            return EmptyRegistration.Instance;
+        }
+
+        public void Dispose()
+        {
+            disposed = true;
+        }
+
+        private sealed class EmptyRegistration : IDisposable
+        {
+            internal static EmptyRegistration Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
+        }
     }
 
     private sealed class ManualRenderDispatcher : IModelInspectionRenderDispatcher

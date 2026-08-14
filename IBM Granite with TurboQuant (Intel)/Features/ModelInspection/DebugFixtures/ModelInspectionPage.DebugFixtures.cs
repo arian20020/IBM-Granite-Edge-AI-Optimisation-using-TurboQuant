@@ -27,6 +27,7 @@ public sealed partial class ModelInspectionPage
             session.CreateStartupPresentationBarrier,
             session.CreateAnimationDriver,
             session.CreateMotionSettings,
+            session.CreateMilestoneScheduler,
             startInspectionOnLoaded,
             configureResourcesBeforeInitialize);
         page._fixtureSession = session;

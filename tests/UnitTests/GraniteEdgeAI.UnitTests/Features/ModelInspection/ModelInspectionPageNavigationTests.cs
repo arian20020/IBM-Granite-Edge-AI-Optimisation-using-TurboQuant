@@ -7,6 +7,7 @@ using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -108,7 +109,7 @@ public sealed class ModelInspectionPageNavigationTests
     public void OnNavigatedTo_WithInvalidParameter_RejectsWithoutRetiringCurrentPage()
     {
         var service = new ControlledInspectionService();
-        var page = new ModelInspectionPage(service);
+        ModelInspectionPage page = CreateUnactivatedPage(service);
         ModelInspectionRequest request = CreateRequest();
         InvokeNavigation(page, "OnNavigatedTo", request);
         ModelInspectionViewModel originalViewModel = page.ViewModel!;
@@ -649,7 +650,7 @@ public sealed class ModelInspectionPageNavigationTests
     public void Constructor_ConfiguresProgressAndOutcomeLiveRegions()
     {
         var service = new ControlledInspectionService();
-        var page = new ModelInspectionPage(service);
+        ModelInspectionPage page = CreateUnactivatedPage(service);
         var explanation = (TextBlock)page.FindName(
             "ModelInspectionExplanation");
         var content = (InspectionContentCard)page.FindName(
@@ -682,9 +683,11 @@ public sealed class ModelInspectionPageNavigationTests
         var dispatcher = new ManualRenderDispatcher();
         var driver = new RecordingPageAnimationDriver();
         var settings = new RecordingMotionSettings(animationsEnabled: true);
+        var scheduler = new ImmediateMilestoneScheduler();
         int dispatcherFactoryCalls = 0;
         int driverFactoryCalls = 0;
         int settingsFactoryCalls = 0;
+        int schedulerFactoryCalls = 0;
         var page = new ModelInspectionPage(
             service,
             () =>
@@ -701,6 +704,11 @@ public sealed class ModelInspectionPageNavigationTests
             {
                 settingsFactoryCalls++;
                 return settings;
+            },
+            () =>
+            {
+                schedulerFactoryCalls++;
+                return scheduler;
             });
         InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
         ModelInspectionViewModel viewModel = page.ViewModel!;
@@ -715,16 +723,26 @@ public sealed class ModelInspectionPageNavigationTests
                 $"settings:{viewModel.ChooseAnotherCommand.CanExecute(null)}");
             settings.RaiseChanged();
         };
+        scheduler.DisposeCallback = () => retirement.Add(
+            $"scheduler:{viewModel.ChooseAnotherCommand.CanExecute(null)}");
 
         Assert.AreEqual(1, dispatcherFactoryCalls);
         Assert.AreEqual(1, driverFactoryCalls);
         Assert.AreEqual(1, settingsFactoryCalls);
+        Assert.AreEqual(1, schedulerFactoryCalls);
 
         InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
 
         CollectionAssert.AreEqual(
-            new[] { "cancel:True", "driver:True", "settings:True" },
+            new[]
+            {
+                "scheduler:True",
+                "cancel:True",
+                "driver:True",
+                "settings:True"
+            },
             retirement);
+        Assert.AreEqual(1, scheduler.DisposeCount);
         Assert.AreEqual(1, driver.CancelAllCount);
         Assert.IsTrue(driver.IsDisposed);
         Assert.IsTrue(settings.IsDisposed);
@@ -788,7 +806,8 @@ public sealed class ModelInspectionPageNavigationTests
             {
                 settingsFactoryCalls++;
                 return settings;
-            });
+            },
+            () => new ImmediateMilestoneScheduler());
         InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
         Exception? reentrantError = null;
         driver.CancelAllCallback = () =>
@@ -894,7 +913,8 @@ public sealed class ModelInspectionPageNavigationTests
             service,
             () => new ManualRenderDispatcher(),
             () => driver,
-            () => settings);
+            () => settings,
+            () => new ImmediateMilestoneScheduler());
 
         InvalidOperationException error =
             Assert.ThrowsExactly<InvalidOperationException>(() =>
@@ -1131,7 +1151,8 @@ public sealed class ModelInspectionPageNavigationTests
             service,
             () => dispatchers[dispatcherIndex++],
             () => new RecordingPageAnimationDriver(),
-            () => settings[settingsIndex++]);
+            () => settings[settingsIndex++],
+            () => new ImmediateMilestoneScheduler());
 
         InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
         oldSettings.RaiseChanged();
@@ -1177,7 +1198,8 @@ public sealed class ModelInspectionPageNavigationTests
             service,
             () => dispatchers[dispatcherIndex++],
             () => drivers[driverIndex++],
-            () => settings[settingsIndex++]);
+            () => settings[settingsIndex++],
+            () => new ImmediateMilestoneScheduler());
         using var validated = new ManualResetEventSlim();
         using var resume = new ManualResetEventSlim();
 
@@ -1575,7 +1597,8 @@ public sealed class ModelInspectionPageNavigationTests
             service,
             () => dispatchers.Dequeue(),
             () => drivers.Dequeue(),
-            () => new RecordingMotionSettings(animationsEnabled: true));
+            () => new RecordingMotionSettings(animationsEnabled: true),
+            () => new ImmediateMilestoneScheduler());
 
         InvokeNavigation(page, "OnNavigatedTo", CreateRequest());
         Task retiredRun = page.StartInspectionIfReadyAsync()!;
@@ -2249,9 +2272,10 @@ public sealed class ModelInspectionPageNavigationTests
 
         try
         {
-            Assert.IsTrue(frame.Navigate(typeof(ModelInspectionPage), request));
-            page = frame.Content as ModelInspectionPage;
-            Assert.IsNotNull(page);
+            page = CreateUnactivatedPage(
+                ModelInspectionServiceComposition.CreateDefault());
+            InvokeNavigation(page, "OnNavigatedTo", request);
+            frame.Content = page;
             Assert.AreSame(request, page.Request);
             Assert.IsNotNull(page.ViewModel);
             observedContentControl = (InspectionContentCard)page.FindName(
@@ -2535,10 +2559,22 @@ public sealed class ModelInspectionPageNavigationTests
         IModelInspectionService service,
         ModelInspectionRequest request)
     {
-        var page = new ModelInspectionPage(service);
+        ModelInspectionPage page = CreateUnactivatedPage(service);
         InvokeNavigation(page, "OnNavigatedTo", request);
         return page;
     }
+
+    private static ModelInspectionPage CreateUnactivatedPage(
+        IModelInspectionService service) => new(
+        service,
+        () => new DispatcherQueueModelInspectionRenderDispatcher(
+            DispatcherQueue.GetForCurrentThread() ??
+            throw new InvalidOperationException(
+                "The packaged page test requires a UI DispatcherQueue.")),
+        () => new WinUiModelInspectionAnimationDriver(
+            ModelInspectionMotionSpec.Approved),
+        () => new UiSettingsModelInspectionMotionSettings(),
+        () => new ImmediateMilestoneScheduler());
 
     private static ModelInspectionPage CreateInjectedPage(
         IModelInspectionService service,
@@ -2551,7 +2587,8 @@ public sealed class ModelInspectionPageNavigationTests
             service,
             () => dispatcher,
             () => driver,
-            () => settings);
+            () => settings,
+            () => new ImmediateMilestoneScheduler());
         InvokeNavigation(page, "OnNavigatedTo", request);
         return page;
     }
@@ -3133,6 +3170,52 @@ public sealed class ModelInspectionPageNavigationTests
         internal void Complete(ModelInspectionExecutionResult result)
         {
             Completion.SetResult(result);
+        }
+    }
+
+    private sealed class ImmediateMilestoneScheduler :
+        IModelInspectionMilestoneScheduler
+    {
+        private bool disposed;
+
+        public TimeSpan Elapsed => TimeSpan.Zero;
+
+        internal Action? DisposeCallback { get; set; }
+
+        internal int DisposeCount { get; private set; }
+
+        public IDisposable Schedule(TimeSpan delay, Action callback)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+            if (delay <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(delay));
+            }
+
+            ObjectDisposedException.ThrowIf(disposed, this);
+            callback();
+            return EmptyRegistration.Instance;
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            DisposeCount++;
+            DisposeCallback?.Invoke();
+        }
+
+        private sealed class EmptyRegistration : IDisposable
+        {
+            internal static EmptyRegistration Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
         }
     }
 

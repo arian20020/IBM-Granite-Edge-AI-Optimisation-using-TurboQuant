@@ -219,7 +219,7 @@ public sealed class ModelInspectionRenderCoordinatorTests
     }
 
     [TestMethod]
-    public void ProgressChange_UpdatesRowsAndLiveRegionWithoutReplacingContent()
+    public void ProgressChange_EndsStartupAndUpdatesRowsAndLiveRegion()
     {
         using CoordinatorHarness harness = CreateStartedHarness();
         InspectionProgressRows owner = harness.RowsPassedForAttempt(1);
@@ -238,11 +238,13 @@ public sealed class ModelInspectionRenderCoordinatorTests
 
         ModelInspectionPresentationDelta delta = AssertSingleDelta(harness);
         Assert.AreEqual(
+            ModelInspectionPresentationRegions.Content |
             ModelInspectionPresentationRegions.ProgressRows |
             ModelInspectionPresentationRegions.LiveRegions,
             delta.ChangedRegions);
         Assert.IsNotNull(delta.ProgressRowsUpdate);
-        Assert.AreSame(appliedContent, harness.AppliedContent);
+        Assert.AreNotSame(appliedContent, harness.AppliedContent);
+        Assert.AreSame(delta.Presentation.ContentCard, harness.AppliedContent);
         for (int index = 0; index < retained.Length; index++)
         {
             Assert.AreSame(retained[index], owner.Items[index]);
@@ -764,7 +766,7 @@ public sealed class ModelInspectionRenderCoordinatorTests
     }
 
     [TestMethod]
-    public void Dispose_RejectsQueuedWorkAndInvalidatesKeys()
+    public void InvalidateThenDispose_RejectsQueuedWorkAndInvalidatesKeys()
     {
         CoordinatorHarness harness = CreateStartedHarness();
         harness.ClearObservations();
@@ -780,6 +782,8 @@ public sealed class ModelInspectionRenderCoordinatorTests
             update.RenderKey,
             harness.Coordinator.InteractionRevision);
 
+        harness.Coordinator.Invalidate();
+        harness.Coordinator.Invalidate();
         harness.Coordinator.Dispose();
         harness.Coordinator.Dispose();
         harness.Dispatcher.RunNext();

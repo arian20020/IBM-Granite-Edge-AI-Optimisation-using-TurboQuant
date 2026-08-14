@@ -213,7 +213,7 @@ internal sealed class ModelInspectionRenderCoordinator : IDisposable
         RenderSnapshot(snapshot);
     }
 
-    public void Dispose()
+    internal void Invalidate()
     {
         if (_disposed)
         {
@@ -226,6 +226,8 @@ internal sealed class ModelInspectionRenderCoordinator : IDisposable
         _latestSnapshot = null;
         _isRenderQueued = false;
     }
+
+    public void Dispose() => Invalidate();
 
     private void Drain()
     {

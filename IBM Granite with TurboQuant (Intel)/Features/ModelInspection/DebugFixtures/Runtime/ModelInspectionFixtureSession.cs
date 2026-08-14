@@ -28,6 +28,7 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
     private FixedMotionSettings? motionSettings;
     private bool animationDriverClaimed;
     private bool animationDriverCreationInProgress;
+    private bool milestoneSchedulerClaimed;
     private bool motionSettingsClaimed;
     private bool renderDispatcherClaimed;
     private bool retired;
@@ -370,6 +371,22 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
         }
     }
 
+    internal IModelInspectionMilestoneScheduler CreateMilestoneScheduler()
+    {
+        lock (gate)
+        {
+            ThrowIfUnavailable();
+            if (milestoneSchedulerClaimed)
+            {
+                throw new InvalidOperationException(
+                    "The fixture milestone scheduler has already been transferred.");
+            }
+
+            milestoneSchedulerClaimed = true;
+            return new ImmediateMilestoneScheduler();
+        }
+    }
+
     internal bool Retire()
     {
         bool first;
@@ -556,6 +573,41 @@ internal sealed class ModelInspectionFixtureSession : IDisposable
             if (Interlocked.Exchange(ref completed, 1) == 0)
             {
                 evidenceAudit.Dispose();
+            }
+        }
+    }
+
+    private sealed class ImmediateMilestoneScheduler :
+        IModelInspectionMilestoneScheduler
+    {
+        private bool disposed;
+
+        public TimeSpan Elapsed => TimeSpan.Zero;
+
+        public IDisposable Schedule(TimeSpan delay, Action callback)
+        {
+            ArgumentNullException.ThrowIfNull(callback);
+            if (delay <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(delay));
+            }
+
+            ObjectDisposedException.ThrowIf(disposed, this);
+            callback();
+            return EmptyRegistration.Instance;
+        }
+
+        public void Dispose()
+        {
+            disposed = true;
+        }
+
+        private sealed class EmptyRegistration : IDisposable
+        {
+            internal static EmptyRegistration Instance { get; } = new();
+
+            public void Dispose()
+            {
             }
         }
     }

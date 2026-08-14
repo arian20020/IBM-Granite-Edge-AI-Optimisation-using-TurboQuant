@@ -33,6 +33,8 @@ public sealed partial class ModelInspectionPage : Page
         IModelInspectionStartupPresentationBarrier> _startupBarrierFactory;
     private readonly Func<IModelInspectionAnimationDriver> _animationDriverFactory;
     private readonly Func<IModelInspectionMotionSettings> _motionSettingsFactory;
+    private readonly Func<IModelInspectionMilestoneScheduler>
+        _milestoneSchedulerFactory;
     private readonly bool _startInspectionOnLoaded;
     private readonly HashSet<(long AttemptGeneration, ModelInspectionFigmaState Outcome)>
         _announcedTerminalOutcomes = [];
@@ -43,6 +45,7 @@ public sealed partial class ModelInspectionPage : Page
     private IModelInspectionMotionSettings? _motionSettings;
     private MotionSettingsChangeRegistration? _motionSettingsRegistration;
     private ModelInspectionRenderCoordinator? _coordinator;
+    private ModelInspectionMilestoneSequencer? _milestoneSequencer;
     private long _navigationLifetime;
     private bool _isApplyingMotionSettingsChange;
     private bool _hasActiveLifetime;
@@ -71,6 +74,7 @@ public sealed partial class ModelInspectionPage : Page
             () => new WinUiModelInspectionAnimationDriver(
                 ModelInspectionMotionSpec.Approved),
             () => new UiSettingsModelInspectionMotionSettings(),
+            CreateProductionMilestoneScheduler,
             startInspectionOnLoaded: true,
             configureResourcesBeforeInitialize: null)
     {
@@ -80,13 +84,15 @@ public sealed partial class ModelInspectionPage : Page
         IModelInspectionService service,
         Func<IModelInspectionRenderDispatcher> dispatcherFactory,
         Func<IModelInspectionAnimationDriver> animationDriverFactory,
-        Func<IModelInspectionMotionSettings> motionSettingsFactory)
+        Func<IModelInspectionMotionSettings> motionSettingsFactory,
+        Func<IModelInspectionMilestoneScheduler> milestoneSchedulerFactory)
         : this(
             service,
             dispatcherFactory,
             CreateProductionStartupBarrier,
             animationDriverFactory,
             motionSettingsFactory,
+            milestoneSchedulerFactory,
             startInspectionOnLoaded: true,
             configureResourcesBeforeInitialize: null)
     {
@@ -100,6 +106,7 @@ public sealed partial class ModelInspectionPage : Page
             IModelInspectionStartupPresentationBarrier> startupBarrierFactory,
         Func<IModelInspectionAnimationDriver> animationDriverFactory,
         Func<IModelInspectionMotionSettings> motionSettingsFactory,
+        Func<IModelInspectionMilestoneScheduler> milestoneSchedulerFactory,
         bool startInspectionOnLoaded,
         Action<ResourceDictionary>? configureResourcesBeforeInitialize)
     {
@@ -112,6 +119,8 @@ public sealed partial class ModelInspectionPage : Page
             throw new ArgumentNullException(nameof(animationDriverFactory));
         _motionSettingsFactory = motionSettingsFactory ??
             throw new ArgumentNullException(nameof(motionSettingsFactory));
+        _milestoneSchedulerFactory = milestoneSchedulerFactory ??
+            throw new ArgumentNullException(nameof(milestoneSchedulerFactory));
         _startInspectionOnLoaded = startInspectionOnLoaded;
 
         configureResourcesBeforeInitialize?.Invoke(Resources);
@@ -177,8 +186,10 @@ public sealed partial class ModelInspectionPage : Page
 
         IModelInspectionAnimationDriver? animationDriver = null;
         IModelInspectionMotionSettings? motionSettings = null;
+        IModelInspectionMilestoneScheduler? milestoneScheduler = null;
         ModelInspectionViewModel? viewModel = null;
         ModelInspectionRenderCoordinator? coordinator = null;
+        ModelInspectionMilestoneSequencer? milestoneSequencer = null;
         bool ownershipPublished = false;
         try
         {
@@ -220,6 +231,14 @@ public sealed partial class ModelInspectionPage : Page
                         isExpanded,
                         progressRows),
                 ApplyDelta);
+            milestoneScheduler = _milestoneSchedulerFactory() ??
+                throw new InvalidOperationException(
+                    "The Model Inspection milestone-scheduler factory returned null.");
+            milestoneSequencer = new ModelInspectionMilestoneSequencer(
+                milestoneScheduler,
+                coordinator.RequestRender,
+                motionSettings.AnimationsEnabled);
+            milestoneScheduler = null;
 
             _navigationLifetime = lifetime;
             _announcedTerminalOutcomes.Clear();
@@ -233,6 +252,7 @@ public sealed partial class ModelInspectionPage : Page
                 ref _motionSettingsRegistration,
                 motionSettingsRegistration);
             _coordinator = coordinator;
+            _milestoneSequencer = milestoneSequencer;
             _hasActiveLifetime = true;
             ownershipPublished = true;
 
@@ -260,6 +280,15 @@ public sealed partial class ModelInspectionPage : Page
             else
             {
                 ExceptionDispatchInfo? ignoredCleanupError = null;
+                AttemptCleanup(
+                    () => coordinator?.Invalidate(),
+                    ref ignoredCleanupError);
+                AttemptCleanup(
+                    () => milestoneSequencer?.Dispose(),
+                    ref ignoredCleanupError);
+                AttemptCleanup(
+                    () => milestoneScheduler?.Dispose(),
+                    ref ignoredCleanupError);
                 AttemptCleanup(() => coordinator?.Dispose(), ref ignoredCleanupError);
                 AttemptCleanup(() => animationDriver?.CancelAll(), ref ignoredCleanupError);
                 AttemptCleanup(() => animationDriver?.Dispose(), ref ignoredCleanupError);
@@ -310,6 +339,17 @@ public sealed partial class ModelInspectionPage : Page
         CreateProductionStartupBarrier(
             IModelInspectionRenderDispatcher dispatcher) =>
         new DispatcherModelInspectionStartupPresentationBarrier(dispatcher);
+
+    private static IModelInspectionMilestoneScheduler
+        CreateProductionMilestoneScheduler()
+    {
+        DispatcherQueue dispatcherQueue =
+            DispatcherQueue.GetForCurrentThread() ??
+            throw new InvalidOperationException(
+                "Model Inspection milestone pacing requires a UI DispatcherQueue.");
+        return new DispatcherQueueModelInspectionMilestoneScheduler(
+            dispatcherQueue);
+    }
 
     private void ModelInspectionPage_Loaded(
         object sender,
@@ -382,13 +422,14 @@ public sealed partial class ModelInspectionPage : Page
             return;
         }
 
-        ModelInspectionRenderCoordinator? coordinator = _coordinator;
-        if (coordinator is null)
+        ModelInspectionMilestoneSequencer? milestoneSequencer =
+            _milestoneSequencer;
+        if (milestoneSequencer is null)
         {
             return;
         }
 
-        coordinator.RequestRender(viewModel.Snapshot);
+        milestoneSequencer.Accept(viewModel.Snapshot);
     }
 
     private void ViewModel_ChooseAnotherRequested(
@@ -465,9 +506,12 @@ public sealed partial class ModelInspectionPage : Page
     private void ApplyDelta(ModelInspectionPresentationDelta delta)
     {
         ModelInspectionRenderCoordinator? coordinator = _coordinator;
+        ModelInspectionMilestoneSequencer? milestoneSequencer =
+            _milestoneSequencer;
         IModelInspectionAnimationDriver? animationDriver = _animationDriver;
         IModelInspectionMotionSettings? motionSettings = _motionSettings;
         if (coordinator is null ||
+            milestoneSequencer is null ||
             animationDriver is null ||
             motionSettings is null ||
             !coordinator.IsCurrent(delta.RenderKey))
@@ -681,6 +725,12 @@ public sealed partial class ModelInspectionPage : Page
         }
 
         ApplyAnnouncements(delta, coordinator);
+        if (ReferenceEquals(_coordinator, coordinator) &&
+            ReferenceEquals(_milestoneSequencer, milestoneSequencer) &&
+            coordinator.IsCurrent(delta.RenderKey))
+        {
+            milestoneSequencer.NotifyPresented(delta.RenderKey);
+        }
     }
 
     private DisclosureTransition CaptureDisclosureTransition(
@@ -1187,8 +1237,12 @@ public sealed partial class ModelInspectionPage : Page
         }
 
         ModelInspectionRenderCoordinator? coordinator = _coordinator;
+        ModelInspectionMilestoneSequencer? milestoneSequencer =
+            _milestoneSequencer;
         IModelInspectionAnimationDriver? animationDriver = _animationDriver;
-        if (coordinator is null || animationDriver is null)
+        if (coordinator is null ||
+            milestoneSequencer is null ||
+            animationDriver is null)
         {
             return;
         }
@@ -1196,6 +1250,8 @@ public sealed partial class ModelInspectionPage : Page
         _isApplyingMotionSettingsChange = true;
         try
         {
+            milestoneSequencer.SetAnimationsEnabled(
+                registration.Settings.AnimationsEnabled);
             coordinator.InvalidateInteractions(
                 preserveDisclosureTarget: true);
             animationDriver.CancelAll();
@@ -1368,6 +1424,8 @@ public sealed partial class ModelInspectionPage : Page
         _hasActiveLifetime = false;
         ModelInspectionViewModel? retiredViewModel = ViewModel;
         ModelInspectionRenderCoordinator? retiredCoordinator = _coordinator;
+        ModelInspectionMilestoneSequencer? retiredMilestoneSequencer =
+            _milestoneSequencer;
         IModelInspectionAnimationDriver? retiredDriver = _animationDriver;
         IModelInspectionMotionSettings? retiredSettings = _motionSettings;
         MotionSettingsChangeRegistration? retiredSettingsRegistration =
@@ -1383,6 +1441,7 @@ public sealed partial class ModelInspectionPage : Page
         _animationDriver = null;
         _motionSettings = null;
         _coordinator = null;
+        _milestoneSequencer = null;
         _semanticFocusOwner = null;
         Interlocked.Exchange(ref _pendingSemanticFocusReclaim, null);
         ExceptionDispatchInfo? error = null;
@@ -1404,7 +1463,10 @@ public sealed partial class ModelInspectionPage : Page
 
             // Invalidation must precede every callback-producing cancellation.
             AttemptCleanup(
-                () => retiredCoordinator?.InvalidateInteractions(),
+                () => retiredCoordinator?.Invalidate(),
+                ref error);
+            AttemptCleanup(
+                () => retiredMilestoneSequencer?.Dispose(),
                 ref error);
             AttemptCleanup(
                 () => CompleteDispatcherAuditsForFixture(),
