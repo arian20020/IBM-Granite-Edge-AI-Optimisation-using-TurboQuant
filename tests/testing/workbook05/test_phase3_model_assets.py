@@ -268,8 +268,12 @@ class Phase3ModelAssetTests(unittest.TestCase):
             self.assertTrue(
                 (destination / ".cache" / "huggingface").is_dir()
             )
+            # ``TemporaryDirectory`` may be represented by a Windows 8.3 alias
+            # while ``Path.resolve`` returns the long form. Compare canonical
+            # paths so the test validates the adapter rather than path spelling.
+            resolved_destination = destination.resolve(strict=True)
             downloaded_relative_paths = [
-                path.relative_to(destination).as_posix()
+                path.relative_to(resolved_destination).as_posix()
                 for path in downloaded
             ]
 
