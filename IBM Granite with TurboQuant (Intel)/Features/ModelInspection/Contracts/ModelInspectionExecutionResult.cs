@@ -45,8 +45,10 @@ internal sealed record ModelInspectionExecutionResult
     }
 
     /// <summary>
-    /// Creates the terminal state used only when the worker acknowledged and
-    /// completed a cooperative user cancellation.
+    /// Creates the terminal state used when cancellation completed without
+    /// forced termination. This includes cancellation confirmed locally before
+    /// the inspection service begins and cancellation acknowledged by a worker
+    /// after service invocation.
     /// </summary>
     internal static ModelInspectionExecutionResult Cancelled(bool cooperative)
     {
@@ -55,7 +57,7 @@ internal sealed record ModelInspectionExecutionResult
         if (!cooperative)
         {
             throw new ArgumentException(
-                "Cancelled execution requires cooperative worker termination.",
+                "Cancelled execution requires confirmed completion without forced termination.",
                 nameof(cooperative));
         }
 

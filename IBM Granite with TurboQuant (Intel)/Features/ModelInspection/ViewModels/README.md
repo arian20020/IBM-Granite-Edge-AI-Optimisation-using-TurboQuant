@@ -55,7 +55,9 @@ rejects stale keys, and preserves stable control/row identity.
   state before cancelling the active attempt and raising
   `ChooseAnotherRequested`.
 
-An `OperationCanceledException` is not treated as trusted cancellation because
+A cancellation completed while the startup presentation barrier is held is
+locally confirmed because no inspection service or worker has begun. Once the
+service is invoked, an `OperationCanceledException` is not trusted cancellation;
 only a cooperative worker terminal can prove that state. It becomes the stable
 privacy-safe `MI-OP-CANCELLATION-UNCONFIRMED` operational failure. Unexpected
 service exceptions become `MI-OP-SERVICE-UNEXPECTED` without exception-derived

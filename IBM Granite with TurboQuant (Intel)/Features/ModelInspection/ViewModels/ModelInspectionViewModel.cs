@@ -17,6 +17,8 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         "MI-OP-CANCELLATION-UNCONFIRMED";
     private const string UnexpectedServiceFailureCode =
         "MI-OP-SERVICE-UNEXPECTED";
+    private const string StartupPresentationFailureCode =
+        "MI-OP-STARTUP-PRESENTATION";
 
     private readonly object stateLock = new();
     private readonly IModelInspectionService service;
@@ -133,41 +135,105 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
                 notificationContext,
                 value => PublishProgress(attempt, value));
 
-        ModelInspectionExecutionResult execution;
         try
         {
-            await startupBarrier.WaitForPresentationAsync();
-            execution = await service.InspectAsync(
-                Request,
-                attemptProgress,
-                attempt.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // A cancellation exception is not the worker's trusted cooperative
-            // terminal result, so it must remain an operational failure.
-            execution = ModelInspectionExecutionResult.OperationalFailure(
-                new ModelInspectionOperationalFailure(
-                    UnconfirmedCancellationCode,
-                    "Model inspection stopped without a confirmed cancellation.",
-                    "The inspection service did not return cooperative cancellation evidence."));
-        }
-        catch (Exception)
-        {
-            execution = ModelInspectionExecutionResult.OperationalFailure(
-                new ModelInspectionOperationalFailure(
-                    UnexpectedServiceFailureCode,
-                    "Model inspection could not be completed.",
-                    "The inspection service ended unexpectedly."));
-        }
+            try
+            {
+                await startupBarrier.WaitForPresentationAsync(attempt.Token);
+            }
+            catch (OperationCanceledException)
+                when (attempt.Token.IsCancellationRequested)
+            {
+                // Revalidation below distinguishes a current user cancellation
+                // from an attempt retired by navigation or lifecycle cleanup.
+            }
+            catch (Exception)
+            {
+                PublishTerminalResult(
+                    attempt,
+                    ModelInspectionExecutionResult.OperationalFailure(
+                        new ModelInspectionOperationalFailure(
+                            StartupPresentationFailureCode,
+                            "Model inspection could not be started.",
+                            "The secure inspection startup presentation could not be confirmed.")));
+                return;
+            }
 
-        try
-        {
+            switch (GetPreServiceAttemptState(attempt))
+            {
+                case PreServiceAttemptState.Retired:
+                    return;
+                case PreServiceAttemptState.CancellationRequested:
+                    // No service or worker began, so cancellation is locally
+                    // confirmed without fabricating worker evidence.
+                    PublishTerminalResult(
+                        attempt,
+                        ModelInspectionExecutionResult.Cancelled(
+                            cooperative: true));
+                    return;
+                case PreServiceAttemptState.Ready:
+                    break;
+                default:
+                    throw new InvalidOperationException(
+                        "Unknown pre-service Model Inspection attempt state.");
+            }
+
+            ModelInspectionExecutionResult execution;
+            try
+            {
+                // The locked revalidation above is the service-start boundary.
+                // Cancellation after that boundary is handled as in-service
+                // cancellation and still requires trusted service evidence.
+                execution = await service.InspectAsync(
+                    Request,
+                    attemptProgress,
+                    attempt.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Once service invocation begins, only its trusted cooperative
+                // result can confirm cancellation.
+                execution = ModelInspectionExecutionResult.OperationalFailure(
+                    new ModelInspectionOperationalFailure(
+                        UnconfirmedCancellationCode,
+                        "Model inspection stopped without a confirmed cancellation.",
+                        "The inspection service did not return cooperative cancellation evidence."));
+            }
+            catch (Exception)
+            {
+                execution = ModelInspectionExecutionResult.OperationalFailure(
+                    new ModelInspectionOperationalFailure(
+                        UnexpectedServiceFailureCode,
+                        "Model inspection could not be completed.",
+                        "The inspection service ended unexpectedly."));
+            }
+
             PublishTerminalResult(attempt, execution);
         }
         finally
         {
             attempt.Dispose();
+        }
+    }
+
+    private PreServiceAttemptState GetPreServiceAttemptState(
+        InspectionAttempt attempt)
+    {
+        lock (stateLock)
+        {
+            if (disposed ||
+                lifecycleInvalidated ||
+                !ReferenceEquals(activeAttempt, attempt) ||
+                !snapshot.IsRunActive ||
+                snapshot.RenderKey.AttemptGeneration != attempt.Id)
+            {
+                return PreServiceAttemptState.Retired;
+            }
+
+            return attempt.CancellationRequested ||
+                attempt.Token.IsCancellationRequested
+                    ? PreServiceAttemptState.CancellationRequested
+                    : PreServiceAttemptState.Ready;
         }
     }
 
@@ -452,6 +518,13 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
             new PropertyChangedEventArgs(propertyName));
     }
 
+    private enum PreServiceAttemptState
+    {
+        Ready,
+        CancellationRequested,
+        Retired
+    }
+
     private sealed class InspectionAttempt : IDisposable
     {
         private readonly object cancellationLock = new();
@@ -545,7 +618,11 @@ internal sealed class ModelInspectionViewModel : INotifyPropertyChanged, IDispos
         internal static ImmediateStartupPresentationBarrier Instance { get; } =
             new();
 
-        public ValueTask WaitForPresentationAsync() => ValueTask.CompletedTask;
+        public ValueTask WaitForPresentationAsync(
+            CancellationToken cancellationToken) =>
+            cancellationToken.IsCancellationRequested
+                ? ValueTask.FromCanceled(cancellationToken)
+                : ValueTask.CompletedTask;
     }
 
     private sealed class ContextProgress<T> : IProgress<T>

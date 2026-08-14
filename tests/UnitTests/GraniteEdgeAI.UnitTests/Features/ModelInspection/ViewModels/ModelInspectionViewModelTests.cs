@@ -578,6 +578,32 @@ public sealed class ModelInspectionViewModelTests
         Assert.AreEqual(
             ModelInspectionExecutionStatus.OperationalFailure,
             actualResult.Status);
+
+        ControlledInspectionService preStartService = new();
+        preStartService.QueueCall();
+        var heldBarrier = new HeldStartupPresentationBarrier();
+        ModelInspectionViewModel preStartViewModel = CreateViewModel(
+            preStartService,
+            CreateRequest(),
+            heldBarrier);
+        Task preStartRun = preStartViewModel.StartAsync();
+
+        preStartViewModel.CancelCommand.Execute(null);
+
+        await preStartRun.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.AreEqual(
+            0,
+            preStartService.CallCount,
+            "Cancel before startup presentation completes must not invoke the service.");
+        heldBarrier.Release();
+        Assert.AreEqual(
+            ModelInspectionExecutionStatus.Cancelled,
+            preStartViewModel.Result?.Status);
+        Assert.IsTrue(
+            preStartViewModel.Result?.CancellationWasCooperative is true);
+        Assert.AreNotEqual(
+            "MI-OP-CANCELLATION-UNCONFIRMED",
+            preStartViewModel.Result?.Failure?.Code);
     }
 
     [TestMethod]
@@ -655,6 +681,35 @@ public sealed class ModelInspectionViewModelTests
         StringAssert.DoesNotContain(
             failure.TechnicalDetail,
             "secret.gguf",
+            StringComparison.Ordinal);
+
+        ControlledInspectionService startupService = new();
+        startupService.QueueCall();
+        ModelInspectionViewModel startupViewModel = CreateViewModel(
+            startupService,
+            CreateRequest(),
+            new ThrowingStartupPresentationBarrier(
+                new SensitiveInspectionSentinelException(
+                    @"C:\Private\Startup\secret.xaml")));
+
+        await startupViewModel.StartAsync();
+
+        Assert.AreEqual(0, startupService.CallCount);
+        ModelInspectionOperationalFailure? startupFailure =
+            startupViewModel.Result?.Failure;
+        Assert.IsNotNull(startupFailure);
+        Assert.AreEqual(
+            "MI-OP-STARTUP-PRESENTATION",
+            startupFailure.Code);
+        Assert.AreEqual(
+            "Model inspection could not be started.",
+            startupFailure.UserMessage);
+        Assert.AreEqual(
+            "The secure inspection startup presentation could not be confirmed.",
+            startupFailure.TechnicalDetail);
+        StringAssert.DoesNotContain(
+            startupFailure.TechnicalDetail,
+            "secret.xaml",
             StringComparison.Ordinal);
     }
 
@@ -746,6 +801,26 @@ public sealed class ModelInspectionViewModelTests
         call.Complete(CreateFailureResult("stale"));
         await run;
         Assert.IsNull(viewModel.Result);
+
+        ControlledInspectionService preStartService = new();
+        preStartService.QueueCall();
+        var heldBarrier = new HeldStartupPresentationBarrier();
+        ModelInspectionViewModel preStartViewModel = CreateViewModel(
+            preStartService,
+            CreateRequest(),
+            heldBarrier);
+        Task preStartRun = preStartViewModel.StartAsync();
+
+        preStartViewModel.Deactivate();
+
+        await preStartRun.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.AreEqual(
+            0,
+            preStartService.CallCount,
+            "A lifecycle-retired pre-start attempt must not invoke the service.");
+        heldBarrier.Release();
+        Assert.IsFalse(preStartViewModel.IsRunActive);
+        Assert.IsNull(preStartViewModel.Result);
     }
 
     [TestMethod]
@@ -771,11 +846,39 @@ public sealed class ModelInspectionViewModelTests
         Assert.IsNull(viewModel.Result);
         await Assert.ThrowsExactlyAsync<ObjectDisposedException>(
             viewModel.StartAsync);
+
+        ControlledInspectionService preStartService = new();
+        preStartService.QueueCall();
+        var heldBarrier = new HeldStartupPresentationBarrier();
+        ModelInspectionViewModel preStartViewModel = CreateViewModel(
+            preStartService,
+            CreateRequest(),
+            heldBarrier);
+        Task preStartRun = preStartViewModel.StartAsync();
+
+        preStartViewModel.Dispose();
+
+        await preStartRun.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.AreEqual(
+            0,
+            preStartService.CallCount,
+            "A disposed pre-start attempt must not invoke the service.");
+        heldBarrier.Release();
+        Assert.IsFalse(preStartViewModel.IsRunActive);
+        Assert.IsNull(preStartViewModel.Result);
     }
 
     private static ModelInspectionViewModel CreateViewModel(
         IModelInspectionService service,
-        ModelInspectionRequest request)
+        ModelInspectionRequest request) => CreateViewModel(
+            service,
+            request,
+            ImmediateStartupPresentationBarrier.Instance);
+
+    private static ModelInspectionViewModel CreateViewModel(
+        IModelInspectionService service,
+        ModelInspectionRequest request,
+        IModelInspectionStartupPresentationBarrier startupBarrier)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         try
@@ -784,7 +887,7 @@ public sealed class ModelInspectionViewModelTests
             return new ModelInspectionViewModel(
                 service,
                 request,
-                ImmediateStartupPresentationBarrier.Instance);
+                startupBarrier);
         }
         finally
         {
@@ -967,6 +1070,37 @@ public sealed class ModelInspectionViewModelTests
         internal static ImmediateStartupPresentationBarrier Instance { get; } =
             new();
 
-        public ValueTask WaitForPresentationAsync() => ValueTask.CompletedTask;
+        public ValueTask WaitForPresentationAsync(
+            CancellationToken cancellationToken) =>
+            cancellationToken.IsCancellationRequested
+                ? ValueTask.FromCanceled(cancellationToken)
+                : ValueTask.CompletedTask;
+    }
+
+    private sealed class HeldStartupPresentationBarrier :
+        IModelInspectionStartupPresentationBarrier
+    {
+        private readonly TaskCompletionSource<bool> completion = new();
+
+        public ValueTask WaitForPresentationAsync(
+            CancellationToken cancellationToken) =>
+            new(completion.Task.WaitAsync(cancellationToken));
+
+        internal void Release() => completion.TrySetResult(true);
+    }
+
+    private sealed class ThrowingStartupPresentationBarrier :
+        IModelInspectionStartupPresentationBarrier
+    {
+        private readonly Exception error;
+
+        internal ThrowingStartupPresentationBarrier(Exception error)
+        {
+            this.error = error;
+        }
+
+        public ValueTask WaitForPresentationAsync(
+            CancellationToken cancellationToken) =>
+            ValueTask.FromException(error);
     }
 }

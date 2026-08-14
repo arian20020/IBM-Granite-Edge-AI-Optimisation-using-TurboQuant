@@ -576,6 +576,11 @@ public sealed partial class ModelInspectionPage : Page
         ApplyPageReflow(current);
         PrepareDisclosureTransition(transition);
         UpdateLayout();
+        bool recoverFromIneffectiveStartupFocus =
+            current.ContentCard.Startup.Visibility == Visibility.Visible &&
+            focusedElement is FrameworkElement &&
+            IsDescendantOrSelf(focusedElement, this) &&
+            !IsEffectivePageFocus(focusedElement);
 
         if (!progressChanges.IsEmpty &&
             motionSettings.AnimationsEnabled &&
@@ -647,7 +652,9 @@ public sealed partial class ModelInspectionPage : Page
         ApplySemanticDefaultFocus(
             current,
             claimWhenFocusIsOutsidePage: semanticFocusWasOwned,
-            reclaimEffectivePageFallback: semanticFocusWasOwned);
+            reclaimEffectivePageFallback:
+                semanticFocusWasOwned || recoverFromIneffectiveStartupFocus,
+            recoverFromIneffectiveStartupFocus);
         DependencyObject? semanticFocusedElement = XamlRoot is null
             ? null
             : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
@@ -963,7 +970,8 @@ public sealed partial class ModelInspectionPage : Page
     private void ApplySemanticDefaultFocus(
         ModelInspectionPagePresentation? presentation,
         bool claimWhenFocusIsOutsidePage,
-        bool reclaimEffectivePageFallback)
+        bool reclaimEffectivePageFallback,
+        bool recoverFromIneffectiveStartupFocus = false)
     {
         if (!_hasActiveLifetime ||
             presentation is null ||
@@ -988,9 +996,9 @@ public sealed partial class ModelInspectionPage : Page
             }
         }
 
-        FrameworkElement? target = FindSemanticDefaultFocusTarget(
-            presentation,
-            focused);
+        FrameworkElement? target = recoverFromIneffectiveStartupFocus
+            ? InspectionModelCardControl
+            : FindSemanticDefaultFocusTarget(presentation, focused);
         if (target is null || ReferenceEquals(focused, target))
         {
             return;
@@ -1025,8 +1033,10 @@ public sealed partial class ModelInspectionPage : Page
             if (presentation.ContentCard.Startup.Visibility ==
                 Visibility.Visible)
             {
-                return focused as FrameworkElement ??
-                    InspectionModelCardControl;
+                return focused is FrameworkElement focusedElement &&
+                    IsEffectivePageFocus(focusedElement)
+                        ? focusedElement
+                        : InspectionModelCardControl;
             }
 
             Button cancel = (Button)InspectionActionCardControl.FindName(

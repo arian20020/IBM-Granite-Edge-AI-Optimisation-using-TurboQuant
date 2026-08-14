@@ -720,7 +720,10 @@ public sealed class ModelInspectionFigmaStatePresentationTests
         Assert.AreNotEqual(initial.RegionKeys.Actions, running.RegionKeys.Actions);
         Assert.AreEqual(initial.RegionKeys.Outcome, running.RegionKeys.Outcome);
         Assert.AreEqual(initial.RegionKeys.Model, running.RegionKeys.Model);
-        Assert.AreEqual(initial.RegionKeys.Content, running.RegionKeys.Content);
+        Assert.AreNotEqual(
+            initial.RegionKeys.Content,
+            running.RegionKeys.Content,
+            "The dedicated startup DTO must replace the hidden idle content identity.");
         Assert.AreEqual(initial.RegionKeys.Footer, running.RegionKeys.Footer);
         Assert.AreEqual(initial.RegionKeys.Progress, running.RegionKeys.Progress);
         Assert.AreEqual(

@@ -427,8 +427,14 @@ public sealed class ModelInspectionPageNavigationTests
                 ModelInspectionExecutionStatus.OperationalFailure,
                 rejectedPage.ViewModel!.Result?.Status);
             Assert.AreEqual(
-                "MI-OP-SERVICE-UNEXPECTED",
+                "MI-OP-STARTUP-PRESENTATION",
                 rejectedPage.ViewModel.Result?.Failure?.Code);
+            Assert.AreEqual(
+                "Model inspection could not be started.",
+                rejectedPage.ViewModel.Result?.Failure?.UserMessage);
+            Assert.AreEqual(
+                "The secure inspection startup presentation could not be confirmed.",
+                rejectedPage.ViewModel.Result?.Failure?.TechnicalDetail);
         }
         finally
         {
@@ -470,6 +476,45 @@ public sealed class ModelInspectionPageNavigationTests
             InspectionContentCardMode.Cancelled,
             terminal.ContentCard.Mode);
         Assert.IsFalse(page.ViewModel.CancelCommand.CanExecute(null));
+
+        var preStartService = new ControlledInspectionService();
+        preStartService.QueueCall();
+        var preStartDispatcher = new ManualRenderDispatcher();
+        var preStartPage = CreateInjectedPage(
+            preStartService,
+            CreateRequest(@"C:\Models\cancel-before-preflight.gguf"),
+            preStartDispatcher,
+            new RecordingPageAnimationDriver(),
+            new RecordingMotionSettings(animationsEnabled: false));
+        try
+        {
+            Task preStartRun = preStartPage.StartInspectionIfReadyAsync()!;
+            Assert.AreSame(preStartRun, preStartPage.CurrentInspectionTask);
+            preStartDispatcher.RunNext();
+            AssertStartupPresentation(
+                AssertCompleteSnapshotApplied(preStartPage).ContentCard);
+            Assert.AreEqual(0, preStartService.CallCount);
+
+            preStartPage.ViewModel!.CancelCommand.Execute(null);
+            await Task.Yield();
+
+            Assert.IsTrue(
+                preStartRun.IsCompleted,
+                "Cancel must settle CurrentInspectionTask while startup presentation is held.");
+            await preStartRun;
+            preStartDispatcher.RunAll();
+            Assert.AreEqual(0, preStartService.CallCount);
+            Assert.AreEqual(
+                ModelInspectionExecutionStatus.Cancelled,
+                preStartPage.ViewModel.Result?.Status);
+            Assert.AreNotEqual(
+                "MI-OP-CANCELLATION-UNCONFIRMED",
+                preStartPage.ViewModel.Result?.Failure?.Code);
+        }
+        finally
+        {
+            InvokeNavigation(preStartPage, "OnNavigatedFrom", parameter: null);
+        }
     }
 
     [UITestMethod]
@@ -1645,6 +1690,69 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.AreSame(
                 pageScroll,
                 FocusManager.GetFocusedElement(page.XamlRoot));
+
+            ControlledCall focusRecoveryCall = service.QueueCall();
+            var actions = (InspectionActionCard)page.FindName(
+                "InspectionActionCardControl");
+            var retry = (Button)actions.FindName("PrimaryActionButton");
+            Assert.AreEqual(Visibility.Visible, retry.Visibility);
+            Assert.IsTrue(retry.IsEnabled);
+            Assert.IsTrue(retry.Focus(FocusState.Programmatic));
+
+            page.ViewModel.RetryCommand.Execute(null);
+            dispatcher.RunNext();
+
+            var model = (InspectionModelCard)page.FindName(
+                "InspectionModelCardControl");
+            object? focusedAfterRetry = FocusManager.GetFocusedElement(
+                page.XamlRoot);
+            bool collapsedRetryRecoveredToModel = ReferenceEquals(
+                model,
+                focusedAfterRetry);
+            Assert.AreEqual(Visibility.Collapsed, retry.Visibility);
+            AssertStartupPresentation(
+                AssertCompleteSnapshotApplied(page).ContentCard);
+
+            dispatcher.RunNext();
+            Assert.AreEqual(3, service.CallCount);
+
+            var cancel = (Button)actions.FindName("CancelActionButton");
+            Assert.AreEqual(Visibility.Visible, cancel.Visibility);
+            Assert.IsTrue(cancel.IsEnabled);
+            Assert.IsTrue(cancel.Focus(FocusState.Programmatic));
+            page.ViewModel.CancelCommand.Execute(null);
+            Assert.IsTrue(
+                focusRecoveryCall.CancellationToken.IsCancellationRequested);
+            dispatcher.RunNext();
+
+            bool disabledCancelRecoveredToModel = ReferenceEquals(
+                model,
+                FocusManager.GetFocusedElement(page.XamlRoot));
+            AssertStartupPresentation(
+                AssertCompleteSnapshotApplied(page).ContentCard);
+            Assert.AreEqual(Visibility.Visible, cancel.Visibility);
+            Assert.IsFalse(cancel.IsEnabled);
+            Assert.AreEqual(
+                "Cancel model inspection",
+                AutomationProperties.GetName(cancel));
+            focusRecoveryCall.Complete(
+                ModelInspectionExecutionResult.Cancelled(cooperative: true));
+            await page.CurrentInspectionTask!.WaitAsync(
+                TimeSpan.FromSeconds(10));
+            await DrainDispatcherAsync(page);
+            dispatcher.RunAll();
+
+            Assert.IsTrue(
+                collapsedRetryRecoveredToModel,
+                $"Startup must recover focus from the collapsed retry action to the selected-model heading. Actual: {focusedAfterRetry?.GetType().Name ?? "null"}.");
+            Assert.IsTrue(
+                disabledCancelRecoveredToModel,
+                "Startup must recover focus from the disabled cancel action to the selected-model heading.");
+            Assert.IsFalse(page.ViewModel.IsRunActive);
+            Assert.AreEqual(
+                ModelInspectionExecutionStatus.Cancelled,
+                page.ViewModel.Result?.Status);
+            Assert.AreEqual(0, dispatcher.PendingCount);
         }
         finally
         {
@@ -2159,10 +2267,8 @@ public sealed class ModelInspectionPageNavigationTests
                 {
                     InspectionContentCardPresentation candidate =
                         observedContentControl.Presentation;
-                    if (!TryReadStartupPresentation(
-                            candidate,
-                            out var startup) ||
-                        startup.Visibility != Visibility.Visible)
+                    InspectionStartupPresentation startup = candidate.Startup;
+                    if (startup.Visibility != Visibility.Visible)
                     {
                         return;
                     }
@@ -2474,49 +2580,12 @@ public sealed class ModelInspectionPageNavigationTests
     private static void AssertStartupPresentation(
         InspectionContentCardPresentation content)
     {
-        (Visibility Visibility, string Summary, string AutomationName) startup =
-            ReadStartupPresentation(content);
+        InspectionStartupPresentation startup = content.Startup;
         Assert.AreEqual(Visibility.Visible, startup.Visibility);
         Assert.AreEqual("Starting secure inspection…", startup.Summary);
         Assert.AreEqual(
             "Model inspection is starting.",
             startup.AutomationName);
-    }
-
-    private static (
-        Visibility Visibility,
-        string Summary,
-        string AutomationName) ReadStartupPresentation(
-            InspectionContentCardPresentation content)
-    {
-        Assert.IsTrue(
-            TryReadStartupPresentation(content, out var startup),
-            "The content presentation must expose a dedicated startup model.");
-        return startup;
-    }
-
-    private static bool TryReadStartupPresentation(
-        InspectionContentCardPresentation content,
-        out (
-            Visibility Visibility,
-            string Summary,
-            string AutomationName) startup)
-    {
-        PropertyInfo? startupProperty = typeof(InspectionContentCardPresentation)
-            .GetProperty("Startup", BindingFlags.Instance | BindingFlags.Public);
-        object? value = startupProperty?.GetValue(content);
-        if (value is null)
-        {
-            startup = default;
-            return false;
-        }
-
-        Type startupType = value.GetType();
-        startup = (
-            (Visibility)startupType.GetProperty("Visibility")!.GetValue(value)!,
-            (string)startupType.GetProperty("Summary")!.GetValue(value)!,
-            (string)startupType.GetProperty("AutomationName")!.GetValue(value)!);
-        return true;
     }
 
     private static async Task DrainDispatcherAsync(FrameworkElement element)
@@ -2552,6 +2621,13 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.AreEqual(expected.Mode, actual.Mode);
         Assert.AreEqual(expected.SectionTitle, actual.SectionTitle);
         Assert.AreEqual(expected.ProgressSummary, actual.ProgressSummary);
+        Assert.AreEqual(
+            expected.Startup.Visibility,
+            actual.Startup.Visibility);
+        Assert.AreEqual(expected.Startup.Summary, actual.Startup.Summary);
+        Assert.AreEqual(
+            expected.Startup.AutomationName,
+            actual.Startup.AutomationName);
         Assert.AreEqual(expected.SupportingText, actual.SupportingText);
         Assert.AreEqual(
             expected.SupportingTextVisibility,
