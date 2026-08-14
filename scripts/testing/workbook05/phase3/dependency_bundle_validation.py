@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -97,6 +98,8 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 @dataclass(frozen=True, slots=True)
 class DependencyBundleIssue:
+    """One deterministic dependency-artifact validation finding."""
+
     code: str
     path: str
     message: str
@@ -119,6 +122,8 @@ def _load_object(path: Path) -> dict[str, Any]:
 
 
 def _scan_text(bundle: Path, issues: list[DependencyBundleIssue]) -> None:
+    """Reject linked, binary, executable, archive, model, and secret content."""
+
     for candidate in sorted(
         bundle.rglob("*"),
         key=lambda value: value.relative_to(bundle).as_posix().casefold(),
@@ -183,10 +188,16 @@ def _check_required_and_manifest(
                 relative,
                 "Required dependency-preflight evidence is missing.",
             )
+
     manifest = bundle / "manifest.sha256"
     if manifest.is_file():
         for message in verify_hash_manifest(bundle, manifest):
-            _add(issues, "HASH_MISMATCH", "manifest.sha256", message)
+            _add(
+                issues,
+                "HASH_MISMATCH",
+                "manifest.sha256",
+                message,
+            )
 
 
 def _check_decision_schema(
@@ -215,11 +226,26 @@ def _check_decision_schema(
             ),
         )
     except Exception as error:
-        _add(issues, "SCHEMA_VALIDATOR_FAILURE", "decision.json", str(error))
+        _add(
+            issues,
+            "SCHEMA_VALIDATOR_FAILURE",
+            "decision.json",
+            str(error),
+        )
         return
+
     for error in errors:
-        path = "$." + "/".join(str(part) for part in error.absolute_path)
-        _add(issues, "SCHEMA_INVALID", "decision.json", f"{path}: {error.message}")
+        json_path = "$"
+        for part in error.absolute_path:
+            json_path += (
+                f"[{part}]" if isinstance(part, int) else f".{part}"
+            )
+        _add(
+            issues,
+            "SCHEMA_INVALID",
+            "decision.json",
+            f"{json_path}: {error.message}",
+        )
 
 
 def _check_claims(
@@ -234,6 +260,13 @@ def _check_claims(
                 "decision.json",
                 f"{key} must remain false at the dependency-preflight boundary.",
             )
+
+
+def _decision_lock_sha(decision: Mapping[str, Any]) -> object:
+    """Read the lock digest from the schema-defined nested lock object."""
+
+    lock = decision.get("lock")
+    return lock.get("sha256") if isinstance(lock, Mapping) else None
 
 
 def _check_lock_and_observation(
@@ -253,23 +286,32 @@ def _check_lock_and_observation(
         report = _load_object(report_path)
         parse_normal_install_report(report, lock)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
-        _add(issues, "LOCK_CONTENT", "locks/requirements.phase3-assets.txt", str(error))
+        _add(
+            issues,
+            "LOCK_CONTENT",
+            "locks/requirements.phase3-assets.txt",
+            str(error),
+        )
         return
 
-    import hashlib
-
-    actual_lock_sha = hashlib.sha256(lock_text.encode("utf-8")).hexdigest()
+    actual_lock_sha = hashlib.sha256(
+        lock_text.encode("utf-8")
+    ).hexdigest()
     for source_name, value in (
         ("observation", observation.get("lock_sha256")),
-        ("decision", decision.get("lock_sha256")),
+        ("decision", _decision_lock_sha(decision)),
     ):
         if value != actual_lock_sha:
             _add(
                 issues,
                 "LOCK_IDENTITY",
                 "locks/requirements.phase3-assets.txt",
-                f"The {source_name} lock SHA-256 does not match the complete lock.",
+                (
+                    f"The {source_name} lock SHA-256 does not match "
+                    "the complete lock."
+                ),
             )
+
     if observation.get("lock_text") != lock_text:
         _add(
             issues,
@@ -284,13 +326,19 @@ def _check_sources(
     observation: Mapping[str, Any],
     issues: list[DependencyBundleIssue],
 ) -> None:
-    observed_rows = observation.get("source_trees")
-    if not isinstance(observed_rows, list):
-        _add(issues, "VCS_IDENTITY", "observation.json", "source_trees is missing.")
+    source_rows = observation.get("source_trees")
+    if not isinstance(source_rows, list):
+        _add(
+            issues,
+            "VCS_IDENTITY",
+            "observation.json",
+            "source_trees is missing.",
+        )
         return
+
     observation_by_name = {
         str(row.get("name")): row
-        for row in observed_rows
+        for row in source_rows
         if isinstance(row, Mapping)
     }
 
@@ -300,9 +348,20 @@ def _check_sources(
             continue
         try:
             source = _load_object(path)
-        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
-            _add(issues, "VCS_IDENTITY", path.relative_to(bundle).as_posix(), str(error))
+        except (
+            OSError,
+            UnicodeError,
+            json.JSONDecodeError,
+            ValueError,
+        ) as error:
+            _add(
+                issues,
+                "VCS_IDENTITY",
+                path.relative_to(bundle).as_posix(),
+                str(error),
+            )
             continue
+
         for key, expected_value in expected.items():
             if source.get(key) != expected_value:
                 _add(
@@ -311,6 +370,7 @@ def _check_sources(
                     path.relative_to(bundle).as_posix(),
                     f"{key} does not match the reviewed source identity.",
                 )
+
         if source.get("clean") is not True or not _SHA256.fullmatch(
             str(source.get("aggregate_sha256", ""))
         ):
@@ -318,8 +378,12 @@ def _check_sources(
                 issues,
                 "VCS_IDENTITY",
                 path.relative_to(bundle).as_posix(),
-                "The source must be clean and have a lowercase aggregate SHA-256.",
+                (
+                    "The source must be clean and have a lowercase "
+                    "aggregate SHA-256."
+                ),
             )
+
         observed = observation_by_name.get(name)
         if not isinstance(observed, Mapping) or any(
             observed.get(key) != source.get(key)
@@ -335,7 +399,10 @@ def _check_sources(
                 issues,
                 "VCS_IDENTITY",
                 "observation.json",
-                f"The observation differs from retained source evidence for {name}.",
+                (
+                    "The observation differs from retained source "
+                    f"evidence for {name}."
+                ),
             )
 
 
@@ -347,12 +414,15 @@ def _check_recomputed_record(
     try:
         expected = build_dependency_preflight_record(observation)
     except Exception as error:
-        _add(issues, "OBSERVATION_INVALID", "observation.json", str(error))
+        _add(
+            issues,
+            "OBSERVATION_INVALID",
+            "observation.json",
+            str(error),
+        )
         return
 
     if decision.get("status") == "Blocked":
-        # Offline fixture evidence may differ only by the deliberate blocked
-        # status and explanatory reasons. Every identity and non-claim must match.
         ignored = {"status", "reasons"}
         for key in sorted(set(expected) | set(decision)):
             if key in ignored:
@@ -362,14 +432,20 @@ def _check_recomputed_record(
                     issues,
                     "DECISION_RECOMPUTE",
                     "decision.json",
-                    f"Decision field {key} differs from recomputed observation evidence.",
+                    (
+                        f"Decision field {key} differs from "
+                        "recomputed observation evidence."
+                    ),
                 )
     elif expected != decision:
         _add(
             issues,
             "DECISION_RECOMPUTE",
             "decision.json",
-            "The passed decision differs from the record recomputed from observation data.",
+            (
+                "The passed decision differs from the record "
+                "recomputed from observation data."
+            ),
         )
 
 
@@ -379,12 +455,21 @@ def validate_dependency_bundle(
     *,
     require_passed: bool = False,
 ) -> list[DependencyBundleIssue]:
+    """Return every deterministic issue in one dependency evidence bundle."""
+
     issues: list[DependencyBundleIssue] = []
     try:
         bundle = bundle_root.resolve(strict=True)
         repository = repository_root.resolve(strict=True)
     except OSError as error:
-        return [DependencyBundleIssue("BUNDLE_PATH", str(bundle_root), str(error))]
+        return [
+            DependencyBundleIssue(
+                "BUNDLE_PATH",
+                str(bundle_root),
+                str(error),
+            )
+        ]
+
     if not bundle.is_dir() or bundle_root.is_symlink():
         return [
             DependencyBundleIssue(
@@ -397,24 +482,23 @@ def validate_dependency_bundle(
     _scan_text(bundle, issues)
     _check_required_and_manifest(bundle, issues)
 
-    decision: dict[str, Any] | None = None
-    observation: dict[str, Any] | None = None
-    for relative, target in (
-        ("decision.json", "decision"),
-        ("observation.json", "observation"),
-    ):
+    loaded: dict[str, dict[str, Any]] = {}
+    for relative in ("decision.json", "observation.json"):
         path = bundle / relative
         if not path.is_file():
             continue
         try:
-            loaded = _load_object(path)
-        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+            loaded[relative] = _load_object(path)
+        except (
+            OSError,
+            UnicodeError,
+            json.JSONDecodeError,
+            ValueError,
+        ) as error:
             _add(issues, "JSON_INVALID", relative, str(error))
-            continue
-        if target == "decision":
-            decision = loaded
-        else:
-            observation = loaded
+
+    decision = loaded.get("decision.json")
+    observation = loaded.get("observation.json")
 
     if decision is not None:
         _check_decision_schema(decision, repository, issues)
@@ -428,30 +512,53 @@ def validate_dependency_bundle(
             )
 
     if decision is not None and observation is not None:
-        _check_lock_and_observation(bundle, decision, observation, issues)
+        _check_lock_and_observation(
+            bundle,
+            decision,
+            observation,
+            issues,
+        )
         _check_sources(bundle, observation, issues)
         _check_recomputed_record(decision, observation, issues)
 
     return sorted(
         issues,
-        key=lambda issue: (issue.path.casefold(), issue.code, issue.message),
+        key=lambda issue: (
+            issue.path.casefold(),
+            issue.code,
+            issue.message,
+        ),
     )
 
 
-def _write_report(path: Path, issues: list[DependencyBundleIssue]) -> None:
-    lines = ["# Workbook 05 dependency-preflight artifact validation", ""]
+def _write_report(
+    path: Path,
+    issues: list[DependencyBundleIssue],
+) -> None:
+    lines = [
+        "# Workbook 05 dependency-preflight artifact validation",
+        "",
+    ]
     if not issues:
         lines.append(
-            "Validation passed: text payloads, hashes, lock identity, VCS identity, "
-            "decision reconstruction, and C1 non-claims are valid."
+            "Validation passed: text payloads, hashes, lock identity, "
+            "VCS identity, decision reconstruction, and C1 non-claims "
+            "are valid."
         )
     else:
         lines.append(f"Validation failed with {len(issues)} issue(s).")
         lines.append("")
-        for issue in issues:
-            lines.append(f"- `{issue.code}` `{issue.path}` — {issue.message}")
+        lines.extend(
+            f"- `{issue.code}` `{issue.path}` — {issue.message}"
+            for issue in issues
+        )
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    path.write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def main(argv: Iterable[str] | None = None) -> int:
@@ -460,7 +567,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--require-passed", action="store_true")
-    arguments = parser.parse_args(list(argv) if argv is not None else None)
+    arguments = parser.parse_args(
+        list(argv) if argv is not None else None
+    )
 
     issues = validate_dependency_bundle(
         arguments.bundle_root,

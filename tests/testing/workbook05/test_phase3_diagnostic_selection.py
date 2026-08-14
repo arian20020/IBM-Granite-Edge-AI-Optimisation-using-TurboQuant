@@ -6,11 +6,10 @@ from pathlib import Path
 
 from scripts.testing.workbook05.phase3.diagnostic_selection import (
     APPROVED_CANDIDATE_ORDER,
+    EXPECTED_BACKEND,
     EXPECTED_RUNTIME_SOURCE_COMMIT,
-    PATH_EQUIVALENT_BACKEND,
     DiagnosticCandidate,
     DiagnosticEvidence,
-    DiagnosticStatus,
     evaluate_diagnostic_candidate,
 )
 
@@ -27,95 +26,114 @@ SETTINGS_PATH = (
 
 
 class Phase3DiagnosticSelectionTests(unittest.TestCase):
-    def _candidate(self) -> DiagnosticCandidate:
-        return DiagnosticCandidate("project-generated-stateful-ir")
-
-    def test_complete_direct_path_evidence_is_path_equivalent(self) -> None:
-        decision = evaluate_diagnostic_candidate(
-            self._candidate(),
-            DiagnosticEvidence(
-                text_generation_succeeded=True,
-                runtime_source_commit=EXPECTED_RUNTIME_SOURCE_COMMIT,
-                backend=PATH_EQUIVALENT_BACKEND,
-                stateful_execution_observed=True,
-                sdpa_observed=True,
-                kv_cache_observed=True,
-                fallback_absent=True,
-            ),
+    def _candidate(
+        self,
+        candidate_id: str = "project-generated-stateful-ir",
+    ) -> DiagnosticCandidate:
+        return DiagnosticCandidate(
+            candidate_id=candidate_id,
+            repository="project/local-diagnostic",
+            resolved_revision="a" * 40,
+            local_asset_id="MODEL-WB05-DIAGNOSTIC",
         )
 
-        self.assertEqual(DiagnosticStatus.PATH_EQUIVALENT, decision.status)
-        self.assertFalse(decision.activation_claim_authorised)
+    def _evidence(
+        self,
+        *,
+        runtime_source_commit: str = EXPECTED_RUNTIME_SOURCE_COMMIT,
+        backend: str = EXPECTED_BACKEND,
+        stateful: bool = True,
+        sdpa: bool = True,
+        kv_cache: bool = True,
+        fallback_absent: bool = True,
+        trace: bool = True,
+    ) -> DiagnosticEvidence:
+        return DiagnosticEvidence(
+            text_generation_completed=True,
+            runtime_source_commit=runtime_source_commit,
+            backend=backend,
+            stateful_execution_observed=stateful,
+            sdpa_path_observed=sdpa,
+            kv_cache_observed=kv_cache,
+            fallback_absent=fallback_absent,
+            trace_evidence_path=(
+                "traces/stateful-sdpa.json" if trace else None
+            ),
+            trace_evidence_sha256=("b" * 64 if trace else None),
+        )
+
+    def test_complete_digest_bound_path_evidence_is_path_equivalent(self) -> None:
+        decision = evaluate_diagnostic_candidate(
+            self._candidate(),
+            self._evidence(),
+        )
+
+        self.assertEqual("PathEquivalent", decision.status)
+        self.assertTrue(decision.path_equivalence_authorised)
+        self.assertTrue(decision.process_harness_use_authorised)
+        self.assertFalse(decision.codec_activation_claim_authorised)
         self.assertFalse(decision.performance_claim_authorised)
 
-    def test_text_generation_without_path_proof_is_harness_only(self) -> None:
+    def test_generation_without_complete_path_trace_is_harness_only(self) -> None:
         decision = evaluate_diagnostic_candidate(
             self._candidate(),
-            DiagnosticEvidence(
-                text_generation_succeeded=True,
-                runtime_source_commit=None,
-                backend=None,
-                stateful_execution_observed=False,
-                sdpa_observed=False,
-                kv_cache_observed=False,
-                fallback_absent=True,
+            self._evidence(
+                stateful=False,
+                sdpa=False,
+                kv_cache=False,
+                trace=False,
             ),
         )
 
-        self.assertEqual(DiagnosticStatus.HARNESS_ONLY, decision.status)
-        self.assertIn("incomplete", decision.reasons[0].casefold())
+        self.assertEqual("HarnessOnly", decision.status)
+        self.assertFalse(decision.path_equivalence_authorised)
+        self.assertTrue(decision.process_harness_use_authorised)
+        self.assertIn("not available", decision.reasons[0].casefold())
 
-    def test_wrong_runtime_source_or_observed_fallback_is_rejected(self) -> None:
+    def test_wrong_runtime_or_observed_fallback_is_rejected(self) -> None:
         cases = (
-            DiagnosticEvidence(
-                text_generation_succeeded=True,
-                runtime_source_commit="0" * 40,
-                backend=PATH_EQUIVALENT_BACKEND,
-                stateful_execution_observed=True,
-                sdpa_observed=True,
-                kv_cache_observed=True,
-                fallback_absent=True,
-            ),
-            DiagnosticEvidence(
-                text_generation_succeeded=True,
-                runtime_source_commit=EXPECTED_RUNTIME_SOURCE_COMMIT,
-                backend=PATH_EQUIVALENT_BACKEND,
-                stateful_execution_observed=True,
-                sdpa_observed=True,
-                kv_cache_observed=True,
-                fallback_absent=False,
-            ),
+            self._evidence(runtime_source_commit="0" * 40),
+            self._evidence(fallback_absent=False),
         )
         for evidence in cases:
             with self.subTest(evidence=evidence):
-                decision = evaluate_diagnostic_candidate(self._candidate(), evidence)
-                self.assertEqual(DiagnosticStatus.REJECTED, decision.status)
+                decision = evaluate_diagnostic_candidate(
+                    self._candidate(),
+                    evidence,
+                )
+                self.assertEqual("Rejected", decision.status)
+                self.assertFalse(decision.path_equivalence_authorised)
 
-    def test_unapproved_candidate_is_rejected_before_classification(self) -> None:
-        with self.assertRaisesRegex(ValueError, "approved order"):
-            evaluate_diagnostic_candidate(
-                DiagnosticCandidate("arbitrary-model"),
-                DiagnosticEvidence(
-                    text_generation_succeeded=False,
-                    runtime_source_commit=None,
-                    backend=None,
-                    stateful_execution_observed=False,
-                    sdpa_observed=False,
-                    kv_cache_observed=False,
-                    fallback_absent=True,
-                ),
-            )
+    def test_unapproved_candidate_is_rejected_without_weaker_admission(self) -> None:
+        decision = evaluate_diagnostic_candidate(
+            self._candidate("arbitrary-model"),
+            self._evidence(
+                stateful=False,
+                sdpa=False,
+                kv_cache=False,
+                trace=False,
+            ),
+        )
+
+        self.assertEqual("Rejected", decision.status)
+        self.assertFalse(decision.process_harness_use_authorised)
+        self.assertIn("approved candidate order", decision.reasons[0].casefold())
 
     def test_configuration_freezes_order_runtime_and_backend(self) -> None:
         settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
 
-        self.assertEqual(list(APPROVED_CANDIDATE_ORDER), settings["candidate_order"])
+        self.assertEqual(
+            list(APPROVED_CANDIDATE_ORDER),
+            settings["candidate_order"],
+        )
         self.assertEqual(
             EXPECTED_RUNTIME_SOURCE_COMMIT,
             settings["required_runtime_source_commit"],
         )
-        self.assertEqual(PATH_EQUIVALENT_BACKEND, settings["required_backend"])
-        self.assertFalse(settings["generation_alone_proves_path_equivalence"])
+        self.assertEqual(EXPECTED_BACKEND, settings["required_backend"])
+        self.assertFalse(
+            settings["generation_alone_proves_path_equivalence"]
+        )
 
 
 if __name__ == "__main__":
