@@ -76,6 +76,39 @@ jobs:
           python-version: '3.12.10'
           check-latest: false
 
+      # Keep the one repository-pinned schema validator outside the checkout and
+      # outside the hosted Python installation. Later steps inherit only this
+      # job-local PYTHONPATH; no model or conversion dependency is installed.
+      - name: Install pinned Phase 3 validation dependency
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = (Get-Command python -CommandType Application -ErrorAction Stop).Source
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Phase 3 validation dependency installation exited with code $LASTEXITCODE."
+          }
+
+          $env:PYTHONPATH = $dependencyDirectory
+          $observedVersion = ((
+              & $pythonPath -c "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"
+          ) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observedVersion -ne '4.25.1') {
+              throw "Expected jsonschema 4.25.1, observed: $observedVersion"
+          }
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
       # Run the previously unbounded fixture by itself first. A stalled child
       # now fails within five minutes and its stage markers remain in one small
       # step instead of consuming the complete 45-minute repository gate.
@@ -167,6 +200,38 @@ jobs:
 
           "python_path=$pythonPath" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
 
+      # The self-hosted machine-wide interpreter remains unchanged. The package
+      # exists only beneath this attempt's RUNNER_TEMP and is exposed through the
+      # job environment for the gate and the later C1 fixture collector.
+      - name: Install pinned Phase 3 validation dependency
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = '${{ steps.boundary.outputs.python_path }}'
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Phase 3 validation dependency installation exited with code $LASTEXITCODE."
+          }
+
+          $env:PYTHONPATH = $dependencyDirectory
+          $observedVersion = ((
+              & $pythonPath -c "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"
+          ) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observedVersion -ne '4.25.1') {
+              throw "Expected jsonschema 4.25.1, observed: $observedVersion"
+          }
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
       - name: Run the complete Phase 3 repository gate
         run: |
           $ErrorActionPreference = 'Stop'
@@ -237,6 +302,38 @@ jobs:
         with:
           python-version: '3.12.10'
           check-latest: false
+
+      # Independent validation uses its own clean dependency directory rather
+      # than trusting anything retained by the self-hosted collection job.
+      - name: Install pinned Phase 3 validation dependency
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = (Get-Command python -CommandType Application -ErrorAction Stop).Source
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Phase 3 validation dependency installation exited with code $LASTEXITCODE."
+          }
+
+          $env:PYTHONPATH = $dependencyDirectory
+          $observedVersion = ((
+              & $pythonPath -c "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"
+          ) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observedVersion -ne '4.25.1') {
+              throw "Expected jsonschema 4.25.1, observed: $observedVersion"
+          }
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
 
       - name: Run the complete Phase 3 repository gate
         shell: powershell
