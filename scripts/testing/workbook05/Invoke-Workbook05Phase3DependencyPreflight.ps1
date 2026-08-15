@@ -84,7 +84,9 @@ function Write-AtomicJson {
     )
 
     # Publish a record only after its complete UTF-8 representation exists in a
-    # same-directory temporary file.
+    # same-directory temporary file. The closed C1 schemas are shallower than
+    # twelve levels; using an unboundedly large depth on Windows PowerShell 5.1
+    # causes pathological object expansion before any bytes are written.
     $Parent = Split-Path -Parent $Path
     if (-not (Test-Path -LiteralPath $Parent -PathType Container)) {
         New-Item -ItemType Directory -Path $Parent -Force:$false | Out-Null
@@ -98,7 +100,7 @@ function Write-AtomicJson {
     }
     [IO.File]::WriteAllText(
         $TemporaryPath,
-        (($Value | ConvertTo-Json -Depth 80) + [Environment]::NewLine),
+        (($Value | ConvertTo-Json -Depth 12) + [Environment]::NewLine),
         [Text.UTF8Encoding]::new($false)
     )
     [IO.File]::Move($TemporaryPath, $Path)
