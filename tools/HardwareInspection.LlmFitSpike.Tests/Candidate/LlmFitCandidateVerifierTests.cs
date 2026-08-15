@@ -158,6 +158,47 @@ public sealed class LlmFitCandidateVerifierTests
     }
 
     [TestMethod]
+    public void Verification_WithMutableDiagnosticCodes_DefensivelyCopiesAssignedList()
+    {
+        var original = new LlmFitCandidateVerification(
+            true,
+            "archive",
+            "executable",
+            "AMD64",
+            false,
+            "NotSigned",
+            null,
+            ["original"]);
+        var mutableCodes = new List<string> { "replacement" };
+
+        LlmFitCandidateVerification updated = original with { DiagnosticCodes = mutableCodes };
+        mutableCodes.Add("mutated-after-assignment");
+
+        Assert.HasCount(1, updated.DiagnosticCodes);
+        Assert.AreEqual("replacement", updated.DiagnosticCodes[0]);
+        Assert.AreNotSame(mutableCodes, updated.DiagnosticCodes);
+        Assert.ThrowsExactly<NotSupportedException>(
+            () => ((IList<string>)updated.DiagnosticCodes).Add("mutation-attempt"));
+    }
+
+    [TestMethod]
+    public void Verification_WithNullDiagnosticCodes_ThrowsArgumentNull()
+    {
+        var original = new LlmFitCandidateVerification(
+            true,
+            "archive",
+            "executable",
+            "AMD64",
+            false,
+            "NotSigned",
+            null,
+            ["original"]);
+
+        Assert.ThrowsExactly<ArgumentNullException>(
+            () => _ = original with { DiagnosticCodes = null! });
+    }
+
+    [TestMethod]
     public void OpenExecutableForStableRead_BlocksReplacementUntilInspectionCompletes()
     {
         using var package = CandidatePackage.Create(0x8664);

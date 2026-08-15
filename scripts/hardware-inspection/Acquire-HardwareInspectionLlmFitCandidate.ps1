@@ -354,7 +354,9 @@ try {
         checkedAtUtc = [System.DateTime]::UtcNow.ToString('o', [System.Globalization.CultureInfo]::InvariantCulture)
     }
     $observationPath = [System.IO.Path]::Combine($packageTemp, 'authenticode-observation.json')
-    $observation | ConvertTo-Json -Compress | Set-Content -LiteralPath $observationPath -Encoding UTF8
+    $observationJson = $observation | ConvertTo-Json -Compress
+    $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($observationPath, $observationJson, $utf8WithoutBom)
 
     Copy-Item -LiteralPath $archivePath -Destination ([System.IO.Path]::Combine($packageTemp, [string]$manifest.archive.fileName))
 

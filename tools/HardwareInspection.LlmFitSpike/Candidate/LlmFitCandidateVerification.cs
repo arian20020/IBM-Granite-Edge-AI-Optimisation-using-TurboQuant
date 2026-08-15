@@ -12,9 +12,20 @@ public sealed record LlmFitCandidateVerification(
     string? AuthenticodeSubject,
     IReadOnlyList<string> DiagnosticCodes)
 {
-    public IReadOnlyList<string> DiagnosticCodes { get; init; } =
-        new ReadOnlyCollection<string>(DiagnosticCodes.ToArray());
+    private readonly IReadOnlyList<string> _diagnosticCodes = CopyDiagnosticCodes(DiagnosticCodes);
+
+    public IReadOnlyList<string> DiagnosticCodes
+    {
+        get => _diagnosticCodes;
+        init => _diagnosticCodes = CopyDiagnosticCodes(value);
+    }
 
     public bool MayExecuteForGate1 =>
         IntegrityPassed && string.Equals(PeMachine, "AMD64", StringComparison.Ordinal);
+
+    private static ReadOnlyCollection<string> CopyDiagnosticCodes(IReadOnlyList<string> diagnosticCodes)
+    {
+        ArgumentNullException.ThrowIfNull(diagnosticCodes);
+        return new ReadOnlyCollection<string>(diagnosticCodes.ToArray());
+    }
 }
