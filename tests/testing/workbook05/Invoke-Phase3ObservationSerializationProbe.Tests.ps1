@@ -132,6 +132,38 @@ $DirectRequirements = @(
     }
 )
 
+# A requirement row must be plain string data. Get-Content can attach adapted
+# file/provider metadata to emitted strings under Windows PowerShell 5.1; that
+# object graph is not permitted to cross into the controlled JSON observation.
+if ($DirectRequirements.Count -eq 0) {
+    throw 'Dependency observation probe found no direct requirements.'
+}
+foreach ($Requirement in $DirectRequirements) {
+    if ($Requirement -isnot [string]) {
+        throw (
+            'Direct requirement is not System.String: ' +
+            $Requirement.GetType().FullName
+        )
+    }
+    foreach ($AdaptedProperty in @(
+        'PSPath'
+        'PSParentPath'
+        'PSChildName'
+        'PSDrive'
+        'PSProvider'
+        'ReadCount'
+    )) {
+        if (
+            $Requirement.PSObject.Properties.Match($AdaptedProperty).Count -ne 0
+        ) {
+            throw (
+                'Direct requirement retained adapted file-content property: ' +
+                $AdaptedProperty
+            )
+        }
+    }
+}
+
 $FixtureIdentity = 'C:\w5c\dependency-preflight-offline-fixture-00000000000-1'
 $Observation = [ordered]@{
     generated_at_utc = '2026-08-15T00:00:00Z'
