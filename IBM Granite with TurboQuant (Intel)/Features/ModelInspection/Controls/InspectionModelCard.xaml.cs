@@ -132,6 +132,23 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         internal void RollbackDisclosureTargetClaim(bool isExpanded) =>
             InspectionDetailsDisclosure.RollbackTargetStateClaim(isExpanded);
 
+        public static InspectionStatusGlyphKind GetStatusGlyphKind(
+            InspectionCheckStatus status) =>
+            status switch
+            {
+                InspectionCheckStatus.Passed =>
+                    InspectionStatusGlyphKind.Success,
+                InspectionCheckStatus.Warning =>
+                    InspectionStatusGlyphKind.Warning,
+                InspectionCheckStatus.Error => InspectionStatusGlyphKind.Error,
+                InspectionCheckStatus.Information =>
+                    InspectionStatusGlyphKind.Information,
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(status),
+                    status,
+                    "The inspection-check status is not recognised.")
+            };
+
         public static Visibility GetPassedVisibility(
             InspectionCheckStatus status) =>
             status == InspectionCheckStatus.Passed

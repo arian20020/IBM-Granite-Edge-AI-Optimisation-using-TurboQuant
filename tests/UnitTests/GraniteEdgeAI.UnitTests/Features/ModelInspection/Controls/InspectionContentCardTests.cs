@@ -80,11 +80,11 @@ public sealed class InspectionContentCardTests
                     text.Text == "Waiting" &&
                     text.ActualHeight > 0d)
                 .ToArray();
-            ProgressRing[] visibleSpinners = descendants
-                .OfType<ProgressRing>()
-                .Where(ring =>
-                    ring.Visibility == Visibility.Visible &&
-                    ring.ActualHeight > 0d)
+            InspectionStatusGlyph[] waitingGlyphs = descendants
+                .OfType<InspectionStatusGlyph>()
+                .Where(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Waiting)
                 .ToArray();
             Button cancel = (Button)actions.FindName("CancelActionButton");
 
@@ -94,7 +94,17 @@ public sealed class InspectionContentCardTests
             Assert.HasCount(5, rows);
             Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 60d) < 0.01));
             Assert.HasCount(5, waitingLabels);
-            Assert.HasCount(0, visibleSpinners);
+            Assert.HasCount(5, waitingGlyphs);
+            Assert.IsTrue(waitingGlyphs.All(glyph =>
+                Math.Abs(glyph.SurfaceSize - 30d) < 0.01d));
+            CollectionAssert.AreEquivalent(
+                new[] { "1", "2", "3", "4", "5" },
+                waitingGlyphs.Select(glyph => glyph.StageNumber).ToArray());
+            Assert.IsFalse(descendants
+                .OfType<InspectionStatusGlyph>()
+                .Any(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Active));
             Assert.AreEqual(Visibility.Visible, cancel.Visibility);
             Assert.IsFalse(cancel.IsEnabled);
             Assert.AreEqual("Cancel inspection", page.ActionCard.CancelAction.Text);
@@ -392,38 +402,26 @@ public sealed class InspectionContentCardTests
     }
 
     [TestMethod]
-    [DataRow((int)InspectionContentStatus.Passed, true, false, false, (int)Symbol.Accept)]
-    [DataRow((int)InspectionContentStatus.Warning, true, false, false, (int)Symbol.Important)]
-    [DataRow((int)InspectionContentStatus.Error, true, false, false, (int)Symbol.Cancel)]
-    [DataRow((int)InspectionContentStatus.Information, true, false, false, (int)Symbol.Help)]
-    [DataRow((int)InspectionContentStatus.Active, false, true, false, (int)Symbol.Clock)]
-    [DataRow((int)InspectionContentStatus.Waiting, false, false, true, (int)Symbol.Clock)]
-    [DataRow((int)InspectionContentStatus.Neutral, false, false, false, (int)Symbol.Help)]
+    [DataRow((int)InspectionContentStatus.Passed, (int)InspectionStatusGlyphKind.Success, true)]
+    [DataRow((int)InspectionContentStatus.Warning, (int)InspectionStatusGlyphKind.Warning, true)]
+    [DataRow((int)InspectionContentStatus.Error, (int)InspectionStatusGlyphKind.Error, true)]
+    [DataRow((int)InspectionContentStatus.Information, (int)InspectionStatusGlyphKind.Information, true)]
+    [DataRow((int)InspectionContentStatus.Active, (int)InspectionStatusGlyphKind.Active, true)]
+    [DataRow((int)InspectionContentStatus.Waiting, (int)InspectionStatusGlyphKind.Waiting, true)]
+    [DataRow((int)InspectionContentStatus.Neutral, (int)InspectionStatusGlyphKind.NotComplete, false)]
     public void StatusMarkers_AreMutuallyExclusiveForEveryProgressStatus(
         int statusValue,
-        bool terminalVisible,
-        bool activeVisible,
-        bool waitingVisible,
-        int symbolValue)
+        int glyphKindValue,
+        bool markerVisible)
     {
         InspectionContentStatus status = (InspectionContentStatus)statusValue;
 
         Assert.AreEqual(
-            terminalVisible ? Visibility.Visible : Visibility.Collapsed,
-            InspectionContentCard.GetTerminalMarkerVisibility(status));
+            (InspectionStatusGlyphKind)glyphKindValue,
+            InspectionContentCard.GetStatusGlyphKind(status));
         Assert.AreEqual(
-            activeVisible ? Visibility.Visible : Visibility.Collapsed,
-            InspectionContentCard.GetActiveVisibility(status));
-        Assert.AreEqual(
-            waitingVisible ? Visibility.Visible : Visibility.Collapsed,
-            InspectionContentCard.GetWaitingVisibility(status));
-        Assert.AreEqual((Symbol)symbolValue, InspectionContentCard.GetStatusSymbol(status));
-        Assert.AreEqual(
-            status == InspectionContentStatus.Neutral ? 0 : 1,
-            new[] { terminalVisible, activeVisible, waitingVisible }.Count(value => value),
-            status is InspectionContentStatus.Neutral
-                ? "Neutral intentionally renders no progress marker."
-                : $"{status} must render exactly one marker.");
+            markerVisible ? Visibility.Visible : Visibility.Collapsed,
+            InspectionContentCard.GetStatusGlyphVisibility(status));
     }
 
     [UITestMethod]
@@ -432,13 +430,23 @@ public sealed class InspectionContentCardTests
     {
         InspectionProgressRows rows = new();
         rows.Reset(new ModelInspectionRenderKey(1, 0));
+        InspectionContentCardPresentation startupPresentation =
+            InitialInspectionProgressPresentationFactory.Create(
+                rows,
+                new InspectionStartupPresentation
+                {
+                    Visibility = Visibility.Visible,
+                    Summary = "Starting model inspection",
+                    AutomationName = "Model inspection is starting."
+                });
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create(rows);
         var driver = new RecordingProgressAnimationDriver();
         var control = new InspectionContentCard
         {
-            Presentation = presentation
+            Presentation = startupPresentation
         };
+        control.SetMotionEnabled(true);
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         control.Loaded += (_, _) => loaded.TrySetResult(true);
@@ -451,6 +459,20 @@ public sealed class InspectionContentCardTests
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            control.UpdateLayout();
+            InspectionStatusGlyph startupGlyph =
+                Assert.IsInstanceOfType<InspectionStatusGlyph>(
+                    control.FindName("StartupActiveIndicatorHost"));
+            Assert.IsTrue(startupGlyph.IsPrecisionOrbitRunning);
+
+            control.Presentation = presentation;
+            await Task.Yield();
+            control.UpdateLayout();
+            Assert.IsFalse(
+                startupGlyph.IsPrecisionOrbitRunning,
+                "A hidden startup row must not retain its precision orbit.");
+            Assert.IsNull(startupGlyph.PrecisionOrbitAnimation);
+
             InspectionContentItemPresentation rowBefore = rows.Items[1];
             InspectionProgressRowsApplyResult active = rows.Apply(
                 new InspectionProgressRowsUpdate(
@@ -472,12 +494,15 @@ public sealed class InspectionContentCardTests
                     new ModelInspectionRenderKey(1, 1),
                     interactionRevision: 0),
                 _ => true);
-            ProgressRing activeGlyph = EnumerateDescendants(control)
-                .OfType<ProgressRing>()
-                .Single(ring =>
-                    ring.Visibility == Visibility.Visible &&
-                    ring.ActualHeight > 0d);
-            Assert.IsTrue(activeGlyph.IsIndeterminate);
+            InspectionStatusGlyph activeGlyph = EnumerateDescendants(control)
+                .OfType<InspectionStatusGlyph>()
+                .Single(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Active);
+            Assert.AreEqual(30d, activeGlyph.SurfaceSize);
+            Assert.IsTrue(activeGlyph.IsMotionEnabled);
+            Assert.IsTrue(activeGlyph.IsPrecisionOrbitRunning);
+            int orbitStartCount = activeGlyph.PrecisionOrbitStartCount;
             Assert.AreSame(rowBefore, rows.Items[1]);
             Assert.IsFalse(EnumerateDescendants(control)
                 .OfType<TextBlock>()
@@ -511,18 +536,19 @@ public sealed class InspectionContentCardTests
                     new ModelInspectionRenderKey(1, 2),
                     interactionRevision: 0),
                 _ => true);
-            ProgressRing quarterGlyph = EnumerateDescendants(control)
-                .OfType<ProgressRing>()
-                .Single(ring =>
-                    ring.Visibility == Visibility.Visible &&
-                    ring.ActualHeight > 0d);
+            InspectionStatusGlyph quarterGlyph = EnumerateDescendants(control)
+                .OfType<InspectionStatusGlyph>()
+                .Single(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Active);
             Assert.AreEqual(statusAnimationCount, driver.StageStatusStartCount);
             Assert.AreEqual(detailAnimationCount, driver.ActiveDetailStartCount);
             Assert.AreEqual(
                 announcementCount,
                 control.LiveRegionChangeNotificationCount);
             Assert.AreSame(activeGlyph, quarterGlyph);
-            Assert.IsTrue(quarterGlyph.IsIndeterminate);
+            Assert.IsTrue(quarterGlyph.IsPrecisionOrbitRunning);
+            Assert.AreEqual(orbitStartCount, quarterGlyph.PrecisionOrbitStartCount);
             Assert.IsTrue(EnumerateDescendants(control)
                 .OfType<TextBlock>()
                 .Any(text => text.Text == "25%"));
@@ -586,11 +612,11 @@ public sealed class InspectionContentCardTests
                     new ModelInspectionRenderKey(1, 3),
                     interactionRevision: 0),
                 _ => true);
-            ProgressRing threeQuarterGlyph = EnumerateDescendants(control)
-                .OfType<ProgressRing>()
-                .Single(ring =>
-                    ring.Visibility == Visibility.Visible &&
-                    ring.ActualHeight > 0d);
+            InspectionStatusGlyph threeQuarterGlyph = EnumerateDescendants(control)
+                .OfType<InspectionStatusGlyph>()
+                .Single(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Active);
             Assert.AreEqual(statusAnimationCount, driver.StageStatusStartCount);
             Assert.AreEqual(detailAnimationCount, driver.ActiveDetailStartCount);
             Assert.AreEqual(
@@ -598,7 +624,10 @@ public sealed class InspectionContentCardTests
                 control.LiveRegionChangeNotificationCount);
             Assert.AreSame(activeGlyph, threeQuarterGlyph);
             Assert.AreSame(rowBefore, rows.Items[1]);
-            Assert.IsTrue(threeQuarterGlyph.IsIndeterminate);
+            Assert.IsTrue(threeQuarterGlyph.IsPrecisionOrbitRunning);
+            Assert.AreEqual(
+                orbitStartCount,
+                threeQuarterGlyph.PrecisionOrbitStartCount);
             Assert.IsTrue(EnumerateDescendants(control)
                 .OfType<TextBlock>()
                 .Any(text => text.Text == "75%"));
@@ -623,18 +652,22 @@ public sealed class InspectionContentCardTests
                     new ModelInspectionRenderKey(1, 4),
                     interactionRevision: 0),
                 _ => true);
-            ProgressRing completeFractionGlyph = EnumerateDescendants(control)
-                .OfType<ProgressRing>()
-                .Single(ring =>
-                    ring.Visibility == Visibility.Visible &&
-                    ring.ActualHeight > 0d);
+            InspectionStatusGlyph completeFractionGlyph =
+                EnumerateDescendants(control)
+                .OfType<InspectionStatusGlyph>()
+                .Single(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Active);
             Assert.AreEqual(statusAnimationCount, driver.StageStatusStartCount);
             Assert.AreEqual(detailAnimationCount, driver.ActiveDetailStartCount);
             Assert.AreEqual(
                 announcementCount,
                 control.LiveRegionChangeNotificationCount);
             Assert.AreSame(activeGlyph, completeFractionGlyph);
-            Assert.IsTrue(completeFractionGlyph.IsIndeterminate);
+            Assert.IsTrue(completeFractionGlyph.IsPrecisionOrbitRunning);
+            Assert.AreEqual(
+                orbitStartCount,
+                completeFractionGlyph.PrecisionOrbitStartCount);
             Assert.IsTrue(EnumerateDescendants(control)
                 .OfType<TextBlock>()
                 .Any(text => text.Text == "100%"));
@@ -659,20 +692,48 @@ public sealed class InspectionContentCardTests
                 .Where(text => text.Visibility == Visibility.Visible)
                 .Select(text => text.Text)
                 .ToArray();
-            SymbolIcon[] visibleSymbols = descendants
-                .OfType<SymbolIcon>()
-                .Where(icon => icon.Visibility == Visibility.Visible)
+            InspectionStatusGlyph[] visibleGlyphs = descendants
+                .OfType<InspectionStatusGlyph>()
+                .Where(IsEffectivelyVisible)
                 .ToArray();
 
             Assert.AreSame(presentation, control.Presentation);
             CollectionAssert.Contains(visibleText, "2 of 5 checks complete");
             CollectionAssert.Contains(visibleText, "Warning");
-            Assert.IsTrue(visibleSymbols.Any(icon => icon.Symbol == Symbol.Important));
-            Assert.IsFalse(descendants
-                .OfType<ProgressRing>()
-                .Any(ring =>
-                    ring.Visibility == Visibility.Visible &&
-                    ring.ActualHeight > 0d));
+            Assert.IsTrue(visibleGlyphs.Any(glyph =>
+                glyph.Kind == InspectionStatusGlyphKind.Warning &&
+                Math.Abs(glyph.SurfaceSize - 30d) < 0.01d));
+            Assert.IsFalse(visibleGlyphs.Any(glyph =>
+                glyph.Kind == InspectionStatusGlyphKind.Active));
+
+            rows.Apply(new InspectionProgressRowsUpdate(
+                new ModelInspectionProgressRegionKey(
+                    ModelInspectionStage.ReadModelConfiguration,
+                    ModelInspectionStageStatus.Active,
+                    completedStageCount: 1,
+                    stageCount: 5,
+                    stageFraction: 0.75,
+                    detail: "Reading validated configuration."),
+                new ModelInspectionRenderKey(1, 6),
+                "1 of 5 checks complete"));
+            await Task.Yield();
+            control.UpdateLayout();
+            InspectionStatusGlyph retiringGlyph = EnumerateDescendants(control)
+                .OfType<InspectionStatusGlyph>()
+                .Single(glyph =>
+                    IsEffectivelyVisible(glyph) &&
+                    glyph.Kind == InspectionStatusGlyphKind.Active);
+            Assert.IsTrue(retiringGlyph.IsPrecisionOrbitRunning);
+
+            control.Presentation = CreateFactoryTerminalPresentation(
+                ModelInspectionFigmaState.ReadyWithWarningsCollapsed).ContentCard;
+            await Task.Yield();
+            control.UpdateLayout();
+
+            Assert.IsFalse(
+                retiringGlyph.IsPrecisionOrbitRunning,
+                "A collapsed retained progress template must not keep animating.");
+            Assert.IsNull(retiringGlyph.PrecisionOrbitAnimation);
         }
         finally
         {
@@ -694,6 +755,23 @@ public sealed class InspectionContentCardTests
                 yield return descendant;
             }
         }
+    }
+
+    private static bool IsEffectivelyVisible(FrameworkElement element)
+    {
+        DependencyObject? current = element;
+        while (current is not null)
+        {
+            if (current is UIElement uiElement &&
+                uiElement.Visibility != Visibility.Visible)
+            {
+                return false;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return element.ActualWidth > 0d && element.ActualHeight > 0d;
     }
 
     private static InspectionProgressRows? GetStoredProgressRows(

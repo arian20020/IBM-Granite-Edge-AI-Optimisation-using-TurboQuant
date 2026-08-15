@@ -563,20 +563,19 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 TextBlock[] statuses = Descendants<TextBlock>(statusOwner)
                     .Where(IsVisible)
                     .ToArray();
-                Border[] statusIcons = Descendants<Border>(row)
-                    .Where(border =>
-                        string.Equals(
-                            border.Tag as string,
-                            "InspectionCheckStatusIcon",
-                            StringComparison.Ordinal) &&
-                        IsVisible(border))
+                InspectionStatusGlyph[] statusGlyphs =
+                    Descendants<InspectionStatusGlyph>(row)
+                    .Where(IsVisible)
                     .ToArray();
+                bool hasStatusShape = statuses.Length == 1 &&
+                    statusGlyphs.Length == 1;
                 observed.Add(new(
                     CheckId(title.Text),
                     copyText.Length > 1 ? copyText[1].Text : string.Empty,
-                    statuses.Length == 1 && statusIcons.Length == 1
-                        ? CheckStatus(card, statuses[0], statusIcons[0])
-                        : "Unmapped"));
+                    hasStatusShape
+                        ? CheckStatus(statuses[0], statusGlyphs[0])
+                        : "Unmapped",
+                    hasStatusShape ? statusGlyphs[0].Kind : null));
             }
 
             return observed;
@@ -727,17 +726,20 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             string primary = copyText[0].Text;
             string? secondary = NullIfEmpty(copyText[1].Text) ??
                 NullIfEmpty(AutomationProperties.GetHelpText(element));
-            string status = ObserveContentStatus(element, mode);
+            (string status, InspectionStatusGlyphKind? glyphKind) =
+                ObserveContentStatus(element, mode);
             double? fraction = ObserveStageFraction(element, status);
             return new(
                 ContentRowId(mode, primary, index),
                 primary,
                 secondary,
                 status,
-                fraction);
+                fraction,
+                glyphKind);
         }
 
-        private string ObserveContentStatus(
+        private (string Status, InspectionStatusGlyphKind? GlyphKind)
+            ObserveContentStatus(
             FrameworkElement element,
             string mode)
         {
@@ -747,77 +749,29 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 .Where(IsVisible)
                 .ToArray();
             string text = right.Length == 1 ? right[0].Text : string.Empty;
-            if (string.Equals(mode, "Progress", StringComparison.Ordinal))
-            {
-                ProgressRing[] activeRings = Descendants<ProgressRing>(element)
-                    .Where(IsVisible)
-                    .ToArray();
-                if (activeRings.Length == 1 &&
-                    string.Equals(text, "Checking", StringComparison.Ordinal))
-                {
-                    return "Active";
-                }
-
-                Border? motionTarget = Descendants<Border>(element)
-                    .SingleOrDefault(border => string.Equals(
-                        border.Name,
-                        "ProgressStatusMotionTarget",
-                        StringComparison.Ordinal));
-                TextBlock[] stageNumbers = motionTarget is null
-                    ? Array.Empty<TextBlock>()
-                    : Descendants<TextBlock>(motionTarget)
-                        .Where(IsVisible)
-                        .ToArray();
-                if (stageNumbers.Length == 1 &&
-                    string.Equals(text, "Waiting", StringComparison.Ordinal))
-                {
-                    return "Waiting";
-                }
-            }
-
-            Border[] markers = Descendants<Border>(element)
-                .Where(marker =>
-                    IsVisible(marker) &&
-                    marker.Child is SymbolIcon)
+            InspectionStatusGlyph[] glyphs =
+                Descendants<InspectionStatusGlyph>(element)
+                .Where(IsVisible)
                 .ToArray();
-            if (markers.Length != 1 || markers[0].Child is not SymbolIcon icon)
+            if (glyphs.Length != 1)
             {
-                return $"Unmapped:{mode}:{text}";
+                return ($"Unmapped:{mode}:{text}", null);
             }
 
-            Border marker = markers[0];
-            ElementTheme theme = element.ActualTheme;
-            return (text, icon.Symbol) switch
+            string status = (text, glyphs[0].Kind) switch
             {
-                ("Checking", Symbol.Clock) when MatchesCanonicalBrush(
-                    marker.Background,
-                    theme,
-                    "InspectionBlueSurfaceBrush") => "Active",
-                ("Waiting", Symbol.Clock) when MatchesCanonicalBrush(
-                    marker.Background,
-                    theme,
-                    "InspectionSurfaceMutedBrush") => "Waiting",
-                ("Passed", Symbol.Accept) when MatchesCanonicalBrush(
-                    marker.Background,
-                    theme,
-                    "InspectionSuccessSurfaceBrush") => "Passed",
-                ("Warning" or "Incomplete", Symbol.Important)
-                    when MatchesCanonicalBrush(
-                        marker.Background,
-                        theme,
-                        "InspectionWarningSurfaceBrush") => "Warning",
+                ("Checking", InspectionStatusGlyphKind.Active) => "Active",
+                ("Waiting", InspectionStatusGlyphKind.Waiting) => "Waiting",
+                ("Passed", InspectionStatusGlyphKind.Success) => "Passed",
+                ("Warning" or "Incomplete", InspectionStatusGlyphKind.Warning) =>
+                    "Warning",
                 ("Failed" or "Unsupported" or "Invalid" or "Not completed",
-                    Symbol.Cancel) when MatchesCanonicalBrush(
-                        marker.Background,
-                        theme,
-                        "InspectionErrorSurfaceBrush") => "Error",
-                ("Cancelled" or "Information", Symbol.Help)
-                    when MatchesCanonicalBrush(
-                        marker.Background,
-                        theme,
-                        "InspectionBlueSurfaceBrush") => "Information",
+                    InspectionStatusGlyphKind.Error) => "Error",
+                ("Cancelled" or "Information",
+                    InspectionStatusGlyphKind.Information) => "Information",
                 _ => $"Unmapped:{mode}:{text}"
             };
+            return (status, glyphs[0].Kind);
         }
 
         private static double? ObserveStageFraction(
@@ -1416,34 +1370,17 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             _ => $"unmapped:{title}"
         };
 
-        private string CheckStatus(
-            InspectionModelCard card,
+        private static string CheckStatus(
             TextBlock status,
-            Border icon)
+            InspectionStatusGlyph glyph)
         {
-            Symbol symbol = Descendants<SymbolIcon>(icon).Single().Symbol;
-            return status.Text switch
+            return (status.Text, glyph.Kind) switch
             {
-                "Passed" when symbol == Symbol.Accept &&
-                    MatchesCanonicalBrush(
-                        icon.Background,
-                        card.ActualTheme,
-                        "InspectionSuccessSurfaceBrush") => "Passed",
-                "Warning" when symbol == Symbol.Important &&
-                    MatchesCanonicalBrush(
-                        icon.Background,
-                        card.ActualTheme,
-                        "InspectionWarningSurfaceBrush") => "Warning",
-                "Failed" when symbol == Symbol.Cancel &&
-                    MatchesCanonicalBrush(
-                        icon.Background,
-                        card.ActualTheme,
-                        "InspectionErrorSurfaceBrush") => "Error",
-                "Information" when symbol == Symbol.Help &&
-                    MatchesCanonicalBrush(
-                        icon.Background,
-                        card.ActualTheme,
-                        "InspectionBlueSurfaceBrush") => "Information",
+                ("Passed", InspectionStatusGlyphKind.Success) => "Passed",
+                ("Warning", InspectionStatusGlyphKind.Warning) => "Warning",
+                ("Failed", InspectionStatusGlyphKind.Error) => "Error",
+                ("Information", InspectionStatusGlyphKind.Information) =>
+                    "Information",
                 _ => $"Unmapped:{status.Text}"
             };
         }

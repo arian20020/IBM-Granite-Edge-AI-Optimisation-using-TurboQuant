@@ -1,4 +1,5 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
+using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using System;
 using System.Collections.Generic;
@@ -213,6 +214,10 @@ internal sealed class ModelInspectionFixtureScreenComparer :
                     path + ".Status",
                     checks[index].Status.ToString(),
                     observed.Checks[index].Status);
+                differences.Equal(
+                    path + ".GlyphKind",
+                    ExpectedGlyphKind(checks[index].Status),
+                    observed.Checks[index].GlyphKind);
             }
         }
 
@@ -258,6 +263,10 @@ internal sealed class ModelInspectionFixtureScreenComparer :
                     path + ".Status",
                     rows[index].Status.ToString(),
                     observed.Rows[index].Status);
+                differences.Equal(
+                    path + ".GlyphKind",
+                    ExpectedGlyphKind(rows[index].Status),
+                    observed.Rows[index].GlyphKind);
             }
         }
 
@@ -311,6 +320,25 @@ internal sealed class ModelInspectionFixtureScreenComparer :
                 observed.Items[index].HelpText);
         }
     }
+
+    private static InspectionStatusGlyphKind? ExpectedGlyphKind(
+        ModelInspectionExpectedRowStatus status) => status switch
+        {
+            ModelInspectionExpectedRowStatus.Neutral => null,
+            ModelInspectionExpectedRowStatus.Waiting =>
+                InspectionStatusGlyphKind.Waiting,
+            ModelInspectionExpectedRowStatus.Active =>
+                InspectionStatusGlyphKind.Active,
+            ModelInspectionExpectedRowStatus.Passed =>
+                InspectionStatusGlyphKind.Success,
+            ModelInspectionExpectedRowStatus.Warning =>
+                InspectionStatusGlyphKind.Warning,
+            ModelInspectionExpectedRowStatus.Error =>
+                InspectionStatusGlyphKind.Error,
+            ModelInspectionExpectedRowStatus.Information =>
+                InspectionStatusGlyphKind.Information,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
 
     private static void CompareFooter(
         DifferenceCollector differences,

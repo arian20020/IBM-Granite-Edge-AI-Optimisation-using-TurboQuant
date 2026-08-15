@@ -2,7 +2,6 @@ using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -219,7 +218,7 @@ internal static class ModelInspectionPresentationFactory
         {
             Kind = definition.Kind,
             Tone = definition.Tone,
-            IconSymbol = definition.Symbol,
+            GlyphKind = definition.GlyphKind,
             Title = definition.Title,
             Message = definition.FixedMessage,
             AutomationName = definition.OutcomeAnnouncement
@@ -275,7 +274,7 @@ internal static class ModelInspectionPresentationFactory
         {
             Kind = InspectionOutcomePresentationKind.Cancelled,
             Tone = InspectionOutcomeTone.Neutral,
-            IconSymbol = Symbol.Cancel,
+            GlyphKind = InspectionStatusGlyphKind.NotComplete,
             Title = "Inspection cancelled",
             Message = Message,
             AutomationName = "Model inspection was cancelled."
@@ -400,7 +399,7 @@ internal static class ModelInspectionPresentationFactory
         {
             Kind = InspectionOutcomePresentationKind.OperationalFailure,
             Tone = InspectionOutcomeTone.Error,
-            IconSymbol = Symbol.Cancel,
+            GlyphKind = InspectionStatusGlyphKind.Error,
             Title = "Inspection could not be completed",
             Message = message,
             AutomationName = "Model inspection could not be completed."
@@ -851,7 +850,7 @@ internal static class ModelInspectionPresentationFactory
                 outcomeIdentity,
                 EnumIdentity(outcome.Kind),
                 EnumIdentity(outcome.Tone),
-                EnumIdentity(outcome.IconSymbol),
+                EnumIdentity(outcome.GlyphKind),
                 outcome.Title,
                 outcome.Message,
                 outcome.AutomationName
@@ -1233,7 +1232,7 @@ internal static class ModelInspectionPresentationFactory
             ModelInspectionOutcome.Ready => new(
                 InspectionOutcomePresentationKind.Ready,
                 InspectionOutcomeTone.Success,
-                Symbol.Accept,
+                InspectionStatusGlyphKind.Success,
                 "Model inspection complete",
                 "The model passed all lightweight inspection checks.",
                 "Model inspection complete.",
@@ -1256,7 +1255,7 @@ internal static class ModelInspectionPresentationFactory
             ModelInspectionOutcome.ReadyWithWarnings => new(
                 InspectionOutcomePresentationKind.ReadyWithWarnings,
                 InspectionOutcomeTone.Warning,
-                Symbol.Important,
+                InspectionStatusGlyphKind.Warning,
                 "Model inspected with warnings",
                 "Inspection completed with a non-blocking warning.",
                 "Model inspected with warnings.",
@@ -1279,7 +1278,7 @@ internal static class ModelInspectionPresentationFactory
             ModelInspectionOutcome.ConversionRequired => new(
                 InspectionOutcomePresentationKind.ConversionRequired,
                 InspectionOutcomeTone.Information,
-                Symbol.Switch,
+                InspectionStatusGlyphKind.Information,
                 "Conversion required",
                 "The selected model requires conversion before it can continue.",
                 "Model conversion is required.",
@@ -1302,7 +1301,7 @@ internal static class ModelInspectionPresentationFactory
             ModelInspectionOutcome.IncompletePackage => new(
                 InspectionOutcomePresentationKind.IncompletePackage,
                 InspectionOutcomeTone.Warning,
-                Symbol.Important,
+                InspectionStatusGlyphKind.Warning,
                 "Model package is incomplete",
                 "The model package is missing required content.",
                 "Model package is incomplete.",
@@ -1325,7 +1324,7 @@ internal static class ModelInspectionPresentationFactory
             ModelInspectionOutcome.Unsupported => new(
                 InspectionOutcomePresentationKind.Unsupported,
                 InspectionOutcomeTone.Error,
-                Symbol.Cancel,
+                InspectionStatusGlyphKind.Error,
                 "Model is not supported",
                 "The selected model is not supported by this inspection route.",
                 "Model is not supported.",
@@ -1348,7 +1347,7 @@ internal static class ModelInspectionPresentationFactory
             ModelInspectionOutcome.Invalid => new(
                 InspectionOutcomePresentationKind.Invalid,
                 InspectionOutcomeTone.Error,
-                Symbol.Cancel,
+                InspectionStatusGlyphKind.Error,
                 "Model is invalid",
                 "The model package did not pass structural validation.",
                 "Model is invalid.",
@@ -1375,7 +1374,7 @@ internal static class ModelInspectionPresentationFactory
     private sealed record OutcomeDefinition(
         InspectionOutcomePresentationKind Kind,
         InspectionOutcomeTone Tone,
-        Symbol Symbol,
+        InspectionStatusGlyphKind GlyphKind,
         string Title,
         string FixedMessage,
         string OutcomeAnnouncement,

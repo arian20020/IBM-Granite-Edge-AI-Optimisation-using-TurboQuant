@@ -1,5 +1,3 @@
-using Microsoft.UI.Xaml.Controls;
-
 namespace GraniteEdgeAI.Features.ModelInspection.Models
 {
     /// <summary>
@@ -25,9 +23,10 @@ namespace GraniteEdgeAI.Features.ModelInspection.Models
             InspectionOutcomeTone.Neutral;
 
         /// <summary>
-        /// Gets the WinUI symbol displayed inside the outcome icon container.
+        /// Gets the semantic vector glyph displayed by the outcome banner.
         /// </summary>
-        public Symbol IconSymbol { get; init; } = Symbol.Help;
+        public InspectionStatusGlyphKind GlyphKind { get; init; } =
+            InspectionStatusGlyphKind.NotComplete;
 
         /// <summary>
         /// Gets the concise outcome heading.

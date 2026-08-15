@@ -23,6 +23,9 @@ public sealed class ModelInspectionMotionTests
         Assert.AreEqual(TimeSpan.FromMilliseconds(160), spec.FastDuration);
         Assert.AreEqual(TimeSpan.FromMilliseconds(180), spec.StandardDuration);
         Assert.AreEqual(TimeSpan.FromMilliseconds(240), spec.DisclosureDuration);
+        Assert.AreEqual(
+            TimeSpan.FromMilliseconds(1050),
+            ModelInspectionMotionSpec.PrecisionOrbitDuration);
         Assert.AreEqual(new Vector2(0f, 0f), spec.EaseOutControlPoint1);
         Assert.AreEqual(new Vector2(0.2f, 1f), spec.EaseOutControlPoint2);
         Assert.AreEqual(0d, spec.StatusOpacityFrom);

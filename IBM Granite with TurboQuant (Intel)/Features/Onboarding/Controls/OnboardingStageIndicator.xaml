@@ -5,6 +5,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:inspectionControls="using:GraniteEdgeAI.Features.ModelInspection.Controls"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     MinHeight="128"
     HorizontalAlignment="Stretch"
@@ -60,6 +61,22 @@
         <StaticResource
             x:Key="OnboardingIndicatorErrorBrush"
             ResourceKey="InspectionErrorTextBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessSurfaceBrush"
+            ResourceKey="InspectionSuccessSurfaceBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessBorderBrush"
+            ResourceKey="InspectionSuccessBorderBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorNotCompleteSurfaceBrush"
+            ResourceKey="InspectionSurfaceMutedBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorNotCompleteBorderBrush"
+            ResourceKey="InspectionBorderMutedBrush" />
 
         <!--  Shared appearance for every numbered stage box.  -->
         <Style
@@ -355,11 +372,18 @@
                 BorderBrush="{StaticResource OnboardingIndicatorActiveBrush}"
                 Style="{StaticResource OnboardingStepBoxStyle}">
 
-                <TextBlock
-                    x:Name="ChooseModelStepValue"
-                    Foreground="White"
-                    Style="{StaticResource OnboardingStepValueStyle}"
-                    Text="1" />
+                <Grid>
+                    <TextBlock
+                        x:Name="ChooseModelStepValue"
+                        Foreground="White"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="1" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ChooseModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
 
             </Border>
 
@@ -381,10 +405,17 @@
                 Grid.ColumnSpan="2"
                 Style="{StaticResource OnboardingStepBoxStyle}">
 
-                <TextBlock
-                    x:Name="InspectModelStepValue"
-                    Style="{StaticResource OnboardingStepValueStyle}"
-                    Text="2" />
+                <Grid>
+                    <TextBlock
+                        x:Name="InspectModelStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="2" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="InspectModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
 
             </Border>
 
@@ -404,10 +435,17 @@
                 Grid.ColumnSpan="2"
                 Style="{StaticResource OnboardingStepBoxStyle}">
 
-                <TextBlock
-                    x:Name="CheckFitStepValue"
-                    Style="{StaticResource OnboardingStepValueStyle}"
-                    Text="3" />
+                <Grid>
+                    <TextBlock
+                        x:Name="CheckFitStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="3" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="CheckFitStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
 
             </Border>
 
@@ -427,10 +465,17 @@
                 Grid.ColumnSpan="2"
                 Style="{StaticResource OnboardingStepBoxStyle}">
 
-                <TextBlock
-                    x:Name="ConfigureModelStepValue"
-                    Style="{StaticResource OnboardingStepValueStyle}"
-                    Text="4" />
+                <Grid>
+                    <TextBlock
+                        x:Name="ConfigureModelStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="4" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ConfigureModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
 
             </Border>
 
@@ -450,10 +495,17 @@
                 Grid.ColumnSpan="2"
                 Style="{StaticResource OnboardingStepBoxStyle}">
 
-                <TextBlock
-                    x:Name="ReadyToChatStepValue"
-                    Style="{StaticResource OnboardingStepValueStyle}"
-                    Text="5" />
+                <Grid>
+                    <TextBlock
+                        x:Name="ReadyToChatStepValue"
+                        Style="{StaticResource OnboardingStepValueStyle}"
+                        Text="5" />
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ReadyToChatStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
 
             </Border>
 

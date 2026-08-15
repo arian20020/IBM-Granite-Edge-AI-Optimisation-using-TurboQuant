@@ -123,16 +123,23 @@ public sealed class ModelInspectionAccessibilityTests
             page,
             "InspectionOutcomeCardControl");
         Border iconContainer = Element<Border>(outcome, "OutcomeIconContainer");
-        SymbolIcon icon = Element<SymbolIcon>(outcome, "OutcomeIcon");
+        InspectionStatusGlyph glyph = Element<InspectionStatusGlyph>(
+            outcome,
+            "OutcomeIcon");
         TextBlock title = Element<TextBlock>(outcome, "OutcomeTitle");
         ContentControl focusTarget = Element<ContentControl>(
             outcome,
             "OutcomeFocusTarget");
         Assert.AreEqual(Visibility.Visible, iconContainer.Visibility);
-        Assert.AreEqual(Visibility.Visible, icon.Visibility);
+        Assert.AreEqual(Visibility.Visible, glyph.Visibility);
+        Assert.AreEqual(InspectionStatusGlyphKind.Error, glyph.Kind);
+        Assert.AreEqual(40d, glyph.SurfaceSize, 0.01d);
         Assert.AreEqual(
             AccessibilityView.Raw,
             AutomationProperties.GetAccessibilityView(iconContainer));
+        Assert.AreEqual(
+            AccessibilityView.Raw,
+            AutomationProperties.GetAccessibilityView(glyph));
         Assert.IsFalse(string.IsNullOrWhiteSpace(title.Text));
         Assert.AreEqual(title.Text, AutomationProperties.GetName(focusTarget));
         Assert.AreEqual(

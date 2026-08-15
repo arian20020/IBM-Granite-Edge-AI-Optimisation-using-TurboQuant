@@ -62,57 +62,11 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Grid
+                    <local:InspectionStatusGlyph
                         Grid.Column="0"
-                        Width="22"
-                        Height="22"
                         VerticalAlignment="Center"
-                        AutomationProperties.AccessibilityView="Raw">
-                        <Border
-                            Tag="InspectionCheckStatusIcon"
-                            Background="{ThemeResource InspectionSuccessSurfaceBrush}"
-                            CornerRadius="11"
-                            Visibility="{x:Bind local:InspectionModelCard.GetPassedVisibility(Status)}">
-                            <SymbolIcon
-                                Width="12"
-                                Height="12"
-                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
-                                Symbol="Accept" />
-                        </Border>
-                        <Border
-                            Tag="InspectionCheckStatusIcon"
-                            Background="{ThemeResource InspectionWarningSurfaceBrush}"
-                            CornerRadius="11"
-                            Visibility="{x:Bind local:InspectionModelCard.GetWarningVisibility(Status)}">
-                            <SymbolIcon
-                                Width="12"
-                                Height="12"
-                                Foreground="{ThemeResource InspectionWarningTextBrush}"
-                                Symbol="Important" />
-                        </Border>
-                        <Border
-                            Tag="InspectionCheckStatusIcon"
-                            Background="{ThemeResource InspectionErrorSurfaceBrush}"
-                            CornerRadius="11"
-                            Visibility="{x:Bind local:InspectionModelCard.GetErrorVisibility(Status)}">
-                            <SymbolIcon
-                                Width="12"
-                                Height="12"
-                                Foreground="{ThemeResource InspectionErrorTextBrush}"
-                                Symbol="Cancel" />
-                        </Border>
-                        <Border
-                            Tag="InspectionCheckStatusIcon"
-                            Background="{ThemeResource InspectionBlueSurfaceBrush}"
-                            CornerRadius="11"
-                            Visibility="{x:Bind local:InspectionModelCard.GetInformationVisibility(Status)}">
-                            <SymbolIcon
-                                Width="12"
-                                Height="12"
-                                Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
-                                Symbol="Help" />
-                        </Border>
-                    </Grid>
+                        Kind="{x:Bind local:InspectionModelCard.GetStatusGlyphKind(Status)}"
+                        SurfaceSize="22" />
                     <StackPanel
                         Grid.Column="1"
                         VerticalAlignment="Center"
@@ -495,19 +449,10 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Border
-                                Width="22"
-                                Height="22"
+                            <local:InspectionStatusGlyph
                                 VerticalAlignment="Center"
-                                AutomationProperties.AccessibilityView="Raw"
-                                Background="{ThemeResource InspectionSuccessSurfaceBrush}"
-                                CornerRadius="11">
-                                <SymbolIcon
-                                    Width="12"
-                                    Height="12"
-                                    Foreground="{ThemeResource InspectionSuccessTextBrush}"
-                                    Symbol="Accept" />
-                            </Border>
+                                Kind="Success"
+                                SurfaceSize="22" />
                             <TextBlock
                                 Grid.Column="1"
                                 VerticalAlignment="Center"

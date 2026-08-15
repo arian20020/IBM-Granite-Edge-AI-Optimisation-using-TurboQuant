@@ -146,42 +146,49 @@ public sealed class ModelInspectionPresentationFactoryTests
         (int)ModelInspectionOutcome.Ready,
         InspectionOutcomePresentationKind.Ready,
         InspectionOutcomeTone.Success,
+        InspectionStatusGlyphKind.Success,
         InspectionContentCardMode.Hidden,
         InspectionModelBadgeState.Inspected)]
     [DataRow(
         (int)ModelInspectionOutcome.ReadyWithWarnings,
         InspectionOutcomePresentationKind.ReadyWithWarnings,
         InspectionOutcomeTone.Warning,
+        InspectionStatusGlyphKind.Warning,
         InspectionContentCardMode.Warnings,
         InspectionModelBadgeState.Inspected)]
     [DataRow(
         (int)ModelInspectionOutcome.ConversionRequired,
         InspectionOutcomePresentationKind.ConversionRequired,
         InspectionOutcomeTone.Information,
+        InspectionStatusGlyphKind.Information,
         InspectionContentCardMode.ConversionRequired,
         InspectionModelBadgeState.SourceModel)]
     [DataRow(
         (int)ModelInspectionOutcome.IncompletePackage,
         InspectionOutcomePresentationKind.IncompletePackage,
         InspectionOutcomeTone.Warning,
+        InspectionStatusGlyphKind.Warning,
         InspectionContentCardMode.IncompletePackage,
         InspectionModelBadgeState.Incomplete)]
     [DataRow(
         (int)ModelInspectionOutcome.Unsupported,
         InspectionOutcomePresentationKind.Unsupported,
         InspectionOutcomeTone.Error,
+        InspectionStatusGlyphKind.Error,
         InspectionContentCardMode.Unsupported,
         InspectionModelBadgeState.Unsupported)]
     [DataRow(
         (int)ModelInspectionOutcome.Invalid,
         InspectionOutcomePresentationKind.Invalid,
         InspectionOutcomeTone.Error,
+        InspectionStatusGlyphKind.Error,
         InspectionContentCardMode.Invalid,
         InspectionModelBadgeState.Invalid)]
     public void Create_TerminalSnapshotMapsEveryCompletedModelOutcome(
         int outcomeValue,
         InspectionOutcomePresentationKind expectedKind,
         InspectionOutcomeTone expectedTone,
+        InspectionStatusGlyphKind expectedGlyphKind,
         InspectionContentCardMode expectedContentMode,
         InspectionModelBadgeState expectedBadge)
     {
@@ -194,6 +201,7 @@ public sealed class ModelInspectionPresentationFactoryTests
 
         Assert.AreEqual(expectedKind, presentation.OutcomeCard.Kind);
         Assert.AreEqual(expectedTone, presentation.OutcomeCard.Tone);
+        Assert.AreEqual(expectedGlyphKind, presentation.OutcomeCard.GlyphKind);
         Assert.AreEqual(expectedContentMode, presentation.ContentCard.Mode);
         Assert.AreEqual(expectedBadge, presentation.ModelCard.BadgeState);
         Assert.AreEqual(InspectionActionCardMode.Result, presentation.ActionCard.Mode);
@@ -261,6 +269,9 @@ public sealed class ModelInspectionPresentationFactoryTests
             presentation.OutcomeCard.Kind);
         Assert.AreEqual(InspectionOutcomeTone.Neutral, presentation.OutcomeCard.Tone);
         Assert.AreEqual(
+            InspectionStatusGlyphKind.NotComplete,
+            presentation.OutcomeCard.GlyphKind);
+        Assert.AreEqual(
             InspectionContentCardMode.Cancelled,
             presentation.ContentCard.Mode);
         Assert.AreEqual(
@@ -289,6 +300,9 @@ public sealed class ModelInspectionPresentationFactoryTests
             InspectionOutcomePresentationKind.OperationalFailure,
             presentation.OutcomeCard.Kind);
         Assert.AreEqual(InspectionOutcomeTone.Error, presentation.OutcomeCard.Tone);
+        Assert.AreEqual(
+            InspectionStatusGlyphKind.Error,
+            presentation.OutcomeCard.GlyphKind);
         Assert.AreEqual(
             InspectionContentCardMode.OperationalFailure,
             presentation.ContentCard.Mode);

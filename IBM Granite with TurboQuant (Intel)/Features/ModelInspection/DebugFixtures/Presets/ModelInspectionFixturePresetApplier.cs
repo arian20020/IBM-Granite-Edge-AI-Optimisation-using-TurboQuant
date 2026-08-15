@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -386,7 +387,8 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
                      .Where(IsDisplayed))
         {
             if (string.IsNullOrEmpty(text.Text) ||
-                HasVisualAncestor<SymbolIcon>(text))
+                HasVisualAncestor<SymbolIcon>(text) ||
+                HasVisualAncestor<InspectionStatusGlyph>(text))
             {
                 continue;
             }
@@ -1150,7 +1152,9 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
             return ObserveVisibleStatusCues(brushes);
         }
 
-        SymbolIcon icon = Named<SymbolIcon>(outcome, "OutcomeIcon");
+        InspectionStatusGlyph glyph = Named<InspectionStatusGlyph>(
+            outcome,
+            "OutcomeIcon");
         TextBlock outcomeTitle = Named<TextBlock>(outcome, "OutcomeTitle");
         string toneState = CurrentVisualStateName(
             Named<FrameworkElement>(outcome, "LayoutRoot"),
@@ -1167,7 +1171,7 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
         return expectedTitleBrush.Length != 0 &&
             outcomeTitle.Foreground is SolidColorBrush outcomeTitleBrush &&
             SameColor(outcomeTitleBrush, RequiredBrush(expectedTitleBrush)) &&
-            IsVisible(icon) && !string.IsNullOrWhiteSpace(outcomeTitle.Text) &&
+            IsVisible(glyph) && !string.IsNullOrWhiteSpace(outcomeTitle.Text) &&
             !string.IsNullOrWhiteSpace(
                 Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(
                     outcome)) &&
@@ -1185,6 +1189,7 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
             "InspectionPrimaryBlueBrush",
             "InspectionTextSecondaryMutedBrush",
             "InspectionTextSecondaryStrongBrush",
+            "InspectionBorderStrongBrush",
             "InspectionSurfaceBrush"
         ];
         HashSet<Windows.UI.Color> allowed = semanticBrushes
@@ -1195,11 +1200,10 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
             .Where(text => IsStatusText(text))
             .Cast<FrameworkElement>()
             .ToArray();
-        FrameworkElement[] statusIcons = Visible<SymbolIcon>(page)
-            .Where(IsSemanticStatusIcon)
+        FrameworkElement[] statusGlyphs = Visible<InspectionStatusGlyph>(page)
             .Cast<FrameworkElement>()
             .ToArray();
-        FrameworkElement[] cues = statusText.Concat(statusIcons).ToArray();
+        FrameworkElement[] cues = statusText.Concat(statusGlyphs).ToArray();
         if (cues.Length == 0)
         {
             return false;
@@ -1211,11 +1215,24 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
                 text.Foreground is SolidColorBrush brush &&
                 brush.Color.A != 0 &&
                 IsResolvedSemanticColor(brush.Color, allowed),
-            SymbolIcon icon => icon.Foreground is SolidColorBrush brush &&
-                brush.Color.A != 0 &&
-                IsResolvedSemanticColor(brush.Color, allowed),
+            InspectionStatusGlyph glyph =>
+                Visible<Shape>(glyph).Any() &&
+                Visible<Shape>(glyph).All(shape =>
+                    ResolvedSemanticShapeBrushes(shape, allowed)),
             _ => false
         });
+    }
+
+    private static bool ResolvedSemanticShapeBrushes(
+        Shape shape,
+        IReadOnlySet<Windows.UI.Color> allowed)
+    {
+        SolidColorBrush[] brushes = new[] { shape.Fill, shape.Stroke }
+            .OfType<SolidColorBrush>()
+            .ToArray();
+        return brushes.Length != 0 && brushes.All(brush =>
+            brush.Color.A != 0 &&
+            IsResolvedSemanticColor(brush.Color, allowed));
     }
 
     private static bool IsResolvedSemanticColor(
@@ -1236,10 +1253,6 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
             HasAncestorNamed(element, "ExpandedReportItemsControl") ||
             HasAncestorNamed(element, "InspectionChecksItemsControl");
     }
-
-    private static bool IsSemanticStatusIcon(SymbolIcon icon) =>
-        string.Equals(icon.Name, "OutcomeIcon", StringComparison.Ordinal) ||
-        HasStatusRowAncestor(icon);
 
     private bool ObserveNaturalTextReflow()
     {
@@ -1376,10 +1389,10 @@ internal sealed class ModelInspectionFixturePresetApplier : IDisposable
             yield return control;
         }
 
-        foreach (SymbolIcon icon in Visible<SymbolIcon>(page)
-                     .Where(IsSemanticStatusIcon))
+        foreach (InspectionStatusGlyph glyph in
+                 Visible<InspectionStatusGlyph>(page))
         {
-            yield return icon;
+            yield return glyph;
         }
     }
 

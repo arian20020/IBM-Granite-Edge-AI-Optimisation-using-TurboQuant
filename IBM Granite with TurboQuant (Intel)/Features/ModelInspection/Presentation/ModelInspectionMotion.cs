@@ -5,6 +5,9 @@ namespace GraniteEdgeAI.Features.ModelInspection.Presentation;
 
 internal sealed record ModelInspectionMotionSpec
 {
+    internal static readonly TimeSpan PrecisionOrbitDuration =
+        TimeSpan.FromMilliseconds(1050);
+
     internal static ModelInspectionMotionSpec Approved { get; } = new(
         TimeSpan.FromMilliseconds(160),
         TimeSpan.FromMilliseconds(180),

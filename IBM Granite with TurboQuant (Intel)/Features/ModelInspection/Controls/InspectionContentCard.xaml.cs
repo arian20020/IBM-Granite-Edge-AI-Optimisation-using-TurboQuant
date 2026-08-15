@@ -25,6 +25,7 @@ public sealed partial class InspectionContentCard : UserControl
         _progressRowsByElement = [];
     private IReadOnlyList<InspectionContentItemPresentation> _expandedItems =
         Array.Empty<InspectionContentItemPresentation>();
+    private bool _isMotionEnabled;
     private InspectionProgressRows? _progressRowsOwner;
     private XamlRoot? _observedXamlRoot;
     private string? _responsiveStateName;
@@ -103,6 +104,8 @@ public sealed partial class InspectionContentCard : UserControl
 
     internal int LiveRegionChangeNotificationCount { get; private set; }
 
+    internal bool IsMotionEnabled => _isMotionEnabled;
+
 #if MODEL_INSPECTION_FIXTURE_GALLERY
     internal IReadOnlyList<string> LiveRegionAnnouncementHistory =>
         _liveRegionAnnouncementHistory;
@@ -177,6 +180,12 @@ public sealed partial class InspectionContentCard : UserControl
         }
     }
 
+    internal void SetMotionEnabled(bool isEnabled)
+    {
+        _isMotionEnabled = isEnabled;
+        ApplyStatusGlyphMotionPolicy(Presentation);
+    }
+
     public static Visibility GetPassedVisibility(InspectionContentStatus status) =>
         StatusVisibility(status, InspectionContentStatus.Passed);
 
@@ -198,17 +207,30 @@ public sealed partial class InspectionContentCard : UserControl
     public static Visibility GetWaitingVisibility(InspectionContentStatus status) =>
         StatusVisibility(status, InspectionContentStatus.Waiting);
 
-    public static Symbol GetStatusSymbol(InspectionContentStatus status) =>
+    public static InspectionStatusGlyphKind GetStatusGlyphKind(
+        InspectionContentStatus status) =>
         status switch
         {
-            InspectionContentStatus.Passed => Symbol.Accept,
-            InspectionContentStatus.Warning => Symbol.Important,
-            InspectionContentStatus.Error => Symbol.Cancel,
-            InspectionContentStatus.Active => Symbol.Clock,
-            InspectionContentStatus.Information => Symbol.Help,
-            InspectionContentStatus.Waiting => Symbol.Clock,
-            _ => Symbol.Help
+            InspectionContentStatus.Passed => InspectionStatusGlyphKind.Success,
+            InspectionContentStatus.Warning => InspectionStatusGlyphKind.Warning,
+            InspectionContentStatus.Error => InspectionStatusGlyphKind.Error,
+            InspectionContentStatus.Active => InspectionStatusGlyphKind.Active,
+            InspectionContentStatus.Information =>
+                InspectionStatusGlyphKind.Information,
+            InspectionContentStatus.Waiting => InspectionStatusGlyphKind.Waiting,
+            InspectionContentStatus.Neutral =>
+                InspectionStatusGlyphKind.NotComplete,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(status),
+                status,
+                "The content status is not recognised.")
         };
+
+    public static Visibility GetStatusGlyphVisibility(
+        InspectionContentStatus status) =>
+        status == InspectionContentStatus.Neutral
+            ? Visibility.Collapsed
+            : Visibility.Visible;
 
     public static Visibility GetConnectorVisibility(bool showConnector) =>
         showConnector ? Visibility.Visible : Visibility.Collapsed;
@@ -345,16 +367,38 @@ public sealed partial class InspectionContentCard : UserControl
             return;
         }
 
-        Bindings.Update();
-
-        if (presentation.Mode == InspectionContentCardMode.Progress &&
-            !ReferenceEquals(_progressRowsOwner, presentation.ProgressRows))
+        bool retainsProgressOwner =
+            presentation.Mode == InspectionContentCardMode.Progress &&
+            ReferenceEquals(_progressRowsOwner, presentation.ProgressRows);
+        if (!retainsProgressOwner)
         {
             CancelProgressMotion();
+            foreach (ProgressMotionTargets targets in
+                     _progressMotionTargets.Values)
+            {
+                targets.Status.IsMotionEnabled = false;
+            }
+        }
+
+        if (presentation.Mode != InspectionContentCardMode.Progress ||
+            presentation.Startup.Visibility != Visibility.Visible)
+        {
+            StartupActiveIndicatorHost.IsMotionEnabled = false;
+        }
+
+        Bindings.Update();
+
+        if (!retainsProgressOwner)
+        {
             _progressMotionTargets.Clear();
             _progressRowsByElement.Clear();
-            _progressRowsOwner = presentation.ProgressRows;
+            _progressRowsOwner =
+                presentation.Mode == InspectionContentCardMode.Progress
+                    ? presentation.ProgressRows
+                    : null;
         }
+
+        ApplyStatusGlyphMotionPolicy(presentation);
 
         if (CardVisibility == Visibility.Visible)
         {
@@ -477,7 +521,8 @@ public sealed partial class InspectionContentCard : UserControl
             element is not FrameworkElement rowElement ||
             rowElement.DataContext is InspectionContentItemPresentation dataRow &&
                 !ReferenceEquals(dataRow, rows[rowIndex]) ||
-            rowElement.FindName("ProgressStatusMotionTarget") is not UIElement status ||
+            rowElement.FindName("ProgressStatusMotionTarget") is not
+                InspectionStatusGlyph status ||
             rowElement.FindName("ProgressDetailMotionTarget") is not UIElement detail)
         {
             return;
@@ -511,8 +556,29 @@ public sealed partial class InspectionContentCard : UserControl
         }
 
         _progressRowsByElement[element] = row;
+        status.IsMotionEnabled = IsProgressGlyphMotionEnabled(Presentation);
         _progressMotionTargets[row] = new ProgressMotionTargets(status, detail);
     }
+
+    private void ApplyStatusGlyphMotionPolicy(
+        InspectionContentCardPresentation presentation)
+    {
+        bool progressMotionEnabled =
+            IsProgressGlyphMotionEnabled(presentation);
+        StartupActiveIndicatorHost.IsMotionEnabled =
+            progressMotionEnabled &&
+            presentation.Startup.Visibility == Visibility.Visible;
+        foreach (ProgressMotionTargets targets in _progressMotionTargets.Values)
+        {
+            targets.Status.IsMotionEnabled = progressMotionEnabled;
+        }
+    }
+
+    private bool IsProgressGlyphMotionEnabled(
+        InspectionContentCardPresentation presentation) =>
+        _isMotionEnabled &&
+        CardVisibility == Visibility.Visible &&
+        presentation.Mode == InspectionContentCardMode.Progress;
 
     private void ProgressItemsRepeater_ElementClearing(
         ItemsRepeater sender,
@@ -685,6 +751,6 @@ public sealed partial class InspectionContentCard : UserControl
     }
 
     private sealed record ProgressMotionTargets(
-        UIElement Status,
+        InspectionStatusGlyph Status,
         UIElement Detail);
 }

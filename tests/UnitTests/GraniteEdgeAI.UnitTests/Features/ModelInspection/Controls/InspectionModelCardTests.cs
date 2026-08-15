@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Reflection;
@@ -187,14 +188,9 @@ public sealed class InspectionModelCardTests
                     .Single(text =>
                         text.Visibility == Visibility.Visible &&
                         text.Text == "Passed");
-                Border statusIcon = Descendants(rows[index])
-                    .OfType<Border>()
-                    .Single(element =>
-                        string.Equals(
-                            element.Tag as string,
-                            "InspectionCheckStatusIcon",
-                            StringComparison.Ordinal) &&
-                        element.Visibility == Visibility.Visible);
+                InspectionStatusGlyph statusGlyph = Descendants(rows[index])
+                    .OfType<InspectionStatusGlyph>()
+                    .Single(element => element.Visibility == Visibility.Visible);
                 AutomationPeer titlePeer =
                     FrameworkElementAutomationPeer.CreatePeerForElement(title)
                     ?? new TextBlockAutomationPeer(title);
@@ -203,11 +199,19 @@ public sealed class InspectionModelCardTests
                 Assert.AreEqual(12d, detail.FontSize, 0.01);
                 Assert.AreEqual(0, detail.MaxLines);
                 Assert.AreEqual("Passed", status.Text);
-                Assert.AreSame(
-                    ThemeResource(
-                        control.ActualTheme.ToString(),
-                        "InspectionSuccessSurfaceBrush"),
-                    statusIcon.Background);
+                Assert.AreEqual(InspectionStatusGlyphKind.Success, statusGlyph.Kind);
+                Assert.AreEqual(22d, statusGlyph.SurfaceSize, 0.01d);
+                Assert.AreEqual(
+                    AccessibilityView.Raw,
+                    AutomationProperties.GetAccessibilityView(statusGlyph));
+                object successBrush = ThemeResource(
+                    control.ActualTheme.ToString(),
+                    "InspectionSuccessTextBrush");
+                Assert.IsTrue(Descendants(statusGlyph)
+                    .OfType<Shape>()
+                    .Any(shape =>
+                        ReferenceEquals(shape.Stroke, successBrush) ||
+                        ReferenceEquals(shape.Fill, successBrush)));
             }
 
             Assert.IsTrue(checksScrollViewer.IsTabStop);

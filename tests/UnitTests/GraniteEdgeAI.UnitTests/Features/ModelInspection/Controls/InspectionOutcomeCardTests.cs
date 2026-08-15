@@ -1,6 +1,8 @@
 using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -33,6 +35,9 @@ public sealed class InspectionOutcomeCardTests
             ArrangeControl(control, width: 840);
             Border card = Find<Border>(control, "OutcomeCardBorder");
             Border iconContainer = Find<Border>(control, "OutcomeIconContainer");
+            InspectionStatusGlyph glyph = Find<InspectionStatusGlyph>(
+                control,
+                "OutcomeIcon");
             TextBlock title = FindText(control, "Ready for hardware check");
             TextBlock message = FindText(
                 control,
@@ -41,6 +46,11 @@ public sealed class InspectionOutcomeCardTests
             Assert.AreEqual(82d, card.ActualHeight, 0.01, "ready banner height");
             Assert.AreEqual(40d, iconContainer.ActualWidth, 0.01, "status icon width");
             Assert.AreEqual(40d, iconContainer.ActualHeight, 0.01, "status icon height");
+            Assert.AreEqual(40d, glyph.SurfaceSize, 0.01, "glyph surface");
+            Assert.AreEqual(InspectionStatusGlyphKind.Success, glyph.Kind);
+            Assert.AreEqual(
+                AccessibilityView.Raw,
+                AutomationProperties.GetAccessibilityView(glyph));
             Assert.AreEqual(12d, card.CornerRadius.TopLeft, 0.01, "shared card radius");
             Assert.AreEqual(14d, title.FontSize, 0.01, "outcome title size");
             Assert.AreEqual(12d, message.FontSize, 0.01, "outcome helper size");
@@ -63,37 +73,43 @@ public sealed class InspectionOutcomeCardTests
         "InspectionSuccessSurfaceBrush",
         "InspectionSuccessBorderBrush",
         "InspectionSuccessTextBrush",
-        "InspectionSuccessTextStrongBrush")]
+        "InspectionSuccessTextStrongBrush",
+        (int)InspectionStatusGlyphKind.Success)]
     [DataRow(
         (int)InspectionOutcomeTone.Warning,
         "InspectionWarningSurfaceBrush",
         "InspectionWarningBorderBrush",
         "InspectionWarningAccentBrush",
-        "InspectionWarningTextStrongBrush")]
+        "InspectionWarningTextStrongBrush",
+        (int)InspectionStatusGlyphKind.Warning)]
     [DataRow(
         (int)InspectionOutcomeTone.Information,
         "InspectionBlueSurfaceBrush",
         "InspectionBlueBorderStrongBrush",
         "InspectionPrimaryBlueBrush",
-        "InspectionTextPrimaryBrush")]
+        "InspectionTextPrimaryBrush",
+        (int)InspectionStatusGlyphKind.Information)]
     [DataRow(
         (int)InspectionOutcomeTone.Error,
         "InspectionErrorSurfaceBrush",
         "InspectionErrorBorderBrush",
         "InspectionErrorTextBrush",
-        "InspectionErrorTextStrongBrush")]
+        "InspectionErrorTextStrongBrush",
+        (int)InspectionStatusGlyphKind.Error)]
     [DataRow(
         (int)InspectionOutcomeTone.Neutral,
         "InspectionSurfaceMutedBrush",
         "InspectionBorderMutedBrush",
         "InspectionTextSecondaryMutedBrush",
-        "InspectionTextPrimaryBrush")]
+        "InspectionTextPrimaryBrush",
+        (int)InspectionStatusGlyphKind.NotComplete)]
     public void EveryTone_UsesSharedSemanticResourcesAndVisibleMeaning(
         int toneValue,
         string surfaceKey,
         string borderKey,
         string iconKey,
-        string titleKey)
+        string titleKey,
+        int glyphKindValue)
     {
         InspectionOutcomeTone tone = (InspectionOutcomeTone)toneValue;
         InspectionOutcomeCard control = CreateControl(
@@ -102,16 +118,25 @@ public sealed class InspectionOutcomeCardTests
             $"{tone} status explanation");
         Border card = Find<Border>(control, "OutcomeCardBorder");
         Border iconContainer = Find<Border>(control, "OutcomeIconContainer");
-        SymbolIcon icon = Find<SymbolIcon>(control, "OutcomeIcon");
+        InspectionStatusGlyph glyph = Find<InspectionStatusGlyph>(
+            control,
+            "OutcomeIcon");
         TextBlock title = FindText(control, $"{tone} outcome");
 
         Assert.AreSame(Resource(surfaceKey), card.Background, tone.ToString());
         Assert.AreSame(Resource(borderKey), card.BorderBrush, tone.ToString());
-        Assert.AreSame(Resource(iconKey), iconContainer.Background, tone.ToString());
+        Assert.AreSame(Resource(surfaceKey), iconContainer.Background, tone.ToString());
         Assert.AreSame(Resource(iconKey), iconContainer.BorderBrush, tone.ToString());
-        Assert.AreSame(Resource("InspectionSurfaceBrush"), icon.Foreground, tone.ToString());
         Assert.AreSame(Resource(titleKey), title.Foreground, tone.ToString());
-        Assert.AreEqual(Visibility.Visible, icon.Visibility, tone.ToString());
+        Assert.AreEqual(Visibility.Visible, glyph.Visibility, tone.ToString());
+        Assert.AreEqual(
+            (InspectionStatusGlyphKind)glyphKindValue,
+            glyph.Kind,
+            tone.ToString());
+        Assert.AreEqual(40d, glyph.SurfaceSize, 0.01d, tone.ToString());
+        Assert.AreEqual(
+            AccessibilityView.Raw,
+            AutomationProperties.GetAccessibilityView(glyph));
         Assert.AreEqual($"{tone} outcome", FindText(control, $"{tone} outcome").Text);
         Assert.AreEqual(
             $"{tone} status explanation",
@@ -167,7 +192,20 @@ public sealed class InspectionOutcomeCardTests
             {
                 Kind = InspectionOutcomePresentationKind.Ready,
                 Tone = tone,
-                IconSymbol = Symbol.Accept,
+                GlyphKind = tone switch
+                {
+                    InspectionOutcomeTone.Success =>
+                        InspectionStatusGlyphKind.Success,
+                    InspectionOutcomeTone.Warning =>
+                        InspectionStatusGlyphKind.Warning,
+                    InspectionOutcomeTone.Information =>
+                        InspectionStatusGlyphKind.Information,
+                    InspectionOutcomeTone.Error =>
+                        InspectionStatusGlyphKind.Error,
+                    InspectionOutcomeTone.Neutral =>
+                        InspectionStatusGlyphKind.NotComplete,
+                    _ => throw new ArgumentOutOfRangeException(nameof(tone), tone, null)
+                },
                 Title = title,
                 Message = message,
                 AutomationName = $"{title}. {message}"

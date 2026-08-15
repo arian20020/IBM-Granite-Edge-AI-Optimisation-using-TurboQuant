@@ -156,6 +156,8 @@ public sealed partial class ModelInspectionPage : Page
     internal Action<long>? MotionSettingsChangeRevisionClaimedForTesting
         { get; set; }
 
+    internal Action? MotionSettingsChangeBeforeFlushForTesting { get; set; }
+
     internal bool MotionSettingsChangePendingForTesting =>
         IsMotionSettingsChangePending;
 
@@ -519,6 +521,13 @@ public sealed partial class ModelInspectionPage : Page
             return;
         }
 
+        bool isGlyphMotionEnabled = motionSettings.AnimationsEnabled;
+        bool isTransitionMotionEnabled = isGlyphMotionEnabled &&
+            !_isApplyingMotionSettingsChange &&
+            !IsMotionSettingsChangePending;
+        InspectionContentCardControl.SetMotionEnabled(isGlyphMotionEnabled);
+        OutgoingProgressContentCard.SetMotionEnabled(isGlyphMotionEnabled);
+
         ModelInspectionPagePresentation? previous = CurrentPresentation;
         ModelInspectionPagePresentation current = delta.Presentation;
         Interlocked.Exchange(ref _pendingSemanticFocusReclaim, null);
@@ -558,6 +567,10 @@ public sealed partial class ModelInspectionPage : Page
         if (retiresProgress)
         {
             InspectionContentCardControl.CancelProgressMotion();
+            InspectionContentCardControl.SetMotionEnabled(
+                isGlyphMotionEnabled);
+            OutgoingProgressContentCard.SetMotionEnabled(
+                isGlyphMotionEnabled);
             OutgoingProgressContentCard.Presentation =
                 InspectionContentCardControl.Presentation;
             AutomationProperties.SetAccessibilityView(
@@ -599,6 +612,10 @@ public sealed partial class ModelInspectionPage : Page
 
         if (delta.ChangedRegions.HasFlag(ModelInspectionPresentationRegions.Content))
         {
+            InspectionContentCardControl.SetMotionEnabled(
+                isGlyphMotionEnabled);
+            OutgoingProgressContentCard.SetMotionEnabled(
+                isGlyphMotionEnabled);
             InspectionContentCardControl.Presentation = current.ContentCard;
         }
 
@@ -626,10 +643,7 @@ public sealed partial class ModelInspectionPage : Page
             IsDescendantOrSelf(focusedElement, this) &&
             !IsEffectivePageFocus(focusedElement);
 
-        if (!progressChanges.IsEmpty &&
-            motionSettings.AnimationsEnabled &&
-            !_isApplyingMotionSettingsChange &&
-            !IsMotionSettingsChangePending)
+        if (!progressChanges.IsEmpty && isTransitionMotionEnabled)
         {
             InspectionContentCardControl.AnimateProgressChanges(
                 progressChanges,
@@ -652,16 +666,12 @@ public sealed partial class ModelInspectionPage : Page
             delta.VisualOperationKey,
             coordinator,
             animationDriver,
-            motionSettings.AnimationsEnabled &&
-                !_isApplyingMotionSettingsChange &&
-                !IsMotionSettingsChangePending,
+            isTransitionMotionEnabled,
             CompleteDisclosureBoundary);
 
         if (retiresProgress)
         {
-            if (motionSettings.AnimationsEnabled &&
-                !_isApplyingMotionSettingsChange &&
-                !IsMotionSettingsChangePending)
+            if (isTransitionMotionEnabled)
             {
                 long terminalLifetime = _navigationLifetime;
                 Action<ModelInspectionVisualOperationKey> completed =
@@ -1250,12 +1260,16 @@ public sealed partial class ModelInspectionPage : Page
         _isApplyingMotionSettingsChange = true;
         try
         {
+            bool isMotionEnabled = registration.Settings.AnimationsEnabled;
+            InspectionContentCardControl.SetMotionEnabled(isMotionEnabled);
+            OutgoingProgressContentCard.SetMotionEnabled(isMotionEnabled);
             milestoneSequencer.SetAnimationsEnabled(
-                registration.Settings.AnimationsEnabled);
+                isMotionEnabled);
             coordinator.InvalidateInteractions(
                 preserveDisclosureTarget: true);
             animationDriver.CancelAll();
             InspectionContentCardControl.CancelProgressMotion();
+            MotionSettingsChangeBeforeFlushForTesting?.Invoke();
             coordinator.FlushPendingRender();
             CompleteSelectedDisclosureImmediately();
             ModelInspectionPagePresentation? presentation = CurrentPresentation;
@@ -1406,6 +1420,7 @@ public sealed partial class ModelInspectionPage : Page
 
     private void RetireOutgoingProgressLayer()
     {
+        OutgoingProgressContentCard.SetMotionEnabled(false);
         OutgoingProgressContentCard.Visibility = Visibility.Collapsed;
         OutgoingProgressContentCard.Opacity = 0d;
         OutgoingProgressContentCard.Presentation =
@@ -1474,6 +1489,14 @@ public sealed partial class ModelInspectionPage : Page
             AttemptCleanup(CompleteDisclosureOperationAudit, ref error);
             AttemptCleanup(
                 InspectionContentCardControl.CancelProgressMotion,
+                ref error);
+            AttemptCleanup(
+                () => InspectionContentCardControl.SetMotionEnabled(
+                    false),
+                ref error);
+            AttemptCleanup(
+                () => OutgoingProgressContentCard.SetMotionEnabled(
+                    false),
                 ref error);
             AttemptCleanup(() => retiredDriver?.CancelAll(), ref error);
             AttemptCleanup(() => retiredDriver?.Dispose(), ref error);

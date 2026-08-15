@@ -1343,6 +1343,33 @@ public sealed class ModelInspectionPageNavigationTests
         dispatcher.RunAll();
         var content = (InspectionContentCard)page.FindName(
             "InspectionContentCardControl");
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        bool livePolicyPrecededActivePresentation = false;
+        bool outgoingPolicyPrecededActivePresentation = false;
+        long livePresentationToken = content.RegisterPropertyChangedCallback(
+            InspectionContentCard.PresentationProperty,
+            (sender, _) =>
+            {
+                var card = (InspectionContentCard)sender;
+                if (card.Presentation.Items.Any(item => item.IsActive))
+                {
+                    livePolicyPrecededActivePresentation =
+                        card.IsMotionEnabled;
+                }
+            });
+        long outgoingPresentationToken =
+            outgoing.RegisterPropertyChangedCallback(
+                InspectionContentCard.PresentationProperty,
+                (sender, _) =>
+                {
+                    var card = (InspectionContentCard)sender;
+                    if (card.Presentation.Items.Any(item => item.IsActive))
+                    {
+                        outgoingPolicyPrecededActivePresentation =
+                            card.IsMotionEnabled;
+                    }
+                });
         InspectionContentCardPresentation progressPresentation =
             content.Presentation;
         InspectionProgressRows owner = progressPresentation.ProgressRows;
@@ -1360,14 +1387,16 @@ public sealed class ModelInspectionPageNavigationTests
             rowReferences,
             owner.Items.Cast<object>().ToArray());
         Assert.AreEqual(InspectionContentStatus.Active, owner.Items[0].Status);
+        Assert.IsTrue(livePolicyPrecededActivePresentation);
+        Assert.IsTrue(content.IsMotionEnabled);
 
         call.Complete(CreateFailureResult("terminal-retained"));
         await run;
         dispatcher.RunAll();
 
-        var outgoing = (InspectionContentCard)page.FindName(
-            "OutgoingProgressContentCard");
         Assert.AreSame(progressPresentation, outgoing.Presentation);
+        Assert.IsTrue(outgoingPolicyPrecededActivePresentation);
+        Assert.IsTrue(outgoing.IsMotionEnabled);
         Assert.AreEqual(Visibility.Visible, outgoing.Visibility);
         Assert.IsFalse(outgoing.IsHitTestVisible);
         Assert.AreEqual(
@@ -1383,6 +1412,13 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.AreEqual(
             InspectionContentCardMode.Hidden,
             outgoing.Presentation.Mode);
+        Assert.IsFalse(outgoing.IsMotionEnabled);
+        content.UnregisterPropertyChangedCallback(
+            InspectionContentCard.PresentationProperty,
+            livePresentationToken);
+        outgoing.UnregisterPropertyChangedCallback(
+            InspectionContentCard.PresentationProperty,
+            outgoingPresentationToken);
     }
 
     [UITestMethod]
@@ -1651,6 +1687,18 @@ public sealed class ModelInspectionPageNavigationTests
         Task run = page.StartInspectionIfReadyAsync()!;
         dispatcher.RunAll();
 
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        var startupGlyph = (InspectionStatusGlyph)content.FindName(
+            "StartupActiveIndicatorHost");
+        Assert.AreEqual(InspectionStatusGlyphKind.Active, startupGlyph.Kind);
+        Assert.IsFalse(content.IsMotionEnabled);
+        Assert.IsFalse(outgoing.IsMotionEnabled);
+        Assert.IsFalse(startupGlyph.IsMotionEnabled);
+        Assert.IsFalse(startupGlyph.IsPrecisionOrbitRunning);
+
         call.Complete(CreateFailureResult("reduced"));
         await run;
         dispatcher.RunAll();
@@ -1659,9 +1707,8 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.AreEqual(
             InspectionOutcomePresentationKind.OperationalFailure,
             page.CurrentPresentation!.OutcomeCard.Kind);
-        var outgoing = (InspectionContentCard)page.FindName(
-            "OutgoingProgressContentCard");
         Assert.AreEqual(Visibility.Collapsed, outgoing.Visibility);
+        Assert.IsFalse(outgoing.IsMotionEnabled);
     }
 
     [UITestMethod]
@@ -2230,6 +2277,23 @@ public sealed class ModelInspectionPageNavigationTests
         dispatcher.RunAll();
         await run;
         dispatcher.RunAll();
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        var outgoing = (InspectionContentCard)page.FindName(
+            "OutgoingProgressContentCard");
+        var outgoingActiveGlyph = (InspectionStatusGlyph)outgoing.FindName(
+            "StartupActiveIndicatorHost");
+        Assert.IsTrue(content.IsMotionEnabled);
+        Assert.IsTrue(outgoing.IsMotionEnabled);
+        Assert.IsTrue(outgoingActiveGlyph.IsMotionEnabled);
+        bool stoppedBeforeFlush = false;
+        page.MotionSettingsChangeBeforeFlushForTesting = () =>
+        {
+            stoppedBeforeFlush =
+                !content.IsMotionEnabled &&
+                !outgoing.IsMotionEnabled &&
+                !outgoingActiveGlyph.IsMotionEnabled;
+        };
         InspectionDisclosure disclosure = ((InspectionModelCard)page.FindName(
             "InspectionModelCardControl")).ActiveDisclosure!;
 
@@ -2238,10 +2302,22 @@ public sealed class ModelInspectionPageNavigationTests
         dispatcher.RunAll();
 
         Assert.AreEqual(0, driver.DisclosureStarts.Count);
+        Assert.IsTrue(stoppedBeforeFlush);
+        Assert.IsFalse(content.IsMotionEnabled);
+        Assert.IsFalse(outgoing.IsMotionEnabled);
+        Assert.IsFalse(outgoingActiveGlyph.IsMotionEnabled);
+        Assert.IsFalse(outgoingActiveGlyph.IsPrecisionOrbitRunning);
         Assert.IsTrue(disclosure.IsExpanded);
         Assert.AreEqual(
             ModelInspectionFigmaState.ReadyExpanded,
             page.CurrentPresentation!.State);
+
+        page.MotionSettingsChangeBeforeFlushForTesting = null;
+        settings.SetAnimationsEnabled(value: true);
+        dispatcher.RunAll();
+        Assert.IsTrue(
+            content.IsMotionEnabled,
+            "Re-enabling the policy must restore a live card's Active glyph opt-in.");
     }
 
     [UITestMethod]

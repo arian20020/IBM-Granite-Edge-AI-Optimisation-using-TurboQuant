@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.Features.Onboarding.Controls;
+using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
@@ -26,14 +27,23 @@ public sealed class OnboardingStageIndicatorTests
         "OnboardingIndicatorSecondaryTextBrush";
     private const string MutedTextBrushKey =
         "OnboardingIndicatorMutedTextBrush";
+    private const string SuccessSurfaceBrushKey =
+        "OnboardingIndicatorSuccessSurfaceBrush";
+    private const string SuccessBorderBrushKey =
+        "OnboardingIndicatorSuccessBorderBrush";
+    private const string NotCompleteSurfaceBrushKey =
+        "OnboardingIndicatorNotCompleteSurfaceBrush";
+    private const string NotCompleteBorderBrushKey =
+        "OnboardingIndicatorNotCompleteBorderBrush";
+    private const string ErrorBrushKey = "OnboardingIndicatorErrorBrush";
 
     private static readonly StepElementNames[] Steps =
     [
-        new("ChooseModelStepBox", "ChooseModelStepValue", "ChooseModelStepLabel", "Choose model"),
-        new("InspectModelStepBox", "InspectModelStepValue", "InspectModelStepLabel", "Inspect model"),
-        new("CheckFitStepBox", "CheckFitStepValue", "CheckFitStepLabel", "Check hardware fit"),
-        new("ConfigureModelStepBox", "ConfigureModelStepValue", "ConfigureModelStepLabel", "Configure model"),
-        new("ReadyToChatStepBox", "ReadyToChatStepValue", "ReadyToChatStepLabel", "Ready to chat")
+        new("ChooseModelStepBox", "ChooseModelStepValue", "ChooseModelStepGlyph", "ChooseModelStepLabel", "Choose model"),
+        new("InspectModelStepBox", "InspectModelStepValue", "InspectModelStepGlyph", "InspectModelStepLabel", "Inspect model"),
+        new("CheckFitStepBox", "CheckFitStepValue", "CheckFitStepGlyph", "CheckFitStepLabel", "Check hardware fit"),
+        new("ConfigureModelStepBox", "ConfigureModelStepValue", "ConfigureModelStepGlyph", "ConfigureModelStepLabel", "Configure model"),
+        new("ReadyToChatStepBox", "ReadyToChatStepValue", "ReadyToChatStepGlyph", "ReadyToChatStepLabel", "Ready to chat")
     ];
 
     private static readonly string[] ConnectorScaleNames =
@@ -127,10 +137,10 @@ public sealed class OnboardingStageIndicatorTests
         StageExpectation[] expectations =
         [
             new(OnboardingStage.ImportModel, ["1", "2", "3", "4", "5"], [0, 0, 0, 0], "Choose model"),
-            new(OnboardingStage.InspectModel, ["✓", "2", "3", "4", "5"], [1, 0, 0, 0], "Inspect model"),
-            new(OnboardingStage.CheckHardwareFit, ["✓", "✓", "3", "4", "5"], [1, 1, 0, 0], "Check hardware fit"),
-            new(OnboardingStage.ConfigureModel, ["✓", "✓", "✓", "4", "5"], [1, 1, 1, 0], "Configure model"),
-            new(OnboardingStage.ReadyToChat, ["✓", "✓", "✓", "✓", "5"], [1, 1, 1, 1], "Ready to chat")
+            new(OnboardingStage.InspectModel, [null, "2", "3", "4", "5"], [1, 0, 0, 0], "Inspect model"),
+            new(OnboardingStage.CheckHardwareFit, [null, null, "3", "4", "5"], [1, 1, 0, 0], "Check hardware fit"),
+            new(OnboardingStage.ConfigureModel, [null, null, null, "4", "5"], [1, 1, 1, 0], "Configure model"),
+            new(OnboardingStage.ReadyToChat, [null, null, null, null, "5"], [1, 1, 1, 1], "Ready to chat")
         ];
 
         foreach (StageExpectation expectation in expectations)
@@ -160,7 +170,7 @@ public sealed class OnboardingStageIndicatorTests
         AssertProgress(
             indicator,
             OnboardingStage.InspectModel,
-            ["✓", "2", "3", "4", "5"],
+            [null, "2", "3", "4", "5"],
             [1, 0, 0, 0],
             "Inspect model");
     }
@@ -189,7 +199,7 @@ public sealed class OnboardingStageIndicatorTests
                 AssertProgress(
                     indicator,
                     OnboardingStage.CheckHardwareFit,
-                    ["\u2713", "\u2713", "3", "4", "5"],
+                    [null, null, "3", "4", "5"],
                     [1, 1, 0, 0],
                     "Check hardware fit");
             }
@@ -220,13 +230,14 @@ public sealed class OnboardingStageIndicatorTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    [DataRow((int)InspectionFooterStatus.InProgress, "2", "IN PROGRESS", "Inspection in progress")]
-    [DataRow((int)InspectionFooterStatus.Complete, "\u2713", "COMPLETE", "Inspection complete")]
-    [DataRow((int)InspectionFooterStatus.NotComplete, "\u2016", "NOT COMPLETE", "Inspection not complete")]
-    [DataRow((int)InspectionFooterStatus.Interrupted, "\u2715", "INTERRUPTED", "Inspection interrupted")]
+    [DataRow((int)InspectionFooterStatus.InProgress, true, (int)InspectionStatusGlyphKind.Success, "IN PROGRESS", "Inspection in progress")]
+    [DataRow((int)InspectionFooterStatus.Complete, false, (int)InspectionStatusGlyphKind.Success, "COMPLETE", "Inspection complete")]
+    [DataRow((int)InspectionFooterStatus.NotComplete, false, (int)InspectionStatusGlyphKind.NotComplete, "NOT COMPLETE", "Inspection not complete")]
+    [DataRow((int)InspectionFooterStatus.Interrupted, false, (int)InspectionStatusGlyphKind.Error, "INTERRUPTED", "Inspection interrupted")]
     public void InspectionStatus_MapsAllFourNonNavigatingStates(
         int statusValue,
-        string expectedGlyph,
+        bool showsStepNumber,
+        int glyphKindValue,
         string expectedEyebrowStatus,
         string expectedAutomationStatus)
     {
@@ -239,9 +250,40 @@ public sealed class OnboardingStageIndicatorTests
         indicator.InspectionStatus = (InspectionFooterStatus)statusValue;
 
         Assert.AreEqual(OnboardingStage.InspectModel, indicator.CurrentStage);
+        TextBlock stepValue = GetTextBlock(indicator, "InspectModelStepValue");
+        InspectionStatusGlyph statusGlyph = GetGlyph(
+            indicator,
+            "InspectModelStepGlyph");
+        Assert.AreEqual("2", stepValue.Text);
         Assert.AreEqual(
-            expectedGlyph,
-            GetTextBlock(indicator, "InspectModelStepValue").Text);
+            showsStepNumber ? Visibility.Visible : Visibility.Collapsed,
+            stepValue.Visibility);
+        Assert.AreEqual(
+            showsStepNumber ? Visibility.Collapsed : Visibility.Visible,
+            statusGlyph.Visibility);
+        Assert.AreEqual(
+            (InspectionStatusGlyphKind)glyphKindValue,
+            statusGlyph.Kind);
+        Assert.AreEqual(36d, statusGlyph.SurfaceSize, 0.01d);
+        Assert.AreEqual(
+            AccessibilityView.Raw,
+            AutomationProperties.GetAccessibilityView(statusGlyph));
+        Border statusBox = GetBorder(indicator, "InspectModelStepBox");
+        (string backgroundKey, string borderKey) =
+            (InspectionFooterStatus)statusValue switch
+            {
+                InspectionFooterStatus.InProgress =>
+                    (ActiveBrushKey, ActiveBrushKey),
+                InspectionFooterStatus.Complete =>
+                    (SuccessSurfaceBrushKey, SuccessBorderBrushKey),
+                InspectionFooterStatus.NotComplete =>
+                    (NotCompleteSurfaceBrushKey, NotCompleteBorderBrushKey),
+                InspectionFooterStatus.Interrupted =>
+                    (SurfaceBrushKey, ErrorBrushKey),
+                _ => throw new ArgumentOutOfRangeException(nameof(statusValue))
+            };
+        Assert.AreSame(GetBrush(indicator, backgroundKey), statusBox.Background);
+        Assert.AreSame(GetBrush(indicator, borderKey), statusBox.BorderBrush);
         Assert.IsTrue(
             GetTextBlock(indicator, "StageEyebrowText").Text.EndsWith(
                 expectedEyebrowStatus,
@@ -266,12 +308,25 @@ public sealed class OnboardingStageIndicatorTests
 
         Assert.AreEqual("1", GetTextBlock(indicator, "ChooseModelStepValue").Text);
         Assert.AreEqual("2", GetTextBlock(indicator, "InspectModelStepValue").Text);
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetGlyph(indicator, "InspectModelStepGlyph").Visibility);
 
         indicator.CurrentStage = OnboardingStage.InspectModel;
-        Assert.AreEqual("\u2715", GetTextBlock(indicator, "InspectModelStepValue").Text);
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetTextBlock(indicator, "InspectModelStepValue").Visibility);
+        Assert.AreEqual(
+            InspectionStatusGlyphKind.Error,
+            GetGlyph(indicator, "InspectModelStepGlyph").Kind);
+        Assert.AreEqual(
+            Visibility.Visible,
+            GetGlyph(indicator, "InspectModelStepGlyph").Visibility);
 
         indicator.CurrentStage = OnboardingStage.CheckHardwareFit;
-        Assert.AreEqual("\u2713", GetTextBlock(indicator, "InspectModelStepValue").Text);
+        Assert.AreEqual(
+            InspectionStatusGlyphKind.Success,
+            GetGlyph(indicator, "InspectModelStepGlyph").Kind);
         Assert.AreEqual(
             "Model setup progress. Step 3 of 5: Check hardware fit.",
             AutomationProperties.GetName(indicator));
@@ -280,7 +335,7 @@ public sealed class OnboardingStageIndicatorTests
     private static void AssertProgress(
         OnboardingStageIndicator indicator,
         OnboardingStage expectedStage,
-        string[] expectedValues,
+        string?[] expectedValues,
         int[] expectedConnectorScales,
         string expectedDisplayName)
     {
@@ -301,6 +356,12 @@ public sealed class OnboardingStageIndicatorTests
             indicator,
             SecondaryTextBrushKey);
         SolidColorBrush mutedTextBrush = GetBrush(indicator, MutedTextBrushKey);
+        SolidColorBrush successSurfaceBrush = GetBrush(
+            indicator,
+            SuccessSurfaceBrushKey);
+        SolidColorBrush successBorderBrush = GetBrush(
+            indicator,
+            SuccessBorderBrushKey);
 
         for (int index = 0; index < Steps.Length; index++)
         {
@@ -308,20 +369,35 @@ public sealed class OnboardingStageIndicatorTests
             int stepNumber = index + 1;
             Border stepBox = GetBorder(indicator, step.BoxName);
             TextBlock stepValue = GetTextBlock(indicator, step.ValueName);
+            InspectionStatusGlyph stepGlyph = GetGlyph(
+                indicator,
+                step.GlyphName);
             TextBlock stepLabel = GetTextBlock(indicator, step.LabelName);
 
-            Assert.AreEqual(expectedValues[index], stepValue.Text);
+            Assert.AreEqual(stepNumber.ToString(), stepValue.Text);
 
             if (stepNumber < currentStepNumber)
             {
-                Assert.AreSame(activeBrush, stepBox.Background);
-                Assert.AreSame(activeBrush, stepBox.BorderBrush);
-                Assert.AreSame(surfaceBrush, stepValue.Foreground);
+                Assert.IsNull(expectedValues[index]);
+                Assert.AreEqual(Visibility.Collapsed, stepValue.Visibility);
+                Assert.AreEqual(Visibility.Visible, stepGlyph.Visibility);
+                Assert.AreEqual(
+                    InspectionStatusGlyphKind.Success,
+                    stepGlyph.Kind);
+                Assert.AreEqual(36d, stepGlyph.SurfaceSize, 0.01d);
+                Assert.AreEqual(
+                    AccessibilityView.Raw,
+                    AutomationProperties.GetAccessibilityView(stepGlyph));
+                Assert.AreSame(successSurfaceBrush, stepBox.Background);
+                Assert.AreSame(successBorderBrush, stepBox.BorderBrush);
                 Assert.AreSame(activeBrush, stepLabel.Foreground);
                 Assert.AreEqual(FontWeights.SemiBold, stepLabel.FontWeight);
             }
             else if (stepNumber == currentStepNumber)
             {
+                Assert.AreEqual(expectedValues[index], stepValue.Text);
+                Assert.AreEqual(Visibility.Visible, stepValue.Visibility);
+                Assert.AreEqual(Visibility.Collapsed, stepGlyph.Visibility);
                 Assert.AreSame(activeBrush, stepBox.Background);
                 Assert.AreSame(activeBrush, stepBox.BorderBrush);
                 Assert.AreSame(surfaceBrush, stepValue.Foreground);
@@ -330,6 +406,9 @@ public sealed class OnboardingStageIndicatorTests
             }
             else
             {
+                Assert.AreEqual(expectedValues[index], stepValue.Text);
+                Assert.AreEqual(Visibility.Visible, stepValue.Visibility);
+                Assert.AreEqual(Visibility.Collapsed, stepGlyph.Visibility);
                 Assert.AreSame(inactiveSurfaceBrush, stepBox.Background);
                 Assert.AreSame(inactiveBorderBrush, stepBox.BorderBrush);
                 Assert.AreSame(mutedTextBrush, stepValue.Foreground);
@@ -373,6 +452,13 @@ public sealed class OnboardingStageIndicatorTests
         return (TextBlock)indicator.FindName(elementName);
     }
 
+    private static InspectionStatusGlyph GetGlyph(
+        OnboardingStageIndicator indicator,
+        string elementName)
+    {
+        return (InspectionStatusGlyph)indicator.FindName(elementName);
+    }
+
     private static ScaleTransform GetScaleTransform(
         OnboardingStageIndicator indicator,
         string elementName)
@@ -390,12 +476,13 @@ public sealed class OnboardingStageIndicatorTests
     private sealed record StepElementNames(
         string BoxName,
         string ValueName,
+        string GlyphName,
         string LabelName,
         string Label);
 
     private sealed record StageExpectation(
         OnboardingStage Stage,
-        string[] Values,
+        string?[] Values,
         int[] ConnectorScales,
         string DisplayName);
 }

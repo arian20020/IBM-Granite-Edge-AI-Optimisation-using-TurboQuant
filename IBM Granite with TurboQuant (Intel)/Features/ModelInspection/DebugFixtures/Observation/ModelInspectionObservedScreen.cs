@@ -1,4 +1,5 @@
 #if MODEL_INSPECTION_FIXTURE_GALLERY
+using GraniteEdgeAI.Features.ModelInspection.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -111,7 +112,8 @@ internal sealed record ModelInspectionObservedMetadataField(
 internal sealed record ModelInspectionObservedCheckRow(
     string Id,
     string Text,
-    string Status);
+    string Status,
+    InspectionStatusGlyphKind? GlyphKind = null);
 
 internal sealed record ModelInspectionObservedContent
 {
@@ -128,7 +130,8 @@ internal sealed record ModelInspectionObservedContentRow(
     string PrimaryText,
     string? SecondaryText,
     string Status,
-    double? StageFraction = null);
+    double? StageFraction = null,
+    InspectionStatusGlyphKind? GlyphKind = null);
 
 internal sealed record ModelInspectionObservedActions
 {

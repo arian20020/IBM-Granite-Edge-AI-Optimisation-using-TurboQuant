@@ -54,6 +54,8 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/Inspection
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionModelCard.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/IModelInspectionFixturePackageResourceReader.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Gallery/ModelInspectionFixtureGalleryPage.xaml
@@ -101,6 +103,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOu
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomePresentationKind.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionOutcomeTone.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionStartupPresentation.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/InspectionStatusGlyphKind.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Models/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherModelInspectionStartupPresentationBarrier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherQueueModelInspectionMilestoneScheduler.cs
@@ -478,6 +481,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/Inspec
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionDisclosureTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionModelCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionOutcomeCardTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionStatusGlyphTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionVisualStateGuardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/ModelInspectionDisclosureTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/DebugFixtures/DebugModelInspectionServiceTests.cs

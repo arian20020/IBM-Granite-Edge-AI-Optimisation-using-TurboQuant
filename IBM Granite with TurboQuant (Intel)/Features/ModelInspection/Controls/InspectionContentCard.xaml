@@ -47,29 +47,10 @@
         </Style>
 
         <DataTemplate x:Key="StatusMarkerTemplate" x:DataType="models:InspectionContentItemPresentation">
-            <Grid Width="22" Height="22" AutomationProperties.AccessibilityView="Raw">
-                <Border Background="{ThemeResource InspectionSuccessSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionSuccessTextBrush}" Symbol="Accept" />
-                </Border>
-                <Border Background="{ThemeResource InspectionWarningSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetWarningVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionWarningTextBrush}" Symbol="Important" />
-                </Border>
-                <Border Background="{ThemeResource InspectionErrorSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetErrorVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionErrorTextBrush}" Symbol="Cancel" />
-                </Border>
-                <Border Background="{ThemeResource InspectionBlueSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetInformationVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Symbol="Help" />
-                </Border>
-                <Border Background="{ThemeResource InspectionBlueSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Symbol="Clock" />
-                </Border>
-                <Border Background="{ThemeResource InspectionSurfaceMutedBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}" Symbol="Clock" />
-                </Border>
-                <Border Background="{ThemeResource InspectionSurfaceMutedBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetNeutralVisibility(Status)}">
-                    <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}" Symbol="Help" />
-                </Border>
-            </Grid>
+            <local:InspectionStatusGlyph
+                Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Status)}"
+                SurfaceSize="22"
+                Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Status)}" />
         </DataTemplate>
 
         <DataTemplate x:Key="FindingRowTemplate" x:DataType="models:InspectionContentItemPresentation">
@@ -200,43 +181,15 @@
                     AutomationProperties.AccessibilityView="Raw"
                     Fill="{ThemeResource InspectionBorderLightBrush}"
                     Visibility="{x:Bind local:InspectionContentCard.GetConnectorVisibility(ShowConnector)}" />
-                <Border
+                <local:InspectionStatusGlyph
                     x:Name="ProgressStatusMotionTarget"
                     Grid.Column="0"
-                    Width="30"
-                    Height="30"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"
-                    AutomationProperties.AccessibilityView="Raw"
-                    Background="{ThemeResource InspectionSurfaceMutedBrush}"
-                    BorderBrush="{ThemeResource InspectionBorderStrongBrush}"
-                    BorderThickness="1"
-                    CornerRadius="15">
-                    <Grid>
-                        <ContentPresenter
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Content="{x:Bind}"
-                            ContentTemplate="{StaticResource StatusMarkerTemplate}"
-                            Visibility="{x:Bind local:InspectionContentCard.GetTerminalMarkerVisibility(Status), Mode=OneWay}" />
-                        <ProgressRing
-                            Width="17"
-                            Height="17"
-                            Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
-                            IsActive="{x:Bind IsActive, Mode=OneWay}"
-                            IsIndeterminate="True"
-                            Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status), Mode=OneWay}" />
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            FontFamily="{StaticResource InspectionLabelFontFamily}"
-                            FontSize="{ThemeResource InspectionHelperFontSize}"
-                            FontWeight="{StaticResource InspectionLabelFontWeight}"
-                            Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
-                            Text="{x:Bind StageNumber}"
-                            Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status), Mode=OneWay}" />
-                    </Grid>
-                </Border>
+                    Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Status), Mode=OneWay}"
+                    StageNumber="{x:Bind StageNumber, Mode=OneWay}"
+                    SurfaceSize="30"
+                    Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Status), Mode=OneWay}" />
                 <StackPanel Grid.Column="1" MinWidth="0" Margin="0,1,0,10" Spacing="4">
                     <TextBlock Style="{StaticResource ContentPrimaryTextStyle}" Text="{x:Bind Title}" />
                     <TextBlock
@@ -317,22 +270,12 @@
                             <ColumnDefinition Width="40" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Grid
+                        <local:InspectionStatusGlyph
                             x:Name="StartupActiveIndicatorHost"
-                            Width="30"
-                            Height="30"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Center"
-                            AutomationProperties.AccessibilityView="Raw">
-                            <ProgressRing
-                                Width="22"
-                                Height="22"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Foreground="{ThemeResource InspectionPrimaryBlueBrush}"
-                                IsActive="True"
-                                IsIndeterminate="True" />
-                        </Grid>
+                            Kind="Active"
+                            SurfaceSize="30" />
                         <TextBlock
                             Grid.Column="1"
                             VerticalAlignment="Center"
@@ -435,21 +378,15 @@
                         <local:InspectionDisclosure.HeaderContent>
                             <Grid Padding="23,0,0,0" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="30" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Grid Width="22" Height="22" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
-                                    <Border Background="{ThemeResource InspectionWarningSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetWarningVisibility(Presentation.DisclosureStatus), Mode=OneWay}">
-                                        <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionWarningTextBrush}" Symbol="Important" />
-                                    </Border>
-                                    <Border Background="{ThemeResource InspectionErrorSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetErrorVisibility(Presentation.DisclosureStatus), Mode=OneWay}">
-                                        <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionErrorTextBrush}" Symbol="Cancel" />
-                                    </Border>
-                                    <Border Background="{ThemeResource InspectionBlueSurfaceBrush}" CornerRadius="11" Visibility="{x:Bind local:InspectionContentCard.GetInformationVisibility(Presentation.DisclosureStatus), Mode=OneWay}">
-                                        <SymbolIcon Width="12" Height="12" Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Symbol="Help" />
-                                    </Border>
-                                </Grid>
+                                <local:InspectionStatusGlyph
+                                    VerticalAlignment="Center"
+                                    Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Presentation.DisclosureStatus), Mode=OneWay}"
+                                    SurfaceSize="30"
+                                    Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Presentation.DisclosureStatus), Mode=OneWay}" />
                                 <TextBlock
                                     Grid.Column="1"
                                     VerticalAlignment="Center"

@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Observation;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets;
 using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
+using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -858,7 +859,7 @@ public sealed class ModelInspectionFixturePresetTests
 
             var outcome = (InspectionOutcomeCard)page.FindName(
                 "InspectionOutcomeCardControl");
-            var icon = (SymbolIcon)outcome.FindName("OutcomeIcon");
+            var icon = (InspectionStatusGlyph)outcome.FindName("OutcomeIcon");
             var container = (Border)outcome.FindName("OutcomeIconContainer");
             Assert.AreEqual(40d, container.ActualWidth, 1d,
                 "OutcomeIconContainer width");
@@ -1223,11 +1224,13 @@ public sealed class ModelInspectionFixturePresetTests
                 text.Text.StartsWith("GGUF version 3;", StringComparison.Ordinal));
             Border packageRow = Ancestor<Border>(packageText);
             Assert.AreEqual("InspectionCheckRow", packageRow.Tag);
-            SymbolIcon statusIcon = Descendants<SymbolIcon>(packageRow)
+            InspectionStatusGlyph statusIcon =
+                Descendants<InspectionStatusGlyph>(packageRow)
                 .Single(IsEffectivelyVisibleForClippingDiagnostic);
             Assert.AreEqual(
-                "InspectionCheckStatusIcon",
-                Ancestor<Border>(statusIcon).Tag);
+                InspectionStatusGlyphKind.Success,
+                statusIcon.Kind);
+            Assert.AreEqual(22d, statusIcon.SurfaceSize, 0.01d);
             Assert.IsTrue(packageRow.IsLoaded);
             Assert.IsGreaterThan(1d, packageRow.ActualWidth);
             Assert.IsGreaterThan(1d, packageRow.ActualHeight);
@@ -1289,9 +1292,9 @@ public sealed class ModelInspectionFixturePresetTests
                 Assert.IsGreaterThan(1d, statusIcon.ActualHeight);
                 Assert.IsGreaterThan(1d, iconBounds.Width);
                 Assert.IsGreaterThan(1d, iconBounds.Height);
-                Assert.IsTrue(iconBounds.X >= 0d,
-                    "The semantic status icon's leading edge must remain " +
-                    "inside the reachable horizontal extent.");
+                Assert.IsTrue(iconBounds.X < 0d,
+                    "The semantic status glyph must follow its translated " +
+                    "required row beyond the reachable leading edge.");
                 Assert.IsTrue(
                     iconBounds.X + iconBounds.Width <=
                         pageScroll.ExtentWidth,
@@ -1575,7 +1578,8 @@ public sealed class ModelInspectionFixturePresetTests
             ModelInspectionPage page = host.ModelInspectionPage!;
             TextBlock[] realizedText = Descendants<TextBlock>(page)
                 .Where(text => text.Visibility == Visibility.Visible &&
-                    text.ActualWidth > 0 && text.ActualHeight > 0)
+                    text.ActualWidth > 0 && text.ActualHeight > 0 &&
+                    !HasAncestor<InspectionStatusGlyph>(text))
                 .ToArray();
             TextBlock pageTitle = (TextBlock)page.FindName("PageTitle");
             var content = (InspectionContentCard)page.FindName(
@@ -2392,6 +2396,23 @@ public sealed class ModelInspectionFixturePresetTests
 
         throw new InvalidOperationException(
             $"No {typeof(T).Name} ancestor was found.");
+    }
+
+    private static bool HasAncestor<T>(DependencyObject element)
+        where T : DependencyObject
+    {
+        DependencyObject? current = VisualTreeHelper.GetParent(element);
+        while (current is not null)
+        {
+            if (current is T)
+            {
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
     }
 
     private static string Pair(

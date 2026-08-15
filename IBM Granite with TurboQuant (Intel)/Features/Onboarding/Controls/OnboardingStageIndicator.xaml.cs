@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
 using GraniteEdgeAI.Features.Onboarding;
+using GraniteEdgeAI.Features.ModelInspection.Controls;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 
 
@@ -43,6 +44,18 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
 
         private const string ErrorBrushKey =
             "OnboardingIndicatorErrorBrush";
+
+        private const string SuccessSurfaceBrushKey =
+            "OnboardingIndicatorSuccessSurfaceBrush";
+
+        private const string SuccessBorderBrushKey =
+            "OnboardingIndicatorSuccessBorderBrush";
+
+        private const string NotCompleteSurfaceBrushKey =
+            "OnboardingIndicatorNotCompleteSurfaceBrush";
+
+        private const string NotCompleteBorderBrushKey =
+            "OnboardingIndicatorNotCompleteBorderBrush";
 
         /// <summary>
         /// Identifies the dependency property used by the CurrentStage property.
@@ -245,6 +258,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             ApplyStepState(
                 ChooseModelStepBox,
                 ChooseModelStepValue,
+                ChooseModelStepGlyph,
                 ChooseModelStepLabel,
                 stepNumber: 1,
                 currentStepNumber);
@@ -252,6 +266,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             ApplyStepState(
                 InspectModelStepBox,
                 InspectModelStepValue,
+                InspectModelStepGlyph,
                 InspectModelStepLabel,
                 stepNumber: 2,
                 currentStepNumber);
@@ -259,6 +274,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             ApplyStepState(
                 CheckFitStepBox,
                 CheckFitStepValue,
+                CheckFitStepGlyph,
                 CheckFitStepLabel,
                 stepNumber: 3,
                 currentStepNumber);
@@ -266,6 +282,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             ApplyStepState(
                 ConfigureModelStepBox,
                 ConfigureModelStepValue,
+                ConfigureModelStepGlyph,
                 ConfigureModelStepLabel,
                 stepNumber: 4,
                 currentStepNumber);
@@ -273,6 +290,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             ApplyStepState(
                 ReadyToChatStepBox,
                 ReadyToChatStepValue,
+                ReadyToChatStepGlyph,
                 ReadyToChatStepLabel,
                 stepNumber: 5,
                 currentStepNumber);
@@ -317,6 +335,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                     ApplyActiveState(
                         InspectModelStepBox,
                         InspectModelStepValue,
+                        InspectModelStepGlyph,
                         InspectModelStepLabel,
                         stepNumber: 2);
                     eyebrowStatus = "IN PROGRESS";
@@ -327,6 +346,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                     ApplyCompletedState(
                         InspectModelStepBox,
                         InspectModelStepValue,
+                        InspectModelStepGlyph,
                         InspectModelStepLabel);
                     eyebrowStatus = "COMPLETE";
                     automationStatus = "Inspection complete";
@@ -336,9 +356,17 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                     ApplyFutureState(
                         InspectModelStepBox,
                         InspectModelStepValue,
+                        InspectModelStepGlyph,
                         InspectModelStepLabel,
                         stepNumber: 2);
-                    InspectModelStepValue.Text = "\u2016";
+                    InspectModelStepBox.Background =
+                        GetBrush(NotCompleteSurfaceBrushKey);
+                    InspectModelStepBox.BorderBrush =
+                        GetBrush(NotCompleteBorderBrushKey);
+                    InspectModelStepValue.Visibility = Visibility.Collapsed;
+                    InspectModelStepGlyph.Kind =
+                        InspectionStatusGlyphKind.NotComplete;
+                    InspectModelStepGlyph.Visibility = Visibility.Visible;
                     InspectModelStepLabel.FontWeight = FontWeights.SemiBold;
                     eyebrowStatus = "NOT COMPLETE";
                     automationStatus = "Inspection not complete";
@@ -348,8 +376,9 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                     SolidColorBrush error = GetBrush(ErrorBrushKey);
                     InspectModelStepBox.Background = GetBrush(SurfaceBrushKey);
                     InspectModelStepBox.BorderBrush = error;
-                    InspectModelStepValue.Text = "\u2715";
-                    InspectModelStepValue.Foreground = error;
+                    InspectModelStepValue.Visibility = Visibility.Collapsed;
+                    InspectModelStepGlyph.Kind = InspectionStatusGlyphKind.Error;
+                    InspectModelStepGlyph.Visibility = Visibility.Visible;
                     InspectModelStepLabel.Foreground = error;
                     InspectModelStepLabel.FontWeight = FontWeights.SemiBold;
                     eyebrowStatus = "INTERRUPTED";
@@ -386,6 +415,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         private void ApplyStepState(
             Border stepBox,
             TextBlock stepValue,
+            InspectionStatusGlyph stepGlyph,
             TextBlock stepLabel,
             int stepNumber,
             int currentStepNumber)
@@ -395,6 +425,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                 ApplyCompletedState(
                     stepBox,
                     stepValue,
+                    stepGlyph,
                     stepLabel);
 
                 return;
@@ -405,6 +436,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
                 ApplyActiveState(
                     stepBox,
                     stepValue,
+                    stepGlyph,
                     stepLabel,
                     stepNumber);
 
@@ -414,24 +446,26 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             ApplyFutureState(
                 stepBox,
                 stepValue,
+                stepGlyph,
                 stepLabel,
                 stepNumber);
         }
 
         /// <summary>
-        /// Displays a completed step using a blue checkmark state.
+        /// Displays a completed step using a semantic success surface.
         /// </summary>
         private void ApplyCompletedState(
             Border stepBox,
             TextBlock stepValue,
+            InspectionStatusGlyph stepGlyph,
             TextBlock stepLabel)
         {
-            stepBox.Background = GetBrush(ActiveBrushKey);
-            stepBox.BorderBrush = GetBrush(ActiveBrushKey);
+            stepBox.Background = GetBrush(SuccessSurfaceBrushKey);
+            stepBox.BorderBrush = GetBrush(SuccessBorderBrushKey);
 
-            // Replace the stage number with a completion checkmark.
-            stepValue.Text = "✓";
-            stepValue.Foreground = GetBrush(SurfaceBrushKey);
+            stepValue.Visibility = Visibility.Collapsed;
+            stepGlyph.Kind = InspectionStatusGlyphKind.Success;
+            stepGlyph.Visibility = Visibility.Visible;
 
             stepLabel.Foreground = GetBrush(ActiveBrushKey);
             stepLabel.FontWeight = FontWeights.SemiBold;
@@ -443,6 +477,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         private void ApplyActiveState(
             Border stepBox,
             TextBlock stepValue,
+            InspectionStatusGlyph stepGlyph,
             TextBlock stepLabel,
             int stepNumber)
         {
@@ -451,6 +486,8 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
 
             stepValue.Text = stepNumber.ToString();
             stepValue.Foreground = GetBrush(SurfaceBrushKey);
+            stepValue.Visibility = Visibility.Visible;
+            stepGlyph.Visibility = Visibility.Collapsed;
 
             stepLabel.Foreground = GetBrush(PrimaryTextBrushKey);
             stepLabel.FontWeight = FontWeights.SemiBold;
@@ -462,6 +499,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         private void ApplyFutureState(
             Border stepBox,
             TextBlock stepValue,
+            InspectionStatusGlyph stepGlyph,
             TextBlock stepLabel,
             int stepNumber)
         {
@@ -470,6 +508,8 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
 
             stepValue.Text = stepNumber.ToString();
             stepValue.Foreground = GetBrush(MutedTextBrushKey);
+            stepValue.Visibility = Visibility.Visible;
+            stepGlyph.Visibility = Visibility.Collapsed;
 
             stepLabel.Foreground = GetBrush(SecondaryTextBrushKey);
             stepLabel.FontWeight = FontWeights.Normal;
