@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 
@@ -116,6 +117,10 @@ static async Task<int> SpawnChildAsync()
 
     Console.Out.WriteLine(child.Id);
     Console.Out.Flush();
+    await File.WriteAllTextAsync(
+            Path.Combine(Directory.GetCurrentDirectory(), "spawn-child-ready.txt"),
+            child.Id.ToString(CultureInfo.InvariantCulture))
+        .ConfigureAwait(false);
     await Task.Delay(TimeSpan.FromMinutes(5)).ConfigureAwait(false);
     return 0;
 }

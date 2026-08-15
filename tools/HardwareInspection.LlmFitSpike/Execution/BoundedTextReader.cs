@@ -9,13 +9,22 @@ internal static class BoundedTextReader
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: false);
 
-    internal static async Task<BoundedTextCapture> ReadAsync(Stream stream, int maximumRetainedBytes)
+    internal static Task<BoundedTextCapture> ReadAsync(Stream stream, int maximumRetainedBytes)
+    {
+        return ReadAsync(stream, maximumRetainedBytes, ArrayPool<byte>.Shared);
+    }
+
+    internal static async Task<BoundedTextCapture> ReadAsync(
+        Stream stream,
+        int maximumRetainedBytes,
+        ArrayPool<byte> bufferPool)
     {
         ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(bufferPool);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumRetainedBytes);
 
         byte[] retained = new byte[maximumRetainedBytes];
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(81_920);
+        byte[] buffer = bufferPool.Rent(81_920);
         int retainedCount = 0;
         bool truncated = false;
 
@@ -48,7 +57,7 @@ internal static class BoundedTextReader
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            bufferPool.Return(buffer, clearArray: true);
         }
     }
 }

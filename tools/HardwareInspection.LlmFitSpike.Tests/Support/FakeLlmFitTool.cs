@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using HardwareInspection.LlmFitSpike.Command;
+using HardwareInspection.LlmFitSpike.Execution;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace HardwareInspection.LlmFitSpike.Tests.Support;
@@ -14,6 +16,8 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
         "GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj";
     private const string PublishDirectoryPrefix = "GraniteEdgeAI-LlmFit-Publish-";
     private const string TestDirectoryPrefix = "GraniteEdgeAI-LlmFit-Test-";
+    private const int MaximumPublishDiagnosticBytesPerStream = 65_536;
+    private static readonly TimeSpan PublishCleanupDeadline = TimeSpan.FromSeconds(5);
     private static readonly string[] SystemArguments = ["--no-dashboard", "--json", "system"];
     private static readonly string[] VersionArguments = ["--version"];
     private static readonly Lazy<Task<SharedFixture>> SharedFixtureTask = new(
@@ -34,6 +38,45 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
     internal LlmFitCommand SystemCommand => new(ExecutablePath, Root, SystemArguments.ToArray());
 
     internal LlmFitCommand VersionCommand => new(ExecutablePath, Root, VersionArguments.ToArray());
+
+    internal async Task<int> WaitForChildReadyAsync(TimeSpan timeout)
+    {
+        if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromSeconds(10))
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout));
+        }
+
+        string readinessPath = Path.Combine(Root, "spawn-child-ready.txt");
+        var elapsed = Stopwatch.StartNew();
+        while (elapsed.Elapsed < timeout)
+        {
+            try
+            {
+                if (File.Exists(readinessPath))
+                {
+                    string text = await File.ReadAllTextAsync(readinessPath).ConfigureAwait(false);
+                    if (int.TryParse(
+                            text,
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture,
+                            out int childProcessId) &&
+                        childProcessId > 0)
+                    {
+                        return childProcessId;
+                    }
+                }
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException)
+            {
+                // The owned readiness file may still be moving into place.
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(20)).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException("The owned fake child did not become ready in time.");
+    }
 
     internal static async Task<FakeLlmFitTool> CreateAsync(string mode)
     {
@@ -94,43 +137,68 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
         return new ValueTask(DeleteOwnedDirectoryAsync(Root, TestDirectoryPrefix));
     }
 
+    internal static Task DeleteOwnedDirectoryForTestsAsync(string path)
+    {
+        return DeleteOwnedDirectoryAsync(path, TestDirectoryPrefix);
+    }
+
     private static async Task<SharedFixture> ResolveOrPublishAsync()
     {
-        string? controlledRoot = TryGetControlledRoot();
-        if (controlledRoot is not null)
+        string? configuredRoot = Environment.GetEnvironmentVariable(ControlledRootEnvironmentVariable);
+        if (configuredRoot is not null)
         {
+            string controlledRoot = ResolveControlledRootForTests(configuredRoot)!;
             return new SharedFixture(controlledRoot, OwnsRoot: false);
         }
 
         return await PublishAsync().ConfigureAwait(false);
     }
 
-    private static string? TryGetControlledRoot()
+    internal static string? ResolveControlledRootForTests(string? configuredRoot)
     {
-        string? configuredRoot = Environment.GetEnvironmentVariable(ControlledRootEnvironmentVariable);
-        if (string.IsNullOrWhiteSpace(configuredRoot))
+        if (configuredRoot is null)
         {
             return null;
         }
 
         try
         {
+            if (string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                throw new InvalidDataException();
+            }
+
             string root = Path.GetFullPath(configuredRoot);
-            return File.Exists(Path.Combine(root, ExecutableName)) ? root : null;
+            if (!Directory.Exists(root) || !File.Exists(Path.Combine(root, ExecutableName)))
+            {
+                throw new InvalidDataException();
+            }
+
+            EnsureTreeHasNoReparsePoints(root);
+            return root;
         }
         catch (Exception exception) when (
             exception is ArgumentException or
+            InvalidDataException or
             IOException or
             NotSupportedException or
             UnauthorizedAccessException)
         {
-            return null;
+            throw new InvalidOperationException(
+                "The controlled LLM Fit fake tool root is invalid.");
         }
     }
 
     private static async Task<SharedFixture> PublishAsync()
     {
         string outputRoot = CreateOwnedDirectory(PublishDirectoryPrefix);
+        Process? process = null;
+        Task? exitTask = null;
+        Task<BoundedTextCapture>? standardOutputTask = null;
+        Task<BoundedTextCapture>? standardErrorTask = null;
+        bool processStarted = false;
+        bool cleanupAttempted = false;
+        bool cleanupComplete = true;
 
         try
         {
@@ -160,29 +228,62 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
             startInfo.ArgumentList.Add(outputRoot);
             startInfo.ArgumentList.Add("-p:UseAppHost=true");
 
-            using var process = new Process { StartInfo = startInfo };
+            process = new Process { StartInfo = startInfo };
             if (!process.Start())
             {
                 throw new InvalidOperationException();
             }
 
-            Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-            Task<string> standardError = process.StandardError.ReadToEndAsync();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            processStarted = true;
+            standardOutputTask = BoundedTextReader.ReadAsync(
+                process.StandardOutput.BaseStream,
+                MaximumPublishDiagnosticBytesPerStream);
+            standardErrorTask = BoundedTextReader.ReadAsync(
+                process.StandardError.BaseStream,
+                MaximumPublishDiagnosticBytesPerStream);
+            exitTask = process.WaitForExitAsync(CancellationToken.None);
 
-            try
-            {
-                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+            using var timeoutLifetime = new CancellationTokenSource();
+            Task timeoutTask = Task.Delay(TimeSpan.FromMinutes(2), timeoutLifetime.Token);
+            PublishTerminal terminal = await WaitForPublishTerminalAsync(
+                    exitTask,
+                    standardOutputTask,
+                    standardErrorTask,
+                    timeoutTask)
+                .ConfigureAwait(false);
+            TryCancel(timeoutLifetime);
+            if (terminal != PublishTerminal.Exit)
             {
                 TryKillProcessTree(process);
-                await process.WaitForExitAsync().ConfigureAwait(false);
-                await Task.WhenAll(standardOutput, standardError).ConfigureAwait(false);
-                throw new TimeoutException("Publishing the LLM Fit fake tool exceeded two minutes.");
+                PublishCleanup cleanup = await AwaitPublishCleanupAsync(
+                        process,
+                        exitTask,
+                        standardOutputTask,
+                        standardErrorTask)
+                    .ConfigureAwait(false);
+                cleanupAttempted = true;
+                cleanupComplete = cleanup.Complete;
+                if (terminal == PublishTerminal.Timeout)
+                {
+                    throw new TimeoutException("Publishing the LLM Fit fake tool exceeded two minutes.");
+                }
+
+                throw new InvalidOperationException();
             }
 
-            await Task.WhenAll(standardOutput, standardError).ConfigureAwait(false);
+            PublishCleanup completed = await AwaitPublishCleanupAsync(
+                    process,
+                    exitTask,
+                    standardOutputTask,
+                    standardErrorTask)
+                .ConfigureAwait(false);
+            cleanupAttempted = true;
+            cleanupComplete = completed.Complete;
+            if (!completed.Succeeded)
+            {
+                throw new InvalidOperationException();
+            }
+
             if (process.ExitCode != 0 || !File.Exists(Path.Combine(outputRoot, ExecutableName)))
             {
                 throw new InvalidOperationException();
@@ -190,19 +291,45 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
 
             return new SharedFixture(outputRoot, OwnsRoot: true);
         }
-        catch (TimeoutException)
+        catch (Exception exception)
         {
-            await DeleteOwnedDirectoryAsync(outputRoot, PublishDirectoryPrefix).ConfigureAwait(false);
-            throw;
-        }
-        catch (Exception exception) when (
-            exception is Win32Exception or
-            InvalidOperationException or
-            IOException or
-            UnauthorizedAccessException)
-        {
-            await DeleteOwnedDirectoryAsync(outputRoot, PublishDirectoryPrefix).ConfigureAwait(false);
+            if (processStarted && process is not null && !cleanupAttempted)
+            {
+                if (!HasExited(process))
+                {
+                    TryKillProcessTree(process);
+                }
+
+                PublishCleanup cleanup = await AwaitPublishCleanupAsync(
+                        process,
+                        exitTask,
+                        standardOutputTask,
+                        standardErrorTask)
+                    .ConfigureAwait(false);
+                cleanupComplete = cleanup.Complete;
+            }
+
+            if (cleanupComplete)
+            {
+                await DeleteOwnedDirectoryAsync(outputRoot, PublishDirectoryPrefix).ConfigureAwait(false);
+            }
+
+            if (!cleanupComplete)
+            {
+                throw new InvalidOperationException(
+                    "The LLM Fit fake tool publish process could not be cleaned up.");
+            }
+
+            if (exception is TimeoutException)
+            {
+                throw new TimeoutException("Publishing the LLM Fit fake tool exceeded two minutes.");
+            }
+
             throw new InvalidOperationException("The LLM Fit fake tool could not be published.");
+        }
+        finally
+        {
+            TryDisposeProcess(process);
         }
     }
 
@@ -218,6 +345,183 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
         catch (InvalidOperationException)
         {
             // The publish process exited between the state check and the kill.
+        }
+        catch (Win32Exception)
+        {
+            // Bounded cleanup below decides whether termination was confirmed.
+        }
+        catch (NotSupportedException)
+        {
+            // Bounded cleanup below decides whether termination was confirmed.
+        }
+    }
+
+    private static async Task<PublishCleanup> AwaitPublishCleanupAsync(
+        Process process,
+        Task? exitTask,
+        Task<BoundedTextCapture>? standardOutputTask,
+        Task<BoundedTextCapture>? standardErrorTask)
+    {
+        if (exitTask is null)
+        {
+            try
+            {
+                exitTask = process.WaitForExitAsync(CancellationToken.None);
+            }
+            catch
+            {
+                if (standardOutputTask is not null)
+                {
+                    ObserveFault(standardOutputTask);
+                }
+
+                if (standardErrorTask is not null)
+                {
+                    ObserveFault(standardErrorTask);
+                }
+
+                return new PublishCleanup(Complete: false, Succeeded: false);
+            }
+        }
+
+        var tasks = new List<Task>();
+        AddObservedTask(tasks, exitTask);
+        AddObservedTask(tasks, standardOutputTask);
+        AddObservedTask(tasks, standardErrorTask);
+        Task allTasks = Task.WhenAll(tasks);
+        ObserveFault(allTasks);
+
+        using var deadlineLifetime = new CancellationTokenSource();
+        Task deadlineTask = Task.Delay(PublishCleanupDeadline, deadlineLifetime.Token);
+        Task completedTask = await Task.WhenAny(allTasks, deadlineTask).ConfigureAwait(false);
+        bool completedWithinDeadline = ReferenceEquals(completedTask, allTasks);
+        if (completedWithinDeadline)
+        {
+            TryCancel(deadlineLifetime);
+            try
+            {
+                await allTasks.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Completion state is mapped below without exposing diagnostics.
+            }
+        }
+
+        ObserveFault(deadlineTask);
+        bool tasksSucceeded = exitTask.IsCompletedSuccessfully &&
+            (standardOutputTask is null || standardOutputTask.IsCompletedSuccessfully) &&
+            (standardErrorTask is null || standardErrorTask.IsCompletedSuccessfully);
+        bool complete = completedWithinDeadline &&
+            exitTask.IsCompleted &&
+            (standardOutputTask is null || standardOutputTask.IsCompleted) &&
+            (standardErrorTask is null || standardErrorTask.IsCompleted) &&
+            HasExited(process);
+        return new PublishCleanup(complete, Succeeded: complete && tasksSucceeded);
+    }
+
+    private static async Task<PublishTerminal> WaitForPublishTerminalAsync(
+        Task exitTask,
+        Task standardOutputTask,
+        Task standardErrorTask,
+        Task timeoutTask)
+    {
+        while (true)
+        {
+            if (exitTask.IsCompleted)
+            {
+                return exitTask.IsCompletedSuccessfully
+                    ? PublishTerminal.Exit
+                    : PublishTerminal.Failure;
+            }
+
+            if (standardOutputTask.IsCompleted && !standardOutputTask.IsCompletedSuccessfully ||
+                standardErrorTask.IsCompleted && !standardErrorTask.IsCompletedSuccessfully)
+            {
+                return PublishTerminal.Failure;
+            }
+
+            if (timeoutTask.IsCompleted)
+            {
+                return timeoutTask.IsCompletedSuccessfully
+                    ? PublishTerminal.Timeout
+                    : PublishTerminal.Failure;
+            }
+
+            var pendingTasks = new List<Task> { exitTask, timeoutTask };
+            if (!standardOutputTask.IsCompleted)
+            {
+                pendingTasks.Add(standardOutputTask);
+            }
+
+            if (!standardErrorTask.IsCompleted)
+            {
+                pendingTasks.Add(standardErrorTask);
+            }
+
+            _ = await Task.WhenAny(pendingTasks).ConfigureAwait(false);
+        }
+    }
+
+    private static void AddObservedTask(List<Task> tasks, Task? task)
+    {
+        if (task is not null)
+        {
+            ObserveFault(task);
+            tasks.Add(task);
+        }
+    }
+
+    private static void ObserveFault(Task task)
+    {
+        if (task.IsFaulted)
+        {
+            _ = task.Exception;
+        }
+        else if (!task.IsCompleted)
+        {
+            _ = task.ContinueWith(
+                static completed => _ = completed.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+    }
+
+    private static void TryCancel(CancellationTokenSource source)
+    {
+        try
+        {
+            source.Cancel();
+        }
+        catch (AggregateException)
+        {
+            // This source has no user callbacks; retain a stable harness failure surface.
+        }
+    }
+
+    private static bool HasExited(Process process)
+    {
+        try
+        {
+            return process.HasExited;
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static void TryDisposeProcess(Process? process)
+    {
+        try
+        {
+            process?.Dispose();
+        }
+        catch
+        {
+            // Process disposal cannot expose machine-specific diagnostics.
         }
     }
 
@@ -295,6 +599,7 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
                 }
 
                 EnsureTreeHasNoReparsePoints(path);
+                NormalizeReadOnlyAttributes(path);
                 Directory.Delete(path, recursive: true);
                 return;
             }
@@ -303,7 +608,18 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
             }
+            catch (Exception exception) when (
+                exception is ArgumentException or
+                InvalidDataException or
+                NotSupportedException)
+            {
+                throw new InvalidOperationException(
+                    "The owned fake tool directory could not be cleaned up.");
+            }
         }
+
+        throw new InvalidOperationException(
+            "The owned fake tool directory could not be cleaned up.");
     }
 
     private static bool IsProvenOwnedDirectory(string path, string requiredPrefix)
@@ -342,6 +658,39 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
                 }
             }
         }
+    }
+
+    private static void NormalizeReadOnlyAttributes(string root)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+
+        while (pending.TryPop(out string? entry))
+        {
+            EnsureNotReparsePoint(entry);
+            FileAttributes attributes = File.GetAttributes(entry);
+            if ((attributes & FileAttributes.ReadOnly) != 0)
+            {
+                File.SetAttributes(entry, attributes & ~FileAttributes.ReadOnly);
+            }
+
+            if ((attributes & FileAttributes.Directory) != 0)
+            {
+                foreach (string child in Directory.EnumerateFileSystemEntries(entry))
+                {
+                    pending.Push(child);
+                }
+            }
+        }
+    }
+
+    private readonly record struct PublishCleanup(bool Complete, bool Succeeded);
+
+    private enum PublishTerminal
+    {
+        Exit,
+        Timeout,
+        Failure,
     }
 
     private sealed record SharedFixture(string Root, bool OwnsRoot);
