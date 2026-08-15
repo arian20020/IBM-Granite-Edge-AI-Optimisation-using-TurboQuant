@@ -21,27 +21,29 @@ from scripts.testing.workbook05.phase3.dependency_lock import (
 
 
 SCHEMA_NAME = "conversion-dependency-preflight.schema.json"
+OFFLINE_FIXTURE_REASON = (
+    "Offline fixture evidence only; no source clone, package resolution, "
+    "installation, import, CLI, or model operation was executed."
+)
 
 
 def _load_object(path: Path) -> dict[str, object]:
+    """Load one UTF-8 JSON object and reject non-object roots."""
+
     value = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(value, dict):
         raise ValueError(f"Expected a JSON object: {path}")
     return value
 
 
-def build_and_validate(
-    observation_path: Path,
+def _validate_record(
+    record: dict[str, object],
     repository_root: Path,
-) -> dict[str, object]:
-    """Build one decision and reject any schema drift before writing it."""
-
-    repository = repository_root.resolve(strict=True)
-    observation = _load_object(observation_path.resolve(strict=True))
-    record = build_dependency_preflight_record(observation)
+) -> None:
+    """Reject any decision that drifts from the closed C1 schema."""
 
     schema_path = (
-        repository
+        repository_root
         / "experiments"
         / "granite_turboquant_intel"
         / "schemas"
@@ -66,6 +68,44 @@ def build_and_validate(
             for error in errors
         )
         raise ValueError(f"Dependency-preflight decision is schema invalid: {details}")
+
+
+def build_and_validate(
+    observation_path: Path,
+    repository_root: Path,
+    *,
+    offline_fixture: bool = False,
+) -> dict[str, object]:
+    """Build one decision and validate its final truthful classification.
+
+    A repository rehearsal may prove that the orchestration and evidence shape
+    work, but it cannot prove that packages were actually resolved or installed.
+    In that explicit mode, the otherwise complete synthetic observation is
+    therefore classified ``Blocked`` while every later authorisation stays
+    false. The underlying identities remain unchanged so an independent
+    validator can recompute and compare the record.
+    """
+
+    repository = repository_root.resolve(strict=True)
+    observation = _load_object(observation_path.resolve(strict=True))
+    record = build_dependency_preflight_record(observation)
+
+    # Preserve all calculated identities, checks, hashes, and non-claims while
+    # preventing synthetic fixture evidence from becoming a live acceptance.
+    if offline_fixture:
+        record["status"] = "Blocked"
+        record["reasons"] = [OFFLINE_FIXTURE_REASON]
+        for key in (
+            "model_download_authorised",
+            "granite_model_test_authorised",
+            "activation_claim_authorised",
+            "packed_storage_claim_authorised",
+            "performance_claim_authorised",
+            "quality_claim_authorised",
+        ):
+            record[key] = False
+
+    _validate_record(record, repository)
     return record
 
 
@@ -85,21 +125,39 @@ def _write_atomic(path: Path, value: dict[str, object]) -> None:
 
 
 def main(argv: Iterable[str] | None = None) -> int:
+    """Build the decision and return process success only for an honest result."""
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--observation", type=Path, required=True)
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--offline-fixture",
+        action="store_true",
+        help=(
+            "Classify a synthetic repository rehearsal as Blocked while "
+            "returning zero after its schema-valid evidence is written."
+        ),
+    )
     arguments = parser.parse_args(list(argv) if argv is not None else None)
 
     record = build_and_validate(
         arguments.observation,
         arguments.repository_root,
+        offline_fixture=arguments.offline_fixture,
     )
     _write_atomic(arguments.output, record)
     print(
         f"Dependency preflight decision: {record['status']} -> {arguments.output}"
     )
-    return 0 if record["status"] == "Passed" else 1
+
+    # A blocked offline rehearsal is a successful test execution, not accepted
+    # live evidence. Any other non-Passed decision remains a nonzero process.
+    if record["status"] == "Passed":
+        return 0
+    if arguments.offline_fixture and record["status"] == "Blocked":
+        return 0
+    return 1
 
 
 if __name__ == "__main__":
