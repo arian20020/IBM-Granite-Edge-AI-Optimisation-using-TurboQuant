@@ -18,11 +18,6 @@ static async Task<int> RunAsync(string[] arguments)
         return 64;
     }
 
-    await File.WriteAllTextAsync(
-            Path.Combine(Directory.GetCurrentDirectory(), "owned-root-ready.txt"),
-            Environment.ProcessId.ToString(CultureInfo.InvariantCulture))
-        .ConfigureAwait(false);
-
     string modePath = Path.Combine(Directory.GetCurrentDirectory(), "fake-mode.txt");
     if (!File.Exists(modePath))
     {
@@ -30,6 +25,14 @@ static async Task<int> RunAsync(string[] arguments)
     }
 
     string mode = await File.ReadAllTextAsync(modePath).ConfigureAwait(false);
+    if (mode is "sleep" or "sleep-child")
+    {
+        await File.WriteAllTextAsync(
+                Path.Combine(Directory.GetCurrentDirectory(), "owned-root-ready.txt"),
+                Environment.ProcessId.ToString(CultureInfo.InvariantCulture))
+            .ConfigureAwait(false);
+    }
+
     return mode switch
     {
         "success" => WriteSuccess(),
