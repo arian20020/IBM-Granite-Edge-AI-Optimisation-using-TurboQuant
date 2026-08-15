@@ -27,6 +27,21 @@ public sealed class LlmFitSystemJsonAssessorTests
         "HI-LLMFIT-SCHEMA-DOCUMENTATION-DRIFT",
     ];
 
+    private static readonly string[] ExpectedCpuRamDiagnostics =
+    [
+        "HI-LLMFIT-CPU-RAM-MISSING",
+        "HI-LLMFIT-WINDOWS-INTEL-NPU-GAP",
+        "HI-LLMFIT-SCHEMA-DOCUMENTATION-DRIFT",
+    ];
+
+    private static readonly string[] ExpectedInvalidCpuRamDiagnostics =
+    [
+        "HI-LLMFIT-CPU-RAM-MISSING",
+        "HI-LLMFIT-JSON-INVALID",
+        "HI-LLMFIT-WINDOWS-INTEL-NPU-GAP",
+        "HI-LLMFIT-SCHEMA-DOCUMENTATION-DRIFT",
+    ];
+
     private static readonly string[] OriginalDiagnostic = ["original"];
     private static readonly string[] MutatedDiagnostic = ["mutated"];
 
@@ -106,16 +121,14 @@ public sealed class LlmFitSystemJsonAssessorTests
         Assert.IsFalse(assessment.RequiredCpuRamPresent);
         Assert.IsFalse(assessment.Gate1SchemaPassed);
         Assert.IsNull(assessment.CpuName);
-        CollectionAssert.Contains(assessment.DiagnosticCodes.ToArray(), "HI-LLMFIT-CPU-RAM-MISSING");
+        CollectionAssert.AreEqual(ExpectedCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
     }
 
     [TestMethod]
     [DataRow("\"total_ram_gb\": 31.72", "\"total_ram_gb\": 0")]
-    [DataRow("\"total_ram_gb\": 31.72", "\"total_ram_gb\": 1e9999")]
-    [DataRow("\"cpu_cores\": 8", "\"cpu_cores\": 1.5")]
     [DataRow("\"available_ram_gb\": 12.50", "\"available_ram_gb\": -1")]
     [DataRow("\"available_ram_gb\": 12.50", "\"available_ram_gb\": 99")]
-    public void Assess_InvalidRequiredCpuOrRamValue_ReportsCpuRamMissing(string original, string replacement)
+    public void Assess_SemanticallyInvalidCpuOrRamValue_ReportsCpuRamMissing(string original, string replacement)
     {
         string rawJson = ReadFixture("valid-cpu-only.json").Replace(original, replacement, StringComparison.Ordinal);
 
@@ -123,7 +136,24 @@ public sealed class LlmFitSystemJsonAssessorTests
 
         Assert.IsTrue(assessment.JsonValid);
         Assert.IsFalse(assessment.RequiredCpuRamPresent);
-        CollectionAssert.Contains(assessment.DiagnosticCodes.ToArray(), "HI-LLMFIT-CPU-RAM-MISSING");
+        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        CollectionAssert.AreEqual(ExpectedCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("\"total_ram_gb\": 31.72", "\"total_ram_gb\": 1e9999")]
+    [DataRow("\"cpu_cores\": 8", "\"cpu_cores\": 1.5")]
+    [DataRow("\"total_ram_gb\": 31.72", "\"total_ram_gb\": \"31.72\"")]
+    public void Assess_RepresentationallyInvalidCpuOrRamValue_FailsJsonSchema(string original, string replacement)
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json").Replace(original, replacement, StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        Assert.IsFalse(assessment.JsonValid);
+        Assert.IsFalse(assessment.RequiredCpuRamPresent);
+        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        CollectionAssert.AreEqual(ExpectedInvalidCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
     }
 
     [TestMethod]

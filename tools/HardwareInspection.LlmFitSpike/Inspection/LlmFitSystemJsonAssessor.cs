@@ -129,25 +129,27 @@ public static class LlmFitSystemJsonAssessor
 
     private static CpuRamData ReadCpuRam(JsonElement system)
     {
-        bool totalRamTypeValid = TryReadFiniteNumber(system, "total_ram_gb", out double totalRam) && totalRam > 0;
-        bool availableRamTypeValid = TryReadFiniteNumber(system, "available_ram_gb", out double availableRam);
-        bool cpuCoresTypeValid = TryReadInteger(system, "cpu_cores", out int cpuCores) && cpuCores > 0;
+        bool totalRamRepresentationallyValid = TryReadFiniteNumber(system, "total_ram_gb", out double totalRam);
+        bool availableRamRepresentationallyValid = TryReadFiniteNumber(system, "available_ram_gb", out double availableRam);
+        bool cpuCoresRepresentationallyValid = TryReadInteger(system, "cpu_cores", out int cpuCores);
         bool cpuNameTypeValid = TryReadString(system, "cpu_name", out string? cpuName);
 
+        bool totalRamPresent = totalRamRepresentationallyValid && totalRam > 0;
+        bool cpuCoresPresent = cpuCoresRepresentationallyValid && cpuCores > 0;
         bool cpuNamePresent = cpuNameTypeValid && !string.IsNullOrWhiteSpace(cpuName);
-        bool availableRamPresent = availableRamTypeValid && totalRamTypeValid && availableRam >= 0 && availableRam <= totalRam;
-        bool requiredPresent = totalRamTypeValid && availableRamPresent && cpuCoresTypeValid && cpuNamePresent;
-        bool typesValid = HasExpectedNumberType(system, "total_ram_gb") &&
-            HasExpectedNumberType(system, "available_ram_gb") &&
-            HasExpectedNumberType(system, "cpu_cores") &&
-            HasExpectedStringType(system, "cpu_name");
+        bool availableRamPresent = availableRamRepresentationallyValid && totalRamPresent && availableRam >= 0 && availableRam <= totalRam;
+        bool requiredPresent = totalRamPresent && availableRamPresent && cpuCoresPresent && cpuNamePresent;
+        bool typesValid = totalRamRepresentationallyValid &&
+            availableRamRepresentationallyValid &&
+            cpuCoresRepresentationallyValid &&
+            cpuNameTypeValid;
 
         return new CpuRamData(
             requiredPresent,
             typesValid,
             cpuNamePresent ? cpuName : null,
-            cpuCoresTypeValid ? cpuCores : null,
-            totalRamTypeValid ? totalRam : null,
+            cpuCoresPresent ? cpuCores : null,
+            totalRamPresent ? totalRam : null,
             availableRamPresent ? availableRam : null,
             cpuNamePresent);
     }
@@ -234,16 +236,6 @@ public static class LlmFitSystemJsonAssessor
         return parent.TryGetProperty(propertyName, out JsonElement property) &&
             property.ValueKind == JsonValueKind.String &&
             (value = property.GetString()) is not null;
-    }
-
-    private static bool HasExpectedNumberType(JsonElement parent, string propertyName)
-    {
-        return parent.TryGetProperty(propertyName, out JsonElement property) && property.ValueKind == JsonValueKind.Number;
-    }
-
-    private static bool HasExpectedStringType(JsonElement parent, string propertyName)
-    {
-        return parent.TryGetProperty(propertyName, out JsonElement property) && property.ValueKind == JsonValueKind.String;
     }
 
     private static bool ContainsIntelToken(string? value)
