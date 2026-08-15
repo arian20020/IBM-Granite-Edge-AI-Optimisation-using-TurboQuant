@@ -76,6 +76,18 @@ jobs:
           python-version: '3.12.10'
           check-latest: false
 
+      # Run the previously unbounded fixture by itself first. A stalled child
+      # now fails within five minutes and its stage markers remain in one small
+      # step instead of consuming the complete 45-minute repository gate.
+      - name: Run focused dependency-fixture diagnostic
+        timeout-minutes: 5
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\tests\testing\workbook05\Invoke-Phase3DependencyPreflightTests.Tests.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -PythonPath 'python'
+
       # This job has no model path, model dependency environment, or self-hosted
       # runner access. Pull requests can reach only this repository contract.
       - name: Run the complete Phase 3 repository gate
