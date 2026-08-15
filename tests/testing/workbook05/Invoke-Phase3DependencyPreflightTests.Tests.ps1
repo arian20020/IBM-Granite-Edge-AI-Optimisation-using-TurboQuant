@@ -113,12 +113,18 @@ $FailureEvidence = Join-Path $FixtureRoot 'evidence-failure'
 try {
     # Execute the complete offline fixture through its real public interface.
     Write-Host 'WB05_DEP_TEST:success-invocation:start'
-    $Result = & $Script `
-        -RepositoryRoot $RepositoryRoot `
-        -WorkspaceRoot $SuccessWorkspace `
-        -EvidenceRoot $SuccessEvidence `
-        -PythonPath $PythonPath `
-        -OfflineFixtureMode
+    Set-PSDebug -Trace 1
+    try {
+        $Result = & $Script `
+            -RepositoryRoot $RepositoryRoot `
+            -WorkspaceRoot $SuccessWorkspace `
+            -EvidenceRoot $SuccessEvidence `
+            -PythonPath $PythonPath `
+            -OfflineFixtureMode
+    }
+    finally {
+        Set-PSDebug -Off
+    }
     Write-Host 'WB05_DEP_TEST:success-invocation:return'
     if ($LASTEXITCODE -ne 0) {
         throw "Offline dependency fixture exited with code $LASTEXITCODE."
