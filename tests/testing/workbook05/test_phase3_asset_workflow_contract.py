@@ -152,6 +152,25 @@ class Phase3AssetWorkflowContractTests(unittest.TestCase):
             ),
         )
 
+    def test_hosted_jobs_select_one_exact_python_application(self) -> None:
+        hosted_jobs = (
+            self._job("repository-contract", "collect-assets"),
+            self._job("validate-assets"),
+        )
+        for job in hosted_jobs:
+            with self.subTest(job_start=job[:80]):
+                self.assertIn(
+                    "Get-Command -Name python -CommandType Application -All",
+                    job,
+                )
+                self.assertIn("Select-Object -First 1", job)
+                self.assertIn("$pythonPath = $pythonCommand.Source", job)
+                self.assertNotIn(
+                    "(Get-Command python -CommandType Application "
+                    "-ErrorAction Stop).Source",
+                    job,
+                )
+
     def test_repository_contract_runs_bounded_dependency_fixture_diagnostic(
         self,
     ) -> None:
