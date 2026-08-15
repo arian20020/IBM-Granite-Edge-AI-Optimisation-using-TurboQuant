@@ -112,12 +112,14 @@ $FailureEvidence = Join-Path $FixtureRoot 'evidence-failure'
 
 try {
     # Execute the complete offline fixture through its real public interface.
+    Write-Host 'WB05_DEP_TEST:success-invocation:start'
     $Result = & $Script `
         -RepositoryRoot $RepositoryRoot `
         -WorkspaceRoot $SuccessWorkspace `
         -EvidenceRoot $SuccessEvidence `
         -PythonPath $PythonPath `
         -OfflineFixtureMode
+    Write-Host 'WB05_DEP_TEST:success-invocation:return'
     if ($LASTEXITCODE -ne 0) {
         throw "Offline dependency fixture exited with code $LASTEXITCODE."
     }
@@ -221,10 +223,12 @@ try {
     ) {
         throw 'Successful dependency fixture left temporary records behind.'
     }
+    Write-Host 'WB05_DEP_TEST:success-assertions:complete'
 
     # Inject one causal failure and require preserved non-authorising evidence,
     # no acceptance manifest, and no leftover temporary files.
     $FailedAsExpected = $false
+    Write-Host 'WB05_DEP_TEST:failure-invocation:start'
     try {
         & $Script `
             -RepositoryRoot $RepositoryRoot `
@@ -236,6 +240,7 @@ try {
     }
     catch {
         $FailedAsExpected = $true
+        Write-Host 'WB05_DEP_TEST:failure-invocation:caught'
     }
     if (-not $FailedAsExpected) {
         throw 'Injected dependency fixture failure did not stop orchestration.'
@@ -271,11 +276,13 @@ try {
     ) {
         throw 'Failed dependency fixture left temporary records behind.'
     }
+    Write-Host 'WB05_DEP_TEST:failure-assertions:complete'
 
     $global:LASTEXITCODE = 0
     Write-Host 'Workbook 05 Phase 3 dependency-fixture PowerShell tests passed.'
 }
 finally {
+    Write-Host 'WB05_DEP_TEST:cleanup:start'
     if (Test-Path -LiteralPath $FixtureRoot) {
         Remove-Item `
             -LiteralPath $FixtureRoot `
@@ -283,4 +290,5 @@ finally {
             -Force `
             -ErrorAction SilentlyContinue
     }
+    Write-Host 'WB05_DEP_TEST:cleanup:complete'
 }
