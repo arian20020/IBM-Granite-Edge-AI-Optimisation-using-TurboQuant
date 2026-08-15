@@ -26,6 +26,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+Write-Host 'WB05_DEP_FIXTURE:script-entered'
 
 # Keep one reviewed causal order for both the offline rehearsal and a future,
 # separately reviewed live collector.
@@ -140,6 +141,7 @@ if (
         "Expected $ExpectedPythonVersion, observed: $ObservedPythonVersion"
     )
 }
+Write-Host 'WB05_DEP_FIXTURE:python-verified'
 
 # Reuse and automatic cleanup are forbidden. Each attempt gets two previously
 # absent sibling directories under a normal parent.
@@ -165,6 +167,7 @@ $WorkspaceRoot = Assert-NormalDirectory `
 $EvidenceRoot = Assert-NormalDirectory `
     -Path $EvidenceRoot `
     -Label 'Dependency evidence root'
+Write-Host 'WB05_DEP_FIXTURE:directories-ready'
 
 # The workspace remains deliberately empty in fixture mode. All generated test
 # evidence is text, JSON, or logs beneath the evidence root.
@@ -197,6 +200,7 @@ function Start-ApprovedStage {
     ) {
         throw "Dependency-preflight stage order violation at: $Stage"
     }
+    Write-Host ("WB05_DEP_FIXTURE_STAGE:{0}" -f $Stage)
     $CompletedStages.Add($Stage)
     Write-AtomicJson `
         -Path (Join-Path $StepRoot ('{0:D2}-{1}.json' -f ($Index + 1), $Stage)) `
@@ -464,12 +468,14 @@ try {
     $PreviousLocation = Get-Location
     try {
         Set-Location -LiteralPath $RepositoryRoot
+        Write-Host 'WB05_DEP_FIXTURE:decision-cli:start'
         & $PythonPath `
             -m scripts.testing.workbook05.phase3.dependency_preflight_cli `
             --observation $ObservationPath `
             --repository-root $RepositoryRoot `
             --output $DecisionPath `
             --offline-fixture
+        Write-Host 'WB05_DEP_FIXTURE:decision-cli:return'
         if ($LASTEXITCODE -ne 0) {
             throw "Dependency decision CLI exited with code $LASTEXITCODE."
         }
@@ -502,10 +508,12 @@ try {
     $PreviousLocation = Get-Location
     try {
         Set-Location -LiteralPath $RepositoryRoot
+        Write-Host 'WB05_DEP_FIXTURE:manifest-cli:start'
         & $PythonPath `
             -m scripts.testing.workbook05.hash_manifest `
             --root $EvidenceRoot `
             --output $ManifestPath
+        Write-Host 'WB05_DEP_FIXTURE:manifest-cli:return'
         if ($LASTEXITCODE -ne 0) {
             throw "Dependency manifest generation exited with code $LASTEXITCODE."
         }
@@ -531,6 +539,7 @@ try {
 catch {
     # Capture the causal exception before pipeline variables can replace $_.
     $FailureMessage = $_.Exception.Message
+    Write-Host ("WB05_DEP_FIXTURE:catch:{0}" -f $FailureMessage)
 
     # A failed attempt must not retain a manifest that resembles acceptance.
     $ManifestPath = Join-Path $EvidenceRoot 'manifest.sha256'
