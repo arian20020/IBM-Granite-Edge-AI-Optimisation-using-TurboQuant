@@ -22,6 +22,7 @@
             <Setter Property="FontWeight" Value="{StaticResource InspectionLabelFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextSecondaryMutedBrush}" />
             <Setter Property="CharacterSpacing" Value="40" />
+            <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
         <Style
@@ -32,6 +33,7 @@
             <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style
@@ -126,7 +128,6 @@
 
         <Border
             x:Name="CompactView"
-            MinHeight="94"
             Padding="24,15"
             Background="{ThemeResource InspectionSurfaceBrush}"
             BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
@@ -241,7 +242,6 @@
 
         <Border
             x:Name="DetailedView"
-            MinHeight="304"
             Background="{ThemeResource InspectionSurfaceBrush}"
             BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
             BorderThickness="1"
@@ -265,13 +265,15 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="DetailedHeaderLeadingColumn" Width="108" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition x:Name="DetailedHeaderTrailingColumn" Width="108" />
                     </Grid.ColumnDefinitions>
                     <TextBlock
                         x:Name="ModelOverviewTitle"
                         Grid.Row="0"
-                        Grid.Column="0"
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         FontFamily="{StaticResource InspectionSectionTitleFontFamily}"
                         FontSize="{ThemeResource InspectionSectionTitleFontSize}"
@@ -282,12 +284,13 @@
                     <Border
                         x:Name="OverviewFormatChip"
                         Grid.Row="0"
-                        Grid.Column="1"
+                        Grid.Column="2"
                         MinHeight="30"
                         MinWidth="108"
                         MaxWidth="240"
                         Padding="16,0"
                         VerticalAlignment="Center"
+                        SizeChanged="OverviewFormatChip_SizeChanged"
                         Background="{ThemeResource InspectionBlueSurfaceBrush}"
                         BorderBrush="{ThemeResource InspectionBlueBorderStrongBrush}"
                         BorderThickness="1"
@@ -308,7 +311,6 @@
                 <Grid
                     x:Name="MetadataGrid"
                     Grid.Row="1"
-                    MinHeight="156"
                     Margin="31,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -332,7 +334,7 @@
                         Grid.Row="0"
                         Grid.Column="0"
                         MinHeight="78"
-                        Padding="0,10,20,10"
+                        Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,1">
                         <StackPanel VerticalAlignment="Center">
@@ -371,7 +373,7 @@
                         Grid.Row="0"
                         Grid.Column="3"
                         MinHeight="78"
-                        Padding="20,10,0,10"
+                        Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,0,1">
                         <StackPanel VerticalAlignment="Center">
@@ -384,7 +386,7 @@
                         Grid.Row="1"
                         Grid.Column="0"
                         MinHeight="78"
-                        Padding="0,10,20,10"
+                        Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
                         BorderThickness="0,0,1,0">
                         <StackPanel VerticalAlignment="Center">
@@ -423,7 +425,7 @@
                         Grid.Row="1"
                         Grid.Column="3"
                         MinHeight="78"
-                        Padding="20,10,0,10">
+                        Padding="20,10">
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock AutomationProperties.Name="File size" Style="{StaticResource MetadataLabelStyle}" Text="FILE SIZE" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind FileSize}" />
@@ -604,17 +606,8 @@
             </VisualStateGroup>
 
             <VisualStateGroup x:Name="InspectionDetailsStates">
-                <VisualState x:Name="CollapsedDetailsState">
-                    <VisualState.Setters>
-                        <Setter Target="InspectionDetailsDisclosure.MinHeight" Value="83" />
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="ExpandedDetailsState">
-                    <VisualState.Setters>
-                        <Setter Target="DetailedView.MinHeight" Value="470" />
-                        <Setter Target="InspectionDetailsDisclosure.MinHeight" Value="0" />
-                    </VisualState.Setters>
-                </VisualState>
+                <VisualState x:Name="CollapsedDetailsState" />
+                <VisualState x:Name="ExpandedDetailsState" />
             </VisualStateGroup>
 
             <VisualStateGroup x:Name="ResponsiveModelStates">
@@ -660,7 +653,6 @@
                         <Setter Target="PublisherField.(Grid.Column)" Value="1" />
                         <Setter Target="FormatField.(Grid.Row)" Value="1" />
                         <Setter Target="FormatField.(Grid.Column)" Value="0" />
-                        <Setter Target="FormatField.Padding" Value="0,10,20,10" />
                         <Setter Target="QuantisationField.(Grid.Row)" Value="1" />
                         <Setter Target="QuantisationField.(Grid.Column)" Value="1" />
                         <Setter Target="ParametersField.(Grid.Row)" Value="2" />
@@ -669,7 +661,6 @@
                         <Setter Target="ModelTypeField.(Grid.Column)" Value="1" />
                         <Setter Target="DeclaredContextField.(Grid.Row)" Value="3" />
                         <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
-                        <Setter Target="DeclaredContextField.Padding" Value="0,10,20,10" />
                         <Setter Target="FileSizeField.(Grid.Row)" Value="3" />
                         <Setter Target="FileSizeField.(Grid.Column)" Value="1" />
                     </VisualState.Setters>
@@ -695,9 +686,11 @@
                         <Setter Target="CompactStatusChip.Margin" Value="0,12,0,0" />
                         <Setter Target="CompactStatusChip.HorizontalAlignment" Value="Left" />
                         <Setter Target="DetailedHeader.Margin" Value="15,0" />
+                        <Setter Target="ModelOverviewTitle.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelOverviewTitle.(Grid.ColumnSpan)" Value="3" />
                         <Setter Target="OverviewFormatChip.(Grid.Row)" Value="1" />
                         <Setter Target="OverviewFormatChip.(Grid.Column)" Value="0" />
-                        <Setter Target="OverviewFormatChip.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="OverviewFormatChip.(Grid.ColumnSpan)" Value="3" />
                         <Setter Target="OverviewFormatChip.Margin" Value="0,12,0,0" />
                         <Setter Target="OverviewFormatChip.HorizontalAlignment" Value="Left" />
                         <Setter Target="MetadataGrid.Margin" Value="15,0" />

@@ -18,6 +18,7 @@
             <Setter Property="FontSize" Value="{ThemeResource InspectionSectionTitleFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionSectionTitleFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextAlignment" Value="Left" />
             <Setter Property="TextWrapping" Value="WrapWholeWords" />
         </Style>
         <Style x:Key="ContentPrimaryTextStyle" TargetType="TextBlock">
@@ -25,12 +26,14 @@
             <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
             <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextAlignment" Value="Left" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="ContentSecondaryTextStyle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
             <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
             <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
+            <Setter Property="TextAlignment" Value="Left" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="ContentTextButtonStyle" TargetType="Button">
@@ -411,6 +414,7 @@
                         FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
                         Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                         Text="{x:Bind Presentation.TertiaryText, Mode=OneWay}"
+                        TextAlignment="Left"
                         TextWrapping="Wrap"
                         Visibility="{x:Bind Presentation.TertiaryTextVisibility, Mode=OneWay}" />
                     <Border
@@ -429,6 +433,7 @@
                             FontWeight="SemiBold"
                             Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
                             Text="{x:Bind Presentation.DiagnosticCode, Mode=OneWay}"
+                            TextAlignment="Left"
                             TextWrapping="Wrap" />
                     </Border>
 

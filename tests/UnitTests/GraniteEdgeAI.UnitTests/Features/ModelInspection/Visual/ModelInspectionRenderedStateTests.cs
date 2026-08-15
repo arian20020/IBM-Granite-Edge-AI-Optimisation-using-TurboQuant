@@ -161,7 +161,8 @@ public sealed class ModelInspectionRenderedStateTests
                 .TransformPoint(new Point());
             Assert.AreEqual(300d, bannerOrigin.X, 1d, $"{state} banner x");
             Assert.AreEqual(840d, banner.ActualWidth, 1d, $"{state} banner width");
-            Assert.AreEqual(82d, banner.ActualHeight, 1d, $"{state} banner height");
+            Assert.AreEqual(0d, banner.MinHeight, 0.01d, $"{state} banner minimum");
+            AssertBalancedOutcome(outcome, banner, state.ToString());
             AssertBrushColor(
                 outcomeSurfaceResource,
                 banner.Background,
@@ -179,7 +180,7 @@ public sealed class ModelInspectionRenderedStateTests
                 .TransformPoint(new Point());
             Assert.AreEqual(300d, resultOrigin.X, 1d, $"{state} action x");
             Assert.AreEqual(840d, resultView.ActualWidth, 1d, $"{state} action width");
-            Assert.AreEqual(140d, resultView.ActualHeight, 1d, $"{state} action height");
+            Assert.AreEqual(0d, resultView.MinHeight, 0.01d, $"{state} action minimum");
         }
 
         AssertTypographyAndWrapping(page, model, content);
@@ -191,16 +192,14 @@ public sealed class ModelInspectionRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    [DataRow(2, 3, "Model", 304d, 470d)]
-    [DataRow(4, 5, "Content", 232d, 380d)]
-    [DataRow(6, 7, "Content", 232d, 365d)]
-    [DataRow(10, 11, "Content", 248d, 380d)]
-    public async Task FourDisclosurePairs_RenderExactCollapsedAndExpandedEndpoints(
+    [DataRow(2, 3, "Model")]
+    [DataRow(4, 5, "Content")]
+    [DataRow(6, 7, "Content")]
+    [DataRow(10, 11, "Content")]
+    public async Task FourDisclosurePairs_RenderNaturalCollapsedAndBoundedExpandedEndpoints(
         int collapsedValue,
         int expandedValue,
-        string disclosureOwner,
-        double collapsedHeight,
-        double expandedHeight)
+        string disclosureOwner)
     {
         ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
         ModelInspectionPagePresentation collapsed =
@@ -236,11 +235,19 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.IsNotNull(disclosure);
         Assert.IsFalse(disclosure.IsExpanded);
         Assert.AreEqual(Visibility.Collapsed, disclosure.ViewportTarget.Visibility);
-        Assert.AreEqual(collapsedHeight, VisibleLayoutHeight(owner), 1d);
+        FrameworkElement disclosureHeader = Element<FrameworkElement>(
+            disclosure,
+            "DisclosureToggleButton");
+        double collapsedHeight = VisibleLayoutHeight(owner);
+        Assert.AreEqual(
+            disclosureHeader.ActualHeight,
+            disclosure.ActualHeight,
+            1d,
+            "collapsed disclosure equals its realized header");
         Assert.AreEqual(840d, banner.ActualWidth, 1d, "collapsed banner width");
         Assert.AreEqual(840d, detailsSurface.ActualWidth, 1d, "collapsed details width");
         Assert.AreEqual(840d, actionSurface.ActualWidth, 1d, "collapsed action width");
-        Assert.AreEqual(140d, actionSurface.ActualHeight, 1d, "collapsed action height");
+        Assert.AreEqual(0d, actionSurface.MinHeight, 0.01d, "collapsed action minimum");
 
         ModelInspectionVisualTestScenario.Apply(page, expanded);
         await host.CaptureAsync();
@@ -253,11 +260,11 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.IsTrue(retainedDisclosure.IsExpanded);
         Assert.AreEqual(Visibility.Visible, retainedDisclosure.ViewportTarget.Visibility);
         Assert.AreEqual(1d, retainedDisclosure.ViewportTarget.Opacity, 0.001d);
-        Assert.AreEqual(expandedHeight, VisibleLayoutHeight(owner), 1d);
+        Assert.IsGreaterThan(collapsedHeight, VisibleLayoutHeight(owner));
         Assert.AreEqual(840d, banner.ActualWidth, 1d, "expanded banner width");
         Assert.AreEqual(840d, detailsSurface.ActualWidth, 1d, "expanded details width");
         Assert.AreEqual(840d, actionSurface.ActualWidth, 1d, "expanded action width");
-        Assert.AreEqual(140d, actionSurface.ActualHeight, 1d, "expanded action height");
+        Assert.AreEqual(0d, actionSurface.MinHeight, 0.01d, "expanded action minimum");
 
         ScrollViewer bounded = Element<ScrollViewer>(
             owner,
@@ -273,7 +280,7 @@ public sealed class ModelInspectionRenderedStateTests
     [TestCategory("WinUI")]
     [DataRow(1440, 300d, 840d, 0, 0, 0)]
     [DataRow(888, 24d, 840d, 0, 0, 0)]
-    [DataRow(600, 24d, 552d, 0, 0, 1)]
+    [DataRow(600, 24d, 552d, 0, 0, 0)]
     [DataRow(360, 16d, 328d, 0, 1, 2)]
     public async Task ResponsiveWidths_RenderApprovedHierarchy(
         int width,
@@ -457,6 +464,34 @@ public sealed class ModelInspectionRenderedStateTests
                 ? Element<Border>(model, "DetailedView")
                 : Element<Border>(model, "CompactView");
         Assert.AreEqual(840d, modelSurface.ActualWidth, 1d);
+        Assert.AreEqual(0d, modelSurface.MinHeight, 0.01d);
+
+        if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Detailed)
+        {
+            TextBlock title = Element<TextBlock>(model, "ModelOverviewTitle");
+            Point titleOrigin = title.TransformToVisual(modelSurface)
+                .TransformPoint(new Point());
+            Assert.AreEqual(
+                modelSurface.ActualWidth / 2d,
+                titleOrigin.X + (title.ActualWidth / 2d),
+                1d,
+                "ready model title centre");
+            FrameworkElement[] metadata =
+            [
+                Element<FrameworkElement>(model, "ModelNameField"),
+                Element<FrameworkElement>(model, "PublisherField"),
+                Element<FrameworkElement>(model, "FormatField"),
+                Element<FrameworkElement>(model, "QuantisationField"),
+                Element<FrameworkElement>(model, "ParametersField"),
+                Element<FrameworkElement>(model, "ModelTypeField"),
+                Element<FrameworkElement>(model, "DeclaredContextField"),
+                Element<FrameworkElement>(model, "FileSizeField")
+            ];
+            Assert.IsTrue(metadata.All(field =>
+                Math.Abs(field.ActualWidth - metadata[0].ActualWidth) <= 1d));
+            Assert.IsTrue(metadata.All(field =>
+                Math.Abs(field.ActualHeight - metadata[0].ActualHeight) <= 1d));
+        }
 
         if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Compact)
         {
@@ -491,6 +526,11 @@ public sealed class ModelInspectionRenderedStateTests
 
         Border contentSurface = Element<Border>(content, "ContentCardShell");
         Assert.AreEqual(840d, contentSurface.ActualWidth, 1d);
+        Assert.AreEqual(0d, contentSurface.MinHeight, 0.01d);
+        Assert.IsTrue(Descendants(content)
+            .OfType<TextBlock>()
+            .Where(text => text.Text.Length >= 40)
+            .All(text => text.TextAlignment == TextAlignment.Left));
         FrameworkElement primaryRows = presentation.ContentCard.Mode ==
             InspectionContentCardMode.Progress
                 ? Element<FrameworkElement>(content, "ProgressItemsRepeater")
@@ -576,7 +616,7 @@ public sealed class ModelInspectionRenderedStateTests
         {
             Border resultSurface = Element<Border>(actions, "ResultView");
             Assert.AreEqual(840d, resultSurface.ActualWidth, 1d);
-            Assert.AreEqual(140d, resultSurface.ActualHeight, 1d);
+            Assert.AreEqual(0d, resultSurface.MinHeight, 0.01d);
             AssertBrushColor(
                 "InspectionSurfaceMutedBrush",
                 resultSurface.Background);
@@ -637,10 +677,51 @@ public sealed class ModelInspectionRenderedStateTests
             Math.Abs(button.ActualHeight - 46d) <= 1d));
         if (presentation.ActionCard.Mode == InspectionActionCardMode.Result)
         {
+            FrameworkElement panel = Element<FrameworkElement>(
+                actions,
+                "ResultButtonPanel");
+            FrameworkElement[] visibleHosts =
+            [
+                Element<FrameworkElement>(actions, "SecondaryActionOneHost"),
+                Element<FrameworkElement>(actions, "SecondaryActionTwoHost"),
+                Element<FrameworkElement>(actions, "PrimaryActionHost")
+            ];
+            visibleHosts = visibleHosts.Where(host => host.ActualHeight > 0d).ToArray();
+            Assert.IsNotEmpty(visibleHosts);
+            Assert.IsTrue(visibleHosts.Skip(1).All(host =>
+                Math.Abs(host.ActualWidth - visibleHosts[0].ActualWidth) <= 1d));
+            if (visibleHosts.Length == 1)
+            {
+                Point origin = visibleHosts[0].TransformToVisual(panel)
+                    .TransformPoint(new Point());
+                Assert.AreEqual(
+                    panel.ActualWidth / 2d,
+                    origin.X + (visibleHosts[0].ActualWidth / 2d),
+                    1d);
+            }
+        }
+    }
+
+    private static void AssertBalancedOutcome(
+        InspectionOutcomeCard outcome,
+        Border banner,
+        string state)
+    {
+        Grid layout = Element<Grid>(outcome, "OutcomeLayoutGrid");
+        Assert.AreEqual(
+            layout.ColumnDefinitions[0].ActualWidth,
+            layout.ColumnDefinitions[2].ActualWidth,
+            1d,
+            $"{state} outcome balance");
+        foreach (string name in new[] { "OutcomeTitle", "OutcomeMessage" })
+        {
+            TextBlock text = Element<TextBlock>(outcome, name);
+            Point origin = text.TransformToVisual(banner).TransformPoint(new Point());
             Assert.AreEqual(
-                140d,
-                Element<Border>(actions, "ResultView").ActualHeight,
-                1d);
+                banner.ActualWidth / 2d,
+                origin.X + (text.ActualWidth / 2d),
+                1d,
+                $"{state} {name} centre");
         }
     }
 

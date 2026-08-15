@@ -38,11 +38,9 @@ public sealed class InspectionActionCardTests
             Button primary = FindButton(control, "PrimaryActionButton");
 
             Assert.AreEqual(840d, control.ActualWidth, 0.01);
-            Assert.AreEqual(
-                140d,
-                ((Border)control.FindName("ResultView")).ActualHeight,
-                1d,
-                "The standard desktop action surface must retain the approved height.");
+            Border result = (Border)control.FindName("ResultView");
+            Assert.AreEqual(0d, result.MinHeight, 0.01d,
+                "the action surface must use its natural content height");
             Assert.IsGreaterThanOrEqualTo(44d, secondaryOne.MinHeight);
             Assert.AreEqual(46d, secondaryOne.MinHeight, 0.01);
             Assert.AreEqual(46d, secondaryTwo.MinHeight, 0.01);
@@ -55,6 +53,8 @@ public sealed class InspectionActionCardTests
                     secondaryTwo.TabIndex,
                     primary.TabIndex
                 });
+            Assert.AreEqual(secondaryOne.ActualWidth, secondaryTwo.ActualWidth, 1d);
+            Assert.AreEqual(secondaryOne.ActualWidth, primary.ActualWidth, 1d);
         }
         finally
         {
@@ -133,38 +133,37 @@ public sealed class InspectionActionCardTests
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-            await ResizeClientAndWaitAsync(window, control, 888d, [0, 0, 0]);
-            AssertHostGridPosition(secondaryOne, row: 0, column: 0, span: 1);
-            AssertHostGridPosition(secondaryTwo, row: 0, column: 1, span: 1);
-            AssertHostGridPosition(primary, row: 0, column: 2, span: 1);
-            double wideHeight = ((Border)control.FindName("ResultView")).ActualHeight;
-
-            await ResizeClientAndWaitAsync(window, control, 600d, [0, 0, 1]);
-            AssertHostGridPosition(secondaryOne, row: 0, column: 0, span: 1);
-            AssertHostGridPosition(secondaryTwo, row: 0, column: 1, span: 1);
-            AssertHostGridPosition(primary, row: 1, column: 0, span: 2);
             FrameworkElement panel = (FrameworkElement)control.FindName(
                 "ResultButtonPanel");
-            Assert.IsGreaterThan(panel.ActualWidth * 0.4d, secondaryOne.ActualWidth);
-            Assert.IsGreaterThan(panel.ActualWidth * 0.4d, secondaryTwo.ActualWidth);
-            Assert.IsGreaterThan(panel.ActualWidth * 0.9d, primary.ActualWidth);
-            double mediumHeight = ((Border)control.FindName("ResultView")).ActualHeight;
+            FrameworkElement[] allHosts = [secondaryOne, secondaryTwo, primary];
+            foreach (double width in new[] { 888d, 887d, 600d, 599d })
+            {
+                await ResizeClientAndWaitAsync(window, control, width);
+                for (int count = 1; count <= 3; count++)
+                {
+                    control.Presentation = CreateResultPresentation(count);
+                    control.UpdateLayout();
+                    await Task.Yield();
+                    control.UpdateLayout();
 
-            await ResizeClientAndWaitAsync(window, control, 599d, [0, 1, 2]);
-            AssertHostGridPosition(secondaryOne, row: 0, column: 0, span: 3);
-            AssertHostGridPosition(secondaryTwo, row: 1, column: 0, span: 3);
-            AssertHostGridPosition(primary, row: 2, column: 0, span: 3);
-            Assert.IsGreaterThan(panel.ActualWidth * 0.9d, secondaryOne.ActualWidth);
-            Assert.IsGreaterThan(panel.ActualWidth * 0.9d, secondaryTwo.ActualWidth);
-            Assert.IsGreaterThan(panel.ActualWidth * 0.9d, primary.ActualWidth);
-            double narrowHeight = ((Border)control.FindName("ResultView")).ActualHeight;
+                    FrameworkElement[] visible = allHosts.Take(count).ToArray();
+                    Assert.IsTrue(allHosts.Skip(count).All(host =>
+                        host.Visibility == Visibility.Collapsed),
+                        $"hidden host visibility at width={width}, count={count}");
+                    if (width >= 600d)
+                    {
+                        AssertHorizontalActionLayout(panel, visible);
+                    }
+                    else
+                    {
+                        AssertVerticalActionLayout(panel, visible);
+                    }
+                }
+            }
 
             Assert.AreSame(secondaryOne, control.FindName("SecondaryActionOneHost"));
             Assert.AreSame(secondaryTwo, control.FindName("SecondaryActionTwoHost"));
             Assert.AreSame(primary, control.FindName("PrimaryActionHost"));
-            Assert.AreEqual(140d, wideHeight, 1d);
-            Assert.IsGreaterThan(wideHeight, mediumHeight);
-            Assert.IsGreaterThan(mediumHeight, narrowHeight);
         }
         finally
         {
@@ -173,21 +172,28 @@ public sealed class InspectionActionCardTests
         }
     }
 
-    private static InspectionActionCardPresentation CreateResultPresentation() =>
+    private static InspectionActionCardPresentation CreateResultPresentation(
+        int visibleCount = 3) =>
         new()
         {
             Mode = InspectionActionCardMode.Result,
             Title = "Next step",
             Message = "Choose what to do next.",
-            SecondaryActionOne = VisibleAction("Choose another", enabled: true),
-            SecondaryActionTwo = VisibleAction(
-                "View technical report",
-                enabled: false,
-                help: "Coming later"),
-            PrimaryAction = VisibleAction(
-                "Check hardware fit",
-                enabled: false,
-                help: "Coming later")
+            SecondaryActionOne = visibleCount >= 1
+                ? VisibleAction("Choose another", enabled: true)
+                : InspectionActionPresentation.Hidden,
+            SecondaryActionTwo = visibleCount >= 2
+                ? VisibleAction(
+                    "View technical report",
+                    enabled: false,
+                    help: "Coming later")
+                : InspectionActionPresentation.Hidden,
+            PrimaryAction = visibleCount >= 3
+                ? VisibleAction(
+                    "Check hardware fit",
+                    enabled: false,
+                    help: "Coming later")
+                : InspectionActionPresentation.Hidden
         };
 
     private static InspectionActionPresentation VisibleAction(
@@ -237,24 +243,80 @@ public sealed class InspectionActionCardTests
         Assert.AreEqual(span, Grid.GetColumnSpan(host));
     }
 
+    private static void AssertHorizontalActionLayout(
+        FrameworkElement panel,
+        FrameworkElement[] visible)
+    {
+        for (int index = 0; index < visible.Length; index++)
+        {
+            int expectedColumn = visible.Length == 1 ? 1 : index;
+            AssertHostGridPosition(
+                visible[index],
+                row: 0,
+                column: expectedColumn,
+                span: 1);
+        }
+
+        Assert.IsTrue(visible.Skip(1).All(host =>
+            Math.Abs(host.ActualWidth - visible[0].ActualWidth) <= 1d),
+            $"horizontal widths: {string.Join(", ", visible.Select(host => host.ActualWidth))}");
+        Assert.AreEqual(
+            visible.Max(host => host.ActualHeight),
+            panel.ActualHeight,
+            1d,
+            "horizontal actions must not leave unused row-spacing tails");
+        if (visible.Length == 1)
+        {
+            Windows.Foundation.Point origin = visible[0].TransformToVisual(panel)
+                .TransformPoint(new Windows.Foundation.Point());
+            Assert.AreEqual(
+                panel.ActualWidth / 2d,
+                origin.X + (visible[0].ActualWidth / 2d),
+                1d);
+            Assert.IsLessThanOrEqualTo(280d, visible[0].ActualWidth);
+        }
+        else
+        {
+            Windows.Foundation.Point first = visible[0].TransformToVisual(panel)
+                .TransformPoint(new Windows.Foundation.Point());
+            FrameworkElement lastHost = visible[^1];
+            Windows.Foundation.Point last = lastHost.TransformToVisual(panel)
+                .TransformPoint(new Windows.Foundation.Point());
+            Assert.AreEqual(
+                first.X,
+                panel.ActualWidth - last.X - lastHost.ActualWidth,
+                1d,
+                "the visible horizontal action group must be centred");
+        }
+    }
+
+    private static void AssertVerticalActionLayout(
+        FrameworkElement panel,
+        FrameworkElement[] visible)
+    {
+        for (int index = 0; index < visible.Length; index++)
+        {
+            AssertHostGridPosition(visible[index], row: index, column: 0, span: 3);
+            Assert.IsGreaterThan(panel.ActualWidth * 0.9d, visible[index].ActualWidth);
+        }
+
+        Assert.AreEqual(
+            visible.Sum(host => host.ActualHeight) + (12d * (visible.Length - 1)),
+            panel.ActualHeight,
+            1d,
+            "vertical actions must contain only visible hosts and their gutters");
+    }
+
     private static async Task ResizeClientAndWaitAsync(
         Window window,
         InspectionActionCard control,
-        double width,
-        int[] expectedRows)
+        double width)
     {
         var reached = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         void CompleteWhenReady(object? sender, object eventArguments)
         {
-            int[] actualRows =
-            [
-                Grid.GetRow((FrameworkElement)control.FindName("SecondaryActionOneHost")),
-                Grid.GetRow((FrameworkElement)control.FindName("SecondaryActionTwoHost")),
-                Grid.GetRow((FrameworkElement)control.FindName("PrimaryActionHost"))
-            ];
-            if (Math.Abs(control.XamlRoot.Size.Width - width) <= 1d &&
-                actualRows.SequenceEqual(expectedRows))
+            if (Math.Abs(control.XamlRoot.Size.Width - width) <= 1d)
             {
                 reached.TrySetResult(true);
             }

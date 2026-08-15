@@ -399,6 +399,7 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                 presentation.IsInspectionDetailsExpanded
                     ? "ExpandedDetailsState"
                     : "CollapsedDetailsState");
+            BalanceDetailedHeader();
         }
 
         private void InspectionDetailsDisclosure_ToggleRequested(
@@ -448,7 +449,12 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
         {
             double width = XamlRoot?.Size.Width ?? eventArguments.NewSize.Width;
             ApplyResponsiveLayout(width);
+            BalanceDetailedHeader();
         }
+
+        private void OverviewFormatChip_SizeChanged(
+            object sender,
+            SizeChangedEventArgs eventArguments) => BalanceDetailedHeader();
 
         private void Root_Loaded(object sender, RoutedEventArgs eventArguments)
         {
@@ -500,6 +506,29 @@ namespace GraniteEdgeAI.Features.ModelInspection.Controls
                     ? "MediumModelState"
                     : "NarrowModelState";
             ApplyResponsiveState(stateName);
+            BalanceDetailedHeader();
+        }
+
+        private void BalanceDetailedHeader()
+        {
+            if (!_isInitialized || OverviewFormatChip.Visibility != Visibility.Visible)
+            {
+                return;
+            }
+
+            OverviewFormatChip.Measure(new Windows.Foundation.Size(
+                double.PositiveInfinity,
+                double.PositiveInfinity));
+            double balanceWidth = Math.Clamp(
+                OverviewFormatChip.DesiredSize.Width,
+                OverviewFormatChip.MinWidth,
+                OverviewFormatChip.MaxWidth);
+            GridLength balanced = new(balanceWidth, GridUnitType.Pixel);
+            if (!DetailedHeaderLeadingColumn.Width.Equals(balanced))
+            {
+                DetailedHeaderLeadingColumn.Width = balanced;
+                DetailedHeaderTrailingColumn.Width = balanced;
+            }
         }
 
         private void ApplyResponsiveState(string stateName)

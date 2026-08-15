@@ -16,32 +16,20 @@ public sealed partial class InspectionActionCard
         ModelInspectionFixtureWidthProfile width)
     {
         _fixtureResponsiveWidthOverride = FixtureWidth(width);
-        string stateName = width switch
-        {
-            ModelInspectionFixtureWidthProfile.Desktop1440 => "WideActionState",
-            ModelInspectionFixtureWidthProfile.Medium600 => "MediumActionState",
-            ModelInspectionFixtureWidthProfile.Narrow360 => "NarrowActionState",
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(width), width, "Unknown fixture width profile.")
-        };
-
-        if (!string.Equals(
+        string stateName = FixtureStateName(width);
+        if (string.Equals(
                 CurrentFixtureResponsiveStateName(),
                 stateName,
-                StringComparison.Ordinal) ||
-            !string.Equals(
+                StringComparison.Ordinal) &&
+            string.Equals(
                 _responsiveStateName,
                 stateName,
                 StringComparison.Ordinal))
         {
-            if (!VisualStateManager.GoToState(this, stateName, false))
-            {
-                throw new InvalidOperationException(
-                    $"The action-card visual state '{stateName}' was not found.");
-            }
-
-            _responsiveStateName = stateName;
+            return;
         }
+
+        ApplyResponsiveLayout(_fixtureResponsiveWidthOverride.Value);
     }
 
     partial void OverrideResponsiveWidthForFixture(ref double width)
@@ -58,6 +46,16 @@ public sealed partial class InspectionActionCard
             ModelInspectionFixtureWidthProfile.Desktop1440 => 1440d,
             ModelInspectionFixtureWidthProfile.Medium600 => 600d,
             ModelInspectionFixtureWidthProfile.Narrow360 => 360d,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(width), width, "Unknown fixture width profile.")
+        };
+
+    private static string FixtureStateName(
+        ModelInspectionFixtureWidthProfile width) => width switch
+        {
+            ModelInspectionFixtureWidthProfile.Desktop1440 => "WideActionState",
+            ModelInspectionFixtureWidthProfile.Medium600 => "MediumActionState",
+            ModelInspectionFixtureWidthProfile.Narrow360 => "NarrowActionState",
             _ => throw new ArgumentOutOfRangeException(
                 nameof(width), width, "Unknown fixture width profile.")
         };

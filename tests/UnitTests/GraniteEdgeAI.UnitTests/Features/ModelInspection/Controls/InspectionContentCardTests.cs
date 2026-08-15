@@ -178,7 +178,7 @@ public sealed class InspectionContentCardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task DisclosurePairs_UseApprovedCollapsedAndExpandedMinimumGeometry()
+    public async Task DisclosurePairs_UseNaturalCollapsedAndBoundedExpandedGeometry()
     {
         var control = new InspectionContentCard
         {
@@ -197,22 +197,23 @@ public sealed class InspectionContentCardTests
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
             control.UpdateLayout();
+            Border shell = (Border)control.FindName("ContentCardShell");
+            InspectionDisclosure disclosure = control.ActiveDisclosure!;
+            Assert.IsNotNull(disclosure);
+            FrameworkElement header = (FrameworkElement)disclosure.FindName(
+                "DisclosureToggleButton");
+            double collapsedHeight = control.ActualHeight;
+            Assert.AreEqual(0d, shell.MinHeight, 0.01d);
             Assert.AreEqual(
-                232d,
-                control.ActualHeight,
+                header.ActualHeight,
+                disclosure.ActualHeight,
                 1d,
-                "warning collapsed height");
+                "collapsed disclosure must equal its realized header height");
 
             control.Presentation = CreateDisclosurePresentation(isExpanded: true);
             control.UpdateLayout();
 
-            Assert.AreEqual(
-                380d,
-                control.ActualHeight,
-                1d,
-                "warning expanded height");
-            InspectionDisclosure disclosure = control.ActiveDisclosure!;
-            Assert.IsNotNull(disclosure);
+            Assert.IsGreaterThan(collapsedHeight, control.ActualHeight);
             ScrollViewer report =
                 (ScrollViewer)control.FindName("ExpandedReportScrollViewer");
             FrameworkElement fade =
@@ -280,19 +281,18 @@ public sealed class InspectionContentCardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    [DataRow(4, 232d)]
-    [DataRow(5, 380d)]
-    [DataRow(6, 232d)]
-    [DataRow(7, 365d)]
-    [DataRow(8, 232d)]
-    [DataRow(9, 232d)]
-    [DataRow(10, 248d)]
-    [DataRow(11, 380d)]
-    [DataRow(12, 202d)]
-    [DataRow(13, 248d)]
-    public async Task FactoryTerminalStates_UseApprovedStandardGeometry(
-        int stateValue,
-        double expectedHeight)
+    [DataRow(4)]
+    [DataRow(5)]
+    [DataRow(6)]
+    [DataRow(7)]
+    [DataRow(8)]
+    [DataRow(9)]
+    [DataRow(10)]
+    [DataRow(11)]
+    [DataRow(12)]
+    [DataRow(13)]
+    public async Task FactoryTerminalStates_UseNaturalGeometryAndLeftAlignedLongCopy(
+        int stateValue)
     {
         ModelInspectionFigmaState expectedState =
             (ModelInspectionFigmaState)stateValue;
@@ -316,8 +316,19 @@ public sealed class InspectionContentCardTests
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
             control.UpdateLayout();
 
+            Border shell = (Border)control.FindName("ContentCardShell");
             Assert.AreEqual(expectedState, page.State);
-            Assert.AreEqual(expectedHeight, control.ActualHeight, 1d);
+            Assert.AreEqual(0d, shell.MinHeight, 0.01d);
+            Assert.IsGreaterThan(0d, control.ActualHeight);
+            foreach (TextBlock text in EnumerateDescendants(control)
+                .OfType<TextBlock>()
+                .Where(text => text.Text.Length >= 40))
+            {
+                Assert.AreEqual(
+                    TextAlignment.Left,
+                    text.TextAlignment,
+                    $"long findings and diagnostics remain left aligned: {text.Text}");
+            }
         }
         finally
         {

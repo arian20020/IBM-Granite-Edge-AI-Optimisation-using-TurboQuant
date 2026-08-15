@@ -92,7 +92,6 @@
 
         <Border
             x:Name="ResultView"
-            MinHeight="140"
             Padding="24,8"
             HorizontalAlignment="Stretch"
             Background="{ThemeResource InspectionSurfaceMutedBrush}"
@@ -100,22 +99,29 @@
             BorderThickness="1"
             CornerRadius="12"
             Visibility="Collapsed">
-            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <Grid HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <TextBlock
                     Style="{StaticResource InspectionActionHeadingStyle}"
                     Text="{x:Bind Presentation.Title, Mode=OneWay}" />
                 <TextBlock
+                    Grid.Row="1"
                     Margin="0,6,0,0"
                     Style="{StaticResource InspectionActionMessageStyle}"
                     Text="{x:Bind Presentation.Message, Mode=OneWay}" />
 
                 <Grid
                     x:Name="ResultButtonPanel"
+                    Grid.Row="2"
                     MaxWidth="760"
                     Margin="0,5,0,0"
-                    HorizontalAlignment="Center"
-                    ColumnSpacing="12"
-                    RowSpacing="8">
+                    HorizontalAlignment="Stretch"
+                    ColumnSpacing="0"
+                    RowSpacing="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="ActionColumnOne" Width="*" />
                         <ColumnDefinition x:Name="ActionColumnTwo" Width="*" />
@@ -130,7 +136,7 @@
                     <StackPanel x:Name="SecondaryActionOneHost" Grid.Row="0" Grid.ColumnSpan="3">
                         <Button
                             x:Name="SecondaryActionOneButton"
-                            MinWidth="{x:Bind Presentation.SecondaryActionOne.MinimumWidth, Mode=OneWay}"
+                            MinWidth="{StaticResource InspectionMinimumTargetSize}"
                             MinHeight="{StaticResource InspectionStandardButtonHeight}"
                             Padding="20,10"
                             HorizontalAlignment="Stretch"
@@ -164,7 +170,7 @@
                     <StackPanel x:Name="SecondaryActionTwoHost" Grid.Row="1" Grid.ColumnSpan="3">
                         <Button
                             x:Name="SecondaryActionTwoButton"
-                            MinWidth="{x:Bind Presentation.SecondaryActionTwo.MinimumWidth, Mode=OneWay}"
+                            MinWidth="{StaticResource InspectionMinimumTargetSize}"
                             MinHeight="{StaticResource InspectionStandardButtonHeight}"
                             Padding="20,10"
                             HorizontalAlignment="Stretch"
@@ -198,7 +204,7 @@
                     <StackPanel x:Name="PrimaryActionHost" Grid.Row="2" Grid.ColumnSpan="3">
                         <Button
                             x:Name="PrimaryActionButton"
-                            MinWidth="{x:Bind Presentation.PrimaryAction.MinimumWidth, Mode=OneWay}"
+                            MinWidth="{StaticResource InspectionMinimumTargetSize}"
                             MinHeight="{StaticResource InspectionStandardButtonHeight}"
                             Padding="20,10"
                             HorizontalAlignment="Stretch"
@@ -229,7 +235,7 @@
                             Visibility="{x:Bind local:InspectionActionCard.GetFutureHelpVisibility(Presentation.PrimaryAction), Mode=OneWay}" />
                     </StackPanel>
                 </Grid>
-            </StackPanel>
+            </Grid>
         </Border>
 
         <VisualStateManager.VisualStateGroups>
@@ -249,54 +255,9 @@
             </VisualStateGroup>
 
             <VisualStateGroup x:Name="ResponsiveActionStates">
-                <VisualState x:Name="WideActionState">
-                    <VisualState.Setters>
-                        <Setter Target="ActionColumnOne.Width" Value="*" />
-                        <Setter Target="ActionColumnTwo.Width" Value="*" />
-                        <Setter Target="ActionColumnThree.Width" Value="*" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.Row)" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.Column)" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.Row)" Value="0" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.Column)" Value="1" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="PrimaryActionHost.(Grid.Row)" Value="0" />
-                        <Setter Target="PrimaryActionHost.(Grid.Column)" Value="2" />
-                        <Setter Target="PrimaryActionHost.(Grid.ColumnSpan)" Value="1" />
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="MediumActionState">
-                    <VisualState.Setters>
-                        <Setter Target="ActionColumnOne.Width" Value="*" />
-                        <Setter Target="ActionColumnTwo.Width" Value="*" />
-                        <Setter Target="ActionColumnThree.Width" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.Row)" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.Column)" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.Row)" Value="0" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.Column)" Value="1" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.ColumnSpan)" Value="1" />
-                        <Setter Target="PrimaryActionHost.(Grid.Row)" Value="1" />
-                        <Setter Target="PrimaryActionHost.(Grid.Column)" Value="0" />
-                        <Setter Target="PrimaryActionHost.(Grid.ColumnSpan)" Value="2" />
-                    </VisualState.Setters>
-                </VisualState>
-                <VisualState x:Name="NarrowActionState">
-                    <VisualState.Setters>
-                        <Setter Target="ActionColumnOne.Width" Value="*" />
-                        <Setter Target="ActionColumnTwo.Width" Value="*" />
-                        <Setter Target="ActionColumnThree.Width" Value="*" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.Row)" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.Column)" Value="0" />
-                        <Setter Target="SecondaryActionOneHost.(Grid.ColumnSpan)" Value="3" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.Row)" Value="1" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.Column)" Value="0" />
-                        <Setter Target="SecondaryActionTwoHost.(Grid.ColumnSpan)" Value="3" />
-                        <Setter Target="PrimaryActionHost.(Grid.Row)" Value="2" />
-                        <Setter Target="PrimaryActionHost.(Grid.Column)" Value="0" />
-                        <Setter Target="PrimaryActionHost.(Grid.ColumnSpan)" Value="3" />
-                    </VisualState.Setters>
-                </VisualState>
+                <VisualState x:Name="WideActionState" />
+                <VisualState x:Name="MediumActionState" />
+                <VisualState x:Name="NarrowActionState" />
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
     </Grid>

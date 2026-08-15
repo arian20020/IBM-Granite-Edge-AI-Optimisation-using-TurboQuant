@@ -17,7 +17,7 @@ public sealed class InspectionOutcomeCardTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task Ready_UsesApprovedHeightTypographyAndSuccessResources()
+    public async Task Ready_UsesNaturalBalancedGeometryTypographyAndSuccessResources()
     {
         InspectionOutcomeCard control = CreateControl(
             InspectionOutcomeTone.Success,
@@ -43,7 +43,27 @@ public sealed class InspectionOutcomeCardTests
                 control,
                 "The package and runtime passed inspection.");
 
-            Assert.AreEqual(82d, card.ActualHeight, 0.01, "ready banner height");
+            Grid layout = Find<Grid>(control, "OutcomeLayoutGrid");
+            ColumnDefinition leading = layout.ColumnDefinitions[0];
+            ColumnDefinition trailing = layout.ColumnDefinitions[2];
+            ContentControl focus = Find<ContentControl>(control, "OutcomeFocusTarget");
+            Point titleOrigin = title.TransformToVisual(card).TransformPoint(new Point());
+            Point messageOrigin = message.TransformToVisual(card).TransformPoint(new Point());
+
+            Assert.AreEqual(0d, card.MinHeight, 0.01, "the banner must size naturally");
+            Assert.AreEqual(leading.ActualWidth, trailing.ActualWidth, 0.01,
+                "the copy must be balanced by equal outer columns");
+            Assert.AreEqual(HorizontalAlignment.Stretch, focus.HorizontalContentAlignment);
+            Assert.AreEqual(
+                card.ActualWidth / 2d,
+                titleOrigin.X + (title.ActualWidth / 2d),
+                1d,
+                "title centre");
+            Assert.AreEqual(
+                card.ActualWidth / 2d,
+                messageOrigin.X + (message.ActualWidth / 2d),
+                1d,
+                "message centre");
             Assert.AreEqual(40d, iconContainer.ActualWidth, 0.01, "status icon width");
             Assert.AreEqual(40d, iconContainer.ActualHeight, 0.01, "status icon height");
             Assert.AreEqual(40d, glyph.SurfaceSize, 0.01, "glyph surface");

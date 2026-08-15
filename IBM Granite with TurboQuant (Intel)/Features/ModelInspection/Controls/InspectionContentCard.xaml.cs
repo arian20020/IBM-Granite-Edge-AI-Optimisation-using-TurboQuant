@@ -424,7 +424,6 @@ public sealed partial class InspectionContentCard : UserControl
             FindingsDisclosure.PrepareTargetState(disclosureTarget);
             FindingsDisclosure.CompleteTargetState(disclosureTarget);
         }
-        ContentCardShell.MinHeight = GetStandardMinimumHeight(presentation);
         ExpandedReportViewport.Height = GetStandardViewportHeight(presentation);
 
         bool isActiveProgress = CardVisibility == Visibility.Visible &&
@@ -457,23 +456,6 @@ public sealed partial class InspectionContentCard : UserControl
             AutomationProperties.SetName(this, automationName);
         }
     }
-
-    private static double GetStandardMinimumHeight(
-        InspectionContentCardPresentation presentation) =>
-        presentation.Mode switch
-        {
-            InspectionContentCardMode.Warnings =>
-                presentation.IsExpanded ? 380d : 232d,
-            InspectionContentCardMode.ConversionRequired =>
-                presentation.IsExpanded ? 365d : 232d,
-            InspectionContentCardMode.IncompletePackage => 232d,
-            InspectionContentCardMode.Unsupported => 232d,
-            InspectionContentCardMode.Invalid =>
-                presentation.IsExpanded ? 380d : 248d,
-            InspectionContentCardMode.Cancelled => 202d,
-            InspectionContentCardMode.OperationalFailure => 248d,
-            _ => 0d
-        };
 
     private static double GetStandardViewportHeight(
         InspectionContentCardPresentation presentation) =>

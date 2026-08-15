@@ -413,8 +413,16 @@ public sealed class ModelInspectionAccessibilityTests
                 AutomationLiveSetting.Assertive,
                 AutomationProperties.GetLiveSetting(outcome));
             Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
-            Assert.AreEqual(248d, content.ActualHeight, 1d);
-            Assert.AreEqual(140d, actions.ActualHeight, 1d);
+            Assert.AreEqual(
+                0d,
+                Element<Border>(content, "ContentCardShell").MinHeight,
+                0.01d);
+            Assert.AreEqual(
+                0d,
+                Element<Border>(actions, "ResultView").MinHeight,
+                0.01d);
+            Assert.IsGreaterThan(0d, content.ActualHeight);
+            Assert.IsGreaterThan(0d, actions.ActualHeight);
             AssertUniformVisibleCardGaps(page);
 
             ModelInspectionPagePresentation terminal =
@@ -451,8 +459,16 @@ public sealed class ModelInspectionAccessibilityTests
             dispatcher.RunAll();
             await host.CaptureAsync();
             Assert.AreEqual(Visibility.Visible, outcome.CardVisibility);
-            Assert.AreEqual(248d, content.ActualHeight, 1d);
-            Assert.AreEqual(140d, actions.ActualHeight, 1d);
+            Assert.AreEqual(
+                0d,
+                Element<Border>(content, "ContentCardShell").MinHeight,
+                0.01d);
+            Assert.AreEqual(
+                0d,
+                Element<Border>(actions, "ResultView").MinHeight,
+                0.01d);
+            Assert.IsGreaterThan(0d, content.ActualHeight);
+            Assert.IsGreaterThan(0d, actions.ActualHeight);
             AssertUniformVisibleCardGaps(page);
             Assert.AreEqual(
                 1,

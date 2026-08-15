@@ -97,14 +97,14 @@ public sealed class ModelInspectionPageLayoutTests
         FrameworkElement contentHost = Assert.IsInstanceOfType<FrameworkElement>(
             page.FindName("InspectionContentHost"));
         Assert.AreSame(contentHost, scrollContent.Children.Single());
-        DependencyObject outcome =
-            (DependencyObject)page.FindName("InspectionOutcomeCardControl");
-        DependencyObject model =
-            (DependencyObject)page.FindName("InspectionModelCardControl");
-        DependencyObject content =
-            (DependencyObject)page.FindName("InspectionContentCardControl");
-        DependencyObject actions =
-            (DependencyObject)page.FindName("InspectionActionCardControl");
+        FrameworkElement outcome =
+            (FrameworkElement)page.FindName("InspectionOutcomeCardControl");
+        FrameworkElement model =
+            (FrameworkElement)page.FindName("InspectionModelCardControl");
+        FrameworkElement content =
+            (FrameworkElement)page.FindName("InspectionContentCardControl");
+        FrameworkElement actions =
+            (FrameworkElement)page.FindName("InspectionActionCardControl");
         FrameworkElement layoutRoot = Assert.IsInstanceOfType<FrameworkElement>(
             page.FindName("LayoutRoot"));
         (double Width, double Inset, double HostWidth)[] endpoints =
@@ -157,6 +157,10 @@ public sealed class ModelInspectionPageLayoutTests
                 Assert.AreSame(
                     scrollViewer,
                     page.FindName("InspectionPageScrollViewer"));
+                Assert.AreEqual(0d, outcome.ActualHeight, 0.01d);
+                Assert.IsGreaterThan(0d, model.ActualHeight);
+                Assert.AreEqual(0d, content.ActualHeight, 0.01d);
+                Assert.AreEqual(0d, actions.ActualHeight, 0.01d);
             }
         }
         finally

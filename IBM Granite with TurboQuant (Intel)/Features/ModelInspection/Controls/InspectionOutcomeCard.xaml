@@ -43,12 +43,11 @@
         Visibility="{x:Bind CardVisibility, Mode=OneWay}">
         <Border
             x:Name="OutcomeCardBorder"
-            MinHeight="82"
             Padding="26,16"
             HorizontalAlignment="Stretch"
             BorderThickness="1"
             CornerRadius="{StaticResource InspectionCardCornerRadius}">
-            <Grid ColumnSpacing="16">
+            <Grid x:Name="OutcomeLayoutGrid" ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="*" />
@@ -72,29 +71,42 @@
                         SurfaceSize="40" />
                 </Border>
 
-                <ContentControl
-                    x:Name="OutcomeFocusTarget"
-                    Grid.Column="1"
-                    MinWidth="0"
-                    VerticalAlignment="Center"
-                    AutomationProperties.AccessibilityView="Content"
-                    AutomationProperties.HeadingLevel="Level2"
-                    AutomationProperties.Name="{x:Bind Presentation.Title, Mode=OneWay}"
-                    IsTabStop="False"
-                    UseSystemFocusVisuals="True">
-                    <StackPanel Spacing="4">
+                <Grid Grid.Column="1">
+                    <Grid
+                        x:Name="OutcomeCopyPanel"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        RowSpacing="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <TextBlock
                             x:Name="OutcomeTitle"
+                            HorizontalAlignment="Center"
                             d:Text="Ready for hardware check"
                             Style="{StaticResource InspectionOutcomeTitleStyle}"
                             Text="{x:Bind Presentation.Title, Mode=OneWay}" />
                         <TextBlock
                             x:Name="OutcomeMessage"
+                            Grid.Row="1"
+                            HorizontalAlignment="Center"
                             d:Text="The package, tokenizer, model structure and selected runtime all passed inspection."
                             Style="{StaticResource InspectionOutcomeMessageStyle}"
                             Text="{x:Bind Presentation.Message, Mode=OneWay}" />
-                    </StackPanel>
-                </ContentControl>
+                    </Grid>
+                    <ContentControl
+                        x:Name="OutcomeFocusTarget"
+                        MinWidth="0"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        AutomationProperties.AccessibilityView="Content"
+                        AutomationProperties.HeadingLevel="Level2"
+                        AutomationProperties.Name="{x:Bind Presentation.Title, Mode=OneWay}"
+                        IsTabStop="False"
+                        UseSystemFocusVisuals="True" />
+                </Grid>
             </Grid>
         </Border>
 
