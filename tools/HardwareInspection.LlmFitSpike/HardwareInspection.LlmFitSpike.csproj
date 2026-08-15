@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <None Update="Candidates\llmfit-v1.1.9-win-x64.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Candidates\llmfit-v1.1.9-win-x64.json"
+                      LogicalName="HardwareInspection.LlmFitSpike.Candidates.llmfit-v1.1.9-win-x64.json" />
   </ItemGroup>
 
 </Project>

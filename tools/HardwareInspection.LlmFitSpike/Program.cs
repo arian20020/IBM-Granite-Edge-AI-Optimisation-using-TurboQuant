@@ -41,7 +41,7 @@ namespace HardwareInspection.LlmFitSpike
             }
             catch
             {
-                WriteStableOutput(output, "Blocked", ["INVALID-COMMAND-LINE"], "none");
+                WriteStableOutput(output, "Blocked", Array.Empty<string>(), "none");
                 return 2;
             }
 
@@ -85,6 +85,12 @@ namespace HardwareInspection.LlmFitSpike
                 result.DiagnosticCodes,
                 evidenceName);
 
+            return GetExitCode(result);
+        }
+
+        internal static int GetExitCode(LlmFitGate1RunResult result)
+        {
+            ArgumentNullException.ThrowIfNull(result);
             if (result.DiagnosticCodes.Contains(
                     LlmFitGate1DiagnosticCodes.ProcessCancelled,
                     StringComparer.Ordinal))
@@ -92,7 +98,9 @@ namespace HardwareInspection.LlmFitSpike
                 return 3;
             }
 
-            return result.Disposition == LlmFitGate1Disposition.FunctionalPassWithPackagingConcern
+            return result.Disposition is
+                LlmFitGate1Disposition.FunctionalPassWithPackagingConcern or
+                LlmFitGate1Disposition.AcceptedForFunctionalEvaluation
                 ? 0
                 : 1;
         }
@@ -104,7 +112,16 @@ namespace HardwareInspection.LlmFitSpike
             string evidenceName)
         {
             output.WriteLine("disposition=" + disposition);
-            foreach (string diagnostic in diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+            string[] stableDiagnostics = diagnostics
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            if (stableDiagnostics.Length == 0)
+            {
+                output.WriteLine("diagnostic=none");
+            }
+
+            foreach (string diagnostic in stableDiagnostics)
             {
                 output.WriteLine("diagnostic=" + diagnostic);
             }
@@ -115,26 +132,29 @@ namespace HardwareInspection.LlmFitSpike
 
     internal sealed class AssemblyCandidateManifestSource : ICandidateManifestSource
     {
-        private const string ManifestFileName = "llmfit-v1.1.9-win-x64.json";
+        private const int MaximumManifestBytes = 64 * 1024;
+        private const string ManifestResourceName =
+            "HardwareInspection.LlmFitSpike.Candidates.llmfit-v1.1.9-win-x64.json";
+        private static readonly System.Text.UTF8Encoding StrictUtf8 = new(false, true);
 
         public LlmFitCandidateManifest Load()
         {
-            string candidatesDirectory = Path.Combine(AppContext.BaseDirectory, "Candidates");
-            string manifestPath = Path.Combine(candidatesDirectory, ManifestFileName);
-            FileAttributes directoryAttributes = File.GetAttributes(candidatesDirectory);
-            FileAttributes manifestAttributes = File.GetAttributes(manifestPath);
-            if (!string.Equals(
-                    Path.GetFileName(manifestPath),
-                    ManifestFileName,
-                    StringComparison.Ordinal) ||
-                (directoryAttributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) !=
-                    FileAttributes.Directory ||
-                (manifestAttributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+            using Stream? stream = typeof(AssemblyCandidateManifestSource).Assembly
+                .GetManifestResourceStream(ManifestResourceName);
+            if (stream is null || !stream.CanRead || stream.Length is <= 0 or > MaximumManifestBytes)
             {
                 throw new InvalidDataException("The committed candidate manifest is unavailable.");
             }
 
-            return LlmFitCandidateManifestLoader.Load(manifestPath);
+            int length = checked((int)stream.Length);
+            byte[] bytes = new byte[length];
+            stream.ReadExactly(bytes);
+            if (stream.ReadByte() != -1)
+            {
+                throw new InvalidDataException("The committed candidate manifest is unavailable.");
+            }
+
+            return LlmFitCandidateManifestLoader.Parse(StrictUtf8.GetString(bytes));
         }
     }
 
@@ -206,7 +226,7 @@ namespace HardwareInspection.LlmFitSpike
             string outputPath,
             CancellationToken cancellationToken)
         {
-            return _writer.WriteAsync(evidence, outputPath, cancellationToken);
+            return _writer.WriteNewAsync(evidence, outputPath, cancellationToken);
         }
     }
 }

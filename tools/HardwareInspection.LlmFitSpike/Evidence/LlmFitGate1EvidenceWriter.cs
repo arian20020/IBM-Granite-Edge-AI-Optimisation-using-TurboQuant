@@ -91,10 +91,35 @@ public sealed partial class LlmFitGate1EvidenceWriter
             throw new ArgumentNullException(nameof(markOwnedFileForDeletion));
     }
 
-    public async Task<string> WriteAsync(
+    public Task<string> WriteAsync(
         LlmFitGate1Evidence evidence,
         string outputPath,
         CancellationToken cancellationToken = default)
+    {
+        return WriteCoreAsync(
+            evidence,
+            outputPath,
+            replaceExisting: true,
+            cancellationToken);
+    }
+
+    internal Task<string> WriteNewAsync(
+        LlmFitGate1Evidence evidence,
+        string outputPath,
+        CancellationToken cancellationToken = default)
+    {
+        return WriteCoreAsync(
+            evidence,
+            outputPath,
+            replaceExisting: false,
+            cancellationToken);
+    }
+
+    private async Task<string> WriteCoreAsync(
+        LlmFitGate1Evidence evidence,
+        string outputPath,
+        bool replaceExisting,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(evidence);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
@@ -120,6 +145,11 @@ public sealed partial class LlmFitGate1EvidenceWriter
         {
             throw new InvalidDataException(
                 "The evidence output directory identity changed.");
+        }
+
+        if (!replaceExisting)
+        {
+            EnsureDestinationIsAbsent(fullOutputPath);
         }
 
         string temporaryFileName = Path.GetFileName(fullOutputPath) +
@@ -160,10 +190,16 @@ public sealed partial class LlmFitGate1EvidenceWriter
             _beforePublish?.Invoke(temporaryPath);
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (!replaceExisting)
+            {
+                EnsureDestinationIsAbsent(fullOutputPath);
+            }
+
             RenameHeldFile(
                 temporaryStream.SafeFileHandle,
                 outputDirectoryHandle,
-                fullOutputPath);
+                fullOutputPath,
+                replaceExisting);
             published = true;
             return fullOutputPath;
         }
@@ -194,6 +230,15 @@ public sealed partial class LlmFitGate1EvidenceWriter
                     temporaryHandle.Dispose();
                 }
             }
+        }
+    }
+
+    private static void EnsureDestinationIsAbsent(string destinationPath)
+    {
+        if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
+        {
+            throw new InvalidDataException(
+                "The evidence destination already belongs to another run.");
         }
     }
 
@@ -630,7 +675,8 @@ public sealed partial class LlmFitGate1EvidenceWriter
     private static void RenameHeldFile(
         SafeFileHandle temporaryFile,
         SafeFileHandle outputDirectory,
-        string destinationPath)
+        string destinationPath,
+        bool replaceExisting)
     {
         string stableOutputDirectory = GetStablePath(outputDirectory);
         if (!string.Equals(destinationPath, Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase) ||
@@ -659,7 +705,7 @@ public sealed partial class LlmFitGate1EvidenceWriter
                 Marshal.WriteByte(information, offset, 0);
             }
 
-            Marshal.WriteByte(information, 0, 1);
+            Marshal.WriteByte(information, 0, replaceExisting ? (byte)1 : (byte)0);
             Marshal.WriteIntPtr(information, 8, 0);
             Marshal.WriteInt32(information, 16, fileNameBytes.Length);
             Marshal.Copy(fileNameBytes, 0, information + FileNameOffset, fileNameBytes.Length);

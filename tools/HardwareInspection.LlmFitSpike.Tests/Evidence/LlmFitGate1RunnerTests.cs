@@ -170,13 +170,15 @@ public sealed class LlmFitGate1RunnerTests
         const string RawJson = "{\"system\":{\"cpu_name\":\"Gránite\"}}\r\n";
         var store = new GateOutputStore();
         string outputPath = Path.Combine(scope.OutputDirectory, "llmfit-system.raw.json");
-        await File.WriteAllTextAsync(outputPath, "superseded").ConfigureAwait(false);
-
-        GateRawOutput result = await store.WriteRawSystemJsonAsync(
-                scope.OutputDirectory,
-                RawJson,
-                CancellationToken.None)
-            .ConfigureAwait(false);
+        GateRawOutput result;
+        using (IGateOutputSession session = store.AcquireFreshRun(scope.OutputDirectory))
+        {
+            result = await store.WriteRawSystemJsonAsync(
+                    session,
+                    RawJson,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+        }
 
         byte[] expected = new UTF8Encoding(false, true).GetBytes(RawJson);
         CollectionAssert.AreEqual(expected, await File.ReadAllBytesAsync(outputPath).ConfigureAwait(false));
@@ -259,11 +261,11 @@ public sealed class LlmFitGate1RunnerTests
             ["HI-LLMFIT-ARCHIVE-LENGTH-MISMATCH"] = LlmFitGate1DiagnosticCodes.ArchiveLengthMismatch,
             ["HI-LLMFIT-EXECUTABLE-HASH-MISMATCH"] = LlmFitGate1DiagnosticCodes.ExecutableHashMismatch,
             ["HI-LLMFIT-MISSING-REQUIRED-FILE"] = LlmFitGate1DiagnosticCodes.PackageMissing,
-            ["HI-LLMFIT-OBSERVATION-INVALID"] = LlmFitGate1DiagnosticCodes.RequiredTestFailure,
+            ["HI-LLMFIT-OBSERVATION-INVALID"] = LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
             ["HI-LLMFIT-OBSERVATION-MISMATCH"] = LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
-            ["HI-LLMFIT-PACKAGE-ACCESS-DENIED"] = LlmFitGate1DiagnosticCodes.RequiredTestFailure,
-            ["HI-LLMFIT-PACKAGE-INVALID"] = LlmFitGate1DiagnosticCodes.RequiredTestFailure,
-            ["HI-LLMFIT-PACKAGE-IO-ERROR"] = LlmFitGate1DiagnosticCodes.RequiredTestFailure,
+            ["HI-LLMFIT-PACKAGE-ACCESS-DENIED"] = LlmFitGate1DiagnosticCodes.PackageMissing,
+            ["HI-LLMFIT-PACKAGE-INVALID"] = LlmFitGate1DiagnosticCodes.UnexpectedPackageMember,
+            ["HI-LLMFIT-PACKAGE-IO-ERROR"] = LlmFitGate1DiagnosticCodes.PackageMissing,
             ["HI-LLMFIT-PACKAGE-PATH-INVALID"] = LlmFitGate1DiagnosticCodes.PathEscape,
             ["HI-LLMFIT-PACKAGE-ROOT-MISSING"] = LlmFitGate1DiagnosticCodes.PackageMissing,
             ["HI-LLMFIT-PE-INVALID"] = LlmFitGate1DiagnosticCodes.PeInvalid,
@@ -323,10 +325,8 @@ public sealed class LlmFitGate1RunnerTests
         try
         {
             await Assert.ThrowsExactlyAsync<InvalidDataException>(
-                    () => new GateOutputStore().WriteRawSystemJsonAsync(
-                        linkedDirectory,
-                        ValidSystemJson,
-                        CancellationToken.None))
+                    () => Task.Run(() =>
+                        new GateOutputStore().AcquireFreshRun(linkedDirectory)))
                 .ConfigureAwait(false);
             Assert.HasCount(0, Directory.GetFiles(physicalDirectory));
         }
@@ -337,22 +337,78 @@ public sealed class LlmFitGate1RunnerTests
     }
 
     [TestMethod]
-    public async Task RunAsync_HardVerifierDiagnostic_RemainsRejectedWithSanitizedEvidence()
+    public async Task WriteRawSystemJsonAsync_HoldsEveryAncestorAgainstSwapUntilLeaseDisposal()
+    {
+        using var scope = new RunnerScope();
+        string parent = Path.Combine(scope.Root, "leased-parent");
+        string output = Path.Combine(parent, "nested", "output");
+        string moved = Path.Combine(scope.Root, "moved-parent");
+        Directory.CreateDirectory(output);
+        bool swapWasBlocked = false;
+        var store = new GateOutputStore(() =>
+        {
+            try
+            {
+                Directory.Move(parent, moved);
+            }
+            catch (IOException)
+            {
+                swapWasBlocked = true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                swapWasBlocked = true;
+            }
+        });
+
+        using (IGateOutputSession session = store.AcquireFreshRun(output))
+        {
+            _ = await store.WriteRawSystemJsonAsync(
+                    session,
+                    ValidSystemJson,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.IsTrue(swapWasBlocked);
+            Assert.IsTrue(File.Exists(Path.Combine(output, "llmfit-system.raw.json")));
+        }
+
+        Directory.Move(parent, moved);
+        Assert.IsTrue(File.Exists(Path.Combine(
+            moved,
+            "nested",
+            "output",
+            "llmfit-system.raw.json")));
+    }
+
+    [TestMethod]
+    public void AcquireFreshRun_ConcurrentOrNonemptyOutput_IsRejectedWithoutDeletingEntries()
+    {
+        using var scope = new RunnerScope();
+        var firstStore = new GateOutputStore();
+        using IGateOutputSession first = firstStore.AcquireFreshRun(scope.OutputDirectory);
+
+        Assert.ThrowsExactly<InvalidDataException>(
+            () => new GateOutputStore().AcquireFreshRun(scope.OutputDirectory));
+
+        string unknownPath = Path.Combine(scope.OutputDirectory, "unknown.private");
+        first.Dispose();
+        File.WriteAllText(unknownPath, "owned by somebody else");
+        Assert.ThrowsExactly<InvalidDataException>(
+            () => new GateOutputStore().AcquireFreshRun(scope.OutputDirectory));
+        Assert.IsTrue(File.Exists(unknownPath));
+    }
+
+    [TestMethod]
+    public async Task RunAsync_HardVerifierDiagnostic_StopsBeforeCommandDespitePassingIntegrityFlag()
     {
         using var scope = new RunnerScope();
         var boundary = BoundarySet.CreateDefault(scope.OutputDirectory);
         boundary.Verifications.Clear();
-        for (int index = 0; index < 3; index++)
+        boundary.Verifications.Enqueue(CreateVerification() with
         {
-            boundary.Verifications.Enqueue(CreateVerification() with
-            {
-                DiagnosticCodes = [LlmFitGate1DiagnosticCodes.ArchiveHashMismatch],
-            });
-        }
-
+            DiagnosticCodes = [LlmFitGate1DiagnosticCodes.ArchiveHashMismatch],
+        });
         boundary.ProcessResults.Enqueue(CreateProcessResult(ApprovedVersionText));
-        boundary.ProcessResults.Enqueue(CreateProcessResult(ValidSystemJson));
-        boundary.Observations.Enqueue(CleanObservation());
         boundary.Observations.Enqueue(CleanObservation());
 
         LlmFitGate1RunResult result = await boundary.CreateRunner().RunAsync(
@@ -367,8 +423,90 @@ public sealed class LlmFitGate1RunnerTests
         CollectionAssert.DoesNotContain(
             result.DiagnosticCodes.ToArray(),
             LlmFitGate1DiagnosticCodes.PrivacyValidationFailed);
-        Assert.IsTrue(File.Exists(result.EvidencePath));
+        Assert.AreEqual(string.Empty, result.EvidencePath);
+        Assert.HasCount(0, boundary.Commands);
         Assert.IsFalse(File.Exists(Path.Combine(scope.OutputDirectory, "llmfit-system.raw.json")));
+    }
+
+    [TestMethod]
+    public async Task RunAsync_InconsistentUnsignedVerification_StopsBeforeCommand()
+    {
+        using var scope = new RunnerScope();
+        var boundary = BoundarySet.CreateDefault(scope.OutputDirectory);
+        boundary.Verifications.Clear();
+        boundary.Verifications.Enqueue(CreateVerification() with
+        {
+            AuthenticodePresent = false,
+            AuthenticodeStatus = "PresentUnverified",
+            AuthenticodeSubject = "CN=Inconsistent",
+            DiagnosticCodes = [LlmFitGate1DiagnosticCodes.SignatureClaimMismatch],
+        });
+        boundary.ProcessResults.Enqueue(CreateProcessResult(ApprovedVersionText));
+        boundary.Observations.Enqueue(CleanObservation());
+
+        LlmFitGate1RunResult result = await boundary.CreateRunner().RunAsync(
+                scope.CreateOptions(),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(LlmFitGate1Disposition.Rejected, result.Disposition);
+        CollectionAssert.Contains(
+            result.DiagnosticCodes.ToArray(),
+            LlmFitGate1DiagnosticCodes.SignatureClaimMismatch);
+        Assert.HasCount(0, boundary.Commands);
+        Assert.AreEqual(string.Empty, result.EvidencePath);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_RawIdentityAndBytes_AreHeldThroughEvidencePublication()
+    {
+        using var scope = new RunnerScope();
+        var boundary = BoundarySet.CreateDefault(scope.OutputDirectory);
+        boundary.ProductionOutputStore = new GateOutputStore();
+        boundary.ProcessResults.Enqueue(CreateProcessResult(ApprovedVersionText));
+        boundary.ProcessResults.Enqueue(CreateProcessResult(ValidSystemJson));
+        boundary.Observations.Enqueue(CleanObservation());
+        boundary.Observations.Enqueue(CleanObservation());
+        bool tamperWasBlocked = false;
+        boundary.BeforeEvidenceWrite = () =>
+        {
+            try
+            {
+                File.WriteAllText(
+                    Path.Combine(scope.OutputDirectory, "llmfit-system.raw.json"),
+                    "tampered");
+            }
+            catch (IOException)
+            {
+                tamperWasBlocked = true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                tamperWasBlocked = true;
+            }
+        };
+
+        LlmFitGate1RunResult result = await boundary.CreateRunner().RunAsync(
+                scope.CreateOptions(),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(
+            LlmFitGate1Disposition.FunctionalPassWithPackagingConcern,
+            result.Disposition);
+        Assert.IsTrue(tamperWasBlocked);
+        string rawPath = Path.Combine(scope.OutputDirectory, "llmfit-system.raw.json");
+        string actualHash = Convert.ToHexString(
+                SHA256.HashData(await File.ReadAllBytesAsync(rawPath).ConfigureAwait(false)))
+            .ToLowerInvariant();
+        using JsonDocument evidence = JsonDocument.Parse(
+            await File.ReadAllTextAsync(result.EvidencePath).ConfigureAwait(false));
+        string? recordedHash = evidence.RootElement
+            .GetProperty("rawSystemJsonSha256")
+            .GetString();
+        Assert.AreEqual(
+            recordedHash,
+            actualHash);
     }
 
     [TestMethod]
@@ -399,6 +537,113 @@ public sealed class LlmFitGate1RunnerTests
             await File.ReadAllTextAsync(result.EvidencePath).ConfigureAwait(false));
         Assert.IsTrue(document.RootElement.GetProperty("systemCandidateSocketObserved").GetBoolean());
         Assert.IsTrue(document.RootElement.GetProperty("systemDashboardPortObserved").GetBoolean());
+    }
+
+    [TestMethod]
+    public async Task RunAsync_PreexistingPair_IsNeverMixedWithANewFailedRun()
+    {
+        foreach (string failure in new[] { "cancellation", "evidence", "system" })
+        {
+            using var scope = new RunnerScope();
+            var first = BoundarySet.CreateDefault(scope.OutputDirectory);
+            first.ProductionOutputStore = new GateOutputStore();
+            first.ProcessResults.Enqueue(CreateProcessResult(ApprovedVersionText));
+            first.ProcessResults.Enqueue(CreateProcessResult(ValidSystemJson));
+            first.Observations.Enqueue(CleanObservation());
+            first.Observations.Enqueue(CleanObservation());
+            LlmFitGate1RunResult accepted = await first.CreateRunner().RunAsync(
+                    scope.CreateOptions(),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.AreEqual(
+                LlmFitGate1Disposition.FunctionalPassWithPackagingConcern,
+                accepted.Disposition);
+
+            string rawPath = Path.Combine(scope.OutputDirectory, "llmfit-system.raw.json");
+            string evidencePath = Path.Combine(scope.OutputDirectory, "llmfit-gate1.evidence.json");
+            byte[] originalRaw = await File.ReadAllBytesAsync(rawPath).ConfigureAwait(false);
+            byte[] originalEvidence = await File.ReadAllBytesAsync(evidencePath).ConfigureAwait(false);
+
+            var second = BoundarySet.CreateDefault(scope.OutputDirectory);
+            second.ProductionOutputStore = new GateOutputStore();
+            second.ProcessResults.Enqueue(CreateProcessResult(ApprovedVersionText));
+            second.Observations.Enqueue(CleanObservation());
+            using var cancellation = new CancellationTokenSource();
+            if (failure == "cancellation")
+            {
+                cancellation.Cancel();
+            }
+            else
+            {
+                second.ProcessResults.Enqueue(
+                    failure == "system"
+                        ? CreateProcessResult(string.Empty) with { ExitCode = 23 }
+                        : CreateProcessResult(ValidSystemJson));
+                second.Observations.Enqueue(CleanObservation());
+                second.EvidenceWriterFails = failure == "evidence";
+            }
+
+            LlmFitGate1RunResult failed = await second.CreateRunner().RunAsync(
+                    scope.CreateOptions(),
+                    cancellation.Token)
+                .ConfigureAwait(false);
+
+            if (failure == "cancellation")
+            {
+                Assert.AreEqual(LlmFitGate1Disposition.Blocked, failed.Disposition);
+                CollectionAssert.Contains(
+                    failed.DiagnosticCodes.ToArray(),
+                    LlmFitGate1DiagnosticCodes.ProcessCancelled);
+            }
+
+            CollectionAssert.AreEqual(
+                originalRaw,
+                await File.ReadAllBytesAsync(rawPath).ConfigureAwait(false),
+                failure);
+            CollectionAssert.AreEqual(
+                originalEvidence,
+                await File.ReadAllBytesAsync(evidencePath).ConfigureAwait(false),
+                failure);
+            Assert.HasCount(0, second.Commands, failure);
+        }
+    }
+
+    [TestMethod]
+    public void Load_TamperedOrMissingOutputManifest_UsesEmbeddedCommittedIdentity()
+    {
+        string outputManifest = Path.Combine(
+            AppContext.BaseDirectory,
+            "Candidates",
+            "llmfit-v1.1.9-win-x64.json");
+        string backupManifest = outputManifest + ".owned-backup-" + Guid.NewGuid().ToString("N");
+        byte[] original = File.ReadAllBytes(outputManifest);
+        try
+        {
+            File.WriteAllText(
+                outputManifest,
+                "{\"schemaVersion\":\"private-tamper\"}",
+                new UTF8Encoding(false));
+            LlmFitCandidateManifest tampered = new AssemblyCandidateManifestSource().Load();
+            Assert.AreEqual("llmfit-v1.1.9-win-x64", tampered.CandidateId);
+            Assert.AreEqual("1.1.9", tampered.Version);
+
+            File.WriteAllBytes(outputManifest, original);
+            File.Move(outputManifest, backupManifest);
+            LlmFitCandidateManifest missing = new AssemblyCandidateManifestSource().Load();
+            Assert.AreEqual("llmfit-v1.1.9-win-x64", missing.CandidateId);
+            Assert.AreEqual("1.1.9", missing.Version);
+        }
+        finally
+        {
+            if (File.Exists(backupManifest))
+            {
+                File.Move(backupManifest, outputManifest, overwrite: true);
+            }
+            else
+            {
+                File.WriteAllBytes(outputManifest, original);
+            }
+        }
     }
 
     private static LlmFitCandidateManifest CreateManifest(
@@ -621,14 +866,19 @@ public sealed class LlmFitGate1RunnerTests
             return _observer.Create(candidateImageName);
         }
 
+        public IGateOutputSession AcquireFreshRun(string outputDirectory)
+        {
+            return _outputStore.AcquireFreshRun(outputDirectory);
+        }
+
         public async Task<GateRawOutput> WriteRawSystemJsonAsync(
-            string outputDirectory,
+            IGateOutputSession session,
             string rawJson,
             CancellationToken cancellationToken)
         {
             Calls.Add("write ignored raw capture");
             return await _outputStore.WriteRawSystemJsonAsync(
-                    outputDirectory,
+                    session,
                     rawJson,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -673,6 +923,12 @@ public sealed class LlmFitGate1RunnerTests
         internal Queue<LlmFitProcessObservation> Observations { get; } = [];
 
         internal bool InvokeObserver { get; set; } = true;
+
+        internal GateOutputStore? ProductionOutputStore { get; set; }
+
+        internal bool EvidenceWriterFails { get; set; }
+
+        internal Action? BeforeEvidenceWrite { get; set; }
 
         internal int VerifierCallCount { get; private set; }
 
@@ -744,13 +1000,31 @@ public sealed class LlmFitGate1RunnerTests
                 _ => Task.FromResult(observation));
         }
 
+        public IGateOutputSession AcquireFreshRun(string outputDirectory)
+        {
+            Assert.AreEqual(_outputDirectory, outputDirectory);
+            return ProductionOutputStore is null
+                ? new TestGateOutputSession(outputDirectory)
+                : ProductionOutputStore.AcquireFreshRun(outputDirectory);
+        }
+
         public async Task<GateRawOutput> WriteRawSystemJsonAsync(
-            string outputDirectory,
+            IGateOutputSession session,
             string rawJson,
             CancellationToken cancellationToken)
         {
+            string outputDirectory = session.OutputDirectory;
             Assert.AreEqual(_outputDirectory, outputDirectory);
             Calls.Add("write ignored raw capture");
+            if (ProductionOutputStore is not null)
+            {
+                return await ProductionOutputStore.WriteRawSystemJsonAsync(
+                        session,
+                        rawJson,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             string path = Path.Combine(outputDirectory, "llmfit-system.raw.json");
             await File.WriteAllTextAsync(path, rawJson, new UTF8Encoding(false), cancellationToken)
                 .ConfigureAwait(false);
@@ -765,11 +1039,41 @@ public sealed class LlmFitGate1RunnerTests
             CancellationToken cancellationToken)
         {
             Calls.Add("write sanitized evidence");
+            BeforeEvidenceWrite?.Invoke();
+            if (EvidenceWriterFails)
+            {
+                throw new IOException("C:\\private\\evidence-failure");
+            }
+
             return await new LlmFitGate1EvidenceWriter()
-                .WriteAsync(evidence, outputPath, cancellationToken)
+                .WriteNewAsync(evidence, outputPath, cancellationToken)
                 .ConfigureAwait(false);
         }
 
+    }
+
+    private sealed class TestGateOutputSession : IGateOutputSession
+    {
+        internal TestGateOutputSession(string outputDirectory)
+        {
+            OutputDirectory = outputDirectory;
+        }
+
+        public string OutputDirectory { get; }
+
+        public void Dispose()
+        {
+        }
+
+        public void ValidateBeforeEvidence(bool rawPublished)
+        {
+            _ = rawPublished;
+        }
+
+        public void ValidateCompleted(bool rawPublished)
+        {
+            _ = rawPublished;
+        }
     }
 
     private sealed class RunnerScope : IDisposable

@@ -97,6 +97,27 @@ public sealed class LlmFitGate1EvidenceWriterTests
     }
 
     [TestMethod]
+    public async Task WriteNewAsync_PreexistingDestination_IsPreservedAndRejected()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string outputPath = Path.Combine(directory.Path, "llmfit-gate1.evidence.json");
+        const string ExistingContent = "owned by a different run";
+        await File.WriteAllTextAsync(outputPath, ExistingContent).ConfigureAwait(false);
+
+        await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                () => new LlmFitGate1EvidenceWriter().WriteNewAsync(
+                    CreateEvidence(),
+                    outputPath,
+                    CancellationToken.None))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(
+            ExistingContent,
+            await File.ReadAllTextAsync(outputPath).ConfigureAwait(false));
+        Assert.HasCount(0, Directory.GetFiles(directory.Path, "*.tmp-*", SearchOption.TopDirectoryOnly));
+    }
+
+    [TestMethod]
     public async Task WriteAsync_SensitiveOrNonAllowlistedStrings_AreRejected()
     {
         PropertyInfo[] properties = typeof(LlmFitGate1Evidence).GetProperties(BindingFlags.Public | BindingFlags.Instance);

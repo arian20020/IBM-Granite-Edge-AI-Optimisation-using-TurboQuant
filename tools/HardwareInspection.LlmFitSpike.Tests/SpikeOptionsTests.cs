@@ -125,6 +125,8 @@ public sealed class SpikeOptionsTests
         Assert.IsFalse(text.Contains(PrivateValue, StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(text.Contains("private.exe", StringComparison.OrdinalIgnoreCase));
         Assert.IsTrue(text.Contains("disposition=Blocked", StringComparison.Ordinal));
+        Assert.IsTrue(text.Contains("diagnostic=none", StringComparison.Ordinal));
+        Assert.IsFalse(text.Contains("INVALID-COMMAND-LINE", StringComparison.Ordinal));
         Assert.IsTrue(text.Contains("evidence=none", StringComparison.Ordinal));
     }
 
@@ -182,6 +184,17 @@ public sealed class SpikeOptionsTests
                 StringComparison.Ordinal));
         Assert.IsTrue(text.Contains("evidence=none", StringComparison.Ordinal));
         Assert.IsFalse(text.Contains(candidateRoot, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void GetExitCode_AcceptedForFunctionalEvaluation_ReturnsZero()
+    {
+        var result = new LlmFitGate1RunResult(
+            LlmFitGate1Disposition.AcceptedForFunctionalEvaluation,
+            string.Empty,
+            Array.Empty<string>());
+
+        Assert.AreEqual(0, SpikeProgram.GetExitCode(result));
     }
 
     private sealed class OwnedTemporaryDirectory : IDisposable
