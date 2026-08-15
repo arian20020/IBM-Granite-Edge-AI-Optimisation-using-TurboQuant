@@ -189,6 +189,45 @@ public sealed class ModelInspectionPageLayoutTests
             "NarrowPageState",
             minimumWidth: 0,
             inset: 16);
+
+        ResourceDictionary resources = ModelInspectionResources();
+        Assert.AreEqual(16d, resources["InspectionCardGap"]);
+        Assert.AreEqual(24d, resources["InspectionHeaderToCardGap"]);
+        Assert.AreEqual(16d, resources["InspectionProgressHeadingGap"]);
+        Assert.AreEqual(48d, resources["InspectionProgressRowHeight"]);
+
+        const double alternateCardGap = 19d;
+        const double alternateHeaderGap = 29d;
+        ResourceDictionary applicationResources = Application.Current.Resources;
+        applicationResources["InspectionCardGap"] = alternateCardGap;
+        applicationResources["InspectionHeaderToCardGap"] = alternateHeaderGap;
+        try
+        {
+            var tokenPage = new ModelInspectionPage();
+            Assert.AreEqual(
+                alternateHeaderGap,
+                Assert.IsInstanceOfType<FrameworkElement>(
+                    tokenPage.FindName("HeaderToFirstCardGap")).Height);
+            foreach (string name in new[]
+            {
+                "OutcomeToModelCardGap",
+                "ModelToContentLiveGap",
+                "ModelToContentOutgoingGap",
+                "ContentToActionCardGap"
+            })
+            {
+                Assert.AreEqual(
+                    alternateCardGap,
+                    Assert.IsInstanceOfType<FrameworkElement>(
+                        tokenPage.FindName(name)).Height,
+                    $"{name} must consume InspectionCardGap directly");
+            }
+        }
+        finally
+        {
+            applicationResources.Remove("InspectionCardGap");
+            applicationResources.Remove("InspectionHeaderToCardGap");
+        }
     }
 
     private static void AssertResponsiveStateContract(
@@ -314,13 +353,15 @@ public sealed class ModelInspectionPageLayoutTests
         element.UpdateLayout();
     }
 
-    private static object ThemeResource(string themeName, string key)
-    {
-        ResourceDictionary modelInspectionTheme = Application.Current.Resources
-            .MergedDictionaries
-            .Single(dictionary => dictionary.Source?.OriginalString.EndsWith(
+    private static ResourceDictionary ModelInspectionResources() =>
+        Application.Current.Resources.MergedDictionaries.Single(dictionary =>
+            dictionary.Source?.OriginalString.EndsWith(
                 "/Features/ModelInspection/Presentation/ModelInspectionTheme.xaml",
                 StringComparison.OrdinalIgnoreCase) == true);
+
+    private static object ThemeResource(string themeName, string key)
+    {
+        ResourceDictionary modelInspectionTheme = ModelInspectionResources();
         ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
             modelInspectionTheme.ThemeDictionaries[themeName]);
         return theme[key];

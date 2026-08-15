@@ -162,7 +162,7 @@
         <DataTemplate x:Key="ProgressStageTemplate" x:DataType="models:InspectionContentItemPresentation">
             <Grid
                 Tag="InspectionProgressRow"
-                MinHeight="60"
+                MinHeight="{StaticResource InspectionProgressRowHeight}"
                 AutomationProperties.AccessibilityView="Content"
                 AutomationProperties.AutomationControlType="ListItem"
                 AutomationProperties.HelpText="{x:Bind AutomationHelpText, Mode=OneWay}"
@@ -173,24 +173,53 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <Border
+                    Grid.ColumnSpan="4"
+                    Tag="InspectionProgressActiveSurface"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Background="{ThemeResource InspectionBlueSurfaceBrush}"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Visibility="{x:Bind local:InspectionContentCard.GetActiveSurfaceVisibility(IsActive), Mode=OneWay}" />
                 <Rectangle
                     Grid.Column="0"
                     Width="2"
-                    Margin="14,30,0,-30"
+                    Height="24"
+                    Margin="14,0,0,0"
                     HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
                     AutomationProperties.AccessibilityView="Raw"
                     Fill="{ThemeResource InspectionBorderLightBrush}"
+                    IsHitTestVisible="False"
+                    Tag="InspectionProgressConnectorEnd"
+                    Visibility="{x:Bind local:InspectionContentCard.GetIncomingConnectorVisibility(StageNumber)}" />
+                <Rectangle
+                    Grid.Column="0"
+                    Width="2"
+                    Margin="14,24,0,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Stretch"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Fill="{ThemeResource InspectionBorderLightBrush}"
+                    IsHitTestVisible="False"
+                    Tag="InspectionProgressConnectorStart"
                     Visibility="{x:Bind local:InspectionContentCard.GetConnectorVisibility(ShowConnector)}" />
                 <local:InspectionStatusGlyph
                     x:Name="ProgressStatusMotionTarget"
                     Grid.Column="0"
+                    Margin="0,9,0,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"
                     Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Status), Mode=OneWay}"
                     StageNumber="{x:Bind StageNumber, Mode=OneWay}"
                     SurfaceSize="30"
                     Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Status), Mode=OneWay}" />
-                <StackPanel Grid.Column="1" MinWidth="0" Margin="0,1,0,10" Spacing="4">
+                <StackPanel
+                    Grid.Column="1"
+                    MinWidth="0"
+                    Margin="0,7,0,7"
+                    VerticalAlignment="Center"
+                    Spacing="3">
                     <TextBlock Style="{StaticResource ContentPrimaryTextStyle}" Text="{x:Bind Title}" />
                     <TextBlock
                         x:Name="ProgressDetailMotionTarget"
@@ -200,7 +229,8 @@
                 </StackPanel>
                 <TextBlock
                     Grid.Column="2"
-                    Margin="18,2,0,0"
+                    Margin="18,0,0,0"
+                    VerticalAlignment="Center"
                     FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
                     FontSize="{ThemeResource InspectionHelperFontSize}"
                     FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
@@ -210,8 +240,9 @@
                 <TextBlock
                     Grid.Column="3"
                     MinWidth="36"
-                    Margin="8,2,0,0"
+                    Margin="8,0,0,0"
                     HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
                     AutomationProperties.AccessibilityView="Raw"
                     FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
                     FontSize="{ThemeResource InspectionHelperFontSize}"
@@ -237,31 +268,57 @@
             BorderThickness="1"
             CornerRadius="12">
             <Grid>
-                <Grid x:Name="ProgressView" Padding="23,20,23,16" Visibility="Collapsed">
+                <Grid
+                    x:Name="ProgressView"
+                    Padding="{StaticResource InspectionCardPadding}"
+                    Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid ColumnSpacing="20">
+                    <Grid x:Name="ProgressHeadingRow" ColumnSpacing="20">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource ContentHeadingStyle}" Text="{x:Bind Presentation.SectionTitle, Mode=OneWay}" />
                         <TextBlock
+                            VerticalAlignment="Bottom"
+                            Style="{StaticResource ContentHeadingStyle}"
+                            Text="{x:Bind Presentation.SectionTitle, Mode=OneWay}" />
+                        <Border
+                            x:Name="ProgressCompletedCountChip"
                             Grid.Column="1"
+                            MinHeight="28"
+                            Padding="11,4"
                             VerticalAlignment="Center"
-                            FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
-                            FontSize="{ThemeResource InspectionHelperFontSize}"
-                            FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
-                            Foreground="{ThemeResource InspectionTextSecondaryBrush}"
-                            Text="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}" />
+                            AutomationProperties.AccessibilityView="Raw"
+                            Background="{ThemeResource InspectionSurfaceMutedBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="14">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.Name="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}"
+                                FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                                FontSize="{ThemeResource InspectionHelperFontSize}"
+                                FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                                Foreground="{ThemeResource InspectionTextSecondaryBrush}"
+                                Text="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}"
+                                TextWrapping="NoWrap" />
+                        </Border>
                     </Grid>
+                    <Border
+                        Grid.Row="1"
+                        Height="{StaticResource InspectionProgressHeadingGap}"
+                        AutomationProperties.AccessibilityView="Raw"
+                        IsHitTestVisible="False" />
                     <Grid
                         x:Name="StartupStatusRow"
-                        Grid.Row="1"
-                        Margin="0,12,0,0"
+                        Grid.Row="2"
                         ColumnSpacing="10"
                         AutomationProperties.AccessibilityView="Content"
                         AutomationProperties.Name="{x:Bind Presentation.Startup.AutomationName, Mode=OneWay}"
@@ -283,9 +340,15 @@
                             Style="{StaticResource ContentPrimaryTextStyle}"
                             Text="{x:Bind Presentation.Startup.Summary, Mode=OneWay}" />
                     </Grid>
+                    <Border
+                        Grid.Row="3"
+                        Height="{StaticResource InspectionProgressHeadingGap}"
+                        AutomationProperties.AccessibilityView="Raw"
+                        IsHitTestVisible="False"
+                        Visibility="{x:Bind Presentation.Startup.Visibility, Mode=OneWay}" />
                     <ItemsRepeater
                         x:Name="ProgressItemsRepeater"
-                        Grid.Row="2"
+                        Grid.Row="4"
                         Margin="0"
                         AutomationProperties.AccessibilityView="Content"
                         AutomationProperties.AutomationControlType="List"
@@ -525,7 +588,7 @@
                 <VisualState x:Name="MediumContentState" />
                 <VisualState x:Name="NarrowContentState">
                     <VisualState.Setters>
-                        <Setter Target="ProgressView.Padding" Value="16,20,16,16" />
+                        <Setter Target="ProgressView.Padding" Value="16,24,16,24" />
                         <Setter Target="FindingsSectionTitle.Margin" Value="16,20,16,0" />
                         <Setter Target="FindingsItemsRepeater.Margin" Value="16,12,16,0" />
                         <Setter Target="SupportingText.Margin" Value="16,0,16,0" />

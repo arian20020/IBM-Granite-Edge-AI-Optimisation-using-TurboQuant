@@ -1789,6 +1789,7 @@ public sealed class ModelInspectionPageNavigationTests
             var cancel = (Button)actions.FindName("CancelActionButton");
             Assert.AreEqual(Visibility.Visible, cancel.Visibility);
             Assert.IsTrue(cancel.IsEnabled);
+            Assert.IsGreaterThanOrEqualTo(44d, cancel.MinHeight);
             Assert.IsTrue(cancel.Focus(FocusState.Programmatic));
             page.ViewModel.CancelCommand.Execute(null);
             Assert.IsTrue(

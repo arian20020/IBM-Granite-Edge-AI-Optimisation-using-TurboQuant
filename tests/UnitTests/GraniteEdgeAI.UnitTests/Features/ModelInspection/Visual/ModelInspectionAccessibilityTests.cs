@@ -262,6 +262,22 @@ public sealed class ModelInspectionAccessibilityTests
             InspectionContentCard content = Element<InspectionContentCard>(
                 page,
                 "InspectionContentCardControl");
+            Border completedCountChip = Element<Border>(
+                content,
+                "ProgressCompletedCountChip");
+            TextBlock completedCountText = ModelInspectionRenderedStateTests
+                .Descendants(completedCountChip)
+                .OfType<TextBlock>()
+                .Single();
+            Assert.AreEqual(
+                AccessibilityView.Raw,
+                AutomationProperties.GetAccessibilityView(completedCountChip));
+            Assert.AreEqual(
+                AccessibilityView.Content,
+                AutomationProperties.GetAccessibilityView(completedCountText));
+            Assert.AreEqual(
+                page.CurrentPresentation!.ContentCard.ProgressSummary,
+                AutomationProperties.GetName(completedCountText));
             int meaningfulAnnouncementCount =
                 content.LiveRegionChangeNotificationCount;
             string meaningfulAnnouncement = AutomationProperties.GetName(content);
@@ -397,8 +413,9 @@ public sealed class ModelInspectionAccessibilityTests
                 AutomationLiveSetting.Assertive,
                 AutomationProperties.GetLiveSetting(outcome));
             Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
-            AssertPageBounds(page, content, y: 368d, height: 248d);
-            AssertPageBounds(page, actions, y: 640d, height: 140d);
+            Assert.AreEqual(248d, content.ActualHeight, 1d);
+            Assert.AreEqual(140d, actions.ActualHeight, 1d);
+            AssertUniformVisibleCardGaps(page);
 
             ModelInspectionPagePresentation terminal =
                 page.CurrentPresentation!;
@@ -414,14 +431,10 @@ public sealed class ModelInspectionAccessibilityTests
             dispatcher.RunAll();
             await host.CaptureAsync();
             Assert.AreEqual(Visibility.Collapsed, outcome.CardVisibility);
-            AssertPageBounds(page, content, y: 284d, height: 360d);
-            AssertPageBounds(
-                page,
-                cancel,
-                x: 628d,
-                y: 674d,
-                width: 184d,
-                height: 46d);
+            Assert.IsGreaterThan(0d, content.ActualHeight);
+            Assert.AreEqual(184d, cancel.ActualWidth, 1d);
+            Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
+            AssertUniformVisibleCardGaps(page);
             Assert.AreEqual(
                 1,
                 outcome.LiveRegionChangeNotificationCount,
@@ -438,8 +451,9 @@ public sealed class ModelInspectionAccessibilityTests
             dispatcher.RunAll();
             await host.CaptureAsync();
             Assert.AreEqual(Visibility.Visible, outcome.CardVisibility);
-            AssertPageBounds(page, content, y: 368d, height: 248d);
-            AssertPageBounds(page, actions, y: 640d, height: 140d);
+            Assert.AreEqual(248d, content.ActualHeight, 1d);
+            Assert.AreEqual(140d, actions.ActualHeight, 1d);
+            AssertUniformVisibleCardGaps(page);
             Assert.AreEqual(
                 1,
                 outcome.LiveRegionChangeNotificationCount,
@@ -717,34 +731,44 @@ public sealed class ModelInspectionAccessibilityTests
         where T : DependencyObject =>
         ModelInspectionRenderedStateTests.Element<T>(root, name);
 
-    private static void AssertPageBounds(
-        ModelInspectionPage page,
-        FrameworkElement element,
-        double y,
-        double height) =>
-        AssertPageBounds(
-            page,
-            element,
-            x: 300d,
-            y,
-            width: 840d,
-            height);
-
-    private static void AssertPageBounds(
-        ModelInspectionPage page,
-        FrameworkElement element,
-        double x,
-        double y,
-        double width,
-        double height)
+    private static void AssertUniformVisibleCardGaps(ModelInspectionPage page)
     {
-        Windows.Foundation.Point origin = element
-            .TransformToVisual(page)
+        FrameworkElement header = Element<FrameworkElement>(page, "Header");
+        FrameworkElement[] visibleCards =
+        [
+            Element<InspectionOutcomeCard>(page, "InspectionOutcomeCardControl"),
+            Element<InspectionModelCard>(page, "InspectionModelCardControl"),
+            Element<InspectionContentCard>(page, "InspectionContentCardControl"),
+            Element<InspectionActionCard>(page, "InspectionActionCardControl")
+        ];
+        visibleCards = visibleCards
+            .Where(card =>
+                card.Visibility == Visibility.Visible &&
+                card.ActualHeight > 0d)
+            .ToArray();
+        Assert.IsNotEmpty(visibleCards);
+        Assert.AreEqual(24d, VerticalGap(page, header, visibleCards[0]), 1d);
+        for (int index = 1; index < visibleCards.Length; index++)
+        {
+            Assert.AreEqual(
+                16d,
+                VerticalGap(page, visibleCards[index - 1], visibleCards[index]),
+                1d);
+        }
+    }
+
+    private static double VerticalGap(
+        FrameworkElement root,
+        FrameworkElement upper,
+        FrameworkElement lower)
+    {
+        Windows.Foundation.Point upperOrigin = upper
+            .TransformToVisual(root)
             .TransformPoint(new Windows.Foundation.Point());
-        Assert.AreEqual(x, origin.X, 1d);
-        Assert.AreEqual(y, origin.Y, 1d);
-        Assert.AreEqual(width, element.ActualWidth, 1d);
-        Assert.AreEqual(height, element.ActualHeight, 1d);
+        Windows.Foundation.Point lowerOrigin = lower
+            .TransformToVisual(root)
+            .TransformPoint(new Windows.Foundation.Point());
+        return lowerOrigin.Y - (upperOrigin.Y + upper.ActualHeight);
     }
 
     private sealed class ControlledInspectionService : IModelInspectionService

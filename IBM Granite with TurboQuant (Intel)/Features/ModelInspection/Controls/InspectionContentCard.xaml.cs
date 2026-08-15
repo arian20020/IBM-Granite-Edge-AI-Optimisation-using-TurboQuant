@@ -235,6 +235,14 @@ public sealed partial class InspectionContentCard : UserControl
     public static Visibility GetConnectorVisibility(bool showConnector) =>
         showConnector ? Visibility.Visible : Visibility.Collapsed;
 
+    public static Visibility GetIncomingConnectorVisibility(string stageNumber) =>
+        int.TryParse(stageNumber, out int number) && number > 1
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+    public static Visibility GetActiveSurfaceVisibility(bool isActive) =>
+        isActive ? Visibility.Visible : Visibility.Collapsed;
+
     public static Visibility GetTerminalMarkerVisibility(
         InspectionContentStatus status) =>
         status is InspectionContentStatus.Passed or

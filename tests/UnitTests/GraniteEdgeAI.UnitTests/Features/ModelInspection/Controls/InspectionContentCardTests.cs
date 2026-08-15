@@ -11,9 +11,11 @@ using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Reflection;
+using Windows.Foundation;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelInspection.Controls;
 
@@ -67,13 +69,7 @@ public sealed class InspectionContentCardTests
 
             DependencyObject[] descendants =
                 EnumerateDescendants(content).ToArray();
-            Grid[] rows = descendants
-                .OfType<Grid>()
-                .Where(row =>
-                    Math.Abs(row.MinHeight - 60d) < 0.01 &&
-                    !string.IsNullOrWhiteSpace(
-                        AutomationProperties.GetName(row)))
-                .ToArray();
+            Grid[] rows = ProgressRows(content);
             TextBlock[] waitingLabels = descendants
                 .OfType<TextBlock>()
                 .Where(text =>
@@ -87,12 +83,45 @@ public sealed class InspectionContentCardTests
                     glyph.Kind == InspectionStatusGlyphKind.Waiting)
                 .ToArray();
             Button cancel = (Button)actions.FindName("CancelActionButton");
+            Grid heading = Assert.IsInstanceOfType<Grid>(
+                content.FindName("ProgressHeadingRow"));
+            Border completedCountChip = Assert.IsInstanceOfType<Border>(
+                content.FindName("ProgressCompletedCountChip"));
+            TextBlock completedCountText = EnumerateDescendants(completedCountChip)
+                .OfType<TextBlock>()
+                .Single();
+            Rectangle[] connectors = VisibleConnectors(content);
 
             Assert.AreEqual(ModelInspectionFigmaState.InspectionProgress, page.State);
             Assert.AreEqual("Inspection progress", page.ContentCard.SectionTitle);
             Assert.AreEqual("0 of 5 checks complete", page.ContentCard.ProgressSummary);
             Assert.HasCount(5, rows);
-            Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 60d) < 0.01));
+            Assert.IsTrue(rows.All(row => row.ActualHeight >= 48d));
+            Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 48d) <= 1d));
+            AssertInRange(
+                VerticalGap(heading, rows[0], content),
+                14d,
+                16d,
+                "heading to first row gap");
+            Assert.HasCount(4, connectors);
+            AssertConnectorGeometry(rows, connectors, content);
+            Assert.AreEqual(0d, FinalConnectorTailHeight(rows[^1]), 0.5d);
+            AssertInRange(
+                ContentBottomWhitespace(content, rows[^1]),
+                20d,
+                24d,
+                "progress card bottom whitespace");
+            Assert.AreEqual(
+                AccessibilityView.Raw,
+                AutomationProperties.GetAccessibilityView(completedCountChip));
+            Assert.AreEqual(
+                AccessibilityView.Content,
+                AutomationProperties.GetAccessibilityView(completedCountText));
+            Assert.AreEqual(
+                page.ContentCard.ProgressSummary,
+                AutomationProperties.GetName(completedCountText));
+            Assert.IsNotNull(completedCountChip.Background);
+            Assert.IsNotNull(completedCountChip.BorderBrush);
             Assert.HasCount(5, waitingLabels);
             Assert.HasCount(5, waitingGlyphs);
             Assert.IsTrue(waitingGlyphs.All(glyph =>
@@ -107,6 +136,7 @@ public sealed class InspectionContentCardTests
                     glyph.Kind == InspectionStatusGlyphKind.Active));
             Assert.AreEqual(Visibility.Visible, cancel.Visibility);
             Assert.IsFalse(cancel.IsEnabled);
+            Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
             Assert.AreEqual("Cancel inspection", page.ActionCard.CancelAction.Text);
             Assert.AreEqual(
                 page.ActionCard.CancelAction.AutomationName,
@@ -444,6 +474,7 @@ public sealed class InspectionContentCardTests
         var driver = new RecordingProgressAnimationDriver();
         var control = new InspectionContentCard
         {
+            Width = 328d,
             Presentation = startupPresentation
         };
         control.SetMotionEnabled(true);
@@ -463,6 +494,21 @@ public sealed class InspectionContentCardTests
             InspectionStatusGlyph startupGlyph =
                 Assert.IsInstanceOfType<InspectionStatusGlyph>(
                     control.FindName("StartupActiveIndicatorHost"));
+            Grid heading = Assert.IsInstanceOfType<Grid>(
+                control.FindName("ProgressHeadingRow"));
+            Grid startupRow = Assert.IsInstanceOfType<Grid>(
+                control.FindName("StartupStatusRow"));
+            Grid[] startupRows = ProgressRows(control);
+            AssertInRange(
+                VerticalGap(heading, startupRow, control),
+                14d,
+                16d,
+                "heading to startup gap");
+            AssertInRange(
+                VerticalGap(startupRow, startupRows[0], control),
+                14d,
+                16d,
+                "startup to first row gap");
             Assert.IsTrue(startupGlyph.IsPrecisionOrbitRunning);
 
             control.Presentation = presentation;
@@ -472,8 +518,16 @@ public sealed class InspectionContentCardTests
                 startupGlyph.IsPrecisionOrbitRunning,
                 "A hidden startup row must not retain its precision orbit.");
             Assert.IsNull(startupGlyph.PrecisionOrbitAnimation);
+            Grid[] collapsedStartupRows = ProgressRows(control);
+            AssertInRange(
+                VerticalGap(heading, collapsedStartupRows[0], control),
+                14d,
+                16d,
+                "heading to first row gap after startup collapses");
 
             InspectionContentItemPresentation rowBefore = rows.Items[1];
+            InspectionContentItemPresentation[] rowIdentities =
+                rows.Items.ToArray();
             InspectionProgressRowsApplyResult active = rows.Apply(
                 new InspectionProgressRowsUpdate(
                     new ModelInspectionProgressRegionKey(
@@ -504,6 +558,7 @@ public sealed class InspectionContentCardTests
             Assert.IsTrue(activeGlyph.IsPrecisionOrbitRunning);
             int orbitStartCount = activeGlyph.PrecisionOrbitStartCount;
             Assert.AreSame(rowBefore, rows.Items[1]);
+            CollectionAssert.AreEqual(rowIdentities, rows.Items.ToArray());
             Assert.IsFalse(EnumerateDescendants(control)
                 .OfType<TextBlock>()
                 .Any(text => text.Text.EndsWith('%')));
@@ -591,6 +646,39 @@ public sealed class InspectionContentCardTests
                 directFractionText.Length,
                 "Native fraction text must occupy its own trailing column.");
             Assert.AreEqual("25%", directFractionText[0].Text);
+            Border activeSurface = EnumerateDescendants(activeRow)
+                .OfType<Border>()
+                .Single(border => string.Equals(
+                    border.Tag as string,
+                    "InspectionProgressActiveSurface",
+                    StringComparison.Ordinal));
+            Assert.AreEqual(Visibility.Visible, activeSurface.Visibility);
+            Assert.IsNotNull(activeSurface.Background);
+            double standardActiveHeight = activeRow.ActualHeight;
+            TextBlock[] scalableActiveText = EnumerateDescendants(activeRow)
+                .OfType<TextBlock>()
+                .Where(text =>
+                    text.Text == "Read model configuration" ||
+                    text.Text == "Reading validated configuration.")
+                .ToArray();
+            Assert.IsNotEmpty(scalableActiveText);
+            foreach (TextBlock text in scalableActiveText)
+            {
+                text.FontSize *= 2d;
+            }
+            control.UpdateLayout();
+            Assert.IsGreaterThan(standardActiveHeight, activeRow.ActualHeight);
+            Assert.IsTrue(scalableActiveText.All(text =>
+                text.ActualHeight + 1d >= text.DesiredSize.Height));
+            Grid[] scaledRows = ProgressRows(control);
+            AssertConnectorGeometry(
+                scaledRows,
+                VisibleConnectors(control),
+                control);
+            Assert.AreEqual(
+                0d,
+                FinalConnectorTailHeight(scaledRows[^1]),
+                0.5d);
 
             InspectionProgressRowsApplyResult threeQuarters = rows.Apply(
                 new InspectionProgressRowsUpdate(
@@ -755,6 +843,123 @@ public sealed class InspectionContentCardTests
                 yield return descendant;
             }
         }
+    }
+
+    private static Grid[] ProgressRows(DependencyObject content) =>
+        EnumerateDescendants(content)
+            .OfType<Grid>()
+            .Where(row => string.Equals(
+                row.Tag as string,
+                "InspectionProgressRow",
+                StringComparison.Ordinal))
+            .OrderBy(row => row.TransformToVisual((UIElement)content)
+                .TransformPoint(new Point()).Y)
+            .ToArray();
+
+    private static Rectangle[] VisibleConnectors(DependencyObject content) =>
+        ProgressRows(content)
+            .Take(4)
+            .SelectMany(row => EnumerateDescendants(row).OfType<Rectangle>())
+            .Where(connector =>
+                string.Equals(
+                    connector.Tag as string,
+                    "InspectionProgressConnectorStart",
+                    StringComparison.Ordinal) &&
+                IsEffectivelyVisible(connector))
+            .ToArray();
+
+    private static double VerticalGap(
+        FrameworkElement upper,
+        FrameworkElement lower,
+        UIElement root)
+    {
+        Point upperOrigin = upper.TransformToVisual(root).TransformPoint(new Point());
+        Point lowerOrigin = lower.TransformToVisual(root).TransformPoint(new Point());
+        return lowerOrigin.Y - (upperOrigin.Y + upper.ActualHeight);
+    }
+
+    private static void AssertInRange(
+        double actual,
+        double minimum,
+        double maximum,
+        string context) =>
+        Assert.IsTrue(
+            actual >= minimum && actual <= maximum,
+            $"{context}: {actual} is outside [{minimum}, {maximum}].");
+
+    private static void AssertConnectorGeometry(
+        IReadOnlyList<Grid> rows,
+        IReadOnlyList<Rectangle> connectors,
+        UIElement root)
+    {
+        for (int index = 0; index < connectors.Count; index++)
+        {
+            InspectionStatusGlyph currentGlyph = EnumerateDescendants(rows[index])
+                .OfType<InspectionStatusGlyph>()
+                .Single(IsEffectivelyVisible);
+            InspectionStatusGlyph nextGlyph = EnumerateDescendants(rows[index + 1])
+                .OfType<InspectionStatusGlyph>()
+                .Single(IsEffectivelyVisible);
+            Rectangle connectorEnd = EnumerateDescendants(rows[index + 1])
+                .OfType<Rectangle>()
+                .Single(connector =>
+                    string.Equals(
+                        connector.Tag as string,
+                        "InspectionProgressConnectorEnd",
+                        StringComparison.Ordinal) &&
+                    IsEffectivelyVisible(connector));
+            Point connectorOrigin = connectors[index]
+                .TransformToVisual(root)
+                .TransformPoint(new Point());
+            Point connectorEndOrigin = connectorEnd
+                .TransformToVisual(root)
+                .TransformPoint(new Point());
+            Point currentOrigin = currentGlyph
+                .TransformToVisual(root)
+                .TransformPoint(new Point());
+            Point nextOrigin = nextGlyph
+                .TransformToVisual(root)
+                .TransformPoint(new Point());
+
+            Assert.AreEqual(
+                currentOrigin.Y + (currentGlyph.ActualHeight / 2d),
+                connectorOrigin.Y,
+                0.5d,
+                $"connector {index + 1} start");
+            Assert.AreEqual(
+                connectorOrigin.Y + connectors[index].ActualHeight,
+                connectorEndOrigin.Y,
+                0.5d,
+                $"connector {index + 1} segment join");
+            Assert.AreEqual(
+                nextOrigin.Y + (nextGlyph.ActualHeight / 2d),
+                connectorEndOrigin.Y + connectorEnd.ActualHeight,
+                0.5d,
+                $"connector {index + 1} end");
+        }
+    }
+
+    private static double FinalConnectorTailHeight(Grid finalRow) =>
+        EnumerateDescendants(finalRow)
+            .OfType<Rectangle>()
+            .Where(connector =>
+                string.Equals(
+                    connector.Tag as string,
+                    "InspectionProgressConnectorStart",
+                    StringComparison.Ordinal) &&
+                IsEffectivelyVisible(connector))
+            .Sum(connector => connector.ActualHeight);
+
+    private static double ContentBottomWhitespace(
+        InspectionContentCard content,
+        FrameworkElement finalRow)
+    {
+        Grid shell = Assert.IsInstanceOfType<Grid>(
+            content.FindName("ProgressView"));
+        Point finalOrigin = finalRow
+            .TransformToVisual(shell)
+            .TransformPoint(new Point());
+        return shell.ActualHeight - finalOrigin.Y - finalRow.ActualHeight;
     }
 
     private static bool IsEffectivelyVisible(FrameworkElement element)

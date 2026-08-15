@@ -78,12 +78,15 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <StackPanel
                             x:Name="Header"
                             Grid.Row="0"
-                            Margin="0,0,0,8"
                             HorizontalAlignment="Stretch"
                             Spacing="8">
                             <TextBlock
@@ -109,27 +112,56 @@
                                 TextWrapping="WrapWholeWords" />
                         </StackPanel>
 
+                        <Border
+                            x:Name="HeaderToFirstCardGap"
+                            Grid.Row="1"
+                            Height="{StaticResource InspectionHeaderToCardGap}"
+                            AutomationProperties.AccessibilityView="Raw"
+                            IsHitTestVisible="False" />
+
                         <controls:InspectionOutcomeCard
                             x:Name="InspectionOutcomeCardControl"
-                            Grid.Row="1"
-                            Margin="0,16,0,0"
+                            Grid.Row="2"
                             HorizontalAlignment="Stretch"
                             AutomationProperties.LiveSetting="Assertive"
-                            AutomationProperties.Name="Model inspection outcome" />
+                            AutomationProperties.Name="Model inspection outcome"
+                            Visibility="{Binding CardVisibility, ElementName=InspectionOutcomeCardControl}" />
+
+                        <Border
+                            x:Name="OutcomeToModelCardGap"
+                            Grid.Row="3"
+                            Height="{StaticResource InspectionCardGap}"
+                            AutomationProperties.AccessibilityView="Raw"
+                            IsHitTestVisible="False"
+                            Visibility="{Binding Visibility, ElementName=InspectionOutcomeCardControl}" />
 
                         <controls:InspectionModelCard
                             x:Name="InspectionModelCardControl"
-                            Grid.Row="2"
-                            Margin="0,16,0,0"
+                            Grid.Row="4"
                             HorizontalAlignment="Stretch"
                             AutomationProperties.Name="Selected model information" />
 
+                        <Grid Grid.Row="5">
+                            <Border
+                                x:Name="ModelToContentLiveGap"
+                                Height="{StaticResource InspectionCardGap}"
+                                AutomationProperties.AccessibilityView="Raw"
+                                IsHitTestVisible="False"
+                                Visibility="{Binding Visibility, ElementName=InspectionContentCardControl}" />
+                            <Border
+                                x:Name="ModelToContentOutgoingGap"
+                                Height="{StaticResource InspectionCardGap}"
+                                AutomationProperties.AccessibilityView="Raw"
+                                IsHitTestVisible="False"
+                                Visibility="{Binding Visibility, ElementName=OutgoingProgressContentCard}" />
+                        </Grid>
+
                         <controls:InspectionContentCard
                             x:Name="InspectionContentCardControl"
-                            Grid.Row="3"
-                            Margin="0,16,0,0"
+                            Grid.Row="6"
                             HorizontalAlignment="Stretch"
-                            AutomationProperties.Name="Model inspection progress and findings" />
+                            AutomationProperties.Name="Model inspection progress and findings"
+                            Visibility="{Binding CardVisibility, ElementName=InspectionContentCardControl}" />
 
                         <!--
                             One inert outgoing progress layer remains realized only
@@ -138,18 +170,23 @@
                         -->
                         <controls:InspectionContentCard
                             x:Name="OutgoingProgressContentCard"
-                            Grid.Row="3"
-                            Margin="0,16,0,0"
+                            Grid.Row="6"
                             HorizontalAlignment="Stretch"
                             AutomationProperties.AccessibilityView="Raw"
                             Canvas.ZIndex="2"
                             IsHitTestVisible="False"
                             Visibility="Collapsed" />
 
+                        <Border
+                            x:Name="ContentToActionCardGap"
+                            Grid.Row="7"
+                            Height="{StaticResource InspectionCardGap}"
+                            AutomationProperties.AccessibilityView="Raw"
+                            IsHitTestVisible="False" />
+
                         <controls:InspectionActionCard
                             x:Name="InspectionActionCardControl"
-                            Grid.Row="4"
-                            Margin="0,16,0,0"
+                            Grid.Row="8"
                             HorizontalAlignment="Stretch"
                             AutomationProperties.Name="Model inspection actions" />
                     </Grid>
