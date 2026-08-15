@@ -83,7 +83,9 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $pythonPath = (Get-Command python -CommandType Application -ErrorAction Stop).Source
+          $pythonCommand = Get-Command -Name python -CommandType Application -All -ErrorAction Stop |
+              Select-Object -First 1
+          $pythonPath = $pythonCommand.Source
           $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
 
           if (Test-Path -LiteralPath $dependencyDirectory) {
@@ -309,7 +311,9 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $pythonPath = (Get-Command python -CommandType Application -ErrorAction Stop).Source
+          $pythonCommand = Get-Command -Name python -CommandType Application -All -ErrorAction Stop |
+              Select-Object -First 1
+          $pythonPath = $pythonCommand.Source
           $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
 
           if (Test-Path -LiteralPath $dependencyDirectory) {
