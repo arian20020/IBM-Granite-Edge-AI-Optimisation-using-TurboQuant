@@ -122,7 +122,10 @@ function Invoke-BoundedSerializationProbe {
     if (-not (Test-Path -LiteralPath $PowerShellExecutable -PathType Leaf)) {
         throw "Windows PowerShell executable is missing: $PowerShellExecutable"
     }
-    if ($ProbeScript.Contains('"') -or $ProbeRepositoryRoot.Contains('"')) {
+    if (
+        $ProbeScript.Contains([char]34) -or
+        $ProbeRepositoryRoot.Contains([char]34)
+    ) {
         throw 'Serialization probe paths must not contain quote characters.'
     }
 
