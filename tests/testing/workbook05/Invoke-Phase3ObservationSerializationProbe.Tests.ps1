@@ -129,8 +129,45 @@ $DirectRequirements = @(
     Where-Object {
         -not [string]::IsNullOrWhiteSpace($_) -and
         -not $_.TrimStart().StartsWith('#')
+    } |
+    ForEach-Object {
+        # Create a new CLR string rather than carrying Get-Content's adapted
+        # PSPath/PSProvider/ReadCount properties into the JSON object graph.
+        [string]::new(([string]$_).ToCharArray())
     }
 )
+
+# A requirement row must be plain string data. Get-Content can attach adapted
+# file/provider metadata to emitted strings under Windows PowerShell 5.1; that
+# object graph is not permitted to cross into the controlled JSON observation.
+if ($DirectRequirements.Count -eq 0) {
+    throw 'Dependency observation probe found no direct requirements.'
+}
+foreach ($Requirement in $DirectRequirements) {
+    if ($Requirement -isnot [string]) {
+        throw (
+            'Direct requirement is not System.String: ' +
+            $Requirement.GetType().FullName
+        )
+    }
+    foreach ($AdaptedProperty in @(
+        'PSPath'
+        'PSParentPath'
+        'PSChildName'
+        'PSDrive'
+        'PSProvider'
+        'ReadCount'
+    )) {
+        if (
+            $Requirement.PSObject.Properties.Match($AdaptedProperty).Count -ne 0
+        ) {
+            throw (
+                'Direct requirement retained adapted file-content property: ' +
+                $AdaptedProperty
+            )
+        }
+    }
+}
 
 $FixtureIdentity = 'C:\w5c\dependency-preflight-offline-fixture-00000000000-1'
 $Observation = [ordered]@{
@@ -178,7 +215,7 @@ $SerializationProbe = [ordered]@{}
 foreach ($FieldName in @($Observation.Keys)) {
     $SerializationProbe[$FieldName] = $Observation[$FieldName]
     Write-Host ("WB05_DEP_SERIALIZE_FIELD:{0}:start" -f $FieldName)
-    $null = $SerializationProbe | ConvertTo-Json -Depth 12
+    $null = ConvertTo-Json -InputObject $SerializationProbe -Depth 12
     Write-Host ("WB05_DEP_SERIALIZE_FIELD:{0}:return" -f $FieldName)
 }
 

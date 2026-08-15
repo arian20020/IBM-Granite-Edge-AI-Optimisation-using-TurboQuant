@@ -106,6 +106,71 @@ class Phase3AssetWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("cmd /c", self.workflow.casefold())
         self.assertIn("cancel-in-progress: false", self.workflow)
 
+    def test_each_job_installs_pinned_validation_dependency_before_use(
+        self,
+    ) -> None:
+        jobs = (
+            (
+                self._job("repository-contract", "collect-assets"),
+                "Run focused dependency-fixture diagnostic",
+            ),
+            (
+                self._job("collect-assets", "validate-assets"),
+                "Run the complete Phase 3 repository gate",
+            ),
+            (
+                self._job("validate-assets"),
+                "Run the complete Phase 3 repository gate",
+            ),
+        )
+
+        for job, first_python_use in jobs:
+            with self.subTest(first_python_use=first_python_use):
+                install_name = "Install pinned Phase 3 validation dependency"
+                self.assertIn(install_name, job)
+                self.assertIn("$env:RUNNER_TEMP", job)
+                self.assertIn("--target $dependencyDirectory", job)
+                self.assertIn(
+                    "scripts/testing/workbook05/requirements.txt",
+                    job,
+                )
+                self.assertIn(
+                    '"PYTHONPATH=$dependencyDirectory"',
+                    job,
+                )
+                self.assertLess(
+                    job.index(install_name),
+                    job.index(first_python_use),
+                )
+
+        # One isolated dependency setup belongs to each job. The package is
+        # never installed into the repository or a machine-wide environment.
+        self.assertEqual(
+            3,
+            self.workflow.count(
+                "Install pinned Phase 3 validation dependency"
+            ),
+        )
+
+    def test_hosted_jobs_select_one_exact_python_application(self) -> None:
+        hosted_jobs = (
+            self._job("repository-contract", "collect-assets"),
+            self._job("validate-assets"),
+        )
+        for job in hosted_jobs:
+            with self.subTest(job_start=job[:80]):
+                self.assertIn(
+                    "Get-Command -Name python -CommandType Application -All",
+                    job,
+                )
+                self.assertIn("Select-Object -First 1", job)
+                self.assertIn("$pythonPath = $pythonCommand.Source", job)
+                self.assertNotIn(
+                    "(Get-Command python -CommandType Application "
+                    "-ErrorAction Stop).Source",
+                    job,
+                )
+
     def test_repository_contract_runs_bounded_dependency_fixture_diagnostic(
         self,
     ) -> None:

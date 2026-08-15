@@ -108,6 +108,101 @@ foreach ($Forbidden in @(
     }
 }
 
+function Invoke-BoundedSerializationProbe {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string] $ProbeScript,
+        [Parameter(Mandatory = $true)][string] $ProbeRepositoryRoot
+    )
+
+    # The regression probe must fail quickly instead of consuming the complete
+    # five-minute GitHub Actions step when Windows PowerShell enters pathological
+    # JSON object expansion.
+    $PowerShellExecutable = Join-Path $PSHOME 'powershell.exe'
+    if (-not (Test-Path -LiteralPath $PowerShellExecutable -PathType Leaf)) {
+        throw "Windows PowerShell executable is missing: $PowerShellExecutable"
+    }
+    if (
+        $ProbeScript.Contains([char]34) -or
+        $ProbeRepositoryRoot.Contains([char]34)
+    ) {
+        throw 'Serialization probe paths must not contain quote characters.'
+    }
+
+    $StartInfo = [Diagnostics.ProcessStartInfo]::new()
+    $StartInfo.FileName = $PowerShellExecutable
+    $StartInfo.Arguments = (
+        '-NoLogo -NoProfile -ExecutionPolicy Bypass ' +
+        '-File "{0}" -RepositoryRoot "{1}"' -f
+            $ProbeScript,
+            $ProbeRepositoryRoot
+    )
+    $StartInfo.UseShellExecute = $false
+    $StartInfo.CreateNoWindow = $true
+    $StartInfo.RedirectStandardOutput = $true
+    $StartInfo.RedirectStandardError = $true
+
+    $Process = [Diagnostics.Process]::new()
+    $Process.StartInfo = $StartInfo
+    try {
+        if (-not $Process.Start()) {
+            throw 'Dependency observation serialization probe did not start.'
+        }
+
+        # Start both asynchronous readers before waiting so redirected buffers
+        # cannot block a child that emits diagnostic field markers.
+        $StandardOutputTask = $Process.StandardOutput.ReadToEndAsync()
+        $StandardErrorTask = $Process.StandardError.ReadToEndAsync()
+
+        if (-not $Process.WaitForExit(30000)) {
+            try {
+                $Process.Kill()
+            }
+            catch {
+                # Preserve the timeout as the primary causal failure.
+            }
+            $Process.WaitForExit()
+            $ProbeStdout = $StandardOutputTask.Result
+            $ProbeStderr = $StandardErrorTask.Result
+            if (-not [string]::IsNullOrWhiteSpace($ProbeStdout)) {
+                Write-Host $ProbeStdout.TrimEnd()
+            }
+            if (-not [string]::IsNullOrWhiteSpace($ProbeStderr)) {
+                Write-Host $ProbeStderr.TrimEnd()
+            }
+            throw 'Dependency observation serialization probe exceeded 30 seconds.'
+        }
+
+        # Wait once more for redirected stream completion after process exit.
+        $Process.WaitForExit()
+        $ProbeStdout = $StandardOutputTask.Result
+        $ProbeStderr = $StandardErrorTask.Result
+        if (-not [string]::IsNullOrWhiteSpace($ProbeStdout)) {
+            Write-Host $ProbeStdout.TrimEnd()
+        }
+        if (-not [string]::IsNullOrWhiteSpace($ProbeStderr)) {
+            Write-Host $ProbeStderr.TrimEnd()
+        }
+        if ($Process.ExitCode -ne 0) {
+            throw (
+                'Dependency observation serialization probe exited with code ' +
+                $Process.ExitCode + '.'
+            )
+        }
+        if (
+            $ProbeStdout.IndexOf(
+                'Workbook 05 dependency observation serialization probe passed.',
+                [StringComparison]::Ordinal
+            ) -lt 0
+        ) {
+            throw 'Dependency observation serialization probe omitted its pass marker.'
+        }
+    }
+    finally {
+        $Process.Dispose()
+    }
+}
+
 $FixtureRoot = Join-Path `
     ([IO.Path]::GetTempPath()) `
     ('wb05-phase3-dependency-' + [guid]::NewGuid().ToString('N'))
@@ -121,7 +216,9 @@ try {
     # for Windows PowerShell JSON serialization. This probe has no filesystem,
     # package, network, model, or scientific side effect.
     Write-Host 'WB05_DEP_TEST:serialization-probe:start'
-    & $SerializationProbeScript -RepositoryRoot $RepositoryRoot
+    Invoke-BoundedSerializationProbe `
+        -ProbeScript $SerializationProbeScript `
+        -ProbeRepositoryRoot $RepositoryRoot
     Write-Host 'WB05_DEP_TEST:serialization-probe:complete'
 
     # Execute the complete offline fixture through its real public interface.
