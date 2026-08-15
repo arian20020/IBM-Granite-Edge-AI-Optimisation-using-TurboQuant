@@ -199,18 +199,71 @@ public sealed class LlmFitCandidateVerifierTests
     }
 
     [TestMethod]
-    public void OpenExecutableForStableRead_BlocksReplacementUntilInspectionCompletes()
+    public void OpenRegularFileForStableRead_BlocksReplacementUntilInspectionCompletes()
     {
         using var package = CandidatePackage.Create(0x8664);
         string replacementPath = Path.Combine(package.Root, "replacement.exe");
         File.WriteAllBytes(replacementPath, PeImageInspectorTests.CreatePeImage(0x8664));
 
-        using FileStream stream = LlmFitCandidateVerifier.OpenExecutableForStableRead(package.ExecutablePath);
+        using FileStream stream = LlmFitCandidateVerifier.OpenRegularFileForStableRead(package.ExecutablePath);
 
         Exception exception = Assert.Throws<Exception>(
             () => File.Move(replacementPath, package.ExecutablePath, overwrite: true));
         Assert.IsTrue(exception is IOException or UnauthorizedAccessException);
         Assert.AreEqual(512, stream.Length);
+    }
+
+    [TestMethod]
+    [DataRow("package.zip")]
+    [DataRow("authenticode-observation.json")]
+    public void Verify_StableArchiveAndObservationHandles_BlockReplacementThroughFinalLayout(string memberName)
+    {
+        using var package = CandidatePackage.Create(0x8664);
+        string targetPath = Path.Combine(package.Root, memberName);
+        using var metadata = new ReplacementAttemptingMetadata(targetPath);
+
+        LlmFitCandidateVerification result = new LlmFitCandidateVerifier(metadata).Verify(package.Root, package.Manifest);
+
+        Assert.IsTrue(result.IntegrityPassed);
+        Assert.IsTrue(metadata.ReplacementAttempted);
+        Assert.IsTrue(metadata.ReplacementBlocked);
+    }
+
+    [TestMethod]
+    public void HasExactLogicalMemberSet_CaseCollision_IsRejected()
+    {
+        string[] expected = ["package.zip", "llmfit.exe", "LICENSE", "README.md", "authenticode-observation.json"];
+        string[] physical = ["package.zip", "llmfit.exe", "LICENSE", "license", "authenticode-observation.json"];
+
+        Assert.IsFalse(LlmFitCandidateVerifier.HasExactLogicalMemberSet(physical, expected));
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void HasExactLogicalMemberSet_WrongPhysicalCount_IsRejected(bool addUnexpectedMember)
+    {
+        string[] expected = ["package.zip", "llmfit.exe", "LICENSE", "README.md", "authenticode-observation.json"];
+        string[] physical = addUnexpectedMember
+            ? [.. expected, "unexpected.dll"]
+            : expected[..^1];
+
+        Assert.IsFalse(LlmFitCandidateVerifier.HasExactLogicalMemberSet(physical, expected));
+    }
+
+    [TestMethod]
+    public void Verify_ManifestCannotExpandFixedFiveMemberAllowlist()
+    {
+        using var package = CandidatePackage.Create(0x8664);
+        File.WriteAllBytes(Path.Combine(package.Root, "unexpected.dll"), [1]);
+        LlmFitCandidateManifest manifest = package.WithRequiredFiles(
+            ["llmfit.exe", "LICENSE", "README.md", "unexpected.dll"]);
+
+        LlmFitCandidateVerification result = new LlmFitCandidateVerifier().Verify(package.Root, manifest);
+
+        Assert.IsFalse(result.IntegrityPassed);
+        Assert.IsNull(result.ArchiveSha256);
+        CollectionAssert.Contains(result.DiagnosticCodes.ToArray(), "HI-LLMFIT-PACKAGE-PATH-INVALID");
     }
 
     [TestMethod]
@@ -286,6 +339,47 @@ public sealed class LlmFitCandidateVerifierTests
             return string.Equals(Path.GetFullPath(path), Path.GetFullPath(reparsePath), StringComparison.OrdinalIgnoreCase)
                 ? attributes | FileAttributes.ReparsePoint
                 : attributes;
+        }
+    }
+
+    private sealed class ReplacementAttemptingMetadata : IFileMetadata, IDisposable
+    {
+        private readonly string _replacementPath = Path.GetTempFileName();
+        private readonly string _targetPath;
+        private int _targetAttributeReads;
+
+        public ReplacementAttemptingMetadata(string targetPath)
+        {
+            _targetPath = Path.GetFullPath(targetPath);
+            File.Copy(_targetPath, _replacementPath, overwrite: true);
+        }
+
+        public bool ReplacementAttempted { get; private set; }
+
+        public bool ReplacementBlocked { get; private set; }
+
+        public FileAttributes GetAttributes(string path)
+        {
+            if (string.Equals(Path.GetFullPath(path), _targetPath, StringComparison.OrdinalIgnoreCase) &&
+                ++_targetAttributeReads == 2)
+            {
+                ReplacementAttempted = true;
+                try
+                {
+                    File.Move(_replacementPath, _targetPath, overwrite: true);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    ReplacementBlocked = true;
+                }
+            }
+
+            return File.GetAttributes(path);
+        }
+
+        public void Dispose()
+        {
+            File.Delete(_replacementPath);
         }
     }
 

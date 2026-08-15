@@ -19,6 +19,9 @@ internal interface IFileMetadata
 public sealed class LlmFitCandidateVerifier
 {
     private const string ObservationFileName = "authenticode-observation.json";
+    private const string ExecutableFileName = "llmfit.exe";
+    private const string LicenseFileName = "LICENSE";
+    private const string ReadmeFileName = "README.md";
     private const string Amd64 = "AMD64";
     private const long MaximumObservationBytes = 16 * 1024;
     private const uint GenericRead = 0x80000000;
@@ -47,6 +50,12 @@ public sealed class LlmFitCandidateVerifier
         "HashMismatch",
         "NotTrusted",
     ];
+    private static readonly string[] ExpectedRequiredFileNames =
+    [
+        ExecutableFileName,
+        LicenseFileName,
+        ReadmeFileName,
+    ];
 
     private readonly IFileMetadata _fileMetadata;
 
@@ -60,7 +69,7 @@ public sealed class LlmFitCandidateVerifier
         _fileMetadata = fileMetadata ?? throw new ArgumentNullException(nameof(fileMetadata));
     }
 
-    internal static FileStream OpenExecutableForStableRead(string path)
+    internal static FileStream OpenRegularFileForStableRead(string path)
     {
         SafeFileHandle handle = CreateFile(
             path,
@@ -82,7 +91,7 @@ public sealed class LlmFitCandidateVerifier
             FileAttributeTagInfo information = GetHandleInformation(handle);
             if ((information.FileAttributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0)
             {
-                throw new InvalidDataException("The executable package member must be a regular non-reparse file.");
+                throw new InvalidDataException("The package member must be a regular non-reparse file.");
             }
 
             return new FileStream(handle, FileAccess.Read, bufferSize: 4096, isAsync: false);
@@ -154,6 +163,15 @@ public sealed class LlmFitCandidateVerifier
             : finalPath;
     }
 
+    internal static bool HasExactLogicalMemberSet(
+        IEnumerable<string> physicalMemberNames,
+        IEnumerable<string> expectedMemberNames)
+    {
+        ArgumentNullException.ThrowIfNull(physicalMemberNames);
+        ArgumentNullException.ThrowIfNull(expectedMemberNames);
+        return GetLogicalLayoutDiagnostic(physicalMemberNames, expectedMemberNames) is null;
+    }
+
     public LlmFitCandidateVerification Verify(string packageRoot, LlmFitCandidateManifest manifest)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageRoot);
@@ -214,47 +232,36 @@ public sealed class LlmFitCandidateVerifier
             return Fail(state, diagnostics, "HI-LLMFIT-PACKAGE-PATH-INVALID");
         }
 
-        foreach (string entry in Directory.EnumerateFileSystemEntries(stableRoot))
+        string? layoutDiagnostic = GetPhysicalLayoutDiagnostic(stableRoot, expectedMembers.Keys);
+        if (layoutDiagnostic is not null)
         {
-            if (IsReparsePoint(entry))
-            {
-                return Fail(state, diagnostics, "HI-LLMFIT-REPARSE-POINT");
-            }
-
-            string memberName = Path.GetFileName(entry);
-            if (!expectedMembers.ContainsKey(memberName) || Directory.Exists(entry))
-            {
-                return Fail(state, diagnostics, "HI-LLMFIT-UNEXPECTED-PACKAGE-MEMBER");
-            }
+            return Fail(state, diagnostics, layoutDiagnostic);
         }
 
-        foreach (string expectedPath in expectedMembers.Values)
-        {
-            if (!File.Exists(expectedPath) || Directory.Exists(expectedPath))
-            {
-                return Fail(state, diagnostics, "HI-LLMFIT-MISSING-REQUIRED-FILE");
-            }
-
-            if (IsReparsePoint(expectedPath))
-            {
-                return Fail(state, diagnostics, "HI-LLMFIT-REPARSE-POINT");
-            }
-        }
-
+        using var stableMembers = new StableMemberStreams();
         string archivePath = expectedMembers[manifest.Archive.FileName];
-        if (new FileInfo(archivePath).Length != manifest.Archive.LengthBytes)
+        FileStream archiveStream = stableMembers.Open(manifest.Archive.FileName, archivePath);
+        if (archiveStream.Length != manifest.Archive.LengthBytes)
         {
             return Fail(state, diagnostics, "HI-LLMFIT-ARCHIVE-LENGTH-MISMATCH");
         }
 
-        state.ArchiveSha256 = ComputeSha256(archivePath);
+        state.ArchiveSha256 = ComputeSha256(archiveStream);
         if (!HashMatches(state.ArchiveSha256, manifest.Archive.Sha256))
         {
             return Fail(state, diagnostics, "HI-LLMFIT-ARCHIVE-HASH-MISMATCH");
         }
 
+        foreach ((string memberName, string memberPath) in expectedMembers)
+        {
+            if (!string.Equals(memberName, manifest.Archive.FileName, StringComparison.OrdinalIgnoreCase))
+            {
+                stableMembers.Open(memberName, memberPath);
+            }
+        }
+
         string executablePath = expectedMembers[manifest.Executable.RelativePath];
-        using FileStream executableStream = OpenExecutableForStableRead(executablePath);
+        FileStream executableStream = stableMembers[manifest.Executable.RelativePath];
         state.ExecutableSha256 = ComputeSha256(executableStream);
         if (!HashMatches(state.ExecutableSha256, manifest.Executable.Sha256))
         {
@@ -280,8 +287,8 @@ public sealed class LlmFitCandidateVerifier
         }
 
         ObserveAuthenticode(executablePath, state);
-        string observationPath = expectedMembers[ObservationFileName];
-        if (!TryValidateObservation(observationPath, state, out AuthenticodeObservation? observation))
+        FileStream observationStream = stableMembers[ObservationFileName];
+        if (!TryValidateObservation(observationStream, state, out AuthenticodeObservation? observation))
         {
             return Fail(state, diagnostics, "HI-LLMFIT-OBSERVATION-INVALID");
         }
@@ -289,6 +296,12 @@ public sealed class LlmFitCandidateVerifier
         if (!ObservationAgreesWithFreshFacts(observation, state))
         {
             return Fail(state, diagnostics, "HI-LLMFIT-OBSERVATION-MISMATCH");
+        }
+
+        layoutDiagnostic = GetPhysicalLayoutDiagnostic(stableRoot, expectedMembers.Keys);
+        if (layoutDiagnostic is not null)
+        {
+            return Fail(state, diagnostics, layoutDiagnostic);
         }
 
         if (!state.AuthenticodePresent)
@@ -304,6 +317,14 @@ public sealed class LlmFitCandidateVerifier
         LlmFitCandidateManifest manifest,
         out Dictionary<string, string> expectedMembers)
     {
+        if (!HasExactLogicalMemberSet(manifest.RequiredFiles, ExpectedRequiredFileNames) ||
+            !string.Equals(manifest.Executable.RelativePath, ExecutableFileName, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(manifest.License.RelativePath, LicenseFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            expectedMembers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            return false;
+        }
+
         expectedMembers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var memberNames = new List<string>(manifest.RequiredFiles.Count + 2)
         {
@@ -311,12 +332,6 @@ public sealed class LlmFitCandidateVerifier
             ObservationFileName,
         };
         memberNames.AddRange(manifest.RequiredFiles);
-
-        if (!manifest.RequiredFiles.Contains(manifest.Executable.RelativePath, StringComparer.OrdinalIgnoreCase) ||
-            !manifest.RequiredFiles.Contains(manifest.License.RelativePath, StringComparer.OrdinalIgnoreCase))
-        {
-            return false;
-        }
 
         foreach (string memberName in memberNames)
         {
@@ -356,10 +371,54 @@ public sealed class LlmFitCandidateVerifier
         return path.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase);
     }
 
+    private string? GetPhysicalLayoutDiagnostic(string root, IReadOnlyCollection<string> expectedMemberNames)
+    {
+        var physicalMemberNames = new List<string>();
+        foreach (string entry in Directory.EnumerateFileSystemEntries(root))
+        {
+            FileAttributes attributes = _fileMetadata.GetAttributes(entry);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return "HI-LLMFIT-REPARSE-POINT";
+            }
+
+            if ((attributes & FileAttributes.Directory) != 0)
+            {
+                return "HI-LLMFIT-UNEXPECTED-PACKAGE-MEMBER";
+            }
+
+            physicalMemberNames.Add(Path.GetFileName(entry));
+        }
+
+        return GetLogicalLayoutDiagnostic(physicalMemberNames, expectedMemberNames);
+    }
+
+    private static string? GetLogicalLayoutDiagnostic(
+        IEnumerable<string> physicalMemberNames,
+        IEnumerable<string> expectedMemberNames)
+    {
+        var expected = new HashSet<string>(expectedMemberNames, StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int physicalCount = 0;
+
+        foreach (string memberName in physicalMemberNames)
+        {
+            physicalCount++;
+            if (!seen.Add(memberName) || !expected.Contains(memberName))
+            {
+                return "HI-LLMFIT-UNEXPECTED-PACKAGE-MEMBER";
+            }
+        }
+
+        return physicalCount == expected.Count && seen.SetEquals(expected)
+            ? null
+            : "HI-LLMFIT-MISSING-REQUIRED-FILE";
+    }
+
     private static IOException CreateSafeOpenException(int errorCode)
     {
         return new IOException(
-            "The executable package member could not be opened safely.",
+            "The package member could not be opened safely.",
             new System.ComponentModel.Win32Exception(errorCode));
     }
 
@@ -383,14 +442,9 @@ public sealed class LlmFitCandidateVerifier
         return (_fileMetadata.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
     }
 
-    private static string ComputeSha256(string path)
-    {
-        using FileStream stream = File.OpenRead(path);
-        return ComputeSha256(stream);
-    }
-
     private static string ComputeSha256(Stream stream)
     {
+        stream.Position = 0;
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
     }
 
@@ -430,20 +484,14 @@ public sealed class LlmFitCandidateVerifier
     }
 
     private static bool TryValidateObservation(
-        string path,
+        Stream stream,
         VerificationState state,
         out AuthenticodeObservation observation)
     {
         observation = default!;
         try
         {
-            using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                bufferSize: 4096,
-                FileOptions.SequentialScan);
+            stream.Position = 0;
             if (stream.Length <= 0 || stream.Length > MaximumObservationBytes)
             {
                 return false;
@@ -627,6 +675,36 @@ public sealed class LlmFitCandidateVerifier
         public FileAttributes GetAttributes(string path)
         {
             return File.GetAttributes(path);
+        }
+    }
+
+    private sealed class StableMemberStreams : IDisposable
+    {
+        private readonly Dictionary<string, FileStream> _streams = new(StringComparer.OrdinalIgnoreCase);
+
+        public FileStream this[string memberName] => _streams[memberName];
+
+        public FileStream Open(string memberName, string path)
+        {
+            FileStream stream = OpenRegularFileForStableRead(path);
+            try
+            {
+                _streams.Add(memberName, stream);
+                return stream;
+            }
+            catch
+            {
+                stream.Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (FileStream stream in _streams.Values)
+            {
+                stream.Dispose();
+            }
         }
     }
 
