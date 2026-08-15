@@ -18,6 +18,11 @@ static async Task<int> RunAsync(string[] arguments)
         return 64;
     }
 
+    await File.WriteAllTextAsync(
+            Path.Combine(Directory.GetCurrentDirectory(), "owned-root-ready.txt"),
+            Environment.ProcessId.ToString(CultureInfo.InvariantCulture))
+        .ConfigureAwait(false);
+
     string modePath = Path.Combine(Directory.GetCurrentDirectory(), "fake-mode.txt");
     if (!File.Exists(modePath))
     {

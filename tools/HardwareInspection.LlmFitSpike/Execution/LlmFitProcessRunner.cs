@@ -16,6 +16,7 @@ public sealed class LlmFitProcessRunner
     private static int _activeMonitorResourceCount;
     private readonly Func<Stream, int, Task<BoundedTextCapture>> _captureReader;
     private readonly TimeSpan _cleanupDeadline;
+    private readonly TaskScheduler _observerTaskScheduler;
     private readonly Func<Process, Task> _waitForExit;
     private readonly TimeSpan _minimumTimeout;
 
@@ -58,6 +59,21 @@ public sealed class LlmFitProcessRunner
         TimeSpan cleanupDeadline,
         Func<Stream, int, Task<BoundedTextCapture>> captureReader,
         Func<Process, Task> waitForExit)
+        : this(
+            minimumTimeout,
+            cleanupDeadline,
+            captureReader,
+            waitForExit,
+            TaskScheduler.Default)
+    {
+    }
+
+    internal LlmFitProcessRunner(
+        TimeSpan minimumTimeout,
+        TimeSpan cleanupDeadline,
+        Func<Stream, int, Task<BoundedTextCapture>> captureReader,
+        Func<Process, Task> waitForExit,
+        TaskScheduler observerTaskScheduler)
     {
         if (minimumTimeout <= TimeSpan.Zero || minimumTimeout > TimeSpan.FromSeconds(1))
         {
@@ -73,6 +89,8 @@ public sealed class LlmFitProcessRunner
         _cleanupDeadline = cleanupDeadline;
         _captureReader = captureReader ?? throw new ArgumentNullException(nameof(captureReader));
         _waitForExit = waitForExit ?? throw new ArgumentNullException(nameof(waitForExit));
+        _observerTaskScheduler = observerTaskScheduler ??
+            throw new ArgumentNullException(nameof(observerTaskScheduler));
     }
 
     internal static int ActiveMonitorResourceCount => Volatile.Read(ref _activeMonitorResourceCount);
@@ -194,6 +212,7 @@ public sealed class LlmFitProcessRunner
                     observerTask = StartObserver(
                         whileRunningObserver,
                         processId!.Value,
+                        _observerTaskScheduler,
                         observerLifetime.Token);
                 }
                 catch
@@ -321,6 +340,7 @@ public sealed class LlmFitProcessRunner
     private static Task? StartObserver(
         Func<int, CancellationToken, Task>? observer,
         int processId,
+        TaskScheduler observerTaskScheduler,
         CancellationToken observerLifetime)
     {
         if (observer is null)
@@ -332,11 +352,15 @@ public sealed class LlmFitProcessRunner
         // synchronous prefix on a dedicated worker so neither the
         // runner nor shared ThreadPool progress can be held past its deadline.
         return Task.Factory.StartNew(
-                () => observer(processId, observerLifetime) ??
-                    Task.FromException(new InvalidOperationException()),
-                CancellationToken.None,
+                () =>
+                {
+                    observerLifetime.ThrowIfCancellationRequested();
+                    return observer(processId, observerLifetime) ??
+                        Task.FromException(new InvalidOperationException());
+                },
+                observerLifetime,
                 TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
-                TaskScheduler.Default)
+                observerTaskScheduler)
             .Unwrap();
     }
 

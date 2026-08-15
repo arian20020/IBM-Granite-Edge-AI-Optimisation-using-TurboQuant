@@ -41,12 +41,33 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
 
     internal async Task<int> WaitForChildReadyAsync(TimeSpan timeout)
     {
+        return await WaitForOwnedProcessReadyAsync(
+                "spawn-child-ready.txt",
+                timeout,
+                "The owned fake child did not become ready in time.")
+            .ConfigureAwait(false);
+    }
+
+    internal async Task<int> WaitForRootReadyAsync(TimeSpan timeout)
+    {
+        return await WaitForOwnedProcessReadyAsync(
+                "owned-root-ready.txt",
+                timeout,
+                "The owned fake root did not become ready in time.")
+            .ConfigureAwait(false);
+    }
+
+    private async Task<int> WaitForOwnedProcessReadyAsync(
+        string readinessFileName,
+        TimeSpan timeout,
+        string timeoutMessage)
+    {
         if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromSeconds(10))
         {
             throw new ArgumentOutOfRangeException(nameof(timeout));
         }
 
-        string readinessPath = Path.Combine(Root, "spawn-child-ready.txt");
+        string readinessPath = Path.Combine(Root, readinessFileName);
         var elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < timeout)
         {
@@ -75,7 +96,7 @@ internal sealed class FakeLlmFitTool : IAsyncDisposable
             await Task.Delay(TimeSpan.FromMilliseconds(20)).ConfigureAwait(false);
         }
 
-        throw new TimeoutException("The owned fake child did not become ready in time.");
+        throw new TimeoutException(timeoutMessage);
     }
 
     internal static async Task<FakeLlmFitTool> CreateAsync(string mode)
