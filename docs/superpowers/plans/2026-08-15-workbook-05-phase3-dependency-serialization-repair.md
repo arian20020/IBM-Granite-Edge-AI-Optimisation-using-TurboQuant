@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Repair the model-free Workbook 05 Phase 3 repository gate so dependency requirements remain plain strings and the complete observation serializes predictably under Windows PowerShell 5.1.
+**Goal:** Repair the model-free Workbook 05 Phase 3 repository gate so dependency requirements remain plain strings, the complete observation serializes predictably under Windows PowerShell 5.1, and every Phase 3 job receives the exact pinned schema-validation dependency through an isolated job-local environment.
 
-**Architecture:** Keep the existing C1 package, workflow stages, evidence schemas, fail-closed decisions, and live-operation block unchanged. Add a regression boundary around the existing serialization probe, then normalize only the requirement-file values and use `ConvertTo-Json -InputObject` at the JSON boundary so PowerShell does not traverse adapted file-content metadata or unwrap collections through the pipeline.
+**Architecture:** Keep the existing C1 package, workflow stages, evidence schemas, fail-closed decisions, and live-operation block unchanged. Normalize only the requirement-file values, use `ConvertTo-Json -InputObject` at the JSON boundary, bound the diagnostic in a child Windows PowerShell process, and install the repository-pinned `jsonschema` dependency beneath `RUNNER_TEMP` in each isolated job.
 
-**Tech Stack:** Windows PowerShell 5.1, GitHub Actions `windows-latest`, Python 3.12.10, repository-controlled PowerShell and Python validation gates.
+**Tech Stack:** Windows PowerShell 5.1, GitHub Actions `windows-latest`, self-hosted Windows x64 collection runner, Python 3.12.10, repository-controlled PowerShell and Python validation gates.
 
 ## Global Constraints
 
@@ -22,118 +22,65 @@
 
 ---
 
-### Task 1: Add a fast failing regression boundary
+## Task 1: Add a fast failing regression boundary
 
 **Files:**
 - Modify: `tests/testing/workbook05/Invoke-Phase3ObservationSerializationProbe.Tests.ps1`
 - Modify: `tests/testing/workbook05/Invoke-Phase3DependencyPreflightTests.Tests.ps1`
 
-**Interfaces:**
-- Consumes: `scripts/testing/workbook05/requirements.phase3-assets.in` and the existing observation probe.
-- Produces: a test that rejects adapted `Get-Content` values and a 30-second process boundary around the complete serialization probe.
+- [x] **Assert every direct requirement is plain `System.String` data**
 
-- [ ] **Step 1: Assert direct requirements are plain strings**
+The probe rejects adapted file/provider properties including `PSPath`, `PSParentPath`, `PSChildName`, `PSDrive`, `PSProvider`, and `ReadCount`.
 
-After reading the non-comment requirement rows, inspect each value through `PSObject` and require:
+- [x] **Bound the complete probe in a child Windows PowerShell process**
 
-```powershell
-if ($Requirement -isnot [string]) {
-    throw "Direct requirement is not System.String: $($Requirement.GetType().FullName)"
-}
-foreach ($AdaptedProperty in @('PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider', 'ReadCount')) {
-    if ($Requirement.PSObject.Properties.Match($AdaptedProperty).Count -ne 0) {
-        throw "Direct requirement retained adapted file-content property: $AdaptedProperty"
-    }
-}
-```
+The exact probe runs with redirected stdout/stderr and a 30-second `WaitForExit` boundary. A stalled process is terminated and classified as a repository-test failure instead of consuming the whole five-minute GitHub Actions step.
 
-- [ ] **Step 2: Bound the probe in a child Windows PowerShell process**
+- [x] **Verify RED before changing production code**
 
-Replace the direct in-process probe call with `System.Diagnostics.Process`. Run the exact probe file with `-NoLogo -NoProfile -ExecutionPolicy Bypass`, redirect stdout/stderr, and use:
-
-```powershell
-if (-not $Process.WaitForExit(30000)) {
-    try { $Process.Kill() } catch { }
-    throw 'Dependency observation serialization probe exceeded 30 seconds.'
-}
-```
-
-Require exit code `0` and the final marker:
+Exact test-only evidence:
 
 ```text
-Workbook 05 dependency observation serialization probe passed.
+head: ff3c555b2872bae73f692601249397e731c9b060
+workflow run: 31896957306
+job: 95041627110
+first causal failure:
+Direct requirement retained adapted file-content property: PSPath
 ```
 
-- [ ] **Step 3: Verify RED on the exact test-only head**
-
-Open a draft pull request so `Workbook 05 Phase 3 assets / Verify Phase 3 repository contract` executes on GitHub-hosted Windows PowerShell 5.1.
-
-Expected: the focused dependency test fails before production code changes, either because a direct requirement retains adapted file-content properties or because the child probe exceeds 30 seconds. It must not reach model collection.
-
-- [ ] **Step 4: Record the failing run**
-
-Retain the exact commit, workflow run, job, first failing marker, and classification `RepositoryGateFailure`. Do not treat this as a Runtime, GenAI, model, or codec failure.
+The failure occurred in about four seconds. The complete gate, Lenovo collector, artifact upload, model access, and every scientific test remained skipped.
 
 ---
 
-### Task 2: Normalize the requirement values and JSON input boundary
+## Task 2: Repair the controlled serialization boundary
 
 **Files:**
 - Modify: `scripts/testing/workbook05/Invoke-Workbook05Phase3DependencyPreflight.ps1`
 - Modify: `tests/testing/workbook05/Invoke-Phase3ObservationSerializationProbe.Tests.ps1`
 
-**Interfaces:**
-- Consumes: UTF-8 requirement rows from `requirements.phase3-assets.in`.
-- Produces: a true `string[]` with no adapted `Get-Content` properties and JSON generated through an explicit input object.
+- [x] **Normalize each accepted requirement row**
 
-- [ ] **Step 1: Normalize each accepted requirement row**
-
-Use an explicit projection after filtering:
+Both the production fixture and its focused probe create a new CLR string from each retained line:
 
 ```powershell
-$DirectRequirements = @(
-    Get-Content -LiteralPath $DirectRequirementsPath -Encoding UTF8 |
-    Where-Object {
-        -not [string]::IsNullOrWhiteSpace($_) -and
-        -not $_.TrimStart().StartsWith('#')
-    } |
-    ForEach-Object {
-        [string]::new(([string]$_).ToCharArray())
-    }
-)
+[string]::new(([string]$_).ToCharArray())
 ```
 
-Apply the same construction in the production dependency fixture and the focused probe so the probe models the real observation boundary.
+This strips the adapted `Get-Content` object properties before the values enter the observation graph.
 
-- [ ] **Step 2: Use an explicit JSON input boundary**
+- [x] **Use an explicit JSON input boundary**
 
-Change JSON serialization from pipeline transmission:
-
-```powershell
-$Value | ConvertTo-Json -Depth 12
-```
-
-or:
-
-```powershell
-$SerializationProbe | ConvertTo-Json -Depth 12
-```
-
-into:
+Controlled JSON writes and the cumulative probe now use:
 
 ```powershell
 ConvertTo-Json -InputObject $Value -Depth 12
 ```
 
-and:
+rather than sending the value through the pipeline.
 
-```powershell
-ConvertTo-Json -InputObject $SerializationProbe -Depth 12
-```
+- [x] **Verify that the original serialization failure is gone**
 
-- [ ] **Step 3: Verify GREEN on the focused gate**
-
-Expected output includes all field start/return pairs, including:
+Run `31897174956`, job `95042616956`, returned from every field, including:
 
 ```text
 WB05_DEP_SERIALIZE_FIELD:direct_requirements:start
@@ -141,48 +88,88 @@ WB05_DEP_SERIALIZE_FIELD:direct_requirements:return
 Workbook 05 dependency observation serialization probe passed.
 ```
 
-The child process must finish within 30 seconds and the complete dependency-fixture tests must pass.
-
-- [ ] **Step 4: Verify the complete Phase 3 repository gate**
-
-Run the pull-request-triggered `Workbook 05 Phase 3 assets / Verify Phase 3 repository contract` and require the final controlled marker:
-
-```text
-WORKBOOK05_PHASE3_GATE_PASS
-```
-
-- [ ] **Step 5: Verify normal repository regression**
-
-Require the exact repair head to pass the normal `Build and test` workflow as well as all specialised workflows triggered by the changed paths.
+That run then exposed the next independent boundary: the clean hosted interpreter did not contain `jsonschema`.
 
 ---
 
-### Task 3: Review, merge boundary, and post-merge rehearsal
+## Task 3: Restore the pinned Python validation environment
 
 **Files:**
-- Review all changed files and the pull-request evidence.
+- Modify: `.github/workflows/workbook-05-phase3-assets.yml`
+- Modify: `tests/testing/workbook05/test_phase3_asset_workflow_contract.py`
 
-**Interfaces:**
-- Consumes: exact-head workflow results and the branch diff.
-- Produces: a merge-ready repair whose scope is limited to the dependency observation serialization boundary.
+- [x] **Reproduce and classify the missing dependency**
 
-- [ ] **Step 1: Review the exact diff**
+After serialization succeeded, the decision CLI failed with:
 
-Confirm there are no changes to models, Runtime/GenAI pins, benchmark definitions, workflow permissions, self-hosted labels, accepted assets, or scientific claim flags.
+```text
+ModuleNotFoundError: No module named 'jsonschema'
+```
 
-- [ ] **Step 2: Update the pull-request description**
+The repository already controls `jsonschema==4.25.1` in `scripts/testing/workbook05/requirements.txt`; the Phase 3 workflow had omitted the established isolated installation step.
 
-Document the reproduced failure, first divergence, RED run, minimal implementation, exact verification runs, non-claims, and post-merge operation.
+- [x] **Add a workflow-contract regression for all three jobs**
 
-- [ ] **Step 3: Merge only after exact-head green evidence**
+The contract now requires `repository-contract`, `collect-assets`, and `validate-assets` to install the pinned validation dependency beneath `RUNNER_TEMP`, use `--target`, propagate only a job-local `PYTHONPATH`, and perform the setup before their first Python validation operation.
 
-Do not merge while the specialised Phase 3 repository contract is red, skipped, cancelled, or still running.
+- [x] **Install and verify `jsonschema==4.25.1` in every job**
 
-- [ ] **Step 4: Verify fresh `main`**
+No package is installed into the checkout, machine-wide Python, accepted Runtime/GenAI folders, model roots, or evidence bundle.
 
-After merge, require a fresh normal regression on the merge commit and confirm the specialised repository contract remains green where triggered.
+- [x] **Resolve hosted Python deterministically**
 
-- [ ] **Step 5: Re-dispatch the unchanged offline fixture**
+Run `31897724983`, job `95043533915`, exposed that a simple `Get-Command python` returned both the tool-cache interpreter and the WindowsApps alias. Hosted jobs now use the repository-established pattern:
+
+```powershell
+$pythonCommand = Get-Command -Name python -CommandType Application -All -ErrorAction Stop |
+    Select-Object -First 1
+$pythonPath = $pythonCommand.Source
+```
+
+A workflow-contract test prevents regression to an ambiguous multi-path value.
+
+---
+
+## Task 4: Verify the complete repair and prepare integration
+
+- [x] **Pass the specialised Phase 3 repository contract on the implementation head**
+
+Exact green evidence before this final documentation update:
+
+```text
+head: 9df41c1923239bd8beeb7f5bbad0ced6a7c05267
+workflow run: 31897867770
+job: 95043874332
+Python tests: 372 passed
+focused workflow/security tests: 17 passed
+final marker: WORKBOOK05_PHASE3_GATE_PASS
+```
+
+The deliberate tampered-manifest negative test still produced its expected hash-mismatch observation while the enclosing test suite passed.
+
+- [x] **Pass the normal application regression on the same implementation head**
+
+`Build and test` run `31897867779` completed successfully on `9df41c1923239bd8beeb7f5bbad0ced6a7c05267`.
+
+- [x] **Review the repair scope**
+
+The changed surface is limited to the Phase 3 workflow, dependency fixture/probe, their tests, and this plan. There are no application-production, model, Runtime/GenAI pin, codec, benchmark, prompt, rubric, runner-label, permission, or scientific-authorisation changes.
+
+- [ ] **Require every workflow on the final documentation head to finish green**
+
+Because this plan update creates the final review head, repeat exact-head verification rather than relying on the earlier implementation commit.
+
+- [ ] **Update the pull-request description with the complete causal history and final run IDs**
+
+- [ ] **Mark the pull request ready for review only after the final head is green**
+
+- [ ] **Merge only after explicit project-owner approval**
+
+- [ ] **Verify fresh `main` after merge**
+
+Require a fresh normal regression and the specialised repository contract on the merge commit where triggered.
+
+- [ ] **Re-dispatch the unchanged offline fixture from repaired `main`**
 
 Use:
 
@@ -192,4 +179,4 @@ confirm_live_asset_lock: unchecked
 accepted_dependency_preflight_sha256: blank
 ```
 
-The expected job sequence remains repository contract, Lenovo C1 fixture collection, then clean hosted validation. No model or scientific claim is authorised by this rehearsal.
+The expected sequence remains repository contract, Lenovo C1 fixture collection, then clean hosted validation. This rehearsal still downloads no model and authorises no activation, storage, performance, or quality claim.
