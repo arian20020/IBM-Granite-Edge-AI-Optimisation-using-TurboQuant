@@ -55,6 +55,18 @@ public sealed class LlmFitCandidateManifestTests
         Assert.Throws<InvalidDataException>(() => LlmFitCandidateManifestLoader.Parse(json));
     }
 
+    [TestMethod]
+    public void Load_ArchiveFileNameTraversalPath_Throws()
+    {
+        string json = File.ReadAllText(GetApprovedCandidatePath())
+            .Replace(
+                "\"fileName\": \"llmfit-v1.1.9-x86_64-pc-windows-msvc.zip\"",
+                "\"fileName\": \"..\\\\llmfit-v1.1.9-x86_64-pc-windows-msvc.zip\"",
+                StringComparison.Ordinal);
+
+        Assert.Throws<InvalidDataException>(() => LlmFitCandidateManifestLoader.Parse(json));
+    }
+
     private static LlmFitCandidateManifest LoadApprovedCandidate()
     {
         return LlmFitCandidateManifestLoader.Load(GetApprovedCandidatePath());

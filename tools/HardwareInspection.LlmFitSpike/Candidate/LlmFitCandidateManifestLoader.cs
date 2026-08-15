@@ -83,7 +83,10 @@ public static class LlmFitCandidateManifestLoader
         string sha256 = GetRequiredString(archive, "sha256");
         ValidateLowercaseHex(sha256, 64, "archive.sha256");
 
-        return new LlmFitCandidateArchive(GetRequiredString(archive, "fileName"), uri, lengthBytes, sha256);
+        string fileName = GetRequiredString(archive, "fileName");
+        ValidateRelativePath(fileName, "archive.fileName");
+
+        return new LlmFitCandidateArchive(fileName, uri, lengthBytes, sha256);
     }
 
     private static LlmFitCandidateExecutable ParseExecutable(JsonElement executable)
