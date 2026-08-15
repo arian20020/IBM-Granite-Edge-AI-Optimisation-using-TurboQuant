@@ -106,6 +106,29 @@ class Phase3AssetWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("cmd /c", self.workflow.casefold())
         self.assertIn("cancel-in-progress: false", self.workflow)
 
+    def test_repository_contract_runs_bounded_dependency_fixture_diagnostic(
+        self,
+    ) -> None:
+        repository_contract = self._job("repository-contract", "collect-assets")
+        diagnostic_name = "Run focused dependency-fixture diagnostic"
+        full_gate_name = "Run the complete Phase 3 repository gate"
+
+        self.assertIn(diagnostic_name, repository_contract)
+        self.assertIn("timeout-minutes: 5", repository_contract)
+        self.assertIn(
+            "Invoke-Phase3DependencyPreflightTests.Tests.ps1",
+            repository_contract,
+        )
+        self.assertIn(
+            "-RepositoryRoot $env:GITHUB_WORKSPACE",
+            repository_contract,
+        )
+        self.assertIn("-PythonPath 'python'", repository_contract)
+        self.assertLess(
+            repository_contract.index(diagnostic_name),
+            repository_contract.index(full_gate_name),
+        )
+
     def test_repository_gate_delegates_to_complete_existing_gate_first(
         self,
     ) -> None:
