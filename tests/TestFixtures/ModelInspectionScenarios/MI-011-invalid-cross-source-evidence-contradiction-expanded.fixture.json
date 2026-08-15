@@ -166,7 +166,7 @@
       "status": "notComplete"
     },
     "focus": {
-      "target": "choose-another"
+      "target": "findings-disclosure"
     },
     "automation": {
       "controls": [
@@ -293,7 +293,7 @@
         "findings-disclosure",
         "choose-another"
       ],
-      "focusTarget": "choose-another",
+      "focusTarget": "findings-disclosure",
       "resources": "light",
       "textScale": "standard100",
       "motion": "normal",
@@ -309,7 +309,7 @@
       "kind": "expand",
       "sourceCheckpoint": "terminal",
       "target": "expanded",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "notComplete",
       "lifetimeEffect": "none"
@@ -319,7 +319,7 @@
       "kind": "collapse",
       "sourceCheckpoint": "expanded",
       "target": "MI-010",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "notComplete",
       "lifetimeEffect": "none"
@@ -339,7 +339,7 @@
       "kind": "reset",
       "sourceCheckpoint": "expanded",
       "target": "MI-011",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "notComplete",
       "lifetimeEffect": "retirePage"

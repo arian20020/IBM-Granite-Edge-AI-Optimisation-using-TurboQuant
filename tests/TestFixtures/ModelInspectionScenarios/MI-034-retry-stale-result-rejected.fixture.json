@@ -441,17 +441,17 @@
                              "kind":  "retry",
                              "sourceCheckpoint":  "failure",
                              "target":  "ready",
-                             "expectedFocus":  "model-card",
+                              "expectedFocus":  "page-heading",
                              "expectedAnnouncementCount":  0,
                              "expectedFooterStatus":  "inProgress",
                              "lifetimeEffect":  "none"
                          },
                          {
-                             "id":  "expand",
+                            "id":  "expand",
                              "kind":  "expand",
                              "sourceCheckpoint":  "observed",
                              "target":  "MI-003",
-                             "expectedFocus":  "choose-another",
+                            "expectedFocus":  "inspection-details-disclosure",
                              "expectedAnnouncementCount":  0,
                              "expectedFooterStatus":  "complete",
                              "lifetimeEffect":  "none"

@@ -278,6 +278,15 @@ public sealed partial class ModelInspectionFixtureGalleryPage : Page
                     StringComparison.Ordinal)));
         ModelInspectionFixtureSession session = activeHost!.Session;
         int serviceCallCountBefore = session.Evidence.ServiceCallCount;
+        if (declaredInteraction?.Kind ==
+                ModelInspectionFixtureInteractionKind.Cancel &&
+            !control.Focus(FocusState.Programmatic))
+        {
+            throw new InvalidOperationException(
+                $"The rendered fixture action '{actionId}' could not receive " +
+                "focus before invocation.");
+        }
+
         InvokeRenderedButton(control);
         await DrainDispatcherAsync(this);
         if (string.Equals(actionId, "reset", StringComparison.Ordinal))

@@ -424,7 +424,7 @@
       "kind": "expand",
       "sourceCheckpoint": "observed",
       "target": "MI-003",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "inspection-details-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "none"

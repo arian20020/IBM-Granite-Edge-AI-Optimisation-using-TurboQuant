@@ -521,6 +521,10 @@ public sealed class ModelInspectionFixtureInteractionTests
                     ModelInspectionFixtureGalleryTestHarness.AssertExactScreen(gallery,
                         ModelInspectionFixtureTestCatalogue.Get(pair.expanded), expanded,
                         Case(pair.collapsed, "expand"),
+                        sourceFixture: ModelInspectionFixtureTestCatalogue.Get(
+                            pair.collapsed),
+                        interactionKind:
+                            ModelInspectionFixtureInteractionKind.Expand,
                         journeyRelativeAnnouncements: true);
                 }
                 Assert.AreSame(toggle,
@@ -544,6 +548,10 @@ public sealed class ModelInspectionFixtureInteractionTests
                     ModelInspectionFixtureGalleryTestHarness.AssertExactScreen(gallery,
                         ModelInspectionFixtureTestCatalogue.Get(pair.collapsed), collapsed,
                         Case(pair.expanded, "collapse"),
+                        sourceFixture: ModelInspectionFixtureTestCatalogue.Get(
+                            pair.expanded),
+                        interactionKind:
+                            ModelInspectionFixtureInteractionKind.Collapse,
                         journeyRelativeAnnouncements: true);
                 }
                 Assert.AreSame(host, gallery.ActiveHost, pair.collapsed);
@@ -940,6 +948,12 @@ internal static class ModelInspectionFixtureGalleryTestHarness
                 Automation = expectedScreen.Automation with
                 {
                     Controls = automationControls
+                },
+                Focus = expectedScreen.Focus with
+                {
+                    Target = sourceFixture.Interactions.Single(interaction =>
+                            interaction.Kind == interactionKind.Value)
+                        .ExpectedFocus ?? string.Empty
                 }
             };
         }
@@ -1149,7 +1163,27 @@ internal static class ModelInspectionFixtureGalleryTestHarness
             return string.Empty;
         }
 
+        var heading = (TextBlock)page.FindName("PageTitle");
+        if (IsDescendantOrSelf(focused, heading))
+        {
+            return "page-heading";
+        }
+
         var model = (InspectionModelCard)page.FindName("InspectionModelCardControl");
+        if (model.ActiveDisclosure is { } modelDisclosure &&
+            IsDescendantOrSelf(focused, modelDisclosure))
+        {
+            return "inspection-details-disclosure";
+        }
+
+        var content = (InspectionContentCard)page.FindName(
+            "InspectionContentCardControl");
+        if (content.ActiveDisclosure is { } contentDisclosure &&
+            IsDescendantOrSelf(focused, contentDisclosure))
+        {
+            return "findings-disclosure";
+        }
+
         if (IsDescendantOrSelf(focused, model))
         {
             return "model-card";

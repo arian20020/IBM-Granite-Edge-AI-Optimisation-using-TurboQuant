@@ -567,15 +567,19 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                     Descendants<InspectionStatusGlyph>(row)
                     .Where(IsVisible)
                     .ToArray();
+                InspectionStatusGlyphKind? observedGlyphKind =
+                    statusGlyphs.Length == 1
+                        ? ObserveStatusGlyphKind(statusGlyphs[0])
+                        : null;
                 bool hasStatusShape = statuses.Length == 1 &&
-                    statusGlyphs.Length == 1;
+                    observedGlyphKind.HasValue;
                 observed.Add(new(
                     CheckId(title.Text),
                     copyText.Length > 1 ? copyText[1].Text : string.Empty,
                     hasStatusShape
-                        ? CheckStatus(statuses[0], statusGlyphs[0])
+                        ? CheckStatus(statuses[0], observedGlyphKind!.Value)
                         : "Unmapped",
-                    hasStatusShape ? statusGlyphs[0].Kind : null));
+                    hasStatusShape ? observedGlyphKind : null));
             }
 
             return observed;
@@ -758,7 +762,9 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 return ($"Unmapped:{mode}:{text}", null);
             }
 
-            string status = (text, glyphs[0].Kind) switch
+            InspectionStatusGlyphKind? glyphKind =
+                ObserveStatusGlyphKind(glyphs[0]);
+            string status = (text, glyphKind) switch
             {
                 ("Checking", InspectionStatusGlyphKind.Active) => "Active",
                 ("Waiting", InspectionStatusGlyphKind.Waiting) => "Waiting",
@@ -771,7 +777,7 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                     InspectionStatusGlyphKind.Information) => "Information",
                 _ => $"Unmapped:{mode}:{text}"
             };
-            return (status, glyphs[0].Kind);
+            return (status, glyphKind);
         }
 
         private static double? ObserveStageFraction(
@@ -803,6 +809,7 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 {
                     return null;
                 }
+
             }
 
             if (!int.TryParse(
@@ -831,20 +838,11 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 : string.Equals(mode, "Result", StringComparison.Ordinal)
                     ? new[]
                     {
-                        (Host: Named<StackPanel>(card,
-                            "SecondaryActionOneHost"),
-                            Button: Named<Button>(card,
-                                "SecondaryActionOneButton")),
-                        (Host: Named<StackPanel>(card,
-                            "SecondaryActionTwoHost"),
-                            Button: Named<Button>(card,
-                                "SecondaryActionTwoButton")),
-                        (Host: Named<StackPanel>(card, "PrimaryActionHost"),
-                            Button: Named<Button>(card, "PrimaryActionButton"))
+                        Named<Button>(card, "SecondaryActionOneButton"),
+                        Named<Button>(card, "SecondaryActionTwoButton"),
+                        Named<Button>(card, "PrimaryActionButton")
                     }
-                    .OrderBy(item => Grid.GetRow(item.Host))
-                    .ThenBy(item => Grid.GetColumn(item.Host))
-                    .Select(item => item.Button)
+                    .OrderBy(button => button.TabIndex)
                 : Array.Empty<Button>();
             foreach (Button button in buttons)
             {
@@ -907,7 +905,20 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             string target = string.Empty;
             if (focused is not null)
             {
-                if (IsDescendantOrSelf(focused, ModelCard))
+                (InspectionDisclosure? disclosure, string? disclosureId) =
+                    VisibleDisclosure();
+                if (disclosure is not null &&
+                    IsDescendantOrSelf(focused, disclosure))
+                {
+                    target = disclosureId!;
+                }
+                else if (IsDescendantOrSelf(
+                        focused,
+                        Named<FrameworkElement>(page, "PageTitle")))
+                {
+                    target = "page-heading";
+                }
+                else if (IsDescendantOrSelf(focused, ModelCard))
                 {
                     target = "model-card";
                 }
@@ -923,6 +934,7 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                         }
                     }
                 }
+
             }
 
             return new ModelInspectionObservedFocus { Target = target };
@@ -1370,11 +1382,39 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             _ => $"unmapped:{title}"
         };
 
-        private static string CheckStatus(
-            TextBlock status,
+        private static InspectionStatusGlyphKind? ObserveStatusGlyphKind(
             InspectionStatusGlyph glyph)
         {
-            return (status.Text, glyph.Kind) switch
+            InspectionStatusGlyphKind[] visibleKinds =
+                Descendants<Canvas>(glyph)
+                    .Where(canvas =>
+                        canvas.Visibility == Visibility.Visible &&
+                        canvas.Tag is string tag &&
+                        tag.StartsWith("GlyphKind:", StringComparison.Ordinal))
+                    .Select(canvas => canvas.Tag as string)
+                    .Select(tag => tag switch
+                    {
+                        "GlyphKind:Success" =>
+                            (InspectionStatusGlyphKind?)InspectionStatusGlyphKind.Success,
+                        "GlyphKind:Warning" => InspectionStatusGlyphKind.Warning,
+                        "GlyphKind:Error" => InspectionStatusGlyphKind.Error,
+                        "GlyphKind:Information" =>
+                            InspectionStatusGlyphKind.Information,
+                        "GlyphKind:Waiting" => InspectionStatusGlyphKind.Waiting,
+                        "GlyphKind:Active" => InspectionStatusGlyphKind.Active,
+                        _ => null
+                    })
+                    .Where(kind => kind.HasValue)
+                    .Select(kind => kind!.Value)
+                    .ToArray();
+            return visibleKinds.Length == 1 ? visibleKinds[0] : null;
+        }
+
+        private static string CheckStatus(
+            TextBlock status,
+            InspectionStatusGlyphKind glyphKind)
+        {
+            return (status.Text, glyphKind) switch
             {
                 ("Passed", InspectionStatusGlyphKind.Success) => "Passed",
                 ("Warning", InspectionStatusGlyphKind.Warning) => "Warning",

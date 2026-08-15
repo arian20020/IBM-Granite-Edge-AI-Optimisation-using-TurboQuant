@@ -629,7 +629,7 @@ public sealed class ModelInspectionFixtureScreenContractTests
     }
 
     [UITestMethod]
-    public async Task Observer_ActionOrderFollowsLoadedGridGeometry()
+    public async Task Observer_ActionOrderFollowsLoadedTabOrder()
     {
         using var culture = new CultureScope();
         using ScreenFixture fixture = CreateScreenFixture("MI-009");
@@ -645,45 +645,27 @@ public sealed class ModelInspectionFixtureScreenContractTests
         CollectionAssert.AreEqual(
             new[] { "technical-report", "choose-another" },
             beforeIds);
-        StackPanel technicalReportHost = FindNamed<StackPanel>(
+        Button technicalReport = FindNamed<Button>(
             fixture.Page,
-            "SecondaryActionOneHost");
-        StackPanel chooseAnotherHost = FindNamed<StackPanel>(
+            "SecondaryActionOneButton");
+        Button chooseAnother = FindNamed<Button>(
             fixture.Page,
-            "PrimaryActionHost");
+            "PrimaryActionButton");
         object? presentation = fixture.Page.CurrentPresentation;
-        void PutChooseAnotherFirst()
-        {
-            Grid.SetRow(technicalReportHost, 0);
-            Grid.SetColumn(technicalReportHost, 2);
-            Grid.SetColumnSpan(technicalReportHost, 1);
-            Grid.SetRow(chooseAnotherHost, 0);
-            Grid.SetColumn(chooseAnotherHost, 0);
-            Grid.SetColumnSpan(chooseAnotherHost, 1);
-        }
-        EventHandler<object> maintainMutation = (_, _) =>
-            PutChooseAnotherFirst();
+        technicalReport.TabIndex = 2;
+        chooseAnother.TabIndex = 0;
 
-        ModelInspectionObservedScreen after;
-        CompositionTarget.Rendering += maintainMutation;
-        try
-        {
-            PutChooseAnotherFirst();
-            after = await observation.CaptureAsync(CancellationToken.None);
-        }
-        finally
-        {
-            CompositionTarget.Rendering -= maintainMutation;
-        }
+        ModelInspectionObservedScreen after =
+            await observation.CaptureAsync(CancellationToken.None);
 
         Assert.AreSame(presentation, fixture.Page.CurrentPresentation);
-        Assert.AreEqual(0, Grid.GetColumn(chooseAnotherHost));
-        Assert.AreEqual(2, Grid.GetColumn(technicalReportHost));
+        Assert.AreEqual(0, chooseAnother.TabIndex);
+        Assert.AreEqual(2, technicalReport.TabIndex);
         CollectionAssert.AreEqual(
             beforeIds.Reverse().ToArray(),
             after.Actions.Items.Select(action => action.Id).ToArray(),
-            "Observed action order must follow loaded visual geometry rather " +
-            "than a hard-coded sequence of field names.");
+            "Observed action order must follow loaded tab order rather than " +
+            "a hard-coded sequence of field names.");
     }
 
     [UITestMethod]
@@ -921,20 +903,42 @@ public sealed class ModelInspectionFixtureScreenContractTests
         TextBlock statusText = Find<TextBlock>(statusOwner,
             text => text.Visibility == Visibility.Visible);
         string unchangedText = statusText.Text;
-        Border statusIcon = DescendantsForMutation<Border>(row).Single(border =>
-            string.Equals(
-                border.Tag as string,
-                "InspectionCheckStatusIcon",
-                StringComparison.Ordinal) &&
-            border.Visibility == Visibility.Visible);
-        Brush errorSurface = (Brush)Application.Current.Resources[
-            "InspectionErrorSurfaceBrush"];
-        Assert.AreNotSame(errorSurface, statusIcon.Background);
-        statusIcon.Background = errorSurface;
+        void ShowErrorGlyph()
+        {
+            Border currentRow = FirstModelCheckRow(fixture.Page);
+            InspectionStatusGlyph currentGlyph =
+                DescendantsForMutation<InspectionStatusGlyph>(currentRow)
+                    .Single(glyph => glyph.Visibility == Visibility.Visible);
+            Canvas visibleRoot = DescendantsForMutation<Canvas>(currentGlyph)
+                .Single(canvas => canvas.Visibility == Visibility.Visible &&
+                    canvas.Tag is string tag &&
+                    tag.StartsWith("GlyphKind:", StringComparison.Ordinal));
+            Canvas errorRoot = DescendantsForMutation<Canvas>(currentGlyph)
+                .Single(canvas => string.Equals(
+                    canvas.Tag as string,
+                    "GlyphKind:Error",
+                    StringComparison.Ordinal));
+            if (!ReferenceEquals(visibleRoot, errorRoot))
+            {
+                visibleRoot.Visibility = Visibility.Collapsed;
+                errorRoot.Visibility = Visibility.Visible;
+            }
+        }
+
+        EventHandler<object> maintainGlyphMutation = (_, _) => ShowErrorGlyph();
+        ShowErrorGlyph();
         Assert.AreEqual(unchangedText, statusText.Text);
 
-        ModelInspectionObservedScreen after =
-            await observation.CaptureAsync(CancellationToken.None);
+        ModelInspectionObservedScreen after;
+        CompositionTarget.Rendering += maintainGlyphMutation;
+        try
+        {
+            after = await observation.CaptureAsync(CancellationToken.None);
+        }
+        finally
+        {
+            CompositionTarget.Rendering -= maintainGlyphMutation;
+        }
         string afterStatus = after.Model.Checks.Single(check => string.Equals(
             check.Id,
             "check-package",
@@ -961,21 +965,42 @@ public sealed class ModelInspectionFixtureScreenContractTests
             border => Grid.GetColumn(border) == 2);
         TextBlock statusText = Find<TextBlock>(statusPill);
         string unchangedText = statusText.Text;
-        Border marker = DescendantsForMutation<Border>(row).Single(border =>
-            border.Visibility == Visibility.Visible &&
-            border.Child is SymbolIcon);
-        var markerSymbol = (SymbolIcon)marker.Child;
-        Brush errorSurface = (Brush)Application.Current.Resources[
-            "InspectionErrorSurfaceBrush"];
-        Assert.AreNotSame(errorSurface, marker.Background);
-        Assert.AreNotEqual(Symbol.Cancel, markerSymbol.Symbol);
+        void ShowErrorGlyph()
+        {
+            Border currentRow = FirstFindingRow(fixture.Page);
+            InspectionStatusGlyph currentGlyph =
+                DescendantsForMutation<InspectionStatusGlyph>(currentRow)
+                    .Single(glyph => glyph.Visibility == Visibility.Visible);
+            Canvas visibleRoot = DescendantsForMutation<Canvas>(currentGlyph)
+                .Single(canvas => canvas.Visibility == Visibility.Visible &&
+                    canvas.Tag is string tag &&
+                    tag.StartsWith("GlyphKind:", StringComparison.Ordinal));
+            Canvas errorRoot = DescendantsForMutation<Canvas>(currentGlyph)
+                .Single(canvas => string.Equals(
+                    canvas.Tag as string,
+                    "GlyphKind:Error",
+                    StringComparison.Ordinal));
+            if (!ReferenceEquals(visibleRoot, errorRoot))
+            {
+                visibleRoot.Visibility = Visibility.Collapsed;
+                errorRoot.Visibility = Visibility.Visible;
+            }
+        }
 
-        marker.Background = errorSurface;
-        markerSymbol.Symbol = Symbol.Cancel;
+        EventHandler<object> maintainGlyphMutation = (_, _) => ShowErrorGlyph();
+        ShowErrorGlyph();
         Assert.AreEqual(unchangedText, statusText.Text);
 
-        ModelInspectionObservedScreen after =
-            await observation.CaptureAsync(CancellationToken.None);
+        ModelInspectionObservedScreen after;
+        CompositionTarget.Rendering += maintainGlyphMutation;
+        try
+        {
+            after = await observation.CaptureAsync(CancellationToken.None);
+        }
+        finally
+        {
+            CompositionTarget.Rendering -= maintainGlyphMutation;
+        }
         Assert.AreNotEqual(
             before.Content.Rows[0].Status,
             after.Content.Rows[0].Status,

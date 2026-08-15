@@ -11,6 +11,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
+using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
@@ -199,12 +200,11 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.HasCount(5, startup.ContentCard.Items);
             Assert.IsTrue(startup.ContentCard.Items.All(row =>
                 row.Status == InspectionContentStatus.Waiting && !row.IsActive));
-            var modelHeading = (InspectionModelCard)page.FindName(
-                "InspectionModelCardControl");
+            var pageHeading = (TextBlock)page.FindName("PageTitle");
             Assert.AreSame(
-                modelHeading,
+                pageHeading,
                 FocusManager.GetFocusedElement(page.XamlRoot),
-                "Rendering startup must retain the selected-model heading focus.");
+                "Rendering startup must retain the page heading focus.");
 
             // A subsequent layout pass must not create a second attempt.
             page.InvalidateMeasure();
@@ -1713,7 +1713,7 @@ public sealed class ModelInspectionPageNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task FailureFocus_MovesOnlyWhenRetiringProgressOwnedFocus()
+    public async Task FailureFocus_MovesOnlyWhenFocusedElementBecomesIneffective()
     {
         var service = new ControlledInspectionService();
         ControlledCall first = service.QueueCall();
@@ -1772,12 +1772,11 @@ public sealed class ModelInspectionPageNavigationTests
             page.ViewModel.RetryCommand.Execute(null);
             dispatcher.RunNext();
 
-            var model = (InspectionModelCard)page.FindName(
-                "InspectionModelCardControl");
+            var pageHeading = (TextBlock)page.FindName("PageTitle");
             object? focusedAfterRetry = FocusManager.GetFocusedElement(
                 page.XamlRoot);
-            bool collapsedRetryRecoveredToModel = ReferenceEquals(
-                model,
+            bool collapsedRetryRecoveredToHeading = ReferenceEquals(
+                pageHeading,
                 focusedAfterRetry);
             Assert.AreEqual(Visibility.Collapsed, retry.Visibility);
             AssertStartupPresentation(
@@ -1796,8 +1795,8 @@ public sealed class ModelInspectionPageNavigationTests
                 focusRecoveryCall.CancellationToken.IsCancellationRequested);
             dispatcher.RunNext();
 
-            bool disabledCancelRecoveredToModel = ReferenceEquals(
-                model,
+            bool disabledCancelRecoveredToHeading = ReferenceEquals(
+                pageHeading,
                 FocusManager.GetFocusedElement(page.XamlRoot));
             AssertStartupPresentation(
                 AssertCompleteSnapshotApplied(page).ContentCard);
@@ -1806,6 +1805,18 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.AreEqual(
                 "Cancel model inspection",
                 AutomationProperties.GetName(cancel));
+            focusRecoveryCall.Report(CreateProgress(
+                ModelInspectionStage.CheckModelPackage,
+                completedStageCount: 0));
+            dispatcher.RunAll();
+            ModelInspectionPagePresentation cancelledProgress =
+                AssertCompleteSnapshotApplied(page);
+            Assert.AreEqual(
+                Visibility.Collapsed,
+                cancelledProgress.ContentCard.Startup.Visibility);
+            bool disabledCancelPreservedEffectiveHeading = ReferenceEquals(
+                pageHeading,
+                FocusManager.GetFocusedElement(page.XamlRoot));
             focusRecoveryCall.Complete(
                 ModelInspectionExecutionResult.Cancelled(cooperative: true));
             await page.CurrentInspectionTask!.WaitAsync(
@@ -1814,11 +1825,14 @@ public sealed class ModelInspectionPageNavigationTests
             dispatcher.RunAll();
 
             Assert.IsTrue(
-                collapsedRetryRecoveredToModel,
-                $"Startup must recover focus from the collapsed retry action to the selected-model heading. Actual: {focusedAfterRetry?.GetType().Name ?? "null"}.");
+                collapsedRetryRecoveredToHeading,
+                $"Startup must recover focus from the collapsed retry action to the page heading. Actual: {focusedAfterRetry?.GetType().Name ?? "null"}.");
             Assert.IsTrue(
-                disabledCancelRecoveredToModel,
-                "Startup must recover focus from the disabled cancel action to the selected-model heading.");
+                disabledCancelRecoveredToHeading,
+                "Startup must recover focus from the disabled cancel action to the page heading.");
+            Assert.IsTrue(
+                disabledCancelPreservedEffectiveHeading,
+                "A later disabled-cancel progress delta must preserve the effective page heading focus.");
             Assert.IsFalse(page.ViewModel.IsRunActive);
             Assert.AreEqual(
                 ModelInspectionExecutionStatus.Cancelled,
@@ -2028,12 +2042,29 @@ public sealed class ModelInspectionPageNavigationTests
             var model = (InspectionModelCard)fixture.Page.FindName(
                 "InspectionModelCardControl");
             InspectionDisclosure disclosure = model.ActiveDisclosure!;
-            await CompleteDisclosureRequestAsync(
-                fixture.Page,
+            var toggle = (Button)disclosure.FindName(
+                "DisclosureToggleButton");
+            IInvokeProvider invoke = Assert.IsInstanceOfType<IInvokeProvider>(
+                new ButtonAutomationPeer(toggle).GetPattern(
+                    PatternInterface.Invoke));
+            Assert.IsTrue(disclosure.Focus(FocusState.Keyboard));
+
+            invoke.Invoke();
+            fixture.Dispatcher.RunAll();
+
+            Assert.HasCount(1, fixture.Driver.DisclosureStarts);
+            Assert.AreSame(
                 disclosure,
-                fixture.Dispatcher,
-                fixture.Driver,
-                isExpanded: true);
+                FocusManager.GetFocusedElement(fixture.Page.XamlRoot),
+                "Applying the page-owned disclosure render must preserve " +
+                "focus on the disclosure that initiated it.");
+            fixture.Driver.CompleteDisclosure(index: 0);
+            await DrainDispatcherAsync(fixture.Page);
+            fixture.Page.UpdateLayout();
+            Assert.IsTrue(disclosure.IsExpanded);
+            Assert.AreSame(
+                disclosure,
+                FocusManager.GetFocusedElement(fixture.Page.XamlRoot));
             var checks = (ScrollViewer)model.FindName(
                 "InspectionChecksScrollViewer");
             checks.IsTabStop = true;

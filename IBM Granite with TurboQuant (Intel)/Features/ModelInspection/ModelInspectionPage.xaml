@@ -98,7 +98,8 @@
                                 Foreground="{ThemeResource InspectionTextPrimaryBrush}"
                                 Text="Model inspection"
                                 TextAlignment="Center"
-                                TextWrapping="WrapWholeWords" />
+                                TextWrapping="WrapWholeWords"
+                                UseSystemFocusVisuals="True" />
                             <TextBlock
                                 x:Name="ModelInspectionExplanation"
                                 MaxWidth="720"

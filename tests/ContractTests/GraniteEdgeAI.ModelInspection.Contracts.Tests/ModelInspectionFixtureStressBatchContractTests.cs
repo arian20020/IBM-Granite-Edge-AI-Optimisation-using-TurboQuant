@@ -627,9 +627,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         AssertAutomation(screen.Automation, oracle);
         AssertFooter(screen.Footer, oracle);
         Assert.AreEqual(
-            oracle.Screen == StressScreen.MaximumProgressDetail
-                ? "cancel"
-                : "choose-another",
+            ExpectedFocusTarget(oracle),
             screen.Focus.Target,
             oracle.Id);
         AssertAnnouncements(screen.Announcements, oracle);
@@ -1347,9 +1345,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
         CollectionAssert.AreEqual(ExpectedTabOrder(oracle),
             preset.TabOrder.ToArray(), oracle.Id);
         Assert.AreEqual(
-            oracle.Screen == StressScreen.MaximumProgressDetail
-                ? "cancel"
-                : "choose-another",
+            ExpectedFocusTarget(oracle),
             preset.FocusTarget,
             oracle.Id);
 
@@ -1367,7 +1363,13 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             .ToHashSet(StringComparer.Ordinal);
         Assert.IsTrue(preset.LogicalReadingOrder.All(automationIds.Contains), oracle.Id);
         Assert.IsTrue(preset.TabOrder.All(automationIds.Contains), oracle.Id);
-        Assert.IsTrue(automationIds.Contains(preset.FocusTarget), oracle.Id);
+        Assert.IsTrue(
+            automationIds.Contains(preset.FocusTarget) ||
+            oracle.Screen == StressScreen.MaximumProgressDetail &&
+            preset.FocusTarget.Equals(
+                "page-heading",
+                StringComparison.Ordinal),
+            oracle.Id);
     }
 
     private static void AssertStressMaxima(StressBatch batch)
@@ -1645,6 +1647,15 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             _ => throw new ArgumentOutOfRangeException(nameof(oracle))
         };
 
+    private static string ExpectedFocusTarget(StressOracle oracle) =>
+        oracle.Id switch
+        {
+            "MI-045" => "inspection-details-disclosure",
+            "MI-046" or "MI-047" => "findings-disclosure",
+            "MI-048" => "page-heading",
+            _ => "choose-another"
+        };
+
     private static string[] ExpectedRetainedIds(StressOracle oracle) =>
         oracle.Id switch
         {
@@ -1737,7 +1748,8 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             "MI-043" or "MI-044" =>
             [
                 new("expand", ModelInspectionFixtureInteractionKind.Expand,
-                    "observed", "MI-003", "choose-another", 0,
+                    "observed", "MI-003",
+                    "inspection-details-disclosure", 0,
                     ModelInspectionExpectedFooterStatus.Complete,
                     ModelInspectionFixtureInteractionLifetimeEffect.None),
                 new("choose-another",
@@ -1769,7 +1781,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
                     ModelInspectionExpectedFooterStatus.InProgress,
                     ModelInspectionFixtureInteractionLifetimeEffect.None),
                 new("reset", ModelInspectionFixtureInteractionKind.Reset,
-                    "observed", "MI-048", "cancel", 0,
+                    "observed", "MI-048", "page-heading", 0,
                     ModelInspectionExpectedFooterStatus.InProgress,
                     ModelInspectionFixtureInteractionLifetimeEffect.RetirePage)
             ],
@@ -1795,22 +1807,28 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
     private static InteractionOracle[] ExpandedInteractions(
         string id,
         string collapsedTarget,
-        ModelInspectionExpectedFooterStatus footerStatus) =>
-    [
-        new("expand", ModelInspectionFixtureInteractionKind.Expand,
-            "terminal", "expanded", "choose-another", 0, footerStatus,
-            ModelInspectionFixtureInteractionLifetimeEffect.None),
-        new("collapse", ModelInspectionFixtureInteractionKind.Collapse,
-            "expanded", collapsedTarget, "choose-another", 0, footerStatus,
-            ModelInspectionFixtureInteractionLifetimeEffect.None),
-        new("choose-another",
-            ModelInspectionFixtureInteractionKind.ChooseAnother,
-            "expanded", "gallery:no-active-fixture", null, 0, footerStatus,
-            ModelInspectionFixtureInteractionLifetimeEffect.NoActiveFixture),
-        new("reset", ModelInspectionFixtureInteractionKind.Reset,
-            "expanded", id, "choose-another", 0, footerStatus,
-            ModelInspectionFixtureInteractionLifetimeEffect.RetirePage)
-    ];
+        ModelInspectionExpectedFooterStatus footerStatus)
+    {
+        string disclosureFocus = id.Equals("MI-045", StringComparison.Ordinal)
+            ? "inspection-details-disclosure"
+            : "findings-disclosure";
+        return
+        [
+            new("expand", ModelInspectionFixtureInteractionKind.Expand,
+                "terminal", "expanded", disclosureFocus, 0, footerStatus,
+                ModelInspectionFixtureInteractionLifetimeEffect.None),
+            new("collapse", ModelInspectionFixtureInteractionKind.Collapse,
+                "expanded", collapsedTarget, disclosureFocus, 0, footerStatus,
+                ModelInspectionFixtureInteractionLifetimeEffect.None),
+            new("choose-another",
+                ModelInspectionFixtureInteractionKind.ChooseAnother,
+                "expanded", "gallery:no-active-fixture", null, 0, footerStatus,
+                ModelInspectionFixtureInteractionLifetimeEffect.NoActiveFixture),
+            new("reset", ModelInspectionFixtureInteractionKind.Reset,
+                "expanded", id, disclosureFocus, 0, footerStatus,
+                ModelInspectionFixtureInteractionLifetimeEffect.RetirePage)
+        ];
+    }
 
     private static void AssertPolicyJsonMembers(
         JsonObject policy,

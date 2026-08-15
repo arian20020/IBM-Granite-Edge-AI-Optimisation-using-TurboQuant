@@ -251,13 +251,29 @@ public sealed class ModelInspectionAccessibilityTests
             dispatcher,
             driver,
             settings);
+        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
+            page,
+            width: 888,
+            height: 900);
+        await host.CaptureAsync();
         Task run = page.StartInspectionIfReadyAsync()!;
 
         try
         {
             dispatcher.RunAll();
+            await host.CaptureAsync();
+            TextBlock pageHeading = Element<TextBlock>(page, "PageTitle");
+            Assert.AreSame(
+                pageHeading,
+                FocusManager.GetFocusedElement(page.XamlRoot),
+                "Startup must retain the initial page heading as the " +
+                "semantic focus target.");
             call.Report(ActiveProgress(stageFraction: 0.25));
             dispatcher.RunAll();
+            Assert.AreSame(
+                pageHeading,
+                FocusManager.GetFocusedElement(page.XamlRoot),
+                "The first genuine stage must preserve untouched heading focus.");
 
             InspectionContentCard content = Element<InspectionContentCard>(
                 page,
@@ -297,8 +313,20 @@ public sealed class ModelInspectionAccessibilityTests
                 "Startup and the first genuine stage each announce once.");
             Assert.IsFalse(string.IsNullOrWhiteSpace(meaningfulAnnouncement));
 
+            InspectionActionCard actions = Element<InspectionActionCard>(
+                page,
+                "InspectionActionCardControl");
+            Button cancel = Element<Button>(actions, "CancelActionButton");
+            Assert.IsTrue(cancel.Focus(FocusState.Keyboard));
+            Assert.AreSame(cancel, FocusManager.GetFocusedElement(page.XamlRoot));
+
             call.Report(ActiveProgress(stageFraction: 0.75));
             dispatcher.RunAll();
+
+            Assert.AreSame(
+                cancel,
+                FocusManager.GetFocusedElement(page.XamlRoot),
+                "A later fraction must not steal the user's current focus.");
 
             Assert.AreEqual(
                 meaningfulAnnouncementCount,
@@ -350,6 +378,10 @@ public sealed class ModelInspectionAccessibilityTests
                 stageFraction: 0.3,
                 userMessage: ChangedDetail));
             dispatcher.RunAll();
+            Assert.AreSame(
+                cancel,
+                FocusManager.GetFocusedElement(page.XamlRoot),
+                "A later genuine stage must not steal the user's current focus.");
             Assert.AreEqual(
                 meaningfulAnnouncementCount + 2,
                 content.LiveRegionChangeNotificationCount,
@@ -520,6 +552,24 @@ public sealed class ModelInspectionAccessibilityTests
         {
             Assert.IsInstanceOfType<SolidColorBrush>(highContrast[key], key);
         }
+
+        ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
+        Assert.IsTrue(Element<TextBlock>(page, "PageTitle").UseSystemFocusVisuals);
+        foreach (Button button in ModelInspectionRenderedStateTests
+            .Descendants(page)
+            .OfType<Button>())
+        {
+            Assert.IsTrue(button.UseSystemFocusVisuals, button.Name);
+        }
+        Assert.IsTrue(Element<ScrollViewer>(
+            Element<InspectionModelCard>(page, "InspectionModelCardControl"),
+            "InspectionChecksScrollViewer").UseSystemFocusVisuals);
+        Assert.IsTrue(Element<ScrollViewer>(
+            Element<InspectionContentCard>(page, "InspectionContentCardControl"),
+            "ExpandedReportScrollViewer").UseSystemFocusVisuals);
+        Assert.IsTrue(Element<ContentControl>(
+            Element<InspectionOutcomeCard>(page, "InspectionOutcomeCardControl"),
+            "OutcomeFocusTarget").UseSystemFocusVisuals);
     }
 
     [UITestMethod]
@@ -601,6 +651,15 @@ public sealed class ModelInspectionAccessibilityTests
             reduced.OutcomeAnnouncementCount);
         Assert.AreEqual(animated.OutcomeAutomationName,
             reduced.OutcomeAutomationName);
+        Assert.AreEqual(animated.Geometry.Count, reduced.Geometry.Count);
+        for (int index = 0; index < animated.Geometry.Count; index++)
+        {
+            Assert.AreEqual(
+                animated.Geometry[index],
+                reduced.Geometry[index],
+                1d,
+                $"Reduced motion changed terminal geometry at index {index}.");
+        }
     }
 
     private static async Task<MotionEvidence> RunTerminalMotionEvidenceAsync(
@@ -641,6 +700,24 @@ public sealed class ModelInspectionAccessibilityTests
             InspectionOutcomeCard outcome = Element<InspectionOutcomeCard>(
                 page,
                 "InspectionOutcomeCardControl");
+            InspectionActionCard actions = Element<InspectionActionCard>(
+                page,
+                "InspectionActionCardControl");
+            await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
+                page,
+                width: 888,
+                height: 900);
+            await host.CaptureAsync();
+            page.UpdateLayout();
+            double[] geometry =
+            [
+                outcome.ActualWidth,
+                outcome.ActualHeight,
+                content.ActualWidth,
+                content.ActualHeight,
+                actions.ActualWidth,
+                actions.ActualHeight
+            ];
             return new MotionEvidence(
                 presentation.State,
                 presentation.OutcomeCard.Kind,
@@ -650,7 +727,8 @@ public sealed class ModelInspectionAccessibilityTests
                 AutomationProperties.GetLiveSetting(outcome),
                 outcome.LiveRegionChangeNotificationCount,
                 AutomationProperties.GetName(outcome),
-                driver.TotalStartCount);
+                driver.TotalStartCount,
+                geometry);
         }
         finally
         {
@@ -992,5 +1070,6 @@ public sealed class ModelInspectionAccessibilityTests
         AutomationLiveSetting OutcomeLiveSetting,
         int OutcomeAnnouncementCount,
         string OutcomeAutomationName,
-        int AnimationStartCount);
+        int AnimationStartCount,
+        IReadOnlyList<double> Geometry);
 }

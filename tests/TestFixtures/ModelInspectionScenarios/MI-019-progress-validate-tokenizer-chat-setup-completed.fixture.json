@@ -210,7 +210,7 @@
       "status": "inProgress"
     },
     "focus": {
-      "target": "cancel"
+      "target": "page-heading"
     },
     "automation": {
       "controls": [
@@ -393,7 +393,7 @@
       "tabOrder": [
         "cancel"
       ],
-      "focusTarget": "cancel",
+      "focusTarget": "page-heading",
       "resources": "light",
       "textScale": "standard100",
       "motion": "normal",
@@ -419,7 +419,7 @@
       "kind": "reset",
       "sourceCheckpoint": "observed",
       "target": "MI-019",
-      "expectedFocus": "cancel",
+      "expectedFocus": "page-heading",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "inProgress",
       "lifetimeEffect": "retirePage"

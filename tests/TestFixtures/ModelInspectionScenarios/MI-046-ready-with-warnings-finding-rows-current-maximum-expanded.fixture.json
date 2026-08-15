@@ -251,7 +251,7 @@
       "status": "complete"
     },
     "focus": {
-      "target": "choose-another"
+      "target": "findings-disclosure"
     },
     "automation": {
       "controls": [
@@ -393,7 +393,7 @@
         "findings-disclosure",
         "choose-another"
       ],
-      "focusTarget": "choose-another",
+      "focusTarget": "findings-disclosure",
       "resources": "light",
       "textScale": "standard100",
       "motion": "normal",
@@ -431,7 +431,7 @@
         "findings-disclosure",
         "choose-another"
       ],
-      "focusTarget": "choose-another",
+      "focusTarget": "findings-disclosure",
       "resources": "dark",
       "textScale": "standard100",
       "motion": "reduced",
@@ -447,7 +447,7 @@
       "kind": "expand",
       "sourceCheckpoint": "terminal",
       "target": "expanded",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "none"
@@ -457,7 +457,7 @@
       "kind": "collapse",
       "sourceCheckpoint": "expanded",
       "target": "MI-004",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "none"
@@ -477,7 +477,7 @@
       "kind": "reset",
       "sourceCheckpoint": "expanded",
       "target": "MI-046",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "retirePage"

@@ -471,18 +471,6 @@ public sealed partial class ModelInspectionPage : Page
                 return;
             }
 
-            InspectionDisclosure? activeDisclosure = fromModel
-                ? InspectionModelCardControl.ActiveDisclosure
-                : InspectionContentCardControl.ActiveDisclosure;
-            DependencyObject? focusedElement = XamlRoot is null
-                ? null
-                : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
-            if (activeDisclosure is not null &&
-                ReferenceEquals(focusedElement, activeDisclosure))
-            {
-                _semanticFocusOwner = activeDisclosure;
-            }
-
             if (fromModel)
             {
                 InspectionModelCardControl.ClaimDisclosureTarget(
@@ -546,9 +534,28 @@ public sealed partial class ModelInspectionPage : Page
             _semanticFocusOwner is null &&
             focusedElement is not null &&
             IsDescendantOrSelf(focusedElement, InspectionModelCardControl);
+        bool automaticCancelledFocusFallback =
+            previous?.State == ModelInspectionFigmaState.InspectionProgress &&
+            previous.ActionCard.CancelAction.Visibility == Visibility.Visible &&
+            !previous.ActionCard.CancelAction.IsEnabled &&
+            _semanticFocusOwner is FrameworkElement semanticOwner &&
+            IsDescendantOrSelf(semanticOwner, this) &&
+            focusedElement is Control fallbackControl &&
+            !ReferenceEquals(fallbackControl, this) &&
+            IsDescendantOrSelf(this, fallbackControl);
         bool semanticFocusWasOwned = initialAutomaticModelFallback ||
+            automaticCancelledFocusFallback ||
             (_semanticFocusOwner is not null &&
              ReferenceEquals(focusedElement, _semanticFocusOwner));
+        var cancelActionButton = (Button)InspectionActionCardControl.FindName(
+            "CancelActionButton");
+        bool focusedCancelWillBecomeIneffective =
+            current.State == ModelInspectionFigmaState.InspectionProgress &&
+            current.ContentCard.Startup.Visibility != Visibility.Visible &&
+            focusedElement is not null &&
+            IsDescendantOrSelf(focusedElement, cancelActionButton) &&
+            (current.ActionCard.CancelAction.Visibility != Visibility.Visible ||
+             !current.ActionCard.CancelAction.IsEnabled);
         bool focusedRetiredProgress = retiresProgress &&
             focusedElement is not null &&
             IsDescendantOrSelf(focusedElement, InspectionContentCardControl);
@@ -621,6 +628,15 @@ public sealed partial class ModelInspectionPage : Page
 
         if (delta.ChangedRegions.HasFlag(ModelInspectionPresentationRegions.Actions))
         {
+            if (focusedCancelWillBecomeIneffective)
+            {
+                ApplySemanticDefaultFocus(
+                    current,
+                    claimWhenFocusIsOutsidePage: false,
+                    reclaimEffectivePageFallback: true,
+                    recoverFromIneffectiveProgressFocus: true);
+            }
+
             InspectionActionCardControl.Presentation = current.ActionCard;
         }
 
@@ -638,6 +654,12 @@ public sealed partial class ModelInspectionPage : Page
         UpdateLayout();
         bool recoverFromIneffectiveStartupFocus =
             current.ContentCard.Startup.Visibility == Visibility.Visible &&
+            focusedElement is FrameworkElement &&
+            IsDescendantOrSelf(focusedElement, this) &&
+            !IsEffectivePageFocus(focusedElement);
+        bool recoverFromIneffectiveProgressFocus =
+            current.State == ModelInspectionFigmaState.InspectionProgress &&
+            current.ContentCard.Startup.Visibility != Visibility.Visible &&
             focusedElement is FrameworkElement &&
             IsDescendantOrSelf(focusedElement, this) &&
             !IsEffectivePageFocus(focusedElement);
@@ -706,8 +728,11 @@ public sealed partial class ModelInspectionPage : Page
             current,
             claimWhenFocusIsOutsidePage: semanticFocusWasOwned,
             reclaimEffectivePageFallback:
-                semanticFocusWasOwned || recoverFromIneffectiveStartupFocus,
-            recoverFromIneffectiveStartupFocus);
+                semanticFocusWasOwned ||
+                recoverFromIneffectiveStartupFocus ||
+                recoverFromIneffectiveProgressFocus,
+            recoverFromIneffectiveStartupFocus,
+            recoverFromIneffectiveProgressFocus);
         DependencyObject? semanticFocusedElement = XamlRoot is null
             ? null
             : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
@@ -1030,7 +1055,8 @@ public sealed partial class ModelInspectionPage : Page
         ModelInspectionPagePresentation? presentation,
         bool claimWhenFocusIsOutsidePage,
         bool reclaimEffectivePageFallback,
-        bool recoverFromIneffectiveStartupFocus = false)
+        bool recoverFromIneffectiveStartupFocus = false,
+        bool recoverFromIneffectiveProgressFocus = false)
     {
         if (!_hasActiveLifetime ||
             presentation is null ||
@@ -1056,8 +1082,10 @@ public sealed partial class ModelInspectionPage : Page
         }
 
         FrameworkElement? target = recoverFromIneffectiveStartupFocus
-            ? InspectionModelCardControl
-            : FindSemanticDefaultFocusTarget(presentation, focused);
+            ? PageTitle
+            : recoverFromIneffectiveProgressFocus
+                ? ProgressModelFocusTarget
+                : FindSemanticDefaultFocusTarget(presentation, focused);
         if (target is null || ReferenceEquals(focused, target))
         {
             return;
@@ -1093,20 +1121,31 @@ public sealed partial class ModelInspectionPage : Page
                 Visibility.Visible)
             {
                 return focused is FrameworkElement focusedElement &&
+                    !ReferenceEquals(focusedElement, _semanticFocusOwner) &&
                     IsEffectivePageFocus(focusedElement)
                         ? focusedElement
-                        : InspectionModelCardControl;
+                        : PageTitle;
+            }
+
+            if (focused is FrameworkElement effectiveFocusedElement &&
+                IsEffectivePageFocus(effectiveFocusedElement))
+            {
+                return effectiveFocusedElement;
             }
 
             Button cancel = (Button)InspectionActionCardControl.FindName(
                 "CancelActionButton");
             return cancel.IsEnabled || ReferenceEquals(focused, cancel)
                 ? cancel
-                : InspectionModelCardControl;
+                : ProgressModelFocusTarget;
         }
 
         return FindChooseAnotherAction();
     }
+
+    private FrameworkElement ProgressModelFocusTarget =>
+        (FrameworkElement)InspectionModelCardControl.FindName(
+            "CompactModelName");
 
     private void TryCompletePendingSemanticFocusReclaim(
         ModelInspectionRenderCoordinator coordinator,

@@ -721,7 +721,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             Assert.AreEqual(ModelInspectionExpectedFooterStatus.InProgress,
                 expected.Footer.Status, oracle.Id);
             Assert.AreEqual(
-                oracle.CancelRequested ? "model-card" : "cancel",
+                oracle.CancelRequested ? "model-card" : "page-heading",
                 expected.Focus.Target,
                 oracle.Id);
             Assert.AreEqual(2, expected.Announcements.Count, oracle.Id);
@@ -757,7 +757,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
                 oracle.CancelRequested ? Array.Empty<string>() : new[] { "cancel" },
                 p01.TabOrder.ToArray(), oracle.Id);
             Assert.AreEqual(
-                oracle.CancelRequested ? "model-card" : "cancel",
+                oracle.CancelRequested ? "model-card" : "page-heading",
                 p01.FocusTarget,
                 oracle.Id);
 
@@ -777,6 +777,10 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             Assert.AreEqual(oracle.Id, reset.Target, oracle.Id);
             Assert.AreEqual(ModelInspectionFixtureInteractionLifetimeEffect.RetirePage,
                 reset.LifetimeEffect, oracle.Id);
+            string expectedResetFocus = oracle.CancelRequested
+                ? "model-card"
+                : "page-heading";
+            Assert.AreEqual(expectedResetFocus, reset.ExpectedFocus);
         }
 
         ValidatedModelInspectionFixture warning = Fixture(catalogue, "MI-025");

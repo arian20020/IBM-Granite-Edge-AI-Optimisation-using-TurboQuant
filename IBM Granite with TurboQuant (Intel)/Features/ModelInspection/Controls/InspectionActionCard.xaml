@@ -79,6 +79,7 @@
                 IsEnabled="{x:Bind Presentation.CancelAction.IsEnabled, Mode=OneWay}"
                 Tag="{x:Bind Presentation.CancelAction.ActionId, Mode=OneWay}"
                 TabIndex="0"
+                UseSystemFocusVisuals="True"
                 Visibility="{x:Bind Presentation.CancelAction.Visibility, Mode=OneWay}">
                 <TextBlock
                     Style="{StaticResource InspectionActionButtonTextStyle}"
@@ -155,6 +156,7 @@
                             Tag="{x:Bind Presentation.SecondaryActionOne.ActionId, Mode=OneWay}"
                             TabIndex="0"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionOne.AutomationHelpText, Mode=OneWay}"
+                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.SecondaryActionOne.Visibility, Mode=OneWay}">
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionOne.Text, Mode=OneWay}" />
                         </Button>
@@ -189,6 +191,7 @@
                             Tag="{x:Bind Presentation.SecondaryActionTwo.ActionId, Mode=OneWay}"
                             TabIndex="1"
                             ToolTipService.ToolTip="{x:Bind Presentation.SecondaryActionTwo.AutomationHelpText, Mode=OneWay}"
+                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.SecondaryActionTwo.Visibility, Mode=OneWay}">
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.SecondaryActionTwo.Text, Mode=OneWay}" />
                         </Button>
@@ -223,6 +226,7 @@
                             Tag="{x:Bind Presentation.PrimaryAction.ActionId, Mode=OneWay}"
                             TabIndex="2"
                             ToolTipService.ToolTip="{x:Bind Presentation.PrimaryAction.AutomationHelpText, Mode=OneWay}"
+                            UseSystemFocusVisuals="True"
                             Visibility="{x:Bind Presentation.PrimaryAction.Visibility, Mode=OneWay}">
                             <TextBlock Style="{StaticResource InspectionActionButtonTextStyle}" Text="{x:Bind Presentation.PrimaryAction.Text, Mode=OneWay}" />
                         </Button>

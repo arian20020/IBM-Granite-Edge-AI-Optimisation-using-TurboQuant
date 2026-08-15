@@ -123,6 +123,10 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
                     await DrainDispatcherAsync(page, cancellationToken);
                     break;
                 case ModelInspectionFixtureSetupStepKind.InvokeCancel:
+                    FocusRequiredAction(
+                        page,
+                        "CancelActionButton",
+                        "Cancel");
                     ExecuteRequiredCommand(
                         RequireViewModel(page).CancelCommand,
                         "Cancel");
@@ -399,6 +403,23 @@ internal sealed class ModelInspectionFixtureScenarioRunner :
         ModelInspectionPage page) => page.ViewModel ??
         throw new InvalidOperationException(
             "The fixture page has no active view model.");
+
+    private static void FocusRequiredAction(
+        ModelInspectionPage page,
+        string buttonName,
+        string actionName)
+    {
+        var card = (InspectionActionCard)page.FindName(
+            "InspectionActionCardControl");
+        var button = (Button)card.FindName(buttonName);
+        if (!button.IsEnabled ||
+            button.Visibility != Visibility.Visible ||
+            !button.Focus(FocusState.Programmatic))
+        {
+            throw new InvalidOperationException(
+                $"The fixture {actionName} action is not focusable.");
+        }
+    }
 
     private static void ExecuteRequiredCommand(
         System.Windows.Input.ICommand command,

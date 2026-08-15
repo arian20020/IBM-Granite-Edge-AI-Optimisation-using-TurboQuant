@@ -1086,14 +1086,24 @@ public sealed class ModelInspectionFixturePresetTests
                 "SecondaryActionOneHost");
             var primaryHost = (FrameworkElement)actions.FindName(
                 "PrimaryActionHost");
-            Grid.SetRow(chooseHost, 2);
-            Grid.SetRow(primaryHost, 0);
+            int chooseRow = Grid.GetRow(chooseHost);
+            int chooseColumn = Grid.GetColumn(chooseHost);
+            int primaryRow = Grid.GetRow(primaryHost);
+            int primaryColumn = Grid.GetColumn(primaryHost);
+            Assert.AreEqual(chooseRow, primaryRow,
+                "Task 7 keeps fitted actions in one horizontal row.");
+            Assert.AreNotEqual(chooseColumn, primaryColumn,
+                "Visible horizontal actions require distinct columns.");
+            Grid.SetColumn(chooseHost, primaryColumn);
+            Grid.SetColumn(primaryHost, chooseColumn);
             ModelInspectionFixturePresetObservation readingMutation =
                 await host.ObservePresetForTestingAsync(CancellationToken.None);
             CollectionAssert.AreNotEqual(baseline.LogicalReadingOrder.ToArray(),
                 readingMutation.LogicalReadingOrder.ToArray());
-            Grid.SetRow(chooseHost, 0);
-            Grid.SetRow(primaryHost, 2);
+            Grid.SetRow(chooseHost, chooseRow);
+            Grid.SetColumn(chooseHost, chooseColumn);
+            Grid.SetRow(primaryHost, primaryRow);
+            Grid.SetColumn(primaryHost, primaryColumn);
 
             var content = (InspectionContentCard)page.FindName(
                 "InspectionContentCardControl");

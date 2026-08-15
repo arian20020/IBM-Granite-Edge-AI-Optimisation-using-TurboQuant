@@ -284,7 +284,7 @@
       "status": "complete"
     },
     "focus": {
-      "target": "choose-another"
+      "target": "inspection-details-disclosure"
     },
     "automation": {
       "controls": [
@@ -431,7 +431,7 @@
         "inspection-details-disclosure",
         "choose-another"
       ],
-      "focusTarget": "choose-another",
+      "focusTarget": "inspection-details-disclosure",
       "resources": "light",
       "textScale": "standard100",
       "motion": "normal",
@@ -483,7 +483,7 @@
         "inspection-details-disclosure",
         "choose-another"
       ],
-      "focusTarget": "choose-another",
+      "focusTarget": "inspection-details-disclosure",
       "resources": "light",
       "textScale": "preview200",
       "motion": "normal",
@@ -499,7 +499,7 @@
       "kind": "expand",
       "sourceCheckpoint": "terminal",
       "target": "expanded",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "inspection-details-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "none"
@@ -509,7 +509,7 @@
       "kind": "collapse",
       "sourceCheckpoint": "expanded",
       "target": "MI-002",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "inspection-details-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "none"
@@ -529,7 +529,7 @@
       "kind": "reset",
       "sourceCheckpoint": "expanded",
       "target": "MI-045",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "inspection-details-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "complete",
       "lifetimeEffect": "retirePage"

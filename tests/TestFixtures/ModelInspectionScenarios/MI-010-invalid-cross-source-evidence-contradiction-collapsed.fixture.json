@@ -302,7 +302,7 @@
       "kind": "expand",
       "sourceCheckpoint": "observed",
       "target": "MI-011",
-      "expectedFocus": "choose-another",
+      "expectedFocus": "findings-disclosure",
       "expectedAnnouncementCount": 0,
       "expectedFooterStatus": "notComplete",
       "lifetimeEffect": "none"

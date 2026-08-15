@@ -1,10 +1,13 @@
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
+using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets;
+using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.ModelInspection.Fixtures;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -188,6 +191,7 @@ public sealed class ModelInspectionRenderedStateTests
         AssertNestedGeometry(model, content, presentation);
         AssertBoundedScrollContract(model, content, presentation);
         AssertVisibleControlsHaveApprovedSize(actions, presentation);
+        await AssertResponsiveAccessibilityMatrixAsync(state);
     }
 
     [UITestMethod]
@@ -274,6 +278,11 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.AreEqual(172d, bounded.MaxHeight, 0.01d);
         Assert.AreEqual(ScrollMode.Enabled, bounded.VerticalScrollMode);
         Assert.AreEqual(ScrollBarVisibility.Auto, bounded.VerticalScrollBarVisibility);
+
+        await AssertResponsiveAccessibilityMatrixAsync(
+            (ModelInspectionFigmaState)collapsedValue);
+        await AssertResponsiveAccessibilityMatrixAsync(
+            (ModelInspectionFigmaState)expandedValue);
     }
 
     [UITestMethod]
@@ -336,6 +345,960 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.AreSame(
             Element<ScrollViewer>(page, "InspectionPageScrollViewer"),
             page.FindName("InspectionPageScrollViewer"));
+    }
+
+    private static readonly Lazy<ModelInspectionFixtureCatalogue>
+        ResponsiveCatalogue = new(LoadResponsiveCatalogue);
+
+    private static readonly double[] ResponsiveWidths =
+        [1440d, 888d, 887d, 600d, 599d, 360d];
+
+    private static async Task AssertResponsiveAccessibilityMatrixAsync(
+        ModelInspectionFigmaState state)
+    {
+        foreach (bool preview200 in new[] { false, true })
+        {
+            ModelInspectionPage page;
+            ModelInspectionFixtureSession? session = null;
+            if (preview200)
+            {
+                ModelInspectionFixtureCatalogue catalogue =
+                    ResponsiveCatalogue.Value;
+                ValidatedModelInspectionFixture fixture =
+                    catalogue.Fixtures.Single(item => item.Id == "MI-003");
+                var preset = GraniteEdgeAI.Features.ModelInspection
+                    .DebugFixtures.Presets.ModelInspectionFixturePreset
+                    .FromPolicy(
+                    catalogue.Policy.Value.Presets.Single(item => item.Id == "P08"));
+                session = new ModelInspectionFixtureSession(
+                    fixture.Input,
+                    animationsEnabled: false);
+                page = ModelInspectionPage.CreateForFixture(
+                    session,
+                    startInspectionOnLoaded: false,
+                    resources => ModelInspectionFixturePreviewResources.Configure(
+                        resources,
+                        preset));
+                page.RequestedTheme = ElementTheme.Dark;
+            }
+            else
+            {
+                page = ModelInspectionVisualTestScenario.CreatePage();
+            }
+
+            ModelInspectionPagePresentation presentation =
+                ModelInspectionVisualTestScenario.CreatePresentation(state);
+            ModelInspectionVisualTestScenario.Apply(page, presentation);
+            var loaded = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            page.Loaded += (_, _) => loaded.TrySetResult(true);
+            var window = new Window { Content = page };
+            try
+            {
+                window.Activate();
+                await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                ApplyDominatingCopy(page, state);
+
+                string[]? semanticActionOrder = null;
+                string[]? semanticRegionOrder = null;
+                string[]? logicalTabOrder = null;
+                foreach (double width in ResponsiveWidths)
+                {
+                    await ResizeClientAndWaitAsync(window, page, width, 700d);
+                    double layoutWidth = page.XamlRoot.Size.Width;
+                    Assert.AreEqual(
+                        width,
+                        layoutWidth,
+                        1d,
+                        $"{state}/{preview200}/{width}: client width");
+                    AssertResponsiveEndpoint(
+                        page,
+                        presentation,
+                        state,
+                        layoutWidth,
+                        preview200,
+                        ref semanticActionOrder,
+                        ref semanticRegionOrder,
+                        ref logicalTabOrder);
+                    await AssertCompleteScrollableSurfacesAsync(
+                        page,
+                        state,
+                        layoutWidth,
+                        preview200);
+                }
+            }
+            finally
+            {
+                window.Content = null;
+                window.Close();
+                session?.Dispose();
+            }
+        }
+    }
+
+    private static void ApplyDominatingCopy(
+        ModelInspectionPage page,
+        ModelInspectionFigmaState state)
+    {
+        ValidatedModelInspectionFixture[] stateFixtures = ResponsiveCatalogue
+            .Value.Fixtures
+            .Where(candidate =>
+                (int)candidate.Expected.Figma.State == (int)state)
+            .ToArray();
+        ValidatedModelInspectionFixture fixture = stateFixtures
+            .OrderByDescending(candidate => ExpectedCopy(candidate).Max(
+                text => text.Length))
+            .First();
+        ValidatedModelInspectionFixture maximumModelFixture =
+            ResponsiveCatalogue.Value.Fixtures.Single(candidate =>
+                candidate.Id == "MI-043");
+
+        var modelCard = Element<InspectionModelCard>(
+            page,
+            "InspectionModelCardControl");
+        if (state is ModelInspectionFigmaState.InspectionProgress or
+            ModelInspectionFigmaState.ReadyCollapsed or
+            ModelInspectionFigmaState.ReadyExpanded)
+        {
+            string maximumModelName = maximumModelFixture.Expected.Model
+                .DisplayName.DefaultText;
+            Assert.IsGreaterThanOrEqualTo(160, maximumModelName.Length);
+            SetLongestRenderedText(
+                modelCard,
+                maximumModelName,
+                modelCard.Presentation.ModelName);
+        }
+
+        if (state is ModelInspectionFigmaState.ReadyCollapsed or
+            ModelInspectionFigmaState.ReadyExpanded)
+        {
+            string? maximumMetadata = Longest(stateFixtures.SelectMany(
+                candidate => candidate.Expected.Model.Metadata.Select(field =>
+                    field.Value.DefaultText)));
+            SetNamedFieldValue(
+                modelCard,
+                "PublisherField",
+                maximumMetadata);
+        }
+
+        var contentCard = Element<InspectionContentCard>(
+            page,
+            "InspectionContentCardControl");
+        if (state == ModelInspectionFigmaState.InspectionProgress)
+        {
+            string? maximumStageDetail = Longest(stateFixtures.SelectMany(
+                candidate => candidate.Expected.Content.Rows.Select(row =>
+                    row.SecondaryText?.DefaultText)));
+            string? currentStageDetail = contentCard.Presentation.Items
+                .FirstOrDefault(item => item.IsActive)?.Detail;
+            Assert.IsGreaterThanOrEqualTo(512, maximumStageDetail?.Length ?? 0);
+            SetLongestRenderedText(
+                contentCard,
+                maximumStageDetail,
+                currentStageDetail);
+        }
+        else if (state is ModelInspectionFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionFigmaState.ReadyWithWarningsExpanded or
+            ModelInspectionFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionFigmaState.ConversionRequiredExpanded or
+            ModelInspectionFigmaState.InvalidCollapsed or
+            ModelInspectionFigmaState.InvalidExpanded)
+        {
+            SetRoleCopy(
+                contentCard,
+                Longest(fixture.Expected.Content.Rows.Select(row =>
+                    row.PrimaryText.DefaultText)),
+                Longest(contentCard.Presentation.Items.Select(item => item.Title)));
+            SetRoleCopy(
+                contentCard,
+                Longest(fixture.Expected.Content.Rows.Select(row =>
+                    row.SecondaryText?.DefaultText)),
+                Longest(contentCard.Presentation.Items.Select(item => item.Detail)));
+        }
+        else if (state is ModelInspectionFigmaState.IncompletePackage or
+            ModelInspectionFigmaState.Unsupported or
+            ModelInspectionFigmaState.Cancelled or
+            ModelInspectionFigmaState.OperationalFailure)
+        {
+            var outcomeCard = Element<InspectionOutcomeCard>(
+                page,
+                "InspectionOutcomeCardControl");
+            SetRoleCopy(
+                outcomeCard,
+                fixture.Expected.Outcome.SupportingText?.DefaultText,
+                outcomeCard.Presentation.Message);
+            SetRoleCopy(
+                contentCard,
+                Longest(fixture.Expected.Content.Rows.Select(row =>
+                    row.SecondaryText?.DefaultText)),
+                Longest(contentCard.Presentation.Items.Select(item => item.Detail)));
+        }
+
+        var actionCard = Element<InspectionActionCard>(
+            page,
+            "InspectionActionCardControl");
+        SetRoleCopy(
+            actionCard,
+            Longest(fixture.Expected.Actions.Items
+                .Where(action => action.Visible)
+                .Select(action => action.Label.DefaultText)),
+            Longest(CurrentActionCopy(actionCard.Presentation)));
+    }
+
+    private static IEnumerable<string?> CurrentActionCopy(
+        InspectionActionCardPresentation presentation) =>
+        new[]
+        {
+            presentation.CancelAction,
+            presentation.SecondaryActionOne,
+            presentation.SecondaryActionTwo,
+            presentation.PrimaryAction
+        }
+        .Where(action => action.Visibility == Visibility.Visible)
+        .Select(action => action.Text);
+
+    private static void SetRoleCopy(
+        FrameworkElement region,
+        string? value,
+        string? currentValue)
+    {
+        if (!string.IsNullOrWhiteSpace(value) &&
+            !string.IsNullOrWhiteSpace(currentValue))
+        {
+            SetLongestRenderedText(region, value, currentValue);
+        }
+    }
+
+    private static void SetNamedFieldValue(
+        FrameworkElement region,
+        string fieldName,
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        FrameworkElement field = Element<FrameworkElement>(region, fieldName);
+        TextBlock? target = Descendants(field)
+            .OfType<TextBlock>()
+            .Where(text => text.TextWrapping != TextWrapping.NoWrap)
+            .LastOrDefault();
+        Assert.IsNotNull(target, fieldName);
+        target.Text = value;
+    }
+
+    private static IEnumerable<string> ExpectedCopy(
+        ValidatedModelInspectionFixture fixture) =>
+        fixture.Expected.Automation.Controls
+            .Select(control => control.AccessibleName.DefaultText)
+            .Concat(fixture.Expected.Model.Metadata.SelectMany(field =>
+                new[] { field.Label.DefaultText, field.Value.DefaultText }))
+            .Concat(fixture.Expected.Model.Checks.Select(check =>
+                check.Text.DefaultText))
+            .Concat(fixture.Expected.Content.Rows.SelectMany(row =>
+                new[]
+                {
+                    row.PrimaryText.DefaultText,
+                    row.SecondaryText?.DefaultText ?? string.Empty
+                }))
+            .Append(fixture.Expected.Model.DisplayName.DefaultText)
+            .Append(fixture.Expected.Model.DisplayFileName.DefaultText)
+            .Append(fixture.Expected.Content.Heading?.DefaultText ?? string.Empty)
+            .Append(fixture.Expected.Outcome.Title?.DefaultText ?? string.Empty)
+            .Append(fixture.Expected.Outcome.SupportingText?.DefaultText ?? string.Empty);
+
+    private static string? Longest(IEnumerable<string?> copy) => copy
+        .Where(text => !string.IsNullOrWhiteSpace(text))
+        .OrderByDescending(text => text!.Length)
+        .FirstOrDefault();
+
+    private static void SetLongestRenderedText(
+        FrameworkElement region,
+        string? value,
+        string? currentValue = null)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !IsRendered(region))
+        {
+            return;
+        }
+
+        TextBlock? target = Descendants(region)
+            .OfType<TextBlock>()
+            .Where(text => IsRendered(text) &&
+                text.TextWrapping != TextWrapping.NoWrap &&
+                (currentValue is null || string.Equals(
+                    text.Text,
+                    currentValue,
+                    StringComparison.Ordinal)))
+            .OrderByDescending(text => text.Text.Length)
+            .FirstOrDefault();
+        if (target is not null)
+        {
+            target.Text = value;
+        }
+    }
+
+    private static void AssertResponsiveEndpoint(
+        ModelInspectionPage page,
+        ModelInspectionPagePresentation presentation,
+        ModelInspectionFigmaState state,
+        double width,
+        bool preview200,
+        ref string[]? semanticActionOrder,
+        ref string[]? semanticRegionOrder,
+        ref string[]? logicalTabOrder)
+    {
+        FrameworkElement contentHost = Element<FrameworkElement>(
+            page,
+            "InspectionContentHost");
+        FrameworkElement scrollContent = Element<FrameworkElement>(
+            page,
+            "InspectionScrollContent");
+        Point origin = contentHost.TransformToVisual(page)
+            .TransformPoint(default);
+        double inset = width < 600d ? 16d : 24d;
+        double availableWidth = scrollContent.ActualWidth;
+        Assert.IsGreaterThan(0d, availableWidth);
+        Assert.IsLessThanOrEqualTo(width + 1d, availableWidth);
+        double expectedWidth = Math.Min(
+            840d,
+            availableWidth - (2d * inset));
+        Assert.AreEqual(expectedWidth, contentHost.ActualWidth, 1d,
+            $"{state}/{preview200}/{width}: host width");
+        Assert.AreEqual((availableWidth - expectedWidth) / 2d, origin.X, 1d,
+            $"{state}/{preview200}/{width}: host origin");
+
+        var outcome = Element<InspectionOutcomeCard>(
+            page,
+            "InspectionOutcomeCardControl");
+        var model = Element<InspectionModelCard>(
+            page,
+            "InspectionModelCardControl");
+        var content = Element<InspectionContentCard>(
+            page,
+            "InspectionContentCardControl");
+        var actions = Element<InspectionActionCard>(
+            page,
+            "InspectionActionCardControl");
+        AssertHiddenCardMeasuresZero(
+            outcome,
+            presentation.OutcomeCard.Kind == InspectionOutcomePresentationKind.Hidden);
+        AssertHiddenCardMeasuresZero(
+            content,
+            presentation.ContentCard.Mode == InspectionContentCardMode.Hidden);
+        AssertHiddenCardMeasuresZero(
+            actions,
+            presentation.ActionCard.Mode == InspectionActionCardMode.Hidden);
+
+        FrameworkElement pageTitle = Element<FrameworkElement>(page, "PageTitle");
+        FrameworkElement explanation = Element<FrameworkElement>(
+            page,
+            "ModelInspectionExplanation");
+        FrameworkElement[] semanticRegions =
+        [
+            pageTitle,
+            explanation,
+            outcome,
+            model,
+            content,
+            actions
+        ];
+        DependencyObject[] visualOrder = Descendants(page).ToArray();
+        string[] currentRegionOrder = semanticRegions
+            .Where(IsRendered)
+            .OrderBy(region => Array.IndexOf(visualOrder, region))
+            .Select(region => region.Name)
+            .ToArray();
+        semanticRegionOrder ??= currentRegionOrder;
+        CollectionAssert.AreEqual(
+            semanticRegionOrder,
+            currentRegionOrder,
+            $"{state}/{preview200}/{width}: complete semantic region order");
+        CollectionAssert.AreEqual(
+            new[] { pageTitle.Name, explanation.Name },
+            currentRegionOrder.Take(2).ToArray(),
+            $"{state}/{preview200}/{width}: heading reading order");
+        AssertNoPeerOverlap(
+            page,
+            [pageTitle, explanation],
+            $"{state}/{preview200}/{width}: heading geometry");
+
+        string[] currentTabOrder = Descendants(page)
+            .OfType<Control>()
+            .Where(control =>
+                control.IsTabStop &&
+                control.IsEnabled &&
+                IsLogicallyVisible(control))
+            .OrderBy(control => control.TabIndex)
+            .Select(SemanticIdentity)
+            .ToArray();
+        logicalTabOrder ??= currentTabOrder;
+        CollectionAssert.AreEqual(
+            logicalTabOrder,
+            currentTabOrder,
+            $"{state}/{preview200}/{width}: complete logical tab order");
+
+        if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Detailed)
+        {
+            FrameworkElement[] metadata =
+            [
+                Element<FrameworkElement>(model, "ModelNameField"),
+                Element<FrameworkElement>(model, "PublisherField"),
+                Element<FrameworkElement>(model, "FormatField"),
+                Element<FrameworkElement>(model, "QuantisationField"),
+                Element<FrameworkElement>(model, "ParametersField"),
+                Element<FrameworkElement>(model, "ModelTypeField"),
+                Element<FrameworkElement>(model, "DeclaredContextField"),
+                Element<FrameworkElement>(model, "FileSizeField")
+            ];
+            int expectedColumns = width >= 888d ? 4 : width >= 600d ? 2 : 1;
+            Assert.AreEqual(
+                expectedColumns,
+                metadata.Select(Grid.GetColumn).Distinct().Count(),
+                $"{state}/{preview200}/{width}: metadata columns");
+            AssertNoPeerOverlap(page, metadata, $"{state}/{preview200}/{width}: metadata");
+        }
+
+        Button[] visibleButtons = Descendants(page)
+            .OfType<Button>()
+            .Where(button => IsRendered(button))
+            .ToArray();
+        foreach (Button button in visibleButtons)
+        {
+            Assert.IsGreaterThanOrEqualTo(44d, button.ActualWidth, button.Name);
+            Assert.IsGreaterThanOrEqualTo(44d, button.ActualHeight, button.Name);
+            Assert.IsTrue(button.UseSystemFocusVisuals, button.Name);
+        }
+
+        FrameworkElement[] visibleActionHosts =
+        [
+            Element<FrameworkElement>(actions, "SecondaryActionOneHost"),
+            Element<FrameworkElement>(actions, "SecondaryActionTwoHost"),
+            Element<FrameworkElement>(actions, "PrimaryActionHost")
+        ];
+        visibleActionHosts = visibleActionHosts.Where(IsRendered).ToArray();
+        if (visibleActionHosts.Length > 0)
+        {
+            if (width < 600d)
+            {
+                CollectionAssert.AreEqual(
+                    Enumerable.Range(0, visibleActionHosts.Length).ToArray(),
+                    visibleActionHosts.Select(Grid.GetRow).ToArray(),
+                    $"{state}/{preview200}/{width}: narrow action stack");
+            }
+            else
+            {
+                Assert.AreEqual(
+                    1,
+                    visibleActionHosts.Select(Grid.GetRow).Distinct().Count(),
+                    $"{state}/{preview200}/{width}: horizontal action row");
+                Assert.IsTrue(visibleActionHosts.Skip(1).All(host =>
+                    Math.Abs(host.ActualWidth - visibleActionHosts[0].ActualWidth) <= 1d),
+                    $"{state}/{preview200}/{width}: equal action columns");
+            }
+
+            AssertNoPeerOverlap(
+                page,
+                visibleActionHosts,
+                $"{state}/{preview200}/{width}: actions");
+            string[] currentOrder = visibleActionHosts
+                .SelectMany(host => Descendants(host).OfType<Button>())
+                .Where(IsRendered)
+                .OrderBy(button => button.TabIndex)
+                .Select(button => button.Tag as string ?? button.Name)
+                .ToArray();
+            semanticActionOrder ??= currentOrder;
+            CollectionAssert.AreEqual(
+                semanticActionOrder,
+                currentOrder,
+                $"{state}/{preview200}/{width}: action semantics");
+        }
+
+        InspectionDisclosure? disclosure = model.ActiveDisclosure ??
+            content.ActiveDisclosure;
+        if (disclosure is not null)
+        {
+            FrameworkElement toggle = Element<FrameworkElement>(
+                disclosure,
+                "DisclosureToggleButton");
+            Rect bounds = Bounds(page, toggle);
+            Assert.IsGreaterThanOrEqualTo(44d, toggle.ActualHeight);
+            Assert.IsGreaterThanOrEqualTo(-1d, bounds.X);
+            Assert.IsLessThanOrEqualTo(width + 1d, bounds.Right);
+        }
+
+    }
+
+    private static void AssertHiddenCardMeasuresZero(
+        FrameworkElement card,
+        bool hidden)
+    {
+        FrameworkElement root = Element<FrameworkElement>(card, "LayoutRoot");
+        if (hidden)
+        {
+            Assert.AreEqual(0d, card.ActualHeight, 0.01d, card.Name);
+            Assert.AreEqual(0d, root.ActualHeight, 0.01d, card.Name);
+        }
+    }
+
+    private static void AssertNoPeerOverlap(
+        FrameworkElement root,
+        IReadOnlyList<FrameworkElement> elements,
+        string context)
+    {
+        for (int left = 0; left < elements.Count; left++)
+        {
+            for (int right = left + 1; right < elements.Count; right++)
+            {
+                Rect intersection = RectHelper.Intersect(
+                    Bounds(root, elements[left]),
+                    Bounds(root, elements[right]));
+                Assert.IsTrue(
+                    intersection.IsEmpty ||
+                    intersection.Width <= 1d ||
+                    intersection.Height <= 1d,
+                    $"{context}: {elements[left].Name}/{elements[right].Name}");
+            }
+        }
+    }
+
+    private static void AssertNoGeneralOverlap(
+        FrameworkElement root,
+        IReadOnlyList<FrameworkElement> elements,
+        string context)
+    {
+        Dictionary<FrameworkElement, Rect> visibleBounds = elements
+            .Distinct()
+            .ToDictionary(
+                element => element,
+                element => VisibleBoundsInScrollViewports(root, element));
+        for (int left = 0; left < elements.Count; left++)
+        {
+            for (int right = left + 1; right < elements.Count; right++)
+            {
+                FrameworkElement first = elements[left];
+                FrameworkElement second = elements[right];
+                if (IsAncestor(first, second) || IsAncestor(second, first))
+                {
+                    continue;
+                }
+
+                Rect firstBounds = visibleBounds[first];
+                Rect secondBounds = visibleBounds[second];
+                Rect intersection = RectHelper.Intersect(
+                    firstBounds,
+                    secondBounds);
+                Assert.IsTrue(
+                    intersection.IsEmpty ||
+                    intersection.Width <= 1d ||
+                    intersection.Height <= 1d,
+                    $"{context}: {SemanticIdentity(first)}/" +
+                    $"{SemanticIdentity(second)}; " +
+                    $"first={firstBounds}; second={secondBounds}");
+            }
+        }
+    }
+
+    private static async Task AssertCompleteScrollableSurfacesAsync(
+        ModelInspectionPage page,
+        ModelInspectionFigmaState state,
+        double width,
+        bool preview200)
+    {
+        ScrollViewer pageScroll = Element<ScrollViewer>(
+            page,
+            "InspectionPageScrollViewer");
+        ScrollViewer[] scrollOwners = Descendants(page)
+            .OfType<ScrollViewer>()
+            .Where(owner => IsLogicallyVisible(owner) &&
+                owner.ActualWidth > 0d &&
+                owner.ActualHeight > 0d)
+            .OrderBy(owner => ReferenceEquals(owner, pageScroll) ? 0 : 1)
+            .ToArray();
+        Assert.AreEqual(
+            1,
+            scrollOwners.Count(owner => ReferenceEquals(owner, pageScroll)),
+            $"{state}/{preview200}/{width}: page scroll owner count");
+
+        foreach (ScrollViewer owner in scrollOwners)
+        {
+            Assert.AreEqual(
+                ScrollMode.Enabled,
+                owner.VerticalScrollMode,
+                $"{state}/{preview200}/{width}: {owner.Name} scroll mode");
+            Assert.IsLessThanOrEqualTo(
+                owner.ViewportHeight + owner.ScrollableHeight + 1d,
+                owner.ExtentHeight,
+                $"{state}/{preview200}/{width}: {owner.Name} extent closure");
+
+            if (!ReferenceEquals(owner, pageScroll))
+            {
+                Rect ownerBounds = Bounds(pageScroll, owner);
+                double logicalTop = ownerBounds.Top + pageScroll.VerticalOffset;
+                double pageTarget = Math.Clamp(
+                    logicalTop - 12d,
+                    0d,
+                    pageScroll.ScrollableHeight);
+                await ChangeScrollOffsetAsync(page, pageScroll, pageTarget);
+            }
+
+            await AssertScrollOwnerViewportSweepAsync(
+                page,
+                owner,
+                state,
+                width,
+                preview200);
+        }
+
+        foreach (ScrollViewer owner in scrollOwners.Reverse())
+        {
+            await ChangeScrollOffsetAsync(page, owner, 0d);
+        }
+    }
+
+    private static async Task AssertScrollOwnerViewportSweepAsync(
+        ModelInspectionPage page,
+        ScrollViewer owner,
+        ModelInspectionFigmaState state,
+        double width,
+        bool preview200)
+    {
+        int guard = 0;
+        double target = 0d;
+        while (true)
+        {
+            await ChangeScrollOffsetAsync(page, owner, target);
+            AssertCurrentScrollableViewport(page, state, width, preview200);
+
+            double maximum = owner.ScrollableHeight;
+            if (target >= maximum - 1d)
+            {
+                Assert.AreEqual(maximum, owner.VerticalOffset, 1d,
+                    $"{state}/{preview200}/{width}: {owner.Name} bottom reach");
+                return;
+            }
+
+            double step = Math.Max(44d, owner.ViewportHeight * 0.75d);
+            target = Math.Min(maximum, target + step);
+            guard++;
+            Assert.IsLessThanOrEqualTo(
+                64,
+                guard,
+                $"{state}/{preview200}/{width}: {owner.Name} sweep bound");
+        }
+    }
+
+    private static void AssertCurrentScrollableViewport(
+        ModelInspectionPage page,
+        ModelInspectionFigmaState state,
+        double width,
+        bool preview200)
+    {
+        TextBlock[] visibleText = Descendants(page)
+            .OfType<TextBlock>()
+            .Where(text => IsActuallyVisibleInScrollViewports(page, text) &&
+                !string.IsNullOrWhiteSpace(text.Text) &&
+                !HasAncestor<InspectionStatusGlyph>(text) &&
+                !(text.FontFamily?.Source ?? string.Empty).StartsWith(
+                    "Segoe Fluent Icons",
+                    StringComparison.Ordinal))
+            .ToArray();
+        foreach (TextBlock text in visibleText)
+        {
+            Rect bounds = Bounds(page, text);
+            Assert.IsGreaterThanOrEqualTo(-1d, bounds.X,
+                $"{state}/{preview200}/{width}: {text.Text}; " +
+                DescribeVisualPath(text));
+            Assert.IsLessThanOrEqualTo(width + 1d, bounds.Right,
+                $"{state}/{preview200}/{width}: {text.Text}");
+            if (text.TextWrapping != TextWrapping.NoWrap)
+            {
+                Assert.AreEqual(TextTrimming.None, text.TextTrimming,
+                    $"{state}/{preview200}/{width}: {text.Text}");
+                Assert.AreEqual(0, text.MaxLines,
+                    $"{state}/{preview200}/{width}: {text.Text}");
+                double allowance = text.Margin.Top + text.Margin.Bottom +
+                    Math.Max(4d, text.FontSize * 0.25d);
+                Assert.IsGreaterThanOrEqualTo(
+                    text.DesiredSize.Height,
+                    text.ActualHeight + allowance,
+                    $"{state}/{preview200}/{width}: desired-size " +
+                    $"clipping for {text.Text}; {DescribeVisualPath(text)}");
+            }
+        }
+
+        FrameworkElement[] overlapCandidates = visibleText
+            .Cast<FrameworkElement>()
+            .Concat(Descendants(page).OfType<Button>().Where(button =>
+                IsActuallyVisibleInScrollViewports(page, button)))
+            .ToArray();
+        AssertNoGeneralOverlap(
+            page,
+            overlapCandidates,
+            $"{state}/{preview200}/{width}: scrolled text/control overlap");
+    }
+
+    private static bool IsActuallyVisibleInScrollViewports(
+        FrameworkElement page,
+        FrameworkElement element) =>
+        !VisibleBoundsInScrollViewports(page, element).IsEmpty;
+
+    private static Rect VisibleBoundsInScrollViewports(
+        FrameworkElement page,
+        FrameworkElement element)
+    {
+        if (!IsRendered(element))
+        {
+            return Rect.Empty;
+        }
+
+        Rect visibleBounds = RectHelper.Intersect(
+            Bounds(page, element),
+            new Rect(0d, 0d, page.ActualWidth, page.ActualHeight));
+
+        DependencyObject? current = VisualTreeHelper.GetParent(element);
+        while (current is not null && !visibleBounds.IsEmpty)
+        {
+            if (current is ScrollViewer owner)
+            {
+                Rect ownerBounds = Bounds(page, owner);
+                double viewportWidth = owner.ViewportWidth > 0d
+                    ? owner.ViewportWidth
+                    : owner.ActualWidth;
+                double viewportHeight = owner.ViewportHeight > 0d
+                    ? owner.ViewportHeight
+                    : owner.ActualHeight;
+                visibleBounds = RectHelper.Intersect(
+                    visibleBounds,
+                    new Rect(
+                        ownerBounds.X,
+                        ownerBounds.Y,
+                        viewportWidth,
+                        viewportHeight));
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return visibleBounds;
+    }
+
+    private static async Task ChangeScrollOffsetAsync(
+        FrameworkElement page,
+        ScrollViewer owner,
+        double offset)
+    {
+        owner.ChangeView(
+            horizontalOffset: null,
+            verticalOffset: offset,
+            zoomFactor: null,
+            disableAnimation: true);
+        var dispatched = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!page.DispatcherQueue.TryEnqueue(() => dispatched.TrySetResult(true)))
+        {
+            throw new InvalidOperationException(
+                "The responsive scroll sweep dispatcher rejected a boundary.");
+        }
+
+        await dispatched.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        page.UpdateLayout();
+    }
+
+    private static bool IsAncestor(
+        DependencyObject possibleAncestor,
+        DependencyObject element)
+    {
+        DependencyObject? current = VisualTreeHelper.GetParent(element);
+        while (current is not null)
+        {
+            if (ReferenceEquals(current, possibleAncestor))
+            {
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
+    }
+
+    private static string SemanticIdentity(FrameworkElement element)
+    {
+        string automationName = AutomationProperties.GetName(element);
+        return !string.IsNullOrWhiteSpace(element.Name)
+            ? element.Name
+            : !string.IsNullOrWhiteSpace(automationName)
+                ? $"{element.GetType().Name}:{automationName}"
+                : DescribeVisualPath(element);
+    }
+
+    private static Rect Bounds(FrameworkElement root, FrameworkElement element) =>
+        element.TransformToVisual(root).TransformBounds(
+            new Rect(0d, 0d, element.ActualWidth, element.ActualHeight));
+
+    private static string DescribeVisualPath(FrameworkElement element)
+    {
+        var parts = new List<string>();
+        DependencyObject? current = element;
+        while (current is FrameworkElement ancestor && parts.Count < 8)
+        {
+            parts.Add($"{ancestor.GetType().Name}#{ancestor.Name}" +
+                $"[{ancestor.ActualWidth:0.#}x{ancestor.ActualHeight:0.#}]");
+            current = VisualTreeHelper.GetParent(ancestor);
+        }
+
+        return string.Join("/", parts);
+    }
+
+    private static bool IsRendered(FrameworkElement element)
+    {
+        DependencyObject? current = element;
+        while (current is FrameworkElement ancestor)
+        {
+            if (ancestor.Visibility != Visibility.Visible ||
+                ancestor.ActualWidth <= 0d ||
+                ancestor.ActualHeight <= 0d)
+            {
+                return false;
+            }
+
+            current = VisualTreeHelper.GetParent(ancestor);
+        }
+
+        return true;
+    }
+
+    private static bool IsLogicallyVisible(FrameworkElement element)
+    {
+        DependencyObject? current = element;
+        while (current is FrameworkElement ancestor)
+        {
+            if (ancestor.Visibility != Visibility.Visible)
+            {
+                return false;
+            }
+
+            current = VisualTreeHelper.GetParent(ancestor);
+        }
+
+        return true;
+    }
+
+    private static async Task ResizeClientAndWaitAsync(
+        Window window,
+        FrameworkElement page,
+        double width,
+        double height)
+    {
+        FrameworkElement scrollContent = Element<FrameworkElement>(
+            page,
+            "InspectionScrollContent");
+        FrameworkElement contentHost = Element<FrameworkElement>(
+            page,
+            "InspectionContentHost");
+        var model = Element<InspectionModelCard>(
+            page,
+            "InspectionModelCardControl");
+        FrameworkElement[] metadata =
+        [
+            Element<FrameworkElement>(model, "ModelNameField"),
+            Element<FrameworkElement>(model, "PublisherField"),
+            Element<FrameworkElement>(model, "FormatField"),
+            Element<FrameworkElement>(model, "QuantisationField"),
+            Element<FrameworkElement>(model, "ParametersField"),
+            Element<FrameworkElement>(model, "ModelTypeField"),
+            Element<FrameworkElement>(model, "DeclaredContextField"),
+            Element<FrameworkElement>(model, "FileSizeField")
+        ];
+        var actions = Element<InspectionActionCard>(
+            page,
+            "InspectionActionCardControl");
+        FrameworkElement[] actionHosts =
+        [
+            Element<FrameworkElement>(actions, "SecondaryActionOneHost"),
+            Element<FrameworkElement>(actions, "SecondaryActionTwoHost"),
+            Element<FrameworkElement>(actions, "PrimaryActionHost")
+        ];
+        FrameworkElement resultView = Element<FrameworkElement>(
+            actions,
+            "ResultView");
+        var reached = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        void Observe(object? sender, object args)
+        {
+            bool widthReached = Math.Abs(page.XamlRoot.Size.Width - width) <= 1d;
+            bool contentArranged = scrollContent.ActualWidth <= width + 1d;
+            double expectedInset = width < 600d ? 16d : 24d;
+            bool responsiveStateApplied = Math.Abs(
+                contentHost.Margin.Left - expectedInset) <= 0.1d;
+            int expectedMetadataColumns = width >= 888d
+                ? 4
+                : width >= 600d
+                    ? 2
+                    : 1;
+            bool modelStateApplied = metadata
+                .Select(Grid.GetColumn)
+                .Distinct()
+                .Count() == expectedMetadataColumns;
+            FrameworkElement[] visibleActionHosts = actionHosts
+                .Where(host => host.Visibility == Visibility.Visible)
+                .ToArray();
+            bool actionStateApplied = resultView.Visibility != Visibility.Visible ||
+                visibleActionHosts.Length == 0 ||
+                (width < 600d
+                    ? visibleActionHosts.Select(Grid.GetRow).SequenceEqual(
+                        Enumerable.Range(0, visibleActionHosts.Length))
+                    : visibleActionHosts.Select(Grid.GetRow).Distinct().Count() == 1);
+            if (widthReached &&
+                contentArranged &&
+                responsiveStateApplied &&
+                modelStateApplied &&
+                actionStateApplied &&
+                Math.Abs(page.XamlRoot.Size.Height - height) <= 1d)
+            {
+                reached.TrySetResult(true);
+            }
+        }
+
+        page.LayoutUpdated += Observe;
+        try
+        {
+            double scale = page.XamlRoot.RasterizationScale;
+            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
+                (int)Math.Round(width * scale),
+                (int)Math.Round(height * scale)));
+            Observe(null, EventArgs.Empty);
+            await reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            page.UpdateLayout();
+        }
+        finally
+        {
+            page.LayoutUpdated -= Observe;
+        }
+    }
+
+    private static ModelInspectionFixtureCatalogue LoadResponsiveCatalogue()
+    {
+        string root = Path.Combine(AppContext.BaseDirectory, "Fixtures");
+        ModelInspectionFixtureDocumentSource Read(string fileName) => new(
+            fileName,
+            File.ReadAllBytes(Path.Combine(root, fileName)));
+        VerifiedModelInspectionFixtureSchema schema =
+            ModelInspectionFixtureCatalogue.VerifySchema(Read(
+                "model-inspection-fixture.schema.json"));
+        ValidatedModelInspectionFixtureCoveragePolicy policy =
+            ModelInspectionFixtureCatalogue.LoadPolicy(Read(
+                "model-inspection-fixture-coverage-policy.json"), schema);
+        ModelInspectionFixtureCatalogue catalogue =
+            ModelInspectionFixtureCatalogue.LoadDescriptors(
+                policy.Value.Fixtures.Select(entry => Read(entry.FileName))
+                    .ToArray(),
+                policy,
+                schema);
+        return ModelInspectionFixtureCoverageValidator.Validate(catalogue)
+            .Catalogue;
     }
 
     private static void AssertTypographyAndWrapping(
