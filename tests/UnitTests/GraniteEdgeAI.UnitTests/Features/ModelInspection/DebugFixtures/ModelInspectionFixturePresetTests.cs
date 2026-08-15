@@ -25,7 +25,7 @@ using DebugFixturePreset = GraniteEdgeAI.Features.ModelInspection.DebugFixtures.
 public sealed class ModelInspectionFixturePresetTests
 {
     [TestMethod]
-    public void PolicyDeclaresExactlyFiftySevenDescriptorPresetPairsAndNineIdentities()
+    public void PolicyDeclaresExactlyFiftyEightDescriptorPresetPairsAndNineIdentities()
     {
         ModelInspectionFixtureCatalogue catalogue = LoadCatalogue();
         var pairs = catalogue.Fixtures
@@ -33,7 +33,7 @@ public sealed class ModelInspectionFixturePresetTests
                 (Fixture: fixture, PresetId: presetId)))
             .ToArray();
 
-        Assert.AreEqual(57, pairs.Length);
+        Assert.AreEqual(58, pairs.Length);
         CollectionAssert.AreEquivalent(
             Enumerable.Range(1, 9).Select(index => $"P{index:00}").ToArray(),
             pairs.Select(pair => pair.PresetId).Distinct().ToArray());

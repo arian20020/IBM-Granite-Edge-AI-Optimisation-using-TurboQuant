@@ -1485,7 +1485,7 @@ public sealed class DebugModelInspectionServiceTests
     [TestMethod]
     public async Task Retirement_SilentlyCompletesPendingCallAndIsIdempotent()
     {
-        ModelInspectionFixtureExecutionPlan plan = Plan("MI-002");
+        ModelInspectionFixtureExecutionPlan plan = Plan("MI-050");
         ModelInspectionFixtureSessionEvidence evidence = new();
         DebugModelInspectionService service = new(plan, evidence);
         using CancellationTokenSource cancellation = new();

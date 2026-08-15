@@ -282,6 +282,7 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/NativeBackendSmokeResult.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/README.md
 runtime/README.md
+scripts/model-inspection/Generate-ModelInspectionFixtureReport.ps1
 scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
 scripts/model-inspection/Test-ModelInspectionFixtureReleaseIsolation.ps1
 scripts/model-inspection/Test-ModelInspectionVisualArtifactPrivacy.ps1
@@ -435,6 +436,7 @@ tests/TestFixtures/ModelInspectionScenarios/MI-046-ready-with-warnings-finding-r
 tests/TestFixtures/ModelInspectionScenarios/MI-047-invalid-report-rows-current-maximum-expanded.fixture.json
 tests/TestFixtures/ModelInspectionScenarios/MI-048-progress-detail-copy-maximum.fixture.json
 tests/TestFixtures/ModelInspectionScenarios/MI-049-operational-failure-detail-copy-maximum.fixture.json
+tests/TestFixtures/ModelInspectionScenarios/MI-050-progress-starting-secure-inspection.fixture.json
 tests/TestFixtures/ModelInspectionScenarios/README.md
 tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture-coverage-policy.json
 tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture.schema.json

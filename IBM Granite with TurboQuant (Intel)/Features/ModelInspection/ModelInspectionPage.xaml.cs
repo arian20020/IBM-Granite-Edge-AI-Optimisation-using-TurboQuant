@@ -52,6 +52,7 @@ public sealed partial class ModelInspectionPage : Page
     private bool _retirementInProgress;
     private DependencyObject? _semanticFocusOwner;
     private PendingSemanticFocusReclaim? _pendingSemanticFocusReclaim;
+    private PendingCancelFocusRecovery? _pendingCancelFocusRecovery;
     private IDisposable? _activeDisclosureOperationAudit;
 
     /// <summary>
@@ -431,7 +432,46 @@ public sealed partial class ModelInspectionPage : Page
             return;
         }
 
-        milestoneSequencer.Accept(viewModel.Snapshot);
+        ModelInspectionViewSnapshot snapshot = viewModel.Snapshot;
+        CapturePendingCancelFocusRecovery(snapshot);
+        milestoneSequencer.Accept(snapshot);
+    }
+
+    private void CapturePendingCancelFocusRecovery(
+        ModelInspectionViewSnapshot snapshot)
+    {
+        if (!DispatcherQueue.HasThreadAccess ||
+            !snapshot.IsRunActive ||
+            !snapshot.IsCancellationRequested ||
+            CurrentPresentation is not
+            {
+                State: ModelInspectionFigmaState.InspectionProgress
+            } presentation ||
+            presentation.RenderKey.AttemptGeneration !=
+                snapshot.RenderKey.AttemptGeneration ||
+            presentation.ActionCard.CancelAction.Visibility !=
+                Visibility.Visible ||
+            !presentation.ActionCard.CancelAction.IsEnabled ||
+            XamlRoot is null)
+        {
+            return;
+        }
+
+        var cancelActionButton = (Button)InspectionActionCardControl.FindName(
+            "CancelActionButton");
+        DependencyObject? focused =
+            FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        if (focused is null ||
+            !IsDescendantOrSelf(focused, cancelActionButton))
+        {
+            return;
+        }
+
+        Interlocked.Exchange(
+            ref _pendingCancelFocusRecovery,
+            new PendingCancelFocusRecovery(
+                _navigationLifetime,
+                snapshot.RenderKey.AttemptGeneration));
     }
 
     private void ViewModel_ChooseAnotherRequested(
@@ -556,6 +596,37 @@ public sealed partial class ModelInspectionPage : Page
             IsDescendantOrSelf(focusedElement, cancelActionButton) &&
             (current.ActionCard.CancelAction.Visibility != Visibility.Visible ||
              !current.ActionCard.CancelAction.IsEnabled);
+        PendingCancelFocusRecovery? pendingCancelFocusRecovery =
+            Volatile.Read(ref _pendingCancelFocusRecovery);
+        bool cancelActionBecameIneffective =
+            pendingCancelFocusRecovery is
+            {
+                Lifetime: var cancelFocusLifetime,
+                AttemptGeneration: var cancelFocusAttempt
+            } &&
+            cancelFocusLifetime == _navigationLifetime &&
+            cancelFocusAttempt == current.RenderKey.AttemptGeneration &&
+            previous?.State == ModelInspectionFigmaState.InspectionProgress &&
+            previous.ActionCard.CancelAction.Visibility == Visibility.Visible &&
+            previous.ActionCard.CancelAction.IsEnabled &&
+            current.State == ModelInspectionFigmaState.InspectionProgress &&
+            current.ActionCard.CancelAction.Visibility == Visibility.Visible &&
+            !current.ActionCard.CancelAction.IsEnabled &&
+            ViewModel?.Snapshot is { IsCancellationRequested: true } snapshot &&
+            snapshot.RenderKey == current.RenderKey;
+        if (pendingCancelFocusRecovery is not null &&
+            (cancelActionBecameIneffective ||
+             pendingCancelFocusRecovery.Lifetime != _navigationLifetime ||
+             pendingCancelFocusRecovery.AttemptGeneration !=
+                current.RenderKey.AttemptGeneration ||
+             current.State != ModelInspectionFigmaState.InspectionProgress ||
+             ViewModel?.Snapshot.IsCancellationRequested != true))
+        {
+            Interlocked.CompareExchange(
+                ref _pendingCancelFocusRecovery,
+                null,
+                pendingCancelFocusRecovery);
+        }
         bool focusedRetiredProgress = retiresProgress &&
             focusedElement is not null &&
             IsDescendantOrSelf(focusedElement, InspectionContentCardControl);
@@ -726,13 +797,20 @@ public sealed partial class ModelInspectionPage : Page
         ApplyTerminalFocus(current, focusedRetiredProgress);
         ApplySemanticDefaultFocus(
             current,
-            claimWhenFocusIsOutsidePage: semanticFocusWasOwned,
+            claimWhenFocusIsOutsidePage:
+                semanticFocusWasOwned || cancelActionBecameIneffective,
             reclaimEffectivePageFallback:
                 semanticFocusWasOwned ||
                 recoverFromIneffectiveStartupFocus ||
                 recoverFromIneffectiveProgressFocus,
-            recoverFromIneffectiveStartupFocus,
-            recoverFromIneffectiveProgressFocus);
+            recoverFromIneffectiveStartupFocus:
+                recoverFromIneffectiveStartupFocus ||
+                (cancelActionBecameIneffective &&
+                 current.ContentCard.Startup.Visibility == Visibility.Visible),
+            recoverFromIneffectiveProgressFocus:
+                recoverFromIneffectiveProgressFocus ||
+                (cancelActionBecameIneffective &&
+                 current.ContentCard.Startup.Visibility != Visibility.Visible));
         DependencyObject? semanticFocusedElement = XamlRoot is null
             ? null
             : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
@@ -1455,6 +1533,7 @@ public sealed partial class ModelInspectionPage : Page
         _milestoneSequencer = null;
         _semanticFocusOwner = null;
         Interlocked.Exchange(ref _pendingSemanticFocusReclaim, null);
+        Interlocked.Exchange(ref _pendingCancelFocusRecovery, null);
         ExceptionDispatchInfo? error = null;
         try
         {
@@ -1666,6 +1745,10 @@ public sealed partial class ModelInspectionPage : Page
         ModelInspectionRenderKey RenderKey,
         ModelInspectionRenderCoordinator Coordinator,
         DependencyObject AutomaticFocusFallback);
+
+    private sealed record PendingCancelFocusRecovery(
+        long Lifetime,
+        long AttemptGeneration);
 
     private sealed record DisclosureTransition(
         bool IsModelDisclosure,

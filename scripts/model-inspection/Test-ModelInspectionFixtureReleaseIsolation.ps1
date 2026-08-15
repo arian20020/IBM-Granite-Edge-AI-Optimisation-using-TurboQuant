@@ -1370,8 +1370,8 @@ function Assert-EvaluatedClosure {
     [string[]] $descriptorNames = @(Get-OrdinalSortedUniqueStrings `
             -Values @($policy.fixtures | ForEach-Object { $_.fileName }) `
             -Description 'Coverage-policy descriptor filenames')
-    if ($descriptorNames.Count -ne 49) {
-        throw 'The coverage policy must declare exactly 49 unique descriptor filenames.'
+    if ($descriptorNames.Count -ne 50) {
+        throw 'The coverage policy must declare exactly 50 unique descriptor filenames.'
     }
 
     [string[]] $expectedJsonNames = @(Get-OrdinalSortedUniqueStrings `
@@ -1390,7 +1390,7 @@ function Assert-EvaluatedClosure {
     }
 
     if (-not $jsonSetsMatch) {
-        throw 'Physical scenario JSON closure differs from the policy-derived 49+schema+policy set.'
+        throw 'Physical scenario JSON closure differs from the policy-derived 50+schema+policy set.'
     }
 
     $expected = [ordered]@{
@@ -1410,8 +1410,8 @@ function Assert-EvaluatedClosure {
         }
     }
 
-    if ($expectedJsonNames.Count -ne 51) {
-        throw "The policy-derived scenario closure contains $($expectedJsonNames.Count) JSON files; expected 51."
+    if ($expectedJsonNames.Count -ne 52) {
+        throw "The policy-derived scenario closure contains $($expectedJsonNames.Count) JSON files; expected 52."
     }
 
     $expectedIdentities = New-Object 'System.Collections.Generic.List[string]'
@@ -2696,12 +2696,12 @@ try {
                 compile = 1
                 page = 0
                 none = 0
-                content = 51
+                content = 52
                 embeddedResource = 0
                 priResource = 0
-                jsonPackageContent = 51
+                jsonPackageContent = 52
             }
-            debugEvaluatedIdentityCount = 53
+            debugEvaluatedIdentityCount = 54
             debugExactIdentitiesSha256 = ('0' * 64)
             releaseEvaluatedCounts = [pscustomobject][ordered]@{
                 projectReference = 0

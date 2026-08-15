@@ -1489,6 +1489,114 @@ public sealed class ModelInspectionFixtureValidationContractTests
         LoadMany(
             [FixtureContractDocuments.DescriptorSource(initialWaiting)],
             progressPolicy);
+
+        const string startupFileName =
+            "MI-050-progress-starting-secure-inspection.fixture.json";
+        string scenarioDirectory = CurrentScenarioDirectory();
+        string startupPath = Path.Combine(scenarioDirectory, startupFileName);
+        JsonObject startupPolicy = JsonNode.Parse(File.ReadAllText(Path.Combine(
+            scenarioDirectory,
+            "model-inspection-fixture-coverage-policy.json")))!.AsObject();
+        ModelInspectionFixtureDocumentSource[] currentSources = Directory
+            .EnumerateFiles(
+                scenarioDirectory,
+                "MI-*.fixture.json",
+                SearchOption.TopDirectoryOnly)
+            .OrderBy(Path.GetFileName, StringComparer.Ordinal)
+            .Select(path => new ModelInspectionFixtureDocumentSource(
+                Path.GetFileName(path),
+                File.ReadAllBytes(path)))
+            .ToArray();
+        ModelInspectionFixtureCatalogue startupCatalogue = LoadCurrentDescriptors(
+            startupPolicy,
+            currentSources);
+        ValidatedModelInspectionFixture startup = startupCatalogue.Fixtures.Single(
+            fixture => fixture.Id.Equals("MI-050", StringComparison.Ordinal));
+        Assert.AreEqual("fixture.progress.starting",
+            startup.Expected.Content.StartupStatus?.CopyKey);
+        Assert.AreEqual("Starting secure inspection…",
+            startup.Expected.Content.StartupStatus?.DefaultText);
+        Assert.AreEqual(true, startup.Expected.Content.StartupVisible);
+        Assert.AreEqual(true, startup.Expected.Content.StartupActive);
+        Assert.HasCount(5, startup.Expected.Content.Rows);
+        Assert.IsTrue(startup.Expected.Content.Rows.All(row =>
+            row.Status == ModelInspectionExpectedRowStatus.Waiting));
+
+        Action<JsonObject>[] startupMutations =
+        [
+            root => root["expected"]!["content"]!["startupStatus"] = null,
+            root => root["expected"]!["content"]!["startupStatus"] =
+                root["expected"]!["content"]!["rows"]![0]!["primaryText"]!
+                    .DeepClone(),
+            root => root["expected"]!["content"]!["startupVisible"] = false,
+            root => root["expected"]!["content"]!["startupActive"] = false,
+            root => root["expected"]!["figma"]!["state"] = "readyCollapsed",
+            root => root["input"]!["attempts"] = new JsonArray(),
+            root => root["expected"]!["content"]!["rows"]![0]!["status"] =
+                "active",
+            root => root["expected"]!["content"]!["rows"]![0]!["status"] =
+                "completed",
+            root =>
+            {
+                JsonObject sixth = root["expected"]!["content"]!["rows"]![4]!
+                    .DeepClone().AsObject();
+                sixth["id"] = "progress-6";
+                root["expected"]!["content"]!["rows"]!.AsArray().Add(sixth);
+            },
+            root => root["input"]!["setupSteps"]!.AsArray().Insert(
+                0,
+                SetupStep(
+                    "release-service-checkpoint",
+                    1,
+                    "terminal",
+                    null))
+        ];
+        foreach (Action<JsonObject> mutation in startupMutations)
+        {
+            JsonObject invalid = JsonNode.Parse(File.ReadAllText(startupPath))!
+                .AsObject();
+            mutation(invalid);
+            ModelInspectionFixtureValidationException exception =
+                Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                    LoadCurrentDescriptors(
+                        startupPolicy,
+                        currentSources.Select(source => source.FileName.Equals(
+                                startupFileName,
+                                StringComparison.Ordinal)
+                            ? new ModelInspectionFixtureDocumentSource(
+                                startupFileName,
+                                System.Text.Encoding.UTF8.GetBytes(
+                                    invalid.ToJsonString()))
+                            : source).ToArray()));
+            Assert.AreEqual(startupFileName, exception.FileName);
+        }
+
+        const string terminalFileName =
+            "MI-002-ready-clean-compatible-model-collapsed.fixture.json";
+        JsonObject terminalWithStartup = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(scenarioDirectory, terminalFileName)))!.AsObject();
+        JsonObject startupContent = JsonNode.Parse(File.ReadAllText(startupPath))![
+            "expected"]!["content"]!.AsObject();
+        JsonObject terminalContent = terminalWithStartup["expected"]!["content"]!
+            .AsObject();
+        terminalContent["startupStatus"] =
+            startupContent["startupStatus"]!.DeepClone();
+        terminalContent["startupVisible"] = true;
+        terminalContent["startupActive"] = true;
+        ModelInspectionFixtureValidationException terminalException =
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(() =>
+                LoadCurrentDescriptors(
+                    startupPolicy,
+                    currentSources.Select(source => source.FileName.Equals(
+                            terminalFileName,
+                            StringComparison.Ordinal)
+                        ? new ModelInspectionFixtureDocumentSource(
+                            terminalFileName,
+                            System.Text.Encoding.UTF8.GetBytes(
+                                terminalWithStartup.ToJsonString()))
+                        : source).ToArray()));
+        Assert.AreEqual(terminalFileName, terminalException.FileName);
+        Assert.AreEqual("fixture.startup-screen", terminalException.RuleCode);
     }
 
     [TestMethod]

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using GraniteEdgeAI.ModelInspection.Fixtures;
@@ -12,8 +13,12 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 [TestCategory("Contract")]
 public sealed class ModelInspectionFixtureReportContractTests
 {
+    private const string ReportOutputPathEnvironment =
+        "MODEL_INSPECTION_FIXTURE_REPORT_OUTPUT_PATH";
     private const string ReportFileName =
         "Model-Inspection-Fixture-Catalog.md";
+    private const int FixtureCount = 50;
+    private const int ReportLineCount = 60;
     private const string ReportTitle =
         "# Model Inspection Fixture Catalog";
     private const string ReportIntroduction =
@@ -61,46 +66,45 @@ public sealed class ModelInspectionFixtureReportContractTests
     public void GeneratedCatalogueReportByteMatchesCheckedInUtf8LfArtifact()
     {
         byte[] generated = Generate();
-        byte[] checkedIn = File.ReadAllBytes(ReportPath());
+        AssertUtf8LfShape(generated);
 
+        string? requestedOutputPath = Environment.GetEnvironmentVariable(
+            ReportOutputPathEnvironment);
+        if (requestedOutputPath is not null)
+        {
+            string outputPath = RequireExternalGeneratorOutputPath(
+                requestedOutputPath);
+            AssertReportStructure(generated);
+            string expectedSha256 = Convert.ToHexString(SHA256.HashData(generated));
+
+            using (var stream = new FileStream(
+                       outputPath,
+                       FileMode.CreateNew,
+                       FileAccess.Write,
+                       FileShare.None))
+            {
+                stream.Write(generated);
+                stream.Flush(flushToDisk: true);
+            }
+
+            byte[] written = File.ReadAllBytes(outputPath);
+            CollectionAssert.AreEqual(generated, written);
+            Assert.AreEqual(
+                expectedSha256,
+                Convert.ToHexString(SHA256.HashData(written)));
+            AssertUtf8LfShape(written);
+            AssertReportStructure(written);
+            return;
+        }
+
+        byte[] checkedIn = File.ReadAllBytes(ReportPath());
         CollectionAssert.AreEqual(checkedIn, generated);
-        Assert.IsFalse(generated.AsSpan().StartsWith(Encoding.UTF8.Preamble));
-        Assert.IsFalse(generated.Contains((byte)'\r'));
-        Assert.IsTrue(generated.Length > 0);
-        Assert.AreEqual((byte)'\n', generated[^1]);
-        Assert.IsTrue(generated.Length == 1 || generated[^2] != (byte)'\n');
     }
 
     [TestMethod]
-    public void ReportHasExactHeaderAndFortyNineAscendingUniqueRows()
+    public void ReportHasExactHeaderAndFiftyAscendingUniqueRows()
     {
-        string[] lines = Lines(Generate());
-
-        CollectionAssert.AreEqual(
-            new[]
-            {
-                ReportTitle,
-                string.Empty,
-                ReportIntroduction,
-                string.Empty,
-                ReportScope,
-                string.Empty,
-                Nonclaim,
-                string.Empty,
-                Header,
-                Separator
-            },
-            lines[..10]);
-        Assert.AreEqual(59, lines.Length);
-
-        string[][] rows = lines[10..].Select(ParseRow).ToArray();
-        Assert.AreEqual(49, rows.Length);
-        string[] expectedIds = Enumerable.Range(1, 49)
-            .Select(index => $"MI-{index:000}")
-            .ToArray();
-        CollectionAssert.AreEqual(expectedIds, rows.Select(row => row[0]).ToArray());
-        Assert.AreEqual(49, rows.Select(row => row[0]).Distinct(
-            StringComparer.Ordinal).Count());
+        AssertReportStructure(Generate());
     }
 
     [TestMethod]
@@ -117,7 +121,8 @@ public sealed class ModelInspectionFixtureReportContractTests
             .Select(ParseRow)
             .ToArray();
 
-        for (int index = 0; index < 49; index++)
+        Assert.HasCount(FixtureCount, rows);
+        for (int index = 0; index < FixtureCount; index++)
         {
             ValidatedModelInspectionFixture fixture = catalogue.Fixtures[index];
             ModelInspectionFixturePolicyEntry policy =
@@ -170,7 +175,7 @@ public sealed class ModelInspectionFixtureReportContractTests
             string.Empty,
             StringComparison.Ordinal);
 
-        Assert.AreEqual(49, Count(report, SyntheticProvenance));
+        Assert.AreEqual(FixtureCount, Count(report, SyntheticProvenance));
         Assert.AreEqual(2, Count(report, RealWorkerProvenance));
         Assert.AreEqual(2, Count(report, N001Source));
         Assert.AreEqual(2, Count(report, N001Journey));
@@ -179,7 +184,7 @@ public sealed class ModelInspectionFixtureReportContractTests
             "Pending(Task",
             StringComparison.Ordinal));
         Assert.IsFalse(withoutApprovedSource.Contains("tests/", StringComparison.Ordinal));
-        for (int index = 1; index <= 49; index++)
+        for (int index = 1; index <= FixtureCount; index++)
         {
             string id = $"MI-{index:000}";
             string[] row = rows.Single(candidate => candidate[0] == id);
@@ -427,9 +432,107 @@ public sealed class ModelInspectionFixtureReportContractTests
 
     private static string[] Lines(byte[] utf8)
     {
-        string text = Encoding.UTF8.GetString(utf8);
-        Assert.IsTrue(text.EndsWith('\n'));
+        AssertUtf8LfShape(utf8);
+        string text = new UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false,
+            throwOnInvalidBytes: true).GetString(utf8);
         return text[..^1].Split('\n');
+    }
+
+    private static void AssertUtf8LfShape(byte[] utf8)
+    {
+        Assert.IsFalse(utf8.AsSpan().StartsWith(Encoding.UTF8.Preamble));
+        Assert.IsFalse(utf8.Contains((byte)'\r'));
+        Assert.IsTrue(utf8.Length > 0);
+        Assert.AreEqual((byte)'\n', utf8[^1]);
+        Assert.IsTrue(utf8.Length == 1 || utf8[^2] != (byte)'\n');
+        _ = new UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false,
+            throwOnInvalidBytes: true).GetString(utf8);
+    }
+
+    private static void AssertReportStructure(byte[] utf8)
+    {
+        string[] lines = Lines(utf8);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                ReportTitle,
+                string.Empty,
+                ReportIntroduction,
+                string.Empty,
+                ReportScope,
+                string.Empty,
+                Nonclaim,
+                string.Empty,
+                Header,
+                Separator
+            },
+            lines[..10]);
+        Assert.AreEqual(ReportLineCount, lines.Length);
+
+        string[][] rows = lines[10..].Select(ParseRow).ToArray();
+        Assert.HasCount(FixtureCount, rows);
+        Assert.IsTrue(rows.All(row => row.Length == 13));
+        string[] expectedIds = Enumerable.Range(1, FixtureCount)
+            .Select(index => $"MI-{index:000}")
+            .ToArray();
+        CollectionAssert.AreEqual(expectedIds, rows.Select(row => row[0]).ToArray());
+        Assert.AreEqual(
+            FixtureCount,
+            rows.Select(row => row[0]).Distinct(StringComparer.Ordinal).Count());
+    }
+
+    private static string RequireExternalGeneratorOutputPath(string requestedPath)
+    {
+        Assert.IsFalse(
+            string.IsNullOrWhiteSpace(requestedPath),
+            $"{ReportOutputPathEnvironment} cannot be blank.");
+        Assert.IsTrue(
+            Path.IsPathFullyQualified(requestedPath),
+            "The report generator output path must be fully qualified.");
+
+        string outputPath = Path.GetFullPath(requestedPath);
+        Assert.AreEqual(
+            ReportFileName,
+            Path.GetFileName(outputPath),
+            "The report generator output filename is not canonical.");
+        string repositoryRoot = Path.GetFullPath(
+                ModelInspectionFixtureCatalogueContractTests.FindRepositoryRoot())
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string repositoryPrefix = repositoryRoot + Path.DirectorySeparatorChar;
+        Assert.IsFalse(
+            outputPath.Equals(repositoryRoot, StringComparison.OrdinalIgnoreCase) ||
+            outputPath.StartsWith(
+                repositoryPrefix,
+                StringComparison.OrdinalIgnoreCase),
+            "The report generator output path must be outside the repository.");
+
+        string? parent = Path.GetDirectoryName(outputPath);
+        Assert.IsNotNull(parent);
+        Assert.IsTrue(
+            Directory.Exists(parent),
+            "The report generator output parent must already exist.");
+        AssertPathHasNoReparsePoint(parent);
+        Assert.IsFalse(
+            Directory.EnumerateFileSystemEntries(parent).Any(path =>
+                Path.GetFileName(path).Equals(
+                    Path.GetFileName(outputPath),
+                    StringComparison.OrdinalIgnoreCase)),
+            "The report generator output path must be fresh.");
+        return outputPath;
+    }
+
+    private static void AssertPathHasNoReparsePoint(string path)
+    {
+        DirectoryInfo? current = new(Path.GetFullPath(path));
+        while (current is not null)
+        {
+            Assert.IsFalse(
+                (current.Attributes & FileAttributes.ReparsePoint) != 0,
+                "The report generator output path cannot traverse a reparse point.");
+            current = current.Parent;
+        }
     }
 
     private static string[] ParseRow(string line)

@@ -42,9 +42,9 @@ public sealed class ModelInspectionFixtureGalleryTests
         ValidatedModelInspectionFixtureCoverageCatalogue result =
             await loader.LoadAsync();
 
-        Assert.AreEqual(49, result.Catalogue.Fixtures.Count);
+        Assert.AreEqual(50, result.Catalogue.Fixtures.Count);
         CollectionAssert.AreEqual(ExpectedPackageUris(), reader.Requests);
-        Assert.AreEqual(51, reader.Requests.Count);
+        Assert.AreEqual(52, reader.Requests.Count);
         Assert.IsTrue(reader.Requests.All(uri => reader.Count(uri) == 1));
         Assert.AreSame(result, loader.CoverageCatalogue);
     }
@@ -73,7 +73,7 @@ public sealed class ModelInspectionFixtureGalleryTests
         Assert.AreSame(concurrent[0], loader.CoverageCatalogue);
         CollectionAssert.AreEqual(ExpectedPackageUris(),
             reader.Requests.ToArray());
-        Assert.AreEqual(51, reader.Requests.Count);
+        Assert.AreEqual(52, reader.Requests.Count);
         Assert.IsTrue(reader.Requests.All(uri => reader.Count(uri) == 1));
     }
 
@@ -92,7 +92,7 @@ public sealed class ModelInspectionFixtureGalleryTests
                 () => loader.LoadAsync());
 
         Assert.IsNull(loader.CoverageCatalogue);
-        Assert.AreEqual(51, reader.Requests.Count);
+        Assert.AreEqual(52, reader.Requests.Count);
         StringAssert.Contains(error.Diagnostic, "MI-049");
         Assert.IsFalse(error.Diagnostic.Contains("C:\\", StringComparison.Ordinal));
         Assert.IsFalse(error.Diagnostic.Contains("{"));
@@ -143,7 +143,7 @@ public sealed class ModelInspectionFixtureGalleryTests
                 () => loader.LoadAsync());
 
         Assert.IsNull(loader.CoverageCatalogue);
-        Assert.IsTrue(reader.Requests.Count <= 51);
+        Assert.IsTrue(reader.Requests.Count <= 52);
         Assert.IsTrue(reader.Requests.All(uri => reader.Count(uri) == 1));
     }
 
@@ -208,7 +208,7 @@ public sealed class ModelInspectionFixtureGalleryTests
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             loader.LoadAsync(cancellation.Token));
 
-        Assert.AreEqual(51, reader.ReadCount);
+        Assert.AreEqual(52, reader.ReadCount);
         Assert.IsNull(loader.CoverageCatalogue);
     }
 
@@ -266,11 +266,11 @@ public sealed class ModelInspectionFixtureGalleryTests
         await viewModel.LoadAsync(new ModelInspectionFixturePackageLoader(
             CountingReader.Valid()));
 
-        Assert.AreEqual(49, viewModel.Items.Count);
+        Assert.AreEqual(50, viewModel.Items.Count);
         CollectionAssert.AreEqual(
-            Enumerable.Range(1, 49).Select(index => $"MI-{index:000}").ToArray(),
+            Enumerable.Range(1, 50).Select(index => $"MI-{index:000}").ToArray(),
             viewModel.Items.Select(item => item.Id).ToArray());
-        Assert.AreEqual("Catalogue validated: 49 fixtures.",
+        Assert.AreEqual("Catalogue validated: 50 fixtures.",
             viewModel.ValidationStatus);
         Assert.IsTrue(viewModel.Items.Single(item => item.Id == "MI-002")
             .HasN001RealWorkerCoverage);
@@ -325,7 +325,7 @@ public sealed class ModelInspectionFixtureGalleryTests
         ValidatedModelInspectionFixture[] fixtures = LoadCatalogue()
             .Catalogue.Fixtures.ToArray();
 
-        Assert.AreEqual(49, fixtures.Length);
+        Assert.AreEqual(50, fixtures.Length);
         foreach (ValidatedModelInspectionFixture fixture in fixtures)
         {
             Assert.AreEqual(
@@ -839,7 +839,7 @@ public sealed class ModelInspectionFixtureGalleryTests
             Assert.IsNotNull(gallery);
             await gallery.CatalogueLoaded;
             Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
-            Assert.AreEqual(49, gallery.ViewModel.Items.Count);
+            Assert.AreEqual(50, gallery.ViewModel.Items.Count);
             Assert.IsNotNull(gallery.FindName("FixtureSearchBox"));
             Assert.IsNotNull(gallery.FindName("FixtureCategoryFilter"));
             Assert.IsNotNull(gallery.FindName("FixtureList"));
@@ -1154,7 +1154,7 @@ public sealed class ModelInspectionFixtureGalleryTests
                 nameof(ModelInspectionFixtureGalleryViewModel.FilteredItems));
             category.SelectedIndex = 0;
             await WaitWithContextAsync(categoryCleared, "visible category clear");
-            Assert.AreEqual(49, list.Items.Count,
+            Assert.AreEqual(50, list.Items.Count,
                 "Clearing the visible category must restore the complete catalogue.");
 
             ModelInspectionFixtureListItem selected = gallery.ViewModel.Items
@@ -1359,7 +1359,7 @@ public sealed class ModelInspectionFixtureGalleryTests
             Assert.AreEqual(0, gallery.HostFrame.ForwardStack.Count);
             await gallery.SelectFixtureForTestingAsync("MI-039");
             CollectionAssert.AreEqual(ExpectedPackageUris(), reader.Requests,
-                "Selection, Reset and switch must reuse the retained 51 resources.");
+                "Selection, Reset and switch must reuse the retained 52 resources.");
             Assert.IsTrue(reader.Requests.All(uri => reader.Count(uri) == 1));
             gallery.CloseForTesting();
         }
@@ -3430,7 +3430,7 @@ public sealed class ModelInspectionFixtureGalleryTests
                 packageUri,
                 cancellationToken);
             ReadCount++;
-            if (ReadCount == 51)
+            if (ReadCount == 52)
             {
                 cancellation.Cancel();
             }

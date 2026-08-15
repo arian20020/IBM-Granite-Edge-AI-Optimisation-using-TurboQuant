@@ -791,7 +791,15 @@ internal static partial class ModelInspectionFixtureValidator
         }
 
         _ = policy;
-        return new ModelInspectionFixtureReplayState(currentEffect);
+        bool releasedProgressCheckpoint = releasedServiceCheckpoints.Any(key =>
+            serviceCheckpoints[key] ==
+                ModelInspectionFixtureServiceEffectKind.Progress);
+        return new ModelInspectionFixtureReplayState(
+            currentEffect,
+            activeAttempt,
+            nextServiceStep,
+            terminalReleased,
+            releasedProgressCheckpoint);
 
         void ApplyAutomaticSteps()
         {
@@ -1445,6 +1453,7 @@ internal static partial class ModelInspectionFixtureValidator
         ModelInspectionFixtureReplayState replay)
     {
         ModelInspectionFixtureServiceEffectDescriptor? effect = replay.CurrentEffect;
+        ValidateStartupConsistency(source, descriptor, replay);
         if (effect is null || effect.Kind == ModelInspectionFixtureServiceEffectKind.Progress)
         {
             if (descriptor.Expected.Figma.State !=
@@ -1522,6 +1531,102 @@ internal static partial class ModelInspectionFixtureValidator
         if (!figmaMatches || descriptor.Expected.Outcome.Kind != expectedOutcome)
         {
             throw Failure(source, "$.expected", "fixture.current-terminal-screen");
+        }
+    }
+
+    private static void ValidateStartupConsistency(
+        ModelInspectionFixtureDocumentSource source,
+        ModelInspectionFixtureDescriptor descriptor,
+        ModelInspectionFixtureReplayState replay)
+    {
+        ModelInspectionExpectedContentRegion content = descriptor.Expected.Content;
+        bool declaresStartup = content.StartupStatus is not null ||
+            content.StartupVisible is not null ||
+            content.StartupActive is not null;
+        if (!declaresStartup)
+        {
+            return;
+        }
+
+        ModelInspectionFixtureAttemptDescriptor? attempt =
+            descriptor.Input.Attempts.Count == 1
+                ? descriptor.Input.Attempts[0]
+                : null;
+        ModelInspectionFixtureServiceStepDescriptor? pending =
+            attempt?.ServiceSteps.Count == 1
+                ? attempt.ServiceSteps[0]
+                : null;
+        bool normalReadyTerminal = pending is not null &&
+            pending.Trigger.Kind ==
+                ModelInspectionFixtureServiceTriggerKind.Checkpoint &&
+            string.Equals(
+                pending.Trigger.Checkpoint,
+                "terminal",
+                StringComparison.Ordinal) &&
+            pending.Effect.Kind ==
+                ModelInspectionFixtureServiceEffectKind.Completed &&
+            pending.Effect.Progress is null &&
+            pending.Effect.Outcome == ModelInspectionFixtureOutcome.Ready &&
+            pending.Effect.EvidenceProfile ==
+                ModelInspectionFixtureEvidenceProfile.Compatible &&
+            pending.Effect.FailureProfile is null &&
+            pending.Effect.FailureDetailProfile is null &&
+            pending.Effect.DeferredCheckpoint is null;
+        bool observeOnly = descriptor.Input.SetupSteps.Count == 1 &&
+            descriptor.Input.SetupSteps[0].Kind ==
+                ModelInspectionFixtureSetupStepKind.Observe;
+        bool exactStartupCopy = content.StartupStatus is { } status &&
+            status.CopyKey.Equals(
+                "fixture.progress.starting",
+                StringComparison.Ordinal) &&
+            status.DefaultText.Equals(
+                "Starting secure inspection…",
+                StringComparison.Ordinal);
+        bool exactlyFiveWaiting = content.Rows.Count == 5 &&
+            content.Rows.All(row =>
+                row.Status == ModelInspectionExpectedRowStatus.Waiting);
+        bool oneStartupAnnouncement =
+            descriptor.Expected.Announcements.Count == 1 &&
+            descriptor.Expected.Announcements.Items.Count == 1 &&
+            descriptor.Expected.Announcements.Items[0].CopyKey.Equals(
+                "fixture.announcement.starting",
+                StringComparison.Ordinal) &&
+            descriptor.Expected.Announcements.Items[0].DefaultText.Equals(
+                "Model inspection is starting.",
+                StringComparison.Ordinal);
+        bool cancelEnabled = descriptor.Expected.Actions.Items.Count(action =>
+            action.Id.Equals("cancel", StringComparison.Ordinal) &&
+            action.Visible &&
+            action.Enabled) == 1;
+
+        if (content.StartupVisible != true ||
+            content.StartupActive != true ||
+            !exactStartupCopy ||
+            descriptor.Expected.Figma.State !=
+                ModelInspectionExpectedFigmaState.InspectionProgress ||
+            descriptor.Coverage.Stages.Count != 0 ||
+            descriptor.Coverage.StageStatuses.Count != 0 ||
+            !exactlyFiveWaiting ||
+            attempt is null ||
+            replay.ActiveAttempt != 1 ||
+            replay.NextServiceStep != 0 ||
+            replay.TerminalReleased ||
+            replay.ReleasedProgressCheckpoint ||
+            replay.CurrentEffect is not null ||
+            !normalReadyTerminal ||
+            !observeOnly ||
+            descriptor.Expected.Footer.Status !=
+                ModelInspectionExpectedFooterStatus.InProgress ||
+            !cancelEnabled ||
+            !descriptor.Expected.Focus.Target.Equals(
+                "page-heading",
+                StringComparison.Ordinal) ||
+            !oneStartupAnnouncement)
+        {
+            throw Failure(
+                source,
+                "$.expected.content",
+                "fixture.startup-screen");
         }
     }
 
@@ -1661,7 +1766,8 @@ internal static partial class ModelInspectionFixtureValidator
             expected.Outcome.SupportingText,
             expected.Model.DisplayName,
             expected.Model.DisplayFileName,
-            expected.Content.Heading
+            expected.Content.Heading,
+            expected.Content.StartupStatus
         ];
         foreach (ModelInspectionExpectedCopy copy in copies.Where(copy => copy is not null)!)
         {
@@ -2089,7 +2195,11 @@ internal static partial class ModelInspectionFixtureValidator
         };
 
     private sealed record ModelInspectionFixtureReplayState(
-        ModelInspectionFixtureServiceEffectDescriptor? CurrentEffect);
+        ModelInspectionFixtureServiceEffectDescriptor? CurrentEffect,
+        int ActiveAttempt,
+        int NextServiceStep,
+        bool TerminalReleased,
+        bool ReleasedProgressCheckpoint);
 
     [GeneratedRegex(@"^MI-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.fixture\.json$", RegexOptions.CultureInvariant)]
     private static partial Regex FixtureFileNameRegex();

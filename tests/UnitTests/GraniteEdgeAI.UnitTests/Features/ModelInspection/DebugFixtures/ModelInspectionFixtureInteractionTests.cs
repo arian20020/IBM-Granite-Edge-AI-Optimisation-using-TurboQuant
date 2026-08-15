@@ -342,7 +342,7 @@ public sealed class ModelInspectionFixtureInteractionTests
         Microsoft.UI.Xaml.Window window = await ModelInspectionFixtureGalleryTestHarness.ShowAndLoadWindowAsync(gallery);
         try
         {
-            Assert.AreEqual(49, gallery.ViewModel.Items.Count);
+            Assert.AreEqual(50, gallery.ViewModel.Items.Count);
             foreach (ModelInspectionFixtureListItem item in gallery.ViewModel.Items)
             {
                 await SelectThroughRealListAsync(gallery, item.Id);
@@ -358,7 +358,7 @@ public sealed class ModelInspectionFixtureInteractionTests
                     session.Evidence.InvokedSetupInteractionIds.ToArray(), item.Id);
             }
             CollectionAssert.AreEqual(ModelInspectionFixtureGalleryTestHarness.ExpectedPackageUris(), reader.Requests);
-            Assert.AreEqual(51, reader.Requests.Count);
+            Assert.AreEqual(52, reader.Requests.Count);
             Assert.IsTrue(reader.Requests.All(uri => reader.Count(uri) == 1));
         }
         finally { gallery.CloseForTesting(); window.Content = null; window.Close(); }

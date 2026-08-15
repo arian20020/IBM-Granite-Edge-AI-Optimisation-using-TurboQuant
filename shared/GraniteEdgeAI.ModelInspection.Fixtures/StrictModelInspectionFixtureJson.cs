@@ -272,7 +272,9 @@ public static partial class StrictModelInspectionFixtureJson
             {
                 foreach (JsonPropertyInfo property in typeInfo.Properties)
                 {
-                    property.IsRequired = true;
+                    property.IsRequired = !IsOptionalStartupProperty(
+                        typeInfo.Type,
+                        property.Name);
                 }
             }
         });
@@ -290,6 +292,13 @@ public static partial class StrictModelInspectionFixtureJson
         options.Converters.Add(new StrictFixtureEnumConverterFactory());
         return options;
     }
+
+    private static bool IsOptionalStartupProperty(
+        Type declaringType,
+        string propertyName) =>
+        declaringType == typeof(ModelInspectionExpectedContentRegion) &&
+        propertyName is "startupStatus" or "startupVisible" or
+            "startupActive";
 
     [GeneratedRegex(
         @"^MI-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.fixture\.json$",

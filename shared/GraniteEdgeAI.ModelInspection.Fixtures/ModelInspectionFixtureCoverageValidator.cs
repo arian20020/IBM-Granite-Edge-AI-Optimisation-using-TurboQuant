@@ -22,9 +22,9 @@ public sealed class ValidatedModelInspectionFixtureCoverageCatalogue
 public static class ModelInspectionFixtureCoverageValidator
 {
     private const string AuthoritativeSchemaSemanticSha256 =
-        "98259F0485986FC474A188479329FBF28C62CA4DD054152CCDF4AA70B1336444";
+        "314B50EA95C0C2B2E52A3A1678A8AA99BA5B70299553A5B1859BE6FF932C2671";
     private const string AuthoritativeCopyRegistrySha256 =
-        "21CB6FFC2902B522378F5D94FEB330C389A8A066CA596C82DF786D988FEEC16F";
+        "210188290237C5FDD73C87D9837BBF994039DA438B6A9A0E52B92F199A207D4B";
 
     private const string ExpectedCoverageTagText = """
         figma.inspection-progress,progress.initial
@@ -76,6 +76,7 @@ public static class ModelInspectionFixtureCoverageValidator
         figma.invalid-expanded,outcome.invalid,stress.maximum-report-rows
         figma.inspection-progress,progress.read-model-configuration.active,stress.maximum-detail-copy
         figma.operational-failure,failure.worker-start-failure,stress.maximum-detail-copy
+        figma.inspection-progress,progress.starting-secure-inspection
         """;
 
     private const string ExpectedDescriptorSemanticHashText = """
@@ -128,6 +129,7 @@ public static class ModelInspectionFixtureCoverageValidator
         57C247CE85EEEF890DC99C4F9D1DEAA78EDB82F1FA294A9F1F94ABC2D4078671
         E60844A51B8E2D90BE243BC48E4912ECA259C7A85D9F763E55724C31194FDF04
         532864901AF3B1D6996AA8802E989E28BFDC01B234D641CEEF14E4199AF31F61
+        2211695E309A7E68E5A33B44547A46D128D89401266C20A51AC0644B621E1F1F
         """;
 
     private static readonly ImmutableArray<string> ManifestFileNames =
@@ -180,7 +182,8 @@ public static class ModelInspectionFixtureCoverageValidator
         "MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json",
         "MI-047-invalid-report-rows-current-maximum-expanded.fixture.json",
         "MI-048-progress-detail-copy-maximum.fixture.json",
-        "MI-049-operational-failure-detail-copy-maximum.fixture.json"
+        "MI-049-operational-failure-detail-copy-maximum.fixture.json",
+        "MI-050-progress-starting-secure-inspection.fixture.json"
     ];
 
     private static readonly ImmutableArray<ImmutableArray<string>>
@@ -431,6 +434,7 @@ public static class ModelInspectionFixtureCoverageValidator
             <= 28 => ModelInspectionFixtureCategory.Progress,
             <= 38 => ModelInspectionFixtureCategory.Lifecycle,
             <= 42 => ModelInspectionFixtureCategory.Failure,
+            50 => ModelInspectionFixtureCategory.Progress,
             _ => ModelInspectionFixtureCategory.Stress
         };
 
@@ -484,7 +488,7 @@ public static class ModelInspectionFixtureCoverageValidator
                 ModelInspectionFixtureInteractionKind.ChooseAnother,
                 ModelInspectionFixtureInteractionKind.Reset
             ],
-            >= 14 and <= 28 or 48 =>
+            >= 14 and <= 28 or 48 or 50 =>
             [
                 ModelInspectionFixtureInteractionKind.Cancel,
                 ModelInspectionFixtureInteractionKind.Reset
@@ -1074,7 +1078,7 @@ public static class ModelInspectionFixtureCoverageValidator
 
         ModelInspectionExpectedFigmaState replayedState = replay.CurrentEffect switch
         {
-            null when fixture.Id.Equals("MI-001", StringComparison.Ordinal) =>
+            null when fixture.Id is "MI-001" or "MI-050" =>
                 ModelInspectionExpectedFigmaState.InspectionProgress,
             { Kind: ModelInspectionFixtureServiceEffectKind.Progress } =>
                 ModelInspectionExpectedFigmaState.InspectionProgress,
@@ -1134,6 +1138,22 @@ public static class ModelInspectionFixtureCoverageValidator
             int.Parse(fixture.Id.AsSpan(3)) - 1];
         if (expectedTags.Contains("progress.initial", StringComparer.Ordinal) &&
             (fixture.Input.Attempts.Count != 0 || replay.CurrentEffect is not null))
+        {
+            throw CoverageFailure("$.fixtures", "coverage.semantic-binding");
+        }
+
+        if (expectedTags.Contains(
+                "progress.starting-secure-inspection",
+                StringComparer.Ordinal) &&
+            (fixture.Input.Attempts.Count != 1 ||
+             replay.ActiveAttempt != 1 ||
+             replay.NextServiceStep != 0 ||
+             replay.Effects.Length != 0 ||
+             replay.CurrentEffect is not null ||
+             fixture.Coverage.Stages.Count != 0 ||
+             fixture.Coverage.StageStatuses.Count != 0 ||
+             fixture.Expected.Content.StartupVisible != true ||
+             fixture.Expected.Content.StartupActive != true))
         {
             throw CoverageFailure("$.fixtures", "coverage.semantic-binding");
         }
@@ -1980,7 +2000,7 @@ public static class ModelInspectionFixtureCoverageValidator
 
         IReadOnlyDictionary<string, string> registry =
             catalogue.Policy.Value.CopyRegistry;
-        if (registry.Count != 106 ||
+        if (registry.Count != 107 ||
             used.Count != registry.Count ||
             used.Any(pair =>
                 !registry.TryGetValue(pair.Key, out string? value) ||
@@ -2029,7 +2049,8 @@ public static class ModelInspectionFixtureCoverageValidator
             expected.Outcome.SupportingText,
             expected.Model.DisplayName,
             expected.Model.DisplayFileName,
-            expected.Content.Heading
+            expected.Content.Heading,
+            expected.Content.StartupStatus
         ];
         return direct.Where(copy => copy is not null).Select(copy => copy!)
             .Concat(expected.Model.Metadata.SelectMany(field =>

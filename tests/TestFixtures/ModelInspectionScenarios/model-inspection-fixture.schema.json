@@ -1172,6 +1172,28 @@
         },
         "disclosureExpanded": {
           "type": "boolean"
+        },
+        "startupStatus": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "startupVisible": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "startupActive": {
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       }
     },

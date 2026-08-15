@@ -28,7 +28,7 @@ namespace GraniteEdgeAI.UnitTests;
 [TestCategory("ModelInspectionFixtureScreenContract")]
 public sealed class ModelInspectionFixtureScreenContractTests
 {
-    private static readonly string[] ExactIds = Enumerable.Range(1, 49)
+    private static readonly string[] ExactIds = Enumerable.Range(1, 50)
         .Select(value => $"MI-{value:000}")
         .ToArray();
 
@@ -2444,6 +2444,7 @@ public sealed class ModelInspectionFixtureScreenContractTests
                         "Cancel inspection");
                 if (targetType == typeof(ModelInspectionExpectedModelBadge))
                     return ModelInspectionExpectedModelBadge.ModelSelected;
+                if (targetType == typeof(bool)) return true;
                 throw new InvalidOperationException(
                     $"No null mutation exists for {targetType.FullName}.");
             }

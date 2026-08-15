@@ -166,9 +166,9 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
     public void StressBatchDescriptorsMatchIndependentPerIdOracle()
     {
         StressBatch batch = LoadStressBatch();
-        Assert.AreEqual(49, batch.Catalogue.Fixtures.Count);
+        Assert.AreEqual(50, batch.Catalogue.Fixtures.Count);
         CollectionAssert.AreEqual(
-            Enumerable.Range(1, 49).Select(value => $"MI-{value:000}").ToArray(),
+            Enumerable.Range(1, 50).Select(value => $"MI-{value:000}").ToArray(),
             batch.Catalogue.Fixtures.Select(fixture => fixture.Id).ToArray());
 
         foreach (StressOracle oracle in Oracles)
@@ -180,10 +180,10 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
     }
 
     [TestMethod]
-    public void CompleteCatalogueStrictLoadsFortyNineInExactFlatDirectory()
+    public void CompleteCatalogueStrictLoadsFiftyInExactFlatDirectory()
     {
         StressBatch batch = LoadStressBatch();
-        Assert.AreEqual(49, batch.Catalogue.Fixtures.Count);
+        Assert.AreEqual(50, batch.Catalogue.Fixtures.Count);
 
         string directory = ScenarioDirectory();
         string[] topLevelFiles = Directory.GetFiles(directory)
@@ -192,7 +192,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             .Select(fileName => fileName!)
             .OrderBy(fileName => fileName, StringComparer.Ordinal)
             .ToArray();
-        Assert.HasCount(52, topLevelFiles);
+        Assert.HasCount(53, topLevelFiles);
         CollectionAssert.AreEqual(
             batch.Policy.Value.Fixtures
                 .Select(entry => entry.FileName)
@@ -204,7 +204,7 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
             topLevelFiles);
 
         Assert.HasCount(0, Directory.GetDirectories(directory));
-        Assert.AreEqual(52,
+        Assert.AreEqual(53,
             Directory.GetFiles(directory, "*", SearchOption.AllDirectories).Length);
 
         string[] fixtureFileNames = topLevelFiles
@@ -212,9 +212,9 @@ public sealed class ModelInspectionFixtureStressBatchContractTests
                 ".fixture.json",
                 StringComparison.Ordinal))
             .ToArray();
-        Assert.HasCount(49, fixtureFileNames);
+        Assert.HasCount(50, fixtureFileNames);
         CollectionAssert.AreEqual(
-            Enumerable.Range(1, 49)
+            Enumerable.Range(1, 50)
                 .Select(value => $"MI-{value:000}")
                 .ToArray(),
             fixtureFileNames.Select(fileName => fileName[..6]).ToArray());

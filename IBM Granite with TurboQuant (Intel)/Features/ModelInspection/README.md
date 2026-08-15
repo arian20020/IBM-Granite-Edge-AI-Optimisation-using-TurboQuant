@@ -197,7 +197,7 @@ or performance.
 For deterministic inspection of the presentation and lifecycle routes, build
 and launch the packaged application as `Debug`/`x64`, then click
 `Fixture gallery` on the onboarding shell. The gallery exposes the exact
-`MI-001` through `MI-049` synthetic catalogue. Its stable filename contract is
+`MI-001` through `MI-050` synthetic catalogue. Its stable filename contract is
 `MI-NNN-<target-condition>[-<variant>].fixture.json`, with lowercase
 hyphenated slugs and an ID prefix that matches the descriptor.
 

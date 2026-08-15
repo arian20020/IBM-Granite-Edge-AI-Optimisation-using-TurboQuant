@@ -323,6 +323,20 @@ public sealed class ModelInspectionFixtureJsonContractTests
             AssertInvalid(FixtureContractDocuments.MutateDescriptor(mutation));
         }
 
+        string explicitNullStartup = FixtureContractDocuments.MutateDescriptor(
+            root =>
+            {
+                JsonObject content = root["expected"]!["content"]!.AsObject();
+                content["startupStatus"] = null;
+                content["startupVisible"] = null;
+                content["startupActive"] = null;
+            });
+        ModelInspectionExpectedContentRegion content = Load(explicitNullStartup)
+            .Fixtures.Single().Expected.Content;
+        Assert.IsNull(content.StartupStatus);
+        Assert.IsNull(content.StartupVisible);
+        Assert.IsNull(content.StartupActive);
+
         Action<JsonObject>[] policyMutations =
         [
             root => root.Remove("schemaVersion"),
@@ -349,7 +363,10 @@ public sealed class ModelInspectionFixtureJsonContractTests
             root => root["expected"]!["content"]!.AsObject()
                 .Remove("disclosureExpanded"),
             root => root["expected"]!["content"]!["disclosureExpanded"] = null,
-            root => root["expected"]!["content"]!["disclosureExpanded"] = "false"
+            root => root["expected"]!["content"]!["disclosureExpanded"] = "false",
+            root => root["expected"]!["content"]!["startupStatus"] = true,
+            root => root["expected"]!["content"]!["startupVisible"] = "true",
+            root => root["expected"]!["content"]!["startupActive"] = 1
         ];
 
         foreach (Action<JsonObject> mutation in mutations)
@@ -387,7 +404,15 @@ public sealed class ModelInspectionFixtureJsonContractTests
                          root["$defs"]!["content"]!["required"]!.AsArray(),
                          "disclosureExpanded"),
                      root => root["$defs"]!["content"]!["properties"]![
-                         "disclosureExpanded"]!["type"] = "string"
+                         "disclosureExpanded"]!["type"] = "string",
+                     root => root["$defs"]!["content"]!["required"]!
+                         .AsArray().Add("startupVisible"),
+                     root => root["$defs"]!["content"]!["properties"]![
+                         "startupStatus"]!["anyOf"] = new JsonArray(),
+                     root => root["$defs"]!["content"]!["properties"]![
+                         "startupVisible"]!["type"] = new JsonArray("boolean"),
+                     root => root["$defs"]!["content"]!["properties"]![
+                         "startupActive"]!["type"] = new JsonArray("null")
                  })
         {
             JsonObject invalid = schema.DeepClone().AsObject();
@@ -720,15 +745,50 @@ public sealed class ModelInspectionFixtureJsonContractTests
     private static void AssertContentDisclosureSchema(JsonObject schema)
     {
         JsonObject content = schema["$defs"]!["content"]!.AsObject();
+        string[] required = content["required"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .ToArray();
         CollectionAssert.Contains(
-            content["required"]!.AsArray()
-                .Select(node => node!.GetValue<string>())
-                .ToArray(),
+            required,
             "disclosureExpanded");
+        foreach (string optionalStartupProperty in new[]
+                 {
+                     "startupStatus",
+                     "startupVisible",
+                     "startupActive"
+                 })
+        {
+            CollectionAssert.DoesNotContain(required, optionalStartupProperty);
+        }
+
+        JsonObject properties = content["properties"]!.AsObject();
         Assert.AreEqual(
             "boolean",
-            content["properties"]!["disclosureExpanded"]!["type"]!
+            properties["disclosureExpanded"]!["type"]!
                 .GetValue<string>());
+        JsonArray startupStatus = properties["startupStatus"]!["anyOf"]!
+            .AsArray();
+        Assert.HasCount(2, startupStatus);
+        Assert.IsTrue(startupStatus.Any(option => string.Equals(
+            option!["$ref"]?.GetValue<string>(),
+            "#/$defs/copy",
+            StringComparison.Ordinal)));
+        Assert.IsTrue(startupStatus.Any(option => string.Equals(
+            option!["type"]?.GetValue<string>(),
+            "null",
+            StringComparison.Ordinal)));
+        foreach (string booleanStartupProperty in new[]
+                 {
+                     "startupVisible",
+                     "startupActive"
+                 })
+        {
+            CollectionAssert.AreEqual(
+                new[] { "boolean", "null" },
+                properties[booleanStartupProperty]!["type"]!.AsArray()
+                    .Select(node => node!.GetValue<string>())
+                    .ToArray());
+        }
     }
 
     private static void AssertPresetOracleSchema(JsonObject schema)

@@ -39,11 +39,17 @@ production code.
 
 [ModelInspectionScenarios](ModelInspectionScenarios/README.md) contains the
 authoritative synthetic catalogue used by the Debug x64 fixture gallery. It is
-the exact contiguous `MI-001` through `MI-049` set. Descriptor filenames follow
+the exact contiguous `MI-001` through `MI-050` set. Descriptor filenames follow
 `MI-NNN-<target-condition>[-<variant>].fixture.json`, where the target and
 optional variant are lowercase hyphenated slugs and the prefix exactly matches
 the descriptor ID. IDs and filenames are stable review contracts, not values
 to renumber or infer from production output.
+
+`MI-050` records the secure-start surface before any worker progress exists: one
+service attempt is active at an unreleased terminal checkpoint, all five stage
+rows remain Waiting, and only the startup status is active. It remains wholly
+synthetic and exercises the same loaded gallery, Cancel, Reset, and retirement
+paths as the rest of the catalogue.
 
 The packaged gallery reads only the allowlisted schema, coverage policy, and
 descriptor names below the fixed

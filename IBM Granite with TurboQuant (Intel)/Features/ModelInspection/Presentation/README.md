@@ -132,7 +132,7 @@ comparison and controlled OS execution remain open.
 ### Fixture preview boundary
 
 The Debug x64 fixture gallery drives these production presentation controls
-with the exact synthetic `MI-001` through `MI-049` catalogue. Declared Cancel,
+with the exact synthetic `MI-001` through `MI-050` catalogue. Declared Cancel,
 Retry, Restart, Choose another, disclosure expand/collapse, and Reset routes
 exercise real controls or commands; unavailable actions are omitted, and
 future report, conversion, and Hardware Fit actions remain disabled with

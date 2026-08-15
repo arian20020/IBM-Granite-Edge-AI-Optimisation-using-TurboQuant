@@ -176,7 +176,7 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
     }
 
     [TestMethod]
-    public void LifecycleBatchLoaderDiagnosticReportsOnlyTheElevenLaterIdsMissing()
+    public void LifecycleBatchLoaderDiagnosticReportsOnlyTheTwelveLaterIdsMissing()
     {
         ModelInspectionFixtureCatalogue catalogue = LoadThroughLifecycleBatch();
         Assert.AreEqual(38, catalogue.Fixtures.Count);
@@ -189,7 +189,7 @@ public sealed class ModelInspectionFixtureLifecycleBatchContractTests
             .Take(38)
             .ToArray();
         CollectionAssert.AreEqual(
-            Enumerable.Range(39, 11).Select(value => $"MI-{value:000}").ToArray(),
+            Enumerable.Range(39, 12).Select(value => $"MI-{value:000}").ToArray(),
             ModelInspectionFixtureCoverageValidator.GetMissingFixtureIds(available)
                 .ToArray());
     }

@@ -88,7 +88,7 @@ public sealed class ModelInspectionFixtureOperationalFailureBatchContractTests
     }
 
     [TestMethod]
-    public void OperationalFailureBatchLoaderValidatesFortyTwoAndReportsOnlySevenLaterIdsMissing()
+    public void OperationalFailureBatchLoaderValidatesFortyTwoAndReportsOnlyEightLaterIdsMissing()
     {
         FailureBatch batch = LoadFailureBatch();
         Assert.AreEqual(42, batch.Catalogue.Fixtures.Count);
@@ -104,7 +104,7 @@ public sealed class ModelInspectionFixtureOperationalFailureBatchContractTests
                 .ToArray(),
             fixtureFiles.Select(fileName => fileName[..6]).ToArray());
         CollectionAssert.AreEqual(
-            Enumerable.Range(43, 7)
+            Enumerable.Range(43, 8)
                 .Select(value => $"MI-{value:000}")
                 .ToArray(),
             ModelInspectionFixtureCoverageValidator

@@ -52,8 +52,28 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             attemptGeneration = viewModel?.Snapshot.RenderKey.AttemptGeneration ?? 0;
             InspectionContentCard content = ContentCard;
             InspectionOutcomeCard outcome = OutcomeCard;
-            progressAnnouncementBaseline =
-                content.LiveRegionAnnouncementHistory.Count;
+            IReadOnlyList<string> progressHistory =
+                content.LiveRegionAnnouncementHistory;
+            ModelInspectionViewSnapshot? snapshot = viewModel?.Snapshot;
+            InspectionStartupPresentation? startup =
+                page.CurrentPresentation?.ContentCard.Startup;
+            bool includeCurrentStartupAnnouncement =
+                snapshot is
+                {
+                    IsRunActive: true,
+                    Progress: null,
+                    TerminalResult: null
+                } &&
+                snapshot.RenderKey.AttemptGeneration == 1 &&
+                startup?.Visibility == Visibility.Visible &&
+                progressHistory.Count > 0 &&
+                string.Equals(
+                    progressHistory[^1],
+                    startup.AutomationName,
+                    StringComparison.Ordinal);
+            progressAnnouncementBaseline = includeCurrentStartupAnnouncement
+                ? progressHistory.Count - 1
+                : progressHistory.Count;
             outcomeAnnouncementBaseline =
                 outcome.LiveRegionAnnouncementHistory.Count;
             if (viewModel is not null)
@@ -638,6 +658,11 @@ internal sealed class ModelInspectionFixtureScreenObserver :
             bool visible = IsVisible(Named<Grid>(card, "LayoutRoot"));
             string mode = ObserveContentMode(card, visible);
             int rowCount = visible ? ContentRowCount(card, mode) : 0;
+            Grid startupRow = Named<Grid>(card, "StartupStatusRow");
+            bool startupVisible = visible && IsVisible(startupRow);
+            InspectionStatusGlyph startupGlyph = Named<InspectionStatusGlyph>(
+                card,
+                "StartupActiveIndicatorHost");
             return new ModelInspectionObservedContent
             {
                 Visible = visible,
@@ -645,6 +670,18 @@ internal sealed class ModelInspectionFixtureScreenObserver :
                 Heading = visible
                     ? ReadContentHeading(card, mode)
                     : null,
+                StartupStatus = startupVisible
+                    ? Descendants<TextBlock>(startupRow).Single(text =>
+                        Grid.GetColumn(text) == 1 &&
+                        ReferenceEquals(
+                            VisualTreeHelper.GetParent(text),
+                            startupRow)).Text
+                    : null,
+                StartupVisible = startupVisible,
+                StartupActive = startupVisible &&
+                    IsVisible(startupGlyph) &&
+                    ObserveStatusGlyphKind(startupGlyph) ==
+                        InspectionStatusGlyphKind.Active,
                 Rows = Enumerable.Range(0, rowCount)
                     .Select(index => ObserveContentRow(card, mode, index))
                     .ToArray(),

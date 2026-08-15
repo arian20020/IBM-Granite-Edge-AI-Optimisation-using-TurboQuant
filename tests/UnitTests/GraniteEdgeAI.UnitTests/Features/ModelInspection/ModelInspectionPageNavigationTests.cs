@@ -1727,7 +1727,17 @@ public sealed class ModelInspectionPageNavigationTests
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         page.Loaded += (_, _) => loaded.TrySetResult(true);
-        var window = new Window { Content = page };
+        var outsidePageFocus = new Button
+        {
+            Content = "Outside page focus",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Visibility = Visibility.Collapsed
+        };
+        var root = new Grid();
+        root.Children.Add(page);
+        root.Children.Add(outsidePageFocus);
+        var window = new Window { Content = root };
 
         try
         {
@@ -1789,10 +1799,43 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.AreEqual(Visibility.Visible, cancel.Visibility);
             Assert.IsTrue(cancel.IsEnabled);
             Assert.IsGreaterThanOrEqualTo(44d, cancel.MinHeight);
-            Assert.IsTrue(cancel.Focus(FocusState.Programmatic));
+
+            Assert.IsTrue(pageScroll.Focus(FocusState.Programmatic));
             page.ViewModel.CancelCommand.Execute(null);
             Assert.IsTrue(
                 focusRecoveryCall.CancellationToken.IsCancellationRequested);
+            Assert.IsFalse(cancel.IsEnabled);
+            dispatcher.RunNext();
+            bool disabledCancelPreservedUnrelatedPageFocus = ReferenceEquals(
+                pageScroll,
+                FocusManager.GetFocusedElement(page.XamlRoot));
+            focusRecoveryCall.Complete(
+                ModelInspectionExecutionResult.Cancelled(cooperative: true));
+            await DrainDispatcherAsync(page);
+            dispatcher.RunAll();
+
+            ControlledCall ownedCancelFocusRecoveryCall = service.QueueCall();
+            Assert.AreEqual(Visibility.Visible, retry.Visibility);
+            Assert.IsTrue(retry.IsEnabled);
+            page.ViewModel.RetryCommand.Execute(null);
+            dispatcher.RunNext();
+            AssertStartupPresentation(
+                AssertCompleteSnapshotApplied(page).ContentCard);
+            dispatcher.RunNext();
+            Assert.AreEqual(4, service.CallCount);
+            Assert.AreEqual(Visibility.Visible, cancel.Visibility);
+            Assert.IsTrue(cancel.IsEnabled);
+            Assert.IsTrue(cancel.Focus(FocusState.Programmatic));
+            page.ViewModel.CancelCommand.Execute(null);
+            Assert.IsTrue(
+                ownedCancelFocusRecoveryCall.CancellationToken
+                    .IsCancellationRequested);
+            Assert.IsFalse(cancel.IsEnabled);
+            outsidePageFocus.Visibility = Visibility.Visible;
+            Assert.IsTrue(outsidePageFocus.Focus(FocusState.Programmatic));
+            Assert.AreSame(
+                outsidePageFocus,
+                FocusManager.GetFocusedElement(page.XamlRoot));
             dispatcher.RunNext();
 
             bool disabledCancelRecoveredToHeading = ReferenceEquals(
@@ -1805,7 +1848,7 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.AreEqual(
                 "Cancel model inspection",
                 AutomationProperties.GetName(cancel));
-            focusRecoveryCall.Report(CreateProgress(
+            ownedCancelFocusRecoveryCall.Report(CreateProgress(
                 ModelInspectionStage.CheckModelPackage,
                 completedStageCount: 0));
             dispatcher.RunAll();
@@ -1817,7 +1860,7 @@ public sealed class ModelInspectionPageNavigationTests
             bool disabledCancelPreservedEffectiveHeading = ReferenceEquals(
                 pageHeading,
                 FocusManager.GetFocusedElement(page.XamlRoot));
-            focusRecoveryCall.Complete(
+            ownedCancelFocusRecoveryCall.Complete(
                 ModelInspectionExecutionResult.Cancelled(cooperative: true));
             await page.CurrentInspectionTask!.WaitAsync(
                 TimeSpan.FromSeconds(10));
@@ -1827,6 +1870,9 @@ public sealed class ModelInspectionPageNavigationTests
             Assert.IsTrue(
                 collapsedRetryRecoveredToHeading,
                 $"Startup must recover focus from the collapsed retry action to the page heading. Actual: {focusedAfterRetry?.GetType().Name ?? "null"}.");
+            Assert.IsTrue(
+                disabledCancelPreservedUnrelatedPageFocus,
+                "Cancellation must preserve unrelated effective in-page focus when Cancel did not own focus.");
             Assert.IsTrue(
                 disabledCancelRecoveredToHeading,
                 "Startup must recover focus from the disabled cancel action to the page heading.");

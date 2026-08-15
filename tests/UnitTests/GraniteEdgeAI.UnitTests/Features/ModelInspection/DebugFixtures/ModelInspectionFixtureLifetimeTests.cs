@@ -89,7 +89,7 @@ public sealed class ModelInspectionFixtureLifetimeTests
     public async Task StateRoutes_CancelRetryRestartKeepTheSameLifetime()
     {
         foreach ((string Fixture, string Action) route in new[]
-                 { ("MI-014", "cancel"), ("MI-032", "retry-attempt"), ("MI-031", "restart-attempt") })
+                 { ("MI-050", "cancel"), ("MI-032", "retry-attempt"), ("MI-031", "restart-attempt") })
         {
             ModelInspectionFixtureGalleryPage gallery =
                 ModelInspectionFixtureGalleryTestHarness.CreateGallery();
@@ -163,6 +163,10 @@ public sealed class ModelInspectionFixtureLifetimeTests
                     Assert.IsTrue(
                         page.ViewModel.Snapshot.IsCancellationRequested,
                         route.Action);
+                    Assert.IsNull(page.ViewModel.Snapshot.Progress, route.Action);
+                    Assert.IsNull(
+                        page.ViewModel.Snapshot.TerminalResult,
+                        route.Action);
                 }
                 else
                 {
@@ -195,22 +199,31 @@ public sealed class ModelInspectionFixtureLifetimeTests
     [UITestMethod]
     public async Task ReplacementRoutes_ResetAndSwitchRetireOnlyTheOldLifetime()
     {
-        foreach ((string Route, string Target) route in new[]
-                 { ("reset", "MI-002"), ("fixture-switch", "MI-003") })
+        foreach ((string Source, string Route, string Target) route in new[]
+                 {
+                     ("MI-050", "reset", "MI-050"),
+                     ("MI-002", "fixture-switch", "MI-003")
+                 })
         {
             ModelInspectionFixtureGalleryPage gallery = ModelInspectionFixtureGalleryTestHarness.CreateGallery();
             Microsoft.UI.Xaml.Window window = await ModelInspectionFixtureGalleryTestHarness.ShowAndLoadWindowAsync(gallery);
             try
             {
-                await gallery.SelectFixtureThroughRealListForTestingAsync("MI-002");
+                await gallery.SelectFixtureThroughRealListForTestingAsync(
+                    route.Source);
                 ModelInspectionFixtureHostPage old = gallery.ActiveHost!;
                 ModelInspectionFixtureSession oldSession = old.Session;
                 ModelInspectionFixtureSessionEvidence oldEvidence =
                     oldSession.Evidence;
+                int pendingCallsBefore = oldSession.Service.PendingCallCount;
                 await ModelInspectionFixtureLifetimeTestHarness.DriveReplacementRouteAsync(
                     gallery, route.Route);
                 await WaitForPendingZeroAsync(oldEvidence);
                 AssertRetiredExactlyOnce(oldEvidence, oldSession, route.Route);
+                Assert.AreEqual(
+                    pendingCallsBefore,
+                    oldEvidence.RetiredPendingCallCount,
+                    route.Route);
                 Assert.AreNotSame(old, gallery.ActiveHost, route.Route);
                 Assert.AreEqual(route.Target, gallery.ViewModel.SelectedItem?.Id,
                     route.Route);
@@ -225,25 +238,69 @@ public sealed class ModelInspectionFixtureLifetimeTests
                 ModelInspectionObservedScreen observed =
                     await ObserveCumulativeAsync(gallery.ActiveHost!
                         .ModelInspectionPage!);
+                ValidatedModelInspectionFixture targetFixture =
+                    ModelInspectionFixtureTestCatalogue.Get(route.Target);
+                string[] expectedAnnouncements = targetFixture.Expected.Figma
+                    .State == ModelInspectionExpectedFigmaState.InspectionProgress
+                        ? targetFixture.Expected.Announcements.Items
+                            .Select(item => item.DefaultText)
+                            .ToArray()
+                        :
+                        [
+                            "Model inspection is starting.",
+                            targetFixture.Expected.Announcements.Items
+                                .Single().DefaultText
+                        ];
                 CollectionAssert.AreEqual(
-                    new[]
-                    {
-                        "Model inspection is starting.",
-                        ModelInspectionFixtureTestCatalogue.Get(route.Target)
-                            .Expected.Announcements.Items.Single().DefaultText
-                    },
+                    expectedAnnouncements,
                     observed.Announcements.Items.ToArray(),
                     route.Route);
                 ModelInspectionFixtureGalleryTestHarness.AssertExactScreen(
                     gallery,
-                    ModelInspectionFixtureTestCatalogue.Get(route.Target),
+                    targetFixture,
                     observed,
                     route.Route,
                     journeyRelativeAnnouncements: true);
-                await WaitForPendingZeroAsync(replacementSession.Evidence);
-                AssertAllPendingZero(
-                    replacementSession.Evidence,
-                    replacementSession.Service);
+                if (targetFixture.Expected.Figma.State ==
+                    ModelInspectionExpectedFigmaState.InspectionProgress)
+                {
+                    Assert.AreEqual(
+                        1,
+                        replacementSession.Service.PendingCallCount,
+                        route.Route);
+                    Assert.AreEqual(
+                        1,
+                        replacementSession.Evidence
+                            .ActiveCancellationRegistrationCount,
+                        route.Route);
+                    Assert.AreEqual(
+                        0,
+                        replacementSession.Evidence
+                            .ReleasedServiceCheckpoints.Count,
+                        route.Route);
+                    Assert.AreEqual(
+                        0,
+                        replacementSession.Evidence.TerminalCompletionCount,
+                        route.Route);
+                    Assert.IsNull(
+                        gallery.ActiveHost!.ModelInspectionPage!.ViewModel!
+                            .Snapshot.Progress,
+                        route.Route);
+                    Assert.IsNull(
+                        gallery.ActiveHost.ModelInspectionPage.ViewModel
+                            .Snapshot.TerminalResult,
+                        route.Route);
+                    ModelInspectionFixtureGalleryTestHarness.AssertUiPendingZero(
+                        replacementSession,
+                        route.Route);
+                }
+                else
+                {
+                    await WaitForPendingZeroAsync(replacementSession.Evidence);
+                    AssertAllPendingZero(
+                        replacementSession.Evidence,
+                        replacementSession.Service);
+                }
             }
             finally { gallery.CloseForTesting(); window.Content = null; window.Close(); }
         }
@@ -319,7 +376,7 @@ public sealed class ModelInspectionFixtureLifetimeTests
             Assert.IsNull(replacement.ActiveHost);
             Assert.IsNull(replacement.ViewModel.SelectedItem);
             Assert.AreEqual(
-                "Catalogue validated: 49 fixtures.",
+                "Catalogue validated: 50 fixtures.",
                 replacement.ViewModel.ValidationStatus);
         }
         finally

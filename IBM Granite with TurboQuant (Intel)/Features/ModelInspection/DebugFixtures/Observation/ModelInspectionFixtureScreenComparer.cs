@@ -238,6 +238,18 @@ internal sealed class ModelInspectionFixtureScreenComparer :
             expected.Mode.ToString(),
             observed.Mode);
         differences.Copy("$.Content.Heading", expected.Heading, observed.Heading);
+        differences.Copy(
+            "$.Content.StartupStatus",
+            expected.StartupStatus,
+            observed.StartupStatus);
+        differences.Equal(
+            "$.Content.StartupVisible",
+            expected.StartupVisible ?? false,
+            observed.StartupVisible);
+        differences.Equal(
+            "$.Content.StartupActive",
+            expected.StartupActive ?? false,
+            observed.StartupActive);
         IReadOnlyList<ModelInspectionExpectedContentRow>? rows = expected.Rows;
         differences.Count("$.Content.Rows", rows, observed.Rows);
         if (rows is not null)

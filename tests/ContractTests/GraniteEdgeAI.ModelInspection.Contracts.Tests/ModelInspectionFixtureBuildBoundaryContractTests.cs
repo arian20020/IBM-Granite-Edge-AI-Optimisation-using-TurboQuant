@@ -564,7 +564,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                 projectReference: 1,
                 compile: compileCount,
                 page: pageCount,
-                content: 51),
+                content: 52),
             ["debugEvaluatedIdentityCount"] = debugIdentities.Length,
             ["debugExactIdentitiesSha256"] = HashCanonicalLines(debugIdentities),
             ["releaseEvaluatedCounts"] = EvaluatedCounts(
@@ -746,7 +746,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
                 expectedProjectReference: 1,
                 expectedCompile: compileCount,
                 expectedPage: pageCount,
-                expectedContent: 51,
+                expectedContent: 52,
                 "debugEvaluatedCounts",
                 errors);
             int? identities = TryGetInt(evidence, "debugEvaluatedIdentityCount", errors);
@@ -1317,9 +1317,9 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         ICollection<string> errors)
     {
         string[] scenarioFiles = ExpectedScenarioFileNames();
-        if (scenarioFiles.Length != 51)
+        if (scenarioFiles.Length != 52)
         {
-            errors.Add($"Expected 51 scenario JSON files, found {scenarioFiles.Length}.");
+            errors.Add($"Expected 52 scenario JSON files, found {scenarioFiles.Length}.");
         }
 
         var actual = new List<string>();
@@ -1368,7 +1368,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
 
         if (!scenarioFiles.SequenceEqual(actual.OrderBy(file => file, StringComparer.Ordinal)))
         {
-            errors.Add("Scenario Content closure is not the exact 51-file set.");
+            errors.Add("Scenario Content closure is not the exact 52-file set.");
         }
     }
 
@@ -1787,7 +1787,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
             .Select(entry => entry.FileName)
             .OrderBy(fileName => fileName, StringComparer.Ordinal)
             .ToArray();
-        Assert.AreEqual(49, descriptors.Length, "Validated policy descriptor count.");
+        Assert.AreEqual(50, descriptors.Length, "Validated policy descriptor count.");
         Assert.AreEqual(
             descriptors.Length,
             descriptors.Distinct(StringComparer.Ordinal).Count(),
@@ -1808,7 +1808,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         CollectionAssert.AreEqual(
             expected,
             physical,
-            "Physical scenario JSON closure must be policy 49 plus schema and policy.");
+            "Physical scenario JSON closure must be policy 50 plus schema and policy.");
         return expected;
     }
 

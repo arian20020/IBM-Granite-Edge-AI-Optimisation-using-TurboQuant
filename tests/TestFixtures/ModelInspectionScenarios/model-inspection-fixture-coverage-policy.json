@@ -1016,6 +1016,25 @@
         "P01",
         "P08"
       ]
+    },
+    {
+      "id": "MI-050",
+      "fileName": "MI-050-progress-starting-secure-inspection.fixture.json",
+      "targetCondition": "progress-starting-secure-inspection",
+      "variant": null,
+      "pairedWithId": null,
+      "canonicalFigmaState": "inspectionProgress",
+      "requiredCoverageTags": [
+        "figma.inspection-progress",
+        "progress.starting-secure-inspection"
+      ],
+      "requiredInteractions": [
+        "cancel",
+        "reset"
+      ],
+      "requiredPresets": [
+        "P01"
+      ]
     }
   ],
   "presets": [
@@ -1208,6 +1227,7 @@
     "fixture.progress.detail.maximum": "Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validation. Inspection progress detail remains bounded for deterministic maximum-copy validati",
     "fixture.progress.read-configuration.detail": "Reading model configuration.",
     "fixture.progress.read-configuration.label": "Read model configuration",
+    "fixture.progress.starting": "Starting secure inspection…",
     "fixture.progress.validate-structure.detail": "Validating model structure.",
     "fixture.progress.validate-structure.label": "Validate model structure",
     "fixture.progress.validate-tokenizer.detail": "Validating tokenizer and chat setup.",

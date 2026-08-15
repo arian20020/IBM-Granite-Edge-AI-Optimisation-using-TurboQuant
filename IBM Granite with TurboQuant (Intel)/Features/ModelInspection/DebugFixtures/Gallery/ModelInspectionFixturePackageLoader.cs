@@ -334,7 +334,8 @@ internal sealed class ModelInspectionFixturePackageLoader
         "MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json",
         "MI-047-invalid-report-rows-current-maximum-expanded.fixture.json",
         "MI-048-progress-detail-copy-maximum.fixture.json",
-        "MI-049-operational-failure-detail-copy-maximum.fixture.json");
+        "MI-049-operational-failure-detail-copy-maximum.fixture.json",
+        "MI-050-progress-starting-secure-inspection.fixture.json");
 
     private static readonly ImmutableArray<string> AllFileNamesValue =
         [SchemaFileName, PolicyFileName, .. DescriptorFileNamesValue];

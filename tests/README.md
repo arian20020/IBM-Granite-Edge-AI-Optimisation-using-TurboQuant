@@ -71,7 +71,7 @@ Choose another, disclosure expand/collapse, Reset fixture, fixture switching,
 and Close actions. Future report, conversion, and Hardware Fit controls remain
 disabled with `Coming later`; the gallery does not dispatch them.
 
-The authoritative catalogue is the exact `MI-001` through `MI-049` descriptor
+The authoritative catalogue is the exact `MI-001` through `MI-050` descriptor
 set under
 [ModelInspectionScenarios](TestFixtures/ModelInspectionScenarios/README.md).
 Every filename is

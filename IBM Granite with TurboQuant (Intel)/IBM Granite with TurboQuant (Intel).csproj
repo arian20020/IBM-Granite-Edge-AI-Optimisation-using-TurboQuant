@@ -358,6 +358,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="..\tests\TestFixtures\ModelInspectionScenarios\MI-050-progress-starting-secure-inspection.fixture.json">
+      <Link>TestFixtures\ModelInspectionScenarios\MI-050-progress-starting-secure-inspection.fixture.json</Link>
+      <TargetPath>Fixtures\MI-050-progress-starting-secure-inspection.fixture.json</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="..\tests\TestFixtures\ModelInspectionScenarios\model-inspection-fixture-coverage-policy.json">
       <Link>TestFixtures\ModelInspectionScenarios\model-inspection-fixture-coverage-policy.json</Link>
       <TargetPath>Fixtures\model-inspection-fixture-coverage-policy.json</TargetPath>

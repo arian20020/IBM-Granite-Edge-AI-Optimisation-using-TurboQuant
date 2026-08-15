@@ -320,7 +320,7 @@ protocol design and compatibility assessment.
 ## Debug fixture-gallery evidence boundary
 
 The packaged Debug x64 gallery is a deterministic verification aid for the
-exact synthetic `MI-001` through `MI-049` catalogue. The
+exact synthetic `MI-001` through `MI-050` catalogue. The
 [generated catalogue](../evidence/testing/Model-Inspection-Fixture-Catalog.md)
 is the authoritative ID, filename, target, interaction, preset, provenance,
 and external-evidence inventory. Filenames follow

@@ -231,7 +231,7 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
             "The workflow guard accepted a categorized class outside the closed nine-class set.");
 
         string packageSetMutation = project.Replace(
-            "MI-049-operational-failure-detail-copy-maximum.fixture.json",
+            "MI-050-progress-starting-secure-inspection.fixture.json",
             "MI-999-mutated-package-set.fixture.json",
             StringComparison.Ordinal);
         Assert.IsNotEmpty(
@@ -624,10 +624,10 @@ public sealed class ModelInspectionFixtureWorkflowContractTests
             .Append("model-inspection-fixture.schema.json")
             .Order(StringComparer.Ordinal)
             .ToArray();
-        if (physicalFixtures.Length != 49 ||
+        if (physicalFixtures.Length != 50 ||
             !packagedNames.SequenceEqual(expectedPackageNames, StringComparer.Ordinal))
         {
-            errors.Add("The Debug package must contain exactly schema, policy, and the 49 physical fixture descriptors.");
+            errors.Add("The Debug package must contain exactly schema, policy, and the 50 physical fixture descriptors.");
         }
     }
 

@@ -136,7 +136,10 @@ public sealed record ModelInspectionExpectedContentRegion(
     ModelInspectionExpectedContentMode Mode,
     ModelInspectionExpectedCopy? Heading,
     IReadOnlyList<ModelInspectionExpectedContentRow> Rows,
-    bool DisclosureExpanded);
+    bool DisclosureExpanded,
+    ModelInspectionExpectedCopy? StartupStatus = null,
+    bool? StartupVisible = null,
+    bool? StartupActive = null);
 
 public sealed record ModelInspectionExpectedContentRow(
     string Id,

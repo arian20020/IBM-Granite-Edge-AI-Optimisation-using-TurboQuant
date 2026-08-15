@@ -61,7 +61,8 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
         "MI-046-ready-with-warnings-finding-rows-current-maximum-expanded.fixture.json",
         "MI-047-invalid-report-rows-current-maximum-expanded.fixture.json",
         "MI-048-progress-detail-copy-maximum.fixture.json",
-        "MI-049-operational-failure-detail-copy-maximum.fixture.json"
+        "MI-049-operational-failure-detail-copy-maximum.fixture.json",
+        "MI-050-progress-starting-secure-inspection.fixture.json"
     ];
 
     private static readonly string Root = FindRepositoryRoot();
@@ -193,7 +194,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             "ModelInspectionScenarios");
         Assert.IsTrue(
             Directory.Exists(directory),
-            "The authoritative policy and 49 fixture descriptors are absent.");
+            "The authoritative policy and 50 fixture descriptors are absent.");
         Assert.IsTrue(File.Exists(Path.Combine(
             directory,
             "model-inspection-fixture.schema.json")));
@@ -215,7 +216,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
         string[] files = Directory.GetFiles(ScenarioDirectory(), "*.json")
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
-        Assert.HasCount(51, files);
+        Assert.HasCount(52, files);
         var strictUtf8 = new UTF8Encoding(false, true);
         foreach (string file in files)
         {
@@ -333,6 +334,21 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
     public void AuthoritativeSchemaIsStrictAtEveryNestedBoundary()
     {
         MutableCatalogueDocuments documents = ReadDocuments();
+        JsonObject contentDefinition = documents.Schema["$defs"]!["content"]!
+            .AsObject();
+        string[] contentRequired = contentDefinition["required"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .ToArray();
+        foreach (string optional in new[]
+                 {
+                     "startupStatus", "startupVisible", "startupActive"
+                 })
+        {
+            CollectionAssert.DoesNotContain(contentRequired, optional);
+            Assert.IsTrue(contentDefinition["properties"]!.AsObject()
+                .ContainsKey(optional));
+        }
+
         VerifiedModelInspectionFixtureSchema schema =
             ModelInspectionFixtureCatalogue.VerifySchema(documents.SchemaSource());
 
@@ -799,6 +815,61 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             step.Effect.Progress?.Stage ==
                 ModelInspectionFixtureStage.ReadModelConfiguration));
         Assert.AreEqual(2, fractional.Expected.Announcements.Count);
+
+        ModelInspectionFixtureCatalogue completeCatalogue = LoadCatalogue();
+        ValidatedModelInspectionFixture startup = Fixture(
+            completeCatalogue,
+            "MI-050");
+        Assert.AreEqual(ModelInspectionFixtureCategory.Progress, startup.Category);
+        Assert.HasCount(0, startup.Coverage.Stages);
+        Assert.HasCount(0, startup.Coverage.StageStatuses);
+        Assert.HasCount(1, startup.Input.Attempts);
+        Assert.HasCount(1, startup.Input.Attempts[0].ServiceSteps);
+        Assert.AreEqual("terminal",
+            startup.Input.Attempts[0].ServiceSteps[0].Trigger.Checkpoint);
+        Assert.AreEqual(ModelInspectionFixtureServiceEffectKind.Completed,
+            startup.Input.Attempts[0].ServiceSteps[0].Effect.Kind);
+        Assert.HasCount(1, startup.Input.SetupSteps);
+        Assert.AreEqual(ModelInspectionFixtureSetupStepKind.Observe,
+            startup.Input.SetupSteps[0].Kind);
+        Assert.AreEqual("Starting secure inspection…",
+            startup.Expected.Content.StartupStatus?.DefaultText);
+        Assert.AreEqual(true, startup.Expected.Content.StartupVisible);
+        Assert.AreEqual(true, startup.Expected.Content.StartupActive);
+        Assert.IsTrue(startup.Expected.Content.Rows.All(row =>
+            row.Status == ModelInspectionExpectedRowStatus.Waiting));
+        Assert.AreEqual(ModelInspectionExpectedFooterStatus.InProgress,
+            startup.Expected.Footer.Status);
+        Assert.AreEqual("page-heading", startup.Expected.Focus.Target);
+        Assert.AreEqual(1, startup.Expected.Announcements.Count);
+        Assert.IsTrue(startup.Expected.Actions.Items.Single(action =>
+            action.Id == "cancel").Enabled);
+
+        foreach (Action<JsonObject> mutation in new Action<JsonObject>[]
+                 {
+                     root => root["expected"]!["figma"]!["state"] =
+                         "readyCollapsed",
+                     root => root["input"]!["attempts"] = new JsonArray(),
+                     root => root["expected"]!["content"]!["rows"]![0]![
+                         "status"] = "active",
+                     root => root["expected"]!["content"]!["rows"]![0]![
+                         "status"] = "passed",
+                     root => root["input"]!["setupSteps"]!.AsArray().Insert(
+                         0,
+                         new JsonObject
+                         {
+                             ["kind"] = "release-service-checkpoint",
+                             ["attempt"] = 1,
+                             ["checkpoint"] = "terminal",
+                             ["interactionId"] = null
+                         })
+                 })
+        {
+            MutableCatalogueDocuments mutated = ReadDocuments();
+            mutation(Descriptor(mutated, "MI-050").Document);
+            Assert.ThrowsExactly<ModelInspectionFixtureValidationException>(
+                () => LoadCatalogue(mutated));
+        }
     }
 
     [TestMethod]
@@ -811,7 +882,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
         Assert.AreSame(catalogue, validated.Catalogue);
 
         CollectionAssert.AreEqual(
-            Enumerable.Range(1, 49).Select(value => $"MI-{value:000}").ToArray(),
+            Enumerable.Range(1, 50).Select(value => $"MI-{value:000}").ToArray(),
             catalogue.Fixtures.Select(fixture => fixture.Id).ToArray());
         CollectionAssert.AreEqual(
             ExpectedFixtureFileNames,
@@ -1356,7 +1427,7 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             }
         }
 
-        Assert.AreEqual(57, expectationCount);
+        Assert.AreEqual(58, expectationCount);
     }
 
     [TestMethod]
@@ -1455,9 +1526,10 @@ public sealed partial class ModelInspectionFixtureCatalogueContractTests
             (6, 6), (5, 5), (2, 2), (3, 3), (4, 4), (5, 5), (3, 3),
             (3, 3), (3, 3), (2, 2), (2, 2), (2, 2), (2, 2), (2, 2),
             (2, 2), (1, 1), (1, 1), (1, 1), (1, 1), (1, 1), (1, 1),
-            (1, 1), (1, 1), (2, 2), (7, 8), (2, 2), (3, 3), (1, 1)
+            (1, 1), (1, 1), (2, 2), (7, 8), (2, 2), (3, 3), (1, 1),
+            (0, 0)
         ];
-        Assert.HasCount(49, p01);
+        Assert.HasCount(50, p01);
         MutableCatalogueDocuments documents = ReadDocuments();
         for (int index = 0; index < p01.Length; index++)
         {

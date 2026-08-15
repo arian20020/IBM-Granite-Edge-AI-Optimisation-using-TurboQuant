@@ -120,6 +120,9 @@ internal sealed record ModelInspectionObservedContent
     internal bool Visible { get; init; }
     internal string Mode { get; init; } = string.Empty;
     internal string? Heading { get; init; }
+    internal string? StartupStatus { get; init; }
+    internal bool StartupVisible { get; init; }
+    internal bool StartupActive { get; init; }
     internal IReadOnlyList<ModelInspectionObservedContentRow> Rows
         { get; init; } = Array.Empty<ModelInspectionObservedContentRow>();
     internal bool DisclosureExpanded { get; init; }
