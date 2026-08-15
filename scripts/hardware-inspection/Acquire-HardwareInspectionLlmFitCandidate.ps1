@@ -112,11 +112,23 @@ function Remove-OwnedOsTempDirectory {
 }
 
 function Invoke-OwnedTempCleanup {
-    param([Parameter(Mandatory = $true)][AllowNull()][string[]] $Paths)
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [object[]] $Paths
+    )
 
     $cleanupErrors = New-Object System.Collections.Generic.List[System.Exception]
     foreach ($path in $Paths) {
-        if ($null -eq $path) {
+        if ($null -eq $path -or [string]::IsNullOrWhiteSpace([string]$path)) {
+            continue
+        }
+
+        if ($path -isnot [string]) {
+            $cleanupErrors.Add(
+                (New-Object System.InvalidOperationException(
+                    'An owned temporary cleanup path has an invalid type.')))
             continue
         }
 
@@ -133,6 +145,71 @@ function Invoke-OwnedTempCleanup {
             'One or more owned temporary directories could not be cleaned.',
             $cleanupErrors.ToArray()))
     }
+}
+
+function Assert-NoJsonComments {
+    param([Parameter(Mandatory = $true)][string] $Json)
+
+    $insideString = $false
+    $escaped = $false
+    for ($index = 0; $index -lt $Json.Length; $index++) {
+        $character = $Json[$index]
+        if ($insideString) {
+            if ($escaped) {
+                $escaped = $false
+            }
+            elseif ($character -eq '\') {
+                $escaped = $true
+            }
+            elseif ($character -eq '"') {
+                $insideString = $false
+            }
+
+            continue
+        }
+
+        if ($character -eq '"') {
+            $insideString = $true
+            continue
+        }
+
+        if ($character -eq '/' -and $index + 1 -lt $Json.Length -and
+            ($Json[$index + 1] -eq '/' -or $Json[$index + 1] -eq '*')) {
+            throw 'JSON comments are not permitted.'
+        }
+    }
+}
+
+function Test-JsonUtcTimestampValue {
+    param(
+        [Parameter(Mandatory = $true)][AllowNull()] $Value,
+        [Parameter(Mandatory = $true)][string] $TimestampText
+    )
+
+    if ($TimestampText -cnotmatch '(?:Z|\+00:00)$') {
+        return $false
+    }
+
+    $timestamp = [System.DateTimeOffset]::MinValue
+    if (-not [System.DateTimeOffset]::TryParseExact(
+            $TimestampText,
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::None,
+            [ref]$timestamp) -or $timestamp.Offset -ne [System.TimeSpan]::Zero) {
+        return $false
+    }
+
+    if ($Value -is [string]) {
+        return [string]::Equals($Value, $TimestampText, [System.StringComparison]::Ordinal)
+    }
+
+    if ($Value -is [System.DateTime]) {
+        return $Value.Kind -eq [System.DateTimeKind]::Utc -and
+            $Value.Ticks -eq $timestamp.UtcDateTime.Ticks
+    }
+
+    return $false
 }
 
 function Assert-NoExistingReparseSegments {
@@ -156,14 +233,33 @@ function Assert-NoExistingReparseSegments {
 }
 
 function Assert-PinnedManifest {
-    param([Parameter(Mandatory = $true)] $Manifest)
+    param(
+        [Parameter(Mandatory = $true)] $Manifest,
+        [Parameter(Mandatory = $true)][string] $ManifestJson
+    )
+
+    Assert-NoJsonComments -Json $ManifestJson
+    $publishedPropertyPattern = '(?<!\\)"publishedAtUtc"\s*:'
+    $publishedExactPattern = '(?<!\\)"publishedAtUtc"\s*:\s*"2026-08-09T17:07:55Z"'
+    $publishedPropertyCount = ([regex]::Matches(
+            $ManifestJson,
+            $publishedPropertyPattern,
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
+    $publishedExactCount = ([regex]::Matches($ManifestJson, $publishedExactPattern)).Count
+    if ($publishedPropertyCount -ne 1 -or
+        $publishedExactCount -ne 1 -or
+        [regex]::IsMatch($ManifestJson, '\\u[0-9A-Fa-f]{4}') -or
+        -not (Test-JsonUtcTimestampValue `
+            -Value $Manifest.publishedAtUtc `
+            -TimestampText '2026-08-09T17:07:55Z')) {
+        throw 'The committed manifest publication timestamp does not match the exact source contract.'
+    }
 
     if ($Manifest.schemaVersion -cne '1.0' -or
         $Manifest.candidateId -cne 'llmfit-v1.1.9-win-x64' -or
         $Manifest.version -cne '1.1.9' -or
         $Manifest.releaseTag -cne 'v1.1.9' -or
         $Manifest.releaseCommit -cne 'a02e13f1013ed69889ff44426a651bf7c68c292e' -or
-        [string]$Manifest.publishedAtUtc -cne '2026-08-09T17:07:55Z' -or
         $Manifest.archive.fileName -cne 'llmfit-v1.1.9-x86_64-pc-windows-msvc.zip' -or
         $Manifest.archive.downloadUri -cne 'https://github.com/AlexsJones/llmfit/releases/download/v1.1.9/llmfit-v1.1.9-x86_64-pc-windows-msvc.zip' -or
         [long]$Manifest.archive.lengthBytes -ne 5255910 -or
@@ -439,6 +535,7 @@ function Read-StrictObservation {
 
     $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
     $json = $strictUtf8.GetString($bytes)
+    Assert-NoJsonComments -Json $json
     try {
         $parsed = $json | ConvertFrom-Json
     }
@@ -479,18 +576,16 @@ function Read-StrictObservation {
         -not [string]::Equals($parsed.executableSha256, $ExecutableHash, [System.StringComparison]::Ordinal) -or
         $parsed.rawStatus -isnot [string] -or
         @('UnknownError', 'Valid', 'NotSigned', 'HashMismatch', 'NotTrusted') -cnotcontains $parsed.rawStatus -or
-        $parsed.signaturePresent -isnot [bool] -or
-        $parsed.checkedAtUtc -isnot [string]) {
+        $parsed.signaturePresent -isnot [bool]) {
         throw 'The Authenticode observation contains an invalid value or type.'
     }
 
-    $checkedAt = [System.DateTimeOffset]::MinValue
-    if (-not [System.DateTimeOffset]::TryParseExact(
-            $parsed.checkedAtUtc,
-            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
-            [System.Globalization.CultureInfo]::InvariantCulture,
-            [System.Globalization.DateTimeStyles]::None,
-            [ref]$checkedAt) -or $checkedAt.Offset -ne [System.TimeSpan]::Zero) {
+    $checkedAtPattern = '(?<!\\)"checkedAtUtc"\s*:\s*"(?<timestamp>[^"\\]*)"'
+    $checkedAtMatches = [regex]::Matches($json, $checkedAtPattern)
+    if ($checkedAtMatches.Count -ne 1 -or
+        -not (Test-JsonUtcTimestampValue `
+            -Value $parsed.checkedAtUtc `
+            -TimestampText $checkedAtMatches[0].Groups['timestamp'].Value)) {
         throw 'The Authenticode observation timestamp is not a valid UTC instant.'
     }
 
@@ -723,21 +818,9 @@ function Assert-PlacedBoundary {
     }
 }
 
-function Remove-OwnedPlacedDestination {
-    param(
-        [Parameter(Mandatory = $true)][string] $CanonicalRoot,
-        [Parameter(Mandatory = $true)][string] $Destination,
-        [Parameter(Mandatory = $true)] $Manifest
-    )
-
-    Assert-PlacedBoundary -CanonicalRoot $CanonicalRoot -Destination $Destination
-    $null = Assert-FlatPackageLayout -PackageRoot $Destination -Manifest $Manifest
-    Remove-Item -LiteralPath $Destination -Recurse -Force
-}
-
 $downloadTemp = $null
 $packageTemp = $null
-$destinationOwned = $false
+$acquisitionError = $null
 try {
     $rootItem = Get-Item -LiteralPath $RepositoryRoot -Force
     if (-not $rootItem.PSIsContainer) {
@@ -757,8 +840,9 @@ try {
         throw 'RepositoryRoot does not contain the required committed repository files.'
     }
 
-    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    Assert-PinnedManifest -Manifest $manifest
+    $manifestJson = Get-Content -LiteralPath $manifestPath -Raw
+    $manifest = $manifestJson | ConvertFrom-Json
+    Assert-PinnedManifest -Manifest $manifest -ManifestJson $manifestJson
     $destination = [System.IO.Path]::Combine(
         $canonicalRoot,
         'third-party',
@@ -862,33 +946,29 @@ try {
 
     [System.IO.Directory]::Move($packageTemp, $destination)
     $packageTemp = $null
-    $destinationOwned = $true
-    try {
-        Assert-PlacedBoundary -CanonicalRoot $canonicalRoot -Destination $destination
-        Assert-CompletePackage -PackageRoot $destination -Manifest $manifest
-    }
-    catch {
-        $publicationError = $_.Exception
-        if ($destinationOwned) {
-            try {
-                Remove-OwnedPlacedDestination `
-                    -CanonicalRoot $canonicalRoot `
-                    -Destination $destination `
-                    -Manifest $manifest
-                $destinationOwned = $false
-            }
-            catch {
-                throw (New-Object System.AggregateException(
-                    'Post-publication validation and safe rollback both failed.',
-                    [System.Exception[]]@($publicationError, $_.Exception)))
-            }
-        }
-
-        throw $publicationError
-    }
+    Assert-PlacedBoundary -CanonicalRoot $canonicalRoot -Destination $destination
+    Assert-CompletePackage -PackageRoot $destination -Manifest $manifest
 
     Write-Output 'Pinned LLM Fit candidate acquired and verified without execution.'
 }
+catch {
+    $acquisitionError = $_.Exception
+}
 finally {
-    Invoke-OwnedTempCleanup -Paths @($downloadTemp, $packageTemp)
+    try {
+        Invoke-OwnedTempCleanup -Paths @($downloadTemp, $packageTemp)
+    }
+    catch {
+        if ($null -ne $acquisitionError) {
+            throw (New-Object System.AggregateException(
+                'Acquisition and owned temporary cleanup both failed.',
+                [System.Exception[]]@($acquisitionError, $_.Exception)))
+        }
+
+        throw
+    }
+}
+
+if ($null -ne $acquisitionError) {
+    throw $acquisitionError
 }
