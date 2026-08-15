@@ -1824,7 +1824,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         identities.AddRange(EnumerateFixtureFiles(Projects[0], ".xaml")
             .Select(path => "Page|" + path.Replace('\\', '/')));
         identities.AddRange(ExpectedScenarioFileNames()
-            .Select(fileName => "Content|" + ScenarioPackageRoot.Replace('\\', '/') + fileName));
+            .Select(fileName => "Content|" + ScenarioLinkRoot.Replace('\\', '/') + fileName));
         return identities
             .Distinct(StringComparer.Ordinal)
             .OrderBy(identity => identity, StringComparer.Ordinal)

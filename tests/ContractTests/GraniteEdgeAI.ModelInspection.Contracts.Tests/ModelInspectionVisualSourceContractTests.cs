@@ -703,7 +703,708 @@ public sealed class ModelInspectionVisualSourceContractTests
                     RegexOptions.CultureInvariant),
                 $"{control}.cs must not cache a theme-specific color palette.");
         }
+
+        Dictionary<string, string> progressPolishSources =
+            ReadProgressPolishSources();
+        Assert.AreEqual(
+            0,
+            ValidateProgressPolishSources(progressPolishSources).Length,
+            string.Join(
+                Environment.NewLine,
+                ValidateProgressPolishSources(progressPolishSources)));
+
+        (string Name, string Path, Func<string, string> Mutate)[] mutations =
+        [
+            ("runtime Task.Delay",
+                "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyModelProbe.cs",
+                source => source + "\ninternal static class RogueDelay { internal static async Task Wait() => await Task.Delay(1); }\n"),
+            ("worker Thread.Sleep",
+                "workers/GraniteEdgeAI.ModelInspection.Worker/LlamaSharpInspectionEngine.cs",
+                source => source + "\ninternal static class RogueSleep { internal static void Wait() => Thread.Sleep(1); }\n"),
+            ("service System.Threading.Timer",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionService.cs",
+                source => source + "\ninternal sealed class RogueTimer { private System.Threading.Timer? timer; }\n"),
+            ("DispatcherQueueTimer outside its adapter",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionService.cs",
+                source => source + "\ninternal sealed class RogueUiTimer { private DispatcherQueueTimer? timer; }\n"),
+            ("non-550 milestone dwell",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionMilestoneSequencer.cs",
+                source => source.Replace(
+                    "TimeSpan.FromMilliseconds(550)",
+                    "TimeSpan.FromMilliseconds(551)",
+                    StringComparison.Ordinal)),
+            ("actual dwell bypasses pinned constant",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionMilestoneSequencer.cs",
+                source => source.Replace(
+                    "ScheduleDwell(MinimumVisibleStage);",
+                    "ScheduleDwell(TimeSpan.FromMilliseconds(551));",
+                    StringComparison.Ordinal)),
+            ("scheduler declaration outside Presentation",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionService.cs",
+                source => source + "\ninternal sealed class RogueModelInspectionMilestoneScheduler { }\n"),
+            ("scheduler interface implementation outside Presentation",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Services/ModelInspectionService.cs",
+                source => source + "\ninternal sealed class RogueScheduler : IModelInspectionMilestoneScheduler { }\n"),
+            ("safety terminal routed past its immediate branch",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionMilestoneSequencer.cs",
+                source => source.Replace(
+                    "if (IsImmediateSafetySnapshot(snapshot))",
+                    "if (false && IsImmediateSafetySnapshot(snapshot))",
+                    StringComparison.Ordinal)),
+            ("determinate active ProgressRing",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentCard.xaml",
+                source => source.Replace(
+                    "<Grid",
+                    "<Grid><ProgressRing IsIndeterminate=\"False\" /></Grid><Grid",
+                    StringComparison.Ordinal)),
+            ("determinate ProgressRing in shared glyph",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<ProgressRing IsIndeterminate=\"False\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("fraction-driven active glyph",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml.cs",
+                source => source + "\n// production mutation\ninternal sealed class FractionOrbit { internal double StageFraction { get; set; } }\n"),
+            ("fraction-driven active glyph XAML",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml",
+                source => source.Replace(
+                    "Tag=\"PrecisionOrbitRotationTarget\"",
+                    "Tag=\"{Binding StageFraction}\"",
+                    StringComparison.Ordinal)),
+            ("stock status SymbolIcon",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<SymbolIcon Symbol=\"Accept\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("stock status SymbolIcon in shared glyph",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<SymbolIcon Symbol=\"Accept\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("unscoped Forward SymbolIcon",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<SymbolIcon Symbol=\"Forward\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("stock status FontIcon",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionModelCard.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<FontIcon Glyph=\"&#xE73E;\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("Unicode status glyph",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<TextBlock Text=\"&#x2713;\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("old onboarding not-complete Unicode glyph",
+                "IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml",
+                source => source.Replace(
+                    "</UserControl>",
+                    "<TextBlock Text=\"‖\" /></UserControl>",
+                    StringComparison.Ordinal)),
+            ("old onboarding not-complete code-behind glyph",
+                "IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs",
+                source => source +
+                    "\ninternal sealed class RogueFooterGlyph { internal void Apply(TextBlock footer) => footer.Text = \"‖\"; }\n"),
+            ("state-specific literal card gap",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml",
+                source => source.Replace(
+                    "Height=\"{StaticResource InspectionCardGap}\"",
+                    "Height=\"17\"",
+                    StringComparison.Ordinal)),
+            ("legacy disclosure minimum height",
+                "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionDisclosure.xaml",
+                source => source.Replace(
+                    "<Grid",
+                    "<Grid MinHeight=\"83\"",
+                    StringComparison.Ordinal))
+        ];
+
+        foreach ((string name, string path, Func<string, string> mutate) in mutations)
+        {
+            var mutation = new Dictionary<string, string>(
+                progressPolishSources,
+                StringComparer.Ordinal);
+            mutation[path] = mutate(mutation[path]);
+            Assert.IsNotEmpty(
+                ValidateProgressPolishSources(mutation),
+                $"The progress-polish source guard accepted the {name} mutation.");
+        }
+
+        foreach ((string path, string harmlessText) in new[]
+                 {
+                     (
+                         "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/ModelProbe/VocabOnlyModelProbe.cs",
+                         "\n// Task.Delay(1); Thread.Sleep(1); System.Threading.Timer DispatcherQueueTimer\n"),
+                     (
+                         "workers/GraniteEdgeAI.ModelInspection.Worker/LlamaSharpInspectionEngine.cs",
+                         "\ninternal const string GuardExample = \"Task.Delay Thread.Sleep System.Threading.Timer DispatcherQueueTimer\";\n")
+                 })
+        {
+            var harmless = new Dictionary<string, string>(
+                progressPolishSources,
+                StringComparer.Ordinal)
+            {
+                [path] = progressPolishSources[path] + harmlessText
+            };
+            Assert.AreEqual(
+                0,
+                ValidateProgressPolishSources(harmless).Length,
+                "Comments and string literals must not be treated as executable pacing code.");
+        }
     }
+
+    private static Dictionary<string, string> ReadProgressPolishSources()
+    {
+        string[] roots =
+        [
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection",
+            "IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls",
+            "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp",
+            "workers/GraniteEdgeAI.ModelInspection.Worker"
+        ];
+        var sources = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (string relativeRoot in roots)
+        {
+            string absoluteRoot = Path.Combine(
+                Root,
+                relativeRoot.Replace('/', Path.DirectorySeparatorChar));
+            foreach (string path in Directory.GetFiles(
+                         absoluteRoot,
+                         "*.*",
+                         SearchOption.AllDirectories)
+                     .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
+                         path.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(path => path, StringComparer.Ordinal))
+            {
+                string relativePath = Path.GetRelativePath(Root, path)
+                    .Replace('\\', '/');
+                sources.Add(relativePath, File.ReadAllText(path));
+            }
+        }
+
+        return sources;
+    }
+
+    private static string[] ValidateProgressPolishSources(
+        IReadOnlyDictionary<string, string> sources)
+    {
+        const string SchedulerPath =
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/DispatcherQueueModelInspectionMilestoneScheduler.cs";
+        const string SequencerPath =
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/ModelInspectionMilestoneSequencer.cs";
+        const string FixtureSchedulerPath =
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureSession.cs";
+        const string PagePath =
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.xaml";
+        var errors = new List<string>();
+
+        foreach ((string path, string source) in sources)
+        {
+            if (!path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string code = MaskCSharpTrivia(source);
+            bool progressBoundary =
+                path.StartsWith(
+                    "runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/",
+                    StringComparison.Ordinal) ||
+                path.StartsWith(
+                    "workers/GraniteEdgeAI.ModelInspection.Worker/",
+                    StringComparison.Ordinal) ||
+                path.Contains(
+                    "/Features/ModelInspection/Runtime/",
+                    StringComparison.Ordinal) ||
+                path.Contains(
+                    "/Features/ModelInspection/Services/",
+                    StringComparison.Ordinal);
+            if (progressBoundary)
+            {
+                foreach ((string name, string pattern) in new[]
+                         {
+                             ("Task.Delay", @"\bTask\s*\.\s*Delay\s*\("),
+                             ("Thread.Sleep", @"\bThread\s*\.\s*Sleep\s*\("),
+                             ("System.Threading.Timer", @"\bSystem\s*\.\s*Threading\s*\.\s*Timer\b"),
+                             ("DispatcherQueueTimer", @"\bDispatcherQueueTimer\b")
+                         })
+                {
+                    if (Regex.IsMatch(
+                            code,
+                            pattern,
+                            RegexOptions.CultureInvariant))
+                    {
+                        errors.Add($"{path} contains prohibited progress pacing: {name}.");
+                    }
+                }
+            }
+
+            if (!string.Equals(path, SchedulerPath, StringComparison.Ordinal) &&
+                Regex.IsMatch(
+                    code,
+                    @"\bDispatcherQueueTimer\b",
+                    RegexOptions.CultureInvariant))
+            {
+                errors.Add(
+                    $"DispatcherQueueTimer is allowed only in {SchedulerPath}: {path}.");
+            }
+
+            bool declaresNamedScheduler = Regex.IsMatch(
+                code,
+                @"\b(?:class|interface|record|struct)\s+\w*ModelInspectionMilestoneScheduler\b",
+                RegexOptions.CultureInvariant);
+            bool implementsMilestoneScheduler = Regex.IsMatch(
+                code,
+                @"\b(?:class|record|struct)\s+[A-Za-z_]\w*(?:\s*<[^>{}]*>)?(?:\s*\([^;{}]*\))?\s*:\s*[^;{}]*\bIModelInspectionMilestoneScheduler\b",
+                RegexOptions.CultureInvariant);
+            if ((declaresNamedScheduler || implementsMilestoneScheduler) &&
+                !path.StartsWith(
+                    "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Presentation/",
+                    StringComparison.Ordinal) &&
+                !string.Equals(
+                    path,
+                    FixtureSchedulerPath,
+                    StringComparison.Ordinal))
+            {
+                errors.Add($"A milestone scheduler is declared outside Presentation: {path}.");
+            }
+        }
+
+        if (!sources.TryGetValue(SequencerPath, out string? sequencer))
+        {
+            errors.Add("The milestone sequencer source is missing.");
+        }
+        else
+        {
+            string code = CollapseWhitespace(MaskCSharpTrivia(sequencer));
+            if (Count(code, "TimeSpan.FromMilliseconds(550)") != 1 ||
+                Count(
+                    code,
+                    "MinimumVisibleStage = TimeSpan.FromMilliseconds(550)") != 1)
+            {
+                errors.Add("The milestone sequencer must pin exactly one 550 ms minimum.");
+            }
+
+            MatchCollection dwellCalls = Regex.Matches(
+                code,
+                @"\bScheduleDwell\s*\(\s*(?<argument>[^;]*)\)\s*;",
+                RegexOptions.CultureInvariant);
+            if (dwellCalls.Count != 1 ||
+                !string.Equals(
+                    dwellCalls[0].Groups["argument"].Value.Trim(),
+                    "MinimumVisibleStage",
+                    StringComparison.Ordinal))
+            {
+                errors.Add(
+                    "The milestone sequencer must schedule its only dwell from MinimumVisibleStage.");
+            }
+
+            const string ImmediateSafetyBlock =
+                "if (IsImmediateSafetySnapshot(snapshot)) { ClearPlayback(); unpacedStage = -1; applySnapshot(snapshot); return; }";
+            if (Count(code, ImmediateSafetyBlock) != 1)
+            {
+                errors.Add(
+                    "Cancellation and operational-failure snapshots must bypass dwell scheduling through the exact immediate safety branch.");
+            }
+
+            foreach (string status in new[]
+                     {
+                         "snapshot.IsCancellationRequested",
+                         "ModelInspectionStageStatus.Failed",
+                         "ModelInspectionStageStatus.Cancelled",
+                         "ModelInspectionExecutionStatus.Cancelled",
+                         "ModelInspectionExecutionStatus.OperationalFailure"
+                     })
+            {
+                if (!code.Contains(status, StringComparison.Ordinal))
+                {
+                    errors.Add($"The immediate safety classifier is missing {status}.");
+                }
+            }
+        }
+
+        string[] affectedXamlPaths =
+        [
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentCard.xaml",
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionModelCard.xaml",
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionOutcomeCard.xaml",
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionDisclosure.xaml",
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml",
+            "IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml"
+        ];
+        XNamespace xamlNamespace = "http://schemas.microsoft.com/winfx/2006/xaml";
+        char[] prohibitedUnicodeGlyphs =
+            ['\u2713', '\u2714', '\u26A0', '\u2715', '\u2716', '\u00D7', '\u2139', '\u2016'];
+        foreach (string path in affectedXamlPaths)
+        {
+            if (!sources.TryGetValue(path, out string? source))
+            {
+                errors.Add($"The affected status surface is missing: {path}.");
+                continue;
+            }
+
+            string markup = Regex.Replace(
+                source,
+                "(?s)<!--.*?-->",
+                string.Empty,
+                RegexOptions.CultureInvariant);
+            try
+            {
+                XDocument document = XDocument.Parse(markup);
+                foreach (XElement element in document.Descendants())
+                {
+                    if (element.Name.LocalName == "ProgressRing")
+                    {
+                        errors.Add($"The active status surface must not use ProgressRing: {path}.");
+                    }
+
+                    if (element.Name.LocalName == "SymbolIcon")
+                    {
+                        bool approvedTechnicalDetailsChevron =
+                            path.EndsWith(
+                                "/InspectionContentCard.xaml",
+                                StringComparison.Ordinal) &&
+                            string.Equals(
+                                element.Attribute("Symbol")?.Value,
+                                "Forward",
+                                StringComparison.Ordinal) &&
+                            element.Ancestors().Any(ancestor =>
+                                ancestor.Name.LocalName == "Button" &&
+                                string.Equals(
+                                    ancestor.Attribute(xamlNamespace + "Name")?.Value,
+                                    "TechnicalDetailsButton",
+                                    StringComparison.Ordinal));
+                        if (!approvedTechnicalDetailsChevron)
+                        {
+                            errors.Add($"A stock status SymbolIcon remains in {path}.");
+                        }
+                    }
+
+                    if (element.Name.LocalName == "FontIcon" &&
+                        !(path.EndsWith(
+                              "/InspectionDisclosure.xaml",
+                              StringComparison.Ordinal) &&
+                          string.Equals(
+                              element.Attribute("Glyph")?.Value,
+                              "\uE70D",
+                              StringComparison.Ordinal)))
+                    {
+                        errors.Add($"A stock status FontIcon remains in {path}.");
+                    }
+                }
+            }
+            catch (Exception exception) when (
+                exception is System.Xml.XmlException or InvalidOperationException)
+            {
+                errors.Add($"The affected status XAML is invalid: {path}: {exception.Message}");
+            }
+
+            string decodedMarkup = System.Net.WebUtility.HtmlDecode(markup);
+            foreach (char glyph in prohibitedUnicodeGlyphs)
+            {
+                if (decodedMarkup.Contains(glyph, StringComparison.Ordinal))
+                {
+                    errors.Add($"A Unicode status glyph remains in {path}: U+{(int)glyph:X4}.");
+                }
+            }
+
+            if (Regex.IsMatch(
+                    markup,
+                    @"\bMinHeight\s*=\s*[\""']83[\""']",
+                    RegexOptions.CultureInvariant))
+            {
+                errors.Add($"The legacy 83 px disclosure minimum returned in {path}.");
+            }
+
+            string codeBehindPath = path + ".cs";
+            if (sources.TryGetValue(codeBehindPath, out string? codeBehind))
+            {
+                string executableCodeBehind = MaskCSharpComments(codeBehind);
+                foreach (char glyph in prohibitedUnicodeGlyphs)
+                {
+                    if (executableCodeBehind.Contains(glyph, StringComparison.Ordinal) ||
+                        Regex.IsMatch(
+                            executableCodeBehind,
+                            $@"\\u{(int)glyph:X4}\b",
+                            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                    {
+                        errors.Add(
+                            $"A Unicode status glyph remains in {codeBehindPath}: U+{(int)glyph:X4}.");
+                    }
+                }
+            }
+        }
+
+        const string GlyphCodePath =
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml.cs";
+        const string GlyphXamlPath =
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionStatusGlyph.xaml";
+        bool glyphConsumesFraction = false;
+        if (!sources.TryGetValue(GlyphCodePath, out string? glyphCode))
+        {
+            errors.Add("The Precision Orbit glyph code-behind is missing.");
+        }
+        else
+        {
+            glyphConsumesFraction = Regex.IsMatch(
+                MaskCSharpTrivia(glyphCode),
+                @"\bStageFraction\b",
+                RegexOptions.CultureInvariant);
+        }
+
+        if (!sources.TryGetValue(GlyphXamlPath, out string? glyphXaml))
+        {
+            errors.Add("The Precision Orbit glyph XAML is missing.");
+        }
+        else
+        {
+            string glyphMarkup = Regex.Replace(
+                glyphXaml,
+                "(?s)<!--.*?-->",
+                string.Empty,
+                RegexOptions.CultureInvariant);
+            glyphConsumesFraction |= Regex.IsMatch(
+                glyphMarkup,
+                @"\bStageFraction\b",
+                RegexOptions.CultureInvariant);
+        }
+
+        if (glyphConsumesFraction)
+        {
+            errors.Add("Precision Orbit motion must not consume a stage fraction.");
+        }
+
+        if (!sources.TryGetValue(PagePath, out string? page))
+        {
+            errors.Add("The Model Inspection page XAML is missing.");
+        }
+        else
+        {
+            XDocument pageDocument = XDocument.Parse(page);
+            XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+            IReadOnlyDictionary<string, string> expectedGaps =
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["HeaderToFirstCardGap"] = "{StaticResource InspectionHeaderToCardGap}",
+                    ["OutcomeToModelCardGap"] = "{StaticResource InspectionCardGap}",
+                    ["ModelToContentLiveGap"] = "{StaticResource InspectionCardGap}",
+                    ["ModelToContentOutgoingGap"] = "{StaticResource InspectionCardGap}",
+                    ["ContentToActionCardGap"] = "{StaticResource InspectionCardGap}"
+                };
+            foreach ((string name, string height) in expectedGaps)
+            {
+                XElement[] matches = pageDocument.Descendants()
+                    .Where(element => string.Equals(
+                        element.Attribute(xaml + "Name")?.Value,
+                        name,
+                        StringComparison.Ordinal))
+                    .ToArray();
+                if (matches.Length != 1 ||
+                    !string.Equals(
+                        matches[0].Attribute("Height")?.Value,
+                        height,
+                        StringComparison.Ordinal))
+                {
+                    errors.Add($"The shared card gap drifted: {name}.");
+                }
+            }
+        }
+
+        return errors.ToArray();
+    }
+
+    private static string MaskCSharpTrivia(string source)
+    {
+        char[] masked = source.ToCharArray();
+        void Mask(int start, int end)
+        {
+            for (int index = start; index < end; index++)
+            {
+                if (masked[index] is not ('\r' or '\n'))
+                {
+                    masked[index] = ' ';
+                }
+            }
+        }
+
+        int offset = 0;
+        while (offset < source.Length)
+        {
+            if (offset + 1 < source.Length &&
+                source[offset] == '/' && source[offset + 1] == '/')
+            {
+                int end = source.IndexOf('\n', offset + 2);
+                end = end < 0 ? source.Length : end;
+                Mask(offset, end);
+                offset = end;
+                continue;
+            }
+
+            if (offset + 1 < source.Length &&
+                source[offset] == '/' && source[offset + 1] == '*')
+            {
+                int close = source.IndexOf("*/", offset + 2, StringComparison.Ordinal);
+                int end = close < 0 ? source.Length : close + 2;
+                Mask(offset, end);
+                offset = end;
+                continue;
+            }
+
+            if (source[offset] is '\'' or '"')
+            {
+                char quote = source[offset];
+                bool raw = quote == '"' && offset + 2 < source.Length &&
+                    source[offset + 1] == '"' && source[offset + 2] == '"';
+                int quoteCount = raw ? 3 : 1;
+                bool verbatim = quote == '"' && offset > 0 && source[offset - 1] == '@';
+                int end = offset + quoteCount;
+                while (end < source.Length)
+                {
+                    if (raw && end + 2 < source.Length &&
+                        source[end] == '"' && source[end + 1] == '"' && source[end + 2] == '"')
+                    {
+                        end += 3;
+                        break;
+                    }
+
+                    if (!raw && verbatim && source[end] == '"' &&
+                        end + 1 < source.Length && source[end + 1] == '"')
+                    {
+                        end += 2;
+                        continue;
+                    }
+
+                    if (!raw && !verbatim && source[end] == '\\' &&
+                        end + 1 < source.Length)
+                    {
+                        end += 2;
+                        continue;
+                    }
+
+                    if (!raw && source[end++] == quote)
+                    {
+                        break;
+                    }
+
+                    if (raw)
+                    {
+                        end++;
+                    }
+                }
+
+                Mask(offset, end);
+                offset = end;
+                continue;
+            }
+
+            offset++;
+        }
+
+        return new string(masked);
+    }
+
+    private static string MaskCSharpComments(string source)
+    {
+        char[] masked = source.ToCharArray();
+        void Mask(int start, int end)
+        {
+            for (int index = start; index < end; index++)
+            {
+                if (masked[index] is not ('\r' or '\n'))
+                {
+                    masked[index] = ' ';
+                }
+            }
+        }
+
+        int offset = 0;
+        while (offset < source.Length)
+        {
+            if (offset + 1 < source.Length &&
+                source[offset] == '/' && source[offset + 1] == '/')
+            {
+                int end = source.IndexOf('\n', offset + 2);
+                end = end < 0 ? source.Length : end;
+                Mask(offset, end);
+                offset = end;
+                continue;
+            }
+
+            if (offset + 1 < source.Length &&
+                source[offset] == '/' && source[offset + 1] == '*')
+            {
+                int close = source.IndexOf("*/", offset + 2, StringComparison.Ordinal);
+                int end = close < 0 ? source.Length : close + 2;
+                Mask(offset, end);
+                offset = end;
+                continue;
+            }
+
+            if (source[offset] is '\'' or '"')
+            {
+                char quote = source[offset];
+                bool raw = quote == '"' && offset + 2 < source.Length &&
+                    source[offset + 1] == '"' && source[offset + 2] == '"';
+                int quoteCount = raw ? 3 : 1;
+                bool verbatim = quote == '"' && offset > 0 && source[offset - 1] == '@';
+                int end = offset + quoteCount;
+                while (end < source.Length)
+                {
+                    if (raw && end + 2 < source.Length &&
+                        source[end] == '"' && source[end + 1] == '"' && source[end + 2] == '"')
+                    {
+                        end += 3;
+                        break;
+                    }
+
+                    if (!raw && verbatim && source[end] == '"' &&
+                        end + 1 < source.Length && source[end + 1] == '"')
+                    {
+                        end += 2;
+                        continue;
+                    }
+
+                    if (!raw && !verbatim && source[end] == '\\' &&
+                        end + 1 < source.Length)
+                    {
+                        end += 2;
+                        continue;
+                    }
+
+                    if (!raw && source[end++] == quote)
+                    {
+                        break;
+                    }
+
+                    if (raw)
+                    {
+                        end++;
+                    }
+                }
+
+                offset = end;
+                continue;
+            }
+
+            offset++;
+        }
+
+        return new string(masked);
+    }
+
+    private static string CollapseWhitespace(string value) =>
+        Regex.Replace(
+            value,
+            @"\s+",
+            " ",
+            RegexOptions.CultureInvariant).Trim();
 
     private static void AssertThemeMap(
         XDocument theme,

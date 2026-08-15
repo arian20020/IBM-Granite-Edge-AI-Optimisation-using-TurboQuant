@@ -81,6 +81,29 @@ public sealed partial class ModelInspectionPage : Page
     {
     }
 
+    /// <summary>
+    /// Creates an application-composed page after configuring page resources
+    /// that StaticResource bindings must resolve during initialization.
+    /// </summary>
+    internal ModelInspectionPage(
+        IModelInspectionService service,
+        Action<ResourceDictionary> configureResourcesBeforeInitialize)
+        : this(
+            service,
+            CreateProductionDispatcher,
+            CreateProductionStartupBarrier,
+            () => new WinUiModelInspectionAnimationDriver(
+                ModelInspectionMotionSpec.Approved),
+            () => new UiSettingsModelInspectionMotionSettings(),
+            CreateProductionMilestoneScheduler,
+            startInspectionOnLoaded: true,
+            configureResourcesBeforeInitialize:
+                configureResourcesBeforeInitialize ??
+                throw new ArgumentNullException(
+                    nameof(configureResourcesBeforeInitialize)))
+    {
+    }
+
     internal ModelInspectionPage(
         IModelInspectionService service,
         Func<IModelInspectionRenderDispatcher> dispatcherFactory,

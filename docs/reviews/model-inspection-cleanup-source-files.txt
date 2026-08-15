@@ -283,6 +283,7 @@ runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs
 runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/README.md
 runtime/README.md
 scripts/model-inspection/Generate-ModelInspectionFixtureReport.ps1
+scripts/model-inspection/Invoke-ModelInspectionProgressPolishGate.ps1
 scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
 scripts/model-inspection/Test-ModelInspectionFixtureReleaseIsolation.ps1
 scripts/model-inspection/Test-ModelInspectionVisualArtifactPrivacy.ps1

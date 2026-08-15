@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Text.RegularExpressions;
 
 namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 
@@ -14,11 +15,13 @@ public sealed class BuildWorkflowContractTests
 
     private const int HostedPackagedFloor = 686;
 
+    private const int HostedPackagedExpectedTotal = 717;
+
     private const string HostedPackagedFilter =
         "/TestCaseFilter:\"TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs\"";
 
     private const string HostedPackagedStepSha256 =
-        "785FD6A8A33CD7C2A7F5C2687595FD4F58FA8FFC5B48602E6ECF64BFD647F584";
+        "F0B831F9748896AF341F62DD776F9A99293F97724C8B1BF18F6D79C95A0F8DE4";
 
     private const string ControlledWorkflowSha256 =
         "5A58BE19B9B7F0A6E56ECF6DA136AE138AC1F74A7FDEFAA72BEFC58B353CFEC7";
@@ -313,6 +316,10 @@ public sealed class BuildWorkflowContractTests
             workflow,
             "$minimumExpectedTests = 686",
             "The permanent workflow must protect the current packaged application floor.");
+        StringAssert.Contains(
+            workflow,
+            "$measuredExpectedTests = 717",
+            "The permanent workflow must pin the measured hosted-equivalent total.");
         string[] protectedApplicationClassFragments =
         [
             "ModelInspectionRequestFactoryTests' = 10",
@@ -358,6 +365,140 @@ public sealed class BuildWorkflowContractTests
             focusedProcessWorkflow,
             "scripts/model-inspection",
             "The focused process workflow must stage the manifest scripts used by the packaging test.");
+
+        string gatePath = Path.Combine(
+            Root,
+            "scripts",
+            "model-inspection",
+            "Invoke-ModelInspectionProgressPolishGate.ps1");
+        string gateScript = File.Exists(gatePath)
+            ? File.ReadAllText(gatePath)
+            : string.Empty;
+        string[] gateErrors = ValidateProgressPolishGateScript(gateScript);
+        Assert.AreEqual(
+            0,
+            gateErrors.Length,
+            string.Join(Environment.NewLine, gateErrors));
+
+        (string Name, string Original, string Replacement)[] gateMutations =
+        [
+            ("RuntimeWorker phase", "'RuntimeWorker' {", "# 'RuntimeWorker' {"),
+            ("Debug phase", "'Debug' {", "# 'Debug' {"),
+            ("Release phase", "'Release' {", "# 'Release' {"),
+            ("FinalSource phase", "'FinalSource' {", "# 'FinalSource' {"),
+            ("fresh RunRoot rejection", "if (Test-Path -LiteralPath $RunRoot)", "if ($false) # if (Test-Path -LiteralPath $RunRoot)"),
+            ("ignored RunRoot rejection", "git check-ignore -q -- $resolvedRunRoot", "Write-Host 'ignored check removed' # git check-ignore -q -- $resolvedRunRoot"),
+            ("first-error termination", "$ErrorActionPreference = 'Stop'", "$ErrorActionPreference = 'Continue' # $ErrorActionPreference = 'Stop'"),
+            ("scoped native-error capture", "$ErrorActionPreference = 'Continue'", "$ErrorActionPreference = 'SilentlyContinue'"),
+            ("captured command exit", "if ($null -ne $commandError -or $exitCode -ne 0) { throw", "if ($false) { throw"),
+            ("failure log append", "Tee-Object -FilePath $logPath -Append", "Write-Host 'failure output omitted'"),
+            ("empty evidence serialization", "ConvertTo-Json -InputObject $Value -Depth 8", "$Value | ConvertTo-Json -Depth 8"),
+            ("runtime project command", "dotnet test $runtimeProject", "Write-Host 'runtime omitted' # dotnet test $runtimeProject"),
+            ("worker project command", "dotnet test $workerProject", "Write-Host 'worker omitted' # dotnet test $workerProject"),
+            ("Debug build command", "Invoke-DebugBuild -EvidenceDirectory $phaseRoot", "Write-Host 'Debug build omitted' # Invoke-DebugBuild -EvidenceDirectory $phaseRoot"),
+            ("Interaction and Lifetime command", "Invoke-PackagedTests -Name 'InteractionLifetime' -Filter $interactionLifetimeFilter", "Write-Host 'Interaction/Lifetime omitted' # Invoke-PackagedTests -Name 'InteractionLifetime' -Filter $interactionLifetimeFilter"),
+            ("fixture category command", "Invoke-PackagedTests -Name 'FixtureCategory' -Filter $fixtureCategoryFilter", "Write-Host 'fixture category omitted' # Invoke-PackagedTests -Name 'FixtureCategory' -Filter $fixtureCategoryFilter"),
+            ("focused polish command", "Invoke-PackagedTests -Name 'FocusedPolish' -Filter $polishFilter", "Write-Host 'polish omitted' # Invoke-PackagedTests -Name 'FocusedPolish' -Filter $polishFilter"),
+            ("Release hosted filter", "Invoke-PackagedTests -Name 'HostedRelease' -Filter $hostedReleaseFilter", "Write-Host 'hosted Release omitted' # Invoke-PackagedTests -Name 'HostedRelease' -Filter $hostedReleaseFilter"),
+            ("N-001 command", "Invoke-PackagedTests -Name 'N001' -Filter $n001FullyQualifiedName", "Write-Host 'N-001 omitted' # Invoke-PackagedTests -Name 'N001' -Filter $n001FullyQualifiedName"),
+            ("Release isolation", "function Invoke-ReleaseIsolation", "# function Invoke-ReleaseIsolation"),
+            ("approved isolation evidence root", "TestResults\\ModelInspectionFixtures\\ReleaseIsolation", "TestResults\\ModelInspectionPolish\\ReleaseIsolation"),
+            ("unique isolation evidence name", "[Guid]::NewGuid().ToString('N')", "'fixed-evidence-name'"),
+            ("isolation receipt", "release-isolation-receipt.json", "release-isolation-receipt.log"),
+            ("TRX identity map", "function Assert-TrxExactMap", "# function Assert-TrxExactMap"),
+            ("TRX identity closure", "function Assert-TrxIdentityClosure", "# function Assert-TrxIdentityClosure"),
+            ("TRX definition/result count closure", "if ($definitions.Count -ne $ExpectedTotal -or", "if ($false) # if ($definitions.Count -ne $ExpectedTotal -or"),
+            ("TRX identity-set closure", "Compare-Object -ReferenceObject $uniqueDefinitionIds -DifferenceObject $uniqueResultIds", "Compare-Object -ReferenceObject $uniqueDefinitionIds -DifferenceObject $uniqueDefinitionIds"),
+            ("TRX adverse counters", "function Assert-ZeroAdverseCounters", "# function Assert-ZeroAdverseCounters"),
+            ("process boundaries", "function Assert-NoRelevantProcesses", "# function Assert-NoRelevantProcesses"),
+            ("WER boundaries", "function Assert-NoNewWerEvents", "# function Assert-NoNewWerEvents"),
+            ("WER relevance predicate", "function Test-RelevantWerMessage", "# function Test-RelevantWerMessage"),
+            ("WER fail-closed query", "} -ErrorAction Stop", "} -ErrorAction SilentlyContinue"),
+            ("WER no-match-only catch", "if ($_.FullyQualifiedErrorId -notlike 'NoMatchingEventsFound*') { throw }", "if ($false) { throw }"),
+            ("WER PowerShell 5.1-safe comparison", "$Message.IndexOf($target, [StringComparison]::OrdinalIgnoreCase) -ge 0", "$Message.Contains($target, [StringComparison]::OrdinalIgnoreCase)"),
+            ("WER relevant-event filter", "Test-RelevantWerMessage -Message ([string]$_.Message)", "$false # Test-RelevantWerMessage -Message ([string]$_.Message)"),
+            ("source hashes", "function Assert-SourceFreeze", "# function Assert-SourceFreeze"),
+            ("untracked source hashes", "git -C $repositoryRoot ls-files --others --exclude-standard", "Write-Host 'untracked source omitted'"),
+            ("staged diff check", "git -C $repositoryRoot diff --cached --check", "git -C $repositoryRoot diff --check"),
+            ("staged diff exit", "git -C $repositoryRoot diff --cached --exit-code", "git -C $repositoryRoot diff --exit-code")
+        ];
+        foreach ((string name, string original, string replacement) in gateMutations)
+        {
+            Assert.AreEqual(
+                1,
+                CountOccurrences(gateScript, original),
+                $"The reviewed gate mutation anchor drifted: {name}.");
+            string mutation = gateScript.Replace(
+                original,
+                replacement,
+                StringComparison.Ordinal);
+            Assert.IsNotEmpty(
+                ValidateProgressPolishGateScript(mutation),
+                $"The progress-polish gate accepted the {name} mutation.");
+        }
+
+        string normalizedGate = gateScript.Replace("\r\n", "\n", StringComparison.Ordinal);
+        string swappedPhaseLabels = normalizedGate
+            .Replace("'RuntimeWorker' {", "'TemporaryPhase' {", StringComparison.Ordinal)
+            .Replace("'Debug' {", "'RuntimeWorker' {", StringComparison.Ordinal)
+            .Replace("'TemporaryPhase' {", "'Debug' {", StringComparison.Ordinal);
+        Assert.IsNotEmpty(
+            ValidateProgressPolishGateScript(swappedPhaseLabels),
+            "The progress-polish gate accepted commands under the wrong phase labels.");
+
+        const string CleanupCommand =
+            "Invoke-CleanupGate -EvidenceDirectory $phaseRoot";
+        string relocatedFinalSourceCommand = normalizedGate
+            .Replace($"            {CleanupCommand}\n", string.Empty, StringComparison.Ordinal)
+            .Replace(
+                "        }\n    }\n}\ncatch {",
+                $"        }}\n    }}\n    {CleanupCommand}\n}}\ncatch {{",
+                StringComparison.Ordinal);
+        Assert.AreNotEqual(
+            normalizedGate,
+            relocatedFinalSourceCommand,
+            "The FinalSource relocation mutation anchor drifted.");
+        Assert.IsNotEmpty(
+            ValidateProgressPolishGateScript(relocatedFinalSourceCommand),
+            "The progress-polish gate accepted a FinalSource command outside its phase.");
+
+        const string HostedReleaseCommand =
+            "Invoke-PackagedTests -Name 'HostedRelease' -Filter $hostedReleaseFilter";
+        string quotedHostedReleaseCommand = normalizedGate.Replace(
+            $"            {HostedReleaseCommand}\n",
+            $"            Write-Host \"{HostedReleaseCommand}\"\n",
+            StringComparison.Ordinal);
+        Assert.AreNotEqual(
+            normalizedGate,
+            quotedHostedReleaseCommand,
+            "The quoted phase-command mutation anchor drifted.");
+        Assert.IsNotEmpty(
+            ValidateProgressPolishGateScript(quotedHostedReleaseCommand),
+            "The progress-polish gate accepted an inert quoted phase command.");
+
+        string multilineQuotedHostedReleaseCommand = normalizedGate.Replace(
+            $"            {HostedReleaseCommand}\n",
+            $"            Write-Host \"\n{HostedReleaseCommand}\n            \"\n",
+            StringComparison.Ordinal);
+        Assert.AreNotEqual(
+            normalizedGate,
+            multilineQuotedHostedReleaseCommand,
+            "The multiline quoted phase-command mutation anchor drifted.");
+        Assert.IsNotEmpty(
+            ValidateProgressPolishGateScript(multilineQuotedHostedReleaseCommand),
+            "The progress-polish gate accepted an inert multiline quoted phase command.");
+
+        string commentConfusedQuotedHostedReleaseCommand = normalizedGate.Replace(
+            $"            {HostedReleaseCommand}\n",
+            $"            Write-Host \"#\"\n            \"\n{HostedReleaseCommand}\n            \"\n            Write-Host \"#\"\n",
+            StringComparison.Ordinal);
+        Assert.AreNotEqual(
+            normalizedGate,
+            commentConfusedQuotedHostedReleaseCommand,
+            "The comment-confused quoted phase-command mutation anchor drifted.");
+        Assert.IsNotEmpty(
+            ValidateProgressPolishGateScript(commentConfusedQuotedHostedReleaseCommand),
+            "The progress-polish gate accepted an inert quoted phase command after stripping hash literals.");
     }
 
     [TestMethod]
@@ -389,6 +530,10 @@ public sealed class BuildWorkflowContractTests
                 "$minimumExpectedTests = 685",
                 StringComparison.Ordinal),
             workflow.Replace(
+                "$measuredExpectedTests = 717",
+                "$measuredExpectedTests = 716",
+                StringComparison.Ordinal),
+            workflow.Replace(
                 "'GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation.ModelInspectionAssetContractTests' = 3",
                 string.Empty,
                 StringComparison.Ordinal),
@@ -404,6 +549,14 @@ public sealed class BuildWorkflowContractTests
             workflow.Replace(
                 "$minimumExpectedTests = 686",
                 "$minimumExpectedTests = 686\n          $minimumExpectedTests = 1",
+                StringComparison.Ordinal),
+            workflow.Replace(
+                "$measuredExpectedTests = 717",
+                "$measuredExpectedTests = 717\n          $measuredExpectedTests = 1",
+                StringComparison.Ordinal),
+            workflow.Replace(
+                "if ([int]$counters.total -ne $measuredExpectedTests -or [int]$counters.executed -ne $measuredExpectedTests)",
+                "if ($false) # if ([int]$counters.total -ne $measuredExpectedTests -or [int]$counters.executed -ne $measuredExpectedTests)",
                 StringComparison.Ordinal),
             workflow.Replace(
                 "          foreach ($entry in $protectedClassCounts.GetEnumerator()) {",
@@ -1173,6 +1326,28 @@ public sealed class BuildWorkflowContractTests
                 $"The packaged step must assign the observed {HostedPackagedFloor}-test floor exactly once without later mutation.");
         }
 
+        string measuredTotal =
+            $"$measuredExpectedTests = {HostedPackagedExpectedTotal}";
+        System.Text.RegularExpressions.MatchCollection measuredAssignments =
+            System.Text.RegularExpressions.Regex.Matches(
+                executableStep,
+                @"(?m)^[ \t]*(?:\+\+|--)?\$measuredExpectedTests(?:\+\+|--|[ \t]*(?:=|\+=|-=|\*=|/=))",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (CountOccurrences(executableStep, measuredTotal) != 1 ||
+            measuredAssignments.Count != 1)
+        {
+            errors.Add(
+                $"The packaged step must assign the measured {HostedPackagedExpectedTotal}-test total exactly once without later mutation.");
+        }
+
+        const string ExactMeasuredTotalGuard =
+            "if ([int]$counters.total -ne $measuredExpectedTests -or [int]$counters.executed -ne $measuredExpectedTests)";
+        if (CountOccurrences(executableStep, ExactMeasuredTotalGuard) != 1)
+        {
+            errors.Add(
+                "The packaged step must enforce the measured total against total and executed counters exactly once.");
+        }
+
         const string MapMarker = "$protectedClassCounts = [ordered]@{";
         int mapStart = executableStep.IndexOf(MapMarker, StringComparison.Ordinal);
         int mapEnd = mapStart < 0
@@ -1273,6 +1448,392 @@ public sealed class BuildWorkflowContractTests
         }
 
         return errors.ToArray();
+    }
+
+    private static string[] ValidateProgressPolishGateScript(string script)
+    {
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(script))
+        {
+            errors.Add("The progress-polish gate script is missing.");
+            return errors.ToArray();
+        }
+
+        string normalized = script.Replace("\r\n", "\n", StringComparison.Ordinal);
+        string executable = RemovePowerShellNonExecutableText(normalized);
+        string compact = System.Text.RegularExpressions.Regex.Replace(
+            executable,
+            @"\s+",
+            " ",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        string[] phaseNames = ["RuntimeWorker", "Debug", "Release", "FinalSource"];
+        foreach (string phase in phaseNames)
+        {
+            if (CountExactPowerShellStatements(executable, $"'{phase}' {{") != 1)
+            {
+                errors.Add($"The gate must implement the {phase} phase exactly once.");
+            }
+        }
+
+        (string Phase, string[] Commands)[] commandsByPhase =
+        [
+            ("RuntimeWorker",
+            [
+                "Invoke-CheckedCommand -Name 'runtime-project' -Command {",
+                "Invoke-CheckedCommand -Name 'worker-project' -Command {"
+            ]),
+            ("Debug",
+            [
+                "Invoke-DebugBuild -EvidenceDirectory $phaseRoot",
+                "Invoke-PackagedTests -Name 'InteractionLifetime' -Filter $interactionLifetimeFilter",
+                "Invoke-PackagedTests -Name 'FixtureCategory' -Filter $fixtureCategoryFilter",
+                "Invoke-PackagedTests -Name 'FocusedPolish' -Filter $polishFilter"
+            ]),
+            ("Release",
+            [
+                "Invoke-ReleaseBuild -EvidenceDirectory $phaseRoot",
+                "Invoke-PackagedTests -Name 'HostedRelease' -Filter $hostedReleaseFilter",
+                "Invoke-PackagedTests -Name 'N001' -Filter $n001FullyQualifiedName",
+                "Invoke-ReleaseIsolation -EvidenceDirectory $phaseRoot"
+            ]),
+            ("FinalSource",
+            [
+                "Invoke-ContractsGate -EvidenceDirectory $phaseRoot",
+                "Invoke-CleanupGate -EvidenceDirectory $phaseRoot",
+                "Invoke-DiffGate -EvidenceDirectory $phaseRoot",
+                "Invoke-ReleaseIsolation -EvidenceDirectory $phaseRoot"
+            ])
+        ];
+        var expectedGlobalCommandCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach ((string phase, string[] commands) in commandsByPhase)
+        {
+            string? body = ExtractPowerShellPhaseBody(executable, phase);
+            if (body is null)
+            {
+                errors.Add($"The gate {phase} phase must have one balanced executable body.");
+                continue;
+            }
+
+            int previous = -1;
+            foreach (string command in commands)
+            {
+                int current = IndexOfExactPowerShellStatement(body, command);
+                if (current <= previous || CountExactPowerShellStatements(body, command) != 1)
+                {
+                    errors.Add(
+                        $"The {phase} gate command is missing, duplicated, or out of order: {command}");
+                }
+
+                previous = current;
+                expectedGlobalCommandCounts[command] =
+                    expectedGlobalCommandCounts.GetValueOrDefault(command) + 1;
+            }
+        }
+
+        foreach ((string command, int expectedCount) in expectedGlobalCommandCounts)
+        {
+            int actualCount = CountExactPowerShellStatements(executable, command);
+            if (actualCount != expectedCount)
+            {
+                errors.Add(
+                    $"The phase command must occur exactly {expectedCount} time(s), found {actualCount}: {command}");
+            }
+        }
+
+        string validateSet =
+            "[ValidateSet('RuntimeWorker','Debug','Release','FinalSource')]";
+        if (CountOccurrences(compact, validateSet) != 1 ||
+            CountOccurrences(
+                compact,
+                "[Parameter(Mandatory)] " + validateSet + " [string] $Phase") != 1 ||
+            CountOccurrences(compact, "[Parameter(Mandatory)] [string] $RunRoot") != 1)
+        {
+            errors.Add("The gate must expose the exact fail-closed Phase/RunRoot interface.");
+        }
+
+        (string Name, string Token, int Count)[] exactTokens =
+        [
+            ("error-stop policy", "$ErrorActionPreference = 'Stop'", 1),
+            ("strict mode", "Set-StrictMode -Version Latest", 1),
+            ("fresh RunRoot rejection", "if (Test-Path -LiteralPath $RunRoot)", 1),
+            ("ignored RunRoot check", "git check-ignore -q -- $resolvedRunRoot", 1),
+            ("phase dispatch", "switch ($Phase)", 1),
+            ("runtime project command", "dotnet test $runtimeProject", 1),
+            ("worker project command", "dotnet test $workerProject", 1),
+            ("Debug build command", "Invoke-DebugBuild -EvidenceDirectory $phaseRoot", 1),
+            ("Interaction/Lifetime command", "Invoke-PackagedTests -Name 'InteractionLifetime' -Filter $interactionLifetimeFilter", 1),
+            ("fixture category command", "Invoke-PackagedTests -Name 'FixtureCategory' -Filter $fixtureCategoryFilter", 1),
+            ("focused polish command", "Invoke-PackagedTests -Name 'FocusedPolish' -Filter $polishFilter", 1),
+            ("Release hosted command", "Invoke-PackagedTests -Name 'HostedRelease' -Filter $hostedReleaseFilter", 1),
+            ("N-001 command", "Invoke-PackagedTests -Name 'N001' -Filter $n001FullyQualifiedName", 1),
+            ("Release isolation definition", "function Invoke-ReleaseIsolation", 1),
+            ("exact TRX map definition", "function Assert-TrxExactMap", 1),
+            ("TRX identity closure definition", "function Assert-TrxIdentityClosure", 1),
+            ("TRX identity closure invocation", "Assert-TrxIdentityClosure -Definitions $definitions -Results $results -ExpectedTotal ([int]$counters.total)", 1),
+            ("TRX definition/result count closure", "if ($definitions.Count -ne $ExpectedTotal -or", 1),
+            ("TRX identity-set closure", "Compare-Object -ReferenceObject $uniqueDefinitionIds -DifferenceObject $uniqueResultIds", 1),
+            ("TRX all-result outcome closure", "[string]$_.outcome -cne 'Passed'", 1),
+            ("adverse counter definition", "function Assert-ZeroAdverseCounters", 1),
+            ("process boundary definition", "function Assert-NoRelevantProcesses", 1),
+            ("WER boundary definition", "function Assert-NoNewWerEvents", 1),
+            ("WER relevance predicate", "function Test-RelevantWerMessage", 1),
+            ("WER fail-closed query", "} -ErrorAction Stop", 1),
+            ("WER no-match-only catch", "if ($_.FullyQualifiedErrorId -notlike 'NoMatchingEventsFound*') { throw }", 1),
+            ("WER PowerShell 5.1-safe comparison", "$Message.IndexOf($target, [StringComparison]::OrdinalIgnoreCase) -ge 0", 1),
+            ("WER relevant-event filter", "Test-RelevantWerMessage -Message ([string]$_.Message)", 1),
+            ("source freeze definition", "function Assert-SourceFreeze", 1),
+            ("untracked source hash discovery", "git -C $repositoryRoot ls-files --others --exclude-standard", 1),
+            ("command uniqueness ledger", "$executedCommands.Add($Name)", 1),
+            ("scoped native-error capture", "$ErrorActionPreference = 'Continue'", 1),
+            ("captured command failure throw", "if ($null -ne $commandError -or $exitCode -ne 0) { throw", 1),
+            ("failure log append", "Tee-Object -FilePath $logPath -Append", 1),
+            ("empty evidence serialization", "ConvertTo-Json -InputObject $Value -Depth 8", 1)
+        ];
+        foreach ((string name, string token, int expectedCount) in exactTokens)
+        {
+            int actual = CountOccurrences(executable, token);
+            if (actual != expectedCount)
+            {
+                errors.Add(
+                    $"The gate {name} must occur exactly {expectedCount} time(s), found {actual}.");
+            }
+        }
+
+        string[] requiredExecutableFragments =
+        [
+            "tools\\ModelInspection.LlamaSharpSpike.Tests\\ModelInspection.LlamaSharpSpike.Tests.csproj",
+            "tests\\UnitTests\\GraniteEdgeAI.ModelInspection.Worker.Tests\\GraniteEdgeAI.ModelInspection.Worker.Tests.csproj",
+            "LlamaSharpInspectionEngineTests",
+            "Expected exactly 67 passing worker engine executions.",
+            "FullyQualifiedName~ModelInspectionFixtureInteractionTests|FullyQualifiedName~ModelInspectionFixtureLifetimeTests",
+            "TestCategory=ModelInspectionFixtureGallery",
+            "TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs",
+            "HostedRelease = 717",
+            "GraniteEdgeAI.UnitTests.ModelInspectionPageNavigationTests.PackagedN001_PageJourneyCompletesAllFiveStagesAsReady",
+            "Test-ModelInspectionFixtureReleaseIsolation.ps1",
+            "TestResults\\ModelInspectionFixtures\\ReleaseIsolation",
+            "[Guid]::NewGuid().ToString('N')",
+            "release-isolation-receipt.json",
+            "externalEvidenceSha256",
+            "GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj",
+            "--minimum-expected-tests 357",
+            "Verify-ModelInspectionCleanupInventory.ps1",
+            "git -C $repositoryRoot diff --check",
+            "git -C $repositoryRoot diff --exit-code",
+            "git -C $repositoryRoot diff --cached --check",
+            "git -C $repositoryRoot diff --cached --exit-code",
+            "TestDefinitions.UnitTest",
+            "Results.UnitTestResult",
+            "ResultSummary.Counters",
+            "Get-FileHash",
+            "Get-Process",
+            "Get-WinEvent",
+            "source-freeze-before.sha256",
+            "source-freeze-after.sha256",
+            "command-metadata.json",
+            "Assert-NoRelevantProcesses -EvidenceName 'process-before'",
+            "Assert-NoRelevantProcesses -EvidenceName 'process-after'",
+            "wer-before.json",
+            "wer-after.json"
+        ];
+        foreach (string fragment in requiredExecutableFragments)
+        {
+            if (!executable.Contains(fragment, StringComparison.Ordinal))
+            {
+                errors.Add($"The gate is missing executable evidence boundary: {fragment}");
+            }
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(
+                executable,
+                @"(?m)^\s*if\s*\(\$null\s*-ne\s*\$commandError\s*-or\s*\$exitCode\s*-ne\s*0\)\s*\{\s*throw",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant) ||
+            executable.Contains("-ErrorAction SilentlyContinue", StringComparison.Ordinal) &&
+            !executable.Contains("Get-Process -ErrorAction SilentlyContinue", StringComparison.Ordinal))
+        {
+            errors.Add("The gate must stop at the first external-command failure.");
+        }
+
+        if (System.Text.RegularExpressions.Regex.IsMatch(
+                executable,
+                @"Get-WinEvent[\s\S]*?-ErrorAction\s+SilentlyContinue",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+        {
+            errors.Add("The WER query must fail closed when the event log cannot be queried.");
+        }
+
+        if (System.Text.RegularExpressions.Regex.IsMatch(
+                executable,
+                @"(?i)\b(?:Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item)\b[^\n]*(?:\.cs|\.xaml|\.yml|\.csproj)",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+        {
+            errors.Add("The evidence gate must never edit tracked source.");
+        }
+
+        return errors.ToArray();
+    }
+
+    private static string? ExtractPowerShellPhaseBody(string script, string phase)
+    {
+        string marker = $"'{phase}' {{";
+        int[] markerIndices = FindExactPowerShellStatementIndices(script, marker);
+        if (markerIndices.Length != 1)
+        {
+            return null;
+        }
+
+        int openBrace = markerIndices[0] + marker.LastIndexOf('{');
+        int depth = 0;
+        bool inSingleQuotedString = false;
+        bool inDoubleQuotedString = false;
+        for (int index = openBrace; index < script.Length; index++)
+        {
+            char current = script[index];
+            if (inSingleQuotedString)
+            {
+                if (current == '\'' && index + 1 < script.Length && script[index + 1] == '\'')
+                {
+                    index++;
+                }
+                else if (current == '\'')
+                {
+                    inSingleQuotedString = false;
+                }
+
+                continue;
+            }
+
+            if (inDoubleQuotedString)
+            {
+                if (current == '`' && index + 1 < script.Length)
+                {
+                    index++;
+                }
+                else if (current == '"')
+                {
+                    inDoubleQuotedString = false;
+                }
+
+                continue;
+            }
+
+            if (current == '\'')
+            {
+                inSingleQuotedString = true;
+            }
+            else if (current == '"')
+            {
+                inDoubleQuotedString = true;
+            }
+            else if (current == '{')
+            {
+                depth++;
+            }
+            else if (current == '}' && --depth == 0)
+            {
+                return script[(openBrace + 1)..index];
+            }
+        }
+
+        return null;
+    }
+
+    private static int IndexOfExactPowerShellStatement(
+        string script,
+        string statement) => FindExactPowerShellStatementIndices(script, statement)
+            .FirstOrDefault(-1);
+
+    private static int CountExactPowerShellStatements(
+        string script,
+        string statement) => FindExactPowerShellStatementIndices(script, statement).Length;
+
+    private static int[] FindExactPowerShellStatementIndices(
+        string script,
+        string statement)
+    {
+        var indices = new List<int>();
+        bool inSingleQuotedString = false;
+        bool inDoubleQuotedString = false;
+        int lineStart = 0;
+        while (lineStart <= script.Length)
+        {
+            int newline = script.IndexOf('\n', lineStart);
+            int lineEnd = newline >= 0 ? newline : script.Length;
+            bool lineStartsInQuotedString = inSingleQuotedString || inDoubleQuotedString;
+            int contentStart = lineStart;
+            while (contentStart < lineEnd &&
+                   (script[contentStart] == ' ' || script[contentStart] == '\t'))
+            {
+                contentStart++;
+            }
+
+            int contentEnd = lineEnd;
+            while (contentEnd > contentStart &&
+                   (script[contentEnd - 1] == ' ' ||
+                    script[contentEnd - 1] == '\t' ||
+                    script[contentEnd - 1] == '\r'))
+            {
+                contentEnd--;
+            }
+
+            if (!lineStartsInQuotedString &&
+                script.AsSpan(contentStart, contentEnd - contentStart)
+                    .SequenceEqual(statement.AsSpan()))
+            {
+                indices.Add(contentStart);
+            }
+
+            for (int index = lineStart; index < lineEnd; index++)
+            {
+                char current = script[index];
+                if (inSingleQuotedString)
+                {
+                    if (current == '\'' && index + 1 < lineEnd && script[index + 1] == '\'')
+                    {
+                        index++;
+                    }
+                    else if (current == '\'')
+                    {
+                        inSingleQuotedString = false;
+                    }
+
+                    continue;
+                }
+
+                if (inDoubleQuotedString)
+                {
+                    if (current == '`' && index + 1 < lineEnd)
+                    {
+                        index++;
+                    }
+                    else if (current == '"')
+                    {
+                        inDoubleQuotedString = false;
+                    }
+
+                    continue;
+                }
+
+                if (current == '\'')
+                {
+                    inSingleQuotedString = true;
+                }
+                else if (current == '"')
+                {
+                    inDoubleQuotedString = true;
+                }
+            }
+
+            if (newline < 0)
+            {
+                break;
+            }
+
+            lineStart = newline + 1;
+        }
+
+        return indices.ToArray();
     }
 
     private static string[] ValidateVisualStudioGuide(string guide)
@@ -1993,26 +2554,171 @@ public sealed class BuildWorkflowContractTests
 
     private static string RemovePowerShellNonExecutableText(string script)
     {
-        string result = System.Text.RegularExpressions.Regex.Replace(
-            script,
-            @"(?ms)@'.*?^[ \t]*'@[ \t]*(?:\n|$)",
-            string.Empty,
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        result = System.Text.RegularExpressions.Regex.Replace(
-            result,
-            "(?ms)@\".*?^[ \\t]*\"@[ \\t]*(?:\\n|$)",
-            string.Empty,
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        result = System.Text.RegularExpressions.Regex.Replace(
-            result,
-            @"(?s)<#.*?#>",
-            string.Empty,
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        return System.Text.RegularExpressions.Regex.Replace(
-            result,
-            @"(?m)#.*$",
-            string.Empty,
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        char[] sanitized = script.ToCharArray();
+        bool inSingleQuotedString = false;
+        bool inDoubleQuotedString = false;
+        int blockCommentDepth = 0;
+        char hereStringQuote = '\0';
+        bool onlyWhitespaceSinceLineStart = true;
+
+        for (int index = 0; index < script.Length; index++)
+        {
+            char current = script[index];
+            if (current is '\r' or '\n')
+            {
+                onlyWhitespaceSinceLineStart = true;
+                continue;
+            }
+
+            if (hereStringQuote != '\0')
+            {
+                if (onlyWhitespaceSinceLineStart &&
+                    current == hereStringQuote &&
+                    index + 1 < script.Length &&
+                    script[index + 1] == '@' &&
+                    PowerShellLineRemainderIsWhitespace(script, index + 2))
+                {
+                    sanitized[index] = ' ';
+                    sanitized[index + 1] = ' ';
+                    index++;
+                    hereStringQuote = '\0';
+                    onlyWhitespaceSinceLineStart = false;
+                    continue;
+                }
+
+                sanitized[index] = ' ';
+                if (current is not (' ' or '\t'))
+                {
+                    onlyWhitespaceSinceLineStart = false;
+                }
+
+                continue;
+            }
+
+            if (blockCommentDepth > 0)
+            {
+                sanitized[index] = ' ';
+                if (current == '<' &&
+                    index + 1 < script.Length &&
+                    script[index + 1] == '#')
+                {
+                    sanitized[index + 1] = ' ';
+                    blockCommentDepth++;
+                    index++;
+                }
+                else if (current == '#' &&
+                         index + 1 < script.Length &&
+                         script[index + 1] == '>')
+                {
+                    sanitized[index + 1] = ' ';
+                    blockCommentDepth--;
+                    index++;
+                }
+
+                continue;
+            }
+
+            if (inSingleQuotedString)
+            {
+                if (current == '\'' &&
+                    index + 1 < script.Length &&
+                    script[index + 1] == '\'')
+                {
+                    index++;
+                }
+                else if (current == '\'')
+                {
+                    inSingleQuotedString = false;
+                }
+
+                onlyWhitespaceSinceLineStart = false;
+                continue;
+            }
+
+            if (inDoubleQuotedString)
+            {
+                if (current == '`' && index + 1 < script.Length)
+                {
+                    index++;
+                }
+                else if (current == '"')
+                {
+                    inDoubleQuotedString = false;
+                }
+
+                onlyWhitespaceSinceLineStart = false;
+                continue;
+            }
+
+            if (current == '#')
+            {
+                while (index < script.Length &&
+                       script[index] is not ('\r' or '\n'))
+                {
+                    sanitized[index++] = ' ';
+                }
+
+                index--;
+                continue;
+            }
+
+            if (current == '<' &&
+                index + 1 < script.Length &&
+                script[index + 1] == '#')
+            {
+                sanitized[index] = ' ';
+                sanitized[index + 1] = ' ';
+                blockCommentDepth = 1;
+                index++;
+                continue;
+            }
+
+            if (current == '@' &&
+                index + 1 < script.Length &&
+                (script[index + 1] is '\'' or '"') &&
+                PowerShellLineRemainderIsWhitespace(script, index + 2))
+            {
+                hereStringQuote = script[index + 1];
+                sanitized[index] = ' ';
+                sanitized[index + 1] = ' ';
+                index++;
+                onlyWhitespaceSinceLineStart = false;
+                continue;
+            }
+
+            if (current == '\'')
+            {
+                inSingleQuotedString = true;
+            }
+            else if (current == '"')
+            {
+                inDoubleQuotedString = true;
+            }
+
+            if (current is not (' ' or '\t'))
+            {
+                onlyWhitespaceSinceLineStart = false;
+            }
+        }
+
+        return new string(sanitized);
+    }
+
+    private static bool PowerShellLineRemainderIsWhitespace(
+        string script,
+        int offset)
+    {
+        for (int index = offset;
+             index < script.Length && script[index] != '\n';
+             index++)
+        {
+            if (script[index] is not (' ' or '\t' or '\r'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string ReadControlledEvidenceWorkflow()

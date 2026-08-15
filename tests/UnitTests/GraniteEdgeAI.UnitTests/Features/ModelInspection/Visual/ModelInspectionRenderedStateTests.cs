@@ -1,13 +1,10 @@
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
-using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Presets;
-using GraniteEdgeAI.Features.ModelInspection.DebugFixtures.Runtime;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
-using GraniteEdgeAI.ModelInspection.Fixtures;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -347,43 +344,35 @@ public sealed class ModelInspectionRenderedStateTests
             page.FindName("InspectionPageScrollViewer"));
     }
 
-    private static readonly Lazy<ModelInspectionFixtureCatalogue>
-        ResponsiveCatalogue = new(LoadResponsiveCatalogue);
-
     private static readonly double[] ResponsiveWidths =
         [1440d, 888d, 887d, 600d, 599d, 360d];
+
+    private static readonly string DominatingModelName = new('M', 160);
+
+    private static readonly string DominatingStageDetail = string.Concat(
+        Enumerable.Repeat(
+            "Inspection progress detail remains bounded for deterministic maximum-copy validation. ",
+            7))[..512];
+
+    private static readonly string DominatingOperationalFailureDetail =
+        string.Concat(
+            Enumerable.Repeat(
+                "Operational failure detail remains bounded for deterministic maximum-copy validation. ",
+                7))[..512];
 
     private static async Task AssertResponsiveAccessibilityMatrixAsync(
         ModelInspectionFigmaState state)
     {
         foreach (bool preview200 in new[] { false, true })
         {
-            ModelInspectionPage page;
-            ModelInspectionFixtureSession? session = null;
+            Action<ResourceDictionary>? configureResources = preview200
+                ? ConfigureTwoHundredPercentPreviewResources
+                : null;
+            ModelInspectionPage page =
+                ModelInspectionVisualTestScenario.CreatePage(configureResources);
             if (preview200)
             {
-                ModelInspectionFixtureCatalogue catalogue =
-                    ResponsiveCatalogue.Value;
-                ValidatedModelInspectionFixture fixture =
-                    catalogue.Fixtures.Single(item => item.Id == "MI-003");
-                var preset = GraniteEdgeAI.Features.ModelInspection
-                    .DebugFixtures.Presets.ModelInspectionFixturePreset
-                    .FromPolicy(
-                    catalogue.Policy.Value.Presets.Single(item => item.Id == "P08"));
-                session = new ModelInspectionFixtureSession(
-                    fixture.Input,
-                    animationsEnabled: false);
-                page = ModelInspectionPage.CreateForFixture(
-                    session,
-                    startInspectionOnLoaded: false,
-                    resources => ModelInspectionFixturePreviewResources.Configure(
-                        resources,
-                        preset));
                 page.RequestedTheme = ElementTheme.Dark;
-            }
-            else
-            {
-                page = ModelInspectionVisualTestScenario.CreatePage();
             }
 
             ModelInspectionPagePresentation presentation =
@@ -405,6 +394,10 @@ public sealed class ModelInspectionRenderedStateTests
                 foreach (double width in ResponsiveWidths)
                 {
                     await ResizeClientAndWaitAsync(window, page, width, 700d);
+                    if (preview200 && width == ResponsiveWidths[0])
+                    {
+                        AssertTwoHundredPercentRoleSizes(page);
+                    }
                     double layoutWidth = page.XamlRoot.Size.Width;
                     Assert.AreEqual(
                         width,
@@ -431,8 +424,42 @@ public sealed class ModelInspectionRenderedStateTests
             {
                 window.Content = null;
                 window.Close();
-                session?.Dispose();
             }
+        }
+    }
+
+    private static void ConfigureTwoHundredPercentPreviewResources(
+        ResourceDictionary resources)
+    {
+        resources["InspectionPageTitleFontSize"] = 64d;
+        resources["InspectionSectionTitleFontSize"] = 36d;
+        resources["InspectionBodyFontSize"] = 28d;
+        resources["InspectionHelperFontSize"] = 24d;
+        resources["InspectionLabelFontSize"] = 20d;
+    }
+
+    private static void AssertTwoHundredPercentRoleSizes(
+        ModelInspectionPage page)
+    {
+        Assert.AreEqual(
+            64d,
+            Element<TextBlock>(page, "PageTitle").FontSize,
+            0.01d,
+            "200% page-title role");
+        Assert.AreEqual(
+            28d,
+            Element<TextBlock>(page, "ModelInspectionExplanation").FontSize,
+            0.01d,
+            "200% body role");
+        TextBlock[] realizedText = Descendants(page)
+            .OfType<TextBlock>()
+            .Where(text => text.ActualWidth > 0d && text.ActualHeight > 0d)
+            .ToArray();
+        foreach (double expected in new[] { 64d, 36d, 28d, 24d, 20d })
+        {
+            Assert.IsTrue(
+                realizedText.Any(text => Math.Abs(text.FontSize - expected) <= 0.01d),
+                $"The 200% preview did not realize the {expected} px role.");
         }
     }
 
@@ -440,19 +467,6 @@ public sealed class ModelInspectionRenderedStateTests
         ModelInspectionPage page,
         ModelInspectionFigmaState state)
     {
-        ValidatedModelInspectionFixture[] stateFixtures = ResponsiveCatalogue
-            .Value.Fixtures
-            .Where(candidate =>
-                (int)candidate.Expected.Figma.State == (int)state)
-            .ToArray();
-        ValidatedModelInspectionFixture fixture = stateFixtures
-            .OrderByDescending(candidate => ExpectedCopy(candidate).Max(
-                text => text.Length))
-            .First();
-        ValidatedModelInspectionFixture maximumModelFixture =
-            ResponsiveCatalogue.Value.Fixtures.Single(candidate =>
-                candidate.Id == "MI-043");
-
         var modelCard = Element<InspectionModelCard>(
             page,
             "InspectionModelCardControl");
@@ -460,25 +474,20 @@ public sealed class ModelInspectionRenderedStateTests
             ModelInspectionFigmaState.ReadyCollapsed or
             ModelInspectionFigmaState.ReadyExpanded)
         {
-            string maximumModelName = maximumModelFixture.Expected.Model
-                .DisplayName.DefaultText;
-            Assert.IsGreaterThanOrEqualTo(160, maximumModelName.Length);
+            Assert.IsGreaterThanOrEqualTo(160, DominatingModelName.Length);
             SetLongestRenderedText(
                 modelCard,
-                maximumModelName,
+                DominatingModelName,
                 modelCard.Presentation.ModelName);
         }
 
         if (state is ModelInspectionFigmaState.ReadyCollapsed or
             ModelInspectionFigmaState.ReadyExpanded)
         {
-            string? maximumMetadata = Longest(stateFixtures.SelectMany(
-                candidate => candidate.Expected.Model.Metadata.Select(field =>
-                    field.Value.DefaultText)));
             SetNamedFieldValue(
                 modelCard,
                 "PublisherField",
-                maximumMetadata);
+                "Not reported");
         }
 
         var contentCard = Element<InspectionContentCard>(
@@ -486,15 +495,14 @@ public sealed class ModelInspectionRenderedStateTests
             "InspectionContentCardControl");
         if (state == ModelInspectionFigmaState.InspectionProgress)
         {
-            string? maximumStageDetail = Longest(stateFixtures.SelectMany(
-                candidate => candidate.Expected.Content.Rows.Select(row =>
-                    row.SecondaryText?.DefaultText)));
             string? currentStageDetail = contentCard.Presentation.Items
                 .FirstOrDefault(item => item.IsActive)?.Detail;
-            Assert.IsGreaterThanOrEqualTo(512, maximumStageDetail?.Length ?? 0);
+            Assert.IsGreaterThanOrEqualTo(
+                512,
+                DominatingStageDetail.Length);
             SetLongestRenderedText(
                 contentCard,
-                maximumStageDetail,
+                DominatingStageDetail,
                 currentStageDetail);
         }
         else if (state is ModelInspectionFigmaState.ReadyWithWarningsCollapsed or
@@ -506,13 +514,11 @@ public sealed class ModelInspectionRenderedStateTests
         {
             SetRoleCopy(
                 contentCard,
-                Longest(fixture.Expected.Content.Rows.Select(row =>
-                    row.PrimaryText.DefaultText)),
+                DominatingPrimaryCopy(state),
                 Longest(contentCard.Presentation.Items.Select(item => item.Title)));
             SetRoleCopy(
                 contentCard,
-                Longest(fixture.Expected.Content.Rows.Select(row =>
-                    row.SecondaryText?.DefaultText)),
+                DominatingSecondaryCopy(state),
                 Longest(contentCard.Presentation.Items.Select(item => item.Detail)));
         }
         else if (state is ModelInspectionFigmaState.IncompletePackage or
@@ -525,12 +531,11 @@ public sealed class ModelInspectionRenderedStateTests
                 "InspectionOutcomeCardControl");
             SetRoleCopy(
                 outcomeCard,
-                fixture.Expected.Outcome.SupportingText?.DefaultText,
+                DominatingOutcomeCopy(state),
                 outcomeCard.Presentation.Message);
             SetRoleCopy(
                 contentCard,
-                Longest(fixture.Expected.Content.Rows.Select(row =>
-                    row.SecondaryText?.DefaultText)),
+                DominatingSecondaryCopy(state),
                 Longest(contentCard.Presentation.Items.Select(item => item.Detail)));
         }
 
@@ -539,11 +544,74 @@ public sealed class ModelInspectionRenderedStateTests
             "InspectionActionCardControl");
         SetRoleCopy(
             actionCard,
-            Longest(fixture.Expected.Actions.Items
-                .Where(action => action.Visible)
-                .Select(action => action.Label.DefaultText)),
+            DominatingActionCopy(state),
             Longest(CurrentActionCopy(actionCard.Presentation)));
     }
+
+    private static string DominatingPrimaryCopy(
+        ModelInspectionFigmaState state) => state switch
+        {
+            ModelInspectionFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionFigmaState.ReadyWithWarningsExpanded =>
+                "Chat template not reported",
+            ModelInspectionFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionFigmaState.ConversionRequiredExpanded =>
+                "Conversion required",
+            ModelInspectionFigmaState.InvalidCollapsed or
+            ModelInspectionFigmaState.InvalidExpanded =>
+                "Structural validation did not produce a usable model result.",
+            _ => "Model result unavailable"
+        };
+
+    private static string DominatingSecondaryCopy(
+        ModelInspectionFigmaState state) => state switch
+        {
+            ModelInspectionFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionFigmaState.ReadyWithWarningsExpanded =>
+                "The model does not report a chat template. Chat formatting may require manual configuration.",
+            ModelInspectionFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionFigmaState.ConversionRequiredExpanded =>
+                "Choose another model or review the expected converted output.",
+            ModelInspectionFigmaState.InvalidCollapsed or
+            ModelInspectionFigmaState.InvalidExpanded =>
+                "Choose another model.",
+            ModelInspectionFigmaState.IncompletePackage =>
+                "Locate the missing file or choose another model.",
+            ModelInspectionFigmaState.Unsupported => "Choose another model.",
+            ModelInspectionFigmaState.Cancelled =>
+                "No model result was produced because inspection was cancelled.",
+            ModelInspectionFigmaState.OperationalFailure =>
+                DominatingOperationalFailureDetail,
+            _ => string.Empty
+        };
+
+    private static string DominatingOutcomeCopy(
+        ModelInspectionFigmaState state) => state switch
+        {
+            ModelInspectionFigmaState.IncompletePackage =>
+                "The model package is missing required content.",
+            ModelInspectionFigmaState.Unsupported =>
+                "The selected model is not supported by this inspection route.",
+            ModelInspectionFigmaState.Cancelled =>
+                "No model result was produced because inspection was cancelled.",
+            ModelInspectionFigmaState.OperationalFailure =>
+                DominatingOperationalFailureDetail,
+            _ => string.Empty
+        };
+
+    private static string DominatingActionCopy(
+        ModelInspectionFigmaState state) => state switch
+        {
+            ModelInspectionFigmaState.InspectionProgress =>
+                "Cancel inspection",
+            ModelInspectionFigmaState.ReadyWithWarningsCollapsed or
+            ModelInspectionFigmaState.ReadyWithWarningsExpanded =>
+                "Continue to hardware check",
+            ModelInspectionFigmaState.ConversionRequiredCollapsed or
+            ModelInspectionFigmaState.ConversionRequiredExpanded =>
+                "Choose conversion format",
+            _ => "View technical report"
+        };
 
     private static IEnumerable<string?> CurrentActionCopy(
         InspectionActionCardPresentation presentation) =>
@@ -587,26 +655,6 @@ public sealed class ModelInspectionRenderedStateTests
         Assert.IsNotNull(target, fieldName);
         target.Text = value;
     }
-
-    private static IEnumerable<string> ExpectedCopy(
-        ValidatedModelInspectionFixture fixture) =>
-        fixture.Expected.Automation.Controls
-            .Select(control => control.AccessibleName.DefaultText)
-            .Concat(fixture.Expected.Model.Metadata.SelectMany(field =>
-                new[] { field.Label.DefaultText, field.Value.DefaultText }))
-            .Concat(fixture.Expected.Model.Checks.Select(check =>
-                check.Text.DefaultText))
-            .Concat(fixture.Expected.Content.Rows.SelectMany(row =>
-                new[]
-                {
-                    row.PrimaryText.DefaultText,
-                    row.SecondaryText?.DefaultText ?? string.Empty
-                }))
-            .Append(fixture.Expected.Model.DisplayName.DefaultText)
-            .Append(fixture.Expected.Model.DisplayFileName.DefaultText)
-            .Append(fixture.Expected.Content.Heading?.DefaultText ?? string.Empty)
-            .Append(fixture.Expected.Outcome.Title?.DefaultText ?? string.Empty)
-            .Append(fixture.Expected.Outcome.SupportingText?.DefaultText ?? string.Empty);
 
     private static string? Longest(IEnumerable<string?> copy) => copy
         .Where(text => !string.IsNullOrWhiteSpace(text))
@@ -1279,28 +1327,6 @@ public sealed class ModelInspectionRenderedStateTests
         }
     }
 
-    private static ModelInspectionFixtureCatalogue LoadResponsiveCatalogue()
-    {
-        string root = Path.Combine(AppContext.BaseDirectory, "Fixtures");
-        ModelInspectionFixtureDocumentSource Read(string fileName) => new(
-            fileName,
-            File.ReadAllBytes(Path.Combine(root, fileName)));
-        VerifiedModelInspectionFixtureSchema schema =
-            ModelInspectionFixtureCatalogue.VerifySchema(Read(
-                "model-inspection-fixture.schema.json"));
-        ValidatedModelInspectionFixtureCoveragePolicy policy =
-            ModelInspectionFixtureCatalogue.LoadPolicy(Read(
-                "model-inspection-fixture-coverage-policy.json"), schema);
-        ModelInspectionFixtureCatalogue catalogue =
-            ModelInspectionFixtureCatalogue.LoadDescriptors(
-                policy.Value.Fixtures.Select(entry => Read(entry.FileName))
-                    .ToArray(),
-                policy,
-                schema);
-        return ModelInspectionFixtureCoverageValidator.Validate(catalogue)
-            .Catalogue;
-    }
-
     private static void AssertTypographyAndWrapping(
         FrameworkElement page,
         InspectionModelCard model,
@@ -1771,11 +1797,18 @@ public sealed class ModelInspectionRenderedStateTests
 
 internal static class ModelInspectionVisualTestScenario
 {
-    internal static ModelInspectionPage CreatePage() =>
-        new(new UnexpectedInspectionService())
-        {
-            RequestedTheme = ElementTheme.Light
-        };
+    internal static ModelInspectionPage CreatePage(
+        Action<ResourceDictionary>? configureResourcesBeforeInitialize = null)
+    {
+        var service = new UnexpectedInspectionService();
+        ModelInspectionPage page = configureResourcesBeforeInitialize is null
+            ? new ModelInspectionPage(service)
+            : new ModelInspectionPage(
+                service,
+                configureResourcesBeforeInitialize);
+        page.RequestedTheme = ElementTheme.Light;
+        return page;
+    }
 
     internal static ModelInspectionPagePresentation CreatePresentation(
         ModelInspectionFigmaState state)

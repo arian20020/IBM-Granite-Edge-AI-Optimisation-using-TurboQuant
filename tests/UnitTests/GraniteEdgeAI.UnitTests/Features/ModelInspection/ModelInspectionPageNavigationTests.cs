@@ -2497,7 +2497,9 @@ public sealed class ModelInspectionPageNavigationTests
                 "A later layout must not start another inspection.");
 
             await run.WaitAsync(TimeSpan.FromSeconds(30));
-            await DrainDispatcherAsync(page);
+            await WaitForPresentationStateAsync(
+                page,
+                ModelInspectionFigmaState.ReadyCollapsed);
 
             Assert.HasCount(1, observedStartupPresentations);
             Assert.AreEqual(
@@ -2786,6 +2788,29 @@ public sealed class ModelInspectionPageNavigationTests
         Assert.IsTrue(element.DispatcherQueue.TryEnqueue(
             () => drained.TrySetResult(true)));
         await drained.Task.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    private static async Task WaitForPresentationStateAsync(
+        ModelInspectionPage page,
+        ModelInspectionFigmaState expectedState)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow +
+            TimeSpan.FromSeconds(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            await DrainDispatcherAsync(page);
+            page.UpdateLayout();
+            if (page.CurrentPresentation?.State == expectedState)
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+        }
+
+        Assert.Fail(
+            $"The page did not reach {expectedState} before timeout. Actual: " +
+            $"{page.CurrentPresentation?.State.ToString() ?? "null"}.");
     }
 
     private static void AssertModelPresentation(

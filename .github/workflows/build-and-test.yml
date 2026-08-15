@@ -547,8 +547,12 @@ jobs:
           [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
           $counters = $trx.TestRun.ResultSummary.Counters
           $minimumExpectedTests = 686
+          $measuredExpectedTests = 717
           if ([int]$counters.total -lt $minimumExpectedTests -or [int]$counters.executed -lt $minimumExpectedTests) {
             throw "The packaged unit-test run fell below the $minimumExpectedTests-test floor."
+          }
+          if ([int]$counters.total -ne $measuredExpectedTests -or [int]$counters.executed -ne $measuredExpectedTests) {
+            throw "The packaged unit-test run drifted from the measured $measuredExpectedTests-test total."
           }
           if ([int]$counters.total -ne [int]$counters.passed -or [int]$counters.executed -ne [int]$counters.passed) {
             throw 'The packaged unit-test TRX contains a non-passing result.'
