@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,6 +7,7 @@ namespace HardwareInspection.LlmFitSpike.Inspection;
 
 public static class LlmFitSystemJsonAssessor
 {
+    private const long ExponentComparisonSlack = 1024;
     private const string JsonInvalid = "HI-LLMFIT-JSON-INVALID";
     private const string CpuRamMissing = "HI-LLMFIT-CPU-RAM-MISSING";
     private const string GpuInconsistent = "HI-LLMFIT-GPU-INCONSISTENT";
@@ -28,15 +30,18 @@ public static class LlmFitSystemJsonAssessor
                 new JsonDocumentOptions { AllowTrailingCommas = false, CommentHandling = JsonCommentHandling.Disallow });
 
             if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !HasUniquePropertyNames(document.RootElement) ||
                 !document.RootElement.TryGetProperty("system", out JsonElement system) ||
-                system.ValueKind != JsonValueKind.Object)
+                system.ValueKind != JsonValueKind.Object ||
+                !HasUniquePropertyNames(system) ||
+                !HasUniqueGpuPropertyNames(system))
             {
-                return CreateAssessment(false, false, false, null, null, null, null, false, 0, false, rawJsonSha256, diagnostics, true, false);
+                return CreateJsonInvalidAssessment(rawJsonSha256, diagnostics);
             }
 
             CpuRamData cpuRam = ReadCpuRam(system);
             GpuData gpu = ReadGpu(system);
-            bool jsonValid = cpuRam.TypesValid && gpu.IsConsistent;
+            bool jsonValid = cpuRam.RepresentationsValid && gpu.IsConsistent;
 
             if (!cpuRam.RequiredPresent)
             {
@@ -71,14 +76,22 @@ public static class LlmFitSystemJsonAssessor
                 gpu.ReportedGpuCount,
                 intelGpuReported,
                 rawJsonSha256,
-                diagnostics,
-                false,
-                false);
+                diagnostics);
         }
         catch (JsonException)
         {
-            return CreateAssessment(false, false, false, null, null, null, null, false, 0, false, rawJsonSha256, diagnostics, true, false);
+            return CreateJsonInvalidAssessment(rawJsonSha256, diagnostics);
         }
+        catch (InvalidOperationException)
+        {
+            return CreateJsonInvalidAssessment(rawJsonSha256, diagnostics);
+        }
+    }
+
+    private static LlmFitSystemAssessment CreateJsonInvalidAssessment(string rawJsonSha256, List<string> diagnostics)
+    {
+        AddDiagnostic(diagnostics, JsonInvalid);
+        return CreateAssessment(false, false, false, null, null, null, null, false, 0, false, rawJsonSha256, diagnostics);
     }
 
     private static LlmFitSystemAssessment CreateAssessment(
@@ -93,20 +106,8 @@ public static class LlmFitSystemJsonAssessor
         int reportedGpuCount,
         bool intelGpuReported,
         string rawJsonSha256,
-        List<string> diagnostics,
-        bool jsonInvalid,
-        bool gpuInconsistent)
+        List<string> diagnostics)
     {
-        if (jsonInvalid)
-        {
-            AddDiagnostic(diagnostics, JsonInvalid);
-        }
-
-        if (gpuInconsistent)
-        {
-            AddDiagnostic(diagnostics, GpuInconsistent);
-        }
-
         AddDiagnostic(diagnostics, IntelNpuGap);
         AddDiagnostic(diagnostics, SchemaDocumentationDrift);
 
@@ -129,28 +130,31 @@ public static class LlmFitSystemJsonAssessor
 
     private static CpuRamData ReadCpuRam(JsonElement system)
     {
-        bool totalRamRepresentationallyValid = TryReadFiniteNumber(system, "total_ram_gb", out double totalRam);
-        bool availableRamRepresentationallyValid = TryReadFiniteNumber(system, "available_ram_gb", out double availableRam);
-        bool cpuCoresRepresentationallyValid = TryReadInteger(system, "cpu_cores", out int cpuCores);
-        bool cpuNameTypeValid = TryReadString(system, "cpu_name", out string? cpuName);
+        MemberState totalRamState = ReadFiniteExactNumber(system, "total_ram_gb", out ExactJsonDecimal totalRam);
+        MemberState availableRamState = ReadFiniteExactNumber(system, "available_ram_gb", out ExactJsonDecimal availableRam);
+        MemberState cpuCoresState = ReadInteger(system, "cpu_cores", out int cpuCores);
+        MemberState cpuNameState = ReadString(system, "cpu_name", out string? cpuName);
 
-        bool totalRamPresent = totalRamRepresentationallyValid && totalRam > 0;
-        bool cpuCoresPresent = cpuCoresRepresentationallyValid && cpuCores > 0;
-        bool cpuNamePresent = cpuNameTypeValid && !string.IsNullOrWhiteSpace(cpuName);
-        bool availableRamPresent = availableRamRepresentationallyValid && totalRamPresent && availableRam >= 0 && availableRam <= totalRam;
+        bool totalRamPresent = totalRamState == MemberState.Valid && totalRam.IsPositive;
+        bool cpuCoresPresent = cpuCoresState == MemberState.Valid && cpuCores > 0;
+        bool cpuNamePresent = cpuNameState == MemberState.Valid && !string.IsNullOrWhiteSpace(cpuName);
+        bool availableRamPresent = availableRamState == MemberState.Valid &&
+            totalRamPresent &&
+            availableRam.IsNonNegative &&
+            availableRam.CompareMagnitude(totalRam) <= 0;
         bool requiredPresent = totalRamPresent && availableRamPresent && cpuCoresPresent && cpuNamePresent;
-        bool typesValid = totalRamRepresentationallyValid &&
-            availableRamRepresentationallyValid &&
-            cpuCoresRepresentationallyValid &&
-            cpuNameTypeValid;
+        bool representationsValid = totalRamState != MemberState.InvalidRepresentation &&
+            availableRamState != MemberState.InvalidRepresentation &&
+            cpuCoresState != MemberState.InvalidRepresentation &&
+            cpuNameState != MemberState.InvalidRepresentation;
 
         return new CpuRamData(
             requiredPresent,
-            typesValid,
+            representationsValid,
             cpuNamePresent ? cpuName : null,
             cpuCoresPresent ? cpuCores : null,
-            totalRamPresent ? totalRam : null,
-            availableRamPresent ? availableRam : null,
+            totalRamPresent ? totalRam.Value : null,
+            availableRamPresent ? availableRam.Value : null,
             cpuNamePresent);
     }
 
@@ -180,7 +184,7 @@ public static class LlmFitSystemJsonAssessor
                 }
 
                 gpuEntryCount += gpuInstanceCount;
-                intelNameFound |= TryReadString(gpu, "name", out string? gpuName) && ContainsIntelToken(gpuName);
+                intelNameFound |= ReadString(gpu, "name", out string? gpuName) == MemberState.Valid && ContainsIntelToken(gpuName);
             }
         }
 
@@ -192,7 +196,7 @@ public static class LlmFitSystemJsonAssessor
             gpuEntryCount == gpuCount;
         bool isConsistent = flagsAndCountsAgree && gpusTypeValid;
 
-        bool topLevelIntelNameFound = TryReadString(system, "gpu_name", out string? topLevelGpuName) && ContainsIntelToken(topLevelGpuName);
+        bool topLevelIntelNameFound = ReadString(system, "gpu_name", out string? topLevelGpuName) == MemberState.Valid && ContainsIntelToken(topLevelGpuName);
         return new GpuData(
             isConsistent,
             hasGpuTypeValid && hasGpu,
@@ -200,21 +204,41 @@ public static class LlmFitSystemJsonAssessor
             topLevelIntelNameFound || intelNameFound);
     }
 
-    private static bool TryReadFiniteNumber(JsonElement parent, string propertyName, out double value)
+    private static MemberState ReadFiniteExactNumber(JsonElement parent, string propertyName, out ExactJsonDecimal value)
     {
         value = default;
-        return parent.TryGetProperty(propertyName, out JsonElement property) &&
-            property.ValueKind == JsonValueKind.Number &&
-            property.TryGetDouble(out value) &&
-            double.IsFinite(value);
+        if (!parent.TryGetProperty(propertyName, out JsonElement property))
+        {
+            return MemberState.Missing;
+        }
+
+        if (property.ValueKind != JsonValueKind.Number ||
+            !property.TryGetDouble(out double doubleValue) ||
+            !double.IsFinite(doubleValue) ||
+            !TryParseExactJsonDecimal(property.GetRawText(), doubleValue, out value))
+        {
+            return MemberState.InvalidRepresentation;
+        }
+
+        return MemberState.Valid;
+    }
+
+    private static MemberState ReadInteger(JsonElement parent, string propertyName, out int value)
+    {
+        value = default;
+        if (!parent.TryGetProperty(propertyName, out JsonElement property))
+        {
+            return MemberState.Missing;
+        }
+
+        return property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out value)
+            ? MemberState.Valid
+            : MemberState.InvalidRepresentation;
     }
 
     private static bool TryReadInteger(JsonElement parent, string propertyName, out int value)
     {
-        value = default;
-        return parent.TryGetProperty(propertyName, out JsonElement property) &&
-            property.ValueKind == JsonValueKind.Number &&
-            property.TryGetInt32(out value);
+        return ReadInteger(parent, propertyName, out value) == MemberState.Valid;
     }
 
     private static bool TryReadBoolean(JsonElement parent, string propertyName, out bool value)
@@ -230,12 +254,28 @@ public static class LlmFitSystemJsonAssessor
         return true;
     }
 
-    private static bool TryReadString(JsonElement parent, string propertyName, out string? value)
+    private static MemberState ReadString(JsonElement parent, string propertyName, out string? value)
     {
         value = null;
-        return parent.TryGetProperty(propertyName, out JsonElement property) &&
-            property.ValueKind == JsonValueKind.String &&
-            (value = property.GetString()) is not null;
+        if (!parent.TryGetProperty(propertyName, out JsonElement property))
+        {
+            return MemberState.Missing;
+        }
+
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            return MemberState.InvalidRepresentation;
+        }
+
+        try
+        {
+            value = property.GetString();
+            return value is null ? MemberState.InvalidRepresentation : MemberState.Valid;
+        }
+        catch (InvalidOperationException)
+        {
+            return MemberState.InvalidRepresentation;
+        }
     }
 
     private static bool ContainsIntelToken(string? value)
@@ -251,8 +291,7 @@ public static class LlmFitSystemJsonAssessor
             index = value.IndexOf(intel, index + intel.Length, StringComparison.OrdinalIgnoreCase))
         {
             int after = index + intel.Length;
-            if ((index == 0 || !IsTokenCharacter(value[index - 1])) &&
-                (after == value.Length || !IsTokenCharacter(value[after])))
+            if (IsUnicodeTokenBoundaryBefore(value, index) && IsUnicodeTokenBoundaryAfter(value, after))
             {
                 return true;
             }
@@ -261,9 +300,214 @@ public static class LlmFitSystemJsonAssessor
         return false;
     }
 
-    private static bool IsTokenCharacter(char value)
+    private static bool IsUnicodeTokenBoundaryBefore(string value, int index)
     {
-        return char.IsLetterOrDigit(value) || value == '_';
+        if (index == 0)
+        {
+            return true;
+        }
+
+        return Rune.DecodeLastFromUtf16(value.AsSpan(0, index), out Rune rune, out _) == OperationStatus.Done &&
+            !IsTokenRune(rune);
+    }
+
+    private static bool IsUnicodeTokenBoundaryAfter(string value, int index)
+    {
+        if (index == value.Length)
+        {
+            return true;
+        }
+
+        return Rune.DecodeFromUtf16(value.AsSpan(index), out Rune rune, out _) == OperationStatus.Done &&
+            !IsTokenRune(rune);
+    }
+
+    private static bool IsTokenRune(Rune value)
+    {
+        return Rune.IsLetterOrDigit(value) || value.Value == '_';
+    }
+
+    private static bool HasUniquePropertyNames(JsonElement objectElement)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonProperty property in objectElement.EnumerateObject())
+        {
+            if (!names.Add(property.Name))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasUniqueGpuPropertyNames(JsonElement system)
+    {
+        if (!system.TryGetProperty("gpus", out JsonElement gpus) || gpus.ValueKind != JsonValueKind.Array)
+        {
+            return true;
+        }
+
+        foreach (JsonElement gpu in gpus.EnumerateArray())
+        {
+            if (gpu.ValueKind == JsonValueKind.Object && !HasUniquePropertyNames(gpu))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryParseExactJsonDecimal(string rawNumber, double doubleValue, out ExactJsonDecimal value)
+    {
+        value = default;
+        ReadOnlySpan<char> text = rawNumber.AsSpan();
+        if (text.IsEmpty)
+        {
+            return false;
+        }
+
+        int index = 0;
+        bool isNegative = text[index] == '-';
+        if (isNegative)
+        {
+            index++;
+        }
+
+        if (index >= text.Length)
+        {
+            return false;
+        }
+
+        var digits = new StringBuilder(text.Length);
+        if (text[index] == '0')
+        {
+            digits.Append('0');
+            index++;
+            if (index < text.Length && IsAsciiDigit(text[index]))
+            {
+                return false;
+            }
+        }
+        else if (IsAsciiNonzeroDigit(text[index]))
+        {
+            do
+            {
+                digits.Append(text[index]);
+                index++;
+            }
+            while (index < text.Length && IsAsciiDigit(text[index]));
+        }
+        else
+        {
+            return false;
+        }
+
+        int fractionalDigitCount = 0;
+        if (index < text.Length && text[index] == '.')
+        {
+            index++;
+            int fractionalStart = index;
+            while (index < text.Length && IsAsciiDigit(text[index]))
+            {
+                digits.Append(text[index]);
+                fractionalDigitCount++;
+                index++;
+            }
+
+            if (index == fractionalStart)
+            {
+                return false;
+            }
+        }
+
+        bool exponentIsNegative = false;
+        long exponentMagnitude = 0;
+        bool exponentExceedsBound = false;
+        if (index < text.Length && (text[index] == 'e' || text[index] == 'E'))
+        {
+            index++;
+            if (index < text.Length && (text[index] == '+' || text[index] == '-'))
+            {
+                exponentIsNegative = text[index] == '-';
+                index++;
+            }
+
+            int exponentStart = index;
+            long exponentLimit = (long)text.Length + ExponentComparisonSlack;
+            while (index < text.Length && IsAsciiDigit(text[index]))
+            {
+                int digit = text[index] - '0';
+                if (!exponentExceedsBound)
+                {
+                    if (exponentMagnitude > (exponentLimit - digit) / 10)
+                    {
+                        exponentExceedsBound = true;
+                    }
+                    else
+                    {
+                        exponentMagnitude = (exponentMagnitude * 10) + digit;
+                    }
+                }
+
+                index++;
+            }
+
+            if (index == exponentStart)
+            {
+                return false;
+            }
+        }
+
+        if (index != text.Length)
+        {
+            return false;
+        }
+
+        string allDigits = digits.ToString();
+        int firstNonzero = 0;
+        while (firstNonzero < allDigits.Length && allDigits[firstNonzero] == '0')
+        {
+            firstNonzero++;
+        }
+
+        if (firstNonzero == allDigits.Length)
+        {
+            value = new ExactJsonDecimal(isNegative, true, string.Empty, 0, doubleValue);
+            return true;
+        }
+
+        if (exponentExceedsBound || doubleValue == 0)
+        {
+            return false;
+        }
+
+        int lastNonzero = allDigits.Length - 1;
+        while (allDigits[lastNonzero] == '0')
+        {
+            lastNonzero--;
+        }
+
+        long exponent = exponentIsNegative ? -exponentMagnitude : exponentMagnitude;
+        long powerOfTen = exponent - fractionalDigitCount + (allDigits.Length - 1 - lastNonzero);
+        value = new ExactJsonDecimal(
+            isNegative,
+            false,
+            allDigits.Substring(firstNonzero, lastNonzero - firstNonzero + 1),
+            powerOfTen,
+            doubleValue);
+        return true;
+    }
+
+    private static bool IsAsciiDigit(char value)
+    {
+        return value is >= '0' and <= '9';
+    }
+
+    private static bool IsAsciiNonzeroDigit(char value)
+    {
+        return value is >= '1' and <= '9';
     }
 
     private static void AddDiagnostic(List<string> diagnostics, string diagnosticCode)
@@ -276,12 +520,64 @@ public static class LlmFitSystemJsonAssessor
 
     private sealed record CpuRamData(
         bool RequiredPresent,
-        bool TypesValid,
+        bool RepresentationsValid,
         string? CpuName,
         int? CpuLogicalProcessorCount,
         double? TotalRamGiB,
         double? AvailableRamGiB,
         bool CpuNamePresent);
+
+    private enum MemberState
+    {
+        Missing,
+        Valid,
+        InvalidRepresentation,
+    }
+
+    private readonly record struct ExactJsonDecimal(
+        bool IsNegative,
+        bool IsZero,
+        string SignificantDigits,
+        long PowerOfTen,
+        double Value)
+    {
+        public bool IsPositive => !IsNegative && !IsZero;
+
+        public bool IsNonNegative => IsZero || !IsNegative;
+
+        public int CompareMagnitude(ExactJsonDecimal other)
+        {
+            if (IsZero)
+            {
+                return other.IsZero ? 0 : -1;
+            }
+
+            if (other.IsZero)
+            {
+                return 1;
+            }
+
+            long decimalOrder = SignificantDigits.Length + PowerOfTen;
+            long otherDecimalOrder = other.SignificantDigits.Length + other.PowerOfTen;
+            if (decimalOrder != otherDecimalOrder)
+            {
+                return decimalOrder < otherDecimalOrder ? -1 : 1;
+            }
+
+            int comparisonLength = Math.Max(SignificantDigits.Length, other.SignificantDigits.Length);
+            for (int index = 0; index < comparisonLength; index++)
+            {
+                char digit = index < SignificantDigits.Length ? SignificantDigits[index] : '0';
+                char otherDigit = index < other.SignificantDigits.Length ? other.SignificantDigits[index] : '0';
+                if (digit != otherDigit)
+                {
+                    return digit < otherDigit ? -1 : 1;
+                }
+            }
+
+            return 0;
+        }
+    }
 
     private sealed record GpuData(
         bool IsConsistent,

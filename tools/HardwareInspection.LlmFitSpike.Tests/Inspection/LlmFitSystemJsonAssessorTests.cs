@@ -89,9 +89,7 @@ public sealed class LlmFitSystemJsonAssessorTests
 
         LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
 
-        Assert.IsFalse(assessment.JsonValid);
-        Assert.IsFalse(assessment.RequiredCpuRamPresent);
-        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        AssertPrivacySafeJsonFailure(assessment);
         Assert.AreEqual(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(rawJson))).ToLowerInvariant(), assessment.RawJsonSha256);
         CollectionAssert.AreEqual(
             ExpectedMalformedDiagnostics,
@@ -105,9 +103,8 @@ public sealed class LlmFitSystemJsonAssessorTests
     {
         LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
 
-        Assert.IsFalse(assessment.JsonValid);
-        Assert.IsFalse(assessment.RequiredCpuRamPresent);
-        CollectionAssert.Contains(assessment.DiagnosticCodes.ToArray(), "HI-LLMFIT-JSON-INVALID");
+        AssertPrivacySafeJsonFailure(assessment);
+        CollectionAssert.AreEqual(ExpectedMalformedDiagnostics, assessment.DiagnosticCodes.ToArray());
     }
 
     [TestMethod]
@@ -154,6 +151,131 @@ public sealed class LlmFitSystemJsonAssessorTests
         Assert.IsFalse(assessment.RequiredCpuRamPresent);
         Assert.IsFalse(assessment.Gate1SchemaPassed);
         CollectionAssert.AreEqual(ExpectedInvalidCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("\"total_ram_gb\": 31.72,", "")]
+    [DataRow("\"available_ram_gb\": 12.50,", "")]
+    [DataRow("\"cpu_cores\": 8,", "")]
+    [DataRow("\"cpu_name\": \"Fixture CPU Only\",", "")]
+    public void Assess_MissingRequiredCpuOrRamMember_RemainsStructurallyValid(string original, string replacement)
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json").Replace(original, replacement, StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        Assert.IsTrue(assessment.JsonValid);
+        Assert.IsFalse(assessment.RequiredCpuRamPresent);
+        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        CollectionAssert.AreEqual(ExpectedCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("\"total_ram_gb\": 31.72", "\"total_ram_gb\": \"31.72\"")]
+    [DataRow("\"available_ram_gb\": 12.50", "\"available_ram_gb\": \"12.50\"")]
+    [DataRow("\"cpu_cores\": 8", "\"cpu_cores\": \"8\"")]
+    [DataRow("\"cpu_name\": \"Fixture CPU Only\"", "\"cpu_name\": 8")]
+    public void Assess_WrongRequiredCpuOrRamMemberType_FailsJsonSchema(string original, string replacement)
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json").Replace(original, replacement, StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        Assert.IsFalse(assessment.JsonValid);
+        Assert.IsFalse(assessment.RequiredCpuRamPresent);
+        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        CollectionAssert.AreEqual(ExpectedInvalidCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("\"system\": {", "\"system\": null, \"system\": {")]
+    [DataRow("\"total_ram_gb\": 31.72,", "\"total_ram_gb\": \"wrong\", \"total_ram_gb\": 31.72,")]
+    [DataRow("\"has_gpu\": false,", "\"has_gpu\": true, \"has_gpu\": false,")]
+    [DataRow("\"gpu_count\": 0,", "\"gpu_count\": 1, \"gpu_count\": 0,")]
+    public void Assess_ReversedDuplicateRootOrSystemMember_FailsJsonSchema(string original, string replacement)
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json").Replace(original, replacement, StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        AssertPrivacySafeJsonFailure(assessment);
+        CollectionAssert.AreEqual(ExpectedMalformedDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    public void Assess_ReversedDuplicateGpuCountMember_FailsJsonSchema()
+    {
+        string rawJson = ReadFixture("valid-windows-intel.json")
+            .Replace("\"count\": 1,", "\"count\": 0, \"count\": 1,", StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        AssertPrivacySafeJsonFailure(assessment);
+        CollectionAssert.AreEqual(ExpectedMalformedDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    public void Assess_ExponentNotationAndNegativeZeroAvailableRam_AreAcceptedExactly()
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json")
+            .Replace("31.72", "1e1", StringComparison.Ordinal)
+            .Replace("12.50", "-0", StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        Assert.IsTrue(assessment.JsonValid);
+        Assert.IsTrue(assessment.RequiredCpuRamPresent);
+        Assert.AreEqual(10d, assessment.TotalRamGiB);
+        Assert.AreEqual(0d, assessment.AvailableRamGiB);
+    }
+
+    [TestMethod]
+    public void Assess_NonzeroUnderflowingRamValues_FailJsonSchema()
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json")
+            .Replace("31.72", "1e-400", StringComparison.Ordinal)
+            .Replace("12.50", "-1e-400", StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        Assert.IsFalse(assessment.JsonValid);
+        Assert.IsFalse(assessment.RequiredCpuRamPresent);
+        CollectionAssert.AreEqual(ExpectedInvalidCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    public void Assess_ExactAdjacentLargeRamIntegers_DoNotCompareEqualAfterDoubleConversion()
+    {
+        string rawJson = ReadFixture("valid-cpu-only.json")
+            .Replace("31.72", "9007199254740992", StringComparison.Ordinal)
+            .Replace("12.50", "9007199254740993", StringComparison.Ordinal);
+
+        LlmFitSystemAssessment assessment = LlmFitSystemJsonAssessor.Assess(rawJson);
+
+        Assert.IsTrue(assessment.JsonValid);
+        Assert.IsFalse(assessment.RequiredCpuRamPresent);
+        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        Assert.IsNull(assessment.AvailableRamGiB);
+        CollectionAssert.AreEqual(ExpectedCpuRamDiagnostics, assessment.DiagnosticCodes.ToArray());
+    }
+
+    [TestMethod]
+    public void Assess_MaxFiniteAndSmallestSubnormalRamValues_AreAccepted()
+    {
+        string maxFiniteRawJson = ReadFixture("valid-cpu-only.json")
+            .Replace("31.72", "1.7976931348623157e308", StringComparison.Ordinal)
+            .Replace("12.50", "1.7976931348623157e308", StringComparison.Ordinal);
+        string smallestSubnormalRawJson = ReadFixture("valid-cpu-only.json")
+            .Replace("31.72", "5e-324", StringComparison.Ordinal)
+            .Replace("12.50", "5e-324", StringComparison.Ordinal);
+
+        LlmFitSystemAssessment maxFinite = LlmFitSystemJsonAssessor.Assess(maxFiniteRawJson);
+        LlmFitSystemAssessment smallestSubnormal = LlmFitSystemJsonAssessor.Assess(smallestSubnormalRawJson);
+
+        Assert.IsTrue(maxFinite.Gate1SchemaPassed);
+        Assert.AreEqual(double.MaxValue, maxFinite.TotalRamGiB);
+        Assert.IsTrue(smallestSubnormal.Gate1SchemaPassed);
+        Assert.AreEqual(double.Epsilon, smallestSubnormal.TotalRamGiB);
     }
 
     [TestMethod]
@@ -238,6 +360,26 @@ public sealed class LlmFitSystemJsonAssessorTests
     }
 
     [TestMethod]
+    public void Assess_IntelTokenBoundariesUseUnicodeScalars()
+    {
+        LlmFitSystemAssessment supplementaryBefore = AssessWithGpuName("\U00010400Intel Graphics");
+        LlmFitSystemAssessment supplementaryAfter = AssessWithGpuName("Intel\U00010400 Graphics");
+        LlmFitSystemAssessment underscore = AssessWithGpuName("Intel_Graphics");
+        LlmFitSystemAssessment digit = AssessWithGpuName("Intel2 Graphics");
+        LlmFitSystemAssessment invalidSurrogate = AssessWithGpuName("\\uD800Intel Graphics");
+        LlmFitSystemAssessment trailingInvalidSurrogate = AssessWithGpuName("Intel Graphics\\uD800");
+        LlmFitSystemAssessment punctuation = AssessWithGpuName("(iNtEl), Graphics");
+
+        Assert.IsFalse(supplementaryBefore.IntelGpuReported);
+        Assert.IsFalse(supplementaryAfter.IntelGpuReported);
+        Assert.IsFalse(underscore.IntelGpuReported);
+        Assert.IsFalse(digit.IntelGpuReported);
+        Assert.IsFalse(invalidSurrogate.IntelGpuReported);
+        Assert.IsFalse(trailingInvalidSurrogate.IntelGpuReported);
+        Assert.IsTrue(punctuation.IntelGpuReported);
+    }
+
+    [TestMethod]
     public void Assessment_DefensivelyCopiesDiagnosticsDuringConstructionAndWithAssignment()
     {
         List<string> source = ["original"];
@@ -257,6 +399,30 @@ public sealed class LlmFitSystemJsonAssessorTests
     private static string ReadFixture(string fileName)
     {
         return File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", fileName));
+    }
+
+    private static LlmFitSystemAssessment AssessWithGpuName(string gpuName)
+    {
+        string rawJson = ReadFixture("valid-windows-intel.json")
+            .Replace("Fixture Intel Arc Graphics", gpuName, StringComparison.Ordinal);
+        return LlmFitSystemJsonAssessor.Assess(rawJson);
+    }
+
+    private static void AssertPrivacySafeJsonFailure(LlmFitSystemAssessment assessment)
+    {
+        Assert.IsFalse(assessment.JsonValid);
+        Assert.IsFalse(assessment.RequiredCpuRamPresent);
+        Assert.IsFalse(assessment.Gate1SchemaPassed);
+        Assert.IsFalse(assessment.CpuNamePresent);
+        Assert.IsNull(assessment.CpuName);
+        Assert.IsNull(assessment.CpuLogicalProcessorCount);
+        Assert.IsNull(assessment.TotalRamGiB);
+        Assert.IsNull(assessment.AvailableRamGiB);
+        Assert.IsFalse(assessment.GpuReported);
+        Assert.AreEqual(0, assessment.ReportedGpuCount);
+        Assert.IsFalse(assessment.IntelGpuReported);
+        Assert.IsFalse(assessment.DedicatedSharedMemorySemanticsEstablished);
+        Assert.AreEqual("DetectionUnavailable", assessment.IntelNpuDetectionState);
     }
 }
 #pragma warning restore CA1707
