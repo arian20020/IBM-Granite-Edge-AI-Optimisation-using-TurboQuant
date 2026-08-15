@@ -129,6 +129,11 @@ $DirectRequirements = @(
     Where-Object {
         -not [string]::IsNullOrWhiteSpace($_) -and
         -not $_.TrimStart().StartsWith('#')
+    } |
+    ForEach-Object {
+        # Create a new CLR string rather than carrying Get-Content's adapted
+        # PSPath/PSProvider/ReadCount properties into the JSON object graph.
+        [string]::new(([string]$_).ToCharArray())
     }
 )
 
@@ -210,7 +215,7 @@ $SerializationProbe = [ordered]@{}
 foreach ($FieldName in @($Observation.Keys)) {
     $SerializationProbe[$FieldName] = $Observation[$FieldName]
     Write-Host ("WB05_DEP_SERIALIZE_FIELD:{0}:start" -f $FieldName)
-    $null = $SerializationProbe | ConvertTo-Json -Depth 12
+    $null = ConvertTo-Json -InputObject $SerializationProbe -Depth 12
     Write-Host ("WB05_DEP_SERIALIZE_FIELD:{0}:return" -f $FieldName)
 }
 
