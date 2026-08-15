@@ -3,11 +3,12 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace HardwareInspection.LlmFitSpike.Evidence;
 
-public sealed class LlmFitGate1EvidenceWriter
+public sealed partial class LlmFitGate1EvidenceWriter
 {
     private const uint CreateNew = 1;
     private const uint DeleteAccess = 0x00010000;
@@ -24,16 +25,9 @@ public sealed class LlmFitGate1EvidenceWriter
     private const uint OpenExisting = 3;
     private const uint ShareDelete = 0x00000004;
     private const uint ShareRead = 0x00000001;
-    private const string ApprovedCandidateId = "llmfit-v1.1.9-win-x64";
-    private const string ApprovedExpectedArchiveSha256 =
-        "a030269d7cc8a5bf40383f526a481655d698ec71dd792a25b06510cef9f8b738";
-    private const string ApprovedExpectedExecutableSha256 =
-        "db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19";
-    private const string ApprovedExpectedVersion = "1.1.9";
-    private const string ApprovedPeMachine = "AMD64";
+    private const int MaximumCandidateIdCharacters = 96;
+    private const int MaximumSemVerCharacters = 64;
     private const string ApprovedRawCaptureFileName = "llmfit-system.raw.json";
-    private const string ApprovedReleaseCommit = "a02e13f1013ed69889ff44426a651bf7c68c292e";
-    private const string ApprovedReportedVersion = "llmfit 1.1.9";
     private const string ApprovedSchemaVersion = "1.0";
     private const string InvalidEvidenceMessage =
         "The evidence record failed privacy-safe validation.";
@@ -52,6 +46,21 @@ public sealed class LlmFitGate1EvidenceWriter
         "FunctionalPassWithPackagingConcern",
         "AcceptedForFunctionalEvaluation",
     }.ToFrozenSet(StringComparer.Ordinal);
+    private static readonly FrozenSet<string> ApprovedExpectedPeMachines = new[]
+    {
+        "AMD64",
+        "I386",
+        "ARM64",
+    }.ToFrozenSet(StringComparer.Ordinal);
+    private static readonly FrozenSet<string> AcceptedNonFailureDiagnosticCodes = new[]
+    {
+        LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+        LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
+        LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+        LlmFitGate1DiagnosticCodes.WindowsIntelMemorySemanticsGap,
+        LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap,
+        LlmFitGate1DiagnosticCodes.SchemaDocumentationDrift,
+    }.ToFrozenSet(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -61,14 +70,25 @@ public sealed class LlmFitGate1EvidenceWriter
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
     private readonly Action<string>? _beforePublish;
+    private readonly Action<SafeFileHandle> _markOwnedFileForDeletion;
 
     public LlmFitGate1EvidenceWriter()
     {
+        _markOwnedFileForDeletion = MarkOwnedFileForDeletion;
     }
 
     internal LlmFitGate1EvidenceWriter(Action<string> beforePublish)
+        : this(beforePublish, MarkOwnedFileForDeletion)
+    {
+    }
+
+    internal LlmFitGate1EvidenceWriter(
+        Action<string> beforePublish,
+        Action<SafeFileHandle> markOwnedFileForDeletion)
     {
         _beforePublish = beforePublish ?? throw new ArgumentNullException(nameof(beforePublish));
+        _markOwnedFileForDeletion = markOwnedFileForDeletion ??
+            throw new ArgumentNullException(nameof(markOwnedFileForDeletion));
     }
 
     public async Task<string> WriteAsync(
@@ -151,17 +171,28 @@ public sealed class LlmFitGate1EvidenceWriter
         {
             if (temporaryStream is not null)
             {
-                if (!published)
+                try
                 {
-                    MarkOwnedFileForDeletion(temporaryStream.SafeFileHandle);
+                    if (!published)
+                    {
+                        _markOwnedFileForDeletion(temporaryStream.SafeFileHandle);
+                    }
                 }
-
-                await temporaryStream.DisposeAsync().ConfigureAwait(false);
+                finally
+                {
+                    await temporaryStream.DisposeAsync().ConfigureAwait(false);
+                }
             }
             else if (temporaryHandle is not null)
             {
-                MarkOwnedFileForDeletion(temporaryHandle);
-                temporaryHandle.Dispose();
+                try
+                {
+                    _markOwnedFileForDeletion(temporaryHandle);
+                }
+                finally
+                {
+                    temporaryHandle.Dispose();
+                }
             }
         }
     }
@@ -205,24 +236,17 @@ public sealed class LlmFitGate1EvidenceWriter
         bool valid =
             string.Equals(evidence.SchemaVersion, ApprovedSchemaVersion, StringComparison.Ordinal) &&
             ApprovedDispositions.Contains(evidence.Disposition) &&
-            string.Equals(evidence.CandidateId, ApprovedCandidateId, StringComparison.Ordinal) &&
-            string.Equals(evidence.ExpectedVersion, ApprovedExpectedVersion, StringComparison.Ordinal) &&
-            (evidence.ReportedVersion is null ||
-                string.Equals(evidence.ReportedVersion, ApprovedReportedVersion, StringComparison.Ordinal)) &&
-            string.Equals(evidence.ReleaseCommit, ApprovedReleaseCommit, StringComparison.Ordinal) &&
-            string.Equals(
-                evidence.ExpectedArchiveSha256,
-                ApprovedExpectedArchiveSha256,
-                StringComparison.Ordinal) &&
+            HasValidCandidateIdentity(
+                evidence.CandidateId,
+                evidence.ExpectedVersion,
+                evidence.ExpectedPeMachine) &&
+            HasValidReportedVersion(evidence.ReportedVersion) &&
+            IsLowercaseHex(evidence.ReleaseCommit, 40) &&
+            IsLowercaseHex(evidence.ExpectedArchiveSha256, 64) &&
             IsOptionalLowercaseHex(evidence.ObservedArchiveSha256, 64) &&
-            string.Equals(
-                evidence.ExpectedExecutableSha256,
-                ApprovedExpectedExecutableSha256,
-                StringComparison.Ordinal) &&
+            IsLowercaseHex(evidence.ExpectedExecutableSha256, 64) &&
             IsOptionalLowercaseHex(evidence.ObservedExecutableSha256, 64) &&
-            string.Equals(evidence.ExpectedPeMachine, ApprovedPeMachine, StringComparison.Ordinal) &&
-            (evidence.ObservedPeMachine is null ||
-                string.Equals(evidence.ObservedPeMachine, ApprovedPeMachine, StringComparison.Ordinal)) &&
+            HasValidObservedPeMachine(evidence.ObservedPeMachine) &&
             ApprovedAuthenticodeStatuses.Contains(evidence.AuthenticodeStatus) &&
             evidence.AuthenticodePresent ==
                 string.Equals(evidence.AuthenticodeStatus, "PresentUnverified", StringComparison.Ordinal) &&
@@ -281,6 +305,80 @@ public sealed class LlmFitGate1EvidenceWriter
         return value is null || IsLowercaseHex(value, expectedLength);
     }
 
+    private static bool HasValidCandidateIdentity(
+        string? candidateId,
+        string? expectedVersion,
+        string? expectedPeMachine)
+    {
+        if (candidateId is null ||
+            candidateId.Length > MaximumCandidateIdCharacters ||
+            !IsStrictSemVer(expectedVersion) ||
+            expectedPeMachine is null ||
+            !ApprovedExpectedPeMachines.Contains(expectedPeMachine))
+        {
+            return false;
+        }
+
+        string architecture = expectedPeMachine switch
+        {
+            "AMD64" => "x64",
+            "I386" => "x86",
+            "ARM64" => "arm64",
+            _ => string.Empty,
+        };
+        return string.Equals(
+            candidateId,
+            $"llmfit-v{expectedVersion}-win-{architecture}",
+            StringComparison.Ordinal);
+    }
+
+    private static bool HasValidReportedVersion(string? reportedVersion)
+    {
+        const string Prefix = "llmfit ";
+        return reportedVersion is null ||
+            reportedVersion.StartsWith(Prefix, StringComparison.Ordinal) &&
+            IsStrictSemVer(reportedVersion[Prefix.Length..]);
+    }
+
+    private static bool HasValidObservedPeMachine(string? observedPeMachine)
+    {
+        if (observedPeMachine is null ||
+            ApprovedExpectedPeMachines.Contains(observedPeMachine) ||
+            string.Equals(observedPeMachine, "Unknown", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return observedPeMachine.Length == 6 &&
+            observedPeMachine.StartsWith("0x", StringComparison.Ordinal) &&
+            IsUppercaseHex(observedPeMachine.AsSpan(2));
+    }
+
+    private static bool IsStrictSemVer(string? value)
+    {
+        return value is not null &&
+            value.Length is >= 5 and <= MaximumSemVerCharacters &&
+            StrictSemVerRegex().IsMatch(value);
+    }
+
+    private static bool IsUppercaseHex(ReadOnlySpan<char> value)
+    {
+        foreach (char character in value)
+        {
+            if (character is not (>= '0' and <= '9') and not (>= 'A' and <= 'F'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    [GeneratedRegex(
+        @"\A(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\z",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex StrictSemVerRegex();
+
     private static bool IsOptionalPositive(int? value)
     {
         return value is null or > 0;
@@ -325,7 +423,11 @@ public sealed class LlmFitGate1EvidenceWriter
             return true;
         }
 
-        return evidence.ReportedVersion is not null &&
+        bool commonAcceptedState = evidence.ReportedVersion is not null &&
+            string.Equals(
+                evidence.ReportedVersion,
+                $"llmfit {evidence.ExpectedVersion}",
+                StringComparison.Ordinal) &&
             string.Equals(
                 evidence.ObservedArchiveSha256,
                 evidence.ExpectedArchiveSha256,
@@ -352,7 +454,33 @@ public sealed class LlmFitGate1EvidenceWriter
             !evidence.VersionCandidateProcessRemainedAfterExit &&
             !evidence.SystemCandidateProcessRemainedAfterExit &&
             evidence.RawSystemJsonFileName is not null &&
-            evidence.RawSystemJsonSha256 is not null;
+            evidence.RawSystemJsonSha256 is not null &&
+            evidence.DiagnosticCodes.All(AcceptedNonFailureDiagnosticCodes.Contains);
+        if (!commonAcceptedState)
+        {
+            return false;
+        }
+
+        bool dependencyInventoryPending = evidence.DiagnosticCodes.Contains(
+            LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+            StringComparer.Ordinal);
+        bool signatureClaimMismatch = evidence.DiagnosticCodes.Contains(
+            LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+            StringComparer.Ordinal);
+        bool signatureFactConsistent = evidence.AuthenticodePresent
+            ? !signatureClaimMismatch
+            : signatureClaimMismatch;
+        if (!signatureFactConsistent)
+        {
+            return false;
+        }
+
+        return string.Equals(
+            evidence.Disposition,
+            "AcceptedForFunctionalEvaluation",
+            StringComparison.Ordinal)
+            ? !dependencyInventoryPending
+            : dependencyInventoryPending;
     }
 
     private static string ResolveOutputPath(string outputPath)

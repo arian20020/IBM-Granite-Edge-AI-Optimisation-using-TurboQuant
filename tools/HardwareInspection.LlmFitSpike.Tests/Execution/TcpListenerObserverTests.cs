@@ -386,16 +386,125 @@ public sealed class TcpListenerObserverTests
         Assert.IsTrue(process.Disposed);
     }
 
+    [TestMethod]
+    public async Task CaptureNetstatAsync_BlockingStart_ReturnsBoundedAndCleansLateStart()
+    {
+        var process = new FakeNetstatProcess
+        {
+            BlockStart = true,
+            CompleteExitWhenKilled = true,
+        };
+        var elapsed = Stopwatch.StartNew();
+        Task<string> capture = Task.Run(
+            () => TcpListenerObserver.CaptureNetstatForTestsAsync(
+                _ => process,
+                TimeSpan.FromMilliseconds(50),
+                TimeSpan.FromMilliseconds(50),
+                maximumBytesPerStream: 1024,
+                CancellationToken.None));
+
+        try
+        {
+            await process.StartEntered.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+                    () => capture.WaitAsync(TimeSpan.FromMilliseconds(500)))
+                .ConfigureAwait(false);
+
+            Assert.IsLessThan(TimeSpan.FromMilliseconds(500), elapsed.Elapsed);
+            Assert.IsFalse(process.Disposed);
+        }
+        finally
+        {
+            process.ReleaseStart();
+            try
+            {
+                _ = await capture.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException)
+            {
+                // The bounded timeout remains the caller-visible outcome.
+            }
+        }
+
+        await WaitForConditionAsync(() => process.Disposed, TimeSpan.FromSeconds(2))
+            .ConfigureAwait(false);
+        Assert.IsTrue(process.KillCalled);
+    }
+
+    [TestMethod]
+    public async Task CaptureNetstatAsync_BlockingKill_ReturnsBoundedAndDefersDisposal()
+    {
+        var process = new FakeNetstatProcess
+        {
+            BlockKill = true,
+            CompleteExitWhenKilled = true,
+        };
+        var elapsed = Stopwatch.StartNew();
+        Task<string> capture = TcpListenerObserver.CaptureNetstatForTestsAsync(
+            _ => process,
+            TimeSpan.FromMilliseconds(50),
+            TimeSpan.FromMilliseconds(50),
+            maximumBytesPerStream: 1024,
+            CancellationToken.None);
+
+        try
+        {
+            await process.KillEntered.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+                    () => capture.WaitAsync(TimeSpan.FromMilliseconds(500)))
+                .ConfigureAwait(false);
+
+            Assert.IsLessThan(TimeSpan.FromMilliseconds(500), elapsed.Elapsed);
+            Assert.IsFalse(process.Disposed);
+        }
+        finally
+        {
+            process.ReleaseKill();
+            try
+            {
+                _ = await capture.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException)
+            {
+                // The bounded cleanup failure remains the caller-visible outcome.
+            }
+        }
+
+        await WaitForConditionAsync(() => process.Disposed, TimeSpan.FromSeconds(2))
+            .ConfigureAwait(false);
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (!condition())
+        {
+            if (elapsed.Elapsed >= timeout)
+            {
+                Assert.Fail("The bounded background cleanup did not finish.");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(10)).ConfigureAwait(false);
+        }
+    }
+
     private sealed class FakeNetstatProcess : INetstatProcess
     {
         private readonly TaskCompletionSource _exit = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ManualResetEventSlim _killRelease = new(initialState: false);
+        private readonly ManualResetEventSlim _startRelease = new(initialState: false);
         private Stream _standardError = new MemoryStream();
         private Stream _standardOutput = new MemoryStream();
+        private int _disposed;
 
         internal bool CompleteExitWhenKilled { get; init; }
 
-        internal bool Disposed { get; private set; }
+        internal bool BlockKill { get; init; }
+
+        internal bool BlockStart { get; init; }
+
+        internal bool Disposed => Volatile.Read(ref _disposed) != 0;
 
         internal int ExitCode { get; init; }
 
@@ -403,9 +512,25 @@ public sealed class TcpListenerObserverTests
 
         internal bool StartCalled { get; private set; }
 
+        internal TaskCompletionSource KillEntered { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource StartEntered { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
         internal bool ThrowOnStandardOutputAccess { get; init; }
 
         internal bool WaitForExitCalled { get; private set; }
+
+        internal void ReleaseKill()
+        {
+            _killRelease.Set();
+        }
+
+        internal void ReleaseStart()
+        {
+            _startRelease.Set();
+        }
 
         Stream INetstatProcess.StandardError => _standardError;
 
@@ -435,6 +560,12 @@ public sealed class TcpListenerObserverTests
         bool INetstatProcess.Start()
         {
             StartCalled = true;
+            StartEntered.TrySetResult();
+            if (BlockStart)
+            {
+                _startRelease.Wait();
+            }
+
             return true;
         }
 
@@ -447,6 +578,12 @@ public sealed class TcpListenerObserverTests
         void INetstatProcess.KillEntireProcessTree()
         {
             KillCalled = true;
+            KillEntered.TrySetResult();
+            if (BlockKill)
+            {
+                _killRelease.Wait();
+            }
+
             if (CompleteExitWhenKilled)
             {
                 _exit.TrySetResult();
@@ -455,9 +592,11 @@ public sealed class TcpListenerObserverTests
 
         public void Dispose()
         {
-            Disposed = true;
             _standardOutput.Dispose();
             _standardError.Dispose();
+            _killRelease.Dispose();
+            _startRelease.Dispose();
+            Volatile.Write(ref _disposed, 1);
         }
     }
 }

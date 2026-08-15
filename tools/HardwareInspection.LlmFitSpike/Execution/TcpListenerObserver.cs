@@ -541,15 +541,53 @@ public sealed class TcpListenerObserver
                 "The trusted TCP observation helper could not be started.");
         }
 
+        using var timeoutLifetime = new CancellationTokenSource();
+        Task timeoutTask = Task.Delay(executionTimeout, timeoutLifetime.Token);
+        var cancellationSignal = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenRegistration cancellationRegistration = cancellationToken.Register(
+            static state => ((TaskCompletionSource)state!).TrySetResult(),
+            cancellationSignal);
+        bool disposeProcess = true;
         try
         {
+            Task<bool> startTask;
+            try
+            {
+                startTask = RunDedicatedWorker(process.Start);
+            }
+            catch
+            {
+                throw new InvalidOperationException(
+                    "The trusted TCP observation helper could not be started.");
+            }
+
+            _ = await Task.WhenAny(startTask, timeoutTask, cancellationSignal.Task)
+                .ConfigureAwait(false);
+            if (!startTask.IsCompleted)
+            {
+                bool startCompletedForCancellation = cancellationSignal.Task.IsCompleted &&
+                    await AwaitWithinAsync(startTask, cleanupDeadline).ConfigureAwait(false);
+                if (!startCompletedForCancellation)
+                {
+                    disposeProcess = false;
+                    BeginLateStartCleanup(process, startTask, cleanupDeadline);
+                    if (cancellationSignal.Task.IsCompleted)
+                    {
+                        throw new OperationCanceledException(cancellationToken);
+                    }
+
+                    throw new InvalidOperationException(
+                        "The TCP observation helper exceeded its deadline.");
+                }
+            }
+
             bool started;
             try
             {
-                started = process.Start();
+                started = await startTask.ConfigureAwait(false);
             }
-            catch (Exception exception) when (
-                exception is InvalidOperationException or Win32Exception or NotSupportedException)
+            catch
             {
                 throw new InvalidOperationException(
                     "The trusted TCP observation helper could not be started.");
@@ -564,9 +602,6 @@ public sealed class TcpListenerObserver
             Task<BoundedTextCapture>? standardOutput = null;
             Task<BoundedTextCapture>? standardError = null;
             Task? exitTask = null;
-            CancellationTokenSource? timeoutLifetime = null;
-            CancellationTokenRegistration cancellationRegistration = default;
-            bool cancellationRegistrationCreated = false;
             HelperTerminal terminal = HelperTerminal.Failed;
             bool cleanupComplete = false;
 
@@ -579,15 +614,6 @@ public sealed class TcpListenerObserver
                     process.StandardError,
                     maximumBytesPerStream);
                 exitTask = process.WaitForExitAsync();
-                timeoutLifetime = new CancellationTokenSource();
-                Task timeoutTask = Task.Delay(executionTimeout, timeoutLifetime.Token);
-                var cancellationSignal = new TaskCompletionSource(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                cancellationRegistration = cancellationToken.Register(
-                    static state => ((TaskCompletionSource)state!).TrySetResult(),
-                    cancellationSignal);
-                cancellationRegistrationCreated = true;
-
                 terminal = await WaitForHelperTerminalAsync(
                         exitTask,
                         standardOutput,
@@ -604,44 +630,50 @@ public sealed class TcpListenerObserver
             }
             finally
             {
-                if (terminal != HelperTerminal.Exited || !HasExited(process))
+                var cleanupElapsed = Stopwatch.StartNew();
+                if (terminal != HelperTerminal.Exited)
                 {
-                    TryKillProcessTree(process);
-                }
-
-                if (timeoutLifetime is not null)
-                {
-                    TryCancel(timeoutLifetime);
-                }
-
-                if (cancellationRegistrationCreated)
-                {
-                    try
+                    Task<bool>? killTask = TryStartKillWorker(process);
+                    if (killTask is null ||
+                        !await AwaitWithinAsync(killTask, cleanupDeadline).ConfigureAwait(false))
                     {
-                        cancellationRegistration.Dispose();
+                        if (killTask is not null)
+                        {
+                            disposeProcess = false;
+                            BeginLateKillCleanup(
+                                process,
+                                killTask,
+                                exitTask,
+                                standardOutput,
+                                standardError,
+                                cleanupDeadline);
+                        }
+
+                        cleanupComplete = false;
                     }
-                    catch
+                }
+
+                if (disposeProcess)
+                {
+                    TimeSpan remaining = cleanupDeadline - cleanupElapsed.Elapsed;
+                    if (remaining > TimeSpan.Zero)
                     {
-                        terminal = HelperTerminal.Failed;
+                        try
+                        {
+                            cleanupComplete = await AwaitHelperCleanupAsync(
+                                    process,
+                                    exitTask,
+                                    standardOutput,
+                                    standardError,
+                                    remaining)
+                                .ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            cleanupComplete = false;
+                        }
                     }
                 }
-
-                try
-                {
-                    cleanupComplete = await AwaitHelperCleanupAsync(
-                            process,
-                            exitTask,
-                            standardOutput,
-                            standardError,
-                            cleanupDeadline)
-                        .ConfigureAwait(false);
-                }
-                catch
-                {
-                    cleanupComplete = false;
-                }
-
-                TryDisposeCancellationSource(timeoutLifetime);
             }
 
             if (!cleanupComplete)
@@ -675,6 +707,191 @@ public sealed class TcpListenerObserver
             }
 
             return standardOutput.Result.Text;
+        }
+        finally
+        {
+            TryCancel(timeoutLifetime);
+            try
+            {
+                cancellationRegistration.Dispose();
+            }
+            catch
+            {
+                // Registration cleanup must not bypass process ownership cleanup.
+            }
+
+            if (disposeProcess)
+            {
+                TryDisposeProcess(process);
+            }
+        }
+    }
+
+    private static Task<T> RunDedicatedWorker<T>(Func<T> operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        return Task.Factory.StartNew(
+            operation,
+            CancellationToken.None,
+            TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+    }
+
+    private static Task<bool>? TryStartKillWorker(INetstatProcess process)
+    {
+        try
+        {
+            return RunDedicatedWorker(
+                () =>
+                {
+                    try
+                    {
+                        process.KillEntireProcessTree();
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task<bool> AwaitWithinAsync(Task task, TimeSpan deadline)
+    {
+        if (task.IsCompleted)
+        {
+            return true;
+        }
+
+        Task deadlineTask = Task.Delay(deadline);
+        return ReferenceEquals(
+            await Task.WhenAny(task, deadlineTask).ConfigureAwait(false),
+            task);
+    }
+
+    private static void BeginLateStartCleanup(
+        INetstatProcess process,
+        Task<bool> startTask,
+        TimeSpan cleanupDeadline)
+    {
+        Task cleanup = CleanupLateStartAsync(process, startTask, cleanupDeadline);
+        ObserveFault(cleanup);
+    }
+
+    private static async Task CleanupLateStartAsync(
+        INetstatProcess process,
+        Task<bool> startTask,
+        TimeSpan cleanupDeadline)
+    {
+        try
+        {
+            bool started;
+            try
+            {
+                started = await startTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (!started)
+            {
+                return;
+            }
+
+            Task<bool>? killTask = TryStartKillWorker(process);
+            if (killTask is null)
+            {
+                return;
+            }
+
+            try
+            {
+                _ = await killTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // The fixed caller-visible timeout already records this failure.
+            }
+
+            try
+            {
+                _ = await AwaitHelperCleanupAsync(
+                        process,
+                        exitTask: null,
+                        standardOutput: null,
+                        standardError: null,
+                        cleanupDeadline)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Late cleanup remains best effort after the bounded caller return.
+            }
+        }
+        finally
+        {
+            TryDisposeProcess(process);
+        }
+    }
+
+    private static void BeginLateKillCleanup(
+        INetstatProcess process,
+        Task<bool> killTask,
+        Task? exitTask,
+        Task? standardOutput,
+        Task? standardError,
+        TimeSpan cleanupDeadline)
+    {
+        Task cleanup = CleanupLateKillAsync(
+            process,
+            killTask,
+            exitTask,
+            standardOutput,
+            standardError,
+            cleanupDeadline);
+        ObserveFault(cleanup);
+    }
+
+    private static async Task CleanupLateKillAsync(
+        INetstatProcess process,
+        Task<bool> killTask,
+        Task? exitTask,
+        Task? standardOutput,
+        Task? standardError,
+        TimeSpan cleanupDeadline)
+    {
+        try
+        {
+            try
+            {
+                _ = await killTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // The bounded caller path already records cleanup failure.
+            }
+
+            try
+            {
+                _ = await AwaitHelperCleanupAsync(
+                        process,
+                        exitTask,
+                        standardOutput,
+                        standardError,
+                        cleanupDeadline)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Late cleanup remains best effort after the bounded caller return.
+            }
         }
         finally
         {
@@ -857,18 +1074,6 @@ public sealed class TcpListenerObserver
         }
     }
 
-    private static void TryKillProcessTree(INetstatProcess process)
-    {
-        try
-        {
-            process.KillEntireProcessTree();
-        }
-        catch
-        {
-            // Bounded cleanup below is the authoritative termination check.
-        }
-    }
-
     private static bool HasExited(INetstatProcess process)
     {
         try
@@ -902,23 +1107,6 @@ public sealed class TcpListenerObserver
         catch
         {
             // The helper lifetime was already decided by bounded cleanup.
-        }
-    }
-
-    private static void TryDisposeCancellationSource(CancellationTokenSource? source)
-    {
-        if (source is null)
-        {
-            return;
-        }
-
-        try
-        {
-            source.Dispose();
-        }
-        catch (ObjectDisposedException)
-        {
-            // A private source may already have been released on an exceptional path.
         }
     }
 

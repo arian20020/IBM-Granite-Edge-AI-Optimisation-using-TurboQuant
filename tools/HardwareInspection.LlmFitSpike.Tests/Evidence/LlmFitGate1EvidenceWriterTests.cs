@@ -16,6 +16,8 @@ public sealed class LlmFitGate1EvidenceWriterTests
     private const string ExecutableHash =
         "db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19";
     private const string HashC = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+    private const string HashD = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    private const string HashE = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     private const string ReleaseCommit = "a02e13f1013ed69889ff44426a651bf7c68c292e";
     private static readonly string[] ExpectedSystemArguments = ["--no-dashboard", "--json", "system"];
     private static readonly string[] ExpectedVersionArguments = ["--version"];
@@ -171,10 +173,8 @@ public sealed class LlmFitGate1EvidenceWriterTests
     public async Task WriteAsync_AcceptedDispositionWithTerminalFailure_IsRejected()
     {
         using var directory = new OwnedTemporaryDirectory();
-        LlmFitGate1Evidence accepted = CreateEvidence() with
-        {
-            Disposition = "FunctionalPassWithPackagingConcern",
-        };
+        LlmFitGate1Evidence accepted = CreateAcceptedEvidence(
+            "FunctionalPassWithPackagingConcern");
         LlmFitGate1Evidence[] contradictions =
         [
             accepted with { ProcessStartFailed = true },
@@ -189,6 +189,7 @@ public sealed class LlmFitGate1EvidenceWriterTests
             accepted with { SystemCandidateProcessRemainedAfterExit = true },
             accepted with { JsonValid = false, RawSystemJsonFileName = null, RawSystemJsonSha256 = null },
             accepted with { RequiredCpuRamPresent = false },
+            accepted with { ReportedVersion = "llmfit 1.1.8" },
         ];
 
         for (int index = 0; index < contradictions.Length; index++)
@@ -205,7 +206,45 @@ public sealed class LlmFitGate1EvidenceWriterTests
     }
 
     [TestMethod]
-    public async Task WriteAsync_GateIdentityAndSensitiveStringFields_ArePinned()
+    public async Task WriteAsync_PrivacySafeBoundedIdentityShapes_AreAccepted()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        LlmFitGate1Evidence baseline = CreateEvidence();
+        LlmFitGate1Evidence[] validValues =
+        [
+            baseline with
+            {
+                CandidateId = "llmfit-v2.3.4-win-arm64",
+                ExpectedVersion = "2.3.4",
+                ReportedVersion = "llmfit 2.3.5-rc.1+build-meta.7",
+                ReleaseCommit = "dddddddddddddddddddddddddddddddddddddddd",
+                ExpectedArchiveSha256 = HashD,
+                ObservedArchiveSha256 = HashC,
+                ExpectedExecutableSha256 = HashE,
+                ObservedExecutableSha256 = ArchiveHash,
+                ExpectedPeMachine = "ARM64",
+                ObservedPeMachine = "I386",
+            },
+            baseline with { ObservedPeMachine = "Unknown" },
+            baseline with { ObservedPeMachine = "0x01AF" },
+            baseline with { ReportedVersion = "llmfit 2.3.5+build-meta.7" },
+            baseline with { ReportedVersion = null },
+        ];
+
+        for (int index = 0; index < validValues.Length; index++)
+        {
+            string outputPath = Path.Combine(directory.Path, $"valid-identity-{index}.json");
+            _ = await new LlmFitGate1EvidenceWriter().WriteAsync(
+                    validValues[index],
+                    outputPath,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.IsTrue(File.Exists(outputPath));
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_UnsafeOrUnboundedIdentityShapes_AreRejected()
     {
         using var directory = new OwnedTemporaryDirectory();
         LlmFitGate1Evidence baseline = CreateEvidence();
@@ -213,10 +252,21 @@ public sealed class LlmFitGate1EvidenceWriterTests
         [
             baseline with { SchemaVersion = "2.0" },
             baseline with { CandidateId = "arian-private-host" },
-            baseline with { ExpectedVersion = "9.9.9" },
+            baseline with { CandidateId = "llmfit-v1.1.9-win-x64/private" },
+            baseline with { CandidateId = $"llmfit-v{new string('1', 100)}.1.1-win-x64" },
+            baseline with { ExpectedVersion = "01.1.9" },
+            baseline with { ExpectedVersion = "1.1" },
             baseline with { ReportedVersion = "Arian Secret Host" },
-            baseline with { ExpectedPeMachine = "SECRET" },
+            baseline with { ReportedVersion = "llmfit 01.1.9" },
+            baseline with { ReportedVersion = "llmfit 1.1.9\r\nprivate" },
+            baseline with { ReleaseCommit = ReleaseCommit.ToUpperInvariant() },
+            baseline with { ReleaseCommit = ReleaseCommit[..^1] },
+            baseline with { ExpectedArchiveSha256 = ArchiveHash.ToUpperInvariant() },
+            baseline with { ExpectedExecutableSha256 = ExecutableHash[..^1] },
+            baseline with { ExpectedPeMachine = "Unknown" },
             baseline with { ObservedPeMachine = "SECRET" },
+            baseline with { ObservedPeMachine = "0x01af" },
+            baseline with { ObservedPeMachine = "0x12345" },
             baseline with { RawSystemJsonFileName = "arian-private.json" },
             baseline with { RawSystemJsonFileName = null },
             baseline with { RawSystemJsonSha256 = null },
@@ -232,6 +282,243 @@ public sealed class LlmFitGate1EvidenceWriterTests
                         CancellationToken.None))
                 .ConfigureAwait(false);
             Assert.IsFalse(File.Exists(outputPath));
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_AcceptedDispositionsWithHardFailureDiagnostics_AreRejected()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string[] dispositions =
+        [
+            "FunctionalPassWithPackagingConcern",
+            "AcceptedForFunctionalEvaluation",
+        ];
+
+        foreach (string disposition in dispositions)
+        {
+            foreach (string hardFailureCode in HardFailureDiagnosticCodes)
+            {
+                LlmFitGate1Evidence evidence = CreateAcceptedEvidence(disposition) with
+                {
+                    DiagnosticCodes =
+                    [
+                        .. CreateAcceptedEvidence(disposition).DiagnosticCodes,
+                        hardFailureCode,
+                    ],
+                };
+                string outputPath = Path.Combine(
+                    directory.Path,
+                    $"hard-failure-{disposition}-{hardFailureCode}.json");
+
+                await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                        () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                            evidence,
+                            outputPath,
+                            CancellationToken.None))
+                    .ConfigureAwait(false);
+                Assert.IsFalse(File.Exists(outputPath), hardFailureCode);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_BlockedAndRejectedDispositions_MayRecordHardFailures()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string[] dispositions = ["Blocked", "Rejected"];
+
+        foreach (string disposition in dispositions)
+        {
+            LlmFitGate1Evidence evidence = CreateEvidence() with
+            {
+                Disposition = disposition,
+                ReportedVersion = null,
+                ObservedArchiveSha256 = null,
+                ObservedExecutableSha256 = null,
+                ObservedPeMachine = null,
+                VersionExitCode = null,
+                SystemExitCode = null,
+                ProcessStartFailed = true,
+                JsonValid = false,
+                RequiredCpuRamPresent = false,
+                RawSystemJsonFileName = null,
+                RawSystemJsonSha256 = null,
+                DiagnosticCodes = [LlmFitGate1DiagnosticCodes.ProcessStartFailed],
+            };
+            string outputPath = Path.Combine(directory.Path, $"{disposition}.json");
+
+            _ = await new LlmFitGate1EvidenceWriter().WriteAsync(
+                    evidence,
+                    outputPath,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.IsTrue(File.Exists(outputPath));
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_FunctionalPackagingConcern_RequiresInventoryAndSignatureFactConsistency()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        LlmFitGate1Evidence unsigned = CreateAcceptedEvidence(
+            "FunctionalPassWithPackagingConcern");
+        LlmFitGate1Evidence signed = unsigned with
+        {
+            AuthenticodePresent = true,
+            AuthenticodeStatus = "PresentUnverified",
+            DiagnosticCodes =
+            [
+                LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+                LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap,
+            ],
+        };
+        LlmFitGate1Evidence[] invalidValues =
+        [
+            unsigned with
+            {
+                DiagnosticCodes = [LlmFitGate1DiagnosticCodes.SignatureClaimMismatch],
+            },
+            unsigned with
+            {
+                DiagnosticCodes = [LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending],
+            },
+            unsigned with
+            {
+                DiagnosticCodes =
+                [
+                    LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+                    LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
+                ],
+            },
+            signed with
+            {
+                DiagnosticCodes =
+                [
+                    LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+                    LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+                ],
+            },
+        ];
+
+        for (int index = 0; index < invalidValues.Length; index++)
+        {
+            string outputPath = Path.Combine(directory.Path, $"packaging-invalid-{index}.json");
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                    () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                        invalidValues[index],
+                        outputPath,
+                        CancellationToken.None))
+                .ConfigureAwait(false);
+            Assert.IsFalse(File.Exists(outputPath));
+        }
+
+        string signedOutputPath = Path.Combine(directory.Path, "packaging-signed.json");
+        _ = await new LlmFitGate1EvidenceWriter().WriteAsync(
+                signed,
+                signedOutputPath,
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        Assert.IsTrue(File.Exists(signedOutputPath));
+
+        string unsignedChangedOutputPath = Path.Combine(
+            directory.Path,
+            "packaging-unsigned-status-changed.json");
+        _ = await new LlmFitGate1EvidenceWriter().WriteAsync(
+                unsigned with
+                {
+                    DiagnosticCodes =
+                    [
+                        .. unsigned.DiagnosticCodes,
+                        LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
+                    ],
+                },
+                unsignedChangedOutputPath,
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        Assert.IsTrue(File.Exists(unsignedChangedOutputPath));
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_AcceptedForEvaluation_RequiresSignatureFactAndResolvedInventory()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        LlmFitGate1Evidence unsigned = CreateAcceptedEvidence(
+            "AcceptedForFunctionalEvaluation");
+        LlmFitGate1Evidence signed = unsigned with
+        {
+            AuthenticodePresent = true,
+            AuthenticodeStatus = "PresentUnverified",
+            DiagnosticCodes = [LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap],
+        };
+        LlmFitGate1Evidence[] invalidValues =
+        [
+            unsigned with
+            {
+                DiagnosticCodes = [LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap],
+            },
+            signed with
+            {
+                DiagnosticCodes =
+                [
+                    LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+                    LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap,
+                ],
+            },
+            unsigned with
+            {
+                DiagnosticCodes =
+                [
+                    LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+                    LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+                    LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap,
+                ],
+            },
+        ];
+
+        for (int index = 0; index < invalidValues.Length; index++)
+        {
+            string outputPath = Path.Combine(directory.Path, $"accepted-invalid-{index}.json");
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                    () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                        invalidValues[index],
+                        outputPath,
+                        CancellationToken.None))
+                .ConfigureAwait(false);
+            Assert.IsFalse(File.Exists(outputPath));
+        }
+
+        LlmFitGate1Evidence[] validValues =
+        [
+            unsigned,
+            unsigned with
+            {
+                DiagnosticCodes =
+                [
+                    .. unsigned.DiagnosticCodes,
+                    LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
+                ],
+            },
+            signed,
+            signed with
+            {
+                DiagnosticCodes =
+                [
+                    .. signed.DiagnosticCodes,
+                    LlmFitGate1DiagnosticCodes.SignatureStatusChanged,
+                ],
+            },
+        ];
+        for (int index = 0; index < validValues.Length; index++)
+        {
+            string outputPath = Path.Combine(directory.Path, $"accepted-valid-{index}.json");
+            _ = await new LlmFitGate1EvidenceWriter().WriteAsync(
+                    validValues[index],
+                    outputPath,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.IsTrue(File.Exists(outputPath));
         }
     }
 
@@ -342,6 +629,70 @@ public sealed class LlmFitGate1EvidenceWriterTests
         Assert.HasCount(0, Directory.GetFiles(directory.Path, "*.tmp-*", SearchOption.TopDirectoryOnly));
     }
 
+    [TestMethod]
+    public async Task WriteAsync_DeletionFailure_DisposesHandlePreservesDestinationAndPropagatesCleanupError()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string outputPath = Path.Combine(directory.Path, "evidence.json");
+        const string Original = "{\"original\":true}";
+        await File.WriteAllTextAsync(outputPath, Original).ConfigureAwait(false);
+        string? temporaryPath = null;
+        var cleanupError = new IOException("controlled owned-file cleanup failure");
+        var writer = new LlmFitGate1EvidenceWriter(
+            path => temporaryPath = path,
+            _ => throw cleanupError);
+        await using var destinationLock = new FileStream(
+            outputPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+
+        IOException thrown = await Assert.ThrowsExactlyAsync<IOException>(
+                () => writer.WriteAsync(CreateEvidence(), outputPath, CancellationToken.None))
+            .ConfigureAwait(false);
+
+        Assert.AreSame(cleanupError, thrown);
+        destinationLock.Position = 0;
+        using var reader = new StreamReader(destinationLock, leaveOpen: true);
+        Assert.AreEqual(Original, await reader.ReadToEndAsync().ConfigureAwait(false));
+        Assert.IsNotNull(temporaryPath);
+        Assert.IsTrue(File.Exists(temporaryPath));
+        await using (var exclusive = new FileStream(
+            temporaryPath,
+            FileMode.Open,
+            FileAccess.ReadWrite,
+            FileShare.None))
+        {
+            Assert.IsTrue(exclusive.CanWrite);
+        }
+
+        File.Delete(temporaryPath);
+        Assert.IsFalse(File.Exists(temporaryPath));
+    }
+
+    private static LlmFitGate1Evidence CreateAcceptedEvidence(string disposition)
+    {
+        LlmFitGate1Evidence evidence = CreateEvidence() with { Disposition = disposition };
+        return disposition == "FunctionalPassWithPackagingConcern"
+            ? evidence with
+            {
+                DiagnosticCodes =
+                [
+                    LlmFitGate1DiagnosticCodes.DependencyLicenseInventoryPending,
+                    LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+                    LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap,
+                ],
+            }
+            : evidence with
+            {
+                DiagnosticCodes =
+                [
+                    LlmFitGate1DiagnosticCodes.SignatureClaimMismatch,
+                    LlmFitGate1DiagnosticCodes.WindowsIntelNpuGap,
+                ],
+            };
+    }
+
     private static LlmFitGate1Evidence CreateEvidence()
     {
         DateTimeOffset startedAt = new(2026, 8, 15, 12, 0, 0, TimeSpan.Zero);
@@ -432,6 +783,40 @@ public sealed class LlmFitGate1EvidenceWriterTests
         "HI-GATE1-OFFLINE-PRECONDITION-FAILED",
         "HI-GATE1-PRIVACY-VALIDATION-FAILED",
         "HI-GATE1-REQUIRED-TEST-FAILURE",
+    ];
+
+    private static readonly string[] HardFailureDiagnosticCodes =
+    [
+        LlmFitGate1DiagnosticCodes.ManifestInvalid,
+        LlmFitGate1DiagnosticCodes.PackageMissing,
+        LlmFitGate1DiagnosticCodes.UnexpectedPackageMember,
+        LlmFitGate1DiagnosticCodes.PackageChangedDuringRun,
+        LlmFitGate1DiagnosticCodes.PathEscape,
+        LlmFitGate1DiagnosticCodes.ReparsePoint,
+        LlmFitGate1DiagnosticCodes.ArchiveLengthMismatch,
+        LlmFitGate1DiagnosticCodes.ArchiveHashMismatch,
+        LlmFitGate1DiagnosticCodes.ExecutableHashMismatch,
+        LlmFitGate1DiagnosticCodes.PeInvalid,
+        LlmFitGate1DiagnosticCodes.PeArchitectureMismatch,
+        LlmFitGate1DiagnosticCodes.ProcessStartFailed,
+        LlmFitGate1DiagnosticCodes.VersionMismatch,
+        LlmFitGate1DiagnosticCodes.ProcessTimedOut,
+        LlmFitGate1DiagnosticCodes.ProcessCancelled,
+        LlmFitGate1DiagnosticCodes.ProcessExitNonzero,
+        LlmFitGate1DiagnosticCodes.StdoutTruncated,
+        LlmFitGate1DiagnosticCodes.StderrTruncated,
+        LlmFitGate1DiagnosticCodes.SocketObservationFailed,
+        LlmFitGate1DiagnosticCodes.CandidateSocketObserved,
+        LlmFitGate1DiagnosticCodes.DashboardPortObserved,
+        LlmFitGate1DiagnosticCodes.ResidualProcess,
+        LlmFitGate1DiagnosticCodes.JsonInvalid,
+        LlmFitGate1DiagnosticCodes.CpuRamMissing,
+        LlmFitGate1DiagnosticCodes.GpuInconsistent,
+        LlmFitGate1DiagnosticCodes.WrongTarget,
+        LlmFitGate1DiagnosticCodes.WindowsComparisonFailed,
+        LlmFitGate1DiagnosticCodes.OfflinePreconditionFailed,
+        LlmFitGate1DiagnosticCodes.PrivacyValidationFailed,
+        LlmFitGate1DiagnosticCodes.RequiredTestFailure,
     ];
 
     private sealed class OwnedTemporaryDirectory : IDisposable
