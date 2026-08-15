@@ -11,6 +11,25 @@ public sealed record LlmFitProcessObservation(
     IReadOnlyList<int> CandidateListeningPorts,
     bool CandidateProcessRemainedAfterExit);
 
+internal readonly record struct CandidateProcessIdentity(int ProcessId, long StartTimeUtcTicks);
+
+internal interface INetstatProcess : IDisposable
+{
+    Stream StandardOutput { get; }
+
+    Stream StandardError { get; }
+
+    int ExitCode { get; }
+
+    bool HasExited { get; }
+
+    bool Start();
+
+    Task WaitForExitAsync();
+
+    void KillEntireProcessTree();
+}
+
 /// <summary>
 /// Samples candidate-owned Windows TCP rows as diagnostic evidence. A clean
 /// sample is not proof that no network system call occurred; the controlled
@@ -27,18 +46,21 @@ public sealed class TcpListenerObserver
     private static readonly TimeSpan ResidualObservationWindow = TimeSpan.FromSeconds(2);
     private readonly string _candidateProcessName;
     private readonly Func<CancellationToken, Task<string>> _captureNetstat;
+    private readonly Func<int, CandidateProcessIdentity?> _captureRootIdentity;
     private readonly object _completionLock = new();
     private readonly ConcurrentDictionary<int, byte> _listeningPorts = new();
     private readonly TimeSpan _pollInterval;
-    private readonly Dictionary<int, ProcessIdentity> _prelaunchProcesses;
+    private readonly Dictionary<int, CandidateProcessIdentity> _prelaunchProcesses;
     private readonly TimeSpan _residualObservationWindow;
+    private readonly Func<IReadOnlyList<CandidateProcessIdentity>> _snapshotCandidateProcesses;
     private readonly TaskCompletionSource _observationEnded = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
     private Task<LlmFitProcessObservation>? _completionTask;
-    private ProcessIdentity? _rootProcess;
+    private CandidateProcessIdentity? _rootProcess;
     private int _candidateSocketObserved;
     private int _dashboardPortObserved;
     private int _observationStarted;
+    private int _sampleCount;
 
     public TcpListenerObserver(string candidateImageName, TimeSpan pollInterval)
         : this(
@@ -54,6 +76,23 @@ public sealed class TcpListenerObserver
         TimeSpan pollInterval,
         Func<CancellationToken, Task<string>> captureNetstat,
         TimeSpan residualObservationWindow)
+        : this(
+            candidateImageName,
+            pollInterval,
+            captureNetstat,
+            residualObservationWindow,
+            snapshotCandidateProcesses: null,
+            captureRootIdentity: null)
+    {
+    }
+
+    internal TcpListenerObserver(
+        string candidateImageName,
+        TimeSpan pollInterval,
+        Func<CancellationToken, Task<string>> captureNetstat,
+        TimeSpan residualObservationWindow,
+        Func<IReadOnlyList<CandidateProcessIdentity>>? snapshotCandidateProcesses,
+        Func<int, CandidateProcessIdentity?>? captureRootIdentity)
     {
         string validatedImageName = ValidateCandidateImageName(candidateImageName);
         _candidateProcessName = Path.GetFileNameWithoutExtension(validatedImageName);
@@ -73,8 +112,12 @@ public sealed class TcpListenerObserver
         _pollInterval = pollInterval;
         _captureNetstat = captureNetstat ?? throw new ArgumentNullException(nameof(captureNetstat));
         _residualObservationWindow = residualObservationWindow;
-        _prelaunchProcesses = SnapshotCandidateProcesses();
+        _snapshotCandidateProcesses = snapshotCandidateProcesses ?? SnapshotCandidateProcessIdentities;
+        _captureRootIdentity = captureRootIdentity ?? CaptureRootProcessIdentity;
+        _prelaunchProcesses = CaptureCandidateProcessSnapshot();
     }
+
+    internal int SampleCount => Volatile.Read(ref _sampleCount);
 
     public async Task ObserveWhileRunningAsync(
         int rootProcessId,
@@ -95,20 +138,21 @@ public sealed class TcpListenerObserver
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            _rootProcess = CaptureRootIdentity(rootProcessId);
+            _rootProcess = CaptureVerifiedRootIdentity(rootProcessId);
 
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Dictionary<int, ProcessIdentity> processesBeforeSample =
-                    SnapshotCandidateProcesses();
+                Dictionary<int, CandidateProcessIdentity> processesBeforeSample =
+                    CaptureCandidateProcessSnapshot();
                 string output = await _captureNetstat(cancellationToken).ConfigureAwait(false);
-                Dictionary<int, ProcessIdentity> processesAfterSample =
-                    SnapshotCandidateProcesses();
+                Dictionary<int, CandidateProcessIdentity> processesAfterSample =
+                    CaptureCandidateProcessSnapshot();
                 HashSet<int> attributedProcessIds = GetStableAttributedProcessIds(
                     processesBeforeSample,
                     processesAfterSample);
                 RecordCandidateRows(output, attributedProcessIds);
+                Interlocked.Increment(ref _sampleCount);
                 await Task.Delay(_pollInterval, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -165,8 +209,8 @@ public sealed class TcpListenerObserver
         var elapsed = Stopwatch.StartNew();
         while (true)
         {
-            Dictionary<int, ProcessIdentity> currentProcesses =
-                SnapshotCandidateProcesses();
+            Dictionary<int, CandidateProcessIdentity> currentProcesses =
+                CaptureCandidateProcessSnapshot();
             bool hasNewCandidateProcess = currentProcesses.Values.Any(IsNewCandidateProcess);
             if (!hasNewCandidateProcess)
             {
@@ -187,17 +231,17 @@ public sealed class TcpListenerObserver
     }
 
     private HashSet<int> GetStableAttributedProcessIds(
-        Dictionary<int, ProcessIdentity> processesBeforeSample,
-        Dictionary<int, ProcessIdentity> processesAfterSample)
+        Dictionary<int, CandidateProcessIdentity> processesBeforeSample,
+        Dictionary<int, CandidateProcessIdentity> processesAfterSample)
     {
         var attributed = new HashSet<int>();
-        foreach (ProcessIdentity identity in processesBeforeSample.Values)
+        foreach (CandidateProcessIdentity identity in processesBeforeSample.Values)
         {
             if ((IsNewCandidateProcess(identity) ||
                     _rootProcess is not null && identity == _rootProcess) &&
                 processesAfterSample.TryGetValue(
                     identity.ProcessId,
-                    out ProcessIdentity? identityAfterSample) &&
+                    out CandidateProcessIdentity identityAfterSample) &&
                 identityAfterSample == identity)
             {
                 attributed.Add(identity.ProcessId);
@@ -207,9 +251,11 @@ public sealed class TcpListenerObserver
         return attributed;
     }
 
-    private bool IsNewCandidateProcess(ProcessIdentity identity)
+    private bool IsNewCandidateProcess(CandidateProcessIdentity identity)
     {
-        return !_prelaunchProcesses.TryGetValue(identity.ProcessId, out ProcessIdentity? previous) ||
+        return !_prelaunchProcesses.TryGetValue(
+                identity.ProcessId,
+                out CandidateProcessIdentity previous) ||
             previous != identity;
     }
 
@@ -244,16 +290,13 @@ public sealed class TcpListenerObserver
 
             Interlocked.Exchange(ref _candidateSocketObserved, 1);
             bool localPortParsed = TryParseEndpointPort(parts[1], out int localPort);
-            bool remotePortParsed = TryParseEndpointPort(parts[2], out int remotePort);
             if (state == "LISTENING" && localPortParsed)
             {
                 _listeningPorts.TryAdd(localPort, 0);
-            }
-
-            if (localPortParsed && localPort == LlmFitDashboardPort ||
-                remotePortParsed && remotePort == LlmFitDashboardPort)
-            {
-                Interlocked.Exchange(ref _dashboardPortObserved, 1);
+                if (localPort == LlmFitDashboardPort)
+                {
+                    Interlocked.Exchange(ref _dashboardPortObserved, 1);
+                }
             }
         }
     }
@@ -272,7 +315,20 @@ public sealed class TcpListenerObserver
             port is >= 1 and <= 65_535;
     }
 
-    private ProcessIdentity? CaptureRootIdentity(int processId)
+    private CandidateProcessIdentity? CaptureVerifiedRootIdentity(int processId)
+    {
+        CandidateProcessIdentity? identity = _captureRootIdentity(processId);
+        if (identity is { } captured &&
+            (captured.ProcessId != processId || captured.StartTimeUtcTicks <= 0))
+        {
+            throw new InvalidOperationException(
+                "The observed root process identity could not be verified.");
+        }
+
+        return identity;
+    }
+
+    private CandidateProcessIdentity? CaptureRootProcessIdentity(int processId)
     {
         Process process;
         try
@@ -314,11 +370,31 @@ public sealed class TcpListenerObserver
                     "The observed root process does not match the candidate image.");
             }
 
-            return new ProcessIdentity(process.Id, startTimeUtcTicks);
+            return new CandidateProcessIdentity(process.Id, startTimeUtcTicks);
         }
     }
 
-    private Dictionary<int, ProcessIdentity> SnapshotCandidateProcesses()
+    private Dictionary<int, CandidateProcessIdentity> CaptureCandidateProcessSnapshot()
+    {
+        IReadOnlyList<CandidateProcessIdentity> snapshot =
+            _snapshotCandidateProcesses() ??
+            throw new InvalidOperationException("Candidate process identities could not be enumerated.");
+        var identities = new Dictionary<int, CandidateProcessIdentity>(snapshot.Count);
+        foreach (CandidateProcessIdentity identity in snapshot)
+        {
+            if (identity.ProcessId <= 0 ||
+                identity.StartTimeUtcTicks <= 0 ||
+                !identities.TryAdd(identity.ProcessId, identity))
+            {
+                throw new InvalidOperationException(
+                    "A candidate process identity could not be verified.");
+            }
+        }
+
+        return identities;
+    }
+
+    private List<CandidateProcessIdentity> SnapshotCandidateProcessIdentities()
     {
         Process[] processes;
         try
@@ -331,7 +407,7 @@ public sealed class TcpListenerObserver
             throw new InvalidOperationException("Candidate process identities could not be enumerated.");
         }
 
-        var identities = new Dictionary<int, ProcessIdentity>();
+        var identities = new List<CandidateProcessIdentity>(processes.Length);
         try
         {
             foreach (Process process in processes)
@@ -347,10 +423,10 @@ public sealed class TcpListenerObserver
                         continue;
                     }
 
-                    var identity = new ProcessIdentity(
+                    var identity = new CandidateProcessIdentity(
                         process.Id,
                         process.StartTime.ToUniversalTime().Ticks);
-                    identities[identity.ProcessId] = identity;
+                    identities.Add(identity);
                 }
                 catch (InvalidOperationException)
                 {
@@ -402,7 +478,212 @@ public sealed class TcpListenerObserver
 
     private static async Task<string> CaptureNetstatAsync(CancellationToken cancellationToken)
     {
+        return await CaptureNetstatCoreAsync(
+                static startInfo => new SystemNetstatProcess(startInfo),
+                HelperExecutionTimeout,
+                HelperCleanupDeadline,
+                MaximumNetstatBytesPerStream,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal static Task<string> CaptureNetstatForTestsAsync(
+        Func<ProcessStartInfo, INetstatProcess> processFactory,
+        TimeSpan executionTimeout,
+        TimeSpan cleanupDeadline,
+        int maximumBytesPerStream,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(processFactory);
+        if (executionTimeout <= TimeSpan.Zero || executionTimeout > HelperExecutionTimeout)
+        {
+            throw new ArgumentOutOfRangeException(nameof(executionTimeout));
+        }
+
+        if (cleanupDeadline <= TimeSpan.Zero || cleanupDeadline > HelperCleanupDeadline)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cleanupDeadline));
+        }
+
+        if (maximumBytesPerStream <= 0 ||
+            maximumBytesPerStream > MaximumNetstatBytesPerStream)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBytesPerStream));
+        }
+
+        return CaptureNetstatCoreAsync(
+            processFactory,
+            executionTimeout,
+            cleanupDeadline,
+            maximumBytesPerStream,
+            cancellationToken);
+    }
+
+    private static async Task<string> CaptureNetstatCoreAsync(
+        Func<ProcessStartInfo, INetstatProcess> processFactory,
+        TimeSpan executionTimeout,
+        TimeSpan cleanupDeadline,
+        int maximumBytesPerStream,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
+        ProcessStartInfo startInfo = CreateNetstatStartInfo();
+        INetstatProcess process;
+        try
+        {
+            process = processFactory(startInfo) ??
+                throw new InvalidOperationException();
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            throw new InvalidOperationException(
+                "The trusted TCP observation helper could not be started.");
+        }
+
+        try
+        {
+            bool started;
+            try
+            {
+                started = process.Start();
+            }
+            catch (Exception exception) when (
+                exception is InvalidOperationException or Win32Exception or NotSupportedException)
+            {
+                throw new InvalidOperationException(
+                    "The trusted TCP observation helper could not be started.");
+            }
+
+            if (!started)
+            {
+                throw new InvalidOperationException(
+                    "The trusted TCP observation helper could not be started.");
+            }
+
+            Task<BoundedTextCapture>? standardOutput = null;
+            Task<BoundedTextCapture>? standardError = null;
+            Task? exitTask = null;
+            CancellationTokenSource? timeoutLifetime = null;
+            CancellationTokenRegistration cancellationRegistration = default;
+            bool cancellationRegistrationCreated = false;
+            HelperTerminal terminal = HelperTerminal.Failed;
+            bool cleanupComplete = false;
+
+            try
+            {
+                standardOutput = BoundedTextReader.ReadAsync(
+                    process.StandardOutput,
+                    maximumBytesPerStream);
+                standardError = BoundedTextReader.ReadAsync(
+                    process.StandardError,
+                    maximumBytesPerStream);
+                exitTask = process.WaitForExitAsync();
+                timeoutLifetime = new CancellationTokenSource();
+                Task timeoutTask = Task.Delay(executionTimeout, timeoutLifetime.Token);
+                var cancellationSignal = new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                cancellationRegistration = cancellationToken.Register(
+                    static state => ((TaskCompletionSource)state!).TrySetResult(),
+                    cancellationSignal);
+                cancellationRegistrationCreated = true;
+
+                terminal = await WaitForHelperTerminalAsync(
+                        exitTask,
+                        standardOutput,
+                        standardError,
+                        timeoutTask,
+                        cancellationSignal.Task)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Every post-start setup and observation failure is converted to
+                // a fixed diagnostic after the owned helper has been cleaned up.
+                terminal = HelperTerminal.Failed;
+            }
+            finally
+            {
+                if (terminal != HelperTerminal.Exited || !HasExited(process))
+                {
+                    TryKillProcessTree(process);
+                }
+
+                if (timeoutLifetime is not null)
+                {
+                    TryCancel(timeoutLifetime);
+                }
+
+                if (cancellationRegistrationCreated)
+                {
+                    try
+                    {
+                        cancellationRegistration.Dispose();
+                    }
+                    catch
+                    {
+                        terminal = HelperTerminal.Failed;
+                    }
+                }
+
+                try
+                {
+                    cleanupComplete = await AwaitHelperCleanupAsync(
+                            process,
+                            exitTask,
+                            standardOutput,
+                            standardError,
+                            cleanupDeadline)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    cleanupComplete = false;
+                }
+
+                TryDisposeCancellationSource(timeoutLifetime);
+            }
+
+            if (!cleanupComplete)
+            {
+                throw new InvalidOperationException(
+                    "The TCP observation helper could not be cleaned up.");
+            }
+
+            if (terminal == HelperTerminal.Cancelled)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            if (terminal == HelperTerminal.TimedOut)
+            {
+                throw new InvalidOperationException(
+                    "The TCP observation helper exceeded its deadline.");
+            }
+
+            int? exitCode = TryGetExitCode(process);
+            if (terminal != HelperTerminal.Exited ||
+                standardOutput is null ||
+                standardError is null ||
+                !standardOutput.IsCompletedSuccessfully ||
+                !standardError.IsCompletedSuccessfully ||
+                standardOutput.Result.Truncated ||
+                standardError.Result.Truncated ||
+                exitCode != 0)
+            {
+                throw new InvalidOperationException("The TCP observation helper failed.");
+            }
+
+            return standardOutput.Result.Text;
+        }
+        finally
+        {
+            TryDisposeProcess(process);
+        }
+    }
+
+    private static ProcessStartInfo CreateNetstatStartInfo()
+    {
         (string HelperPath, string SystemDirectory) helper = ResolveNetstatHelper();
         var startInfo = new ProcessStartInfo
         {
@@ -418,81 +699,7 @@ public sealed class TcpListenerObserver
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add("-p");
         startInfo.ArgumentList.Add("tcp");
-
-        using var process = new Process { StartInfo = startInfo };
-        try
-        {
-            if (!process.Start())
-            {
-                throw new InvalidOperationException();
-            }
-        }
-        catch (Exception exception) when (
-            exception is InvalidOperationException or Win32Exception or NotSupportedException)
-        {
-            throw new InvalidOperationException("The trusted TCP observation helper could not be started.");
-        }
-
-        Task<BoundedTextCapture> standardOutput = BoundedTextReader.ReadAsync(
-            process.StandardOutput.BaseStream,
-            MaximumNetstatBytesPerStream);
-        Task<BoundedTextCapture> standardError = BoundedTextReader.ReadAsync(
-            process.StandardError.BaseStream,
-            MaximumNetstatBytesPerStream);
-        Task exitTask = process.WaitForExitAsync(CancellationToken.None);
-        using var timeoutLifetime = new CancellationTokenSource();
-        Task timeoutTask = Task.Delay(HelperExecutionTimeout, timeoutLifetime.Token);
-        var cancellationSignal = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        using CancellationTokenRegistration cancellationRegistration = cancellationToken.Register(
-            static state => ((TaskCompletionSource)state!).TrySetResult(),
-            cancellationSignal);
-
-        HelperTerminal terminal = await WaitForHelperTerminalAsync(
-                exitTask,
-                standardOutput,
-                standardError,
-                timeoutTask,
-                cancellationSignal.Task)
-            .ConfigureAwait(false);
-        TryCancel(timeoutLifetime);
-        if (terminal != HelperTerminal.Exited)
-        {
-            TryKillProcessTree(process);
-        }
-
-        bool cleanupComplete = await AwaitHelperCleanupAsync(
-                process,
-                exitTask,
-                standardOutput,
-                standardError)
-            .ConfigureAwait(false);
-        if (!cleanupComplete)
-        {
-            throw new InvalidOperationException("The TCP observation helper could not be cleaned up.");
-        }
-
-        if (terminal == HelperTerminal.Cancelled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
-
-        if (terminal == HelperTerminal.TimedOut)
-        {
-            throw new InvalidOperationException("The TCP observation helper exceeded its deadline.");
-        }
-
-        if (terminal != HelperTerminal.Exited ||
-            !standardOutput.IsCompletedSuccessfully ||
-            !standardError.IsCompletedSuccessfully ||
-            standardOutput.Result.Truncated ||
-            standardError.Result.Truncated ||
-            process.ExitCode != 0)
-        {
-            throw new InvalidOperationException("The TCP observation helper failed.");
-        }
-
-        return standardOutput.Result.Text;
+        return startInfo;
     }
 
     private static async Task<HelperTerminal> WaitForHelperTerminalAsync(
@@ -545,15 +752,42 @@ public sealed class TcpListenerObserver
     }
 
     private static async Task<bool> AwaitHelperCleanupAsync(
-        Process process,
-        Task exitTask,
-        Task standardOutput,
-        Task standardError)
+        INetstatProcess process,
+        Task? exitTask,
+        Task? standardOutput,
+        Task? standardError,
+        TimeSpan cleanupDeadline)
     {
-        Task cleanup = Task.WhenAll(exitTask, standardOutput, standardError);
+        Task freshExitTask;
+        try
+        {
+            freshExitTask = process.WaitForExitAsync();
+        }
+        catch
+        {
+            return false;
+        }
+
+        var cleanupTasks = new List<Task> { freshExitTask };
+        if (exitTask is not null && !ReferenceEquals(exitTask, freshExitTask))
+        {
+            cleanupTasks.Add(exitTask);
+        }
+
+        if (standardOutput is not null)
+        {
+            cleanupTasks.Add(standardOutput);
+        }
+
+        if (standardError is not null)
+        {
+            cleanupTasks.Add(standardError);
+        }
+
+        Task cleanup = Task.WhenAll(cleanupTasks);
         ObserveFault(cleanup);
         using var deadlineLifetime = new CancellationTokenSource();
-        Task deadline = Task.Delay(HelperCleanupDeadline, deadlineLifetime.Token);
+        Task deadline = Task.Delay(cleanupDeadline, deadlineLifetime.Token);
         Task completed = await Task.WhenAny(cleanup, deadline).ConfigureAwait(false);
         if (!ReferenceEquals(completed, cleanup))
         {
@@ -571,9 +805,10 @@ public sealed class TcpListenerObserver
             // Completion is distinguished from success by the caller.
         }
 
-        return exitTask.IsCompleted &&
-            standardOutput.IsCompleted &&
-            standardError.IsCompleted &&
+        return freshExitTask.IsCompletedSuccessfully &&
+            (exitTask is null || exitTask.IsCompleted) &&
+            (standardOutput is null || standardOutput.IsCompleted) &&
+            (standardError is null || standardError.IsCompleted) &&
             HasExited(process);
     }
 
@@ -622,32 +857,68 @@ public sealed class TcpListenerObserver
         }
     }
 
-    private static void TryKillProcessTree(Process process)
+    private static void TryKillProcessTree(INetstatProcess process)
     {
         try
         {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
+            process.KillEntireProcessTree();
         }
-        catch (Exception exception) when (
-            exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        catch
         {
             // Bounded cleanup below is the authoritative termination check.
         }
     }
 
-    private static bool HasExited(Process process)
+    private static bool HasExited(INetstatProcess process)
     {
         try
         {
             return process.HasExited;
         }
-        catch (Exception exception) when (
-            exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        catch
         {
             return false;
+        }
+    }
+
+    private static int? TryGetExitCode(INetstatProcess process)
+    {
+        try
+        {
+            return process.ExitCode;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void TryDisposeProcess(INetstatProcess process)
+    {
+        try
+        {
+            process.Dispose();
+        }
+        catch
+        {
+            // The helper lifetime was already decided by bounded cleanup.
+        }
+    }
+
+    private static void TryDisposeCancellationSource(CancellationTokenSource? source)
+    {
+        if (source is null)
+        {
+            return;
+        }
+
+        try
+        {
+            source.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            // A private source may already have been released on an exceptional path.
         }
     }
 
@@ -679,13 +950,49 @@ public sealed class TcpListenerObserver
         }
     }
 
-    private sealed record ProcessIdentity(int ProcessId, long StartTimeUtcTicks);
-
     private enum HelperTerminal
     {
         Exited,
         Cancelled,
         TimedOut,
         Failed,
+    }
+
+    private sealed class SystemNetstatProcess : INetstatProcess
+    {
+        private readonly Process _process;
+
+        internal SystemNetstatProcess(ProcessStartInfo startInfo)
+        {
+            _process = new Process { StartInfo = startInfo };
+        }
+
+        public Stream StandardOutput => _process.StandardOutput.BaseStream;
+
+        public Stream StandardError => _process.StandardError.BaseStream;
+
+        public int ExitCode => _process.ExitCode;
+
+        public bool HasExited => _process.HasExited;
+
+        public bool Start()
+        {
+            return _process.Start();
+        }
+
+        public Task WaitForExitAsync()
+        {
+            return _process.WaitForExitAsync(CancellationToken.None);
+        }
+
+        public void KillEntireProcessTree()
+        {
+            _process.Kill(entireProcessTree: true);
+        }
+
+        public void Dispose()
+        {
+            _process.Dispose();
+        }
     }
 }

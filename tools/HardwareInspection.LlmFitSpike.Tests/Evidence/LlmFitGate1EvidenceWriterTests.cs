@@ -11,8 +11,10 @@ namespace HardwareInspection.LlmFitSpike.Tests.Evidence;
 #pragma warning disable CA1707 // Test names intentionally encode the required behavior.
 public sealed class LlmFitGate1EvidenceWriterTests
 {
-    private const string HashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    private const string HashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    private const string ArchiveHash =
+        "a030269d7cc8a5bf40383f526a481655d698ec71dd792a25b06510cef9f8b738";
+    private const string ExecutableHash =
+        "db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19";
     private const string HashC = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
     private const string ReleaseCommit = "a02e13f1013ed69889ff44426a651bf7c68c292e";
     private static readonly string[] ExpectedSystemArguments = ["--no-dashboard", "--json", "system"];
@@ -53,10 +55,10 @@ public sealed class LlmFitGate1EvidenceWriterTests
         Assert.AreEqual("1.1.9", root.GetProperty("expectedVersion").GetString());
         Assert.AreEqual("llmfit 1.1.9", root.GetProperty("reportedVersion").GetString());
         Assert.AreEqual(ReleaseCommit, root.GetProperty("releaseCommit").GetString());
-        Assert.AreEqual(HashA, root.GetProperty("expectedArchiveSha256").GetString());
-        Assert.AreEqual(HashA, root.GetProperty("observedArchiveSha256").GetString());
-        Assert.AreEqual(HashB, root.GetProperty("expectedExecutableSha256").GetString());
-        Assert.AreEqual(HashB, root.GetProperty("observedExecutableSha256").GetString());
+        Assert.AreEqual(ArchiveHash, root.GetProperty("expectedArchiveSha256").GetString());
+        Assert.AreEqual(ArchiveHash, root.GetProperty("observedArchiveSha256").GetString());
+        Assert.AreEqual(ExecutableHash, root.GetProperty("expectedExecutableSha256").GetString());
+        Assert.AreEqual(ExecutableHash, root.GetProperty("observedExecutableSha256").GetString());
         CollectionAssert.AreEqual(
             ExpectedVersionArguments,
             root.GetProperty("versionInvocationArguments")
@@ -134,6 +136,212 @@ public sealed class LlmFitGate1EvidenceWriterTests
         Assert.HasCount(0, Directory.GetFiles(directory.Path, "*.tmp-*", SearchOption.TopDirectoryOnly));
     }
 
+    [TestMethod]
+    public async Task WriteAsync_AncestorReparsePoint_IsRejectedBeforeCreation()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string physicalDirectory = Path.Combine(directory.Path, "physical");
+        string linkedDirectory = Path.Combine(directory.Path, "linked");
+        Directory.CreateDirectory(physicalDirectory);
+        Directory.CreateSymbolicLink(linkedDirectory, physicalDirectory);
+
+        try
+        {
+            string outputPath = Path.Combine(linkedDirectory, "nested", "evidence.json");
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                    () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                        CreateEvidence(),
+                        outputPath,
+                        CancellationToken.None))
+                .ConfigureAwait(false);
+
+            Assert.IsFalse(Directory.Exists(Path.Combine(physicalDirectory, "nested")));
+            Assert.IsFalse(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(linkedDirectory))
+            {
+                Directory.Delete(linkedDirectory);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_AcceptedDispositionWithTerminalFailure_IsRejected()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        LlmFitGate1Evidence accepted = CreateEvidence() with
+        {
+            Disposition = "FunctionalPassWithPackagingConcern",
+        };
+        LlmFitGate1Evidence[] contradictions =
+        [
+            accepted with { ProcessStartFailed = true },
+            accepted with { SocketObservationFailed = true },
+            accepted with { TimedOut = true },
+            accepted with { Cancelled = true },
+            accepted with { StandardOutputTruncated = true },
+            accepted with { StandardErrorTruncated = true },
+            accepted with { VersionCandidateSocketObserved = true },
+            accepted with { SystemCandidateSocketObserved = true },
+            accepted with { VersionCandidateProcessRemainedAfterExit = true },
+            accepted with { SystemCandidateProcessRemainedAfterExit = true },
+            accepted with { JsonValid = false, RawSystemJsonFileName = null, RawSystemJsonSha256 = null },
+            accepted with { RequiredCpuRamPresent = false },
+        ];
+
+        for (int index = 0; index < contradictions.Length; index++)
+        {
+            string outputPath = Path.Combine(directory.Path, $"contradiction-{index}.json");
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                    () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                        contradictions[index],
+                        outputPath,
+                        CancellationToken.None))
+                .ConfigureAwait(false);
+            Assert.IsFalse(File.Exists(outputPath));
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_GateIdentityAndSensitiveStringFields_ArePinned()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        LlmFitGate1Evidence baseline = CreateEvidence();
+        LlmFitGate1Evidence[] invalidValues =
+        [
+            baseline with { SchemaVersion = "2.0" },
+            baseline with { CandidateId = "arian-private-host" },
+            baseline with { ExpectedVersion = "9.9.9" },
+            baseline with { ReportedVersion = "Arian Secret Host" },
+            baseline with { ExpectedPeMachine = "SECRET" },
+            baseline with { ObservedPeMachine = "SECRET" },
+            baseline with { RawSystemJsonFileName = "arian-private.json" },
+            baseline with { RawSystemJsonFileName = null },
+            baseline with { RawSystemJsonSha256 = null },
+        ];
+
+        for (int index = 0; index < invalidValues.Length; index++)
+        {
+            string outputPath = Path.Combine(directory.Path, $"identity-{index}.json");
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(
+                    () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                        invalidValues[index],
+                        outputPath,
+                        CancellationToken.None))
+                .ConfigureAwait(false);
+            Assert.IsFalse(File.Exists(outputPath));
+        }
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_PreCancelledToken_PreservesExistingEvidence()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string outputPath = Path.Combine(directory.Path, "evidence.json");
+        const string Original = "{\"original\":true}";
+        await File.WriteAllTextAsync(outputPath, Original).ConfigureAwait(false);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+                () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                    CreateEvidence(),
+                    outputPath,
+                    cancellation.Token))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(Original, await File.ReadAllTextAsync(outputPath).ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_TemporaryPathSwap_PublishesHeldEvidenceNotReplacement()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string outputPath = Path.Combine(directory.Path, "evidence.json");
+        string? replacementPath = null;
+        string? displacedOwnedPath = null;
+        var writer = new LlmFitGate1EvidenceWriter(
+            temporaryPath =>
+            {
+                replacementPath = temporaryPath;
+                displacedOwnedPath = temporaryPath + ".displaced";
+                File.Move(temporaryPath, displacedOwnedPath);
+                File.WriteAllText(temporaryPath, "attacker replacement");
+            });
+
+        _ = await writer.WriteAsync(CreateEvidence(), outputPath, CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Assert.IsTrue(
+            File.Exists(outputPath),
+            string.Join(",", Directory.GetFiles(directory.Path).Select(Path.GetFileName)));
+        using JsonDocument document = JsonDocument.Parse(
+            await File.ReadAllTextAsync(outputPath).ConfigureAwait(false));
+        Assert.AreEqual("llmfit-v1.1.9-win-x64", document.RootElement.GetProperty("candidateId").GetString());
+        Assert.IsNotNull(replacementPath);
+        Assert.AreEqual("attacker replacement", await File.ReadAllTextAsync(replacementPath).ConfigureAwait(false));
+        Assert.IsNotNull(displacedOwnedPath);
+        Assert.IsFalse(File.Exists(displacedOwnedPath));
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_PrePublicationFailure_PreservesDestinationAndDeletesOnlyOwnedFile()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string outputPath = Path.Combine(directory.Path, "evidence.json");
+        const string Original = "{\"original\":true}";
+        await File.WriteAllTextAsync(outputPath, Original).ConfigureAwait(false);
+        string? replacementPath = null;
+        string? displacedOwnedPath = null;
+        var writer = new LlmFitGate1EvidenceWriter(
+            temporaryPath =>
+            {
+                replacementPath = temporaryPath;
+                displacedOwnedPath = temporaryPath + ".displaced";
+                File.Move(temporaryPath, displacedOwnedPath);
+                File.WriteAllText(temporaryPath, "attacker replacement");
+                throw new InvalidOperationException("controlled pre-publication failure");
+            });
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+                () => writer.WriteAsync(CreateEvidence(), outputPath, CancellationToken.None))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(Original, await File.ReadAllTextAsync(outputPath).ConfigureAwait(false));
+        Assert.IsNotNull(replacementPath);
+        Assert.AreEqual("attacker replacement", await File.ReadAllTextAsync(replacementPath).ConfigureAwait(false));
+        Assert.IsNotNull(displacedOwnedPath);
+        Assert.IsFalse(File.Exists(displacedOwnedPath));
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_LockedDestination_PreservesExistingEvidenceAndRemovesOwnedTemporaryFile()
+    {
+        using var directory = new OwnedTemporaryDirectory();
+        string outputPath = Path.Combine(directory.Path, "evidence.json");
+        const string Original = "{\"original\":true}";
+        await File.WriteAllTextAsync(outputPath, Original).ConfigureAwait(false);
+        await using var destinationLock = new FileStream(
+            outputPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+
+        await Assert.ThrowsAsync<IOException>(
+                () => new LlmFitGate1EvidenceWriter().WriteAsync(
+                    CreateEvidence(),
+                    outputPath,
+                    CancellationToken.None))
+            .ConfigureAwait(false);
+
+        destinationLock.Position = 0;
+        using var reader = new StreamReader(destinationLock, leaveOpen: true);
+        Assert.AreEqual(Original, await reader.ReadToEndAsync().ConfigureAwait(false));
+        Assert.HasCount(0, Directory.GetFiles(directory.Path, "*.tmp-*", SearchOption.TopDirectoryOnly));
+    }
+
     private static LlmFitGate1Evidence CreateEvidence()
     {
         DateTimeOffset startedAt = new(2026, 8, 15, 12, 0, 0, TimeSpan.Zero);
@@ -144,10 +352,10 @@ public sealed class LlmFitGate1EvidenceWriterTests
             ExpectedVersion: "1.1.9",
             ReportedVersion: "llmfit 1.1.9",
             ReleaseCommit,
-            ExpectedArchiveSha256: HashA,
-            ObservedArchiveSha256: HashA,
-            ExpectedExecutableSha256: HashB,
-            ObservedExecutableSha256: HashB,
+            ExpectedArchiveSha256: ArchiveHash,
+            ObservedArchiveSha256: ArchiveHash,
+            ExpectedExecutableSha256: ExecutableHash,
+            ObservedExecutableSha256: ExecutableHash,
             ExpectedPeMachine: "AMD64",
             ObservedPeMachine: "AMD64",
             AuthenticodePresent: false,
