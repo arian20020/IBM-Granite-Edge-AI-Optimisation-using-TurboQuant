@@ -100,7 +100,7 @@ function Write-AtomicJson {
     }
     [IO.File]::WriteAllText(
         $TemporaryPath,
-        (($Value | ConvertTo-Json -Depth 12) + [Environment]::NewLine),
+        ((ConvertTo-Json -InputObject $Value -Depth 12) + [Environment]::NewLine),
         [Text.UTF8Encoding]::new($false)
     )
     [IO.File]::Move($TemporaryPath, $Path)
@@ -415,6 +415,11 @@ try {
         Where-Object {
             -not [string]::IsNullOrWhiteSpace($_) -and
             -not $_.TrimStart().StartsWith('#')
+        } |
+        ForEach-Object {
+            # Create a new CLR string rather than carrying Get-Content's adapted
+            # PSPath/PSProvider/ReadCount properties into the JSON object graph.
+            [string]::new(([string]$_).ToCharArray())
         }
     )
 
