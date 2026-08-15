@@ -12,14 +12,17 @@ public sealed class LlmFitCommandBuilderTests
 {
     private static readonly string[] ExpectedSystemArguments = ["--no-dashboard", "--json", "system"];
     private static readonly string[] ExpectedVersionArguments = ["--version"];
+    private static readonly string[] ShellExecutableNames = ["cmd.exe", "powershell.exe", "pwsh.exe"];
 
     [TestMethod]
     public void BuildSystem_UsesOnlyPinnedReadOnlyArguments()
     {
         const string candidateRoot = @"C:\candidate root";
-        LlmFitCommand command = LlmFitCommandBuilder.BuildSystem(candidateRoot, LoadApprovedCandidate());
+        LlmFitCandidateManifest manifest = LoadApprovedCandidate();
+        LlmFitCommand command = LlmFitCommandBuilder.BuildSystem(candidateRoot, manifest);
 
         CollectionAssert.AreEqual(ExpectedSystemArguments, command.Arguments);
+        Assert.AreNotSame(manifest.Commands.System, command.Arguments);
         Assert.AreEqual(Path.GetFullPath(@"C:\candidate root\llmfit.exe"), command.ExecutablePath);
         Assert.AreEqual(Path.GetFullPath(candidateRoot), command.WorkingDirectory);
 
@@ -37,9 +40,12 @@ public sealed class LlmFitCommandBuilderTests
     [TestMethod]
     public void BuildVersion_UsesOnlyVersionArgument()
     {
-        LlmFitCommand command = LlmFitCommandBuilder.BuildVersion(@"C:\candidate", LoadApprovedCandidate());
+        LlmFitCandidateManifest manifest = LoadApprovedCandidate();
+        LlmFitCommand command = LlmFitCommandBuilder.BuildVersion(@"C:\candidate", manifest);
 
         CollectionAssert.AreEqual(ExpectedVersionArguments, command.Arguments);
+        Assert.AreNotSame(manifest.Commands.Version, command.Arguments);
+        Assert.AreEqual(Path.GetFullPath(@"C:\candidate\llmfit.exe"), command.ExecutablePath);
 
         ProcessStartInfo startInfo = command.CreateStartInfo();
         Assert.AreEqual(command.ExecutablePath, startInfo.FileName);
@@ -75,8 +81,8 @@ public sealed class LlmFitCommandBuilderTests
 
     private static void AssertNoShellIntermediary(ProcessStartInfo startInfo)
     {
-        string[] shellExecutables = ["cmd.exe", "powershell.exe", "pwsh.exe"];
-        CollectionAssert.DoesNotContain(shellExecutables, Path.GetFileName(startInfo.FileName));
+        Assert.IsFalse(
+            ShellExecutableNames.Contains(Path.GetFileName(startInfo.FileName), StringComparer.OrdinalIgnoreCase));
     }
 
     private static LlmFitCandidateManifest LoadApprovedCandidate()
