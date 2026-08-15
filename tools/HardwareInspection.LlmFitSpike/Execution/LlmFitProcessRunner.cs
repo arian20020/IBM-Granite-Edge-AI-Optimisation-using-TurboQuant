@@ -328,15 +328,16 @@ public sealed class LlmFitProcessRunner
             return null;
         }
 
-        try
-        {
-            return observer(processId, observerLifetime) ??
-                Task.FromException(new InvalidOperationException());
-        }
-        catch (Exception exception)
-        {
-            return Task.FromException(exception);
-        }
+        // The public delegate may block before it returns its Task. Invoke that
+        // synchronous prefix on a dedicated worker so neither the
+        // runner nor shared ThreadPool progress can be held past its deadline.
+        return Task.Factory.StartNew(
+                () => observer(processId, observerLifetime) ??
+                    Task.FromException(new InvalidOperationException()),
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
+                TaskScheduler.Default)
+            .Unwrap();
     }
 
     private Task<BoundedTextCapture>? TryStartCapture(

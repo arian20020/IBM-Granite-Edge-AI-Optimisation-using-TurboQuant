@@ -2,6 +2,7 @@ using System.Buffers;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using HardwareInspection.LlmFitSpike.Command;
 using HardwareInspection.LlmFitSpike.Execution;
@@ -81,54 +82,121 @@ public sealed class LlmFitProcessRunnerTests
         await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("sleep").ConfigureAwait(false);
         var observedProcessId = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var observerStopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failures = new List<Exception>();
+        OwnedObservedProcess? observedProcess = null;
+        Task<LlmFitProcessResult>? execution = null;
 
-        LlmFitProcessResult result = await CreateShortTimeoutRunner()
-            .ExecuteAsync(
-                tool.SystemCommand,
-                TestTimeout,
-                async (processId, token) =>
-                {
-                    observedProcessId.TrySetResult(processId);
-                    try
+        try
+        {
+            execution = CreateShortTimeoutRunner()
+                .ExecuteAsync(
+                    tool.SystemCommand,
+                    TestTimeout,
+                    async (processId, token) =>
                     {
-                        await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        observerStopped.TrySetResult();
-                    }
-                })
-            .WaitAsync(TimeSpan.FromSeconds(10))
-            .ConfigureAwait(false);
+                        observedProcess = OwnedObservedProcess.TryCapture(processId, tool);
+                        observedProcessId.TrySetResult(processId);
+                        try
+                        {
+                            await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            observerStopped.TrySetResult();
+                        }
+                    });
+            LlmFitProcessResult result = await execution
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-        int processId = await observedProcessId.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
-        await observerStopped.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
-        Assert.IsTrue(result.TimedOut);
-        Assert.IsFalse(result.Cancelled);
-        Assert.AreEqual(processId, result.ProcessId);
-        await AssertProcessExitedAsync(processId).ConfigureAwait(false);
+            int processId = await observedProcessId.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await observerStopped.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            Assert.IsTrue(result.TimedOut);
+            Assert.IsFalse(result.Cancelled);
+            Assert.AreEqual(processId, result.ProcessId);
+            Assert.IsNotNull(observedProcess);
+            await observedProcess.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+        finally
+        {
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedProcess).ConfigureAwait(false);
+        }
+
+        RethrowFailures(failures);
     }
 
     [TestMethod]
     public async Task ExecuteAsync_Timeout_KillsDescendantProcess()
     {
         await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("spawn-child").ConfigureAwait(false);
+        var failures = new List<Exception>();
+        OwnedObservedProcess? observedRoot = null;
+        OwnedObservedProcess? observedChild = null;
+        Task<LlmFitProcessResult>? execution = null;
 
-        Task<LlmFitProcessResult> execution = CreateShortTimeoutRunner()
-            .ExecuteAsync(tool.SystemCommand, TimeSpan.FromSeconds(4));
-        int readyChildProcessId = await tool
-            .WaitForChildReadyAsync(TimeSpan.FromSeconds(3))
-            .ConfigureAwait(false);
-        LlmFitProcessResult result = await execution
-            .WaitAsync(TimeSpan.FromSeconds(10))
-            .ConfigureAwait(false);
+        try
+        {
+            execution = CreateShortTimeoutRunner()
+                .ExecuteAsync(
+                    tool.SystemCommand,
+                    TestTimeout,
+                    (processId, _) =>
+                    {
+                        observedRoot = OwnedObservedProcess.TryCapture(processId, tool);
+                        return Task.CompletedTask;
+                    });
+            int readyChildProcessId = await tool
+                .WaitForChildReadyAsync(TimeSpan.FromSeconds(3))
+                .ConfigureAwait(false);
+            observedChild = OwnedObservedProcess.TryCapture(readyChildProcessId, tool);
+            LlmFitProcessResult result = await execution
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-        int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
-        Assert.AreEqual(readyChildProcessId, childProcessId);
-        Assert.IsTrue(result.TimedOut);
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
-        await AssertProcessExitedAsync(childProcessId).ConfigureAwait(false);
+            int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
+            Assert.AreEqual(readyChildProcessId, childProcessId);
+            Assert.IsTrue(result.TimedOut);
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedRoot);
+            Assert.IsNotNull(observedChild);
+            await observedRoot.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            await observedChild.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+        finally
+        {
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedChild).ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedRoot).ConfigureAwait(false);
+        }
+
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -138,38 +206,74 @@ public sealed class LlmFitProcessRunnerTests
         using var cancellation = new CancellationTokenSource();
         bool observerSawLiveProcess = false;
         bool observerWasAwaitedAfterCancellation = false;
+        var failures = new List<Exception>();
+        OwnedObservedProcess? observedRoot = null;
+        OwnedObservedProcess? observedChild = null;
+        Task<LlmFitProcessResult>? execution = null;
 
-        LlmFitProcessResult result = await CreateShortTimeoutRunner()
-            .ExecuteAsync(
-                tool.SystemCommand,
-                TimeSpan.FromSeconds(5),
-                async (processId, token) =>
-                {
-                    using Process process = Process.GetProcessById(processId);
-                    observerSawLiveProcess = !process.HasExited;
-                    _ = await tool.WaitForChildReadyAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
-                    cancellation.Cancel();
-                    try
+        try
+        {
+            execution = CreateShortTimeoutRunner()
+                .ExecuteAsync(
+                    tool.SystemCommand,
+                    TimeSpan.FromSeconds(5),
+                    async (processId, token) =>
                     {
-                        await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        observerWasAwaitedAfterCancellation = true;
-                    }
-                },
-                cancellation.Token)
-            .WaitAsync(TimeSpan.FromSeconds(10))
-            .ConfigureAwait(false);
+                        observedRoot = OwnedObservedProcess.TryCapture(processId, tool);
+                        observerSawLiveProcess = observedRoot is not null &&
+                            !observedRoot.WaitForExit(TimeSpan.Zero);
+                        int childProcessId = await tool
+                            .WaitForChildReadyAsync(TimeSpan.FromSeconds(3))
+                            .ConfigureAwait(false);
+                        observedChild = OwnedObservedProcess.TryCapture(childProcessId, tool);
+                        cancellation.Cancel();
+                        try
+                        {
+                            await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            observerWasAwaitedAfterCancellation = true;
+                        }
+                    },
+                    cancellation.Token);
+            LlmFitProcessResult result = await execution
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-        int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
-        Assert.IsTrue(observerSawLiveProcess);
-        Assert.IsTrue(observerWasAwaitedAfterCancellation);
-        Assert.IsTrue(result.Cancelled);
-        Assert.IsFalse(result.TimedOut);
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
-        await AssertProcessExitedAsync(childProcessId).ConfigureAwait(false);
+            int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
+            Assert.IsTrue(observerSawLiveProcess);
+            Assert.IsTrue(observerWasAwaitedAfterCancellation);
+            Assert.IsTrue(result.Cancelled);
+            Assert.IsFalse(result.TimedOut);
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedRoot);
+            Assert.IsNotNull(observedChild);
+            await observedRoot.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            await observedChild.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            Assert.AreEqual(childProcessId, observedChild.ProcessId);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+        finally
+        {
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedChild).ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedRoot).ConfigureAwait(false);
+        }
+
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -199,29 +303,65 @@ public sealed class LlmFitProcessRunnerTests
     {
         await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("spawn-child").ConfigureAwait(false);
         const string SensitiveObserverText = "C:\\secret\\observer-failure";
+        var failures = new List<Exception>();
+        OwnedObservedProcess? observedRoot = null;
+        OwnedObservedProcess? observedChild = null;
+        Task<LlmFitProcessResult>? execution = null;
 
-        LlmFitProcessResult result = await CreateShortTimeoutRunner()
-            .ExecuteAsync(
-                tool.SystemCommand,
-                TimeSpan.FromSeconds(5),
-                async (_, _) =>
-                {
-                    _ = await tool.WaitForChildReadyAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
-                    throw new InvalidOperationException(SensitiveObserverText);
-                })
-            .WaitAsync(TimeSpan.FromSeconds(10))
-            .ConfigureAwait(false);
+        try
+        {
+            execution = CreateShortTimeoutRunner()
+                .ExecuteAsync(
+                    tool.SystemCommand,
+                    TimeSpan.FromSeconds(5),
+                    async (processId, _) =>
+                    {
+                        observedRoot = OwnedObservedProcess.TryCapture(processId, tool);
+                        int childProcessId = await tool
+                            .WaitForChildReadyAsync(TimeSpan.FromSeconds(3))
+                            .ConfigureAwait(false);
+                        observedChild = OwnedObservedProcess.TryCapture(childProcessId, tool);
+                        throw new InvalidOperationException(SensitiveObserverText);
+                    });
+            LlmFitProcessResult result = await execution
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-        int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
-        Assert.IsTrue(result.ObserverFailed);
-        Assert.IsFalse(result.Succeeded);
-        Assert.IsFalse(result.StandardOutput.Contains(SensitiveObserverText, StringComparison.Ordinal));
-        Assert.IsFalse(result.StandardError.Contains(SensitiveObserverText, StringComparison.Ordinal));
-        Assert.IsFalse(result.StandardOutput.Contains(tool.Root, StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(result.StandardError.Contains(tool.ExecutablePath, StringComparison.OrdinalIgnoreCase));
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
-        await AssertProcessExitedAsync(childProcessId).ConfigureAwait(false);
+            int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsFalse(result.Succeeded);
+            Assert.IsFalse(result.StandardOutput.Contains(SensitiveObserverText, StringComparison.Ordinal));
+            Assert.IsFalse(result.StandardError.Contains(SensitiveObserverText, StringComparison.Ordinal));
+            Assert.IsFalse(result.StandardOutput.Contains(tool.Root, StringComparison.OrdinalIgnoreCase));
+            Assert.IsFalse(result.StandardError.Contains(tool.ExecutablePath, StringComparison.OrdinalIgnoreCase));
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedRoot);
+            Assert.IsNotNull(observedChild);
+            Assert.AreEqual(childProcessId, observedChild.ProcessId);
+            await observedRoot.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            await observedChild.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+        finally
+        {
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedChild).ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedRoot).ConfigureAwait(false);
+        }
+
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -229,21 +369,26 @@ public sealed class LlmFitProcessRunnerTests
     {
         await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("spawn-child").ConfigureAwait(false);
         const string SensitiveObserverText = "C:\\secret\\observer-cancellation-callback";
-        OwnedObservedProcess? observedProcess = null;
+        OwnedObservedProcess? observedRoot = null;
+        OwnedObservedProcess? observedChild = null;
         using var cancellation = new CancellationTokenSource();
         bool observerWasAwaited = false;
-        LlmFitProcessResult? result = null;
+        var failures = new List<Exception>();
+        Task<LlmFitProcessResult>? execution = null;
 
         try
         {
-            result = await CreateShortTimeoutRunner()
+            execution = CreateShortTimeoutRunner()
                 .ExecuteAsync(
                     tool.SystemCommand,
                     TimeSpan.FromSeconds(5),
                     async (processId, token) =>
                     {
-                        observedProcess = OwnedObservedProcess.Capture(processId, tool);
-                        _ = await tool.WaitForChildReadyAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        observedRoot = OwnedObservedProcess.TryCapture(processId, tool);
+                        int childProcessId = await tool
+                            .WaitForChildReadyAsync(TimeSpan.FromSeconds(3))
+                            .ConfigureAwait(false);
+                        observedChild = OwnedObservedProcess.TryCapture(childProcessId, tool);
                         using CancellationTokenRegistration registration = token.Register(
                             () => throw new InvalidOperationException(SensitiveObserverText));
                         cancellation.Cancel();
@@ -256,29 +401,46 @@ public sealed class LlmFitProcessRunnerTests
                             observerWasAwaited = true;
                         }
                     },
-                    cancellation.Token)
+                    cancellation.Token);
+            LlmFitProcessResult result = await execution
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
+
+            int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsFalse(result.TimedOut);
+            Assert.IsTrue(result.Cancelled);
+            Assert.IsTrue(observerWasAwaited);
+            Assert.IsFalse(result.StandardOutput.Contains(SensitiveObserverText, StringComparison.Ordinal));
+            Assert.IsFalse(result.StandardError.Contains(SensitiveObserverText, StringComparison.Ordinal));
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedRoot);
+            Assert.IsNotNull(observedChild);
+            Assert.AreEqual(childProcessId, observedChild.ProcessId);
+            await observedRoot.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            await observedChild.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
         }
         finally
         {
-            if (observedProcess is not null)
-            {
-                await observedProcess.DisposeAsync().ConfigureAwait(false);
-            }
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedChild).ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedRoot).ConfigureAwait(false);
         }
 
-        Assert.IsNotNull(result);
-        int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
-        Assert.IsTrue(result.ObserverFailed);
-        Assert.IsFalse(result.TimedOut);
-        Assert.IsTrue(result.Cancelled);
-        Assert.IsTrue(observerWasAwaited);
-        Assert.IsFalse(result.StandardOutput.Contains(SensitiveObserverText, StringComparison.Ordinal));
-        Assert.IsFalse(result.StandardError.Contains(SensitiveObserverText, StringComparison.Ordinal));
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
-        await AssertProcessExitedAsync(childProcessId).ConfigureAwait(false);
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -384,7 +546,8 @@ public sealed class LlmFitProcessRunnerTests
     {
         await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("spawn-child").ConfigureAwait(false);
         int captureInvocation = 0;
-        OwnedObservedProcess? observedProcess = null;
+        OwnedObservedProcess? observedRoot = null;
+        OwnedObservedProcess? observedChild = null;
 
         Task<BoundedTextCapture> CaptureAsync(Stream stream, int maximumRetainedBytes)
         {
@@ -395,45 +558,66 @@ public sealed class LlmFitProcessRunnerTests
 
         async Task<BoundedTextCapture> FailCaptureAsync()
         {
-            _ = await tool.WaitForChildReadyAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            int childProcessId = await tool
+                .WaitForChildReadyAsync(TimeSpan.FromSeconds(3))
+                .ConfigureAwait(false);
+            observedChild = OwnedObservedProcess.TryCapture(childProcessId, tool);
             throw new NotSupportedException("C:\\secret\\non-io-capture-failure");
         }
 
-        LlmFitProcessResult? result = null;
+        var failures = new List<Exception>();
+        Task<LlmFitProcessResult>? execution = null;
         try
         {
             var runner = new LlmFitProcessRunner(TestTimeout, CaptureAsync);
-            result = await runner
+            execution = runner
                 .ExecuteAsync(
                     tool.SystemCommand,
                     TimeSpan.FromSeconds(5),
                     (processId, _) =>
                     {
-                        observedProcess = OwnedObservedProcess.Capture(processId, tool);
+                        observedRoot = OwnedObservedProcess.TryCapture(processId, tool);
                         return Task.CompletedTask;
-                    })
+                    });
+            LlmFitProcessResult result = await execution
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
+
+            int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsFalse(result.Succeeded);
+            Assert.IsFalse(result.TimedOut);
+            Assert.IsFalse(result.Cancelled);
+            Assert.IsFalse(result.StandardOutput.Contains("non-io-capture-failure", StringComparison.Ordinal));
+            Assert.IsFalse(result.StandardError.Contains("non-io-capture-failure", StringComparison.Ordinal));
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedRoot);
+            Assert.IsNotNull(observedChild);
+            Assert.AreEqual(childProcessId, observedChild.ProcessId);
+            await observedRoot.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            await observedChild.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
         }
         finally
         {
-            if (observedProcess is not null)
-            {
-                await observedProcess.DisposeAsync().ConfigureAwait(false);
-            }
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedChild).ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedRoot).ConfigureAwait(false);
         }
 
-        Assert.IsNotNull(result);
-        int childProcessId = int.Parse(result.StandardOutput.Trim(), CultureInfo.InvariantCulture);
-        Assert.IsTrue(result.ObserverFailed);
-        Assert.IsFalse(result.Succeeded);
-        Assert.IsFalse(result.TimedOut);
-        Assert.IsFalse(result.Cancelled);
-        Assert.IsFalse(result.StandardOutput.Contains("non-io-capture-failure", StringComparison.Ordinal));
-        Assert.IsFalse(result.StandardError.Contains("non-io-capture-failure", StringComparison.Ordinal));
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
-        await AssertProcessExitedAsync(childProcessId).ConfigureAwait(false);
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -454,21 +638,53 @@ public sealed class LlmFitProcessRunnerTests
         }
 
         var runner = new LlmFitProcessRunner(TestTimeout, DelayedCaptureAsync);
-        LlmFitProcessResult result = await runner
-            .ExecuteAsync(
+        var failures = new List<Exception>();
+        OwnedObservedProcess? observedProcess = null;
+        Task<LlmFitProcessResult>? execution = null;
+
+        try
+        {
+            execution = runner.ExecuteAsync(
                 tool.SystemCommand,
                 TestTimeout,
-                whileRunningObserver: null,
-                cancellationToken: cancellation.Token)
-            .WaitAsync(TimeSpan.FromSeconds(10))
-            .ConfigureAwait(false);
+                (processId, _) =>
+                {
+                    observedProcess = OwnedObservedProcess.TryCapture(processId, tool);
+                    return Task.CompletedTask;
+                },
+                cancellation.Token);
+            LlmFitProcessResult result = await execution
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
 
-        Assert.IsTrue(cancellation.IsCancellationRequested);
-        Assert.IsTrue(result.TimedOut);
-        Assert.IsFalse(result.Cancelled);
-        Assert.IsFalse(result.Succeeded);
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
+            Assert.IsTrue(cancellation.IsCancellationRequested);
+            Assert.IsTrue(result.TimedOut);
+            Assert.IsFalse(result.Cancelled);
+            Assert.IsFalse(result.Succeeded);
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedProcess);
+            await observedProcess.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+        finally
+        {
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedProcess).ConfigureAwait(false);
+        }
+
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -483,20 +699,21 @@ public sealed class LlmFitProcessRunnerTests
             throw new NotSupportedException("C:\\secret\\exit-wait-setup");
         }
 
-        LlmFitProcessResult? result = null;
+        var failures = new List<Exception>();
+        Task<LlmFitProcessResult>? execution = null;
         try
         {
             var runner = new LlmFitProcessRunner(
                 TestTimeout,
                 BoundedTextReader.ReadAsync,
                 WaitForExitAsync);
-            result = await runner
+            execution = runner
                 .ExecuteAsync(
                     tool.SystemCommand,
                     TimeSpan.FromSeconds(5),
                     async (processId, token) =>
                     {
-                        observedProcess = OwnedObservedProcess.Capture(processId, tool);
+                        observedProcess = OwnedObservedProcess.TryCapture(processId, tool);
                         try
                         {
                             await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
@@ -505,28 +722,42 @@ public sealed class LlmFitProcessRunnerTests
                         {
                             observerWasAwaited = true;
                         }
-                    })
+                    });
+            LlmFitProcessResult result = await execution
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
+
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsFalse(result.Succeeded);
+            Assert.IsFalse(result.TimedOut);
+            Assert.IsFalse(result.Cancelled);
+            Assert.IsTrue(observerWasAwaited);
+            Assert.IsFalse(result.StandardOutput.Contains("exit-wait-setup", StringComparison.Ordinal));
+            Assert.IsFalse(result.StandardError.Contains("exit-wait-setup", StringComparison.Ordinal));
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedProcess);
+            await observedProcess.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
         }
         finally
         {
-            if (observedProcess is not null)
-            {
-                await observedProcess.DisposeAsync().ConfigureAwait(false);
-            }
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedProcess).ConfigureAwait(false);
         }
 
-        Assert.IsNotNull(result);
-        Assert.IsTrue(result.ObserverFailed);
-        Assert.IsFalse(result.Succeeded);
-        Assert.IsFalse(result.TimedOut);
-        Assert.IsFalse(result.Cancelled);
-        Assert.IsTrue(observerWasAwaited);
-        Assert.IsFalse(result.StandardOutput.Contains("exit-wait-setup", StringComparison.Ordinal));
-        Assert.IsFalse(result.StandardError.Contains("exit-wait-setup", StringComparison.Ordinal));
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -565,6 +796,71 @@ public sealed class LlmFitProcessRunnerTests
     }
 
     [TestMethod]
+    public async Task ExecuteAsync_ObserverBlocksSynchronouslyBeforeReturning_ReturnsBoundedFailure()
+    {
+        await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("sleep").ConfigureAwait(false);
+        using var releaseObserver = new ManualResetEventSlim(initialState: false);
+        var observerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        OwnedObservedProcess? observedProcess = null;
+        var runner = new LlmFitProcessRunner(TestTimeout, TimeSpan.FromMilliseconds(300));
+        Task<LlmFitProcessResult>? execution = null;
+        var elapsed = Stopwatch.StartNew();
+        var failures = new List<Exception>();
+
+        try
+        {
+            execution = Task.Factory.StartNew(
+                () => runner.ExecuteAsync(
+                    tool.SystemCommand,
+                    TestTimeout,
+                    (processId, _) =>
+                    {
+                        observedProcess = OwnedObservedProcess.TryCapture(processId, tool);
+                        observerStarted.TrySetResult();
+                        releaseObserver.Wait(TimeSpan.FromSeconds(10), CancellationToken.None);
+                        return Task.CompletedTask;
+                    }),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).Unwrap();
+            await observerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+
+            LlmFitProcessResult result = await execution
+                .WaitAsync(TimeSpan.FromSeconds(3))
+                .ConfigureAwait(false);
+
+            Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(2));
+            Assert.IsTrue(result.TimedOut);
+            Assert.IsFalse(result.Cancelled);
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedProcess);
+            await observedProcess.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+        finally
+        {
+            releaseObserver.Set();
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedProcess).ConfigureAwait(false);
+        }
+
+        RethrowFailures(failures);
+    }
+
+    [TestMethod]
     public async Task ExecuteAsync_BlockingObserverCancellationCallback_KillsBeforeBoundedCancellation()
     {
         await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("sleep").ConfigureAwait(false);
@@ -574,22 +870,23 @@ public sealed class LlmFitProcessRunnerTests
         bool callbackObservedProcessExit = false;
         var runner = new LlmFitProcessRunner(TestTimeout, TimeSpan.FromMilliseconds(300));
         var elapsed = Stopwatch.StartNew();
-        LlmFitProcessResult? result = null;
+        var failures = new List<Exception>();
+        Task<LlmFitProcessResult>? execution = null;
 
         try
         {
-            result = await runner
+            execution = runner
                 .ExecuteAsync(
                     tool.SystemCommand,
                     TestTimeout,
                     (processId, token) =>
                     {
-                        observedProcess = OwnedObservedProcess.Capture(processId, tool);
+                        observedProcess = OwnedObservedProcess.TryCapture(processId, tool);
                         _ = token.Register(() =>
                         {
                             try
                             {
-                                callbackObservedProcessExit = observedProcess.WaitForExit(TimeSpan.FromSeconds(1));
+                                callbackObservedProcessExit = observedProcess?.WaitForExit(TimeSpan.FromSeconds(1)) == true;
                                 releaseCallback.Wait(TimeSpan.FromSeconds(5));
                             }
                             finally
@@ -598,28 +895,45 @@ public sealed class LlmFitProcessRunnerTests
                             }
                         });
                         return Task.Delay(Timeout.InfiniteTimeSpan, token);
-                    })
+                    });
+            LlmFitProcessResult result = await execution
                 .WaitAsync(TimeSpan.FromSeconds(3))
                 .ConfigureAwait(false);
+
+            Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(2));
+            Assert.IsTrue(callbackObservedProcessExit);
+            Assert.IsTrue(result.TimedOut);
+            Assert.IsFalse(result.Cancelled);
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedProcess);
+            await observedProcess.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
         }
         finally
         {
             releaseCallback.Set();
-            await callbackCompleted.Task.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
-            if (observedProcess is not null)
-            {
-                await observedProcess.DisposeAsync().ConfigureAwait(false);
-            }
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    () => callbackCompleted.Task.WaitAsync(TimeSpan.FromSeconds(3)))
+                .ConfigureAwait(false);
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedProcess).ConfigureAwait(false);
         }
 
-        Assert.IsNotNull(result);
-        Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(2));
-        Assert.IsTrue(callbackObservedProcessExit);
-        Assert.IsTrue(result.TimedOut);
-        Assert.IsFalse(result.Cancelled);
-        Assert.IsTrue(result.ObserverFailed);
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -644,41 +958,56 @@ public sealed class LlmFitProcessRunnerTests
             CaptureAsync,
             static process => process.WaitForExitAsync(CancellationToken.None));
         var elapsed = Stopwatch.StartNew();
-        LlmFitProcessResult? result = null;
+        var failures = new List<Exception>();
+        Task<LlmFitProcessResult>? execution = null;
 
         try
         {
-            result = await runner
+            execution = runner
                 .ExecuteAsync(
                     tool.SystemCommand,
                     TestTimeout,
                     (processId, _) =>
                     {
-                        observedProcess = OwnedObservedProcess.Capture(processId, tool);
+                        observedProcess = OwnedObservedProcess.TryCapture(processId, tool);
                         return Task.CompletedTask;
-                    })
+                    });
+            LlmFitProcessResult result = await execution
                 .WaitAsync(TimeSpan.FromSeconds(3))
                 .ConfigureAwait(false);
+
+            Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(2));
+            Assert.IsTrue(
+                result.TimedOut,
+                $"TimedOut={result.TimedOut}; Cancelled={result.Cancelled}; ObserverFailed={result.ObserverFailed}; ExitCode={result.ExitCode}");
+            Assert.IsTrue(result.ObserverFailed);
+            Assert.IsFalse(result.StandardOutput.Contains("late-capture", StringComparison.Ordinal));
+            Assert.IsFalse(result.StandardError.Contains("late-capture", StringComparison.Ordinal));
+            Assert.IsNotNull(result.ProcessId);
+            Assert.IsNotNull(observedProcess);
+            await observedProcess.AssertExitedAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
         }
         finally
         {
             retainedCapture.TrySetException(new NotSupportedException("C:\\secret\\late-capture"));
-            if (observedProcess is not null)
-            {
-                await observedProcess.DisposeAsync().ConfigureAwait(false);
-            }
+            await CaptureCleanupFailureAsync(
+                    failures,
+                    async () =>
+                    {
+                        if (execution is not null)
+                        {
+                            _ = await execution.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+                        }
+                    })
+                .ConfigureAwait(false);
+            await CaptureOwnedProcessCleanupFailureAsync(failures, observedProcess).ConfigureAwait(false);
         }
 
-        Assert.IsNotNull(result);
-        Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(2));
-        Assert.IsTrue(
-            result.TimedOut,
-            $"TimedOut={result.TimedOut}; Cancelled={result.Cancelled}; ObserverFailed={result.ObserverFailed}; ExitCode={result.ExitCode}");
-        Assert.IsTrue(result.ObserverFailed);
-        Assert.IsFalse(result.StandardOutput.Contains("late-capture", StringComparison.Ordinal));
-        Assert.IsFalse(result.StandardError.Contains("late-capture", StringComparison.Ordinal));
-        Assert.IsNotNull(result.ProcessId);
-        await AssertProcessExitedAsync(result.ProcessId.Value).ConfigureAwait(false);
+        RethrowFailures(failures);
     }
 
     [TestMethod]
@@ -952,9 +1281,74 @@ public sealed class LlmFitProcessRunnerTests
         }
     }
 
+    [TestMethod]
+    public async Task OwnedObservedProcess_CaptureRejectsMismatchedExecutableIdentity()
+    {
+        await using FakeLlmFitTool tool = await FakeLlmFitTool.CreateAsync("success").ConfigureAwait(false);
+        using Process currentProcess = Process.GetCurrentProcess();
+        OwnedObservedProcess? observedProcess = null;
+
+        try
+        {
+            InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(
+                () => observedProcess = OwnedObservedProcess.Capture(currentProcess.Id, tool));
+
+            Assert.AreEqual("The owned process identity could not be verified.", exception.Message);
+        }
+        finally
+        {
+            if (observedProcess is not null)
+            {
+                await observedProcess.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
     private static LlmFitProcessRunner CreateShortTimeoutRunner()
     {
         return new LlmFitProcessRunner(TestTimeout);
+    }
+
+    private static async Task CaptureCleanupFailureAsync(
+        List<Exception> failures,
+        Func<Task> cleanup)
+    {
+        try
+        {
+            await cleanup().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failures.Add(exception);
+        }
+    }
+
+    private static Task CaptureOwnedProcessCleanupFailureAsync(
+        List<Exception> failures,
+        OwnedObservedProcess? process)
+    {
+        return CaptureCleanupFailureAsync(
+            failures,
+            async () =>
+            {
+                if (process is not null)
+                {
+                    await process.DisposeAsync().ConfigureAwait(false);
+                }
+            });
+    }
+
+    private static void RethrowFailures(List<Exception> failures)
+    {
+        if (failures.Count == 1)
+        {
+            ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        }
+
+        if (failures.Count > 1)
+        {
+            throw new AggregateException(failures);
+        }
     }
 
     private static async Task AssertProcessExitedAsync(int processId)
@@ -994,18 +1388,89 @@ public sealed class LlmFitProcessRunnerTests
             _startTimeUtc = startTimeUtc;
         }
 
+        internal int ProcessId => _process.Id;
+
         internal static OwnedObservedProcess Capture(int processId, FakeLlmFitTool tool)
         {
-            Process process = Process.GetProcessById(processId);
-            return new OwnedObservedProcess(
-                process,
-                Path.GetFullPath(tool.ExecutablePath),
-                process.StartTime.ToUniversalTime());
+            Process? process = null;
+            try
+            {
+                process = Process.GetProcessById(processId);
+                var observedProcess = new OwnedObservedProcess(
+                    process,
+                    Path.GetFullPath(tool.ExecutablePath),
+                    process.StartTime.ToUniversalTime());
+                var verificationWindow = Stopwatch.StartNew();
+                while (verificationWindow.Elapsed < TimeSpan.FromMilliseconds(250))
+                {
+                    if (observedProcess.IdentityStillMatches())
+                    {
+                        return observedProcess;
+                    }
+
+                    if (process.HasExited)
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(TimeSpan.FromMilliseconds(10));
+                }
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException or
+                InvalidOperationException or
+                Win32Exception or
+                NotSupportedException or
+                UnauthorizedAccessException)
+            {
+                // Identity validation below returns a stable test-harness failure.
+            }
+
+            process?.Dispose();
+            throw new InvalidOperationException("The owned process identity could not be verified.");
+        }
+
+        internal static OwnedObservedProcess? TryCapture(int processId, FakeLlmFitTool tool)
+        {
+            try
+            {
+                return Capture(processId, tool);
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
         }
 
         internal bool WaitForExit(TimeSpan timeout)
         {
             return _process.WaitForExit((int)timeout.TotalMilliseconds);
+        }
+
+        internal async Task AssertExitedAsync(TimeSpan timeout)
+        {
+            var elapsed = Stopwatch.StartNew();
+            while (elapsed.Elapsed < timeout)
+            {
+                try
+                {
+                    if (_process.HasExited || !IdentityStillMatches())
+                    {
+                        return;
+                    }
+                }
+                catch (Exception exception) when (
+                    exception is InvalidOperationException or
+                    Win32Exception or
+                    NotSupportedException)
+                {
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
+            }
+
+            Assert.Fail("The verified owned process remained alive after bounded cleanup.");
         }
 
         public async ValueTask DisposeAsync()
