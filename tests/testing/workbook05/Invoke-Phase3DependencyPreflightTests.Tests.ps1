@@ -31,6 +31,12 @@ $Script = Join-Path `
 if (-not (Test-Path -LiteralPath $Script -PathType Leaf)) {
     throw "Phase 3 dependency-preflight script is missing: $Script"
 }
+$SerializationProbeScript = Join-Path `
+    $RepositoryRoot `
+    'tests\testing\workbook05\Invoke-Phase3ObservationSerializationProbe.Tests.ps1'
+if (-not (Test-Path -LiteralPath $SerializationProbeScript -PathType Leaf)) {
+    throw "Dependency observation serialization probe is missing: $SerializationProbeScript"
+}
 
 $ScriptText = Get-Content -LiteralPath $Script -Raw -ErrorAction Stop
 
@@ -111,6 +117,13 @@ $FailureWorkspace = Join-Path $FixtureRoot 'workspace-failure'
 $FailureEvidence = Join-Path $FixtureRoot 'evidence-failure'
 
 try {
+    # First isolate the exact top-level field that creates an unsafe object graph
+    # for Windows PowerShell JSON serialization. This probe has no filesystem,
+    # package, network, model, or scientific side effect.
+    Write-Host 'WB05_DEP_TEST:serialization-probe:start'
+    & $SerializationProbeScript -RepositoryRoot $RepositoryRoot
+    Write-Host 'WB05_DEP_TEST:serialization-probe:complete'
+
     # Execute the complete offline fixture through its real public interface.
     Write-Host 'WB05_DEP_TEST:success-invocation:start'
     Set-PSDebug -Trace 1
