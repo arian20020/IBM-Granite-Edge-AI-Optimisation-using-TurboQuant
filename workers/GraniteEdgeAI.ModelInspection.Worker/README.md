@@ -19,6 +19,16 @@ project-owned factual evidence, and converts runtime diagnostics to a fixed
 allowlist of privacy-safe operational failures. The unavailable engine remains
 only as a direct host-test seam.
 
+The five progress stages are real operation boundaries: initial snapshot/hash;
+pinned CPU backend configuration plus `VocabOnly` load and configuration
+collection; tokenizer/chat collection plus tokenizer smoke; structure
+collection plus native disposal and final integrity comparison; and final
+runtime-evidence mapping/validation. Stage 2 alone may forward a genuine native
+fraction. The worker, runtime, and service add no sleep or artificial pacing;
+the WinUI page owns the separate 550 ms minimum presentation policy. Mandatory
+manifest verification and launch continue while the app displays
+`Starting secure inspection…`.
+
 ## Security and dependency rules
 
 - No listener, local server or named pipe.
@@ -45,6 +55,13 @@ That boundary also publishes this exact worker and proves all five stages plus
 Completed evidence through the 800-byte, zero-tensor N-001 SentencePiece GGUF.
 The fixture proves native VocabOnly loading and tokenization only; it makes no
 inference, tensor, performance, or quality claim.
+
+### Final progress-polish evidence
+
+Fresh final-ladder totals and hashes are intentionally deferred until the
+serialized evidence run completes. Existing Gate 2 and package evidence below
+is historical. Hardware Inspection is not implemented, and no strict
+Figma-pixel, real Narrator, or controlled-OS claim belongs to this worker.
 
 ## x64 package closure
 

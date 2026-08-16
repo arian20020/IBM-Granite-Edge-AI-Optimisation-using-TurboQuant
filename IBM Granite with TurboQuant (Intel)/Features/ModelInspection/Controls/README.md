@@ -1,7 +1,7 @@
 # Model Inspection controls
 
 **Status:** Four stable card controls and reusable disclosures implement the ordinary 13-state presentation
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-16
 
 [Back to Model Inspection architecture](../README.md)
 
@@ -54,17 +54,21 @@ unsupported, invalid, cancelled, and operational-failure states. It also
 handles the normal WinUI initialization shapes where a presentation arrives
 directly, through a control/presenter, or after an initial null bootstrap.
 
-### Progress ring semantics
+### Progress and glyph semantics
 
-An active row uses `InspectionContentItemPresentation.StageFraction`:
+`InspectionStatusGlyph` owns centred vector geometry for success, warning,
+error, information, waiting, not-complete, and active states. Active always
+uses the same Precision Orbit: a 24 px viewbox on a 30 px effective status
+surface with a 1,050 ms linear rotation. A genuine Stage 2 fraction in `0..1`
+appears only as trailing percentage text; `null` simply omits that text. It
+never switches indicator mode or restarts the orbit. Reduced motion preserves
+the same arc statically, and adjacent status text remains authoritative for
+automation.
 
-- `null` means an indeterminate ring;
-- a real fraction in `0..1` means a determinate ring with value `0..100`;
-- inactive rows show their explicit passed/warning/error/information marker.
-
-`IsProgressIndeterminate(double?)` and `GetProgressPercent(double?)` implement
-that narrow conversion without inventing progress. The presentation factory
-ensures at most one row is active.
+The progress card uses a deliberate 14–16 px heading-to-first-row gap, five
+48 px default-scale rows that grow under wrapping/text scale, four
+centre-to-centre connectors, and no Stage 5 tail. Shared page rhythm is 24 px
+from header to first card and 16 px between visible cards.
 
 ## `InspectionOutcomeCard`
 
@@ -89,6 +93,12 @@ The current action policy is:
 
 No Hardware Fit, conversion, technical-report, or separate technical-details
 execution action is connected in this slice.
+
+Terminal pages use Balanced Centre geometry and natural card heights. At
+600 px and wider, one visible action is centred, two use equal centred columns,
+and three use equal columns; below 600 px the same button instances form one
+semantic vertical stack. Disabled future actions remain visible only when the
+presentation declares them and keep their `Coming later` explanation.
 
 ## Disclosure and motion
 
@@ -136,13 +146,22 @@ Focused packaged tests include:
 - `ModelInspectionPresentationFactoryTests`
 - `ModelInspectionPageNavigationTests`
 
-The local hosted-equivalent candidate executed Action 4, Content 25, Model 9,
+Historical pre-progress-polish evidence: the local hosted-equivalent candidate
+executed Action 4, Content 25, Model 9,
 Outcome 7, disclosure 5, rendered-state 21, and accessibility 9 tests. Together
 with page/disclosure coverage, they protect bootstrap selection, exact geometry
 and typography, hidden-state isolation, nullable fraction conversion, fixed
 stage semantics, all 13 mapped terminal variants, commands, automation
 peer/event counts, focus/disclosure continuity, and stable control identity.
 Strict pixel comparison and controlled OS evidence remain absent and open.
+
+### Final progress-polish evidence
+
+Fresh final-ladder totals and hashes are intentionally deferred until the
+serialized evidence run completes. The exact Debug catalogue remains 50
+fixtures (`MI-001` through `MI-050`). Hardware Inspection is not implemented
+by these controls, and no strict Figma-pixel, real Narrator, or controlled-OS
+claim is made.
 
 ## Ownership boundary and non-claims
 

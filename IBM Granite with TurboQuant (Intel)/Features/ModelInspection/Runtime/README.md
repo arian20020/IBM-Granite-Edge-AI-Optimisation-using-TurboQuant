@@ -1,7 +1,7 @@
 # Model Inspection application runtime adapter
 
 **Status:** Implemented for the protected Windows x64 CPU GGUF path
-**Last reviewed:** 2026-08-09
+**Last reviewed:** 2026-08-16
 
 [Back to Model Inspection architecture](../README.md)
 
@@ -38,6 +38,27 @@ shared worker protocol. The rest of the application depends on
   failures as privacy-safe operational failures.
 - `WorkerResultMapper.cs` maps all five stages and fail-closes completed
   evidence before application classification.
+
+## Truthful five-stage boundaries
+
+The worker progress protocol now surrounds real operations rather than
+post-hoc labels:
+
+1. Check model package captures and hashes the initial file snapshot.
+2. Read model configuration configures the pinned CPU backend, performs the
+   `VocabOnly` load, and collects configuration; only this native load may
+   carry a genuine fraction.
+3. Validate tokenizer and chat setup collects tokenizer/chat evidence and runs
+   tokenizer smoke.
+4. Validate model structure collects structure, disposes the native handle,
+   and captures and compares the final file snapshot.
+5. Confirm core runtime compatibility maps and validates completed worker
+   evidence before the terminal record.
+
+No runtime, worker, service, or adapter delay is used for visual pacing. The
+application publishes `Starting secure inspection…` while mandatory manifest
+verification and worker launch continue, and the page owns the separate 550 ms
+minimum presentation policy. Cancellation and failure remain immediate.
 
 ## Completed-evidence trust checks
 
@@ -83,3 +104,10 @@ evidence rejection, privacy, cancellation, and the worker-client adapter:
 - `WorkerResultMapperTests`
 - `WorkerProcessLlamaModelProbeTests`
 - `ModelInspectionProbeResultTests`
+
+### Final progress-polish evidence
+
+Fresh final-ladder totals and hashes are intentionally deferred until the
+serialized evidence run completes. Historical evidence elsewhere remains
+labelled as such. Hardware Inspection is not implemented, and these runtime
+tests make no strict Figma-pixel, real Narrator, or controlled-OS claim.

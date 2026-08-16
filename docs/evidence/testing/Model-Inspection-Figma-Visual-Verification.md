@@ -3,9 +3,25 @@
 ## Evidence status
 
 This record separates ordinary packaged semantic/render evidence from strict
-pixel and controlled operating-system evidence. The ordinary suite ran as a
-local hosted-equivalent candidate. It was a dirty working-tree candidate, not
-a hosted exact-head run.
+pixel and controlled operating-system evidence. The run described immediately
+below is historical pre-progress-polish evidence: it was a dirty local
+hosted-equivalent candidate, not a hosted exact-head run.
+
+The current semantic contract covers immediate
+`Starting secure inspection…` feedback, five real operation boundaries, a
+UI-only 550 ms minimum per genuinely presented Active stage, immediate
+safety/reduced-motion paths, unchanged 1,050 ms Precision Orbit motion,
+centred vector glyphs, 24/16 px page/card rhythm, five 48 px default-scale
+rows, Balanced Centre terminal geometry, and responsive 1/2/3-action layouts.
+The same polish applies to warning and failure states. The Debug catalogue is
+exactly `MI-001` through `MI-050`, including `MI-050`.
+
+### Final progress-polish evidence
+
+Fresh final-ladder totals and hashes are intentionally deferred until the
+serialized RuntimeWorker, Debug, and Release artifacts have been parsed. Raw
+identity-bearing TRX/logs remain local, untracked, and do-not-stage/upload.
+Hardware Inspection is not implemented by this branch.
 
 The reproducible, non-private local run identity is:
 
@@ -35,7 +51,7 @@ cannot be used as controlled visual or accessibility evidence.
 | Theme | `NOT CAPTURED - ordinary local run, not controlled evidence` |
 | Animations | `NOT CAPTURED - ordinary local run, not controlled evidence` |
 
-The final ladder also passed the 15 new ordinary presentation/view/render/
+Historical candidate evidence also passed the 15 new ordinary presentation/view/render/
 motion/control/accessibility classes 286/286 and the real packaged N-001 page
 journey 1/1. Those focused runs are subsets of the same 686-test ordinary
 boundary, not additional strict or controlled evidence.
@@ -73,7 +89,7 @@ strict golden.
 | 12 | `142:3096` | Inspection cancelled | Not available - exact Figma node export absent | Not run - strict regression class absent | OPEN / BLOCKED |
 | 13 | `142:3154` | Inspection operational failure | Not available - exact Figma node export absent | Not run - strict regression class absent | OPEN / BLOCKED |
 
-## Ordinary candidate coverage
+## Historical ordinary candidate coverage
 
 The canonical filtered run passed these new protected class counts exactly:
 
@@ -120,7 +136,7 @@ scan, or upload.
 - Manual keyboard acceptance record: **NOT RUN**
 
 No actual PNG set, failure diff set, sanitized TRX summary, environment/result
-manifest, or controlled artifact was retained. The current Task 11 scanner was
+manifest, or controlled artifact was retained. The historical Task 11 scanner was
 not broadened: it still rejects raw TRX and does not prove repeated per-state
 hash/file closure.
 

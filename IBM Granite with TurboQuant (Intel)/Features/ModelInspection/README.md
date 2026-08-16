@@ -1,7 +1,7 @@
 # Model Inspection architecture
 
 **Status:** Ordinary packaged implementation verified locally; strict pixel, controlled OS, manual Narrator, and hosted exact-head evidence remain open
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-08-16
 
 [Back to application feature architecture](../README.md)
 
@@ -53,7 +53,8 @@ Page
 |---|---|
 | immutable Model Import request and exact-instance handoff | Implemented |
 | automatic page start once per navigation | Implemented |
-| five live progress stages with explicit status/fraction | Implemented |
+| five live progress stages around five real operation boundaries | Implemented |
+| immediate secure-start feedback and UI-only milestone pacing | Implemented |
 | functional Cancel with confirmed-cancellation semantics | Implemented |
 | retry same request as a fresh attempt | Implemented |
 | choose another model and fresh onboarding reset | Implemented |
@@ -94,7 +95,10 @@ navigation-owned ViewModel, subscribes to property/command/event changes, and
 binds one stable four-control visual tree to the initial presentation.
 
 The first `Loaded` event starts at most one automatic attempt for that
-navigation. `ModelInspectionRenderCoordinator` coalesces snapshot notifications,
+navigation. The first frame says `Starting secure inspection…` while manifest
+verification and worker launch continue; all five rows remain waiting until the
+worker reports the genuine Stage 1 boundary. `ModelInspectionRenderCoordinator`
+coalesces snapshot notifications,
 rejects stale render/interaction keys, and applies only changed regions. The
 four controls and five progress-row instances retain identity while progress,
 commands, disclosure, footer, and terminal state change. `OnNavigatedFrom`
@@ -116,10 +120,44 @@ to the onboarding shell; it does not manipulate the shell frame itself.
 5. Confirm core runtime compatibility
 ```
 
-The worker executes those stages with CPU `VocabOnly` loading, metadata and
-tokenizer smoke evidence, file integrity verification, and deterministic
-runtime identity. A genuine worker fraction is shown when available; otherwise
-the current ring remains indeterminate.
+The labels correspond to real work: Stage 1 captures and hashes the initial
+file snapshot; Stage 2 configures the pinned CPU backend, performs the
+`VocabOnly` load, and collects configuration; Stage 3 collects tokenizer/chat
+evidence and performs the tokenizer smoke check; Stage 4 collects structure,
+disposes the native handle, and verifies the final file snapshot; Stage 5 maps
+and validates the completed runtime evidence. No worker, service, or runtime
+sleep fabricates pacing or progress.
+
+The page-owned milestone sequencer gives each genuinely reached Active stage a
+550 ms minimum from its presented acknowledgement in normal motion. Genuine
+work that has already remained visible that long receives no added dwell.
+Cancellation, operational failure, retry/restart, choose-another, navigation,
+disposal, stale-generation invalidation, and reduced-motion transitions remain
+immediate. Every active stage uses the same 1,050 ms linear Precision Orbit;
+Stage 2's genuine fraction appears only as restrained trailing text and never
+changes or restarts the orbit.
+
+## Polished visual system
+
+Shared vector status glyphs provide complete, optically centred success,
+warning, error, information, waiting, not-complete, and active marks. The page
+uses a 24 px header-to-first-card gap, 16 px visible-card gaps, five 48 px
+default-scale progress rows that grow naturally for wrapping/text scale, and
+no connector tail after Stage 5. Terminal states use the Balanced Centre
+layout, natural card heights, centred short-form metadata and outcome copy,
+and responsive one-, two-, or three-action arrangements without empty slots.
+The same treatment applies to warning, conversion, incomplete, unsupported,
+invalid, cancelled, and operational-failure pages.
+
+The Debug gallery remains the exact 50-fixture `MI-001` through `MI-050`
+catalogue, including `MI-050`. Hardware Inspection is not implemented by this
+branch; it remains a separate future feature.
+
+### Final progress-polish evidence
+
+Fresh final-ladder totals and hashes are intentionally not recorded until the
+serialized RuntimeWorker, Debug, and Release phases have completed and their
+artifacts have been parsed.
 
 ## Outcome policy
 
@@ -171,7 +209,8 @@ onboarding shell lifecycle, and manifest-verifying composition. A real
 packaged N-001 page journey reaches all five ordered stages and final `Ready`
 through the actual protected worker/service path.
 
-The local hosted-equivalent Release/x64 candidate based on
+Historical pre-progress-polish evidence: the local hosted-equivalent
+Release/x64 candidate based on
 `5f90a5d9299363214f11454f548ff8571d98b1a5` passed 686/686 with the permanent
 `ModelInspectionVisualRegression` and `ModelInspectionControlledOs` category
 exclusions and zero non-passing results. The raw identity-bearing TRX remains
@@ -179,7 +218,7 @@ local and untracked. This is ordinary packaged candidate evidence, not strict
 Figma-pixel, actual High Contrast/200% text-scale, manual Narrator,
 extracted-MSIX, or hosted exact-head closure.
 
-The final Task 10 local hosted-equivalent candidate retained the same filter
+The historical Task 10 local hosted-equivalent candidate retained the same filter
 and 686 minimum and passed 691/691. Its exact protected map contains 31 classes
 and 497 executions, including 39 page-navigation executions; the Release TRX
 SHA-256 was
@@ -219,7 +258,8 @@ MI-002/MI-003 to the separate N-001 production-worker/page journey; that
 external join is the only real-worker link and proves only the bounded N-001
 Ready route.
 
-The fresh local Debug/x64 interaction/lifetime pair passed 19/19 (6 interaction
+Historical Task 10 fixture evidence: the local Debug/x64
+interaction/lifetime pair passed 19/19 (6 interaction
 and 13 lifetime), and the complete closed fixture category passed 220/220
 across its exact nine classes. The Debug build completed with zero errors and
 14 known warnings, with zero crash-report or test-process residue. Final local

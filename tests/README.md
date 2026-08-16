@@ -16,6 +16,36 @@ tests/
 Creating a folder is preparation, not test evidence. A test layer counts as
 implemented only when it has executable tests and preserved results.
 
+## Model Inspection progress-polish contract
+
+The current implementation displays `Starting secure inspection…`
+immediately while mandatory manifest verification and worker launch continue.
+Its five public stages surround real snapshot/hash, native
+configuration/`VocabOnly` load, tokenizer/chat smoke, structure/disposal/final
+integrity, and runtime-evidence validation operations. Normal-motion
+presentation gives each genuinely reached Active stage a 550 ms minimum from
+its presented acknowledgement; safety, cancellation, recovery, navigation,
+and reduced-motion paths remain immediate. No runtime or worker delay and no
+fabricated fraction are permitted.
+
+Packaged tests protect one unchanged 1,050 ms Precision Orbit across stages,
+fraction-only trailing text, shared centred vector glyphs, 24/16 px page/card
+rhythm, five 48 px default-scale progress rows, Balanced Centre terminal
+geometry, natural warning/failure layouts, and responsive 1/2/3-action
+arrangements. The Debug gallery catalogue is exactly 50 fixtures,
+`MI-001` through `MI-050`, including the secure-start fixture.
+
+Hardware Inspection is not implemented in this branch. The fixture presets and
+ordinary packaged runs do not constitute strict Figma-pixel, real Narrator, or
+controlled-OS evidence.
+
+### Final progress-polish evidence
+
+Fresh final-ladder totals and hashes are intentionally deferred until one
+serialized RuntimeWorker, Debug, and Release gate has completed and its
+artifacts have been parsed. Raw identity-bearing TRX and logs remain local,
+untracked, and do-not-stage/upload.
+
 ## Packaged application test project
 
 [GraniteEdgeAI.UnitTests](UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj)
@@ -30,7 +60,8 @@ filter:
 TestCategory!=ModelInspectionVisualRegression&TestCategory!=ModelInspectionControlledOs
 ```
 
-That floor was observed in a local packaged candidate based on commit
+Historical pre-progress-polish evidence: that floor was observed in a local
+packaged candidate based on commit
 `5f90a5d9299363214f11454f548ff8571d98b1a5`: total 686, executed 686, passed
 686, and zero non-passing results. It includes scanner/import coverage, Model
 Inspection contracts, presentation/view/render/motion/control/accessibility
@@ -41,7 +72,7 @@ completion. The package test requires the detached manifest-verified 44-file
 CPU worker closure under `ModelInspection/Worker` and rejects
 LLamaSharp/native files at the application root.
 
-The final Task 10 local hosted-equivalent Release/x64 candidate retained that
+The historical Task 10 local hosted-equivalent Release/x64 candidate retained that
 exact filter and 686 minimum while passing 691/691 with zero non-passing
 results. Its protected map contains 31 classes and 497 executions, including
 39 `ModelInspectionPageNavigationTests`. The ephemeral Release TRX SHA-256 was
@@ -92,7 +123,8 @@ PNGs. Synthetic outcome screens likewise do not prove real-worker outcomes.
 Only the catalogue's external N-001 links identify separately verified
 production-worker/page evidence.
 
-The fresh local Debug/x64 campaign on 2026-08-13 passed 220/220 with the exact
+Historical Task 10 fixture evidence: the local Debug/x64 campaign on
+2026-08-13 passed 220/220 with the exact
 nine-class map: service 41, adapter 12, gallery 73, interaction 6, lifetime 13,
 page lifecycle 7, preset 25, screen contract 37, and ViewModel integration 6.
 The interaction/lifetime prerequisite pair passed 19/19 (6 plus 13). The

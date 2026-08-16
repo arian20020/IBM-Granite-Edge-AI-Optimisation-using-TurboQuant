@@ -1,7 +1,7 @@
 # Model Inspection presentation construction
 
 **Status:** Thirteen-state mapping, stable rendering, motion, and privacy-safe display projection implemented
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-08-16
 
 [Back to Model Inspection architecture](../README.md)
 
@@ -24,8 +24,11 @@ ViewModel snapshot + commands
 
 ### `InitialInspectionProgressPresentationFactory.cs`
 
-Creates the five-row state used before the first live progress event: stage 1
-active, stages 2-5 waiting, and `0 of 5 checks complete`.
+Creates the five-row state used before the first live progress event, with all
+five stages waiting and `0 of 5 checks complete`. Its standalone/default call
+keeps startup hidden; `ModelInspectionPresentationFactory` supplies the visible
+`Starting secure inspection…` startup state for a live attempt until the
+genuine Stage 1 event.
 
 ### `InspectionProgressPresentationFactory.cs`
 
@@ -69,6 +72,18 @@ accessible `Coming later` explanation.
 - `ModelInspectionRegionKeys.cs` and
   `ModelInspectionPresentationDelta.cs` make reassignment and live-region
   changes explicit and testable.
+
+`ModelInspectionMilestoneSequencer.cs` sits between accepted semantic
+snapshots and visual application. In normal motion it preserves each genuinely
+reached Active stage for at least 550 ms from presentation, but adds no dwell
+when genuine active time already satisfies the minimum. It queues genuine
+bursts in order and coalesces Stage 2 fraction-only updates. Cancellation,
+operational failure, retry/restart, choose-another, navigation/disposal,
+stale-attempt invalidation, and reduced-motion changes flush immediately.
+
+`ModelInspectionMotion` also defines the 1,050 ms linear Precision Orbit used
+unchanged by every active stage. A genuine Stage 2 fraction updates restrained
+trailing text only; it neither changes the indicator mode nor restarts motion.
 
 ## Terminal mapping
 
@@ -121,7 +136,8 @@ full inference, Hardware Fit, or performance/quality benchmarking.
 - `ModelInspectionMotionTests`
 - `PresentationTestData`
 
-The ordinary packaged candidate executed these exact Task 12 class counts:
+Historical pre-progress-polish evidence: the ordinary packaged candidate
+executed these exact Task 12 class counts:
 display policy 46, Figma states 77, progress rows 16, presentation factory 18,
 progress factory 13, render coordinator 27, and motion 29. They cover ordering,
 real nullable fractions, all outcome/execution mappings, stable identity and
@@ -147,7 +163,8 @@ actual OS 200% text scale, or Narrator behavior. Synthetic terminal and failure
 presentations do not claim real-worker outcome coverage; only the catalogue's
 separate N-001 join covers the bounded real-worker Ready route.
 
-The fresh local Debug/x64 campaign passed all 220 fixture-category executions,
+Historical Task 10 evidence: the local Debug/x64 campaign passed all 220
+fixture-category executions,
 including the 6 interaction and 13 lifetime cases that drive the rendered
 controls and audit retirement. The final local hosted-equivalent Release gate
 passed 691/691, including all 39 protected page-navigation executions; the
@@ -155,6 +172,18 @@ focused real packaged N-001 journey passed 1/1, and Release isolation passed
 with zero forbidden fixture/gallery path, token, or metadata hits. Strict Figma
 pixels, controlled-OS/manual Narrator evidence, and hosted exact-head closure
 remain open.
+
+### Current behavior and pending final evidence
+
+The presentation contract now includes shared vector status glyphs, the
+Measured Checklist's 24/16 px page rhythm and five 48 px rows, Balanced Centre
+terminal geometry, natural-height warning/failure states, and responsive
+one-, two-, and three-action arrangements. The exact Debug catalogue remains
+`MI-001` through `MI-050`. Hardware Inspection is not implemented here.
+
+Fresh final-ladder totals and hashes are intentionally deferred until the
+serialized evidence run completes. No strict Figma-pixel, real Narrator, or
+controlled-OS claim is made without separate controlled evidence.
 
 ## Change hazards
 
