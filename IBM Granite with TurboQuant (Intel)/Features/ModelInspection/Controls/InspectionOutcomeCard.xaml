@@ -43,7 +43,7 @@
         Visibility="{x:Bind CardVisibility, Mode=OneWay}">
         <Border
             x:Name="OutcomeCardBorder"
-            Padding="26,16"
+            Padding="{StaticResource InspectionCardPadding}"
             HorizontalAlignment="Stretch"
             BorderThickness="1"
             CornerRadius="{StaticResource InspectionCardCornerRadius}">

@@ -382,13 +382,13 @@
                     </Grid.RowDefinitions>
                     <TextBlock
                         x:Name="FindingsSectionTitle"
-                        Margin="23,20,23,0"
+                        Margin="24,20,24,0"
                         Style="{StaticResource ContentHeadingStyle}"
                         Text="{x:Bind Presentation.SectionTitle, Mode=OneWay}" />
                     <ItemsControl
                         x:Name="FindingsItemsRepeater"
                         Grid.Row="1"
-                        Margin="23,12,23,0"
+                        Margin="24,12,24,0"
                         AutomationProperties.AccessibilityView="Content"
                         AutomationProperties.AutomationControlType="List"
                         AutomationProperties.LiveSetting="Polite"
@@ -405,14 +405,14 @@
                     <TextBlock
                         x:Name="SupportingText"
                         Grid.Row="2"
-                        Margin="23,0,23,0"
+                        Margin="24,0,24,0"
                         Style="{StaticResource ContentSecondaryTextStyle}"
                         Text="{x:Bind Presentation.SupportingText, Mode=OneWay}"
                         Visibility="{x:Bind Presentation.SupportingTextVisibility, Mode=OneWay}" />
                     <TextBlock
                         x:Name="TertiaryText"
                         Grid.Row="3"
-                        Margin="23,10,23,0"
+                        Margin="24,10,24,0"
                         FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
                         FontSize="{ThemeResource InspectionHelperFontSize}"
                         FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
@@ -424,7 +424,7 @@
                     <Border
                         x:Name="DiagnosticCodeBorder"
                         Grid.Row="4"
-                        Margin="23,4,23,0"
+                        Margin="24,4,24,0"
                         Padding="12,4"
                         Background="{ThemeResource InspectionSurfaceMutedBrush}"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -448,7 +448,7 @@
                         HeaderMinHeight="58"
                         Visibility="{x:Bind Presentation.DisclosureVisibility, Mode=OneWay}">
                         <local:InspectionDisclosure.HeaderContent>
-                            <Grid Padding="23,0,0,0" ColumnSpacing="12">
+                            <Grid Padding="24,0,0,0" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="30" />
                                     <ColumnDefinition Width="*" />
@@ -477,7 +477,7 @@
                             <Border
                                 x:Name="ExpandedReportViewport"
                                 Height="148"
-                                Margin="23,0,23,20"
+                                Margin="24,0,24,24"
                                 Padding="18,8,10,8"
                                 Background="{ThemeResource InspectionSurfaceSubtleBrush}"
                                 BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
@@ -555,7 +555,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock
                             x:Name="TechnicalDetailsFutureHelpText"
-                            Margin="23,0,12,0"
+                            Margin="24,0,12,0"
                             VerticalAlignment="Center"
                             AutomationProperties.HelpText="{x:Bind Presentation.TechnicalDetailsAutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind local:InspectionContentCard.GetTechnicalHelpAutomationName(Presentation), Mode=OneWay}"
@@ -565,7 +565,7 @@
                         <Button
                             x:Name="TechnicalDetailsButton"
                             Grid.Column="1"
-                            Margin="12,7,23,7"
+                            Margin="12,7,24,7"
                             AutomationProperties.HelpText="{x:Bind Presentation.TechnicalDetailsAutomationHelpText, Mode=OneWay}"
                             AutomationProperties.Name="{x:Bind Presentation.TechnicalDetailsAutomationName, Mode=OneWay}"
                             Command="{x:Bind Presentation.OpenTechnicalDetailsCommand, Mode=OneWay}"
@@ -603,18 +603,18 @@
                 <VisualState x:Name="MediumContentState" />
                 <VisualState x:Name="NarrowContentState">
                     <VisualState.Setters>
-                        <Setter Target="ProgressView.Padding" Value="16,24,16,24" />
+                        <Setter Target="ProgressView.Padding" Value="{StaticResource InspectionCardPadding}" />
                         <Setter Target="ProgressCompletedCountChip.(Grid.Row)" Value="1" />
                         <Setter Target="ProgressCompletedCountChip.(Grid.Column)" Value="0" />
                         <Setter Target="ProgressCompletedCountChip.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="ProgressCompletedCountChip.Margin" Value="0,12,0,0" />
                         <Setter Target="ProgressCompletedCountChip.HorizontalAlignment" Value="Left" />
-                        <Setter Target="FindingsSectionTitle.Margin" Value="16,20,16,0" />
-                        <Setter Target="FindingsItemsRepeater.Margin" Value="16,12,16,0" />
-                        <Setter Target="SupportingText.Margin" Value="16,0,16,0" />
-                        <Setter Target="TertiaryText.Margin" Value="16,10,16,0" />
-                        <Setter Target="DiagnosticCodeBorder.Margin" Value="16,4,16,0" />
-                        <Setter Target="ExpandedReportViewport.Margin" Value="16,0,16,20" />
+                        <Setter Target="FindingsSectionTitle.Margin" Value="24,20,24,0" />
+                        <Setter Target="FindingsItemsRepeater.Margin" Value="24,12,24,0" />
+                        <Setter Target="SupportingText.Margin" Value="24,0,24,0" />
+                        <Setter Target="TertiaryText.Margin" Value="24,10,24,0" />
+                        <Setter Target="DiagnosticCodeBorder.Margin" Value="24,4,24,0" />
+                        <Setter Target="ExpandedReportViewport.Margin" Value="24,0,24,24" />
                         <Setter Target="FindingsDisclosureActionText.MaxWidth" Value="112" />
                         <Setter Target="TechnicalDetailsFutureHelpText.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="TechnicalDetailsFutureHelpText.Margin" Value="16,12,16,0" />

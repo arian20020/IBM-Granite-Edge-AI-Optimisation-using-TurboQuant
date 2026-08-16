@@ -128,7 +128,7 @@
 
         <Border
             x:Name="CompactView"
-            Padding="24,15"
+            Padding="{StaticResource InspectionCardPadding}"
             Background="{ThemeResource InspectionSurfaceBrush}"
             BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
             BorderThickness="1"
@@ -259,7 +259,7 @@
                     x:Name="DetailedHeader"
                     Grid.Row="0"
                     MinHeight="63"
-                    Margin="31,0"
+                    Margin="24,0"
                     ColumnSpacing="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -312,7 +312,7 @@
                 <Grid
                     x:Name="MetadataGrid"
                     Grid.Row="1"
-                    Margin="31,0">
+                    Margin="24,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -487,7 +487,7 @@
                         <Border
                             x:Name="InspectionDetailsViewport"
                             Height="172"
-                            Margin="23,-5,23,19"
+                            Margin="24,-5,24,19"
                             Padding="18,8,10,12"
                             Background="{ThemeResource InspectionSurfaceSubtleBrush}"
                             BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
@@ -622,9 +622,9 @@
                         <Setter Target="MetadataColumnTwo.Width" Value="*" />
                         <Setter Target="MetadataColumnThree.Width" Value="*" />
                         <Setter Target="MetadataColumnFour.Width" Value="*" />
-                        <Setter Target="DetailedHeader.Margin" Value="31,0" />
-                        <Setter Target="MetadataGrid.Margin" Value="31,0" />
-                        <Setter Target="InspectionDetailsViewport.Margin" Value="23,-5,23,19" />
+                        <Setter Target="DetailedHeader.Margin" Value="24,0" />
+                        <Setter Target="MetadataGrid.Margin" Value="24,0" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="24,-5,24,19" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="0" />
@@ -649,10 +649,10 @@
                         <Setter Target="MetadataColumnTwo.Width" Value="*" />
                         <Setter Target="MetadataColumnThree.Width" Value="0" />
                         <Setter Target="MetadataColumnFour.Width" Value="0" />
-                        <Setter Target="DetailedHeader.Margin" Value="23,0" />
-                        <Setter Target="MetadataGrid.Margin" Value="23,0" />
+                        <Setter Target="DetailedHeader.Margin" Value="24,0" />
+                        <Setter Target="MetadataGrid.Margin" Value="24,0" />
                         <Setter Target="InspectionDetailsActionText.MaxWidth" Value="112" />
-                        <Setter Target="InspectionDetailsViewport.Margin" Value="23,-5,23,19" />
+                        <Setter Target="InspectionDetailsViewport.Margin" Value="24,-5,24,19" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="0" />
