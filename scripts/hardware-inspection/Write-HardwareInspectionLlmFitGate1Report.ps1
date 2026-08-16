@@ -1137,6 +1137,8 @@ Add-ArtifactRow $builder 'Offline candidate evidence' $offlineEvidenceArtifact
 Add-ArtifactRow $builder 'Deterministic TRX' $deterministicArtifact
 Add-ArtifactRow $builder 'Trusted Windows TRX' $trustedArtifact
 Add-ArtifactRow $builder 'Offline TRX' $offlineTrxArtifact
+[void]$builder.AppendLine()
+[void]$builder.AppendLine('- TRX freshness and execution against the evaluated-source commit were established operationally; the artifact hashes do not cryptographically prove freshness or source binding.')
 
 [void]$builder.AppendLine()
 [void]$builder.AppendLine('## Test outcomes')
@@ -1244,7 +1246,18 @@ if ($hasFullReference) {
 [void]$builder.AppendLine('- No Windows Intel dedicated/shared GPU memory conclusion was established.')
 [void]$builder.AppendLine('- No Intel NPU presence or absence was established.')
 [void]$builder.AppendLine('- No model compatibility conclusion was made.')
-[void]$builder.AppendLine('- No network-syscall proof is claimed beyond the controlled offline run and listener/process observations.')
+if ($offlinePrerequisiteBlocked -or $offlineNotEvaluatedBlocked -or $null -eq $offlineSummary) {
+    [void]$builder.AppendLine('- No offline candidate run occurred; no candidate network behavior was evaluated.')
+}
+elseif ($offlineFailureProof) {
+    [void]$builder.AppendLine('- No candidate network-behavior conclusion was established from the failed offline evaluation.')
+}
+elseif (-not $hasFullOffline) {
+    [void]$builder.AppendLine('- No candidate network-behavior conclusion was established from incomplete offline evidence.')
+}
+else {
+    [void]$builder.AppendLine('- No network-syscall proof is claimed beyond the controlled offline run and listener/process observations.')
+}
 [void]$builder.AppendLine('- This Gate 1 record does not verify `F-M07`, `HE-01`, or `HE-02`; complete Block 2 evidence remains for the controlled Gate 9 traceability workflow.')
 
 $content = $builder.ToString()
