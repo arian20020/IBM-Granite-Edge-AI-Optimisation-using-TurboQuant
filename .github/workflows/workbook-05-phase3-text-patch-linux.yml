@@ -1,0 +1,94 @@
+name: Workbook 05 Phase 3 Linux text patch maintenance
+
+on:
+  push:
+    branches:
+      - design/workbook-05-phase3-dependency-preflight
+    paths:
+      - '.github/maintenance/workbook05-phase3-next-patch.txt'
+
+# Temporary same-repository maintenance only. The wrapper executes the exact
+# reviewed patch script already stored in the branch, after binding its Git blob
+# identity. It is removed before the pull request is offered for merge.
+permissions:
+  contents: write
+
+concurrency:
+  group: workbook-05-phase3-linux-text-patch-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply-reviewed-text-patch:
+    if: >-
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant' &&
+      github.ref == 'refs/heads/design/workbook-05-phase3-dependency-preflight' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the exact patch-envelope revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: true
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+
+      - name: Set up Python 3.12.10 for repository checks
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Extract and execute the exact reviewed patch script
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          # Bind execution to the exact reviewed Windows-runner workflow blob.
+          # The Linux wrapper changes only the host used for checkout; it does
+          # not accept an arbitrary command from the patch envelope.
+          $sourcePath = '.github/workflows/workbook-05-phase3-text-patch-maintenance.yml'
+          $expectedBlob = '1abc2fbbbdf59bd5f1b4c52834ee51ea0a43dc91'
+          $actualBlob = ((git hash-object -- $sourcePath) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actualBlob -ne $expectedBlob) {
+              throw "Reviewed patch-script blob mismatch: $actualBlob"
+          }
+
+          # The reviewed run block is the final block in the source workflow.
+          # Extract it as text, remove the fixed YAML indentation, and make the
+          # closed metadata-key comparison precedence explicit before running.
+          $workflowText = [IO.File]::ReadAllText($sourcePath)
+          $marker = "      - name: Validate, apply, verify, commit, and push the reviewed text patch`n        shell: powershell`n        run: |`n"
+          $markerIndex = $workflowText.IndexOf($marker, [StringComparison]::Ordinal)
+          if ($markerIndex -lt 0) {
+              throw 'The reviewed patch-script marker was not found.'
+          }
+          $runBlock = $workflowText.Substring($markerIndex + $marker.Length)
+          $scriptLines = @()
+          foreach ($line in ($runBlock -split "`n", 0, 'SimpleMatch')) {
+              if ($line.Length -eq 0) {
+                  $scriptLines += ''
+                  continue
+              }
+              if (-not $line.StartsWith('          ', [StringComparison]::Ordinal)) {
+                  throw "Unexpected indentation in reviewed patch script: $line"
+              }
+              $scriptLines += $line.Substring(10)
+          }
+          $scriptText = ($scriptLines -join "`n")
+          $oldKeys = "if (@(`$metadata.Keys | Sort-Object) -join ',' -ne @(`$requiredKeys | Sort-Object) -join ',') {"
+          $newKeys = "if ((@(`$metadata.Keys | Sort-Object) -join ',') -ne (@(`$requiredKeys | Sort-Object) -join ',')) {"
+          if (-not $scriptText.Contains($oldKeys)) {
+              throw 'The reviewed metadata-key comparison was not found.'
+          }
+          $scriptText = $scriptText.Replace($oldKeys, $newKeys)
+
+          $scriptPath = Join-Path $env:RUNNER_TEMP 'Apply-Workbook05ReviewedPatch.ps1'
+          [IO.File]::WriteAllText(
+              $scriptPath,
+              $scriptText,
+              [Text.UTF8Encoding]::new($false)
+          )
+          & $scriptPath
