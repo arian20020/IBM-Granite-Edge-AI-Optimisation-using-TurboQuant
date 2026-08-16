@@ -75,9 +75,12 @@ public sealed record SpikeOptions
 
         try
         {
+            EnsureLocalPath(candidateRootValue);
+            EnsureLocalPath(outputValue);
             string candidateRoot = CanonicalizeDirectory(candidateRootValue);
             string outputDirectory = CanonicalizeDirectory(outputValue);
-            EnsureLocalOutputPath(outputDirectory);
+            EnsureLocalPath(candidateRoot);
+            EnsureLocalPath(outputDirectory);
             EnsureExistingComponentsAreOrdinary(candidateRoot);
             EnsureExistingComponentsAreOrdinary(outputDirectory);
             EnsureExistingOrdinaryDirectory(candidateRoot);
@@ -88,6 +91,8 @@ public sealed record SpikeOptions
             {
                 throw InvalidCommandLine();
             }
+
+            EnsurePhysicallyDisjoint(candidateRoot, outputDirectory);
 
             return new SpikeOptions(
                 candidateRoot,
@@ -107,8 +112,19 @@ public sealed record SpikeOptions
 
     public void CreateOutputDirectory()
     {
-        EnsureLocalOutputPath(OutputDirectory);
+        EnsureLocalPath(CandidateRoot);
+        EnsureLocalPath(OutputDirectory);
+        EnsureExistingComponentsAreOrdinary(CandidateRoot);
         EnsureExistingComponentsAreOrdinary(OutputDirectory);
+        EnsureExistingOrdinaryDirectory(CandidateRoot);
+        EnsureOutputIsAvailable(OutputDirectory);
+        if (IsSameOrDescendant(CandidateRoot, OutputDirectory) ||
+            IsSameOrDescendant(OutputDirectory, CandidateRoot))
+        {
+            throw InvalidCommandLine();
+        }
+
+        EnsurePhysicallyDisjoint(CandidateRoot, OutputDirectory);
         Directory.CreateDirectory(OutputDirectory);
         EnsureExistingComponentsAreOrdinary(OutputDirectory);
         EnsureExistingOrdinaryDirectory(OutputDirectory);
@@ -124,7 +140,7 @@ public sealed record SpikeOptions
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(value));
     }
 
-    private static void EnsureLocalOutputPath(string path)
+    private static void EnsureLocalPath(string path)
     {
         if (path.StartsWith(@"\\", StringComparison.Ordinal) ||
             path.StartsWith(@"\\?\", StringComparison.Ordinal) ||
@@ -132,6 +148,65 @@ public sealed record SpikeOptions
         {
             throw InvalidCommandLine();
         }
+    }
+
+    private static void EnsurePhysicallyDisjoint(
+        string candidateRoot,
+        string outputDirectory)
+    {
+        StableDirectoryIdentity candidateIdentity = StableDirectoryPath.Resolve(candidateRoot);
+        string existingOutputAncestor = FindNearestExistingDirectory(outputDirectory);
+        StableDirectoryIdentity outputAncestorIdentity =
+            StableDirectoryPath.Resolve(existingOutputAncestor);
+        EnsureLocalPath(candidateIdentity.FinalPath);
+        EnsureLocalPath(outputAncestorIdentity.FinalPath);
+
+        string relativeOutput = Path.GetRelativePath(
+            existingOutputAncestor,
+            outputDirectory);
+        if (Path.IsPathRooted(relativeOutput))
+        {
+            throw InvalidCommandLine();
+        }
+
+        string stableOutputPath = string.Equals(
+                relativeOutput,
+                ".",
+                StringComparison.OrdinalIgnoreCase)
+            ? outputAncestorIdentity.FinalPath
+            : CanonicalizeDirectory(Path.Combine(
+                outputAncestorIdentity.FinalPath,
+                relativeOutput));
+        EnsureLocalPath(stableOutputPath);
+        if (candidateIdentity.IsSameDirectory(outputAncestorIdentity) ||
+            IsSameOrDescendant(candidateIdentity.FinalPath, stableOutputPath) ||
+            IsSameOrDescendant(stableOutputPath, candidateIdentity.FinalPath))
+        {
+            throw InvalidCommandLine();
+        }
+    }
+
+    private static string FindNearestExistingDirectory(string path)
+    {
+        string current = path;
+        while (!Directory.Exists(current))
+        {
+            if (File.Exists(current))
+            {
+                throw InvalidCommandLine();
+            }
+
+            string? parent = Directory.GetParent(current)?.FullName;
+            if (string.IsNullOrWhiteSpace(parent) ||
+                string.Equals(parent, current, StringComparison.OrdinalIgnoreCase))
+            {
+                throw InvalidCommandLine();
+            }
+
+            current = parent;
+        }
+
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(current));
     }
 
     private static void EnsureOutputIsAvailable(string path)

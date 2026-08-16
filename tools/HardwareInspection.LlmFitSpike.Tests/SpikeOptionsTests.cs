@@ -1,5 +1,6 @@
 using HardwareInspection.LlmFitSpike.Evidence;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Diagnostics;
 
 namespace HardwareInspection.LlmFitSpike.Tests;
 
@@ -159,6 +160,56 @@ public sealed class SpikeOptionsTests
     }
 
     [TestMethod]
+    public void Parse_DeviceOrUncCandidateAndOutput_AreRejectedBeforeCreation()
+    {
+        using var root = new OwnedTemporaryDirectory();
+        string candidateRoot = Path.Combine(root.Path, "candidate");
+        string outputDirectory = Path.Combine(root.Path, "output");
+        Directory.CreateDirectory(candidateRoot);
+        string deviceCandidate = @"\\?\" + candidateRoot;
+        string deviceOutput = @"\\?\" + outputDirectory;
+        string uncCandidate = @"\\localhost\C$" + candidateRoot[2..];
+        string uncOutput = @"\\localhost\C$" + outputDirectory[2..];
+
+        string[][] rejectedArguments =
+        [
+            ["--candidate-root", deviceCandidate, "--output", outputDirectory],
+            ["--candidate-root", uncCandidate, "--output", outputDirectory],
+            ["--candidate-root", candidateRoot, "--output", deviceOutput],
+            ["--candidate-root", candidateRoot, "--output", uncOutput],
+        ];
+
+        foreach (string[] arguments in rejectedArguments)
+        {
+            Assert.ThrowsExactly<ArgumentException>(() => SpikeOptions.Parse(arguments));
+        }
+
+        Assert.IsFalse(Directory.Exists(outputDirectory));
+    }
+
+    [TestMethod]
+    public void Parse_OutputInsideCandidateThroughSubstAlias_IsRejectedBeforeCreation()
+    {
+        using var root = new OwnedTemporaryDirectory();
+        string candidateRoot = Path.Combine(root.Path, "Candidate Directory With Long Name");
+        Directory.CreateDirectory(candidateRoot);
+        string driveName = FindUnusedDriveName();
+        string aliasedOutput = Path.Combine(driveName + Path.DirectorySeparatorChar, "output");
+        SetSubst(driveName, candidateRoot);
+        try
+        {
+            Assert.ThrowsExactly<ArgumentException>(() => SpikeOptions.Parse(
+                ["--candidate-root", candidateRoot, "--output", aliasedOutput]));
+        }
+        finally
+        {
+            RemoveSubst(driveName);
+        }
+
+        Assert.IsFalse(Directory.Exists(Path.Combine(candidateRoot, "output")));
+    }
+
+    [TestMethod]
     public async Task RunAsync_CancelledCaller_ReturnsThreeWithStableOutput()
     {
         using var root = new OwnedTemporaryDirectory();
@@ -216,6 +267,46 @@ public sealed class SpikeOptionsTests
                 Directory.Delete(Path, recursive: true);
             }
         }
+    }
+
+    private static string FindUnusedDriveName()
+    {
+        for (char letter = 'Z'; letter >= 'D'; letter--)
+        {
+            string driveName = letter + ":";
+            if (!Directory.Exists(driveName + Path.DirectorySeparatorChar))
+            {
+                return driveName;
+            }
+        }
+
+        throw new AssertFailedException("No unused drive name is available for the alias test.");
+    }
+
+    private static void SetSubst(string driveName, string target)
+    {
+        RunSubst(driveName, target);
+    }
+
+    private static void RemoveSubst(string driveName)
+    {
+        RunSubst(driveName, "/d");
+    }
+
+    private static void RunSubst(string driveName, string secondArgument)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "subst.exe"),
+            CreateNoWindow = true,
+            UseShellExecute = false,
+        };
+        startInfo.ArgumentList.Add(driveName);
+        startInfo.ArgumentList.Add(secondArgument);
+        using Process process = Process.Start(startInfo) ??
+            throw new AssertFailedException("The alias helper could not start.");
+        Assert.IsTrue(process.WaitForExit(10_000));
+        Assert.AreEqual(0, process.ExitCode);
     }
 }
 #pragma warning restore CA1707
