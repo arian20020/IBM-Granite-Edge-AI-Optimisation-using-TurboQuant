@@ -71,11 +71,17 @@ public sealed class ModelInspectionPageLayoutTests
             Assert.AreSame(
                 Application.Current.Resources["InspectionBodyFontFamily"],
                 subtitle.FontFamily);
+            Assert.AreEqual(page.ActualTheme, title.ActualTheme);
+            Assert.AreEqual(page.ActualTheme, subtitle.ActualTheme);
+            string inheritedTheme = title.ActualTheme.ToString();
+            Assert.IsTrue(
+                inheritedTheme is "Light" or "Dark",
+                $"title must inherit a Light or Dark application theme, not {inheritedTheme}");
             Assert.AreSame(
-                ThemeResource("Light", "InspectionTextPrimaryBrush"),
+                ThemeResource(inheritedTheme, "InspectionTextPrimaryBrush"),
                 title.Foreground);
             Assert.AreSame(
-                ThemeResource("Light", "InspectionTextSecondaryMutedBrush"),
+                ThemeResource(inheritedTheme, "InspectionTextSecondaryMutedBrush"),
                 subtitle.Foreground);
         }
         finally
@@ -215,8 +221,13 @@ public sealed class ModelInspectionPageLayoutTests
                 $"{themeName} must define InspectionCanvasBrush");
         }
         Assert.AreEqual(ElementTheme.Default, page.RequestedTheme);
+        Assert.AreEqual(page.ActualTheme, layoutRoot.ActualTheme);
+        string inheritedTheme = layoutRoot.ActualTheme.ToString();
+        Assert.IsTrue(
+            inheritedTheme is "Light" or "Dark",
+            $"LayoutRoot must inherit a Light or Dark application theme, not {inheritedTheme}");
         Assert.AreSame(
-            ThemeResource("Light", "InspectionCanvasBrush"),
+            ThemeResource(inheritedTheme, "InspectionCanvasBrush"),
             layoutRoot.Background);
         Assert.AreEqual(16d, resources["InspectionCardGap"]);
         Assert.AreEqual(24d, resources["InspectionHeaderToCardGap"]);
