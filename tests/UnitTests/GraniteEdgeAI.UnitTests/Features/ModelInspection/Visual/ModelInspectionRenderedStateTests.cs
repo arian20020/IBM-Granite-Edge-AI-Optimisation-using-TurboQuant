@@ -813,12 +813,17 @@ public sealed class ModelInspectionRenderedStateTests
                 Element<FrameworkElement>(model, "DeclaredContextField"),
                 Element<FrameworkElement>(model, "FileSizeField")
             ];
-            int expectedColumns = width >= 888d ? 4 : width >= 600d ? 2 : 1;
+            int expectedColumns = width >= 888d ? 3 : width >= 600d ? 2 : 1;
             Assert.AreEqual(
                 expectedColumns,
                 metadata.Select(Grid.GetColumn).Distinct().Count(),
                 $"{state}/{preview200}/{width}: metadata columns");
             AssertNoPeerOverlap(page, metadata, $"{state}/{preview200}/{width}: metadata");
+            AssertDetailPanelGeometry(
+                page,
+                model,
+                Element<Border>(model, "DetailedView"),
+                $"{state}/{preview200}/{width}: Ready detail panels");
         }
 
         Button[] visibleButtons = Descendants(page)
@@ -991,6 +996,153 @@ public sealed class ModelInspectionRenderedStateTests
                     $"{context}: {elements[left].Name}/{elements[right].Name}");
             }
         }
+    }
+
+    private static void AssertDetailPanelGeometry(
+        FrameworkElement root,
+        InspectionModelCard model,
+        FrameworkElement modelSurface,
+        string context)
+    {
+        FrameworkElement configurationPanel = Element<FrameworkElement>(
+            model,
+            "ModelConfigurationPanel");
+        FrameworkElement resultSummaryPanel = Element<FrameworkElement>(
+            model,
+            "ModelResultSummaryPanel");
+        FrameworkElement[] panels =
+        [
+            configurationPanel,
+            resultSummaryPanel
+        ];
+        Rect surfaceBounds = Bounds(root, modelSurface);
+        foreach (FrameworkElement panel in panels)
+        {
+            Rect panelBounds = Bounds(root, panel);
+            Assert.IsGreaterThanOrEqualTo(
+                surfaceBounds.Left - 1d,
+                panelBounds.Left,
+                $"{context}: {panel.Name} remains inside the model surface left edge");
+            Assert.IsGreaterThanOrEqualTo(
+                surfaceBounds.Top - 1d,
+                panelBounds.Top,
+                $"{context}: {panel.Name} remains inside the model surface top edge");
+            Assert.IsLessThanOrEqualTo(
+                surfaceBounds.Right + 1d,
+                panelBounds.Right,
+                $"{context}: {panel.Name} remains inside the model surface right edge");
+            Assert.IsLessThanOrEqualTo(
+                surfaceBounds.Bottom + 1d,
+                panelBounds.Bottom,
+                $"{context}: {panel.Name} remains inside the model surface bottom edge");
+        }
+        AssertNoPeerOverlap(root, panels, $"{context}: panel overlap");
+        Rect configurationBounds = Bounds(root, configurationPanel);
+        Rect resultSummaryBounds = Bounds(root, resultSummaryPanel);
+        Assert.AreEqual(
+            configurationBounds.Left,
+            resultSummaryBounds.Left,
+            1d,
+            $"{context}: configuration/result left bounds align");
+        Assert.AreEqual(
+            configurationBounds.Right,
+            resultSummaryBounds.Right,
+            1d,
+            $"{context}: configuration/result right bounds align");
+
+        Border configurationBackground = Descendants(configurationPanel)
+            .OfType<Border>()
+            .Single();
+        Border resultSummaryBackground = Descendants(resultSummaryPanel)
+            .OfType<Border>()
+            .Single();
+        AssertSameBounds(
+            root,
+            configurationPanel,
+            configurationBackground,
+            $"{context}: configuration background fills its panel");
+        AssertSameBounds(
+            root,
+            resultSummaryPanel,
+            resultSummaryBackground,
+            $"{context}: result background fills its panel");
+
+        TextBlock configurationHeading = Element<TextBlock>(
+            model,
+            "ModelConfigurationHeading");
+        TextBlock formatLabel = Descendants(
+                Element<FrameworkElement>(model, "FormatField"))
+            .OfType<TextBlock>()
+            .Single(text => text.Text == "FORMAT");
+        TextBlock resultSummary = Element<TextBlock>(
+            model,
+            "ReadyResultSummary");
+        TextBlock resultBadge = Element<TextBlock>(
+            model,
+            "ReadyResultBadgeText");
+        AssertElementInside(
+            root,
+            configurationHeading,
+            configurationPanel,
+            $"{context}: configuration heading fit");
+        AssertElementInside(
+            root,
+            resultSummary,
+            resultSummaryPanel,
+            $"{context}: result summary fit");
+        AssertElementInside(
+            root,
+            resultBadge,
+            resultSummaryPanel,
+            $"{context}: result badge fit");
+        AssertNoPeerOverlap(
+            root,
+            [configurationHeading, formatLabel],
+            $"{context}: configuration heading/format overlap");
+        AssertNoPeerOverlap(
+            root,
+            [resultSummary, resultBadge],
+            $"{context}: result summary/badge overlap");
+    }
+
+    private static void AssertSameBounds(
+        FrameworkElement root,
+        FrameworkElement expected,
+        FrameworkElement actual,
+        string context)
+    {
+        Rect expectedBounds = Bounds(root, expected);
+        Rect actualBounds = Bounds(root, actual);
+        Assert.AreEqual(expectedBounds.Left, actualBounds.Left, 1d, context);
+        Assert.AreEqual(expectedBounds.Top, actualBounds.Top, 1d, context);
+        Assert.AreEqual(expectedBounds.Right, actualBounds.Right, 1d, context);
+        Assert.AreEqual(expectedBounds.Bottom, actualBounds.Bottom, 1d, context);
+    }
+
+    private static void AssertElementInside(
+        FrameworkElement root,
+        FrameworkElement element,
+        FrameworkElement container,
+        string context)
+    {
+        Rect elementBounds = Bounds(root, element);
+        Rect containerBounds = Bounds(root, container);
+        Assert.IsGreaterThanOrEqualTo(
+            containerBounds.Left - 1d,
+            elementBounds.Left,
+            $"{context}: left edge");
+        Assert.IsGreaterThanOrEqualTo(
+            containerBounds.Top - 1d,
+            elementBounds.Top,
+            $"{context}: top edge");
+        Assert.IsLessThanOrEqualTo(
+            containerBounds.Right + 1d,
+            elementBounds.Right,
+            $"{context}: right edge");
+        Assert.IsLessThanOrEqualTo(
+            containerBounds.Bottom + 1d,
+            elementBounds.Bottom,
+            $"{context}: bottom edge");
     }
 
     private static void AssertNoGeneralOverlap(
@@ -1364,7 +1516,7 @@ public sealed class ModelInspectionRenderedStateTests
             bool responsiveStateApplied = Math.Abs(
                 contentHost.Margin.Left - expectedInset) <= 0.1d;
             int expectedMetadataColumns = width >= 888d
-                ? 4
+                ? 3
                 : width >= 600d
                     ? 2
                     : 1;
@@ -1633,10 +1785,15 @@ public sealed class ModelInspectionRenderedStateTests
                 Element<FrameworkElement>(model, "DeclaredContextField"),
                 Element<FrameworkElement>(model, "FileSizeField")
             ];
-            Assert.IsTrue(metadata.All(field =>
-                Math.Abs(field.ActualWidth - metadata[0].ActualWidth) <= 1d));
-            Assert.IsTrue(metadata.All(field =>
-                Math.Abs(field.ActualHeight - metadata[0].ActualHeight) <= 1d));
+            AssertNoPeerOverlap(
+                modelSurface,
+                metadata,
+                "ready metadata geometry");
+            AssertDetailPanelGeometry(
+                modelSurface,
+                model,
+                modelSurface,
+                "ready wide detail panels");
         }
 
         if (presentation.ModelCard.DisplayMode == InspectionModelCardMode.Compact)

@@ -328,6 +328,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="MetadataColumnOne" Width="*" />
@@ -335,6 +336,72 @@
                         <ColumnDefinition x:Name="MetadataColumnThree" Width="*" />
                         <ColumnDefinition x:Name="MetadataColumnFour" Width="*" />
                     </Grid.ColumnDefinitions>
+
+                    <Grid
+                        x:Name="ModelConfigurationPanel"
+                        Grid.Row="0"
+                        Grid.Column="2"
+                        Grid.RowSpan="2"
+                        Grid.ColumnSpan="2"
+                        IsHitTestVisible="False">
+                        <Border
+                            Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8" />
+                        <TextBlock
+                            x:Name="ModelConfigurationHeading"
+                            Margin="20,4,20,0"
+                            VerticalAlignment="Top"
+                            FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                            FontSize="{ThemeResource InspectionLabelFontSize}"
+                            FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                            Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                            Text="Model configuration"
+                            TextWrapping="WrapWholeWords" />
+                    </Grid>
+                    <Grid
+                        x:Name="ModelResultSummaryPanel"
+                        Grid.Row="2"
+                        Grid.Column="2"
+                        Grid.ColumnSpan="2">
+                        <Border
+                            Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                            BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8" />
+                        <Grid
+                            x:Name="ReadyResultContentGrid"
+                            Padding="20,10"
+                            ColumnSpacing="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="ReadyResultSummaryColumn" Width="*" />
+                                <ColumnDefinition x:Name="ReadyResultBadgeColumn" Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="ReadyResultSummary"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource InspectionBodyFontFamily}"
+                                FontSize="{ThemeResource InspectionBodyFontSize}"
+                                Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                                Text="{x:Bind InspectionChecksSummary}"
+                                TextWrapping="WrapWholeWords" />
+                            <TextBlock
+                                x:Name="ReadyResultBadgeText"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource InspectionLabelFontFamily}"
+                                FontSize="{ThemeResource InspectionLabelFontSize}"
+                                FontWeight="{StaticResource InspectionLabelFontWeight}"
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Text="{x:Bind GetBadgeText(BadgeState), Mode=OneWay}"
+                                TextWrapping="WrapWholeWords" />
+                        </Grid>
+                    </Grid>
 
                     <Border
                         x:Name="ModelNameField"
@@ -366,6 +433,7 @@
                         x:Name="FormatField"
                         Grid.Row="0"
                         Grid.Column="2"
+                        Grid.ColumnSpan="2"
                         MinHeight="78"
                         Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -377,8 +445,9 @@
                     </Border>
                     <Border
                         x:Name="QuantisationField"
-                        Grid.Row="0"
-                        Grid.Column="3"
+                        Grid.Row="1"
+                        Grid.Column="2"
+                        Grid.ColumnSpan="2"
                         MinHeight="78"
                         Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
@@ -395,7 +464,7 @@
                         MinHeight="78"
                         Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
-                        BorderThickness="0,0,1,0">
+                        BorderThickness="0,0,1,1">
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock AutomationProperties.Name="Parameters" Style="{StaticResource MetadataLabelStyle}" Text="PARAMETERS" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ParameterCount}" />
@@ -408,7 +477,7 @@
                         MinHeight="78"
                         Padding="20,10"
                         BorderBrush="{ThemeResource InspectionBorderLightBrush}"
-                        BorderThickness="0,0,1,0">
+                        BorderThickness="0,0,0,1">
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock AutomationProperties.Name="Model type" Style="{StaticResource MetadataLabelStyle}" Text="MODEL TYPE" />
                             <TextBlock Style="{StaticResource MetadataValueStyle}" Text="{x:Bind ModelType}" />
@@ -631,22 +700,42 @@
                         <Setter Target="DetailedHeader.Margin" Value="24,0" />
                         <Setter Target="MetadataGrid.Margin" Value="24,0" />
                         <Setter Target="InspectionDetailsViewport.Margin" Value="24,-5,24,19" />
+                        <Setter Target="ModelNameField.Margin" Value="0,20,0,0" />
+                        <Setter Target="PublisherField.Margin" Value="0,20,0,0" />
+                        <Setter Target="FormatField.Margin" Value="0,20,0,0" />
+                        <Setter Target="QuantisationField.Margin" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Column)" Value="1" />
                         <Setter Target="FormatField.(Grid.Row)" Value="0" />
                         <Setter Target="FormatField.(Grid.Column)" Value="2" />
-                        <Setter Target="QuantisationField.(Grid.Row)" Value="0" />
-                        <Setter Target="QuantisationField.(Grid.Column)" Value="3" />
+                        <Setter Target="FormatField.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="1" />
+                        <Setter Target="QuantisationField.(Grid.Column)" Value="2" />
+                        <Setter Target="QuantisationField.(Grid.ColumnSpan)" Value="2" />
                         <Setter Target="ParametersField.(Grid.Row)" Value="1" />
                         <Setter Target="ParametersField.(Grid.Column)" Value="0" />
                         <Setter Target="ModelTypeField.(Grid.Row)" Value="1" />
                         <Setter Target="ModelTypeField.(Grid.Column)" Value="1" />
-                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="1" />
-                        <Setter Target="DeclaredContextField.(Grid.Column)" Value="2" />
-                        <Setter Target="FileSizeField.(Grid.Row)" Value="1" />
-                        <Setter Target="FileSizeField.(Grid.Column)" Value="3" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="2" />
+                        <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="2" />
+                        <Setter Target="FileSizeField.(Grid.Column)" Value="1" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Row)" Value="0" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Column)" Value="2" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.RowSpan)" Value="2" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Row)" Value="2" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Column)" Value="2" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ReadyResultContentGrid.ColumnSpacing" Value="12" />
+                        <Setter Target="ReadyResultSummaryColumn.Width" Value="*" />
+                        <Setter Target="ReadyResultBadgeColumn.Width" Value="Auto" />
+                        <Setter Target="ReadyResultBadgeText.(Grid.Column)" Value="1" />
+                        <Setter Target="ReadyResultBadgeText.(Grid.Row)" Value="0" />
+                        <Setter Target="ReadyResultBadgeText.Margin" Value="0" />
+                        <Setter Target="ReadyResultBadgeText.HorizontalAlignment" Value="Stretch" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="MediumModelState">
@@ -659,22 +748,46 @@
                         <Setter Target="MetadataGrid.Margin" Value="24,0" />
                         <Setter Target="InspectionDetailsActionText.MaxWidth" Value="112" />
                         <Setter Target="InspectionDetailsViewport.Margin" Value="24,-5,24,19" />
+                        <Setter Target="ModelNameField.Margin" Value="0" />
+                        <Setter Target="PublisherField.Margin" Value="0" />
+                        <Setter Target="FormatField.Margin" Value="0,20,0,0" />
+                        <Setter Target="QuantisationField.Margin" Value="0,20,0,0" />
+                        <Setter Target="ParametersField.Margin" Value="0" />
+                        <Setter Target="ModelTypeField.Margin" Value="0" />
+                        <Setter Target="DeclaredContextField.Margin" Value="0" />
+                        <Setter Target="FileSizeField.Margin" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="0" />
                         <Setter Target="PublisherField.(Grid.Column)" Value="1" />
-                        <Setter Target="FormatField.(Grid.Row)" Value="1" />
+                        <Setter Target="FormatField.(Grid.Row)" Value="3" />
                         <Setter Target="FormatField.(Grid.Column)" Value="0" />
-                        <Setter Target="QuantisationField.(Grid.Row)" Value="1" />
+                        <Setter Target="FormatField.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="3" />
                         <Setter Target="QuantisationField.(Grid.Column)" Value="1" />
-                        <Setter Target="ParametersField.(Grid.Row)" Value="2" />
+                        <Setter Target="QuantisationField.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="ParametersField.(Grid.Row)" Value="1" />
                         <Setter Target="ParametersField.(Grid.Column)" Value="0" />
-                        <Setter Target="ModelTypeField.(Grid.Row)" Value="2" />
+                        <Setter Target="ModelTypeField.(Grid.Row)" Value="1" />
                         <Setter Target="ModelTypeField.(Grid.Column)" Value="1" />
-                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="3" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="2" />
                         <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
-                        <Setter Target="FileSizeField.(Grid.Row)" Value="3" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="2" />
                         <Setter Target="FileSizeField.(Grid.Column)" Value="1" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Row)" Value="3" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.RowSpan)" Value="1" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Row)" Value="4" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ReadyResultContentGrid.ColumnSpacing" Value="12" />
+                        <Setter Target="ReadyResultSummaryColumn.Width" Value="*" />
+                        <Setter Target="ReadyResultBadgeColumn.Width" Value="Auto" />
+                        <Setter Target="ReadyResultBadgeText.(Grid.Column)" Value="1" />
+                        <Setter Target="ReadyResultBadgeText.(Grid.Row)" Value="0" />
+                        <Setter Target="ReadyResultBadgeText.Margin" Value="0" />
+                        <Setter Target="ReadyResultBadgeText.HorizontalAlignment" Value="Stretch" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="NarrowModelState">
@@ -714,30 +827,54 @@
                         <Setter Target="InspectionDetailsActionText.Margin" Value="0,8,6,8" />
                         <Setter Target="InspectionDetailsActionText.HorizontalAlignment" Value="Left" />
                         <Setter Target="InspectionDetailsViewport.Margin" Value="24,-5,24,19" />
+                        <Setter Target="ModelNameField.Margin" Value="0" />
+                        <Setter Target="PublisherField.Margin" Value="0" />
+                        <Setter Target="FormatField.Margin" Value="0,20,0,0" />
+                        <Setter Target="QuantisationField.Margin" Value="0" />
+                        <Setter Target="ParametersField.Margin" Value="0" />
+                        <Setter Target="ModelTypeField.Margin" Value="0" />
+                        <Setter Target="DeclaredContextField.Margin" Value="0" />
+                        <Setter Target="FileSizeField.Margin" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Row)" Value="0" />
                         <Setter Target="ModelNameField.(Grid.Column)" Value="0" />
                         <Setter Target="ModelNameField.Padding" Value="0,10" />
                         <Setter Target="PublisherField.(Grid.Row)" Value="1" />
                         <Setter Target="PublisherField.(Grid.Column)" Value="0" />
                         <Setter Target="PublisherField.Padding" Value="0,10" />
-                        <Setter Target="FormatField.(Grid.Row)" Value="2" />
+                        <Setter Target="FormatField.(Grid.Row)" Value="6" />
                         <Setter Target="FormatField.(Grid.Column)" Value="0" />
+                        <Setter Target="FormatField.(Grid.ColumnSpan)" Value="1" />
                         <Setter Target="FormatField.Padding" Value="0,10" />
-                        <Setter Target="QuantisationField.(Grid.Row)" Value="3" />
+                        <Setter Target="QuantisationField.(Grid.Row)" Value="7" />
                         <Setter Target="QuantisationField.(Grid.Column)" Value="0" />
+                        <Setter Target="QuantisationField.(Grid.ColumnSpan)" Value="1" />
                         <Setter Target="QuantisationField.Padding" Value="0,10" />
-                        <Setter Target="ParametersField.(Grid.Row)" Value="4" />
+                        <Setter Target="ParametersField.(Grid.Row)" Value="2" />
                         <Setter Target="ParametersField.(Grid.Column)" Value="0" />
                         <Setter Target="ParametersField.Padding" Value="0,10" />
-                        <Setter Target="ModelTypeField.(Grid.Row)" Value="5" />
+                        <Setter Target="ModelTypeField.(Grid.Row)" Value="3" />
                         <Setter Target="ModelTypeField.(Grid.Column)" Value="0" />
                         <Setter Target="ModelTypeField.Padding" Value="0,10" />
-                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="6" />
+                        <Setter Target="DeclaredContextField.(Grid.Row)" Value="4" />
                         <Setter Target="DeclaredContextField.(Grid.Column)" Value="0" />
                         <Setter Target="DeclaredContextField.Padding" Value="0,10" />
-                        <Setter Target="FileSizeField.(Grid.Row)" Value="7" />
+                        <Setter Target="FileSizeField.(Grid.Row)" Value="5" />
                         <Setter Target="FileSizeField.(Grid.Column)" Value="0" />
                         <Setter Target="FileSizeField.Padding" Value="0,10" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Row)" Value="6" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.RowSpan)" Value="2" />
+                        <Setter Target="ModelConfigurationPanel.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Row)" Value="8" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelResultSummaryPanel.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="ReadyResultContentGrid.ColumnSpacing" Value="0" />
+                        <Setter Target="ReadyResultSummaryColumn.Width" Value="*" />
+                        <Setter Target="ReadyResultBadgeColumn.Width" Value="0" />
+                        <Setter Target="ReadyResultBadgeText.(Grid.Column)" Value="0" />
+                        <Setter Target="ReadyResultBadgeText.(Grid.Row)" Value="1" />
+                        <Setter Target="ReadyResultBadgeText.Margin" Value="0,8,0,0" />
+                        <Setter Target="ReadyResultBadgeText.HorizontalAlignment" Value="Left" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
