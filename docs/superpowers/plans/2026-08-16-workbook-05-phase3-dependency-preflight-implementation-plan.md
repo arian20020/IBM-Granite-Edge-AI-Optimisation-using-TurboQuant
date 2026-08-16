@@ -6,7 +6,7 @@
 
 **Architecture:** Add one dedicated GitHub Actions workflow with three boundaries: a GitHub-hosted repository contract, a manually confirmed Lenovo self-hosted collector, and a fresh GitHub-hosted validator. The collector creates one new `C:\w5c\dependency-preflight-<run-id>-<attempt>` workspace containing separate bootstrap and final virtual environments. It verifies immutable Optimum source trees, installs a committed hash-locked `pip-tools` bootstrap only in the bootstrap environment, generates a complete Windows/Python-specific ordinary-distribution lock, installs that lock into the untouched final environment, installs the two VCS projects from their verified local trees with dependency resolution and build isolation disabled, runs import/CLI/no-model checks, and writes `manifest.sha256` only after a schema-valid `Passed` decision. The existing Phase 3 offline fixture and blocked live asset-lock operation remain separate and unchanged.
 
-**Tech Stack:** Python 3.12.10 standard library, `jsonschema==4.25.1`, Windows PowerShell 5.1, Git, pip, `pip-tools==7.5.0`, GitHub Actions, `unittest`, Draft 2020-12 JSON Schema, SHA-256 manifests.
+**Tech Stack:** Python 3.12.10 standard library, `jsonschema==4.25.1`, Windows PowerShell 5.1, Git, `pip==26.1.2`, `pip-tools==7.6.0`, GitHub Actions, `unittest`, Draft 2020-12 JSON Schema, SHA-256 manifests.
 
 ## Approved boundaries
 
@@ -255,7 +255,7 @@ def test_bootstrap_lock_and_report_are_bound_into_decision(self):
     self.assertRegex(record["bootstrap_lock"]["sha256"], r"^[0-9a-f]{64}$")
 ```
 
-Also prove that a bootstrap lock/report digest mismatch is `IntegrityFailure`, every scientific flag stays false, and a Git-derived Optimum Intel local version matching `2.3.0.dev0+<commit-prefix>` is accepted only when its full source commit is independently correct.
+Also prove that a bootstrap lock/report digest mismatch is `IntegrityFailure`, every scientific flag stays false, and a Git-derived Optimum Intel local version matching `2.2.0.dev0+<commit-prefix>` is accepted only when its full source commit is independently correct.
 
 - [ ] **Step 2: Run and verify RED**
 
@@ -379,45 +379,25 @@ The CLI writes atomic JSON with the computed lock digest, package count, and act
 - [ ] **Step 4: Add the bootstrap input**
 
 ```text
-pip-tools==7.5.0
+pip-tools==7.6.0
+pip==26.1.2
 ```
+
+The second pin is deliberate. `pip-tools` 7.6.0 explicitly supports the pip 26.1 line; pinning the latest 26.1 patch prevents a later pip release from changing the resolver or installer beneath the reviewed generator.
 
 - [ ] **Step 5: Generate the bootstrap lock in a disposable Python 3.12.10 environment**
 
-The one-time repository-maintenance generation is not live acceptance evidence. Verify the exact official `pip-tools` 7.5.0 wheel digest before using it to generate the committed lock:
+The one-time repository-maintenance generation is not live acceptance evidence. Before generating the committed lock, verify these official wheel SHA-256 identities:
+
+```text
+pip-tools 7.6.0 wheel  4bd99155b6d8de358a214b0865e1a2855a453570c1a83d40f7b564870b8657be
+pip 26.1.2 wheel        382ff9f685ee3bc25864f820aa50505825f10f5458ffff07e30a6d96e5715cab
+```
+
+Create a disposable generator environment, install those exact verified wheels, and run:
 
 ```powershell
-$ErrorActionPreference = 'Stop'
-$python = 'C:\Program Files\Python312\python.exe'
-$expectedWheel = '69758e4e5a65f160e315d74db46246fdbb30d549f1ed0c4236d057122c9b0f18'
-$root = Join-Path $env:TEMP ('wb05-bootstrap-lock-' + [Guid]::NewGuid().ToString('N'))
-$download = Join-Path $root 'download'
-$venv = Join-Path $root 'venv'
-New-Item -ItemType Directory -Path $download -Force:$false | Out-Null
-
-& $python -m pip download `
-    --isolated `
-    --disable-pip-version-check `
-    --only-binary=:all: `
-    --no-deps `
-    --dest $download `
-    'pip-tools==7.5.0'
-if ($LASTEXITCODE -ne 0) { throw 'pip-tools wheel download failed.' }
-
-$wheel = @(Get-ChildItem -LiteralPath $download -Filter '*.whl' -File)
-if ($wheel.Count -ne 1) { throw 'Expected exactly one pip-tools wheel.' }
-$actualWheel = (Get-FileHash -LiteralPath $wheel[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($actualWheel -ne $expectedWheel) { throw "Unexpected pip-tools wheel digest: $actualWheel" }
-
-& $python -m venv $venv
-$venvPython = Join-Path $venv 'Scripts\python.exe'
-& $venvPython -m pip install `
-    --isolated `
-    --disable-pip-version-check `
-    $wheel[0].FullName
-if ($LASTEXITCODE -ne 0) { throw 'Disposable pip-tools installation failed.' }
-
-& $venvPython -m piptools compile `
+& $generatorPython -m piptools compile `
     --no-config `
     --resolver=backtracking `
     --generate-hashes `
@@ -425,18 +405,36 @@ if ($LASTEXITCODE -ne 0) { throw 'Disposable pip-tools installation failed.' }
     --allow-unsafe `
     --no-emit-index-url `
     --no-emit-trusted-host `
+    --no-header `
     --output-file 'scripts/testing/workbook05/requirements.phase3-bootstrap.txt' `
     'scripts/testing/workbook05/requirements.phase3-bootstrap.in'
-if ($LASTEXITCODE -ne 0) { throw 'Bootstrap lock generation failed.' }
-
-Remove-Item -LiteralPath $root -Recurse -Force
 ```
 
-The disposable generator is never accepted merely because it ran. The committed output must pass parser tests and a separate clean hash-enforced installation simulation before use.
+Normalise the generated file to UTF-8 without a BOM, LF-only line endings, and one final LF. Validate it with the repository CLI, then install it into a second clean Python 3.12.10 virtual environment using `--require-hashes --no-deps --report`. Validate that report against the same lock. The disposable generator is never accepted merely because it ran.
+
+The reviewed generation produced this exact nine-package set:
+
+```text
+build==1.5.0
+click==8.4.2
+colorama==0.4.6
+packaging==26.3
+pip==26.1.2
+pip-tools==7.6.0
+pyproject-hooks==1.2.0
+setuptools==84.0.0
+wheel==0.48.0
+```
+
+The committed lock SHA-256 is:
+
+```text
+44fec5a5c2b7fb0cd0aa36f52af1d664f65812f1b112ec1e78bc00c3c9ae288f
+```
 
 - [ ] **Step 6: Validate the real committed bootstrap lock**
 
-Require `pip-tools==7.5.0`, exact transitive pins, hashes for every distribution, no VCS/URL/editable/index directive, and deterministic LF text.
+Require both exact direct pins, the exact nine-package set above, one or more SHA-256 hashes for every distribution, no VCS/URL/editable/index directive, deterministic UTF-8/LF bytes, and the reviewed lock SHA-256. A second clean hash-enforced installation must succeed before the lock is used by the Lenovo collector.
 
 - [ ] **Step 7: Run focused tests**
 

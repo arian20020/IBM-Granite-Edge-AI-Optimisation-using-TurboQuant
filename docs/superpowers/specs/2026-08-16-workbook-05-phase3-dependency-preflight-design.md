@@ -274,9 +274,9 @@ The final evidence records:
 
 ### 8.2 Hash-locked bootstrap tools
 
-The live collector needs `pip-tools==7.5.0` to generate the ordinary-distribution lock. Installing the lock generator itself must not become an unrecorded dependency gap.
+The live collector needs `pip-tools==7.6.0` to generate the ordinary-distribution lock. The generator environment also pins `pip==26.1.2`, the latest patch in the pip 26.1 line that `pip-tools` 7.6.0 explicitly supports. A newer pip line is not admitted automatically because that would place the resolver outside the reviewed compatibility boundary. Installing the lock generator itself must not become an unrecorded dependency gap.
 
-The implementation will therefore add a small repository-controlled bootstrap requirements file containing exact versions and SHA-256 hashes for `pip-tools==7.5.0` and its ordinary dependencies. The bootstrap installation will use pip hash-checking mode and will be recorded in text logs. No bootstrap package is admitted through an unpinned name-only request.
+The implementation will therefore add a small repository-controlled bootstrap input containing exactly `pip-tools==7.6.0` and `pip==26.1.2`, plus a generated lock containing exact versions and SHA-256 hashes for every transitive ordinary dependency. The bootstrap installation will use pip hash-checking mode and will be recorded in text logs. No bootstrap package is admitted through an unpinned name-only request. The official wheel identities used to create the lock are `4bd99155b6d8de358a214b0865e1a2855a453570c1a83d40f7b564870b8657be` for `pip-tools` and `382ff9f685ee3bc25864f820aa50505825f10f5458ffff07e30a6d96e5715cab` for pip.
 
 ### 8.3 Source metadata validation before installation
 
@@ -286,7 +286,7 @@ This prevents a pinned commit from silently introducing an unexpected dependency
 
 ### 8.4 Ordinary-distribution lock
 
-The collector will generate a new lock on the target Windows/Python environment using `pip-tools==7.5.0` and `--generate-hashes`. This matters because environment markers and compatible wheel selections can vary by Python and platform.
+The collector will generate a new lock on the target Windows/Python environment using `pip-tools==7.6.0`, `pip==26.1.2`, and `--generate-hashes`. This matters because environment markers and compatible wheel selections can vary by Python and platform. Both generator versions are evidence-bearing configuration, not incidental machine state.
 
 The input to lock generation will include:
 
