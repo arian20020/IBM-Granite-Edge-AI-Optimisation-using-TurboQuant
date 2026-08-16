@@ -89,10 +89,17 @@ public sealed class InspectionModelCardTests
             1d,
             "ready title centre");
         Assert.AreEqual(
-            32d,
-            detailed.ActualWidth - chipOrigin.X - formatChip.ActualWidth,
-            1d,
-            "format chip remains right aligned");
+            detailedHeader.TransformToVisual(detailed)
+                .TransformPoint(new Point()).X + detailedHeader.ActualWidth,
+            chipOrigin.X + formatChip.ActualWidth,
+            0.01d,
+            "format chip aligns to the detailed header right edge");
+        Assert.AreEqual(
+            24d,
+            detailed.ActualWidth - detailed.BorderThickness.Right -
+                (chipOrigin.X + formatChip.ActualWidth),
+            0.01d,
+            "format chip remains 24px from the detailed card inner right edge");
         Assert.AreEqual(12d, detailed.CornerRadius.TopLeft, 0.01, "shared card radius");
         Assert.AreEqual(new Thickness(24d), compact.Padding, "compact view padding");
         Assert.AreEqual(24d, detailedHeader.Margin.Left, 0.01d, "detailed header left inset");
@@ -192,8 +199,14 @@ public sealed class InspectionModelCardTests
                 checksScrollViewer.MaxHeight,
                 0.01,
                 "bounded check viewport");
-            Assert.AreEqual(24d, viewportOrigin.X, 0.01, "report inset");
-            Assert.AreEqual(792d, viewport.ActualWidth, 0.01, "nested report width");
+            double viewportLeftInset = viewportOrigin.X - detailed.BorderThickness.Left;
+            double viewportRightInset = detailed.ActualWidth -
+                detailed.BorderThickness.Right - viewportOrigin.X - viewport.ActualWidth;
+            double expectedViewportWidth = detailed.ActualWidth -
+                detailed.BorderThickness.Left - detailed.BorderThickness.Right - 48d;
+            Assert.AreEqual(24d, viewportLeftInset, 0.01, "report inner left inset");
+            Assert.AreEqual(24d, viewportRightInset, 0.01, "report inner right inset");
+            Assert.AreEqual(expectedViewportWidth, viewport.ActualWidth, 0.01, "nested report inner width");
             Assert.IsGreaterThanOrEqualTo(
                 0d,
                 viewportOrigin.Y,
@@ -673,9 +686,17 @@ public sealed class InspectionModelCardTests
             ArrangeUntilStable(control, 840);
             Border compact = Find<Border>(control, "CompactView");
             Border badge = Find<Border>(control, "CompactStatusChip");
+            Grid compactGrid = Find<Grid>(control, "CompactGrid");
+            double expectedCompactHeight = compact.BorderThickness.Top +
+                compact.Padding.Top + compactGrid.ActualHeight +
+                compact.Padding.Bottom + compact.BorderThickness.Bottom;
 
             Assert.AreEqual(840d, compact.ActualWidth, 0.01);
-            Assert.AreEqual(94d, compact.ActualHeight, 0.01);
+            Assert.AreEqual(
+                expectedCompactHeight,
+                compact.ActualHeight,
+                0.01,
+                "compact card uses its realized content, shared padding, and border thickness");
             Assert.AreEqual(34d, badge.ActualHeight, 0.01);
             Assert.AreEqual(
                 "InspectedBadgeState",
@@ -745,7 +766,7 @@ public sealed class InspectionModelCardTests
                 badge.ActualHeight > 34d,
                 "the compact status chip must grow at 200% equivalent text size");
             Assert.IsTrue(
-                compact.ActualHeight > 94d,
+                compact.ActualHeight > expectedCompactHeight,
                 "the compact card must grow instead of clipping scaled content");
             await WaitForLayoutConditionAsync(
                 host,
