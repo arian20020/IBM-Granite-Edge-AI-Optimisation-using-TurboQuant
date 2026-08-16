@@ -27,6 +27,7 @@
             <SolidColorBrush x:Key="InspectionErrorTextBrush" Color="#B42318" />
             <SolidColorBrush x:Key="InspectionErrorTextStrongBrush" Color="#7A271A" />
             <SolidColorBrush x:Key="InspectionErrorBorderBrush" Color="#EDB3AD" />
+            <SolidColorBrush x:Key="InspectionCanvasBrush" Color="#F6F8FB" />
             <SolidColorBrush x:Key="InspectionSurfaceBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="InspectionSurfaceSubtleBrush" Color="#F7F9FC" />
             <SolidColorBrush x:Key="InspectionSurfaceMutedBrush" Color="#F8FAFC" />
@@ -59,6 +60,7 @@
             <SolidColorBrush x:Key="InspectionErrorTextBrush" Color="#FDA29B" />
             <SolidColorBrush x:Key="InspectionErrorTextStrongBrush" Color="#FECDCA" />
             <SolidColorBrush x:Key="InspectionErrorBorderBrush" Color="#D92D20" />
+            <SolidColorBrush x:Key="InspectionCanvasBrush" Color="#0C111D" />
             <SolidColorBrush x:Key="InspectionSurfaceBrush" Color="#101828" />
             <SolidColorBrush x:Key="InspectionSurfaceSubtleBrush" Color="#1D2939" />
             <SolidColorBrush x:Key="InspectionSurfaceMutedBrush" Color="#182230" />
@@ -91,6 +93,7 @@
             <SolidColorBrush x:Key="InspectionErrorTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="InspectionErrorTextStrongBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="InspectionErrorBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="InspectionCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="InspectionSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="InspectionSurfaceSubtleBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="InspectionSurfaceMutedBrush" Color="{ThemeResource SystemColorWindowColor}" />
@@ -134,5 +137,7 @@
     <x:Double x:Key="InspectionProgressHeadingGap">16</x:Double>
     <x:Double x:Key="InspectionProgressRowHeight">48</x:Double>
     <Thickness x:Key="InspectionCardPadding">24</Thickness>
+    <Thickness x:Key="InspectionDesktopPageMargin">24,28,24,32</Thickness>
+    <Thickness x:Key="InspectionCompactPageMargin">16,24,16,24</Thickness>
     <CornerRadius x:Key="InspectionCardCornerRadius">12</CornerRadius>
 </ResourceDictionary>

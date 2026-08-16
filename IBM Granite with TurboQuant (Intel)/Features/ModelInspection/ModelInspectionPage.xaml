@@ -9,7 +9,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     d:DesignHeight="1024"
     d:DesignWidth="1440"
-    RequestedTheme="Light"
     mc:Ignorable="d">
 
     <!--
@@ -18,7 +17,7 @@
     -->
     <Grid
         x:Name="LayoutRoot"
-        Background="{ThemeResource InspectionSurfaceBrush}">
+        Background="{ThemeResource InspectionCanvasBrush}">
 
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="ResponsivePageStates">
@@ -27,7 +26,7 @@
                         <AdaptiveTrigger MinWindowWidth="888" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="InspectionContentHost.Margin" Value="24,28,24,32" />
+                        <Setter Target="InspectionContentHost.Margin" Value="{StaticResource InspectionDesktopPageMargin}" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="MediumPageState">
@@ -35,7 +34,7 @@
                         <AdaptiveTrigger MinWindowWidth="600" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="InspectionContentHost.Margin" Value="24,28,24,32" />
+                        <Setter Target="InspectionContentHost.Margin" Value="{StaticResource InspectionDesktopPageMargin}" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="NarrowPageState">
@@ -43,7 +42,7 @@
                         <AdaptiveTrigger MinWindowWidth="0" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="InspectionContentHost.Margin" Value="16,28,16,32" />
+                        <Setter Target="InspectionContentHost.Margin" Value="{StaticResource InspectionCompactPageMargin}" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -65,7 +64,7 @@
                 <Grid
                     x:Name="InspectionContentHost"
                     MaxWidth="{StaticResource InspectionContentColumnWidth}"
-                    Margin="16,28,16,32"
+                    Margin="{StaticResource InspectionCompactPageMargin}"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top">
                     <Grid
