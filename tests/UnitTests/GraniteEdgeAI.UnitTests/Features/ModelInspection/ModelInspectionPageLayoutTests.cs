@@ -71,17 +71,15 @@ public sealed class ModelInspectionPageLayoutTests
             Assert.AreSame(
                 Application.Current.Resources["InspectionBodyFontFamily"],
                 subtitle.FontFamily);
-            Assert.AreEqual(page.ActualTheme, title.ActualTheme);
-            Assert.AreEqual(page.ActualTheme, subtitle.ActualTheme);
-            string inheritedTheme = title.ActualTheme.ToString();
-            Assert.IsTrue(
-                inheritedTheme is "Light" or "Dark",
-                $"title must inherit a Light or Dark application theme, not {inheritedTheme}");
+            Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+            Assert.AreEqual(ElementTheme.Light, page.ActualTheme);
+            Assert.AreEqual(ElementTheme.Light, title.ActualTheme);
+            Assert.AreEqual(ElementTheme.Light, subtitle.ActualTheme);
             Assert.AreSame(
-                ThemeResource(inheritedTheme, "InspectionTextPrimaryBrush"),
+                ThemeResource("Light", "InspectionTextPrimaryBrush"),
                 title.Foreground);
             Assert.AreSame(
-                ThemeResource(inheritedTheme, "InspectionTextSecondaryMutedBrush"),
+                ThemeResource("Light", "InspectionTextSecondaryMutedBrush"),
                 subtitle.Foreground);
         }
         finally
@@ -220,14 +218,11 @@ public sealed class ModelInspectionPageLayoutTests
                 theme.ContainsKey("InspectionCanvasBrush"),
                 $"{themeName} must define InspectionCanvasBrush");
         }
-        Assert.AreEqual(ElementTheme.Default, page.RequestedTheme);
-        Assert.AreEqual(page.ActualTheme, layoutRoot.ActualTheme);
-        string inheritedTheme = layoutRoot.ActualTheme.ToString();
-        Assert.IsTrue(
-            inheritedTheme is "Light" or "Dark",
-            $"LayoutRoot must inherit a Light or Dark application theme, not {inheritedTheme}");
+        Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+        Assert.AreEqual(ElementTheme.Light, page.ActualTheme);
+        Assert.AreEqual(ElementTheme.Light, layoutRoot.ActualTheme);
         Assert.AreSame(
-            ThemeResource(inheritedTheme, "InspectionCanvasBrush"),
+            ThemeResource("Light", "InspectionCanvasBrush"),
             layoutRoot.Background);
         Assert.AreEqual(16d, resources["InspectionCardGap"]);
         Assert.AreEqual(24d, resources["InspectionHeaderToCardGap"]);

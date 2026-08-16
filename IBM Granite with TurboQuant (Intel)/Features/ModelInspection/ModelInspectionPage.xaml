@@ -9,6 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     d:DesignHeight="1024"
     d:DesignWidth="1440"
+    RequestedTheme="Light"
     mc:Ignorable="d">
 
     <!--
