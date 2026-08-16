@@ -42,6 +42,19 @@ def _lock_text() -> str:
     )
 
 
+def _bootstrap_lock_text() -> str:
+    packages = (
+        ("build", "1.3.0", "1"),
+        ("click", "8.2.1", "2"),
+        ("pip-tools", "7.5.0", "3"),
+        ("pyproject-hooks", "1.2.0", "4"),
+    )
+    return "".join(
+        f"{name}=={version} --hash=sha256:{_digest(character)}\n"
+        for name, version, character in packages
+    )
+
+
 def _install_report() -> dict[str, object]:
     packages = (
         ("transformers", "5.5.0", "a"),
@@ -69,8 +82,41 @@ def _install_report() -> dict[str, object]:
     }
 
 
+def _bootstrap_install_report() -> dict[str, object]:
+    packages = (
+        ("build", "1.3.0", "1"),
+        ("click", "8.2.1", "2"),
+        ("pip-tools", "7.5.0", "3"),
+        ("pyproject-hooks", "1.2.0", "4"),
+    )
+    return {
+        "version": "1",
+        "pip_version": "25.2",
+        "install": [
+            {
+                "download_info": {
+                    "url": f"https://files.pythonhosted.org/{name}.whl",
+                    "archive_info": {
+                        "hashes": {"sha256": _digest(character)}
+                    },
+                },
+                "is_direct": name == "pip-tools",
+                "requested": name == "pip-tools",
+                "metadata": {"name": name, "version": version},
+            }
+            for name, version, character in packages
+        ],
+    }
+
+
+def _json_text(value: object) -> str:
+    return json.dumps(value, indent=2, sort_keys=True) + "\n"
+
+
 def _observation() -> dict[str, object]:
     lock = _lock_text()
+    bootstrap_lock = _bootstrap_lock_text()
+    bootstrap_report_text = _json_text(_bootstrap_install_report())
     return {
         "generated_at_utc": "2026-08-14T12:00:00Z",
         "workspace_root": r"C:\w5c\dependency-preflight-31820000000-1",
@@ -105,15 +151,27 @@ def _observation() -> dict[str, object]:
             },
         ],
         "direct_requirements": list(REVIEWED_DIRECT_REQUIREMENTS),
+        "bootstrap_lock_path": "locks/requirements.phase3-bootstrap.txt",
+        "bootstrap_lock_text": bootstrap_lock,
+        "bootstrap_lock_sha256": hashlib.sha256(
+            bootstrap_lock.encode("utf-8")
+        ).hexdigest(),
+        "bootstrap_install_report_path": (
+            "reports/bootstrap-install-report.json"
+        ),
+        "bootstrap_install_report_text": bootstrap_report_text,
+        "bootstrap_install_report_sha256": hashlib.sha256(
+            bootstrap_report_text.encode("utf-8")
+        ).hexdigest(),
         "lock_path": "locks/requirements.phase3-assets.txt",
         "lock_text": lock,
-        "lock_sha256": hashlib.sha256(lock.encode()).hexdigest(),
+        "lock_sha256": hashlib.sha256(lock.encode("utf-8")).hexdigest(),
         "lock_generator": "pip-tools==7.5.0",
         "normal_install_report": _install_report(),
         "vcs_packages": [
             {
                 "name": "optimum-intel",
-                "version": "2.3.0.dev0",
+                "version": "2.2.0.dev0",
                 "commit": OPTIMUM_INTEL_COMMIT,
             },
             {
@@ -164,7 +222,7 @@ class Phase3DependencyBundleValidationTests(unittest.TestCase):
     @staticmethod
     def _write_json(path: Path, value: object) -> None:
         path.write_text(
-            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            _json_text(value),
             encoding="utf-8",
             newline="\n",
         )
@@ -177,8 +235,20 @@ class Phase3DependencyBundleValidationTests(unittest.TestCase):
         decision = build_dependency_preflight_record(observation)
         self._write_json(self.bundle / "decision.json", decision)
         self._write_json(self.bundle / "observation.json", observation)
+        (self.bundle / "locks" / "requirements.phase3-bootstrap.txt").write_text(
+            str(observation["bootstrap_lock_text"]),
+            encoding="utf-8",
+            newline="\n",
+        )
+        (
+            self.bundle / "reports" / "bootstrap-install-report.json"
+        ).write_text(
+            str(observation["bootstrap_install_report_text"]),
+            encoding="utf-8",
+            newline="\n",
+        )
         (self.bundle / "locks" / "requirements.phase3-assets.txt").write_text(
-            observation["lock_text"],
+            str(observation["lock_text"]),
             encoding="utf-8",
             newline="\n",
         )
