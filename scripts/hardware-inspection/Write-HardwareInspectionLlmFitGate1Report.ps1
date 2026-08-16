@@ -451,7 +451,10 @@ function Read-FullEvidence {
         $gpuReported = Assert-Bool $value 'gpuReported'
         $gpuCount = Assert-Integer $value 'reportedGpuCount'
         $intelGpu = Assert-Bool $value 'intelGpuReported'
-        Assert-Condition ($gpuCount -ge 0 -and ($gpuReported -or ($gpuCount -eq 0 -and -not $intelGpu)) -and ((-not $intelGpu) -or ($gpuReported -and $gpuCount -gt 0))) "GPU evidence is inconsistent: reported=$gpuReported count=$gpuCount intel=$intelGpu."
+        $gpuConsistent = $gpuCount -ge 0 -and
+            $gpuReported -eq ($gpuCount -gt 0) -and
+            ((-not $intelGpu) -or ($gpuReported -and $gpuCount -gt 0))
+        Assert-Condition $gpuConsistent 'GPU evidence is inconsistent.'
         $memorySemantics = Assert-Bool $value 'dedicatedSharedMemorySemanticsEstablished'
         Assert-Condition ((Assert-String $value 'intelNpuDetectionState') -ceq 'DetectionUnavailable') 'Intel NPU state is invalid.'
         $versionSocket = Assert-Bool $value 'versionCandidateSocketObserved'
@@ -473,7 +476,8 @@ function Read-FullEvidence {
             $observedPe -ceq 'AMD64' -and $versionExit -eq 0 -and $systemExit -eq 0 -and
             -not $processStartFailed -and -not $socketObservationFailed -and -not $timedOut -and
             -not $cancelled -and -not $stdoutTruncated -and -not $stderrTruncated -and
-            $jsonValid -and $cpuRam -and -not $versionSocket -and -not $versionDashboard -and
+            $jsonValid -and $cpuRam -and $gpuConsistent -and -not $memorySemantics -and
+            -not $versionSocket -and -not $versionDashboard -and
             -not $systemSocket -and -not $systemDashboard -and -not $versionResidual -and
             -not $systemResidual -and $null -ne $rawName -and $hardDiagnostics.Count -eq 0
         if ($disposition -cin @('FunctionalPassWithPackagingConcern','AcceptedForFunctionalEvaluation')) {
@@ -589,7 +593,11 @@ function Read-FullReference {
             Disposition = $gateDisposition; Before = $before; Started = $started
             Completed = $completed; After = $after; IntervalMilliseconds = $interval
             CaptureWithinThirtySeconds = $withinThirty; WindowsX64 = $windowsX64
-            WindowsLogicalProcessorCount = $windowsLogical; WindowsIntelCpuObserved = $intelCpu
+            WindowsLogicalProcessorCount = $windowsLogical
+            WindowsTotalPhysicalMemoryBytes = $windowsTotalBytes
+            WindowsFreePhysicalMemoryBeforeKiB = $freeBefore
+            WindowsFreePhysicalMemoryAfterKiB = $freeAfter
+            WindowsIntelCpuObserved = $intelCpu
             WindowsIntelGpuObserved = $intelGpuObserved; CpuIdentityMatched = $cpuIdentity
             LlmFitLogicalProcessorCount = $llmLogical; LogicalProcessorCountMatched = $logicalMatched
             TotalRamDeltaGiB = $totalDelta; TotalRamToleranceGiB = $totalTolerance
@@ -610,6 +618,22 @@ function Read-FullReference {
 
 function Test-FullEvidenceReferenceConsistency {
     param([object] $Evidence, [object] $Reference)
+
+    if ($null -eq $Evidence.TotalRamGiB -or $null -eq $Evidence.AvailableRamGiB) {
+        return $false
+    }
+
+    $comparisonEpsilon = 0.000001
+    $windowsTotalGiB = [double]$Reference.WindowsTotalPhysicalMemoryBytes / 1073741824.0
+    $expectedTotalDeltaGiB = [Math]::Abs([double]$Evidence.TotalRamGiB - $windowsTotalGiB)
+    $expectedTotalToleranceGiB = 1.0
+    $midpointAvailableGiB = (
+        ([double]$Reference.WindowsFreePhysicalMemoryBeforeKiB +
+            [double]$Reference.WindowsFreePhysicalMemoryAfterKiB) / 2.0) / 1048576.0
+    $expectedAvailableDeltaGiB = [Math]::Abs(
+        [double]$Evidence.AvailableRamGiB - $midpointAvailableGiB)
+    $expectedAvailableToleranceGiB = [Math]::Max(2.0, $windowsTotalGiB * 0.1)
+
     return $Evidence.Started -eq $Reference.Started -and
         $Evidence.Completed -eq $Reference.Completed -and
         $Evidence.Disposition -ceq $Reference.Disposition -and
@@ -617,6 +641,12 @@ function Test-FullEvidenceReferenceConsistency {
         $Evidence.JsonValid -eq $Reference.JsonValid -and
         $Evidence.RequiredCpuRamPresent -eq $Reference.RequiredCpuRamPresent -and
         $Evidence.CpuLogicalProcessorCount -eq $Reference.LlmFitLogicalProcessorCount -and
+        [Math]::Abs($Reference.TotalRamDeltaGiB - $expectedTotalDeltaGiB) -le $comparisonEpsilon -and
+        [Math]::Abs($Reference.TotalRamToleranceGiB - $expectedTotalToleranceGiB) -le $comparisonEpsilon -and
+        $Reference.TotalRamWithinTolerance -eq ($expectedTotalDeltaGiB -le $expectedTotalToleranceGiB) -and
+        [Math]::Abs($Reference.AvailableRamDeltaGiB - $expectedAvailableDeltaGiB) -le $comparisonEpsilon -and
+        [Math]::Abs($Reference.AvailableRamToleranceGiB - $expectedAvailableToleranceGiB) -le $comparisonEpsilon -and
+        $Reference.AvailableRamWithinTolerance -eq ($expectedAvailableDeltaGiB -le $expectedAvailableToleranceGiB) -and
         $Evidence.DedicatedSharedMemorySemanticsEstablished -eq $Reference.DedicatedSharedMemorySemanticsEstablished -and
         $Evidence.VersionSocket -eq $Reference.VersionSocket -and
         $Evidence.VersionDashboard -eq $Reference.VersionDashboard -and
