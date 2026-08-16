@@ -1,0 +1,192 @@
+name: Hardware Inspection LLM Fit Spike
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hardware-inspection-llmfit-spike.yml"
+      - "global.json"
+      - "tools/HardwareInspection.LlmFitSpike/**"
+      - "tools/HardwareInspection.LlmFitSpike.Tests/**"
+      - "tools/HardwareInspection.LlmFitSpike.IntegrationTests/**"
+      - "tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlmFitFakeTool/**"
+      - "scripts/hardware-inspection/**"
+      - "docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hardware-inspection-llmfit-spike.yml"
+      - "global.json"
+      - "tools/HardwareInspection.LlmFitSpike/**"
+      - "tools/HardwareInspection.LlmFitSpike.Tests/**"
+      - "tools/HardwareInspection.LlmFitSpike.IntegrationTests/**"
+      - "tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlmFitFakeTool/**"
+      - "scripts/hardware-inspection/**"
+  workflow_dispatch:
+
+concurrency:
+  group: hardware-inspection-llmfit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          global-json-file: global.json
+      - name: Create fresh runner-local result directory
+        shell: pwsh
+        run: |
+          $resultRoot = Join-Path `
+            $env:RUNNER_TEMP `
+            "hardware-inspection-llmfit-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          if (Test-Path -LiteralPath $resultRoot) {
+            throw "The fresh result directory already exists."
+          }
+          New-Item -ItemType Directory -Path $resultRoot | Out-Null
+          "HARDWARE_INSPECTION_RESULTS=$resultRoot" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore tools/HardwareInspection.LlmFitSpike.Tests/HardwareInspection.LlmFitSpike.Tests.csproj --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deterministic restore failed with exit code $LASTEXITCODE."
+          }
+          dotnet restore tools/HardwareInspection.LlmFitSpike.IntegrationTests/HardwareInspection.LlmFitSpike.IntegrationTests.csproj --runtime win-x64
+          if ($LASTEXITCODE -ne 0) {
+            throw "Integration restore failed with exit code $LASTEXITCODE."
+          }
+      - name: Build trusted-target test harness
+        run: dotnet build tools/HardwareInspection.LlmFitSpike.IntegrationTests/HardwareInspection.LlmFitSpike.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
+      - name: Build deterministic test harness
+        run: dotnet build tools/HardwareInspection.LlmFitSpike.Tests/HardwareInspection.LlmFitSpike.Tests.csproj --configuration Release --runtime win-x64 --no-restore
+      - name: Publish harmless process fixture
+        shell: pwsh
+        run: |
+          $fixtureRoot = Join-Path $env:RUNNER_TEMP "hardware-inspection-llmfit-fake"
+          dotnet publish tests/ProcessFixtures/GraniteEdgeAI.HardwareInspection.LlmFitFakeTool/GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --no-restore `
+            --output $fixtureRoot `
+            -p:UseAppHost=true
+          if ($LASTEXITCODE -ne 0) {
+            throw "Harmless process fixture publish failed with exit code $LASTEXITCODE."
+          }
+          "GRANITE_LLMFIT_FAKE_TOOL_ROOT=$fixtureRoot" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Test deterministic contracts
+        shell: pwsh
+        run: |
+          dotnet test `
+            --project tools/HardwareInspection.LlmFitSpike.Tests/HardwareInspection.LlmFitSpike.Tests.csproj `
+            --configuration Release `
+            --no-restore `
+            --no-build `
+            --runtime win-x64 `
+            --filter "TestCategory=Deterministic" `
+            --minimum-expected-tests 174 `
+            --results-directory $env:HARDWARE_INSPECTION_RESULTS `
+            --report-trx `
+            --report-trx-filename hardware-inspection-llmfit-deterministic.trx `
+            --no-ansi
+          if ($LASTEXITCODE -ne 0) {
+            throw "Deterministic contracts failed with exit code $LASTEXITCODE."
+          }
+      - name: Test Task 8 deterministic integration guards
+        shell: pwsh
+        run: |
+          dotnet test `
+            --project tools/HardwareInspection.LlmFitSpike.IntegrationTests/HardwareInspection.LlmFitSpike.IntegrationTests.csproj `
+            --configuration Release `
+            --no-restore `
+            --no-build `
+            --runtime win-x64 `
+            --filter "TestCategory=Task8Deterministic" `
+            --minimum-expected-tests 3 `
+            --results-directory $env:HARDWARE_INSPECTION_RESULTS `
+            --report-trx `
+            --report-trx-filename hardware-inspection-llmfit-task8-deterministic.trx `
+            --no-ansi
+          if ($LASTEXITCODE -ne 0) {
+            throw "Task 8 deterministic guards failed with exit code $LASTEXITCODE."
+          }
+      - name: Validate and sanitize test counts
+        shell: pwsh
+        run: |
+          function Read-PassingTrx {
+            param(
+              [string] $Path,
+              [int] $ExpectedMinimum,
+              [string] $Suite,
+              [string[]] $ExpectedNames = @())
+            $settings = [System.Xml.XmlReaderSettings]::new()
+            $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+            $settings.XmlResolver = $null
+            $reader = [System.Xml.XmlReader]::Create($Path, $settings)
+            $document = [System.Xml.XmlDocument]::new()
+            $document.XmlResolver = $null
+            try { $document.Load($reader) } finally { $reader.Dispose() }
+            $manager = [System.Xml.XmlNamespaceManager]::new($document.NameTable)
+            $manager.AddNamespace("t", "http://microsoft.com/schemas/VisualStudio/TeamTest/2010")
+            $results = @($document.SelectNodes("/t:TestRun/t:Results/t:UnitTestResult", $manager))
+            if ($results.Count -lt $ExpectedMinimum -or
+                @($results | Where-Object { $_.GetAttribute("outcome") -cne "Passed" }).Count -ne 0) {
+              throw "$Suite result identities or outcomes differ."
+            }
+            if ($ExpectedNames.Count -ne 0) {
+              $actualNames = @($results | ForEach-Object { $_.GetAttribute("testName") })
+              if ($actualNames.Count -ne $ExpectedNames.Count -or
+                  @($actualNames | Where-Object { $ExpectedNames -cnotcontains $_ }).Count -ne 0) {
+                throw "$Suite exact test identities differ."
+              }
+            }
+            $counters = $document.SelectSingleNode("/t:TestRun/t:ResultSummary/t:Counters", $manager)
+            if ($null -eq $counters -or
+                [int]$counters.total -ne $results.Count -or
+                [int]$counters.executed -ne $results.Count -or
+                [int]$counters.passed -ne $results.Count) {
+              throw "$Suite counters differ from result nodes."
+            }
+            foreach ($name in "failed","error","timeout","aborted","inconclusive","passedButRunAborted","notRunnable","notExecuted","disconnected","warning","completed","inProgress","pending") {
+              if ([int]$counters.$name -ne 0) { throw "$Suite has a nonpassing counter." }
+            }
+            return [ordered]@{ suite = $Suite; total = $results.Count; passed = $results.Count; nonpassing = 0 }
+          }
+          $summary = [ordered]@{
+            schemaVersion = "1.0"
+            deterministic = Read-PassingTrx `
+              (Join-Path $env:HARDWARE_INSPECTION_RESULTS "hardware-inspection-llmfit-deterministic.trx") `
+              174 `
+              "HardwareInspection.LlmFitSpike.Tests/Deterministic"
+            task8Deterministic = Read-PassingTrx `
+              (Join-Path $env:HARDWARE_INSPECTION_RESULTS "hardware-inspection-llmfit-task8-deterministic.trx") `
+              3 `
+              "HardwareInspection.LlmFitSpike.IntegrationTests/Task8Deterministic" `
+              @(
+                "ArtifactStringShape_RejectsPathsAndFreeTextWithGenericDiagnostics",
+                "CaptureInterval_ThirtySecondsPlusOneTickIsOutsideBoundary",
+                "StableFileIdentity_HardLinkAliasMatchesPhysicalFileAndIsRemoved")
+          }
+          $summaryPath = Join-Path $env:HARDWARE_INSPECTION_RESULTS "hardware-inspection-llmfit-summary.json"
+          $json = $summary | ConvertTo-Json -Depth 4
+          if ($json -match '[A-Za-z]:\\' -or $json -match 'computerName|userName|stdout|stderr') {
+            throw "Sanitized count summary failed its privacy scan."
+          }
+          [System.IO.File]::WriteAllText(
+            $summaryPath,
+            $json,
+            [System.Text.UTF8Encoding]::new($false, $true))
+      - name: Upload sanitized count summary
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: hardware-inspection-llmfit-test-summary
+          path: ${{ env.HARDWARE_INSPECTION_RESULTS }}/hardware-inspection-llmfit-summary.json
+          if-no-files-found: error
